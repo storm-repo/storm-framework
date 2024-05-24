@@ -1,0 +1,28 @@
+### Embedded H2 Settings ###
+spring:
+  test:
+   database:
+    replace: auto_configured
+### Local MySQL Settings ###
+#    replace: none
+#  datasource:
+#    url: jdbc:mariadb://localhost:3306/test
+#    username: root
+#    password: test
+############################
+  datasource:
+    hikari:
+      maximum-pool-size: 4
+  jpa:
+    hibernate:
+      ddl-auto: create
+    defer-datasource-initialization: true
+  sql:
+    init:
+      mode: always
+
+logging:
+  level:
+    root: INFO
+    org.springframework: WARN
+    org.squarebrackets.query: INFO
