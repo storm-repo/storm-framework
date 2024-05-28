@@ -13,7 +13,6 @@ import st.orm.template.impl.Elements.TableSource;
 import st.orm.template.impl.Elements.TemplateExpression;
 import st.orm.template.impl.Elements.TemplateSource;
 import st.orm.template.impl.Elements.Where;
-import st.orm.template.impl.SqlTemplateImpl.Eval;
 import st.orm.template.impl.SqlTemplateImpl.Join;
 import st.orm.template.impl.SqlTemplateImpl.On;
 
@@ -30,7 +29,6 @@ import static java.lang.Integer.MAX_VALUE;
 import static java.lang.StringTemplate.RAW;
 import static java.util.Objects.requireNonNull;
 import static java.util.Spliterators.spliteratorUnknownSize;
-import static st.orm.Templates.unsafe;
 import static st.orm.template.JoinType.cross;
 import static st.orm.template.JoinType.inner;
 import static st.orm.template.JoinType.left;
@@ -74,12 +72,7 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
     }
 
     private StringTemplate getTemplate(@Nonnull TemplateFunction function, boolean newLine) {
-        List<StringTemplate> templates = new ArrayList<>();
-        templates.add(RAW."\{unsafe((newLine ? "\n" : "") + function.interpolate(o -> {
-            templates.add(RAW."\{new Eval(o)}");
-            return "%s";
-        }))}");
-        return StringTemplate.combine(templates);
+        return TemplateFunctionHelper.template(function, newLine);
     }
 
     @Override

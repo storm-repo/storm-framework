@@ -27,15 +27,13 @@ import st.orm.template.impl.Elements.Unsafe;
 import st.orm.template.impl.Elements.Update;
 import st.orm.template.impl.Elements.Values;
 import st.orm.template.impl.Elements.Where;
-import st.orm.template.impl.SqlTemplateImpl.Eval;
 import st.orm.template.impl.SqlTemplateImpl.Join;
-import st.orm.template.impl.SqlTemplateImpl.ResolvedEval;
 import st.orm.template.impl.SqlTemplateImpl.Wrapped;
 
 /**
  *
  */
 public sealed interface Element
-        permits Alias, Delete, From, Insert, Param, Select, Set, Table, Unsafe, Update, Values, Where, Eval, Join, ResolvedEval, Wrapped {
+        permits Alias, Delete, From, Insert, Param, Select, Set, Table, Unsafe, Update, Values, Where, Join, Wrapped {
 
 }

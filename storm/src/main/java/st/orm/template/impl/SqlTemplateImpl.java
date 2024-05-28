@@ -51,7 +51,6 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -78,6 +77,7 @@ import static java.lang.Character.toLowerCase;
 import static java.lang.Long.toHexString;
 import static java.lang.StringTemplate.RAW;
 import static java.lang.System.getProperty;
+import static java.lang.System.identityHashCode;
 import static java.lang.ThreadLocal.withInitial;
 import static java.util.Collections.newSetFromMap;
 import static java.util.Comparator.comparing;
@@ -183,13 +183,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
             requireNonNull(toTable, "toTable");
         }
     }
-
-    record Eval(@Nonnull Object object) implements Element {
-        public Eval {
-            requireNonNull(object, "object");
-        }
-    }
-    record ResolvedEval(@Nonnull Element element) implements Element {}
 
     private final boolean positionalOnly;
     private final boolean expandCollection;
@@ -327,7 +320,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
 
         @Override
         public String toString() {
-            return STR."\{getClass().getSimpleName()}@\{toHexString(System.identityHashCode(this))}";
+            return STR."\{getClass().getSimpleName()}@\{toHexString(identityHashCode(this))}";
         }
     }
 
@@ -352,26 +345,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
         };
     }
 
-    private Element resolveCollectionElement(@Nonnull SqlMode mode,
-                                             @Nonnull Collection<?> collection) throws SqlTemplateException {
-        return switch (mode) {
-            case SELECT, DELETE -> w(collection);
-            case INSERT, UPDATE -> p(collection);
-            case UNDEFINED -> throw new SqlTemplateException("Collection element not supported in undefined sql mode.");
-        };
-    }
-
-    @SuppressWarnings("unchecked")
-    private Element resolveStreamElement(@Nonnull SqlMode mode,
-                                         @Nonnull Stream<?> stream) throws SqlTemplateException {
-        return switch (mode) {
-            case SELECT, DELETE -> w(stream);
-            case INSERT -> v((Stream<Record>) stream);
-            case UPDATE -> throw new SqlTemplateException("Stream element not supported in update sql mode.");
-            case UNDEFINED -> throw new SqlTemplateException("Stream element not supported in undefined sql mode.");
-        };
-    }
-
     private Element resolveRecordElement(@Nonnull SqlMode mode,
                                          @Nonnull List<Element> resolvedElements,
                                          @Nonnull Record record) throws SqlTemplateException {
@@ -388,6 +361,17 @@ public final class SqlTemplateImpl implements SqlTemplate {
         };
     }
 
+    @SuppressWarnings("unchecked")
+    private Element resolveStreamElement(@Nonnull SqlMode mode,
+                                         @Nonnull Stream<?> stream) throws SqlTemplateException {
+        return switch (mode) {
+            case SELECT, DELETE -> w(stream);
+            case INSERT -> v((Stream<Record>) stream);
+            case UPDATE -> throw new SqlTemplateException("Stream element not supported in update sql mode.");
+            case UNDEFINED -> throw new SqlTemplateException("Stream element not supported in undefined sql mode.");
+        };
+    }
+
     private Element resolveTypeElement(@Nonnull SqlMode mode,
                                        @Nonnull List<Element> resolvedElements,
                                        @Nonnull List<?> values,
@@ -396,49 +380,43 @@ public final class SqlTemplateImpl implements SqlTemplate {
         List<Element> allElements = new ArrayList<>();
         allElements.addAll(resolvedElements.stream()
                 .flatMap(e -> e instanceof Wrapped w ? w.elements().stream() : Stream.of(e))
-                .map(e -> e instanceof ResolvedEval re ? re.element() : e)
                 .toList());
         allElements.addAll(values.stream()
                 .filter(v -> v instanceof Element)
                 .map(Element.class::cast)
                 .toList());
+        if (nextFragment.startsWith(".")) {
+            return alias(recordType);
+        }
         return switch (mode) {
             case SELECT -> {
-                if (!nextFragment.startsWith(".")) {
-                    if (allElements.stream().noneMatch(Select.class::isInstance)) {
-                        yield select(recordType);
-                    }
-                    if (allElements.stream().noneMatch(From.class::isInstance)) {
-                        yield from((Class<? extends Record>) recordType);
-                    }
+                if (allElements.stream().noneMatch(Select.class::isInstance)) {
+                    yield select(recordType);
+                }
+                if (allElements.stream().noneMatch(From.class::isInstance)) {
+                    yield from((Class<? extends Record>) recordType);
                 }
                 yield alias(recordType);
             }
             case INSERT -> {
-                if (!nextFragment.startsWith(".")) {
-                    if (allElements.stream().noneMatch(Insert.class::isInstance)) {
-                        yield insert(recordType);
-                    }
+                if (allElements.stream().noneMatch(Insert.class::isInstance)) {
+                    yield insert(recordType);
                 }
                 yield alias(recordType);
             }
             case UPDATE -> {
-                if (!nextFragment.startsWith(".")) {
-                    if (allElements.stream().noneMatch(Update.class::isInstance)) {
-                        yield update((Class<? extends Record>) recordType);
-                    }
+                if (allElements.stream().noneMatch(Update.class::isInstance)) {
+                    yield update((Class<? extends Record>) recordType);
                 }
                 yield alias(recordType);
             }
             case DELETE -> {
-                if (!nextFragment.startsWith(".")) {
-                    if (allElements.stream().noneMatch(Delete.class::isInstance)
-                            && nextFragment.matches("\\W+FROM\\W+")) {
-                        yield delete(recordType);
-                    }
-                    if (allElements.stream().noneMatch(From.class::isInstance)) {
-                        yield from(recordType);
-                    }
+                if (allElements.stream().noneMatch(Delete.class::isInstance)
+                        && nextFragment.matches("\\W+FROM\\W+")) {
+                    yield delete(recordType);
+                }
+                if (allElements.stream().noneMatch(From.class::isInstance)) {
+                    yield from(recordType);
                 }
                 yield alias(recordType);
             }
@@ -493,27 +471,16 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 }
                 case Expression _ -> throw new SqlTemplateException("Expression element not allowed in this context.");
                 case BindVars b -> resolvedValues.add(resolveBindVarsElement(sqlMode, resolvedValues, b));
-                case Eval e -> resolvedValues.add(new ResolvedEval(switch (e.object()) {
-                    case Element it -> it;
-                    case Stream<?> s -> resolveStreamElement(sqlMode, s);
-                    case Record r -> resolveRecordElement(sqlMode, resolvedValues, r);
-                    case Class<?> c when c.isRecord() -> //noinspection unchecked
-                            resolveTypeElement(sqlMode, resolvedValues, values, f, (Class<? extends Record>) c);
-                    // Note that the following flow would also support Class<?> c. but we'll keep the Class<?> c case for performance and readability.
-                    case Object k when REFLECTION.isSupportedType(k) -> resolveTypeElement(sqlMode, resolvedValues, values, f, REFLECTION.getRecordType(k));
-                    default -> param(e.object());
-                }));
                 case Element e -> resolvedValues.add(e);
                 case Stream<?> l -> resolvedValues.add(resolveStreamElement(sqlMode, l));
                 case Record r -> resolvedValues.add(resolveRecordElement(sqlMode, resolvedValues, r));
                 case Class<?> c when c.isRecord() -> //noinspection unchecked
                         resolvedValues.add(
                         resolveTypeElement(sqlMode, resolvedValues, values, f, (Class<? extends Record>) c));
-                case Object k when REFLECTION.isSupportedType(k) -> {
-                    // Kotlin does not support Java style string interpolations. For that reason, we should not have
-                    // Kotlin classes in this flow.
-                    assert false;
-                }
+                // Note that the following flow would also support Class<?> c. but we'll keep the Class<?> c case for performance and readability.
+                case Object k when REFLECTION.isSupportedType(k) ->
+                        resolvedValues.add(
+                        resolveTypeElement(sqlMode, resolvedValues, values, f, REFLECTION.getRecordType(k)));
                 case null, default -> resolvedValues.add(param(v));
             }
         }
@@ -524,7 +491,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
         assert elements.stream().noneMatch(Wrapped.class::isInstance);
         record TableAlias(Class<? extends Record> table, String path, String alias) {}
         Map<Class<? extends Record>, List<TableAlias>> aliasMap = elements.stream()
-                .map(e -> e instanceof ResolvedEval re ? re.element() : e)
                 .map(element -> switch(element) {
                     case Table t -> new TableAlias(t.table(), "", t.alias());
                     case From(TableSource t, String alias) -> new TableAlias(t.table(), "", alias);
@@ -659,7 +625,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     private void postProcessSelect(@Nonnull List<Element> elements, @Nonnull AliasMapper aliasMapper, @Nonnull TableMapper tableMapper) throws SqlTemplateException {
         final From from = elements.stream()
-                .map(e -> e instanceof ResolvedEval re ? re.element() : e)
                 .filter(From.class::isInstance)
                 .map(From.class::cast)
                 .filter(f -> f.source() instanceof TableSource)
@@ -718,7 +683,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 List<Element> replacementElements = new ArrayList<>();
                 replacementElements.add(adjustedFrom == null ? from : adjustedFrom);
                 Select select = elements.stream()
-                        .map(e -> e instanceof ResolvedEval re ? re.element() : e)
                         .filter(Select.class::isInstance)
                         .map(Select.class::cast)
                         .findAny()
@@ -739,8 +703,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 }
                 elements.replaceAll(element -> element instanceof From
                         ? new Wrapped(replacementElements)
-                        : element instanceof ResolvedEval(From _)
-                        ? new ResolvedEval(new Wrapped(replacementElements))
                         : element);
             }
         }
@@ -756,7 +718,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     private void postProcessUpdate(@Nonnull List<Element> elements, @Nonnull AliasMapper aliasMapper, @Nonnull TableMapper tableMapper) throws SqlTemplateException {
         final Update update = elements.stream()
-                .map(e -> e instanceof ResolvedEval re ? re.element() : e)
                 .filter(Update.class::isInstance)
                 .map(Update.class::cast)
                 .findAny()
@@ -781,13 +742,11 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     private void postProcessDelete(@Nonnull List<Element> elements, @Nonnull AliasMapper aliasMapper, @Nonnull TableMapper tableMapper) throws SqlTemplateException {
         final Delete delete = elements.stream()
-                .map(e -> e instanceof ResolvedEval re ? re.element() : e)
                 .filter(Delete.class::isInstance)
                 .map(Delete.class::cast)
                 .findAny()
                 .orElse(null);
         final From from = elements.stream()
-                .map(e -> e instanceof ResolvedEval re ? re.element() : e)
                 .filter(From.class::isInstance)
                 .map(From.class::cast)
                 .filter(f -> f.source() instanceof TableSource)
@@ -959,7 +918,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     private Optional<Table> getPrimaryTable(@Nonnull List<Element> elements, @Nonnull AliasMapper aliasMapper) {
         assert elements.stream().noneMatch(Wrapped.class::isInstance);
-        assert elements.stream().noneMatch(ResolvedEval.class::isInstance);
         Table table = elements.stream()
                 .filter(From.class::isInstance)
                 .map(From.class::cast)
@@ -976,7 +934,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
             return Optional.of(table);
         }
         table = elements.stream()
-                .map(e -> e instanceof ResolvedEval re ? re.element() : e)
                 .map(element -> switch(element) {
                     case Insert it -> new Table(it.table(), "");
                     case Update it -> new Table(it.table(), it.alias());
@@ -990,7 +947,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
             return Optional.of(table);
         }
         return elements.stream()
-                .map(e -> e instanceof ResolvedEval re ? re.element() : e)
                 .filter(Select.class::isInstance)
                 .map(Select.class::cast)
                 .findAny()
@@ -1046,7 +1002,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
         assert resolvedValues.stream().noneMatch(Join.class::isInstance);
     }
 
-
     /**
      * Processes the specified {@code stringTemplate} and returns the resulting SQL and parameters.
      *
@@ -1077,7 +1032,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
         var tableMapper = getTableMapper();
         postProcessElements(sqlMode, elements, aliasMapper, tableMapper);
         var unwrappedElements = elements.stream()
-                .map(e -> e instanceof ResolvedEval re ? re.element() : e)  // First unpack resolved eval.
                 .flatMap(e -> e instanceof Wrapped c ? c.elements().stream() : Stream.of(e))
                 .toList();
         assert values.size() == elements.size();

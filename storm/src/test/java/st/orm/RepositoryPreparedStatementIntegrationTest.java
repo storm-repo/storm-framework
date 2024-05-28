@@ -642,15 +642,6 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testWithInvalidPlaceholder() {
-        PersistenceException e = assertThrows(PersistenceException.class, () -> {
-            var ORM = ORM(dataSource);
-            ORM.repository(Pet.class).withTemplate(it -> STR."WHERE %s = 1 AND \{it.arg(Pet.class)}.id = 7").build();
-        });
-        assertInstanceOf(SqlTemplateException.class, e.getCause());
-    }
-
-    @Test
     public void updateOwnerIntegerVersion() {
         var ORM = ORM(dataSource);
         var repo = ORM.repository(Owner.class);
