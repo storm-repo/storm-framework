@@ -96,6 +96,9 @@ public final class Providers {
 
     private static final AtomicReference<ORMReflection> ORM_REFLECTION = new AtomicReference<>();
 
+    /**
+     * Represents a key for a component, as RecordComponents don't have a proper equals/hashCode implementation.
+     */
     record ComponentKey(Class<?> record, String name) {}
     private static final Map<ComponentKey, Optional<ORMConverter>> ORM_CONVERTERS = new ConcurrentHashMap<>();
 

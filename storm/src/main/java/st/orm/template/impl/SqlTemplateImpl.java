@@ -652,9 +652,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         for (ListIterator<Element> it = elements.listIterator(); it.hasNext(); ) {
             Element element = it.next();
             if (element instanceof Table t && t.alias().isEmpty()) {
-                String alias = aliasMapper.generateAlias(t.table());
-                it.set(new Table(t.table(), alias));
-                primaryTable.ifPresent(pt -> tableMapper.mapPrimaryKey(pt, alias, getPkComponents(pt).toList()));
+                it.set(new Table(t.table(), aliasMapper.generateAlias(t.table())));
             } else if (element instanceof Join j) {
                 // Move custom join to list of (expanded) joins to allow proper ordering of inner and outer joins.
                 if (j instanceof Join(TableSource ts, _, _, _)) {
@@ -733,6 +731,13 @@ public final class SqlTemplateImpl implements SqlTemplate {
             // Make the FKs of the entity also available for mapping.
             mapForeignKeys(tableMapper, effectiveUpdate.alias(), effectiveUpdate.table());
         }
+        //noinspection DuplicatedCode
+        for (ListIterator<Element> it = elements.listIterator(); it.hasNext(); ) {
+            Element element = it.next();
+            if (element instanceof Table t && t.alias().isEmpty()) {
+                it.set(new Table(t.table(), aliasMapper.generateAlias(t.table())));
+            }
+        }
     }
 
     /**
@@ -784,7 +789,14 @@ public final class SqlTemplateImpl implements SqlTemplate {
         } else if (delete != null) {
             throw new SqlTemplateException("From element required when using Delete element.");
         }
-    }
+        //noinspection DuplicatedCode
+        for (ListIterator<Element> it = elements.listIterator(); it.hasNext(); ) {
+            Element element = it.next();
+            if (element instanceof Table t && t.alias().isEmpty()) {
+                it.set(new Table(t.table(), aliasMapper.generateAlias(t.table())));
+            }
+        }
+   }
 
     private void mapForeignKeys(@Nonnull TableMapper tableMapper, @Nonnull String alias, @Nonnull Class<? extends Record> table)
             throws SqlTemplateException {

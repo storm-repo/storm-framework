@@ -18,7 +18,7 @@ package st.orm.repository;
 /**
  * Optional marker interface for record-based entities.
  *
- * <p>This interface is only required when ORM mapping is used in combination with {@code EntityRepository}.
+ * <p>This interface is used to support the {@code EntityRepository}, which provides CRUD logic out-of-the-box.</p>
  *
  * @param <ID> the type of the entity's primary key.
  * @see EntityRepository

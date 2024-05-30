@@ -1,6 +1,6 @@
 = ST/ORM
 
-ST/ORM is a lightweight, simple and easy to use SQL Template and ORM for Java 21 and higher.
+ST/ORM is a SQL Template and ORM for Java 21 and higher.
 
 ## Features
 
