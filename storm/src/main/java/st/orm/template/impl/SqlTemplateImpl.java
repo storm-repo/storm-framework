@@ -855,6 +855,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     throw new SqlTemplateException(STR."FK annotation is only allowed on record types: \{component.getType().getSimpleName()}.");
                 }
                 Class<? extends Record> componentType = (Class<? extends Record>) component.getType();
+                if (componentType == recordType) {
+                    throw new SqlTemplateException(STR."Self-referencing FK annotation is not allowed: \{recordType.getSimpleName()}. FK must be marked as Lazy.");
+                }
                 // We may detect that the component is already by present by checking
                 // aliasMap.containsKey(componentType), but we'll handle duplicate joins later to detect such issues
                 // in a unified way (auto join vs manual join).
@@ -1303,7 +1306,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 ? getLazyRecordType(component)
                 : (Class<? extends Record>) component.getType();
         if (foreignKeyResolver != null) {
-            return foreignKeyResolver.resolveColumnName(recordType);
+            return foreignKeyResolver.resolveColumnName(component, recordType);
         }
         throw new SqlTemplateException(STR."Cannot infer foreign key column name for entity \{component.getType().getSimpleName()}. Specify a @Named annotation or provide a foreign key resolver.");
     }

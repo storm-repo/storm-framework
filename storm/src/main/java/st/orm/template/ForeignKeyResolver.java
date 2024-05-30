@@ -17,6 +17,8 @@ package st.orm.template;
 
 import jakarta.annotation.Nonnull;
 
+import java.lang.reflect.RecordComponent;
+
 /**
  * Resolves the column name for a foreign key component.
  */
@@ -26,8 +28,10 @@ public interface ForeignKeyResolver {
     /**
      * Resolves the column name for a foreign key record type.
      *
+     * @param recordComponent the record component
      * @param recordType the record type to resolve the column name for.
      * @return the column name.
      */
-    String resolveColumnName(@Nonnull Class<? extends Record> recordType);
+    String resolveColumnName(@Nonnull RecordComponent recordComponent,
+                             @Nonnull Class<? extends Record> recordType);
 }
