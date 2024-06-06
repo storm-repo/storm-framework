@@ -35,12 +35,12 @@ public interface PetRepository extends EntityRepository<Pet, Integer> {
         return ORM."""
                 SELECT \{Pet.class}
                 FROM \{Pet.class}
-                WHERE \{ORM.w(Stream.of(id))}"""
+                WHERE \{ORM.w(id)}"""
             .getSingleResult(Pet.class);
     }
 
     default Pet findById3(int id) {
-        return singleResult(template().query(Pet.class)."WHERE \{w(Stream.of(id))}");
+        return singleResult(template().query(Pet.class)."WHERE \{w(id)}");
     }
 
     default Stream<Pet> findByOwnerFirstName(String firstName) {

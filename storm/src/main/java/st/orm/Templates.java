@@ -23,6 +23,7 @@ import jakarta.persistence.NonUniqueResultException;
 import jakarta.persistence.TemporalType;
 import st.orm.template.ORMRepositoryTemplate;
 import st.orm.template.ORMTemplate;
+import st.orm.template.Operator;
 import st.orm.template.impl.Element;
 import st.orm.template.impl.Elements;
 import st.orm.template.impl.Elements.Expression;
@@ -46,6 +47,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
+import static st.orm.template.Operator.EQUALS;
 
 /**
  * Base interface for templates.
@@ -149,11 +151,29 @@ public interface Templates {
     default Element w(@Nonnull Expression expression) {
         return where(expression);
     }
-    static Element where(@Nonnull Object object) {
-        return new Where(new ObjectExpression(object), null);
+    static Element where(@Nonnull Iterable<?> it) {
+        return new Where(new ObjectExpression(it, EQUALS, null), null);
     }
-    default Element w(@Nonnull Object object) {
-        return where(object);
+    static Element where(@Nonnull Object... o) {
+        return new Where(new ObjectExpression(o, EQUALS, null), null);
+    }
+    default Element w(@Nonnull Iterable<?> it) {
+        return where(it);
+    }
+    default Element w(@Nonnull Object... o) {
+        return where(o);
+    }
+    static Element where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
+        return new Where(new ObjectExpression(it, operator, path), null);
+    }
+    static Element where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
+        return new Where(new ObjectExpression(o, operator, path), null);
+    }
+    default Element w(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
+        return where(path, operator, it);
+    }
+    default Element w(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
+        return where(path, operator, o);
     }
     static Element where(@Nonnull BindVars bindVars) {
         return new Where( null, requireNonNull(bindVars, "bindVars"));
@@ -208,10 +228,16 @@ public interface Templates {
     }
 
     static Element alias(@Nonnull Class<? extends Record> table) {
-        return new Elements.Alias(table);
+        return alias(table, null);
+    }
+    static Element alias(@Nonnull Class<? extends Record> table, @Nullable String path) {
+        return new Elements.Alias(table, path);
     }
     default Element a(@Nonnull Class<? extends Record> table) {
-        return alias(table);
+        return a(table, null);
+    }
+    default Element a(@Nonnull Class<? extends Record> table, @Nullable String path) {
+        return alias(table, path);
     }
 
     static Element param(@Nullable Object value) {

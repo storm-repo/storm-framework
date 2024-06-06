@@ -23,6 +23,31 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
 
     // Don't let Builder extend Iterable<R>, because that would disallow us from closing the underlying stream.
 
+    /**
+     * Selects the {@code resultType} for the query.
+     *
+     * <p>The query will still target the original table specified by {@code T}, but the results will be mapped to the
+     * specified {@code resultType}.</p>
+     *
+     * @param resultType the type of the result.
+     * @param <X> the type of the result.
+     * @return the query builder.
+     */
+    <X extends Record> QueryBuilder<T, X, ID> select(@Nonnull Class<X> resultType);
+
+    <X> QueryBuilder<T, X, ID> selectTemplate(@Nonnull Class<X> resultType, @Nonnull TemplateFunction function);
+
+    <X> StringTemplate.Processor<QueryBuilder<T, X, ID>, PersistenceException> selectTemplate(@Nonnull Class<X> resultType);
+
+    /**
+     * Returns the number of entities in the database of the entity type supported by this repository.
+     *
+     * @return the total number of entities in the database as a long value.
+     * @throws PersistenceException if the count operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    long count();
+
     QueryBuilder<T, R, ID> distinct();
 
     /**
@@ -77,7 +102,53 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
 
         PredicateBuilder<T, R, ID> template(@Nonnull TemplateFunction function);
 
-        PredicateBuilder<T, R, ID> matches(@Nonnull Object o);
+        /**
+         * Adds a condition to the WHERE clause that matches the specified object. The object can be the primary
+         * key of the table, or a record representing the table, or any of the related tables in the table graph.
+         *
+         * <p>If the object type cannot be unambiguously matched, the {@link #filter(String, Operator, Object...)} method can be used to
+         * specify the path to the object in the table graph.</p>
+         *
+         * @param o the object to match.
+         * @return the predicate builder.
+         */
+        PredicateBuilder<T, R, ID> filter(@Nonnull Object o);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified objects. The objects can be the primary key
+         * of the table, or a record representing the table, or any of the related tables in the table graph.
+         *
+         * <p>If the object type cannot be unambiguously matched, the {@link #filter(String, Operator, Iterable)} method can be used to
+         * specify the path to the object in the table graph.</p>
+         *
+         * @param it the objects to match.
+         * @return the predicate builder.
+         */
+        PredicateBuilder<T, R, ID> filter(@Nonnull Iterable<?> it);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
+         * graph. The objects can be the primary key of the table, or a record representing the table, or any field in
+         * the table graph.
+         *
+         * @param path the path to the object in the table graph.
+         * @param operator the operator to use for the comparison.
+         * @param it the objects to match.
+         * @return the predicate builder.
+         */
+        PredicateBuilder<T, R, ID> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified object(s) at the specified path in the table
+         * graph. The object(s) can be the primary key of the table, or a record representing the table, or any field in the
+         * table graph.
+         *
+         * @param path the path to the object in the table graph.
+         * @param operator the operator to use for the comparison.
+         * @param o the object(s) to match.
+         * @return the predicate builder.
+         */
+        PredicateBuilder<T, R, ID> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o);
     }
 
     /**
@@ -93,22 +164,6 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
 
         PredicateBuilder<T, R, ID> or(@Nonnull PredicateBuilder<T, R, ID> predicate);
     }
-
-    /**
-     * Selects the {@code resultType} for the query.
-     *
-     * <p>The query will still target the original table specified by {@code T}, but the results will be mapped to the
-     * specified {@code resultType}.</p>
-     *
-     * @param resultType the type of the result.
-     * @param <X> the type of the result.
-     * @return the query builder.
-     */
-    <X extends Record> QueryBuilder<T, X, ID> select(@Nonnull Class<X> resultType);
-
-    <X> QueryBuilder<T, X, ID> selectTemplate(@Nonnull Class<X> resultType, @Nonnull TemplateFunction function);
-
-    <X> StringTemplate.Processor<QueryBuilder<T, X, ID>, PersistenceException> selectTemplate(@Nonnull Class<X> resultType);
 
     /**
      * Adds a cross join to the query.
@@ -164,8 +219,60 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
 
     JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull String alias, @Nonnull TemplateFunction function);
 
+    /**
+     * Adds a condition to the WHERE clause that matches the specified object(s). The object(s) can be the primary key
+     * of the table, or a record representing the table, or any of the related tables in the table graph.
+     *
+     * <p>If the object type cannot be unambiguously matched, the {@link #where(String, Operator, Object...)} method
+     * can be used to specify the path to the object in the table graph.</p>
+     *
+     * @param o the object(s) to match.
+     * @return the query builder.
+     */
     default QueryBuilder<T, R, ID> where(@Nonnull Object o) {
-        return where(predicate -> predicate.matches(o));
+        return where(predicate -> predicate.filter(o));
+    }
+
+    /**
+     * Adds a condition to the WHERE clause that matches the specified objects. The objects can be the primary key of
+     * the table, or a record representing the table, or any of the related tables in the table graph.
+     *
+     * <p>If the object type cannot be unambiguously matched, the {@link #where(String, Operator, Iterable)} method
+     * can be used to specify the path to the object in the table graph.</p>
+     *
+     * @param it the objects to match.
+     * @return the query builder.
+     */
+    default QueryBuilder<T, R, ID> where(@Nonnull Iterable<?> it) {
+        return where(predicate -> predicate.filter(it));
+    }
+
+    /**
+     * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
+     * graph. The objects can be the primary key of the table, or a record representing the table, or any field in the
+     * table graph.
+     *
+     * @param path the path to the object in the table graph.
+     * @param operator the operator to use for the comparison.
+     * @param it the objects to match.
+     * @return the query builder.
+     */
+    default QueryBuilder<T, R, ID> where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
+        return where(predicate -> predicate.filter(path, operator, it));
+    }
+
+    /**
+     * Adds a condition to the WHERE clause that matches the specified object(s) at the specified path in the table
+     * graph. The object(s) can be the primary key of the table, or a record representing the table, or any field in the
+     * table graph.
+     *
+     * @param path the path to the object in the table graph.
+     * @param operator the operator to use for the comparison.
+     * @param o the object(s) to match.
+     * @return the query builder.
+     */
+    default QueryBuilder<T, R, ID> where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
+        return where(predicate -> predicate.filter(path, operator, o));
     }
 
     QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<T, R, ID>> expression);
@@ -276,7 +383,7 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @param <X> the type of elements in the stream.
      * @param <Y> the type of elements in the result stream.
      */
-    default <X, Y> Stream<Y> batch(@Nonnull Stream<X> stream, @Nonnull Function<Stream<X>, Stream<Y>> function) {
+    default <X, Y> Stream<Y> batch(@Nonnull Stream<X> stream, @Nonnull Function<List<X>, Stream<Y>> function) {
         return autoClose(slice(stream).flatMap(function)).onClose(stream::close);
     }
 
@@ -290,7 +397,7 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @param <X> the type of elements in the stream.
      * @param <Y> the type of elements in the result stream.
      */
-    default <X, Y> Stream<Y> batch(@Nonnull Stream<X> stream, int batchSize, @Nonnull Function<Stream<X>, Stream<Y>> function) {
+    default <X, Y> Stream<Y> batch(@Nonnull Stream<X> stream, int batchSize, @Nonnull Function<List<X>, Stream<Y>> function) {
         return autoClose(slice(stream, batchSize).flatMap(function)).onClose(stream::close);
     }
 
@@ -315,7 +422,7 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * {@code Integer.MAX_VALUE}, only one slice will be returned.
      * @return a stream of slices, where each slice contains up to {@code batchSize} elements from the original stream.
      */
-    <X> Stream<Stream<X>> slice(@Nonnull Stream<X> stream);
+    <X> Stream<List<X>> slice(@Nonnull Stream<X> stream);
 
     /**
      * Generates a stream of slices, each containing a subset of elements from the original stream up to a specified
@@ -335,5 +442,5 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * {@code Integer.MAX_VALUE}, only one slice will be returned.
      * @return a stream of slices, where each slice contains up to {@code batchSize} elements from the original stream.
      */
-    <X> Stream<Stream<X>> slice(@Nonnull Stream<X> stream, int size);
+    <X> Stream<List<X>> slice(@Nonnull Stream<X> stream, int size);
 }

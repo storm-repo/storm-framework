@@ -197,7 +197,7 @@ public class MysqlEntityRepositoryImpl<E extends Entity<ID>, ID> extends EntityR
                 VALUES \{bindVars}\{unsafe(onDuplicateKey())}""".prepare()) {
             slice(entities, batchSize)
                     .forEach(slice -> {
-                        slice.map(Record.class::cast).forEach(query::addBatch);
+                        slice.stream().map(Record.class::cast).forEach(query::addBatch);
                         query.executeBatch();
                     });
         }
@@ -259,7 +259,7 @@ public class MysqlEntityRepositoryImpl<E extends Entity<ID>, ID> extends EntityR
                 INSERT INTO \{model.type()}
                 VALUES \{bindVars}\{unsafe(onDuplicateKey())}""".prepare();
         return batch(entities, batchSize, batch -> {
-            batch.map(Record.class::cast).forEach(query::addBatch);
+            batch.stream().map(Record.class::cast).forEach(query::addBatch);
             query.executeBatch();
             return query.getGeneratedKeys(model.primaryKeyType());
         }).onClose(query::close);

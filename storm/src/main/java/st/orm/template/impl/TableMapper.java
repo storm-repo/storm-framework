@@ -16,6 +16,8 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
+import st.orm.template.SqlTemplateException;
 
 import java.lang.reflect.RecordComponent;
 import java.util.List;
@@ -23,15 +25,15 @@ import java.util.List;
 import static java.util.List.copyOf;
 
 public interface TableMapper {
-    record Mapping(String alias, List<RecordComponent> components, boolean primaryKey) {
+    record Mapping(@Nonnull String alias, @Nonnull List<RecordComponent> components, boolean primaryKey, @Nullable String path) {
         public Mapping {
             components = copyOf(components); // Defensive copy.
         }
     }
 
-    List<Mapping> getMappings(@Nonnull Class<? extends Record> table);
+    Mapping getMapping(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException;
 
-    void mapPrimaryKey(@Nonnull Class<? extends Record> table, @Nonnull String alias, @Nonnull List<RecordComponent> components);
+    void mapPrimaryKey(@Nonnull Class<? extends Record> table, @Nonnull String alias, @Nonnull List<RecordComponent> components, @Nullable String path);
 
-    void mapForeignKey(@Nonnull Class<? extends Record> table, @Nonnull String alias, @Nonnull RecordComponent component);
+    void mapForeignKey(@Nonnull Class<? extends Record> table, @Nonnull String alias, @Nonnull RecordComponent component, @Nullable String path);
 }

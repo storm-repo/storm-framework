@@ -6,6 +6,7 @@ import st.orm.Query;
 import st.orm.Templates;
 import st.orm.template.JoinType;
 import st.orm.template.ORMTemplate;
+import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
 import st.orm.template.TemplateFunction;
 import st.orm.template.impl.Elements.ObjectExpression;
@@ -33,6 +34,7 @@ import static st.orm.template.JoinType.cross;
 import static st.orm.template.JoinType.inner;
 import static st.orm.template.JoinType.left;
 import static st.orm.template.JoinType.right;
+import static st.orm.template.Operator.EQUALS;
 import static st.orm.template.impl.AutoClosingStreamProxy.TRIPWIRE;
 
 public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
@@ -110,6 +112,19 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
                 templates,
                 sourceType,
                 resultType);
+    }
+
+    /**
+     * Returns the number of entities in the database of the entity type supported by this repository.
+     *
+     * @return the total number of entities in the database as a long value.
+     * @throws PersistenceException if the count operation fails due to underlying database issues, such as
+     * connectivity.
+     */
+    @Override
+    public long count() {
+        return selectTemplate(Long.class)."COUNT(*)"
+                .singleResult();
     }
 
     @Override
@@ -253,8 +268,23 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> matches(@Nonnull Object o) {
-                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(o)}");
+            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull Object o) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(o, EQUALS, null)}");
+            }
+
+            @Override
+            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull Iterable<?> it) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(it, EQUALS, null)}");
+            }
+
+            @Override
+            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(it, operator, requireNonNull(path, "path"))}");
+            }
+
+            @Override
+            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(o, operator, requireNonNull(path, "path"))}");
             }
 
             private QueryBuilder<TX, RX, IDX> build(List<StringTemplate> templates) {
@@ -332,7 +362,7 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
      * @return a stream of slices, where each slice contains up to {@code batchSize} elements from the original stream.
      */
     @Override
-    public <X> Stream<Stream<X>> slice(@Nonnull Stream<X> stream) {
+    public <X> Stream<List<X>> slice(@Nonnull Stream<X> stream) {
         return slice(stream, DEFAULT_BATCH_SIZE);
     }
 
@@ -355,9 +385,9 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
      * @return a stream of slices, where each slice contains up to {@code batchSize} elements from the original stream.
      */
     @Override
-    public <X> Stream<Stream<X>> slice(@Nonnull Stream<X> stream, int size) {
+    public <X> Stream<List<X>> slice(@Nonnull Stream<X> stream, int size) {
         if (size == MAX_VALUE) {
-            return Stream.of(stream);
+            return Stream.of(stream.toList());
         }
         final Iterator<X> iterator;
         TRIPWIRE.set(false); // No need to use the tripwire as this class closes the stream when done.
@@ -366,14 +396,14 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
         } finally {
             TRIPWIRE.remove();
         }
-        var it = new Iterator<Stream<X>>() {
+        var it = new Iterator<List<X>>() {
             @Override
             public boolean hasNext() {
                 return iterator.hasNext();
             }
 
             @Override
-            public Stream<X> next() {
+            public List<X> next() {
                 Iterator<X> sliceIterator = new Iterator<>() {
                     private int count = 0;
 
@@ -391,7 +421,7 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
                         return iterator.next();
                     }
                 };
-                return StreamSupport.stream(spliteratorUnknownSize(sliceIterator, 0), false);
+                return StreamSupport.stream(spliteratorUnknownSize(sliceIterator, 0), false).toList();
             }
         };
         return StreamSupport.stream(spliteratorUnknownSize(it, 0), false);

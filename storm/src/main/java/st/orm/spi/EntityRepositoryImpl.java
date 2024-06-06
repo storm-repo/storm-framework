@@ -82,29 +82,6 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     /**
-     * A simple record for encapsulating a count result from database operations.
-     * This record is typically used in database queries where a count of rows or entities is needed,
-     * such as counting the number of entries that match a specific query condition.
-     *
-     * @param count the numeric count result, represented as a long to accommodate large counts.
-     */
-    private record Count(long count) {}
-
-    /**
-     * Returns the number of entities in the database of the entity type supported by this repository.
-     *
-     * @return the total number of entities in the database as a long value.
-     * @throws PersistenceException if the count operation fails due to underlying database issues, such as
-     * connectivity.
-     */
-    @Override
-    public long count() {
-        return selectTemplate(Count.class)."COUNT(*)"
-                .singleResult()
-                .count();
-    }
-
-    /**
      * Retrieves an entity based on its primary key.
      *
      * <p>This method performs a lookup in the database, returning the corresponding entity if it exists.</p>
@@ -642,219 +619,9 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     public long count(@Nonnull Stream<ID> ids, int batchSize) {
         try (ids) {  // Close the stream when done.
             return slice(ids, batchSize)
-                    .mapToLong(slice -> selectTemplate(Count.class)."COUNT(*)"
+                    .mapToLong(slice -> selectTemplate(Long.class)."COUNT(*)"
                             .where(slice)
-                            .singleResult()
-                            .count())
-                    .sum();
-        }
-    }
-
-    /**
-     * Retrieves a stream of entities based on a reference entity.
-     *
-     * <p>This method fetches entities that are directly related to the reference entity. By leveraging relational
-     * mappings as defined by the entity model, it identifies and retrieves all entities associated with each reference
-     * entity.</p>
-     *
-     * <p>The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
-     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
-     * dealing with large volumes of entities.</p>
-     *
-     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
-     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
-     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
-     * stream is properly closed to release the resources.</p>
-     *
-     * @param record a reference entity used to identify and fetch the associated entities.
-     * @return a stream of entities associated with the provided reference entity. The stream is lazily
-     * loaded, ensuring entities are fetched and processed efficiently as consumed by the client code.
-     * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
-     * connectivity problems, or if the entity parameter is null.
-     */
-    @Override
-    public Stream<E> selectMatches(@Nonnull Record record) {
-        return where(record).stream();
-    }
-
-    /**
-     * Retrieves a stream of entities based on the specified reference entities.
-     *
-     * <p>This method fetches entities that are directly related to the set of reference entities provided through
-     * a stream. By leveraging relational mappings as defined by the entity model, it identifies and retrieves
-     * all entities associated with each reference entity.</p>
-     *
-     * <p>This method executes a single query to select multiple entities from the database, using a collection of
-     * reference entities. It is optimized to efficiently retrieve a batch of entities in one operation, reducing the
-     * overhead of executing multiple individual queries.</p>
-     *
-     * <p>The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
-     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
-     * dealing with large volumes of entities.</p>
-     *
-     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
-     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
-     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
-     * stream is properly closed to release the resources.</p>
-     *
-     * @param entities a collection of reference entities used to identify and fetch the associated entities. Each
-     * reference in the collection serves as a basis for querying related records.
-     * @return a stream of entities associated with the provided stream of reference entities. The stream is lazily
-     * loaded, ensuring entities are fetched and processed efficiently as consumed by the client code.
-     * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
-     * connectivity problems, or if the entities parameter is null.
-     */
-    @Override
-    public <R extends Record> Stream<E> selectMatches(@Nonnull Iterable<R> entities) {
-        return selectMatches(toStream(entities), MAX_VALUE);
-    }
-
-    /**
-     * Counts the specified record and all records associated with it based on relational mappings.
-     *
-     * <p>This method queries the database to determine the total count of the specified record and any records that are
-     * directly related to it through database relational mappings. It effectively captures the full extent of an
-     * record's presence and its relational impact within the database, as mapped by the entity model covered by this
-     * repository.</p>
-     *
-     * @param record the reference record for which the total count, including the entity itself and its associated
-     *               records, will be determined.
-     * @return the total count of the specified record along with its associated records, presented as a long value.
-     * @throws PersistenceException if the counting operation fails due to underlying database issues, such as
-     * connectivity problems, or if the entity parameter is null.
-     */
-    @Override
-    public long countMatches(@Nonnull Record record) {
-        return selectTemplate(Count.class)."COUNT(*)"
-                .where(record)
-                .singleResult()
-                .count();
-    }
-
-    /**
-     * Retrieves a stream of entities based on a stream of reference records.
-     *
-     * <p>This method fetches entities that are directly related to the set of reference records provided through
-     * a stream. By leveraging relational mappings as defined by the entity model, it identifies and retrieves
-     * all entities associated with each reference record.</p>
-     *
-     * <p>This method executes queries in batches, depending on the number of entities in the specified entity stream.
-     * This optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities.
-     * The batching strategy enhances performance, particularly when dealing with large sets of entities.</p>
-     *
-     * <p>The resulting stream of entities is a comprehensive collection of records that share a direct relational
-     * link to the reference records, as articulated by the entity model managed by this repository. This method
-     * facilitates efficient bulk retrieval of related entities, supporting scenarios requiring data aggregation,
-     * analysis, or processing of related records.</p>
-     *
-     * <p>The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
-     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
-     * dealing with large volumes of entities.</p>
-     *
-     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
-     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
-     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
-     * stream is properly closed to release the resources.</p>
-     *
-     * @param records a stream of reference records used to identify and fetch the associated entities. Each reference
-     * record in the stream serves as a basis for querying related records.
-     * @return a stream of entities associated with the provided stream of reference records. The stream is lazily
-     * loaded, ensuring entities are fetched and processed efficiently as consumed by the client code.
-     * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
-     * connectivity problems, or if the entities parameter is null.
-     */
-    @Override
-    public <R extends Record> Stream<E> selectMatches(@Nonnull Stream<R> records) {
-        return selectMatches(records, DEFAULT_BATCH_SIZE);
-    }
-
-    /**
-     * Retrieves a stream of entities based on a stream of reference records.
-     *
-     * <p>This method fetches entities that are directly related to the set of reference records provided through
-     * a stream. By leveraging relational mappings as defined by the entity model, it identifies and retrieves
-     * all entities associated with each reference entity.</p>
-     *
-     * <p>This method executes queries in batches, with the batch size determined by the provided parameter. This
-     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities. The
-     * batching strategy enhances performance, particularly when dealing with large sets of reference records.</p>
-     *
-     * <p>The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
-     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
-     * dealing with large volumes of entities.</p>
-     *
-     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
-     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
-     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
-     * stream is properly closed to release the resources.</p>
-     *
-     * @param records a stream of reference records used to identify and fetch the associated entities. Each reference
-     * record in the stream serves as a basis for querying related records.
-     * @return a stream of entities associated with the provided stream of reference records. The stream is lazily
-     * loaded, ensuring entities are fetched and processed efficiently as consumed by the client code.
-     * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
-     * connectivity problems, or if the entities parameter is null.
-     */
-    @Override
-    public <R extends Record> Stream<E> selectMatches(@Nonnull Stream<R> records, int batchSize) {
-        return batch(records, batchSize, batch -> where(batch).stream());
-    }
-
-    /**
-     * Counts the entities associated with the provided iterable of reference records using the maximum possible batch size.
-     *
-     * This method converts the provided iterable into a stream and calculates the count of entities directly related to
-     * the reference records. The operation is optimized by using the maximum batch size, which is suitable for scenarios
-     * where the overhead of managing smaller batches can be avoided.
-     *
-     * @param <R> the type of the reference record.
-     * @param records an iterable of reference records for which to count related entities.
-     * @return the total count of entities associated with the provided reference records.
-     * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
-     */
-    @Override
-    public <R extends Record> long countMatches(@Nonnull Iterable<R> records) {
-        return this.countMatches(toStream(records), MAX_VALUE);
-    }
-
-    /**
-     * Counts the entities associated with the provided stream of reference records using the default batch size.
-     *
-     * This method counts entities based on a stream of reference records, performing the count operation in batches
-     * using a default batch size. This approach is efficient for handling moderate volumes of records and reduces the
-     * overhead on the database.
-     *
-     * @param <R> the type of the reference record.
-     * @param records a stream of reference records for which to count related entities.
-     * @return the total count of entities associated with the provided reference records.
-     * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
-     */
-    public <R extends Record> long countMatches(@Nonnull Stream<R> records) {
-        return countMatches(records, DEFAULT_BATCH_SIZE);
-    }
-
-    /**
-     * Counts the entities associated with the provided stream of reference records, with the counting process divided into
-     * batches of the specified size.
-     *
-     * This method performs the counting operation in batches, specified by the {@code batchSize} parameter. This batching
-     * approach optimizes performance when dealing with large sets of records, reducing the overhead on the database and
-     * improving the efficiency of the operation.
-     *
-     * @param <R> the type of the reference record.
-     * @param records a stream of reference records for which to count related entities.
-     * @param batchSize the size of the batches to use for the counting operation. A larger batch size can improve
-     *                  performance but may also increase the load on the database.
-     * @return the total count of entities associated with the provided reference records.
-     * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
-     */
-    public <R extends Record> long countMatches(@Nonnull Stream<R> records, int batchSize) {
-        try (records) {  // Close the stream when done.
-            return slice(records, batchSize)
-                    .mapToLong(slice -> selectTemplate(Count.class)."COUNT(*)"
-                            .where(slice.toList())
-                            .singleResult()
-                            .count())
+                            .singleResult())
                     .sum();
         }
     }
@@ -900,7 +667,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
             VALUES \{bindVars}""".prepare()) {
             slice(entities, batchSize)
                     .forEach(slice -> {
-                        slice.map(Record.class::cast).forEach(query::addBatch);
+                        slice.stream().map(Record.class::cast).forEach(query::addBatch);
                         query.executeBatch();
                     });
         }
@@ -961,7 +728,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
             INSERT INTO \{model.type()}
             VALUES \{bindVars}""".prepare();
         return batch(entities, batchSize, batch -> {
-            batch.map(Record.class::cast).forEach(query::addBatch);
+            batch.stream().map(Record.class::cast).forEach(query::addBatch);
             query.executeBatch();
             return query.getGeneratedKeys(model.primaryKeyType());
         }).onClose(query::close);
@@ -1029,7 +796,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
             WHERE \{bindVars}""".prepare()) {
             slice(entities, batchSize)
                     .forEach(slice -> {
-                        slice.map(Record.class::cast).forEach(query::addBatch);
+                        slice.stream().map(Record.class::cast).forEach(query::addBatch);
                         int[] result = query.executeBatch();
                         if (query.isVersionAware() && IntStream.of(result).anyMatch(r -> r == 0)) {
                             throw new OptimisticLockException("Update failed due to optimistic lock.");
@@ -1083,7 +850,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                 SET \{bindVars}
                 WHERE \{bindVars}""".prepare();
         return batch(entities, batchSize, batch -> {
-            batch.map(Record.class::cast).forEach(query::addBatch);
+            batch.stream().map(Record.class::cast).forEach(query::addBatch);
             int[] result = query.executeBatch();
             if (query.isVersionAware() && IntStream.of(result).anyMatch(r -> r == 0)) {
                 throw new OptimisticLockException("Update failed due to optimistic lock.");
@@ -1248,7 +1015,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                 WHERE \{bindVars}""".prepare()) {
             slice(entities, batchSize)
                     .forEach(slice -> {
-                        slice.map(Record.class::cast).forEach(query::addBatch);
+                        slice.stream().map(Record.class::cast).forEach(query::addBatch);
                         query.executeBatch();
                     });
         }

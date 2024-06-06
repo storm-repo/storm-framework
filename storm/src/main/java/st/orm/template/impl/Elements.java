@@ -3,11 +3,13 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.BindVars;
+import st.orm.template.Operator;
 
 import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
+import static st.orm.template.Operator.EQUALS;
 
 public final class Elements {
     public record Select(@Nonnull Class<? extends Record> table) implements Element {
@@ -38,9 +40,13 @@ public final class Elements {
 
     public sealed interface Expression {}
 
-    public record ObjectExpression(@Nonnull Object object) implements Expression {
+    public record ObjectExpression(@Nonnull Object object, @Nonnull Operator operator, @Nullable String path) implements Expression {
+        public ObjectExpression(@Nonnull Object object) {
+            this(object, EQUALS, null);
+        }
         public ObjectExpression {
             requireNonNull(object, "object");
+            requireNonNull(operator, "operator");
         }
     }
     public record TemplateExpression(@Nonnull StringTemplate template) implements Expression {}
@@ -85,7 +91,10 @@ public final class Elements {
         }
     }
 
-    public record Alias(@Nonnull Class<? extends Record> table) implements Element {
+    public record Alias(@Nonnull Class<? extends Record> table, @Nullable String path) implements Element {
+        public Alias {
+            requireNonNull(table, "table");
+        }
     }
 
     public record Param(@Nullable String name, @Nullable Object dbValue) implements Element {

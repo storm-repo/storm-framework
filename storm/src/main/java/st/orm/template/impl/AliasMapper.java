@@ -16,10 +16,9 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
-import st.orm.template.SqlTemplate.AliasResolveStrategy;
+import jakarta.annotation.Nullable;
 import st.orm.template.SqlTemplateException;
 
-import java.lang.reflect.RecordComponent;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,28 +26,36 @@ import static java.util.Optional.empty;
 
 interface AliasMapper {
 
-    String useAlias(@Nonnull Class<? extends Record> table, @Nonnull String alias) throws SqlTemplateException;
+    default String useAlias(@Nonnull Class<? extends Record> table, @Nonnull String alias) throws SqlTemplateException {
+        if (getAliases(table).stream().noneMatch(a -> a.equals(alias))) {
+            throw new SqlTemplateException(STR."Alias \{alias} for table \{table.getSimpleName()} not found.");
+        }
+        return alias;
+    }
 
     List<String> getAliases(@Nonnull Class<? extends Record> table);
 
-    default Optional<String> resolveAlias(@Nonnull Class<? extends Record> table, @Nonnull AliasResolveStrategy aliasResolveStrategy) {
-        var set = getAliases(table);
-        if (set.isEmpty()) {
+    /**
+     * Returns the primary alias for the specified table.
+     *
+     * @param table the table to get the alias for.
+     * @return the primary alias.
+     */
+    default Optional<String> getPrimaryAlias(@Nonnull Class<? extends Record> table) {
+        var list = getAliases(table);
+        if (list.isEmpty()) {
             return empty();
         }
-        if (set.size() > 1) {
-            if (aliasResolveStrategy != AliasResolveStrategy.FIRST) {
-                return empty();
-            }
-        }
-        return Optional.of(set.getFirst());
+        return Optional.of(list.getFirst());
     }
 
-    String getAlias(@Nonnull Class<? extends Record> table, @Nonnull AliasResolveStrategy aliasResolveStrategy) throws SqlTemplateException;
+    default String getAlias(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException {
+        return getAlias(table, path, true);
+    }
 
-    String generateAlias(@Nonnull Class<? extends Record> table) throws SqlTemplateException;
+    String getAlias(@Nonnull Class<? extends Record> table, @Nullable String path, boolean force) throws SqlTemplateException;
 
-    String getAlias(@Nonnull List<RecordComponent> path) throws SqlTemplateException;
+    String generateAlias(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException;
 
-    String generateAlias(@Nonnull List<RecordComponent> path) throws SqlTemplateException;
+    void setAlias(@Nonnull Class<? extends Record> table, @Nonnull String alias, @Nullable String path) throws SqlTemplateException;
 }

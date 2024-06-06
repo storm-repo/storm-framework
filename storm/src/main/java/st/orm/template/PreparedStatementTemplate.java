@@ -19,7 +19,6 @@ import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
 import st.orm.Templates;
 import st.orm.spi.Provider;
-import st.orm.template.SqlTemplate.AliasResolveStrategy;
 import st.orm.template.impl.PreparedStatementTemplateImpl;
 
 import javax.sql.DataSource;
@@ -51,8 +50,6 @@ public interface PreparedStatementTemplate extends Templates, StringTemplate.Pro
     PreparedStatementTemplate withColumnNameResolver(@Nonnull ColumnNameResolver columnNameResolver);
 
     PreparedStatementTemplate withForeignKeyResolver(@Nonnull ForeignKeyResolver foreignKeyResolver);
-
-    PreparedStatementTemplate withAliasResolveStrategy(@Nonnull AliasResolveStrategy aliasResolveStrategy);
 
     PreparedStatementTemplate withProviderFilter(@Nonnull Predicate<Provider> providerFilter);
 

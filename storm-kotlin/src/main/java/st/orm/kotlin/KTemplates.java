@@ -29,6 +29,7 @@ import st.orm.kotlin.template.impl.KORMRepositoryTemplateImpl;
 import st.orm.kotlin.template.impl.KORMTemplateImpl;
 import st.orm.template.ORMRepositoryTemplate;
 import st.orm.template.ORMTemplate;
+import st.orm.template.Operator;
 import st.orm.template.impl.Element;
 import st.orm.template.impl.Elements.Expression;
 import st.orm.template.impl.Elements.ObjectExpression;
@@ -45,6 +46,7 @@ import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
 import static st.orm.spi.Providers.getORMReflection;
+import static st.orm.template.Operator.EQUALS;
 import static st.orm.template.impl.Elements.Alias;
 import static st.orm.template.impl.Elements.Delete;
 import static st.orm.template.impl.Elements.From;
@@ -120,11 +122,29 @@ public interface KTemplates {
     default Element w(@Nonnull Expression expression) {
         return where(expression);
     }
-    static Element where(@Nonnull Object object) {
-        return new Where(new ObjectExpression(object), null);
+    static Element where(@Nonnull Iterable<?> it) {
+        return new Where(new ObjectExpression(it, EQUALS, null), null);
     }
-    default Element w(@Nonnull Object object) {
-        return where(object);
+    static Element where(@Nonnull Object... o) {
+        return new Where(new ObjectExpression(o, EQUALS, null), null);
+    }
+    default Element w(@Nonnull Iterable<?> it) {
+        return where(it);
+    }
+    default Element w(@Nonnull Object... o) {
+        return where(o);
+    }
+    static Element where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
+        return new Where(new ObjectExpression(it, operator, path), null);
+    }
+    static Element where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
+        return new Where(new ObjectExpression(o, operator, path), null);
+    }
+    default Element w(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
+        return where(path, operator, it);
+    }
+    default Element w(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
+        return where(path, operator, o);
     }
     static Element where(@Nonnull BindVars bindVars) {
         return new Where(null, requireNonNull(bindVars, "bindVars"));
@@ -224,7 +244,6 @@ public interface KTemplates {
      * Create a new bind variables instance that can be used to add bind variables to a batch.
      *
      * @return a new bind variables instance.
-     * @see BindVars#addBatch(Record)
      */
     BindVars createBindVars();
 
@@ -295,9 +314,15 @@ public interface KTemplates {
     }
 
     static Element alias(@Nonnull KClass<? extends Record> table) {
-        return new Alias(getORMReflection().getRecordType(table));
+        return alias(table, null);
+    }
+    static Element alias(@Nonnull KClass<? extends Record> table, @Nullable String path) {
+        return new Alias(getORMReflection().getRecordType(table), path);
     }
     default Element a(@Nonnull KClass<? extends Record> table) {
-        return alias(table);
+        return a(table, null);
     }    
+    default Element a(@Nonnull KClass<? extends Record> table, @Nullable String path) {
+        return alias(table, path);
+    }
 }

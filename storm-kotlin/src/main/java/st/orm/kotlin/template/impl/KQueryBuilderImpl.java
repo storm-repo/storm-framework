@@ -8,6 +8,7 @@ import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.JoinType;
+import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryBuilder.JoinBuilder;
 import st.orm.template.QueryBuilder.WhereBuilder;
@@ -41,6 +42,18 @@ public class KQueryBuilderImpl<T, R, ID> implements KQueryBuilder<T, R, ID> {
     @Override
     public StringTemplate.Processor<KQueryBuilder<T, R, ID>, PersistenceException> withTemplate() {
         return template -> new KQueryBuilderImpl<>(builder.withTemplate().process(template));
+    }
+
+    /**
+     * Returns the number of entities in the database of the entity type supported by this repository.
+     *
+     * @return the total number of entities in the database as a long value.
+     * @throws PersistenceException if the count operation fails due to underlying database issues, such as
+     * connectivity.
+     */
+    @Override
+    public long count() {
+        return builder.count();
     }
 
     @Override
@@ -215,8 +228,23 @@ public class KQueryBuilderImpl<T, R, ID> implements KQueryBuilder<T, R, ID> {
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> matches(@Nonnull Object o) {
-            return new KPredicateBuilderImpl<>(whereBuilder.matches(o));
+        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull Object o) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filter(o));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull Iterable<?> it) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filter(it));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filter(path, operator, it));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filter(path, operator, o));
         }
     }
 

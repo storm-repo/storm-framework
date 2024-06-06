@@ -54,12 +54,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.MissingFormatArgumentException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.SequencedCollection;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -76,7 +78,6 @@ import static java.lang.Character.isUpperCase;
 import static java.lang.Character.toLowerCase;
 import static java.lang.Long.toHexString;
 import static java.lang.StringTemplate.RAW;
-import static java.lang.System.getProperty;
 import static java.lang.System.identityHashCode;
 import static java.lang.ThreadLocal.withInitial;
 import static java.util.Collections.newSetFromMap;
@@ -87,8 +88,6 @@ import static java.util.Optional.empty;
 import static java.util.Optional.ofNullable;
 import static java.util.function.Predicate.not;
 import static java.util.regex.Pattern.DOTALL;
-import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.toList;
 import static st.orm.Templates.alias;
 import static st.orm.Templates.delete;
 import static st.orm.Templates.from;
@@ -106,8 +105,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
     public static final ThreadLocal<Set<Consumer<Sql>>> CONSUMERS = withInitial(() -> newSetFromMap(new IdentityHashMap<>()));
 
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
-
-    private static final AliasResolveStrategy DEFAULT_ALIAS_RESOLVE_STRATEGY = AliasResolveStrategy.valueOf(getProperty("st.orm.alias_resolve_strategy", "ALL"));
 
     /**
      * A result record that contains the generated SQL and the parameters that were used to generate it.
@@ -187,20 +184,18 @@ public final class SqlTemplateImpl implements SqlTemplate {
     private final boolean positionalOnly;
     private final boolean expandCollection;
     private final boolean supportRecords;
-    private final AliasResolveStrategy aliasResolveStrategy;
     private final TableNameResolver tableNameResolver;
     private final TableAliasResolver tableAliasResolver;
     private final ColumnNameResolver columnNameResolver;
     private final ForeignKeyResolver foreignKeyResolver;
 
     public SqlTemplateImpl(boolean positionalOnly, boolean expandCollection, boolean supportRecords) {
-        this(positionalOnly, expandCollection, supportRecords, DEFAULT_ALIAS_RESOLVE_STRATEGY, null, null, null, null);
+        this(positionalOnly, expandCollection, supportRecords, null, null, null, null);
     }
 
     public SqlTemplateImpl(boolean positionalOnly,
                            boolean expandCollection,
                            boolean supportRecords,
-                           @Nonnull AliasResolveStrategy aliasResolveStrategy,
                            @Nullable TableNameResolver tableNameResolver,
                            @Nullable TableAliasResolver tableAliasResolver,
                            @Nullable ColumnNameResolver columnNameResolver,
@@ -208,7 +203,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
         this.positionalOnly = positionalOnly;
         this.expandCollection = expandCollection;
         this.supportRecords = supportRecords;
-        this.aliasResolveStrategy = aliasResolveStrategy;
         this.tableNameResolver = tableNameResolver;
         this.tableAliasResolver = tableAliasResolver;
         this.columnNameResolver = columnNameResolver;
@@ -227,7 +221,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
 
     @Override
     public SqlTemplateImpl withTableNameResolver(TableNameResolver resolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, aliasResolveStrategy, resolver, tableAliasResolver, columnNameResolver, foreignKeyResolver);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, resolver, tableAliasResolver, columnNameResolver, foreignKeyResolver);
     }
 
     @Override
@@ -237,7 +231,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
 
     @Override
     public SqlTemplateImpl withTableAliasResolver(TableAliasResolver resolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, aliasResolveStrategy, tableNameResolver, resolver, columnNameResolver, foreignKeyResolver);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, tableNameResolver, resolver, columnNameResolver, foreignKeyResolver);
     }
 
     @Override
@@ -247,7 +241,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
 
     @Override
     public SqlTemplateImpl withColumnNameResolver(ColumnNameResolver resolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, aliasResolveStrategy, tableNameResolver, tableAliasResolver, resolver, foreignKeyResolver);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, tableNameResolver, tableAliasResolver, resolver, foreignKeyResolver);
     }
 
     @Override
@@ -257,7 +251,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
 
     @Override
     public SqlTemplateImpl withForeignKeyResolver(ForeignKeyResolver resolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, aliasResolveStrategy, tableNameResolver, tableAliasResolver, columnNameResolver, resolver);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, tableNameResolver, tableAliasResolver, columnNameResolver, resolver);
     }
 
     @Override
@@ -267,22 +261,12 @@ public final class SqlTemplateImpl implements SqlTemplate {
 
     @Override
     public SqlTemplateImpl withSupportRecords(boolean supportRecords) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, aliasResolveStrategy, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver);
     }
 
     @Override
     public boolean supportRecords() {
         return supportRecords;
-    }
-
-    @Override
-    public SqlTemplate withAliasResolveStrategy(AliasResolveStrategy strategy) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, strategy, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver);
-    }
-
-    @Override
-    public AliasResolveStrategy aliasResolveStrategy() {
-        return aliasResolveStrategy;
     }
 
     static class BindVarsImpl implements BindVars, BindVariables {
@@ -487,27 +471,14 @@ public final class SqlTemplateImpl implements SqlTemplate {
         return resolvedValues;
     }
 
-    private AliasMapper getAliasMapper(@Nonnull List<Element> elements, @Nullable TableAliasResolver tableAliasResolver) throws SqlTemplateException {
-        assert elements.stream().noneMatch(Wrapped.class::isInstance);
+    static String toPathString(@Nonnull List<RecordComponent> components) {
+        return components.stream().map(RecordComponent::getName).collect(Collectors.joining("."));
+    }
+
+    private AliasMapper getAliasMapper(@Nullable TableAliasResolver tableAliasResolver) {
         record TableAlias(Class<? extends Record> table, String path, String alias) {}
-        Map<Class<? extends Record>, List<TableAlias>> aliasMap = elements.stream()
-                .map(element -> switch(element) {
-                    case Table t -> new TableAlias(t.table(), "", t.alias());
-                    case From(TableSource t, String alias) -> new TableAlias(t.table(), "", alias);
-                    case Join(TableSource t, String alias, _, _) -> new TableAlias(t.table(), "", alias);
-                    default -> null;
-                })
-                .filter(Objects::nonNull)
-                .filter(ta -> !ta.alias().isEmpty())
-                .collect(groupingBy(TableAlias::table, HashMap::new, toList()));
         class AliasMapperImpl implements AliasMapper {
-            @Override
-            public String useAlias(@Nonnull Class<? extends Record> table, @Nonnull String alias) throws SqlTemplateException {
-                if (aliasMap.getOrDefault(table, List.of()).stream().noneMatch(a -> a.alias().equals(alias))) {
-                    throw new SqlTemplateException(STR."Alias \{alias} for table \{table.getSimpleName()} not found.");
-                }
-                return alias;
-            }
+            private final Map<Class<? extends Record>, SequencedCollection<TableAlias>> aliasMap = new HashMap<>();
 
             @Override
             public List<String> getAliases(@Nonnull Class<? extends Record> table) {
@@ -518,73 +489,60 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 return list.stream().map(TableAlias::alias).toList();
             }
 
-            @Override
-            public String getAlias(@Nonnull Class<? extends Record> table, @Nonnull AliasResolveStrategy aliasResolveStrategy) throws SqlTemplateException {
-                var list = getAliases(table);
-                if (list.isEmpty()) {
-                    return getTableName(table, tableNameResolver);
+            private SqlTemplateException multipleFoundException(@Nonnull Class<? extends Record> table) {
+                var paths = aliasMap.get(table).stream()
+                        .map(TableAlias::path)
+                        .filter(Objects::nonNull)
+                        .map(p -> STR."'\{p}'")
+                        .distinct()
+                        .toList();
+                if (paths.isEmpty()) {
+                    return new SqlTemplateException(STR."Multiple aliases found for \{table.getSimpleName()}.");
                 }
-                // The \{table.getSimpleName()} table has been specified multiple times in the query or in the entity hierarchy.
-                if (list.size() > 1) {
-                    if (aliasResolveStrategy != AliasResolveStrategy.FIRST) {
-                        throw new SqlTemplateException(STR."""
-                        Multiple aliases found for \{table.getSimpleName()}:
-                        \t\tCause:
-                        \t\t - The \{table.getSimpleName()} table has been specified multiple times in the query, or
-                        \t\t - The \{table.getSimpleName()} entity is present multiple times the entity hierarchy.
-                        \t\tSolution:
-                        \t\t - Specify explicit aliases in the query, or
-                        \t\t - Mark ancillary \{table.getSimpleName()} relations as Lazy, or
-                        \t\t - Remove the ambiguity by creating variant(s) of the \{table.getSimpleName()} entiy, or
-                        \t\t - Set the AliasResolveStrategy to FIRST.""");
+                if (paths.size() == 1) {
+                    return new SqlTemplateException(STR."Multiple aliases found for \{table.getSimpleName()}. Specify path \{paths.getFirst()} to uniquely identify the table.");
+                }
+                return new SqlTemplateException(STR."Multiple aliases found for \{table.getSimpleName()} in table graph. Specify one of the following paths to uniquely identify the table: \{String.join(", ", paths)}.");
+            }
+
+            @Override
+            public String getAlias(@Nonnull Class<? extends Record> table, @Nullable String path, boolean force) throws SqlTemplateException {
+                var list = aliasMap.getOrDefault(table, List.of());
+                if (path != null) {
+                    var candidate = list.stream().filter(a -> Objects.equals(a.path(), path))
+                            .findFirst();
+                    if (candidate.isPresent()) {
+                        return candidate.get().alias();
+                    }
+                    list = list.stream().filter(a -> a.path() == null)
+                            .toList();
+                    if (list.isEmpty() && force) {
+                        throw new SqlTemplateException(STR."Alias for \{table.getSimpleName()} not found at path: '\{path}'.");
                     }
                 }
-                return list.getFirst();
+                if (list.isEmpty()) {
+                    // Use the full table name of no path was given and no alias was found.
+                    return getTableName(table, tableNameResolver);
+                }
+                if (list.size() > 1) {
+                    throw multipleFoundException(table);
+                }
+                return list.getFirst().alias();
             }
 
             @Override
-            public String generateAlias(@Nonnull Class<? extends Record> table) throws SqlTemplateException {
+            public String generateAlias(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException {
                 String alias = SqlTemplateImpl.this.generateAlias(table, tableAliasResolver,
                         proposedAlias -> aliasMap.values().stream().flatMap(it -> it.stream().map(TableAlias::alias)).noneMatch(proposedAlias::equals));
-                aliasMap.computeIfAbsent(table, _ -> new ArrayList<>()).add(new TableAlias(table, "", alias));
+                aliasMap.computeIfAbsent(table, _ -> new LinkedHashSet<>()).add(new TableAlias(table, path, alias));
                 return alias;
             }
 
-            private String toString(@Nonnull List<RecordComponent> path) {
-                return path.stream().map(RecordComponent::getName).collect(Collectors.joining("."));
-            }
-
             @Override
-            public String getAlias(@Nonnull List<RecordComponent> path) throws SqlTemplateException {
-                var component = path.getLast();
-                if (!component.getType().isRecord()) {
-                    throw new SqlTemplateException(STR."Component \{component.getDeclaringRecord()}.\{component.getName()} is not a record.");
+            public void setAlias(@Nonnull Class<? extends Record> table, @Nonnull String alias, @Nullable String path) throws SqlTemplateException {
+                if (!aliasMap.computeIfAbsent(table, _ -> new LinkedHashSet<>()).add(new TableAlias(table, path, alias))) {
+                    throw new SqlTemplateException(STR."Alias \{alias} already exists for table \{table.getSimpleName()}.");
                 }
-                String p = toString(path);
-                var alias = aliasMap.getOrDefault(component.getType(), List.of()).stream()
-                        .filter(a -> a.path().equals(p))
-                        .map(TableAlias::alias)
-                        .findFirst();
-                if (alias.isPresent()) {
-                    return alias.get();
-                }
-                //noinspection unchecked
-                return getAlias((Class<? extends Record>) component.getType(), aliasResolveStrategy);
-            }
-
-            @Override
-            public String generateAlias(@Nonnull List<RecordComponent> path) throws SqlTemplateException {
-                var component = path.getLast();
-                if (!component.getType().isRecord()) {
-                    throw new SqlTemplateException(STR."Component \{component.getDeclaringRecord()}.\{component.getName()} is not a record.");
-                }
-                String p = toString(path);
-                //noinspection unchecked
-                Class<? extends Record> table = (Class<? extends Record>) component.getType();
-                String alias = SqlTemplateImpl.this.generateAlias(table, tableAliasResolver,
-                        proposedAlias -> aliasMap.values().stream().flatMap(it -> it.stream().map(TableAlias::alias)).noneMatch(proposedAlias::equals));
-                aliasMap.computeIfAbsent(table, _ -> new ArrayList<>()).add(new TableAlias(table, p, alias));
-                return alias;
             }
         }
         return new AliasMapperImpl();
@@ -598,21 +556,94 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 this.mappings = new HashMap<>();
             }
 
-            @Override
-            public List<Mapping> getMappings(@Nonnull Class<? extends Record> table) {
-                return mappings.getOrDefault(table, List.of());
+            private String getPath(Mapping mapping) {
+                if (mapping.path() == null) {
+                    return null;
+                }
+                assert mapping.components().size() == 1;
+                if (mapping.path().isEmpty()) {
+                    return mapping.components().getFirst().getName();
+                }
+                return STR."\{mapping.path()}.\{mapping.components().getFirst().getName()}";
+            }
+
+            private List<Mapping> getMappings(@Nonnull Class<? extends Record> table, @Nullable String path) {
+                var list = mappings.getOrDefault(table, List.of()).stream()
+                        .filter(m -> m.components().size() == 1)
+                        .toList();
+                if (path != null) {
+                    return list.stream().filter(m -> path.equals(getPath(m))).toList();
+                }
+                return list;
+            }
+
+            private SqlTemplateException notFoundException(@Nonnull Class<? extends Record> table, @Nullable String path, @Nonnull List<String> paths) {
+                if (paths.isEmpty()) {
+                    return new SqlTemplateException(STR."\{table.getSimpleName()} not found \{path == null ? "in table graph" : STR."at path: '\{path}'"}.");
+                }
+                paths = paths.stream().map(p -> STR."'\{p}'").toList();
+                if (path == null) {
+                    if (paths.size() == 1) {
+                        return new SqlTemplateException(STR."\{table.getSimpleName()} not found. Specify path '\{paths.getFirst()}' to identify the table.");
+                    }
+                    return new SqlTemplateException(STR."\{table.getSimpleName()} not found. Specify one of the following paths to identify the table: \{String.join(", ", paths)}.");
+                }
+                if (paths.size() == 1) {
+                    return new SqlTemplateException(STR."\{table.getSimpleName()} not found at path: '\{path}'. Specify path '\{paths.getFirst()}' to identify the table.");
+                }
+                return new SqlTemplateException(STR."\{table.getSimpleName()} not found at path: '\{path}'. Specify one of the following paths to identify the table: \{String.join(", ", paths)}.");
+            }
+
+            private SqlTemplateException multipleFoundException(@Nonnull Class<? extends Record> table, @Nonnull List<String> paths) {
+                if (paths.isEmpty()) {
+                    return new SqlTemplateException(STR."Multiple occurences of \{table.getSimpleName()} found in table graph.");
+                }
+                paths = paths.stream().filter(Objects::nonNull).map(p -> STR."'\{p}'").toList();
+                if (paths.size() == 1) {
+                    return new SqlTemplateException(STR."Multiple occurences of \{table.getSimpleName()} found in table graph. Specify path \{paths.getFirst()} to uniquely identify the table.");
+                }
+                return new SqlTemplateException(STR."Multiple occurences of \{table.getSimpleName()} found in table graph. Specify one of the following paths to uniquely identify the table: \{String.join(", ", paths)}.");
             }
 
             @Override
-            public void mapPrimaryKey(@Nonnull Class<? extends Record> table, @Nonnull String alias, @Nonnull List<RecordComponent> components) {
-                mappings.computeIfAbsent(table, _ -> new ArrayList<>())
-                        .add(new Mapping(alias, components, true));
+            public Mapping getMapping(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException {
+                var mappings = getMappings(table, path).stream().toList();
+                var paths = mappings.stream().map(this::getPath).distinct().toList();
+                if (path != null) {
+                    // Look for mapping at specified path.
+                    if (mappings.isEmpty()) {
+                        throw notFoundException(table, path, paths);
+                    }
+                    if (mappings.size() > 1) {
+                        throw new SqlTemplateException(STR."Multiple occurences of \{table.getSimpleName()} found at path: '\{path}'.");
+                    }
+                    return mappings.getFirst();
+                }
+                if (mappings.size() == 1) {
+                    return mappings.getFirst();
+                } else if (mappings.size() > 1) {
+                    throw multipleFoundException(table, paths);
+                } else {
+                    throw notFoundException(table, null, paths);
+                }
             }
 
             @Override
-            public void mapForeignKey(@Nonnull Class<? extends Record> table, @Nonnull String alias, @Nonnull RecordComponent component) {
+            public void mapPrimaryKey(@Nonnull Class<? extends Record> table,
+                                      @Nonnull String alias,
+                                      @Nonnull List<RecordComponent> components,
+                                      @Nullable String path) {
                 mappings.computeIfAbsent(table, _ -> new ArrayList<>())
-                        .add(new Mapping(alias, List.of(component), false));
+                        .add(new Mapping(alias, components, true, path));
+            }
+
+            @Override
+            public void mapForeignKey(@Nonnull Class<? extends Record> table,
+                                      @Nonnull String alias,
+                                      @Nonnull RecordComponent component,
+                                      @Nullable String path) {
+                mappings.computeIfAbsent(table, _ -> new ArrayList<>())
+                        .add(new Mapping(alias, List.of(component), false, path));
             }
         }
         return new TableMapperImpl();
@@ -631,43 +662,54 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 .findAny()
                 .orElse(null);
         final Optional<Class<? extends Record>> primaryTable;
-        final From adjustedFrom;
+        final From effectiveFrom;
         if (from != null) {
-            Class<? extends Record> table = ((TableSource) from.source()).table();
+            var table = ((TableSource) from.source()).table();
+            String path = "";   // Use "" because it's the root table.
+            String alias;
             if (from.alias().isEmpty()) {
                 // Replace From element by from element with alias.
-                String alias = aliasMapper.generateAlias(table);
-                adjustedFrom = new From(new TableSource(table), alias);
-                elements.replaceAll(element -> element instanceof From ? adjustedFrom : element);
-                tableMapper.mapPrimaryKey(table, alias, getPkComponents(table).toList());
+                alias = aliasMapper.generateAlias(table, path);
+                effectiveFrom = new From(new TableSource(table), alias);
+                elements.replaceAll(element -> element instanceof From ? effectiveFrom : element);
             } else {
-                adjustedFrom = null;
+                effectiveFrom = null;
+                alias = from.alias();
+                aliasMapper.setAlias(table, alias, path);
             }
+            // We will only make primary keys available for mapping if the table is not part of the entity graph,
+            // because the entities can already be resolved by their foreign keys.
+            //  tableMapper.mapPrimaryKey(table, alias, getPkComponents(table).toList(), path);
             primaryTable = Optional.of(table);
         } else {
             primaryTable = empty();
-            adjustedFrom = null;
+            effectiveFrom = null;
         }
         List<Join> customJoins = new ArrayList<>();
         for (ListIterator<Element> it = elements.listIterator(); it.hasNext(); ) {
             Element element = it.next();
-            if (element instanceof Table t && t.alias().isEmpty()) {
-                it.set(new Table(t.table(), aliasMapper.generateAlias(t.table())));
+            if (element instanceof Table t) {
+                if (t.alias().isEmpty()) {
+                    it.set(new Table(t.table(), aliasMapper.generateAlias(t.table(), null)));
+                } else {
+                    aliasMapper.setAlias(t.table(), t.alias(), null);
+                }
             } else if (element instanceof Join j) {
+                String path = null; // Custom joins are not part of the primary table.
                 // Move custom join to list of (expanded) joins to allow proper ordering of inner and outer joins.
                 if (j instanceof Join(TableSource ts, _, _, _)) {
                     String alias;
                     if (j.alias().isEmpty()) {
-                        alias = aliasMapper.generateAlias(ts.table());
+                        alias = aliasMapper.generateAlias(ts.table(), null);
                         customJoins.add(new Join(j.source(), alias, j.on(), j.type()));
-                        tableMapper.mapPrimaryKey(ts.table(), alias, getPkComponents(ts.table()).toList());
+                        tableMapper.mapPrimaryKey(ts.table(), alias, getPkComponents(ts.table()).toList(), path);
                     } else {
                         alias = j.alias();
-                        aliasMapper.useAlias(ts.table(), j.alias());
+                        aliasMapper.setAlias(ts.table(), j.alias(), null);
                         customJoins.add(j);
                     }
                     // Make the FKs of the join also available for mapping.
-                    mapForeignKeys(tableMapper, alias, ts.table());
+                    mapForeignKeys(tableMapper, alias, ts.table(), path);
                 } else {
                     customJoins.add(j);
                 }
@@ -679,7 +721,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             expandJoins(primaryTable.get(), customJoins, aliasMapper, tableMapper, expandedJoins);
             if (!expandedJoins.isEmpty()) {
                 List<Element> replacementElements = new ArrayList<>();
-                replacementElements.add(adjustedFrom == null ? from : adjustedFrom);
+                replacementElements.add(effectiveFrom == null ? from : effectiveFrom);
                 Select select = elements.stream()
                         .filter(Select.class::isInstance)
                         .map(Select.class::cast)
@@ -721,21 +763,30 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 .findAny()
                 .orElse(null);
         if (update != null) {
-            Update effectiveUpdate;
+            var table = update.table();
+            String path = "";   // Use "" because it's the root table.
+            String alias;
             if (update.alias().isEmpty()) {
-                String alias = aliasMapper.generateAlias(update.table());
-                effectiveUpdate = new Update(update.table(), alias);
+                alias = aliasMapper.generateAlias(table, path);
             } else {
-                effectiveUpdate = update;
+                alias = update.alias();
+                aliasMapper.setAlias(table, alias, path);
             }
+            // We will only make primary keys available for mapping if the table is not part of the entity graph,
+            // because the entities can already be resolved by their foreign keys.
+            //  tableMapper.mapPrimaryKey(table, alias, getPkComponents(update.table()).toList(), path);
             // Make the FKs of the entity also available for mapping.
-            mapForeignKeys(tableMapper, effectiveUpdate.alias(), effectiveUpdate.table());
+            mapForeignKeys(tableMapper, alias, table, path);
         }
         //noinspection DuplicatedCode
         for (ListIterator<Element> it = elements.listIterator(); it.hasNext(); ) {
             Element element = it.next();
-            if (element instanceof Table t && t.alias().isEmpty()) {
-                it.set(new Table(t.table(), aliasMapper.generateAlias(t.table())));
+            if (element instanceof Table t) {
+                if (t.alias().isEmpty()) {
+                    it.set(new Table(t.table(), aliasMapper.generateAlias(t.table(), null)));
+                } else {
+                    aliasMapper.setAlias(t.table(), t.alias(), null);
+                }
             }
         }
     }
@@ -758,18 +809,22 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 .findAny()
                 .orElse(null);
         if (from != null) {
-            Class<? extends Record> table = ((TableSource) from.source()).table();
+            var table = ((TableSource) from.source()).table();
+            String path = "";   // Use "" because it's the root table.
             String alias;
             From effectiveFrom;
             if (from.alias().isEmpty()) {
-                alias = delete == null ? "" :  aliasMapper.generateAlias(table);
+                alias = delete == null ? "" : aliasMapper.generateAlias(table, path);
                 effectiveFrom = new From(new TableSource(table), alias);
                 elements.replaceAll(element -> element instanceof From ? effectiveFrom : element);
-                tableMapper.mapPrimaryKey(table, alias, getPkComponents(table).toList());
             } else {
                 effectiveFrom = from;
                 alias = from.alias();
+                aliasMapper.setAlias(table, alias, path);
             }
+            // We will only make primary keys available for mapping if the table is not part of the entity graph,
+            // because the entities can already be resolved by their foreign keys.
+            //  tableMapper.mapPrimaryKey(table, alias, getPkComponents(table).toList(), path);
             if (delete != null) {
                 if (delete.table() != table) {
                     throw new SqlTemplateException(STR."Delete entity \{delete.table().getSimpleName()} does not match From table \{table.getSimpleName()}.");
@@ -784,7 +839,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             }
             if (effectiveFrom.source() instanceof TableSource ts) {
                 // Make the FKs of the entity also available for mapping.
-                mapForeignKeys(tableMapper, alias, ts.table());
+                mapForeignKeys(tableMapper, alias, ts.table(), path);
             }
         } else if (delete != null) {
             throw new SqlTemplateException("From element required when using Delete element.");
@@ -792,25 +847,29 @@ public final class SqlTemplateImpl implements SqlTemplate {
         //noinspection DuplicatedCode
         for (ListIterator<Element> it = elements.listIterator(); it.hasNext(); ) {
             Element element = it.next();
-            if (element instanceof Table t && t.alias().isEmpty()) {
-                it.set(new Table(t.table(), aliasMapper.generateAlias(t.table())));
+            if (element instanceof Table t) {
+                if (t.alias().isEmpty()) {
+                    it.set(new Table(t.table(), aliasMapper.generateAlias(t.table(), null)));
+                } else {
+                    aliasMapper.setAlias(t.table(), t.alias(), null);
+                }
             }
         }
-   }
+    }
 
-    private void mapForeignKeys(@Nonnull TableMapper tableMapper, @Nonnull String alias, @Nonnull Class<? extends Record> table)
+    private void mapForeignKeys(@Nonnull TableMapper tableMapper, @Nonnull String alias, @Nonnull Class<? extends Record> table, @Nullable String path)
             throws SqlTemplateException {
         for (var component : table.getRecordComponents()) {
             if (REFLECTION.isAnnotationPresent(component, FK.class)) {
                 if (Lazy.class.isAssignableFrom(component.getType())) {
-                    tableMapper.mapForeignKey(getLazyRecordType(component), alias, component);
+                    tableMapper.mapForeignKey(getLazyRecordType(component), alias, component, path);
                 } else {
                     if (!component.getType().isRecord()) {
                         throw new SqlTemplateException(STR."FK annotation is only allowed on record types: \{component.getType().getSimpleName()}.");
                     }
                     //noinspection unchecked
                     Class<? extends Record> componentType = (Class<? extends Record>) component.getType();
-                    tableMapper.mapForeignKey(componentType, alias, component);
+                    tableMapper.mapForeignKey(componentType, alias, component, path);
                 }
             }
         }
@@ -837,18 +896,20 @@ public final class SqlTemplateImpl implements SqlTemplate {
                              boolean outerJoin) throws SqlTemplateException {
         for (var component : recordType.getRecordComponents()) {
             var list = new ArrayList<>(path);
+            String fkPath = toPathString(path);
             list.add(component);
             var copy = copyOf(list);
+            String pkPath = toPathString(copy);
             if (REFLECTION.isAnnotationPresent(component, FK.class)) {
                 if (Lazy.class.isAssignableFrom(component.getType())) {
                     // No join needed for lazy components, but we will map the table, so we can query the lazy component.
                     String fromAlias;
                     if (fkName == null) {
-                        fromAlias = aliasMapper.getAlias(recordType, aliasResolveStrategy);
+                        fromAlias = aliasMapper.getAlias(recordType, fkPath);
                     } else {
                         fromAlias = fkName;
                     }
-                    tableMapper.mapForeignKey(getLazyRecordType(component), fromAlias, component);
+                    tableMapper.mapForeignKey(getLazyRecordType(component), fromAlias, component, fkPath);
                     continue;
                 }
                 if (!component.getType().isRecord()) {
@@ -863,16 +924,18 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 // in a unified way (auto join vs manual join).
                 String fromAlias;
                 if (fkName == null) {
-                    fromAlias = aliasMapper.getAlias(recordType, aliasResolveStrategy);
+                    fromAlias = aliasMapper.getAlias(recordType, fkPath);
                 } else {
                     fromAlias = fkName;
                 }
-                String alias = aliasMapper.generateAlias(copy);
-                tableMapper.mapForeignKey(componentType, fromAlias, component);
+                String alias = aliasMapper.generateAlias(componentType, pkPath);
+                tableMapper.mapForeignKey(componentType, fromAlias, component, fkPath);
                 var pkComponent = getPkComponents(componentType).findFirst()    // We only support single primary keys for FK fields.
                         .orElseThrow(() -> new SqlTemplateException(STR."No primary key found for entity \{componentType.getSimpleName()}."));
                 String pkColumnName = getColumnName(pkComponent, columnNameResolver);
-                tableMapper.mapPrimaryKey(componentType, alias, List.of(pkComponent));
+                // We will only make primary keys available for mapping if the table is not part of the entity graph,
+                // because the entities can already be resolved by their foreign keys.
+                //  tableMapper.mapPrimaryKey(componentType, alias, List.of(pkComponent), pkPath);
                 outerJoin = outerJoin || !REFLECTION.isNonnull(component);
                 JoinType joinType = outerJoin ? DefaultJoinType.LEFT : DefaultJoinType.INNER;
                 expandedJoins.add(new Join(new TableSource(componentType), alias, RAW."\{new Unsafe(STR."\{fromAlias}.\{getForeignKey(component, foreignKeyResolver)} = \{alias}.\{pkColumnName}")}", joinType));
@@ -884,7 +947,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 Class<? extends Record> componentType = (Class<? extends Record>) component.getType();
                 String fromAlias;
                 if (fkName == null) {
-                    fromAlias = aliasMapper.getAlias(recordType, aliasResolveStrategy);
+                    fromAlias = aliasMapper.getAlias(recordType, fkPath);
                 } else {
                     fromAlias = fkName;
                 }
@@ -965,7 +1028,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 .filter(Select.class::isInstance)
                 .map(Select.class::cast)
                 .findAny()
-                .map(select -> new Table(select.table(), aliasMapper.resolveAlias(select.table(), aliasResolveStrategy).orElse("")));
+                .map(select -> new Table(select.table(), aliasMapper.getPrimaryAlias(select.table()).orElse("")));
     }
 
     private String generateAlias(@Nonnull Class<? extends Record> table,
@@ -1008,13 +1071,25 @@ public final class SqlTemplateImpl implements SqlTemplate {
         return alias;
     }
 
-    private void postProcessElements(@Nonnull SqlMode sqlMode, @Nonnull List<Element> resolvedValues, @Nonnull AliasMapper aliasMapper, @Nonnull TableMapper tableMapper) throws SqlTemplateException {
+    private void postProcessElements(@Nonnull SqlMode sqlMode,
+                                     @Nonnull List<Element> elements,
+                                     @Nonnull AliasMapper aliasMapper,
+                                     @Nonnull TableMapper tableMapper) throws SqlTemplateException {
         switch (sqlMode) {
-            case SELECT -> postProcessSelect(resolvedValues, aliasMapper, tableMapper);
-            case UPDATE -> postProcessUpdate(resolvedValues, aliasMapper, tableMapper);
-            case DELETE -> postProcessDelete(resolvedValues, aliasMapper, tableMapper);
+            case SELECT -> postProcessSelect(elements, aliasMapper, tableMapper);
+            case UPDATE -> postProcessUpdate(elements, aliasMapper, tableMapper);
+            case DELETE -> postProcessDelete(elements, aliasMapper, tableMapper);
+            default -> {
+                for (var element : elements) {
+                    switch (element) {
+                        case Table t -> aliasMapper.setAlias(t.table(), t.alias(), null);
+                        case From(TableSource t, String alias) -> aliasMapper.setAlias(t.table(), alias, null);
+                        case Join(TableSource t, String alias, _, _) -> aliasMapper.setAlias(t.table(), alias, null);
+                        default -> {}
+                    }
+                }
+            }
         }
-        assert resolvedValues.stream().noneMatch(Join.class::isInstance);
     }
 
     /**
@@ -1043,7 +1118,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         assert fragments.size() == values.size() + 1;
         var sqlMode = getSqlMode(stringTemplate);
         var elements = resolveElements(sqlMode, values, fragments);
-        var aliasMapper = getAliasMapper(elements, tableAliasResolver);
+        var aliasMapper = getAliasMapper(tableAliasResolver);
         var tableMapper = getTableMapper();
         postProcessElements(sqlMode, elements, aliasMapper, tableMapper);
         var unwrappedElements = elements.stream()

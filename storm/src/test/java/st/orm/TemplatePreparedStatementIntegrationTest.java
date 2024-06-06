@@ -498,7 +498,7 @@ public class TemplatePreparedStatementIntegrationTest {
         try (var query = ORM."""
                 SELECT \{VetSpecialty.class}
                 FROM \{VetSpecialty.class}
-                WHERE \{ORM.w(Stream.of(VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(2).specialtyId(1).build()).build()))}""".prepare()) {
+                WHERE \{ORM.w(VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(2).specialtyId(1).build()).build())}""".prepare()) {
             var stream = query.getResultStream(VetSpecialty.class);
             assertEquals(1, stream.count());
         }
@@ -510,10 +510,9 @@ public class TemplatePreparedStatementIntegrationTest {
         try (var query = ORM."""
                 SELECT \{VetSpecialty.class}
                 FROM \{VetSpecialty.class}
-                WHERE \{ORM.w(Stream.of(
-                        VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(2).specialtyId(1).build()).build(),
+                WHERE \{ORM.w(VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(2).specialtyId(1).build()).build(),
                         VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(3).specialtyId(2).build()).build()
-                ))}""".prepare()) {
+                )}""".prepare()) {
             var stream = query.getResultStream(VetSpecialty.class);
             assertEquals(2, stream.count());
         }
@@ -525,10 +524,10 @@ public class TemplatePreparedStatementIntegrationTest {
         try (var query = ORM."""
                 SELECT \{VetSpecialty.class}
                 FROM \{VetSpecialty.class}
-                WHERE \{ORM.w(Stream.of(
+                WHERE \{ORM.w(
                         VetSpecialtyPK.builder().vetId(2).specialtyId(1).build(),
                         VetSpecialtyPK.builder().vetId(3).specialtyId(2).build()
-                ))}""".prepare()) {
+                )}""".prepare()) {
             var stream = query.getResultStream(VetSpecialty.class);
             assertEquals(2, stream.count());
         }

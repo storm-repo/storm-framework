@@ -26,7 +26,6 @@ import st.orm.template.ForeignKeyResolver;
 import st.orm.template.ORMRepositoryTemplate;
 import st.orm.template.PreparedStatementTemplate;
 import st.orm.template.SqlTemplate;
-import st.orm.template.SqlTemplate.AliasResolveStrategy;
 import st.orm.template.SqlTemplate.BatchListener;
 import st.orm.template.SqlTemplate.BindVariables;
 import st.orm.template.SqlTemplate.Parameter;
@@ -63,7 +62,6 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     private final TableAliasResolver tableAliasResolver;
     private final ColumnNameResolver columnNameResolver;
     private final ForeignKeyResolver foreignKeyResolver;
-    private final AliasResolveStrategy aliasResolveStrategy;
     private final Predicate<Provider> providerFilter;
 
     public PreparedStatementTemplateImpl(@Nonnull DataSource dataSource) {
@@ -99,7 +97,6 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         this.tableAliasResolver = null;
         this.columnNameResolver = null;
         this.foreignKeyResolver = null;
-        this.aliasResolveStrategy = null;
         this.providerFilter = null;
     }
 
@@ -127,7 +124,6 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         this.tableAliasResolver = null;
         this.columnNameResolver = null;
         this.foreignKeyResolver = null;
-        this.aliasResolveStrategy = null;
         this.providerFilter = null;
     }
 
@@ -136,40 +132,33 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                                           @Nullable TableAliasResolver tableAliasResolver,
                                           @Nullable ColumnNameResolver columnNameResolver,
                                           @Nullable ForeignKeyResolver foreignKeyResolver,
-                                          @Nullable AliasResolveStrategy aliasResolveStrategy,
                                           @Nullable Predicate<Provider> providerFilter) {
         this.templateProcessor = templateProcessor;
         this.tableNameResolver = tableNameResolver;
         this.tableAliasResolver = tableAliasResolver;
         this.columnNameResolver = columnNameResolver;
         this.foreignKeyResolver = foreignKeyResolver;
-        this.aliasResolveStrategy = aliasResolveStrategy;
         this.providerFilter = providerFilter;
     }
 
     @Override
     public PreparedStatementTemplateImpl withTableNameResolver(@Nullable TableNameResolver tableNameResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, aliasResolveStrategy, providerFilter);
+        return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, providerFilter);
     }
 
     @Override
     public PreparedStatementTemplateImpl withColumnNameResolver(@Nullable ColumnNameResolver columnNameResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, aliasResolveStrategy, providerFilter);
+        return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, providerFilter);
     }
 
     @Override
     public PreparedStatementTemplateImpl withForeignKeyResolver(@Nullable ForeignKeyResolver foreignKeyResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, aliasResolveStrategy, providerFilter);
-    }
-
-    @Override
-    public PreparedStatementTemplate withAliasResolveStrategy(@Nonnull AliasResolveStrategy aliasResolveStrategy) {
-        return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, aliasResolveStrategy, providerFilter);
+        return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, providerFilter);
     }
 
     @Override
     public PreparedStatementTemplateImpl withProviderFilter(@Nullable Predicate<Provider> providerFilter) {
-        return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, aliasResolveStrategy, providerFilter);
+        return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, providerFilter);
     }
 
     @Override
@@ -220,8 +209,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         return PS
                 .withTableNameResolver(tableNameResolver)
                 .withColumnNameResolver(columnNameResolver)
-                .withForeignKeyResolver(foreignKeyResolver)
-                .withAliasResolveStrategy(aliasResolveStrategy);
+                .withForeignKeyResolver(foreignKeyResolver);
     }
 
     @Override
