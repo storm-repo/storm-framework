@@ -100,6 +100,20 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      */
     interface WhereBuilder<T, R, ID> extends StringTemplate.Processor<PredicateBuilder<T, R, ID>, PersistenceException> {
 
+        /**
+         * A predicate that always evaluates to true.
+         */
+        default PredicateBuilder<T, R, ID> TRUE() {
+            return this."TRUE";
+        }
+
+        /**
+         * A predicate that always evaluates to false.
+         */
+        default PredicateBuilder<T, R, ID> FALSE() {
+            return this."FALSE";
+        }
+
         PredicateBuilder<T, R, ID> template(@Nonnull TemplateFunction function);
 
         /**
