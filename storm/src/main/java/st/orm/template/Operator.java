@@ -21,26 +21,27 @@ import jakarta.annotation.Nonnull;
  * Represents a comparison operator in a SQL query.
  */
 public interface Operator {
-    Operator EQUALS = (column, size) -> size == 1 ? STR."\{column} = ?" : STR."\{column} IN (\{"?, ".repeat(size - 1)}?)";
-    Operator NOT_EQUALS = (column, size) -> size == 1 ? "<> ?" : STR."\{column} NOT IN (\{"?, ".repeat(size - 1)}?)";
-    Operator LIKE = (column, size) -> format(column, 1, size, STR."\{column} LIKE ?");
-    Operator NOT_LIKE = (column, size) -> format(column, 1, size, STR."\{column} NOT LIKE ?");
-    Operator GREATER_THAN = (column, size) -> format(column, 1 ,size, STR."\{column} > ?");
-    Operator GREATER_THAN_OR_EQUAL = (column, size) -> format(column, 1, size, STR."\{column} >= ?");
-    Operator LESS_THAN = (column, size) -> format(column, 1, size, STR."\{column} < ?");
-    Operator LESS_THAN_OR_EQUAL= (column, size) -> format(column, 1, size, STR."\{column} <= ?");
-    Operator BETWEEN = (column, size) -> format(column, 2, size, STR."\{column} BETWEEN ? AND ?");
-    Operator IS_TRUE = (column, size) -> format(column, 0, size, STR."\{column} IS TRUE");
-    Operator IS_FALSE = (column, size) -> format(column, 0, size, STR."\{column} IS FALSE");
-    Operator IS_NULL = (column, size) -> format(column, 0, size, STR."\{column} IS NULL");
-    Operator IS_NOT_NULL = (column, size) -> format(column, 0, size, STR."\{column} IS NOT NULL");
-
-    private static String format(@Nonnull String column, int requiredSize, int actualSize, @Nonnull String operator) {
-        if (requiredSize != actualSize) {
-            throw new IllegalArgumentException(STR."Operator for column \{column} requires \{requiredSize} value(s). Found \{actualSize} value(s).");
-        }
-        return operator;
-    }
+    Operator EQUALS = (column, size) -> switch (size) {
+        case 0 -> throw new IllegalArgumentException("Equals operator requires at least one value.");
+        case 1 -> STR."\{column} = ?";
+        default -> STR."\{column} IN (\{"?, ".repeat(size - 1)}?)";
+    };
+    Operator NOT_EQUALS = (column, size) -> switch (size) {
+        case 0 -> throw new IllegalArgumentException("Not equals operator requires at least one value.");
+        case 1 -> STR."\{column} <> ?";
+        default -> STR."\{column} NOT IN (\{"?, ".repeat(size - 1)}?)";
+    };
+    Operator LIKE = (column, size) -> format("Like", 1, size, STR."\{column} LIKE ?");
+    Operator NOT_LIKE = (column, size) -> format("Not like", 1, size, STR."\{column} NOT LIKE ?");
+    Operator GREATER_THAN = (column, size) -> format("Greater than", 1 ,size, STR."\{column} > ?");
+    Operator GREATER_THAN_OR_EQUAL = (column, size) -> format("Greater than or equal", 1, size, STR."\{column} >= ?");
+    Operator LESS_THAN = (column, size) -> format("Less than", 1, size, STR."\{column} < ?");
+    Operator LESS_THAN_OR_EQUAL= (column, size) -> format("Less than or equal", 1, size, STR."\{column} <= ?");
+    Operator BETWEEN = (column, size) -> format("Between", 2, size, STR."\{column} BETWEEN ? AND ?");
+    Operator IS_TRUE = (column, size) -> format("Is true", 0, size, STR."\{column} IS TRUE");
+    Operator IS_FALSE = (column, size) -> format("Is false", 0, size, STR."\{column} IS FALSE");
+    Operator IS_NULL = (column, size) -> format("Is null", 0, size, STR."\{column} IS NULL");
+    Operator IS_NOT_NULL = (column, size) -> format("Is not null", 0, size, STR."\{column} IS NOT NULL");
 
     /**
      * Formats the operator with bind variables matching the specified size.
@@ -51,4 +52,11 @@ public interface Operator {
      * @throws IllegalArgumentException if the specified size is not supported by the operator.
      */
     String format(@Nonnull String column, int size);
+
+    private static String format(@Nonnull String name, int requiredSize, int actualSize, @Nonnull String operator) {
+        if (requiredSize != actualSize) {
+            throw new IllegalArgumentException(STR."\{name} operator requires \{requiredSize} value(s). Found \{actualSize} value(s).");
+        }
+        return operator;
+    }
 }
