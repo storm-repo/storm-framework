@@ -25,12 +25,10 @@ open class KotlinTemplatePreparedStatementIntegrationTest {
     @Test
     fun testSelectPet() {
         val stream = ORM(dataSource).template {
-            with(it) {
-                """
-                SELECT ${arg(Pet::class)}
-                FROM ${arg(Pet::class)}
-                """.trimIndent()
-            }
+            """
+            SELECT ${it(Pet::class)}
+            FROM ${it(Pet::class)}
+            """.trimIndent()
         }.getResultStream(Pet::class)
         assert(10L == stream.filter { it != null }
                 .map { it.owner }
@@ -45,15 +43,13 @@ open class KotlinTemplatePreparedStatementIntegrationTest {
         val nameFilter = "%y%"
         val orm = ORM(dataSource)
         val stream = orm.template {
-            with (it) {
-                """
-                SELECT ${arg(orm.s(Pet::class))}
-                FROM ${arg(orm.t(Pet::class, "p"))}
-                INNER JOIN ${arg(orm.t(PetType::class, "pt"))} ON p.type_id = pt.id
-                LEFT OUTER JOIN ${arg(orm.t(Owner::class, "o"))} ON p.owner_id = o.id
-                WHERE p.name LIKE ${arg(orm.p(nameFilter))}
-                """.trimIndent()
-            }
+            """
+            SELECT ${it(orm.s(Pet::class))}
+            FROM ${it(orm.t(Pet::class, "p"))}
+            INNER JOIN ${it(orm.t(PetType::class, "pt"))} ON p.type_id = pt.id
+            LEFT OUTER JOIN ${it(orm.t(Owner::class, "o"))} ON p.owner_id = o.id
+            WHERE p.name LIKE ${it(orm.p(nameFilter))}
+            """.trimIndent()
         }.getResultStream(Pet::class)
         assertEquals(5, stream.filter(Objects::nonNull)
                 .map(Pet::owner)
@@ -61,15 +57,5 @@ open class KotlinTemplatePreparedStatementIntegrationTest {
                 .map(Owner::firstName)
                 .distinct()
                 .count())
-    }
-
-
-    @Test
-    fun testSelect() {
-//        val orm = ORM(dataSource);
-//        val count = orm.query(Visit::class).clause {
-//            "WHERE ${it.arg(orm.a(Visit::class))}.id = ${it.arg(1)}"
-//        }.stream().count()
-//        assertEquals(1, count)
     }
 }

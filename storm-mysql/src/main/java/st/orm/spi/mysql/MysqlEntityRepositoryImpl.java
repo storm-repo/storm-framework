@@ -29,6 +29,8 @@ import java.util.stream.Stream;
 
 import static java.lang.Integer.MAX_VALUE;
 import static st.orm.Templates.unsafe;
+import static st.orm.template.QueryBuilder.batch;
+import static st.orm.template.QueryBuilder.slice;
 
 /**
  * Implementation of {@link st.orm.repository.EntityRepository} for MySQL.

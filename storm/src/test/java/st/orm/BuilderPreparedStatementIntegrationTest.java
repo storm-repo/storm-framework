@@ -44,7 +44,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithJoinTemplateFunction() {
         var ORM = ORM(dataSource);
         var list = ORM.query(Pet.class)
-                .innerJoin(Visit.class).on().template(it -> STR."\{it.arg(Pet.class)}.id = \{it.arg(Visit.class)}.pet_id")
+                .innerJoin(Visit.class).on().template(it -> STR."\{it.invoke(Pet.class)}.id = \{it.invoke(Visit.class)}.pet_id")
                 ."WHERE \{Visit.class}.visit_date = \{LocalDate.of(2023, 1, 8)}"
                 .toList();
          assertEquals(3, list.size());
@@ -64,7 +64,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithJoinTemplateFunctionParameter() {
         var ORM = ORM(dataSource);
         var list = ORM.query(Pet.class)
-                .innerJoin(Visit.class).on().template(it -> STR."\{it.arg(Pet.class)}.id = \{1}")
+                .innerJoin(Visit.class).on().template(it -> STR."\{it.invoke(Pet.class)}.id = \{1}")
                 ."WHERE \{Visit.class}.visit_date = \{LocalDate.of(2023, 1, 8)}"
                 .toList();
          assertEquals(3, list.size());
@@ -172,7 +172,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithWhereTemplateFunctionAfterOr() {
         var ORM = ORM(dataSource);
         var list = ORM.query(Vet.class)
-                .where(it -> it.filter(1).or(it.template(context -> STR."\{context.arg(Vet.class)}.id = \{context.arg(2)}")))
+                .where(it -> it.filter(1).or(it.template(context -> STR."\{context.invoke(Vet.class)}.id = \{context.invoke(2)}")))
                 .toList();
         assertEquals(2, list.size());
     }

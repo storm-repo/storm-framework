@@ -8,6 +8,7 @@ import kotlin.reflect.KClass;
 import st.orm.kotlin.KQuery;
 import st.orm.template.JoinType;
 import st.orm.template.Operator;
+import st.orm.template.QueryBuilder;
 import st.orm.template.TemplateFunction;
 
 import java.util.List;
@@ -52,6 +53,20 @@ public interface KQueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream
 
     interface KWhereBuilder<T, R, ID> extends StringTemplate.Processor<KPredicateBuilder<T, R, ID>, PersistenceException> {
         KPredicateBuilder<T, R, ID> template(@Nonnull TemplateFunction function);
+
+        /**
+         * A predicate that always evaluates to true.
+         */
+        default KPredicateBuilder<T, R, ID> TRUE() {
+            return this."TRUE";
+        }
+
+        /**
+         * A predicate that always evaluates to false.
+         */
+        default KPredicateBuilder<T, R, ID> FALSE() {
+            return this."FALSE";
+        }
 
         /**
          * Adds a condition to the WHERE clause that matches the specified object. The object can be the primary
@@ -219,5 +234,81 @@ public interface KQueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream
                 .reduce((_, _) -> {
                     throw new NonUniqueResultException("Expected single result, but found more than one.");
                 });
+    }
+
+    /**
+     * Performs the function in multiple batches.
+     *
+     * @param stream the stream to batch.
+     * @param function the function to apply to each batch.
+     * @return a stream of results from each batch.
+     * @param <X> the type of elements in the stream.
+     * @param <Y> the type of elements in the result stream.
+     */
+    static <X, Y> Stream<Y> batch(@Nonnull Stream<X> stream, @Nonnull Function<List<X>, Stream<Y>> function) {
+        return QueryBuilder.batch(stream, function);
+    }
+
+    /**
+     * Performs the function in multiple batches, each containing up to {@code batchSize} elements from the stream.
+     *
+     * @param stream the stream to batch.
+     * @param batchSize the maximum number of elements to include in each batch.
+     * @param function the function to apply to each batch.
+     * @return a stream of results from each batch.
+     * @param <X> the type of elements in the stream.
+     * @param <Y> the type of elements in the result stream.
+     */
+    static <X, Y> Stream<Y> batch(@Nonnull Stream<X> stream, int batchSize, @Nonnull Function<List<X>, Stream<Y>> function) {
+        return QueryBuilder.batch(stream, batchSize, function);
+    }
+
+    /**
+     * Wraps the stream in a stream that is automatically closed after a terminal operation.
+     *
+     * @param stream the stream to wrap.
+     * @return a stream that is automatically closed after a terminal operation.
+     * @param <X> the type of the stream.
+     */
+    static <X> Stream<X> autoClose(@Nonnull Stream<X> stream) {
+        return QueryBuilder.autoClose(stream);
+    }
+
+    /**
+     * Generates a stream of slices. This method is designed to facilitate batch processing of large streams by
+     * dividing the stream into smaller manageable slices, which can be processed independently.
+     *
+     * <p>The method utilizes a "tripwire" mechanism to ensure that the original stream is properly managed and closed upon
+     * completion of processing, preventing resource leaks.</p>
+     *
+     * @param <X> the type of elements in the stream.
+     * @param stream the original stream of elements to be sliced.
+     * {@code Integer.MAX_VALUE}, only one slice will be returned.
+     * @return a stream of slices, where each slice contains up to {@code batchSize} elements from the original stream.
+     */
+    static <X> Stream<List<X>> slice(@Nonnull Stream<X> stream) {
+        return QueryBuilder.slice(stream);
+    }
+
+    /**
+     * Generates a stream of slices, each containing a subset of elements from the original stream up to a specified
+     * size. This method is designed to facilitate batch processing of large streams by dividing the stream into
+     * smaller manageable slices, which can be processed independently.
+     *
+     * <p>If the specified size is equal to {@code Integer.MAX_VALUE}, this method will return a single slice containing
+     * the original stream, effectively bypassing the slicing mechanism. This is useful for operations that can handle
+     * all elements at once without the need for batching.</p>
+     *
+     * <p>The method utilizes a "tripwire" mechanism to ensure that the original stream is properly managed and closed upon
+     * completion of processing, preventing resource leaks.</p>
+     *
+     * @param <X> the type of elements in the stream.
+     * @param stream the original stream of elements to be sliced.
+     * @param size the maximum number of elements to include in each slice. If {@code size} is
+     * {@code Integer.MAX_VALUE}, only one slice will be returned.
+     * @return a stream of slices, where each slice contains up to {@code batchSize} elements from the original stream.
+     */
+    static <X> Stream<List<X>> slice(@Nonnull Stream<X> stream, int size) {
+        return QueryBuilder.slice(stream, size);
     }
 }

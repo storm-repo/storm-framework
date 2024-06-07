@@ -34,6 +34,8 @@ import java.util.stream.StreamSupport;
 
 import static java.lang.Integer.MAX_VALUE;
 import static java.util.Objects.requireNonNull;
+import static st.orm.template.QueryBuilder.batch;
+import static st.orm.template.QueryBuilder.slice;
 
 /**
  */

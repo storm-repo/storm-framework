@@ -27,10 +27,10 @@ open class KotlinBuilderPreparedStatementIntegrationTest {
         val ORM = ORM(dataSource)
         val list = ORM.query(Pet::class)
                 .innerJoin(Visit::class).on().template {
-                    "${it.arg(Pet::class)}.id = ${it.arg(Visit::class)}.pet_id"
+                    "${it(Pet::class)}.id = ${it(Visit::class)}.pet_id"
                 }
                 .stream {
-                    "WHERE ${it.arg(Visit::class)}.visit_date = ${it.arg(LocalDate.of(2023, 1, 8))}"
+                    "WHERE ${it(Visit::class)}.visit_date = ${it(LocalDate.of(2023, 1, 8))}"
                 }
                 .toList()
         Assertions.assertEquals(3, list.size)
@@ -41,10 +41,10 @@ open class KotlinBuilderPreparedStatementIntegrationTest {
         val ORM = ORM(dataSource)
         val list = ORM.query(Pet::class)
                 .innerJoin(Visit::class).on().template {
-                    "${it.arg(Pet::class)}.id = ${it.arg(1)}"
+                    "${it(Pet::class)}.id = ${it(1)}"
                 }
                 .stream {
-                    "WHERE ${it.arg(Visit::class)}.visit_date = ${it.arg(LocalDate.of(2023, 1, 8))}"
+                    "WHERE ${it(Visit::class)}.visit_date = ${it(LocalDate.of(2023, 1, 8))}"
                 }
                 .toList()
         Assertions.assertEquals(3, list.size)
@@ -77,7 +77,7 @@ open class KotlinBuilderPreparedStatementIntegrationTest {
                 .where {
                     it.filter(1).or(
                         it.template {
-                            "${it.arg(Vet::class)}.id = ${it.arg(2)}"
+                            "${it(Vet::class)}.id = ${it(2)}"
                         })
                 }
                 .toList()

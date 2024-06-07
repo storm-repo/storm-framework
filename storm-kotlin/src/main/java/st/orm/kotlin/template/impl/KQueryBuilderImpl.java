@@ -11,9 +11,9 @@ import st.orm.template.JoinType;
 import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryBuilder.JoinBuilder;
-import st.orm.template.QueryBuilder.WhereBuilder;
-import st.orm.template.QueryBuilder.TypedJoinBuilder;
 import st.orm.template.QueryBuilder.PredicateBuilder;
+import st.orm.template.QueryBuilder.TypedJoinBuilder;
+import st.orm.template.QueryBuilder.WhereBuilder;
 import st.orm.template.TemplateFunction;
 
 import java.util.function.Function;
@@ -26,6 +26,8 @@ import static st.orm.template.JoinType.left;
 import static st.orm.template.JoinType.right;
 
 public class KQueryBuilderImpl<T, R, ID> implements KQueryBuilder<T, R, ID> {
+    protected static final int DEFAULT_BATCH_SIZE = 1000;
+
     private final static ORMReflection REFLECTION = Providers.getORMReflection();
 
     private final QueryBuilder<T, R, ID> builder;

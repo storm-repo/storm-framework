@@ -603,7 +603,7 @@ record ElementProcessor(
         return new ElementResult(it.sql());
     }
 
-    public static List<RecordComponent> resolvePath(Class<? extends Record> root, Class<? extends Record> target) throws SqlTemplateException {
+    public static List<RecordComponent> resolvePath(Class<? extends Record> root, Class<? extends Record> target) {
         List<RecordComponent> path = new ArrayList<>();
         resolvePath(root, target, path);
         return path;

@@ -18,7 +18,6 @@ import st.orm.template.impl.SqlTemplateImpl.Join;
 import st.orm.template.impl.SqlTemplateImpl.On;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Spliterator;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -26,7 +25,6 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import static java.lang.Integer.MAX_VALUE;
 import static java.lang.StringTemplate.RAW;
 import static java.util.Objects.requireNonNull;
 import static java.util.Spliterators.spliteratorUnknownSize;
@@ -35,10 +33,9 @@ import static st.orm.template.JoinType.inner;
 import static st.orm.template.JoinType.left;
 import static st.orm.template.JoinType.right;
 import static st.orm.template.Operator.EQUALS;
-import static st.orm.template.impl.AutoClosingStreamProxy.TRIPWIRE;
 
 public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
-    protected static final int DEFAULT_BATCH_SIZE = 1000;
+    public static final int DEFAULT_BATCH_SIZE = 1_000;
 
     private final ORMTemplate ORM;
     private final boolean distinct;
@@ -335,95 +332,5 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
     @Override
     public Stream<R> process(@Nonnull StringTemplate template) {
         return build(template).getResultStream(resultType);
-    }
-
-    /**
-     * Wraps the stream in a stream that is automatically closed after a terminal operation.
-     *
-     * @param stream the stream to wrap.
-     * @return a stream that is automatically closed after a terminal operation.
-     * @param <X> the type of the stream.
-     */
-    @Override
-    public <X> Stream<X> autoClose(@Nonnull Stream<X> stream) {
-        return AutoClosingStreamProxy.wrap(stream);
-    }
-
-    /**
-     * Generates a stream of slices. This method is designed to facilitate batch processing of large streams by
-     * dividing the stream into smaller manageable slices, which can be processed independently.
-     *
-     * <p>The method utilizes a "tripwire" mechanism to ensure that the original stream is properly managed and closed upon
-     * completion of processing, preventing resource leaks.</p>
-     *
-     * @param <X> the type of elements in the stream.
-     * @param stream the original stream of elements to be sliced.
-     * {@code Integer.MAX_VALUE}, only one slice will be returned.
-     * @return a stream of slices, where each slice contains up to {@code batchSize} elements from the original stream.
-     */
-    @Override
-    public <X> Stream<List<X>> slice(@Nonnull Stream<X> stream) {
-        return slice(stream, DEFAULT_BATCH_SIZE);
-    }
-
-    /**
-     * Generates a stream of slices, each containing a subset of elements from the original stream up to a specified
-     * size. This method is designed to facilitate batch processing of large streams by dividing the stream into
-     * smaller manageable slices, which can be processed independently.
-     *
-     * <p>If the specified size is equal to {@code Integer.MAX_VALUE}, this method will return a single slice containing
-     * the original stream, effectively bypassing the slicing mechanism. This is useful for operations that can handle
-     * all elements at once without the need for batching.</p>
-     *
-     * <p>The method utilizes a "tripwire" mechanism to ensure that the original stream is properly managed and closed upon
-     * completion of processing, preventing resource leaks.</p>
-     *
-     * @param <X> the type of elements in the stream.
-     * @param stream the original stream of elements to be sliced.
-     * @param size the maximum number of elements to include in each slice. If {@code size} is
-     * {@code Integer.MAX_VALUE}, only one slice will be returned.
-     * @return a stream of slices, where each slice contains up to {@code batchSize} elements from the original stream.
-     */
-    @Override
-    public <X> Stream<List<X>> slice(@Nonnull Stream<X> stream, int size) {
-        if (size == MAX_VALUE) {
-            return Stream.of(stream.toList());
-        }
-        final Iterator<X> iterator;
-        TRIPWIRE.set(false); // No need to use the tripwire as this class closes the stream when done.
-        try {
-            iterator = stream.iterator();
-        } finally {
-            TRIPWIRE.remove();
-        }
-        var it = new Iterator<List<X>>() {
-            @Override
-            public boolean hasNext() {
-                return iterator.hasNext();
-            }
-
-            @Override
-            public List<X> next() {
-                Iterator<X> sliceIterator = new Iterator<>() {
-                    private int count = 0;
-
-                    @Override
-                    public boolean hasNext() {
-                        return count < size && iterator.hasNext();
-                    }
-
-                    @Override
-                    public X next() {
-                        if (count >= size) {
-                            throw new IllegalStateException("Size exceeded.");
-                        }
-                        count++;
-                        return iterator.next();
-                    }
-                };
-                return StreamSupport.stream(spliteratorUnknownSize(sliceIterator, 0), false).toList();
-            }
-        };
-        return StreamSupport.stream(spliteratorUnknownSize(it, 0), false);
     }
 }

@@ -27,9 +27,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
     fun testWithArg() {
         val ORM = ORM(dataSource)
         val list = ORM.repository(Pet::class)
-                .withTemplate {
-                    "WHERE ${it.arg(Pet::class)}.id = 7"
-                }
+                .withTemplate { "WHERE ${it(Pet::class)}.id = 7" }
                 .toList()
         assertEquals(1, list.size)
         assertEquals(7, list[0].id)
@@ -40,7 +38,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
         val ORM = ORM(dataSource)
         val list = ORM.repository(Pet::class)
                 .withTemplate {
-                    "WHERE ${it.arg(Pet::class)}.id = 7 OR ${it.arg(Pet::class)}.id = 8"
+                    "WHERE ${it(Pet::class)}.id = 7 OR ${it(Pet::class)}.id = 8"
                 }
                 .toList()
         assertEquals(2, list.size)
@@ -69,9 +67,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
     @Test
     fun testSelectAll() {
         val repository = ORM(dataSource).repositoryProxy(KotlinPetRepository::class)
-        repository.selectAll().let {
-            assertEquals(13, it.count())
-        }
+        assertEquals(13, repository.selectAll().count())
     }
 
     @Test

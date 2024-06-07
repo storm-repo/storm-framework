@@ -759,8 +759,8 @@ public class TemplatePreparedStatementIntegrationTest {
     public void testCustomTemplate() {
         var ORM = ORM(dataSource);
         var query = ORM.template(it -> STR."""
-                SELECT \{it.arg(Pet.class)}
-                FROM \{it.arg(Pet.class)}
+                SELECT \{it.invoke(Pet.class)}
+                FROM \{it.invoke(Pet.class)}
                 """);
         assertEquals(13, query.getResultStream().count());
     }

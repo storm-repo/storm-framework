@@ -41,7 +41,7 @@ public interface TemplateFunction {
          * @param o the object to inject.
          * @return the intermediary string to be placed into the template.
          */
-        String arg(@Nonnull Object o);
+        String invoke(@Nonnull Object o);
     }
 
     /**

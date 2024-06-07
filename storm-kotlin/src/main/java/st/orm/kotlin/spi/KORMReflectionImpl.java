@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 public final class KORMReflectionImpl implements ORMReflection {
     private final DefaultORMReflectionImpl defaultReflection = new DefaultORMReflectionImpl();
@@ -168,8 +169,38 @@ public final class KORMReflectionImpl implements ORMReflection {
         return field.get(record);
     }
 
+    @SuppressWarnings("unchecked")
+    static final Class<? extends Annotation> JAVAX_NULLABLE = ((Supplier<Class<? extends Annotation>>) () -> {
+        try {
+            return (Class<? extends Annotation>) Class.forName("javax.annotation.Nullable");
+        } catch (ClassNotFoundException e) {
+            return null;
+        }
+    }).get();
+    @SuppressWarnings("unchecked")
+    static final Class<? extends Annotation> JAKARTA_NULLABLE = ((Supplier<Class<? extends Annotation>>) () -> {
+        try {
+            return (Class<? extends Annotation>) Class.forName("jakarta.annotation.Nullable");
+        } catch (ClassNotFoundException e) {
+            return null;
+        }
+    }).get();
+
+    private boolean isNullable(@Nonnull RecordComponent component) {
+        return !isAnnotationPresent(component, PK.class)
+                && ((JAVAX_NULLABLE != null && isAnnotationPresent(component, JAVAX_NULLABLE))
+                || (JAKARTA_NULLABLE != null && isAnnotationPresent(component, JAKARTA_NULLABLE)));
+    }
+
     @Override
     public boolean isNonnull(@Nonnull RecordComponent component) {
+        // In Kotlin, the default is nonnull, so we need to check if the component is nullable.
+        if (isNullable(component)) {
+            return false;
+        }
+        if (isAnnotationPresent(component, PK.class)) {
+            return true;
+        }
         try {
             KClass<?> kClass = JvmClassMappingKt.getKotlinClass(component.getDeclaringRecord());
             var nullable = kClass.getMembers().stream()

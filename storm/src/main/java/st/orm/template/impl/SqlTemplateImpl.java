@@ -512,22 +512,24 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     var candidate = list.stream().filter(a -> Objects.equals(a.path(), path))
                             .findFirst();
                     if (candidate.isPresent()) {
-                        return candidate.get().alias();
+                        list = List.of(candidate.get());
+                    } else {
+                        list = list.stream().filter(a -> a.path() == null)
+                                .toList();
+                        if (list.isEmpty() && force) {
+                            throw new SqlTemplateException(STR."Alias for \{table.getSimpleName()} not found at path: '\{path}'.");
+                        }
                     }
-                    list = list.stream().filter(a -> a.path() == null)
-                            .toList();
-                    if (list.isEmpty() && force) {
-                        throw new SqlTemplateException(STR."Alias for \{table.getSimpleName()} not found at path: '\{path}'.");
-                    }
-                }
-                if (list.isEmpty()) {
-                    // Use the full table name of no path was given and no alias was found.
-                    return getTableName(table, tableNameResolver);
                 }
                 if (list.size() > 1) {
                     throw multipleFoundException(table);
                 }
-                return list.getFirst().alias();
+                String alias = list.isEmpty() ? "" : list.getFirst().alias();
+                if (alias.isEmpty()) {
+                    // Use the full table name of no path was given and no alias was found.
+                    return getTableName(table, tableNameResolver);
+                }
+                return alias;
             }
 
             @Override
@@ -689,11 +691,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         for (ListIterator<Element> it = elements.listIterator(); it.hasNext(); ) {
             Element element = it.next();
             if (element instanceof Table t) {
-                if (t.alias().isEmpty()) {
-                    it.set(new Table(t.table(), aliasMapper.generateAlias(t.table(), null)));
-                } else {
-                    aliasMapper.setAlias(t.table(), t.alias(), null);
-                }
+                aliasMapper.setAlias(t.table(), t.alias(), null);
             } else if (element instanceof Join j) {
                 String path = null; // Custom joins are not part of the primary table.
                 // Move custom join to list of (expanded) joins to allow proper ordering of inner and outer joins.
@@ -779,14 +777,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
             mapForeignKeys(tableMapper, alias, table, path);
         }
         //noinspection DuplicatedCode
-        for (ListIterator<Element> it = elements.listIterator(); it.hasNext(); ) {
-            Element element = it.next();
+        for (Element element : elements) {
             if (element instanceof Table t) {
-                if (t.alias().isEmpty()) {
-                    it.set(new Table(t.table(), aliasMapper.generateAlias(t.table(), null)));
-                } else {
-                    aliasMapper.setAlias(t.table(), t.alias(), null);
-                }
+                aliasMapper.setAlias(t.table(), t.alias(), null);
             }
         }
     }
@@ -845,14 +838,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
             throw new SqlTemplateException("From element required when using Delete element.");
         }
         //noinspection DuplicatedCode
-        for (ListIterator<Element> it = elements.listIterator(); it.hasNext(); ) {
-            Element element = it.next();
+        for (Element element : elements) {
             if (element instanceof Table t) {
-                if (t.alias().isEmpty()) {
-                    it.set(new Table(t.table(), aliasMapper.generateAlias(t.table(), null)));
-                } else {
-                    aliasMapper.setAlias(t.table(), t.alias(), null);
-                }
+                aliasMapper.setAlias(t.table(), t.alias(), null);
             }
         }
     }

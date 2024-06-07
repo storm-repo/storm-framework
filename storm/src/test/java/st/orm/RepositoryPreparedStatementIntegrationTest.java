@@ -760,7 +760,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testWithArg() {
         var ORM = ORM(dataSource);
-        var list = ORM.repository(Pet.class).withTemplate(it -> STR."WHERE \{it.arg(Pet.class)}.id = 7").toList();
+        var list = ORM.repository(Pet.class).withTemplate(it -> STR."WHERE \{it.invoke(Pet.class)}.id = 7").toList();
         assertEquals(1, list.size());
         assertEquals(7, list.getFirst().id());
     }
@@ -768,7 +768,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testWithTwoArgs() {
         var ORM = ORM(dataSource);
-        var list = ORM.repository(Pet.class).withTemplate(it -> STR."WHERE \{it.arg(Pet.class)}.id = 7 OR \{it.arg(Pet.class)}.id = 8").toList();
+        var list = ORM.repository(Pet.class).withTemplate(it -> STR."WHERE \{it.invoke(Pet.class)}.id = 7 OR \{it.invoke(Pet.class)}.id = 8").toList();
         assertEquals(2, list.size());
         assertEquals(7, list.getFirst().id());
         assertEquals(8, list.getLast().id());

@@ -6,11 +6,19 @@ import jakarta.persistence.NonUniqueResultException;
 import jakarta.persistence.PersistenceException;
 import st.orm.PreparedQuery;
 import st.orm.Query;
+import st.orm.template.impl.AutoClosingStreamProxy;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+
+import static java.lang.Integer.MAX_VALUE;
+import static java.util.Spliterators.spliteratorUnknownSize;
+import static st.orm.template.impl.AutoClosingStreamProxy.TRIPWIRE;
+import static st.orm.template.impl.QueryBuilderImpl.DEFAULT_BATCH_SIZE;
 
 /**
  * A query builder that constructs a query from a template.
@@ -397,7 +405,7 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @param <X> the type of elements in the stream.
      * @param <Y> the type of elements in the result stream.
      */
-    default <X, Y> Stream<Y> batch(@Nonnull Stream<X> stream, @Nonnull Function<List<X>, Stream<Y>> function) {
+    static <X, Y> Stream<Y> batch(@Nonnull Stream<X> stream, @Nonnull Function<List<X>, Stream<Y>> function) {
         return autoClose(slice(stream).flatMap(function)).onClose(stream::close);
     }
 
@@ -411,7 +419,7 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @param <X> the type of elements in the stream.
      * @param <Y> the type of elements in the result stream.
      */
-    default <X, Y> Stream<Y> batch(@Nonnull Stream<X> stream, int batchSize, @Nonnull Function<List<X>, Stream<Y>> function) {
+    static <X, Y> Stream<Y> batch(@Nonnull Stream<X> stream, int batchSize, @Nonnull Function<List<X>, Stream<Y>> function) {
         return autoClose(slice(stream, batchSize).flatMap(function)).onClose(stream::close);
     }
 
@@ -422,7 +430,9 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @return a stream that is automatically closed after a terminal operation.
      * @param <X> the type of the stream.
      */
-    <X> Stream<X> autoClose(@Nonnull Stream<X> stream);
+    static <X> Stream<X> autoClose(@Nonnull Stream<X> stream) {
+        return AutoClosingStreamProxy.wrap(stream);
+    }
 
     /**
      * Generates a stream of slices. This method is designed to facilitate batch processing of large streams by
@@ -436,7 +446,9 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * {@code Integer.MAX_VALUE}, only one slice will be returned.
      * @return a stream of slices, where each slice contains up to {@code batchSize} elements from the original stream.
      */
-    <X> Stream<List<X>> slice(@Nonnull Stream<X> stream);
+    static <X> Stream<List<X>> slice(@Nonnull Stream<X> stream) {
+        return slice(stream, DEFAULT_BATCH_SIZE);
+    }
 
     /**
      * Generates a stream of slices, each containing a subset of elements from the original stream up to a specified
@@ -456,5 +468,45 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * {@code Integer.MAX_VALUE}, only one slice will be returned.
      * @return a stream of slices, where each slice contains up to {@code batchSize} elements from the original stream.
      */
-    <X> Stream<List<X>> slice(@Nonnull Stream<X> stream, int size);
+    static <X> Stream<List<X>> slice(@Nonnull Stream<X> stream, int size) {
+        if (size == MAX_VALUE) {
+            return Stream.of(stream.toList());
+        }
+        final Iterator<X> iterator;
+        TRIPWIRE.set(false); // No need to use the tripwire as this class closes the stream when done.
+        try {
+            iterator = stream.iterator();
+        } finally {
+            TRIPWIRE.remove();
+        }
+        var it = new Iterator<List<X>>() {
+            @Override
+            public boolean hasNext() {
+                return iterator.hasNext();
+            }
+
+            @Override
+            public List<X> next() {
+                Iterator<X> sliceIterator = new Iterator<>() {
+                    private int count = 0;
+
+                    @Override
+                    public boolean hasNext() {
+                        return count < size && iterator.hasNext();
+                    }
+
+                    @Override
+                    public X next() {
+                        if (count >= size) {
+                            throw new IllegalStateException("Size exceeded.");
+                        }
+                        count++;
+                        return iterator.next();
+                    }
+                };
+                return StreamSupport.stream(spliteratorUnknownSize(sliceIterator, 0), false).toList();
+            }
+        };
+        return StreamSupport.stream(spliteratorUnknownSize(it, 0), false);
+    }
 }
