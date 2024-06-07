@@ -77,7 +77,6 @@ import java.util.stream.Stream;
 import static java.util.List.copyOf;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.empty;
-import static java.util.Spliterators.iterator;
 import static java.util.stream.Collectors.joining;
 import static st.orm.spi.Providers.getORMConverter;
 import static st.orm.template.Operator.EQUALS;
@@ -381,7 +380,7 @@ record ElementProcessor(
 
     private String getObjectString(@Nonnull Object object, @Nonnull Operator operator, @Nullable String path) throws SqlTemplateException {
         if (primaryTable == null) {
-            throw new SqlTemplateException("Primary entity unknown.");
+            throw new SqlTemplateException("Primary table unknown.");
         }
         var table = primaryTable.table();
         Iterable<?> iterable = switch (object) {
@@ -402,21 +401,21 @@ record ElementProcessor(
                 assert primaryTable != null;
                 valueMap = getValuesForCondition(o, table, primaryTable.alias(), sqlTemplate.columnNameResolver());
                 if (valueMap.isEmpty()) {
-                    throw new SqlTemplateException(STR."Cannot match \{o.getClass().getSimpleName()} primary key on \{table.getSimpleName()} table.");
+                    throw new SqlTemplateException(STR."Failed to find primary key field for \{o.getClass().getSimpleName()} argument on \{table.getSimpleName()} table.");
                 }
             } else if (elementType.isRecord()) {
                 assert primaryTable != null;
                 valueMap = getValuesForCondition((Record) o, path, table, primaryTable.alias(), tableMapper, sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver(), versionAware.getPlain());
                 if (valueMap.isEmpty()) {
-                    throw new SqlTemplateException(STR."Cannot match \{o.getClass().getSimpleName()} element on \{table.getSimpleName()} table graph.");
+                    throw new SqlTemplateException(STR."Failed to find field for \{o.getClass().getSimpleName()} argument on \{table.getSimpleName()} table graph.");
                 }
             } else if (path != null) {
                 valueMap = getValuesForCondition(o, path, table, aliasMapper, sqlTemplate.columnNameResolver());
                 if (valueMap.isEmpty()) {
-                    throw new SqlTemplateException(STR."Cannot match \{o.getClass().getSimpleName()} element on \{table.getSimpleName()} table at path '\{path}'.");
+                    throw new SqlTemplateException(STR."Failed to find field for \{o.getClass().getSimpleName()} argument on \{table.getSimpleName()} table at path '\{path}'.");
                 }
             } else {
-                throw new SqlTemplateException(STR."Cannot match \{o.getClass().getSimpleName()} element on \{table.getSimpleName()} table without a path.");
+                throw new SqlTemplateException(STR."Failed to find field for \{o.getClass().getSimpleName()} argument on \{table.getSimpleName()} table without a path.");
             }
             if (valueMap.size() == 1) {
                 var entry = valueMap.entrySet().iterator().next();
@@ -424,14 +423,14 @@ record ElementProcessor(
                 var k = entry.getKey();
                 if (column != null) {
                     if (!column.equals(k)) {
-                        throw new SqlTemplateException(STR."Where elements resolve to different columns: \{column} and \{k}.");
+                        throw new SqlTemplateException(STR."Multiple columns specified by where-clause argument: \{column} and \{k}.");
                     }
                 }
                 column = k;
                 size++;
             } else {
                 if (column != null) {
-                    throw new SqlTemplateException("Where elements resolve to different columns.");
+                    throw new SqlTemplateException("Multiple columns specified by where-clause arguments.");
                 }
                 try {
                     args.add(STR."(\{valueMap.keySet().stream()
@@ -455,7 +454,7 @@ record ElementProcessor(
             if (valueMap.size() == 1) {
                 column = valueMap.sequencedKeySet().getFirst();
             } else {
-                throw new SqlTemplateException("No columns found for Where.");
+                throw new SqlTemplateException(STR."Failed to find field for \{table.getSimpleName()} table at path \{path}.");
             }
         }
         if (column != null) {
@@ -1095,35 +1094,47 @@ record ElementProcessor(
                                                                           @Nonnull Class<? extends Record> recordType,
                                                                           @Nonnull AliasMapper aliasMapper,
                                                                           @Nullable ColumnNameResolver columnNameResolver) throws SqlTemplateException {
-        return getValuesForCondition(value, path, recordType, aliasMapper, columnNameResolver, 0);
+        return getValuesForCondition(value, path, recordType, aliasMapper, columnNameResolver, 0, null, 0);
     }
 
     private static SequencedMap<String, Object> getValuesForCondition(@Nullable Object value,
-                                                             @Nonnull String path,
-                                                             @Nonnull Class<? extends Record> recordType,
-                                                             @Nonnull AliasMapper aliasMapper,
-                                                             @Nullable ColumnNameResolver columnNameResolver,
-                                                             int depth) throws SqlTemplateException {
+                                                                      @Nonnull String path,
+                                                                      @Nonnull Class<? extends Record> recordType,
+                                                                      @Nonnull AliasMapper aliasMapper,
+                                                                      @Nullable ColumnNameResolver columnNameResolver,
+                                                                      int depth,
+                                                                      @Nullable Class<? extends Record> inlineParentType,
+                                                                      int inlineDepth) throws SqlTemplateException {
         assert value == null || !value.getClass().isRecord();
         try {
             var values = new LinkedHashMap<String, Object>();
             var parts = path.split("\\.");
+            var components = (inlineParentType != null ? inlineParentType : recordType).getRecordComponents();
             if (parts.length == depth + 1) {
                 String name = parts[depth];
-                for (var component : recordType.getRecordComponents()) {
+                for (var component : components) {
                     if (component.getName().equals(name)) {
-                        String alias = aliasMapper.getAlias(recordType, Stream.of(parts).limit(depth).collect(joining(".")));
+                        String alias = aliasMapper.getAlias(recordType, Stream.of(parts).limit(depth - inlineDepth).collect(joining(".")));
                         values.put(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getColumnName(component, columnNameResolver)}", value);
                         break;
                     }
                 }
             } else {
-                for (var component : recordType.getRecordComponents()) {
+                for (var component : components) {
                     if (component.getName().equals(parts[depth])) {
-                        Class<?> type = component.getType();
-                        if (type.isRecord() && REFLECTION.isAnnotationPresent(component, FK.class)) {
+                        boolean inline = REFLECTION.isAnnotationPresent(component, Inline.class);
+                        var candidateType = component.getType();
+                        if (candidateType.isRecord() && (REFLECTION.isAnnotationPresent(component, FK.class) || inline)) {
                             //noinspection unchecked
-                            values.putAll(getValuesForCondition(value, path, (Class<? extends Record>) type, aliasMapper, columnNameResolver, depth + 1));
+                            values.putAll(getValuesForCondition(
+                                    value,
+                                    path,
+                                    (Class<? extends Record>) (inline ? recordType : candidateType),
+                                    aliasMapper,
+                                    columnNameResolver,
+                                    depth + 1,
+                                    (Class<? extends Record>) (inline ? candidateType : null),
+                                    inlineDepth + (inline ? 1 : 0)));
                         }
                         break;
                     }

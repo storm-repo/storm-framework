@@ -430,12 +430,12 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testInsertInlined() {
-        Owner owner = Owner.builder().
-                firstName("John").
-                lastName("Doe").
-                address(new Address("271 University Ave", "Palo Alto")).
-                telephone("1234567890").
-                build();
+        Owner owner = Owner.builder()
+                .firstName("John")
+                .lastName("Doe")
+                .address(new Address("271 University Ave", "Palo Alto"))
+                .telephone("1234567890")
+                .build();
         var ORM = ORM(dataSource);
         try (var query = ORM."""
                 INSERT INTO \{Owner.class}

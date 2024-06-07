@@ -135,24 +135,24 @@ The following example demonstrates how `ORM(datasource).repository(Pet.class)` r
 ----
 public class ORMRepositoryExample {
 
-    public Stream<Pet> findByBirthDate(LocalDate birthDate) {
+    public Stream<Pet> findByFirstName(String firstName) {
+        var R = ORM(dataSource).repository(Pet.class);
+        // Select all pets that belong to an owner with the specified first name. Uses the
+        // auto alias feature and parameter binding.
+        return R."WHERE \{Owner.class}.first_name = \{firstName}";
+    }
+
+    public Stream<Pet> findByLastName(String lastName) {
         // Request a repository for the Pet entity.
         var R = ORM(dataSource).repository(Pet.class);
-        // Add a custom WHERE clause. Uses the auto parameter binding feature.
-        return R."WHERE birth_date = \{birthDate}";
+        // Use component path to identify column.
+        return R.where("owner.lastName", EQUALS, firstName).stream();
     }
 
     public Stream<Pet> findByOwner(Owner owner) {
         var R = ORM(dataSource).repository(Pet.class);
         // Select all pets that belong to the owner, Uses the auto join feature based on @FK relationships.
-        return R.selectMatches(owner);
-    }
-
-    public Stream<Pet> findByOwnerFirstName(String firstName) {
-        var R = ORM(dataSource).repository(Pet.class);
-        // Select all pets that belong to an owner with the specified first name. Uses the
-        // auto alias feature and parameter binding.
-        return R.select()."WHERE \{Owner.class}.first_name = \{firstName}";
+        return R.where(owner);
     }
 
     public Pet create(String name, PetType petType) {
@@ -175,7 +175,7 @@ The following logic shows howto create a custom repository with custom methods:
 ----
 public interface PetRepository extends EntityRepository<Pet> {
 
-    default Stream<Pet> findByOwnerCity(String city) {
+    default Stream<Pet> findByCity(String city) {
         // Select all pets that belong to an owner in the specified city. Uses the
         // auto alias feature and parameter binding.
         return this."WHERE \{Owner.class}.city = \{city}";
@@ -253,8 +253,6 @@ public class JSONExample {
         // { "address": "638 Cardinal Ave.", "city": "Sun Prairie" }
         var ORM = ORM(dataSource);
         return ORM.query(Owner.class)
-            .select()
-            .from(Owner.class)
             .toList();
     }
 }

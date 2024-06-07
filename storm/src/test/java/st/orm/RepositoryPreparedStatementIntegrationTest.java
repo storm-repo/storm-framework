@@ -564,6 +564,20 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
+    public void testSelectWithInlinePath() {
+        var ORM = ORM(dataSource);
+        var list = ORM.repository(Owner.class).where("address.city", EQUALS, "Madison").toList();
+        assertEquals(4, list.size());
+    }
+
+    @Test
+    public void testSelectWithInlinePathMultiArgument() {
+        var ORM = ORM(dataSource);
+        var list = ORM.repository(Owner.class).where("address.city", EQUALS, "Madison", "Monona").toList();
+        assertEquals(6, list.size());
+    }
+
+    @Test
     public void testSelectWhere() {
         var ORM = ORM(dataSource);
         Owner owner = Owner.builder().id(1).build();
