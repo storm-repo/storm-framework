@@ -2,11 +2,10 @@
 
 ST/ORM is a SQL Template and ORM for Java 21 and higher.
 
-## Features
-
 - Simple and easy to use
 - Lightweight
 - No dependencies
+- No magic
 - Supports all SQL databases
 
 
@@ -263,3 +262,36 @@ public class JSONExample {
 === Spring Framework Integration
 
 // TODO
+
+
+== Future Work
+
+The following examples show how ST/ORM will evolve once String Template 2.0 and Derived Record Creation (JEP 468) are available.
+
+[source,java,indent=0]
+----
+
+public class FutureExample {
+
+    public record PetCount(Pet pet, int count) {}
+
+    public Stream<VetCount> getVisitCount() {
+        // QueryBuilder example with method based String Templates resulting in a much cleaner syntax.
+        var orm = ORM(dataSource);
+        return orm.query(Pet.class)
+                .select(PetCount.class, "\{Pet.class}, COUNT(*)")
+                .innerJoin(Visit.class).on(Pet.class)
+                .stream("GROUP BY \{Vet.class}.id");
+    }
+
+    public void removeOwners() {
+        // Repository example utilizing derived record creation to update record fields.
+        var petRepository = ORM(dataSource).repository(Pet.class);
+        var pets = petRepository.selectAll();
+        repository.update(pets.map(pet ->
+                pet with { owner = null; }
+        );
+    }
+}
+
+----
