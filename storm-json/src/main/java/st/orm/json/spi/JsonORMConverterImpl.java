@@ -26,9 +26,6 @@ import st.orm.template.SqlTemplateException;
 
 import java.lang.reflect.RecordComponent;
 import java.util.List;
-import java.util.Map;
-import java.util.SequencedSet;
-import java.util.Set;
 import java.util.function.Function;
 
 public class JsonORMConverterImpl implements ORMConverter {
@@ -50,7 +47,8 @@ public class JsonORMConverterImpl implements ORMConverter {
     @Override
     public Object convert(@Nonnull Object[] args) throws SqlTemplateException {
         try {
-            return new ObjectMapper().readValue((String) args[0], typeReference);
+            Object arg = args[0];
+            return arg == null ? null : new ObjectMapper().readValue((String) args[0], typeReference);
         } catch (JsonProcessingException e) {
             throw new SqlTemplateException(e);
         }
