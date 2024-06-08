@@ -180,10 +180,10 @@ public final class ObjectMapperFactory {
     private static final Map<Parameter, Boolean> NONNULL_CACHE = new ConcurrentHashMap<>();
 
     /**
-     * Returns true if the specified parameter has a non-null annotation, false otherwise.
+     * Returns true if the specified parameter is marked as non-null, false otherwise.
      *
-     * @param parameter the parameter to check for a non-null annotation.
-     * @return true if the specified parameter has a non-null annotation, false otherwise.
+     * @param parameter the parameter to check for a non-null characteristics.
+     * @return true if the specified parameter is marked as non-null, false otherwise.
      */
     static boolean isNonnull(@Nonnull Parameter parameter) {
         // Use the cache to return the result if it's already calculated

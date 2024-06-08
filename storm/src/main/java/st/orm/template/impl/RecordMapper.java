@@ -25,9 +25,9 @@ import st.orm.template.SqlTemplateException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 import static java.lang.System.arraycopy;
 import static java.util.Collections.addAll;
@@ -207,13 +207,13 @@ final class RecordMapper {
                 Class<?>[] recordParamTypes = recordConstructor.getParameterTypes();
                 // Recursively adapt arguments for nested records, updating currentIndex after processing.
                 AdaptArgumentsResult result = adaptArguments(recordParamTypes, recordConstructor, args, currentIndex, lazyFactory);
-                currentIndex = result.offset();
-                if (Stream.of(result.arguments())
-                        .allMatch(a -> a == null || (a instanceof Lazy<?> l && l.isNull()))) {
+                if (Arrays.stream(args, currentIndex, result.offset()).allMatch(a -> a == null || (a instanceof Lazy<?> l && l.isNull()))
+                        && !REFLECTION.isNonnull(component)) {   // Only apply null if resulting component is marked as nullable.
                     arg = null;
                 } else {
                     arg = ObjectMapperFactory.construct(recordConstructor, result.arguments(), argsIndex + i);
                 }
+                currentIndex = result.offset();
             } else if (Lazy.class.isAssignableFrom(paramType)) {
                 Object pk = args[currentIndex++];
                 arg = lazyFactory.create(recordComponents[i], pk);
