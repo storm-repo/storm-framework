@@ -117,7 +117,8 @@ final class RecordMapper {
                         constructor,
                         args,
                         0,
-                        lazyFactory).arguments();
+                        lazyFactory,
+                        false).arguments();
                 return ObjectMapperFactory.construct((Constructor<T>) constructor, adaptedArgs, 0);
             }
         };
@@ -179,6 +180,7 @@ final class RecordMapper {
      * @param parameterTypes the parameter types of the constructor.
      * @param args the arguments to adapt.
      * @param argsIndex the index of the first argument to adapt.
+     * @param nullable whether the record is nullable.
      * @return the adapted arguments.
      * @throws SqlTemplateException if an error occurred while creating the adapted arguments.
      */
@@ -186,7 +188,8 @@ final class RecordMapper {
                                                        @Nonnull Constructor<?> constructor,
                                                        @Nonnull Object[] args,
                                                        int argsIndex,
-                                                       @Nonnull LazyFactory lazyFactory) throws SqlTemplateException {
+                                                       @Nonnull LazyFactory lazyFactory,
+                                                       boolean nullable) throws SqlTemplateException {
         Object[] adaptedArgs = new Object[parameterTypes.length];
         int currentIndex = argsIndex;
         var recordComponents = constructor.getDeclaringClass().getRecordComponents();
@@ -206,9 +209,10 @@ final class RecordMapper {
                         .orElseThrow(() -> new SqlTemplateException(STR."No canonical constructor found for record type: \{paramType.getSimpleName()}."));
                 Class<?>[] recordParamTypes = recordConstructor.getParameterTypes();
                 // Recursively adapt arguments for nested records, updating currentIndex after processing.
-                AdaptArgumentsResult result = adaptArguments(recordParamTypes, recordConstructor, args, currentIndex, lazyFactory);
+                nullable |= !REFLECTION.isNonnull(component);
+                AdaptArgumentsResult result = adaptArguments(recordParamTypes, recordConstructor, args, currentIndex, lazyFactory, nullable);
                 if (Arrays.stream(args, currentIndex, result.offset()).allMatch(a -> a == null || (a instanceof Lazy<?> l && l.isNull()))
-                        && !REFLECTION.isNonnull(component)) {   // Only apply null if resulting component is marked as nullable.
+                        && nullable) {   // Only apply null if resulting component is marked as nullable.
                     arg = null;
                 } else {
                     arg = ObjectMapperFactory.construct(recordConstructor, result.arguments(), argsIndex + i);
