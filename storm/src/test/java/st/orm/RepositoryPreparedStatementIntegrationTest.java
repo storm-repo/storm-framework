@@ -321,6 +321,16 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertEquals(10, owners.size());
     }
 
+    @Test
+    public void testSelectWithWrapper() {
+        record Wrapper(Pet pet) {}
+        var ORM = ORM(dataSource);
+        var pets = ORM.repository(Pet.class)
+                .select(Wrapper.class)
+                .toList();
+        assertEquals(13, pets.size());
+    }
+
     @Builder(toBuilder = true)
     @Name("visit")
     public record VisitWithTwoPets(

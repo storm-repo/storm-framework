@@ -249,7 +249,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 stream.toList();
             }
         });
-        assertInstanceOf(SQLSyntaxErrorException.class, e.getCause());
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
 
     @Test

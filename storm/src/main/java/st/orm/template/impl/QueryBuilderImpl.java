@@ -35,8 +35,6 @@ import static st.orm.template.JoinType.right;
 import static st.orm.template.Operator.EQUALS;
 
 public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
-    public static final int DEFAULT_BATCH_SIZE = 1_000;
-
     private final ORMTemplate ORM;
     private final boolean distinct;
     private final Class<T> sourceType;

@@ -602,9 +602,11 @@ record ElementProcessor(
         return new ElementResult(it.sql());
     }
 
-    public static List<RecordComponent> resolvePath(Class<? extends Record> root, Class<? extends Record> target) {
+    public static @Nullable List<RecordComponent> resolvePath(Class<? extends Record> root, Class<? extends Record> target) {
         List<RecordComponent> path = new ArrayList<>();
-        resolvePath(root, target, path);
+        if (!resolvePath(root, target, path)) {
+            return null;
+        }
         return path;
     }
 
@@ -636,8 +638,16 @@ record ElementProcessor(
                                                     @Nullable ForeignKeyResolver foreignKeyResolver) throws SqlTemplateException {
         var parts = new ArrayList<String>();
         // Resolve the path of type, starting from the primary table. This will help in resolving the alias in case the same table is used multiple times.
-        var path = primaryTable == null ? List.<RecordComponent>of() : resolvePath(primaryTable, type);
-        getColumnsStringForSelect(type, path, aliasMapper, getAlias(type, path, "", aliasMapper), parts, columnNameResolver, foreignKeyResolver);
+        List<RecordComponent> path = null;
+        String pathString = null;
+        if (primaryTable != null) {
+            List<RecordComponent> pathList = resolvePath(primaryTable, type);
+            if (pathList != null) {
+                path = pathList;
+                pathString = toPathString(pathList);
+            }
+        }
+        getColumnsStringForSelect(type, path, aliasMapper, primaryTable, aliasMapper.findAlias(type, pathString).orElse(""), parts, columnNameResolver, foreignKeyResolver);
         if (!parts.isEmpty()) {
             parts.removeLast();
         }
@@ -645,8 +655,9 @@ record ElementProcessor(
     }
 
     private static void getColumnsStringForSelect(@Nonnull Class<? extends Record> type,
-                                                  @Nonnull List<RecordComponent> path,
+                                                  @Nullable List<RecordComponent> path,
                                                   @Nonnull AliasMapper aliasMapper,
+                                                  @Nullable Class<? extends Record> primaryTable,
                                                   @Nonnull String alias,
                                                   @Nonnull List<String> parts,
                                                   @Nullable ColumnNameResolver columnNameResolver,
@@ -665,10 +676,17 @@ record ElementProcessor(
             } else if (component.getType().isRecord()) {
                 @SuppressWarnings("unchecked")
                 var recordType = (Class<? extends Record>) component.getType();
-                var list = new ArrayList<>(path);
-                list.add(component);
-                var copy = copyOf(list);
-                getColumnsStringForSelect(recordType, copy, aliasMapper, getAlias(recordType, copy, alias, aliasMapper), parts, columnNameResolver, foreignKeyResolver);
+                List<RecordComponent> newPath;
+                if (path != null) {
+                    newPath = new ArrayList<>(path);
+                    newPath.add(component);
+                    newPath = copyOf(newPath);
+                } else if (recordType == primaryTable) {
+                    newPath = List.of();
+                } else {
+                    newPath = null;
+                }
+                getColumnsStringForSelect(recordType, newPath, aliasMapper, primaryTable, getAlias(recordType, newPath, alias, aliasMapper), parts, columnNameResolver, foreignKeyResolver);
             } else if (Lazy.class.isAssignableFrom(component.getType())) {
                 if (!REFLECTION.isAnnotationPresent(component, FK.class)) {
                     throw new SqlTemplateException(STR."Lazy component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is not a foreign key.");
@@ -1254,21 +1272,31 @@ record ElementProcessor(
     }
 
     private static String getAlias(@Nonnull Class<? extends Record> type,
-                                   @Nonnull List<RecordComponent> path,
+                                   @Nullable List<RecordComponent> path,
                                    @Nonnull String alias,
                                    @Nonnull AliasMapper aliasMapper) throws SqlTemplateException {
+        if (path == null) {
+            var result = aliasMapper.findAlias(type, "");
+            if (result.isPresent()) {
+                return result.get();
+            }
+            if (alias.isEmpty()) {
+                throw new SqlTemplateException(STR."Alias not found for \{type.getSimpleName()}");
+            }
+            return alias;
+        }
         String p = toPathString(path);
         if (!path.isEmpty()) {
             RecordComponent lastComponent = path.getLast();
             if (REFLECTION.isAnnotationPresent(lastComponent, FK.class)) {
-                return aliasMapper.getAlias(type, p, false);
+                return aliasMapper.getAlias(type, p);
             }
             if (REFLECTION.isAnnotationPresent(lastComponent, PK.class) ||
                     REFLECTION.isAnnotationPresent(lastComponent, Inline.class)) {
                 return alias;
             }
         }
-        return aliasMapper.getAlias(type, p, false);
+        return aliasMapper.findAlias(type, p).orElseThrow(() -> new SqlTemplateException(STR."Alias not found for \{type.getSimpleName()}"));
     }
 
     private boolean isPrimitiveCompatible(Object o, Class<?> clazz) {

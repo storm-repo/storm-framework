@@ -18,7 +18,6 @@ import java.util.stream.StreamSupport;
 import static java.lang.Integer.MAX_VALUE;
 import static java.util.Spliterators.spliteratorUnknownSize;
 import static st.orm.template.impl.AutoClosingStreamProxy.TRIPWIRE;
-import static st.orm.template.impl.QueryBuilderImpl.DEFAULT_BATCH_SIZE;
 
 /**
  * A query builder that constructs a query from a template.
@@ -397,19 +396,6 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
     }
 
     /**
-     * Performs the function in multiple batches.
-     *
-     * @param stream the stream to batch.
-     * @param function the function to apply to each batch.
-     * @return a stream of results from each batch.
-     * @param <X> the type of elements in the stream.
-     * @param <Y> the type of elements in the result stream.
-     */
-    static <X, Y> Stream<Y> batch(@Nonnull Stream<X> stream, @Nonnull Function<List<X>, Stream<Y>> function) {
-        return autoClose(slice(stream).flatMap(function)).onClose(stream::close);
-    }
-
-    /**
      * Performs the function in multiple batches, each containing up to {@code batchSize} elements from the stream.
      *
      * @param stream the stream to batch.
@@ -432,22 +418,6 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      */
     static <X> Stream<X> autoClose(@Nonnull Stream<X> stream) {
         return AutoClosingStreamProxy.wrap(stream);
-    }
-
-    /**
-     * Generates a stream of slices. This method is designed to facilitate batch processing of large streams by
-     * dividing the stream into smaller manageable slices, which can be processed independently.
-     *
-     * <p>The method utilizes a "tripwire" mechanism to ensure that the original stream is properly managed and closed upon
-     * completion of processing, preventing resource leaks.</p>
-     *
-     * @param <X> the type of elements in the stream.
-     * @param stream the original stream of elements to be sliced.
-     * {@code Integer.MAX_VALUE}, only one slice will be returned.
-     * @return a stream of slices, where each slice contains up to {@code batchSize} elements from the original stream.
-     */
-    static <X> Stream<List<X>> slice(@Nonnull Stream<X> stream) {
-        return slice(stream, DEFAULT_BATCH_SIZE);
     }
 
     /**

@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static java.lang.System.arraycopy;
 import static java.util.Collections.addAll;
@@ -38,6 +39,8 @@ import static st.orm.spi.Providers.getORMConverter;
  * Factory for creating instances for record types.
  */
 final class RecordMapper {
+    private static final ConcurrentHashMap<Class<?>, RecordComponent[]> RECORD_COMPONENT_CACHE = new ConcurrentHashMap<>();
+
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
     private RecordMapper() {
@@ -76,7 +79,8 @@ final class RecordMapper {
      */
     private static int getParameterCount(@Nonnull Class<?> recordType) throws SqlTemplateException {
         int count = 0;
-        for (RecordComponent component : recordType.getRecordComponents()) {
+        var recordComponents = RECORD_COMPONENT_CACHE.computeIfAbsent(recordType, Class::getRecordComponents);
+        for (RecordComponent component : recordComponents) {
             Class<?> componentType = component.getType();
             var converter = getORMConverter(component);
             if (converter.isPresent()) {
@@ -136,7 +140,9 @@ final class RecordMapper {
                                                    @Nullable Constructor<?> constructor,
                                                    @Nonnull LazyFactory lazyFactory) throws SqlTemplateException {
         List<Class<?>> expandedTypes = new ArrayList<>();
-        var recordComponents = constructor == null ? null : constructor.getDeclaringClass().getRecordComponents();
+        var recordComponents = constructor == null
+                ? null
+                : RECORD_COMPONENT_CACHE.computeIfAbsent(constructor.getDeclaringClass(), Class::getRecordComponents);
         for (int i = 0; i < parameterTypes.length; i++) {
             Class<?> paramType = parameterTypes[i];
             if (recordComponents != null) {
@@ -192,7 +198,7 @@ final class RecordMapper {
                                                        boolean nullable) throws SqlTemplateException {
         Object[] adaptedArgs = new Object[parameterTypes.length];
         int currentIndex = argsIndex;
-        var recordComponents = constructor.getDeclaringClass().getRecordComponents();
+        var recordComponents = RECORD_COMPONENT_CACHE.computeIfAbsent(constructor.getDeclaringClass(), Class::getRecordComponents);
         for (int i = 0; i < parameterTypes.length; i++) {
             Class<?> paramType = parameterTypes[i];
             Object arg;

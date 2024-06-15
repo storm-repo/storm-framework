@@ -44,7 +44,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 public final class KORMReflectionImpl implements ORMReflection {
-    private final DefaultORMReflectionImpl defaultReflection = new DefaultORMReflectionImpl();
+    private final static Map<ComponentCacheKey, Parameter> COMPONENT_PARAMETER_CACHE = new ConcurrentHashMap<>();
+    private final static Map<ComponentCacheKey, Boolean> COMPONENT_NONNULL_CACHE = new ConcurrentHashMap<>();
+
+    private static final DefaultORMReflectionImpl defaultReflection = new DefaultORMReflectionImpl();
 
     @Override
     public Optional<Constructor<?>> findCanonicalConstructor(@Nonnull Class<? extends Record> recordType) {
@@ -84,24 +87,30 @@ public final class KORMReflectionImpl implements ORMReflection {
         return getAnnotation(type, annotationType) != null;
     }
 
-    record ComponentCacheKey(@Nonnull Constructor<?> constructor, @Nonnull String componentName) {}
-    private final static Map<ComponentCacheKey, Parameter> COMPONENT_PARAMETER_CACHE = new ConcurrentHashMap<>();
+    record ComponentCacheKey(@Nonnull Constructor<?> constructor, @Nonnull String componentName) {
+        ComponentCacheKey(RecordComponent component) throws IllegalArgumentException {
+            //noinspection unchecked
+            this(defaultReflection.findCanonicalConstructor(
+                    (Class<? extends Record>) component.getDeclaringRecord()).orElseThrow(
+                            () -> new IllegalArgumentException(STR."No canonical constructor found for record type: \{component.getDeclaringRecord().getSimpleName()}.")),
+                    component.getName());
+        }
+    }
 
     @Override
     public <A extends Annotation> A getAnnotation(@Nonnull RecordComponent component, @Nonnull Class<A> annotationType) {
         if (!defaultReflection.isSupportedType(component.getDeclaringRecord())) {
             return defaultReflection.getAnnotation(component, annotationType);
         }
-        //noinspection unchecked
-        Class<? extends Record> recordType = (Class<? extends Record>) component.getDeclaringRecord();
-        Constructor<?> constructor = findCanonicalConstructor(recordType)
-                .orElseThrow(() -> new IllegalArgumentException(STR."No canonical constructor found for record type: \{component.getDeclaringRecord().getSimpleName()}."));
-        assert constructor.getParameters().length == recordType.getRecordComponents().length;
-        Parameter parameter = COMPONENT_PARAMETER_CACHE.computeIfAbsent(new ComponentCacheKey(constructor, component.getName()), _ -> {
+        var parameter = COMPONENT_PARAMETER_CACHE.computeIfAbsent(new ComponentCacheKey(component), k -> {
+            //noinspection unchecked
+            Class<? extends Record> recordType = (Class<? extends Record>) component.getDeclaringRecord();
+            var recordComponents = recordType.getRecordComponents();
+            assert k.constructor().getParameters().length == recordComponents.length;
             int index = 0;
-            for (var candidate : recordType.getRecordComponents()) {
-                if (candidate.getName().equals(component.getName())) {
-                    return constructor.getParameters()[index];
+            for (var candidate : recordComponents) {
+                if (candidate.getName().equals(k.componentName())) {
+                    return k.constructor().getParameters()[index];
                 }
                 index++;
             }
@@ -194,26 +203,28 @@ public final class KORMReflectionImpl implements ORMReflection {
 
     @Override
     public boolean isNonnull(@Nonnull RecordComponent component) {
-        // In Kotlin, the default is nonnull, so we need to check if the component is nullable.
-        if (isNullable(component)) {
-            return false;
-        }
-        if (isAnnotationPresent(component, PK.class)) {
-            return true;
-        }
-        try {
-            KClass<?> kClass = JvmClassMappingKt.getKotlinClass(component.getDeclaringRecord());
-            var nullable = kClass.getMembers().stream()
-                    .filter(member -> member.getName().equals(component.getName())
-                            && member.getParameters().size() == 1)
-                    .map(KCallable::getReturnType)
-                    .map(KType::isMarkedNullable)
-                    .findAny()
-                    .orElse(false);
-            return !nullable;
-        } catch (Exception e) {
-            return defaultReflection.isNonnull(component);
-        }
+        return COMPONENT_NONNULL_CACHE.computeIfAbsent(new ComponentCacheKey(component), k -> {
+            // In Kotlin, the default is nonnull, so we need to check if the component is nullable.
+            if (isNullable(component)) {
+                return false;
+            }
+            if (isAnnotationPresent(component, PK.class)) {
+                return true;
+            }
+            try {
+                KClass<?> kClass = JvmClassMappingKt.getKotlinClass(component.getDeclaringRecord());
+                var nullable = kClass.getMembers().stream()
+                        .filter(member -> member.getName().equals(k.componentName())
+                                && member.getParameters().size() == 1)
+                        .map(KCallable::getReturnType)
+                        .map(KType::isMarkedNullable)
+                        .findAny()
+                        .orElse(false);
+                return !nullable;
+            } catch (Exception e) {
+                return defaultReflection.isNonnull(component);
+            }
+        });
     }
 
     @Override

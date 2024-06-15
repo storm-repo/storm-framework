@@ -357,52 +357,26 @@ public final class SqlTemplateImpl implements SqlTemplate {
     }
 
     private Element resolveTypeElement(@Nonnull SqlMode mode,
-                                       @Nonnull List<Element> resolvedElements,
-                                       @Nonnull List<?> values,
+                                       @Nonnull String previousFragment,
                                        @Nonnull String nextFragment,
                                        @Nonnull Class<? extends Record> recordType) throws SqlTemplateException {
-        List<Element> allElements = new ArrayList<>();
-        allElements.addAll(resolvedElements.stream()
-                .flatMap(e -> e instanceof Wrapped w ? w.elements().stream() : Stream.of(e))
-                .toList());
-        allElements.addAll(values.stream()
-                .filter(v -> v instanceof Element)
-                .map(Element.class::cast)
-                .toList());
         if (nextFragment.startsWith(".")) {
             return alias(recordType);
         }
         return switch (mode) {
             case SELECT -> {
-                if (allElements.stream().noneMatch(Select.class::isInstance)) {
-                    yield select(recordType);
-                }
-                if (allElements.stream().noneMatch(From.class::isInstance)) {
-                    yield from((Class<? extends Record>) recordType);
-                }
-                yield alias(recordType);
-            }
-            case INSERT -> {
-                if (allElements.stream().noneMatch(Insert.class::isInstance)) {
-                    yield insert(recordType);
-                }
-                yield alias(recordType);
-            }
-            case UPDATE -> {
-                if (allElements.stream().noneMatch(Update.class::isInstance)) {
-                    yield update((Class<? extends Record>) recordType);
-                }
-                yield alias(recordType);
-            }
-            case DELETE -> {
-                if (allElements.stream().noneMatch(Delete.class::isInstance)
-                        && nextFragment.matches("\\W+FROM\\W+")) {
-                    yield delete(recordType);
-                }
-                if (allElements.stream().noneMatch(From.class::isInstance)) {
+                if (removeComments(previousFragment).stripTrailing().toUpperCase().endsWith("FROM")) {
                     yield from(recordType);
                 }
-                yield alias(recordType);
+                yield select(recordType);
+            }
+            case INSERT -> insert(recordType);
+            case UPDATE -> update((Class<? extends Record>) recordType);
+            case DELETE -> {
+                if (removeComments(nextFragment).stripLeading().toUpperCase().startsWith("FROM")) {
+                    yield delete(recordType);
+                }
+                yield from(recordType);
             }
             case UNDEFINED -> throw new SqlTemplateException(STR."Class type value \{recordType.getSimpleName()} not supported in undefined sql mode.");
         };
@@ -413,7 +387,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
         boolean first = false;
         for (int i = 0; i < values.size() ; i++) {
             var v = values.get(i);
-            var f = fragments.get(i + 1);
+            var p = fragments.get(i);
+            var n = fragments.get(i + 1);
             switch (v) {
                 case Select _ when sqlMode != SqlMode.SELECT -> throw new SqlTemplateException("Select element is only allowed for select statements.");
                 case Insert _ when sqlMode != SqlMode.INSERT -> throw new SqlTemplateException("Insert element is only allowed for insert statements.");
@@ -460,11 +435,11 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 case Record r -> resolvedValues.add(resolveRecordElement(sqlMode, resolvedValues, r));
                 case Class<?> c when c.isRecord() -> //noinspection unchecked
                         resolvedValues.add(
-                        resolveTypeElement(sqlMode, resolvedValues, values, f, (Class<? extends Record>) c));
+                        resolveTypeElement(sqlMode, p, n, (Class<? extends Record>) c));
                 // Note that the following flow would also support Class<?> c. but we'll keep the Class<?> c case for performance and readability.
                 case Object k when REFLECTION.isSupportedType(k) ->
                         resolvedValues.add(
-                        resolveTypeElement(sqlMode, resolvedValues, values, f, REFLECTION.getRecordType(k)));
+                        resolveTypeElement(sqlMode, p, n, REFLECTION.getRecordType(k)));
                 case null, default -> resolvedValues.add(param(v));
             }
         }
@@ -506,7 +481,20 @@ public final class SqlTemplateImpl implements SqlTemplate {
             }
 
             @Override
-            public String getAlias(@Nonnull Class<? extends Record> table, @Nullable String path, boolean force) throws SqlTemplateException {
+            public String getAlias(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException {
+                var result = findAlias(table, path);
+                if (result.isPresent()) {
+                    return result.get();
+                }
+                if (path != null) {
+                    throw new SqlTemplateException(STR."Alias for \{table.getSimpleName()} not found at path: '\{path}'.");
+                }
+                // Use the full table name of no path was given and no alias was found.
+                return getTableName(table, tableNameResolver);
+            }
+
+            @Override
+            public Optional<String> findAlias(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException {
                 var list = aliasMap.getOrDefault(table, List.of());
                 if (path != null) {
                     var candidate = list.stream().filter(a -> Objects.equals(a.path(), path))
@@ -516,8 +504,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     } else {
                         list = list.stream().filter(a -> a.path() == null)
                                 .toList();
-                        if (list.isEmpty() && force) {
-                            throw new SqlTemplateException(STR."Alias for \{table.getSimpleName()} not found at path: '\{path}'.");
+                        if (list.isEmpty()) {
+                            return Optional.empty();
                         }
                     }
                 }
@@ -526,10 +514,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 }
                 String alias = list.isEmpty() ? "" : list.getFirst().alias();
                 if (alias.isEmpty()) {
-                    // Use the full table name of no path was given and no alias was found.
-                    return getTableName(table, tableNameResolver);
+                    return Optional.empty();
                 }
-                return alias;
+                return Optional.of(alias);
             }
 
             @Override
@@ -601,6 +588,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     return new SqlTemplateException(STR."Multiple occurences of \{table.getSimpleName()} found in table graph.");
                 }
                 paths = paths.stream().filter(Objects::nonNull).map(p -> STR."'\{p}'").toList();
+                if (paths.isEmpty()) {
+                    return new SqlTemplateException(STR."Multiple occurences of \{table.getSimpleName()} found in table graph.");
+                }
                 if (paths.size() == 1) {
                     return new SqlTemplateException(STR."Multiple occurences of \{table.getSimpleName()} found in table graph. Specify path \{paths.getFirst()} to uniquely identify the table.");
                 }
