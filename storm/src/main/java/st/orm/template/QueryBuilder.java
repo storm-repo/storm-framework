@@ -6,7 +6,9 @@ import jakarta.persistence.NonUniqueResultException;
 import jakarta.persistence.PersistenceException;
 import st.orm.PreparedQuery;
 import st.orm.Query;
-import st.orm.template.impl.AutoClosingStreamProxy;
+import st.orm.ResultCallback;
+import st.orm.template.impl.ResourceStream;
+import st.orm.template.impl.Tripwire;
 
 import java.util.Iterator;
 import java.util.List;
@@ -17,7 +19,6 @@ import java.util.stream.StreamSupport;
 
 import static java.lang.Integer.MAX_VALUE;
 import static java.util.Spliterators.spliteratorUnknownSize;
-import static st.orm.template.impl.AutoClosingStreamProxy.TRIPWIRE;
 
 /**
  * A query builder that constructs a query from a template.
@@ -357,6 +358,19 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
     Stream<R> stream();
 
     /**
+     * Executes the query and returns a stream of results.
+     *
+     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
+     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
+     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
+     * stream is properly closed to release the resources.</p>
+     *
+     * @return a stream of results.
+     * @throws PersistenceException if the query fails.
+     */
+    <X> X result(@Nonnull ResultCallback<R, X> callback);
+
+    /**
      * Executes the query and returns a list of results.
      *
      * @return the list of results.
@@ -405,19 +419,8 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @param <X> the type of elements in the stream.
      * @param <Y> the type of elements in the result stream.
      */
-    static <X, Y> Stream<Y> batch(@Nonnull Stream<X> stream, int batchSize, @Nonnull Function<List<X>, Stream<Y>> function) {
-        return autoClose(slice(stream, batchSize).flatMap(function)).onClose(stream::close);
-    }
-
-    /**
-     * Wraps the stream in a stream that is automatically closed after a terminal operation.
-     *
-     * @param stream the stream to wrap.
-     * @return a stream that is automatically closed after a terminal operation.
-     * @param <X> the type of the stream.
-     */
-    static <X> Stream<X> autoClose(@Nonnull Stream<X> stream) {
-        return AutoClosingStreamProxy.wrap(stream);
+    static <X, Y> Stream<Y> slice(@Nonnull Stream<X> stream, int batchSize, @Nonnull Function<List<X>, Stream<Y>> function) {
+        return slice(stream, batchSize).flatMap(function);
     }
 
     /**
@@ -429,26 +432,18 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * the original stream, effectively bypassing the slicing mechanism. This is useful for operations that can handle
      * all elements at once without the need for batching.</p>
      *
-     * <p>The method utilizes a "tripwire" mechanism to ensure that the original stream is properly managed and closed upon
-     * completion of processing, preventing resource leaks.</p>
-     *
      * @param <X> the type of elements in the stream.
      * @param stream the original stream of elements to be sliced.
      * @param size the maximum number of elements to include in each slice. If {@code size} is
      * {@code Integer.MAX_VALUE}, only one slice will be returned.
-     * @return a stream of slices, where each slice contains up to {@code batchSize} elements from the original stream.
+     * @return a stream of slices, where each slice contains up to {@code size} elements from the original stream.
      */
     static <X> Stream<List<X>> slice(@Nonnull Stream<X> stream, int size) {
         if (size == MAX_VALUE) {
             return Stream.of(stream.toList());
         }
-        final Iterator<X> iterator;
-        TRIPWIRE.set(false); // No need to use the tripwire as this class closes the stream when done.
-        try {
-            iterator = stream.iterator();
-        } finally {
-            TRIPWIRE.remove();
-        }
+        // We're lifting the resource closing logic from the input stream to the output stream.
+        final Iterator<X> iterator = Tripwire.ignore(stream::iterator);
         var it = new Iterator<List<X>>() {
             @Override
             public boolean hasNext() {
@@ -477,6 +472,6 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
                 return StreamSupport.stream(spliteratorUnknownSize(sliceIterator, 0), false).toList();
             }
         };
-        return StreamSupport.stream(spliteratorUnknownSize(it, 0), false);
+        return ResourceStream.wrap(StreamSupport.stream(spliteratorUnknownSize(it, 0), false).onClose(stream::close));
     }
 }

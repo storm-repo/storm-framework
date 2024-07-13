@@ -28,6 +28,7 @@ import st.orm.template.impl.Element;
 import st.orm.template.impl.Elements;
 import st.orm.template.impl.Elements.Expression;
 import st.orm.template.impl.Elements.From;
+import st.orm.template.impl.Elements.Insert;
 import st.orm.template.impl.Elements.ObjectExpression;
 import st.orm.template.impl.Elements.Set;
 import st.orm.template.impl.Elements.TableSource;
@@ -94,7 +95,7 @@ public interface Templates {
     }
 
     static Element insert(@Nonnull Class<? extends Record> table) {
-        return new Elements.Insert(table);
+        return new Insert(table);
     }
     default Element i(@Nonnull Class<? extends Record> table) {
         return insert(table);

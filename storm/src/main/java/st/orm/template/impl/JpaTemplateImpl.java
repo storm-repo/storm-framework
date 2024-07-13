@@ -22,6 +22,7 @@ import jakarta.persistence.PersistenceException;
 import st.orm.BindVars;
 import st.orm.PreparedQuery;
 import st.orm.Query;
+import st.orm.ResultCallback;
 import st.orm.template.JpaTemplate;
 import st.orm.template.ORMTemplate;
 import st.orm.template.SqlTemplate;
@@ -122,10 +123,24 @@ public final class JpaTemplateImpl implements JpaTemplate {
                         return process(template).getResultStream().map(this::convert);
                     }
 
+                    @Override
+                    public <R> R getResult(@Nonnull ResultCallback<Object[], R> callback) {
+                        try (var stream = Tripwire.autoClose(this::getResultStream)) {
+                            return callback.process(stream);
+                        }
+                    }
+
                     @SuppressWarnings("unchecked")
                     @Override
                     public <T> Stream<T> getResultStream(@Nonnull Class<T> type) {
                         return process(template, type).getResultStream();
+                    }
+
+                    @Override
+                    public <T, R> R getResult(@Nonnull Class<T> type, @Nonnull ResultCallback<T, R> callback) {
+                        try (var stream = Tripwire.autoClose(() -> getResultStream(type))) {
+                            return callback.process(stream);
+                        }
                     }
 
                     @Override

@@ -16,6 +16,7 @@
 package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
@@ -42,6 +43,8 @@ public interface ORMReflection {
     Class<?> getType(@Nonnull Object o);
 
     Class<? extends Record> getRecordType(@Nonnull Object o);
+
+    boolean isDefaultValue(@Nullable Object o);
 
     /**
      * Returns true if the specified component has a non-null annotation, false otherwise.

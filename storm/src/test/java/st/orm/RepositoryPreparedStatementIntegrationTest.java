@@ -153,12 +153,14 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testInsertReturningIds() {
+    public void testInsertReturningIds() throws InterruptedException{
         var repository = ORM(dataSource).repository(Vet.class);
         Vet vet1 = Vet.builder().firstName("Noel").lastName("Fitzpatrick").build();
         Vet vet2 = Vet.builder().firstName("Scarlett").lastName("Magda").build();
         var ids = repository.insertAndFetchIds(List.of(vet1, vet2));
         assertEquals(List.of(7, 8), ids);
+        System.gc();
+        Thread.sleep(1000);
     }
 
     @Test
@@ -782,11 +784,14 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testWithArg() {
+    public void testWithArg() throws InterruptedException{
         var ORM = ORM(dataSource);
         var list = ORM.repository(Pet.class).withTemplate(it -> STR."WHERE \{it.invoke(Pet.class)}.id = 7").toList();
         assertEquals(1, list.size());
         assertEquals(7, list.getFirst().id());
+        ORM.repository(Pet.class).count(list.stream().map(Pet::id));
+        System.gc();
+        Thread.sleep(1000);
     }
 
     @Test

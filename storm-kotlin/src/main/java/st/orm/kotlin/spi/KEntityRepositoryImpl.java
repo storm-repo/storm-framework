@@ -19,10 +19,13 @@ import jakarta.annotation.Nonnull;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.PersistenceException;
 import kotlin.reflect.KClass;
+import kotlin.sequences.Sequence;
 import st.orm.BindVars;
+import st.orm.kotlin.KBatchCallback;
 import st.orm.kotlin.repository.KEntityModel;
 import st.orm.kotlin.repository.KEntityRepository;
 import st.orm.kotlin.repository.KRepository;
+import st.orm.kotlin.KResultCallback;
 import st.orm.kotlin.template.KORMTemplate;
 import st.orm.kotlin.template.impl.KORMRepositoryTemplateImpl;
 import st.orm.kotlin.template.impl.KORMTemplateImpl;
@@ -34,16 +37,15 @@ import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 
 import java.util.List;
-import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
+import static kotlin.sequences.SequencesKt.sequenceOf;
 
 /**
  */
 public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
         extends KQueryBuilderImpl<E, E, ID> implements KEntityRepository<E, ID> {
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
-    private static final int DEFAULT_BATCH_SIZE = 1000;
 
     private final EntityRepository<E, ID> entityRepository;
 
@@ -129,7 +131,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public boolean exists(@Nonnull ID id) {
-        return count(Stream.of(id)) > 0;
+        //noinspection unchecked
+        return count(sequenceOf(id)) > 0;
     }
 
     /**
@@ -503,8 +506,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      * connectivity.
      */
     @Override
-    public Stream<E> selectAll() {
-        return entityRepository.selectAll();
+    public <R> R selectAll(@Nonnull KResultCallback<E, R> callback) {
+        return entityRepository.selectAll(stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -532,8 +535,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      * connectivity.
      */
     @Override
-    public Stream<E> select(@Nonnull Stream<ID> ids) {
-        return select(ids, DEFAULT_BATCH_SIZE);
+    public <R> R select(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<E, R> callback) {
+        return entityRepository.select(toStream(ids), stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -552,7 +555,7 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
      * stream is properly closed to release the resources.</p>
      *
-     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     * @param sliceSize the number of primary keys to include in each batch. This parameter determines the size of the
      * batches used to execute the selection operation. A larger batch size can improve performance, especially when
      * dealing with large sets of primary keys.
      * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
@@ -564,8 +567,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      * connectivity.
      */
     @Override
-    public Stream<E> select(@Nonnull Stream<ID> ids, int batchSize) {
-        return entityRepository.select(ids, batchSize);
+    public <R> R select(@Nonnull Sequence<ID> ids, int sliceSize, @Nonnull KResultCallback<E, R> callback) {
+        return entityRepository.select(toStream(ids), sliceSize, stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -580,8 +583,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
     @Override
-    public long count(@Nonnull Stream<ID> ids) {
-        return entityRepository.count(ids);
+    public long count(@Nonnull Sequence<ID> ids) {
+        return entityRepository.count(toStream(ids));
     }
 
     /**
@@ -599,8 +602,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
     @Override
-    public long count(@Nonnull Stream<ID> ids, int batchSize) {
-        return entityRepository.count(ids, batchSize);
+    public long count(@Nonnull Sequence<ID> ids, int batchSize) {
+        return entityRepository.count(toStream(ids), batchSize);
     }
 
     /**
@@ -615,8 +618,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      *                              entities parameter is null.
      */
     @Override
-    public void insert(@Nonnull Stream<E> entities) {
-        entityRepository.insert(entities);
+    public void insert(@Nonnull Sequence<E> entities) {
+        entityRepository.insert(toStream(entities));
     }
 
     /**
@@ -635,8 +638,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      *                              constraints, connectivity issues, or if any entity in the stream is null.
      */
     @Override
-    public void insert(@Nonnull Stream<E> entities, int batchSize) {
-        entityRepository.insert(entities, batchSize);
+    public void insert(@Nonnull Sequence<E> entities, int batchSize) {
+        entityRepository.insert(toStream(entities), batchSize);
     }
 
     /**
@@ -652,8 +655,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      *         of database constraints, connectivity issues, or if any entity in the stream is null.
      */
     @Override
-    public Stream<ID> insertAndFetchIds(@Nonnull Stream<E> entities) {
-        return entityRepository.insertAndFetchIds(entities);
+    public void insertAndFetchIds(@Nonnull Sequence<E> entities, @Nonnull KBatchCallback<ID> callback) {
+        entityRepository.insertAndFetchIds(toStream(entities), stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -669,8 +672,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      *         database constraints, connectivity issues, or if any entity in the stream is null.
      */
     @Override
-    public Stream<E> insertAndFetch(@Nonnull Stream<E> entities) {
-        return entityRepository.insertAndFetch(entities);
+    public void insertAndFetch(@Nonnull Sequence<E> entities, @Nonnull KBatchCallback<E> callback) {
+        entityRepository.insertAndFetch(toStream(entities), stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -688,8 +691,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      *         of database constraints, connectivity issues, or if any entity in the stream is null.
      */
     @Override
-    public Stream<ID> insertAndFetchIds(@Nonnull Stream<E> entities, int batchSize) {
-        return entityRepository.insertAndFetchIds(entities, batchSize);
+    public void insertAndFetchIds(@Nonnull Sequence<E> entities, int batchSize, @Nonnull KBatchCallback<ID> callback) {
+        entityRepository.insertAndFetchIds(toStream(entities), batchSize, stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -709,8 +712,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      *         database constraints, connectivity issues, or if any entity in the stream is null.
      */
     @Override
-    public Stream<E> insertAndFetch(@Nonnull Stream<E> entities, int batchSize) {
-        return entityRepository.insertAndFetch(entities, batchSize);
+    public void insertAndFetch(@Nonnull Sequence<E> entities, int batchSize, @Nonnull KBatchCallback<E> callback) {
+        entityRepository.insertAndFetch(toStream(entities), batchSize, stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -726,8 +729,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      *         connectivity issues, or if any entity in the stream is null.
      */
     @Override
-    public void update(@Nonnull Stream<E> entities) {
-        entityRepository.update(entities);
+    public void update(@Nonnull Sequence<E> entities) {
+        entityRepository.update(toStream(entities));
     }
 
     /**
@@ -745,8 +748,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      *         connectivity issues, or if any entity in the stream is null.
      */
     @Override
-    public void update(@Nonnull Stream<E> entities, int batchSize) {
-        entityRepository.update(entities, batchSize);
+    public void update(@Nonnull Sequence<E> entities, int batchSize) {
+        entityRepository.update(toStream(entities), batchSize);
     }
 
     /**
@@ -763,8 +766,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      *         database constraints, connectivity issues, or if any entity in the stream is null.
      */
     @Override
-    public Stream<E> updateAndFetch(@Nonnull Stream<E> entities) {
-        return entityRepository.updateAndFetch(entities);
+    public void updateAndFetch(@Nonnull Sequence<E> entities, @Nonnull KBatchCallback<E> callback) {
+        entityRepository.updateAndFetch(toStream(entities), stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -785,8 +788,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      *         database constraints, connectivity issues, or if any entity in the stream is null.
      */
     @Override
-    public Stream<E> updateAndFetch(@Nonnull Stream<E> entities, int batchSize) {
-        return entityRepository.updateAndFetch(entities, batchSize);
+    public void updateAndFetch(@Nonnull Sequence<E> entities, int batchSize, @Nonnull KBatchCallback<E> callback) {
+        entityRepository.updateAndFetch(toStream(entities), batchSize, stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -799,8 +802,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      *                              constraints, connectivity issues, or if any entity in the stream is null.
      */
     @Override
-    public void upsert(@Nonnull Stream<E> entities) {
-        entityRepository.upsert(entities);
+    public void upsert(@Nonnull Sequence<E> entities) {
+        entityRepository.upsert(toStream(entities));
     }
 
     /**
@@ -820,8 +823,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      *                              constraints, connectivity issues, or if any entity in the stream is null.
      */
     @Override
-    public void upsert(@Nonnull Stream<E> entities, int batchSize) {
-        entityRepository.upsert(entities, batchSize);
+    public void upsert(@Nonnull Sequence<E> entities, int batchSize) {
+        entityRepository.upsert(toStream(entities), batchSize);
     }
 
     /**
@@ -837,8 +840,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      *                              stream is null.
      */
     @Override
-    public Stream<ID> upsertAndFetchIds(@Nonnull Stream<E> entities) {
-        return entityRepository.upsertAndFetchIds(entities);
+    public void upsertAndFetchIds(@Nonnull Sequence<E> entities, @Nonnull KBatchCallback<ID> callback) {
+        entityRepository.upsertAndFetchIds(toStream(entities), stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -854,8 +857,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      *                              null.
      */
     @Override
-    public Stream<E> upsertAndFetch(@Nonnull Stream<E> entities) {
-        return entityRepository.upsertAndFetch(entities);
+    public void upsertAndFetch(@Nonnull Sequence<E> entities, @Nonnull KBatchCallback<E> callback) {
+        entityRepository.upsertAndFetch(toStream(entities), stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -874,8 +877,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      *                              stream is null.
      */
     @Override
-    public Stream<ID> upsertAndFetchIds(@Nonnull Stream<E> entities, int batchSize) {
-        return entityRepository.upsertAndFetchIds(entities, batchSize);
+    public void upsertAndFetchIds(@Nonnull Sequence<E> entities, int batchSize, @Nonnull KBatchCallback<ID> callback) {
+        entityRepository.upsertAndFetchIds(toStream(entities), batchSize, stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -899,8 +902,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      *                              null.
      */
     @Override
-    public Stream<E> upsertAndFetch(@Nonnull Stream<E> entities, int batchSize) {
-        return entityRepository.upsertAndFetch(entities, batchSize);
+    public void upsertAndFetch(@Nonnull Sequence<E> entities, int batchSize, @Nonnull KBatchCallback<E> callback) {
+        entityRepository.upsertAndFetch(toStream(entities), batchSize, stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -916,8 +919,8 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      *         connectivity issues, or if any entity in the stream is null.
      */
     @Override
-    public void delete(@Nonnull Stream<E> entities) {
-        entityRepository.delete(entities);
+    public void delete(@Nonnull Sequence<E> entities) {
+        entityRepository.delete(toStream(entities));
     }
 
     /**
@@ -935,7 +938,7 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      *         connectivity issues, or if any entity in the stream is null.
      */
     @Override
-    public void delete(@Nonnull Stream<E> entities, int batchSize) {
-        entityRepository.delete(entities, batchSize);
+    public void delete(@Nonnull Sequence<E> entities, int batchSize) {
+        entityRepository.delete(toStream(entities), batchSize);
     }
 }

@@ -145,7 +145,7 @@ public class PlainPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testSelectPetWithoutType() {
+    public void testSelectPetWithoutType() throws Exception {
         assertThrows(PersistenceException.class, () -> {
             try (var query = ORM(dataSource)."""
                     SELECT p.id, p.name, p.birth_date, pt.*, o.*

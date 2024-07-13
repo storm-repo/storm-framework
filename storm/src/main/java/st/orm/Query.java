@@ -141,6 +141,22 @@ public interface Query {
     /**
      * Execute a SELECT query and return the resulting rows as a stream of row instances.
      *
+     * <p>Each element in the stream represents a row in the result, where the columns of the row corresponds to the
+     * order of values in the row array.</p>
+     *
+     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
+     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
+     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
+     * stream is properly closed to release the resources.</p>
+     *
+     * @return the result stream.
+     * @throws PersistenceException if the query fails.
+     */
+    <R> R getResult(@Nonnull ResultCallback<Object[], R> callback);
+
+    /**
+     * Execute a SELECT query and return the resulting rows as a stream of row instances.
+     *
      * <p>Each element in the stream represents a row in the result, where the columns of the row are mapped to the
      * constructor arguments of the specified {@code type}.</p>
      *
@@ -154,6 +170,23 @@ public interface Query {
      * @throws PersistenceException if the query fails.
      */
     <T> Stream<T> getResultStream(@Nonnull Class<T> type);
+
+    /**
+     * Execute a SELECT query and return the resulting rows as a stream of row instances.
+     *
+     * <p>Each element in the stream represents a row in the result, where the columns of the row are mapped to the
+     * constructor arguments of the specified {@code type}.</p>
+     *
+     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
+     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
+     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
+     * stream is properly closed to release the resources.</p>
+     *
+     * @param type the type of the result.
+     * @return the result stream.
+     * @throws PersistenceException if the query fails.
+     */
+    <T, R> R getResult(@Nonnull Class<T> type, @Nonnull ResultCallback<T, R> callback);
 
     /**
      * Returns true if the query is version aware, false otherwise.

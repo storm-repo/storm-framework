@@ -18,6 +18,8 @@ package st.orm.repository;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.PersistenceException;
+import st.orm.BatchCallback;
+import st.orm.ResultCallback;
 import st.orm.template.QueryBuilder;
 
 import java.util.List;
@@ -358,6 +360,18 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, 
 
     // Stream based methods.
 
+    //
+    // The BatchCallback interface is used to allow the caller to process the results in batches. This approach is
+    // preferred over returning a stream of results directly because it allows the repository to control the batch
+    // processing and resource management. The repository can decide how to batch the results and ensure that the
+    // resources are properly managed. The BatchCallback interface provides a clean and flexible way to process the
+    // results in batches, allowing the caller to define the processing logic for each batch.
+    //
+    // If the repository returned a stream of results directly, that stream would effectively be linked to the input
+    // stream. If the caller would fail to fully consume the resulting stream, the input stream would not be fully
+    // processed. The BatchCallback approach prevents the caller from accidentally misusing the API.
+    //
+
     /**
      * Returns a stream of all entities of the type supported by this repository. Each element in the stream represents
      * an entity in the database, encapsulating all relevant data as mapped by the entity model.
@@ -376,6 +390,25 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, 
      *                              connectivity.
      */
     Stream<E> selectAll();
+
+    /**
+     * Returns a stream of all entities of the type supported by this repository. Each element in the stream represents
+     * an entity in the database, encapsulating all relevant data as mapped by the entity model.
+     *
+     * <p>The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
+     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
+     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
+     * stream is properly closed to release the resources.</p>
+     *
+     * @return a stream of all entities of the type supported by this repository.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    <R> R selectAll(@Nonnull ResultCallback<E, R> callback);
 
     /**
      * Retrieves a stream of entities based on their primary keys.
@@ -406,6 +439,32 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, 
     /**
      * Retrieves a stream of entities based on their primary keys.
      *
+     * <p>This method executes queries in batches, depending on the number of primary keys in the specified ids stream.
+     * This optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities.
+     * The batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
+     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
+     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
+     * stream is properly closed to release the resources.</p>
+     *
+     * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
+     * not guaranteed to match the order of ids in the input stream. If an id does not correspond to any entity in the
+     * database, it will simply be skipped, and no corresponding entity will be included in the returned stream. If the
+     * same entity is requested multiple times, it may be included in the stream multiple times if it is part of a
+     * separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    <R> R select(@Nonnull Stream<ID> ids, @Nonnull ResultCallback<E, R> callback);
+
+    /**
+     * Retrieves a stream of entities based on their primary keys.
+     *
      * <p>This method executes queries in batches, with the batch size determined by the provided parameter. This
      * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities. The
      * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
@@ -431,6 +490,35 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, 
      *                              connectivity.
      */
     Stream<E> select(@Nonnull Stream<ID> ids, int batchSize);
+
+    /**
+     * Retrieves a stream of entities based on their primary keys.
+     *
+     * <p>This method executes queries in batches, with the batch size determined by the provided parameter. This
+     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities. The
+     * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
+     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
+     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
+     * stream is properly closed to release the resources.</p>
+     *
+     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
+     *                  dealing with large sets of primary keys.
+     * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
+     * not guaranteed to match the order of ids in the input stream. If an id does not correspond to any entity in the
+     * database, it will simply be skipped, and no corresponding entity will be included in the returned stream. If the
+     * same entity is requested multiple times, it may be included in the stream multiple times if it is part of a
+     * separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    <R> R select(@Nonnull Stream<ID> ids, int batchSize, @Nonnull ResultCallback<E, R> callback);
 
     /**
      * Counts the number of entities identified by the provided stream of IDs using the default batch size.
@@ -503,7 +591,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, 
      * @throws PersistenceException if there is an error during the insertion or key retrieval operation, such as a violation
      *         of database constraints, connectivity issues, or if any entity in the stream is null.
      */
-    Stream<ID> insertAndFetchIds(@Nonnull Stream<E> entities);
+    void insertAndFetchIds(@Nonnull Stream<E> entities, @Nonnull BatchCallback<ID> callback);
 
     /**
      * Inserts a stream of entities into the database using the default batch size and returns a stream of the inserted entities.
@@ -517,7 +605,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, 
      * @throws PersistenceException if there is an error during the insertion or retrieval operation, such as a violation of
      *         database constraints, connectivity issues, or if any entity in the stream is null.
      */
-    Stream<E> insertAndFetch(@Nonnull Stream<E> entities);
+    void insertAndFetch(@Nonnull Stream<E> entities, @Nonnull BatchCallback<E> callback);
 
     /**
      * Inserts a stream of entities into the database with the insertion process divided into batches of the specified size,
@@ -533,7 +621,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, 
      * @throws PersistenceException if there is an error during the insertion or key retrieval operation, such as a violation
      *         of database constraints, connectivity issues, or if any entity in the stream is null.
      */
-    Stream<ID> insertAndFetchIds(@Nonnull Stream<E> entities, int batchSize);
+    void insertAndFetchIds(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<ID> callback);
 
     /**
      * Inserts a stream of entities into the database with the insertion process divided into batches of the specified size,
@@ -551,7 +639,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, 
      * @throws PersistenceException if there is an error during the insertion or retrieval operation, such as a violation of
      *         database constraints, connectivity issues, or if any entity in the stream is null.
      */
-    Stream<E> insertAndFetch(@Nonnull Stream<E> entities, int batchSize);
+    void insertAndFetch(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<E> callback);
 
     /**
      * Updates a stream of entities in the database using the default batch size.
@@ -596,7 +684,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, 
      * @throws PersistenceException if there is an error during the update or retrieval operation, such as a violation of
      *         database constraints, connectivity issues, or if any entity in the stream is null.
      */
-    Stream<E> updateAndFetch(@Nonnull Stream<E> entities);
+    void updateAndFetch(@Nonnull Stream<E> entities, @Nonnull BatchCallback<E> callback);
 
     /**
      * Updates a stream of entities in the database, with the update process divided into batches of the specified size,
@@ -615,7 +703,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, 
      * @throws PersistenceException if there is an error during the update or retrieval operation, such as a violation of
      *         database constraints, connectivity issues, or if any entity in the stream is null.
      */
-    Stream<E> updateAndFetch(@Nonnull Stream<E> entities, int batchSize);
+    void updateAndFetch(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<E> callback);
 
     /**
      * Performs an upsert operation for multiple entities provided as a stream. This method processes the entities with
@@ -658,7 +746,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, 
      *                              violation of database constraints, connectivity issues, or if any entity in the
      *                              stream is null.
      */
-    Stream<ID> upsertAndFetchIds(@Nonnull Stream<E> entities);
+    void upsertAndFetchIds(@Nonnull Stream<E> entities, @Nonnull BatchCallback<ID> callback);
 
     /**
      * Performs an upsert operation for multiple entities provided as a stream and returns a stream of the entities as
@@ -672,7 +760,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, 
      *                              of database constraints, connectivity issues, or if any entity in the stream is
      *                              null.
      */
-    Stream<E> upsertAndFetch(@Nonnull Stream<E> entities);
+    void upsertAndFetch(@Nonnull Stream<E> entities, @Nonnull BatchCallback<E> callback);
 
     /**
      * Performs an upsert operation for multiple entities provided as a stream, with the operation divided into batches
@@ -689,7 +777,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, 
      *                              violation of database constraints, connectivity issues, or if any entity in the
      *                              stream is null.
      */
-    Stream<ID> upsertAndFetchIds(@Nonnull Stream<E> entities, int batchSize);
+    void upsertAndFetchIds(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<ID> callback);
 
     /**
      * Performs an upsert operation for multiple entities provided as a stream, with the operation divided into batches
@@ -711,7 +799,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, 
      *                              of database constraints, connectivity issues, or if any entity in the stream is
      *                              null.
      */
-    Stream<E> upsertAndFetch(@Nonnull Stream<E> entities, int batchSize);
+    void upsertAndFetch(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<E> callback);
 
     /**
      * Deletes a stream of entities from the database using the default batch size.

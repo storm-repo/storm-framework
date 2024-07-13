@@ -18,11 +18,13 @@ package st.orm.kotlin.repository;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.PersistenceException;
+import kotlin.sequences.Sequence;
+import st.orm.kotlin.KBatchCallback;
+import st.orm.kotlin.KResultCallback;
 import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.repository.Entity;
 
 import java.util.List;
-import java.util.stream.Stream;
 
 /**
  * Provides a generic interface with CRUD operations for entities.
@@ -357,7 +359,7 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      */
     void delete(@Nonnull Iterable<E> entities);
 
-    // Stream based methods.
+    // Sequence based methods.
 
     /**
      * Returns a stream of all entities of the type supported by this repository. Each element in the stream represents
@@ -376,7 +378,7 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<E> selectAll();
+    <R> R selectAll(@Nonnull KResultCallback<E, R> callback);
 
     /**
      * Retrieves a stream of entities based on their primary keys.
@@ -402,7 +404,7 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<E> select(@Nonnull Stream<ID> ids);
+    <R> R select(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<E, R> callback);
 
     /**
      * Retrieves a stream of entities based on their primary keys.
@@ -420,7 +422,7 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
      * stream is properly closed to release the resources.</p>
      *
-     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     * @param sliceSize the number of primary keys to include in each batch. This parameter determines the size of the
      *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
      *                  dealing with large sets of primary keys.
      * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
@@ -431,7 +433,7 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<E> select(@Nonnull Stream<ID> ids, int batchSize);
+    <R> R select(@Nonnull Sequence<ID> ids, int sliceSize, @Nonnull KResultCallback<E, R> callback);
 
     /**
      * Counts the number of entities identified by the provided stream of IDs using the default batch size.
@@ -444,7 +446,7 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * @return the total count of entities matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    long count(@Nonnull Stream<ID> ids);
+    long count(@Nonnull Sequence<ID> ids);
 
     /**
      * Counts the number of entities identified by the provided stream of IDs, with the counting process divided into
@@ -460,7 +462,7 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * @return the total count of entities matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    long count(@Nonnull Stream<ID> ids, int batchSize);
+    long count(@Nonnull Sequence<ID> ids, int batchSize);
 
     /**
      * Inserts entities in a batch mode to optimize performance and reduce database load.
@@ -473,7 +475,7 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * @throws PersistenceException if the insert fails due to database constraints, connectivity issues, or if the
      *                              entities parameter is null.
      */
-    void insert(@Nonnull Stream<E> entities);
+    void insert(@Nonnull Sequence<E> entities);
 
     /**
      * Inserts a stream of entities into the database, with the insertion process divided into batches of the specified
@@ -490,7 +492,7 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * @throws PersistenceException if there is an error during the insertion operation, such as a violation of database
      *                              constraints, connectivity issues, or if any entity in the stream is null.
      */
-    void insert(@Nonnull Stream<E> entities, int batchSize);
+    void insert(@Nonnull Sequence<E> entities, int batchSize);
 
     /**
      * Inserts a stream of entities into the database using the default batch size and returns a stream of their generated primary keys.
@@ -500,11 +502,10 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * batch size to optimize the number of database interactions.
      *
      * @param entities a stream of entities to insert. Each entity must not be null and must conform to the model constraints.
-     * @return a stream of primary keys for the inserted entities.
      * @throws PersistenceException if there is an error during the insertion or key retrieval operation, such as a violation
      *         of database constraints, connectivity issues, or if any entity in the stream is null.
      */
-    Stream<ID> insertAndFetchIds(@Nonnull Stream<E> entities);
+    void insertAndFetchIds(@Nonnull Sequence<E> entities, @Nonnull KBatchCallback<ID> callback);
 
     /**
      * Inserts a stream of entities into the database using the default batch size and returns a stream of the inserted entities.
@@ -514,11 +515,10 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * the default batch size to optimize database performance.
      *
      * @param entities a stream of entities to insert. Each entity must not be null and must conform to the model constraints.
-     * @return a stream of the inserted entities as they are stored in the database.
      * @throws PersistenceException if there is an error during the insertion or retrieval operation, such as a violation of
      *         database constraints, connectivity issues, or if any entity in the stream is null.
      */
-    Stream<E> insertAndFetch(@Nonnull Stream<E> entities);
+    void insertAndFetch(@Nonnull Sequence<E> entities, @Nonnull KBatchCallback<E> callback);
 
     /**
      * Inserts a stream of entities into the database with the insertion process divided into batches of the specified size,
@@ -530,11 +530,10 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * @param entities a stream of entities to insert. Each entity must not be null and must conform to the model constraints.
      * @param batchSize the size of the batches to use for the insertion operation. A larger batch size can improve performance
      *                  but may also increase the load on the database.
-     * @return a stream of primary keys for the inserted entities.
      * @throws PersistenceException if there is an error during the insertion or key retrieval operation, such as a violation
      *         of database constraints, connectivity issues, or if any entity in the stream is null.
      */
-    Stream<ID> insertAndFetchIds(@Nonnull Stream<E> entities, int batchSize);
+    void insertAndFetchIds(@Nonnull Sequence<E> entities, int batchSize, @Nonnull KBatchCallback<ID> callback);
 
     /**
      * Inserts a stream of entities into the database with the insertion process divided into batches of the specified size,
@@ -548,11 +547,10 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * @param entities a stream of entities to insert. Each entity must not be null and must conform to the model constraints.
      * @param batchSize the size of the batches to use for the insertion operation. A larger batch size can improve performance
      *                  but may also increase the load on the database.
-     * @return a stream of the inserted entities as they are stored in the database.
      * @throws PersistenceException if there is an error during the insertion or retrieval operation, such as a violation of
      *         database constraints, connectivity issues, or if any entity in the stream is null.
      */
-    Stream<E> insertAndFetch(@Nonnull Stream<E> entities, int batchSize);
+    void insertAndFetch(@Nonnull Sequence<E> entities, int batchSize, @Nonnull KBatchCallback<E> callback);
 
     /**
      * Updates a stream of entities in the database using the default batch size.
@@ -566,7 +564,7 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * @throws PersistenceException if there is an error during the update operation, such as a violation of database constraints,
      *         connectivity issues, or if any entity in the stream is null.
      */
-    void update(@Nonnull Stream<E> entities);
+    void update(@Nonnull Sequence<E> entities);
 
     /**
      * Updates a stream of entities in the database, with the update process divided into batches of the specified size.
@@ -582,7 +580,7 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * @throws PersistenceException if there is an error during the update operation, such as a violation of database constraints,
      *         connectivity issues, or if any entity in the stream is null.
      */
-    void update(@Nonnull Stream<E> entities, int batchSize);
+    void update(@Nonnull Sequence<E> entities, int batchSize);
 
     /**
      * Updates a stream of entities in the database using the default batch size and returns a stream of the updated entities.
@@ -593,11 +591,10 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      *
      * @param entities a stream of entities to update. Each entity must not be null, must already exist in the database,
      *                 and must conform to the model constraints.
-     * @return a stream of the updated entities as they are stored in the database.
      * @throws PersistenceException if there is an error during the update or retrieval operation, such as a violation of
      *         database constraints, connectivity issues, or if any entity in the stream is null.
      */
-    Stream<E> updateAndFetch(@Nonnull Stream<E> entities);
+    void updateAndFetch(@Nonnull Sequence<E> entities, @Nonnull KBatchCallback<E> callback);
 
     /**
      * Updates a stream of entities in the database, with the update process divided into batches of the specified size,
@@ -616,7 +613,7 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * @throws PersistenceException if there is an error during the update or retrieval operation, such as a violation of
      *         database constraints, connectivity issues, or if any entity in the stream is null.
      */
-    Stream<E> updateAndFetch(@Nonnull Stream<E> entities, int batchSize);
+    void updateAndFetch(@Nonnull Sequence<E> entities, int batchSize, @Nonnull KBatchCallback<E> callback);
 
     /**
      * Performs an upsert operation for multiple entities provided as a stream. This method processes the entities with
@@ -627,7 +624,7 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * @throws PersistenceException if there is an error during the upsert operation, such as a violation of database
      *                              constraints, connectivity issues, or if any entity in the stream is null.
      */
-    void upsert(@Nonnull Stream<E> entities);
+    void upsert(@Nonnull Sequence<E> entities);
 
     /**
      * Performs an upsert operation for multiple entities provided as a stream, with the operation divided into batches
@@ -645,7 +642,7 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * @throws PersistenceException if there is an error during the upsert operation, such as a violation of database
      *                              constraints, connectivity issues, or if any entity in the stream is null.
      */
-    void upsert(@Nonnull Stream<E> entities, int batchSize);
+    void upsert(@Nonnull Sequence<E> entities, int batchSize);
 
     /**
      * Performs an upsert operation for multiple entities provided as a stream and returns a stream of their generated
@@ -659,7 +656,7 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      *                              violation of database constraints, connectivity issues, or if any entity in the
      *                              stream is null.
      */
-    Stream<ID> upsertAndFetchIds(@Nonnull Stream<E> entities);
+    void upsertAndFetchIds(@Nonnull Sequence<E> entities, @Nonnull KBatchCallback<ID> callback);
 
     /**
      * Performs an upsert operation for multiple entities provided as a stream and returns a stream of the entities as
@@ -673,7 +670,7 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      *                              of database constraints, connectivity issues, or if any entity in the stream is
      *                              null.
      */
-    Stream<E> upsertAndFetch(@Nonnull Stream<E> entities);
+    void upsertAndFetch(@Nonnull Sequence<E> entities, @Nonnull KBatchCallback<E> callback);
 
     /**
      * Performs an upsert operation for multiple entities provided as a stream, with the operation divided into batches
@@ -685,12 +682,11 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      *                 constraints.
      * @param batchSize the size of the batches to use for the upsert operation. A larger batch size can improve
      *                  performance but may also increase the load on the database.
-     * @return a stream of primary keys for the upserted entities.
      * @throws PersistenceException if there is an error during the upsert or key retrieval operation, such as a
      *                              violation of database constraints, connectivity issues, or if any entity in the
      *                              stream is null.
      */
-    Stream<ID> upsertAndFetchIds(@Nonnull Stream<E> entities, int batchSize);
+    void upsertAndFetchIds(@Nonnull Sequence<E> entities, int batchSize, @Nonnull KBatchCallback<ID> callback);
 
     /**
      * Performs an upsert operation for multiple entities provided as a stream, with the operation divided into batches
@@ -712,7 +708,7 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      *                              of database constraints, connectivity issues, or if any entity in the stream is
      *                              null.
      */
-    Stream<E> upsertAndFetch(@Nonnull Stream<E> entities, int batchSize);
+    void upsertAndFetch(@Nonnull Sequence<E> entities, int batchSize, @Nonnull KBatchCallback<E> callback);
 
     /**
      * Deletes a stream of entities from the database using the default batch size.
@@ -726,7 +722,7 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * @throws PersistenceException if there is an error during the deletion operation, such as a violation of database constraints,
      *         connectivity issues, or if any entity in the stream is null.
      */
-    void delete(@Nonnull Stream<E> entities);
+    void delete(@Nonnull Sequence<E> entities);
 
     /**
      * Deletes a stream of entities from the database, with the deletion process divided into batches of the specified size.
@@ -742,5 +738,5 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * @throws PersistenceException if there is an error during the deletion operation, such as a violation of database constraints,
      *         connectivity issues, or if any entity in the stream is null.
      */
-    void delete(@Nonnull Stream<E> entities, int batchSize);
+    void delete(@Nonnull Sequence<E> entities, int batchSize);
 }

@@ -138,6 +138,18 @@ public interface KQuery {
     <T> Stream<T> getResultStream(@Nonnull KClass<T> type);
 
     /**
+     * Execute a SELECT query and return the resulting rows as a stream of row instances.
+     *
+     * <p>Each element in the stream represents a row in the result, where the columns of the row are mapped to the
+     * constructor arguments of the specified {@code type}.</p>
+     *
+     * @param type the type of the result.
+     * @return the result stream.
+     * @throws PersistenceException if the query fails.
+     */
+    <T, R> R getResult(@Nonnull KClass<T> type, @Nonnull KResultCallback<T, R> callback);
+
+    /**
      * Execute a command, such as an INSERT, UPDATE or DELETE statement.
      *
      * @return the number of rows impacted as result of the statement.

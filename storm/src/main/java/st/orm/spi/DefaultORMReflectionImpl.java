@@ -16,6 +16,7 @@
 package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import st.orm.PK;
 
 import java.lang.annotation.Annotation;
@@ -23,6 +24,7 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.RecordComponent;
@@ -113,6 +115,54 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
     public Class<? extends Record> getRecordType(@Nonnull Object clazz) {
         //noinspection unchecked
         return (Class<? extends Record>) clazz;
+    }
+
+    @Override
+    public boolean isDefaultValue(@Nullable Object o) {
+        if (o == null) {
+            return true;
+        }
+        if (isPrimitiveOrWrapper(o)) {
+            return isPrimitiveDefaultValue(o);
+        }
+        if (o.getClass().isRecord()) {
+            return areRecordComponentsDefault(o);
+        }
+        return false;
+    }
+
+    private boolean isPrimitiveOrWrapper(Object o) {
+        return o instanceof Byte || o instanceof Short || o instanceof Integer ||
+                o instanceof Long || o instanceof Float || o instanceof Double ||
+                o instanceof Character || o instanceof Boolean;
+    }
+
+    private boolean isPrimitiveDefaultValue(Object o) {
+        if (o instanceof Byte && (Byte) o == 0) return true;
+        if (o instanceof Short && (Short) o == 0) return true;
+        if (o instanceof Integer && (Integer) o == 0) return true;
+        if (o instanceof Long && (Long) o == 0) return true;
+        if (o instanceof Float && (Float) o == 0.0f) return true;
+        if (o instanceof Double && (Double) o == 0.0) return true;
+        if (o instanceof Character && (Character) o == '\u0000') return true;
+        if (o instanceof Boolean && !(Boolean) o) return true;
+        return false;
+    }
+
+    private boolean areRecordComponentsDefault(Object record) {
+        try {
+            for (RecordComponent component : record.getClass().getRecordComponents()) {
+                Object componentValue = invokeComponent(component, record);
+                if (!isDefaultValue(componentValue)) {
+                    return false;
+                }
+            }
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Throwable t) {
+            throw new RuntimeException("Failed to access record component values.", t);
+        }
+        return true;
     }
 
     @Override

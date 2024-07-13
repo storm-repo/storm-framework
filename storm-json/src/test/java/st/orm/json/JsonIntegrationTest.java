@@ -100,8 +100,8 @@ public class JsonIntegrationTest {
     public void testOwnerWithJsonMapAddress() {
         var ORM = ORM(dataSource);
         var repository = ORM.repository(OwnerWithJsonMapAddress.class);
-        var owner = repository.selectAll().toList();
-        assertEquals(10, owner.size());
+        var owner = repository.selectAll();
+        assertEquals(10, owner.count());
     }
 
     public record VetWithSpecialties(@Nonnull Vet vet, @Nonnull @Json List<Specialty> specialties) {}

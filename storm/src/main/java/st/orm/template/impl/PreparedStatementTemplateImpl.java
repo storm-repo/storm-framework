@@ -197,6 +197,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                         case java.sql.Date d -> preparedStatement.setDate(p.position(), d);
                         case java.sql.Time t -> preparedStatement.setTime(p.position(), t);
                         case java.sql.Timestamp t -> preparedStatement.setTimestamp(p.position(), t);
+                        case Enum<?> e -> preparedStatement.setString(p.position(), e.name());
                         default -> preparedStatement.setObject(p.position(), dbValue);
                     }
                 }

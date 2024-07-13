@@ -36,7 +36,7 @@ public interface PreparedQuery extends Query, AutoCloseable {
     void addBatch(@Nonnull Record record);
 
     /**
-     * Returns the generated keys as result of an insert statement. Returns an empty stream if the statement did not
+     * Returns the generated keys as result of an insert statement. Returns an empty list if the statement did not
      * generate any keys.
      *
      * @return the generated keys as result of an insert statement.

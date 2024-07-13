@@ -4,6 +4,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.persistence.PersistenceException;
 import st.orm.Query;
 import st.orm.Templates;
+import st.orm.ResultCallback;
 import st.orm.template.JoinType;
 import st.orm.template.ORMTemplate;
 import st.orm.template.Operator;
@@ -321,6 +322,13 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
     @Override
     public Stream<R> stream() {
         return process(RAW."");
+    }
+
+    @Override
+    public <X> X result(@Nonnull ResultCallback<R, X> callback) {
+        try (Stream<R> stream = Tripwire.autoClose(this::stream)) {
+            return callback.process(stream);
+        }
     }
 
     protected <X> Stream<X> toStream(@Nonnull Iterable<X> iterable) {

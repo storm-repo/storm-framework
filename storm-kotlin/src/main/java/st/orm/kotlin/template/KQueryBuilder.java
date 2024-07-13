@@ -6,6 +6,7 @@ import jakarta.persistence.NonUniqueResultException;
 import jakarta.persistence.PersistenceException;
 import kotlin.reflect.KClass;
 import st.orm.kotlin.KQuery;
+import st.orm.kotlin.KResultCallback;
 import st.orm.template.JoinType;
 import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
@@ -218,6 +219,8 @@ public interface KQueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream
 
     Stream<R> stream();
 
+    <X> X result(@Nonnull KResultCallback<R, X> callback);
+
     default List<R> toList() {
         return stream().toList();
     }
@@ -237,7 +240,7 @@ public interface KQueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream
     }
 
     /**
-     * Performs the function in multiple batches, each containing up to {@code batchSize} elements from the stream.
+     * Performs the function in multiple slices, each containing up to {@code size} elements from the stream.
      *
      * @param stream the stream to batch.
      * @param batchSize the maximum number of elements to include in each batch.
@@ -246,19 +249,8 @@ public interface KQueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream
      * @param <X> the type of elements in the stream.
      * @param <Y> the type of elements in the result stream.
      */
-    static <X, Y> Stream<Y> batch(@Nonnull Stream<X> stream, int batchSize, @Nonnull Function<List<X>, Stream<Y>> function) {
-        return QueryBuilder.batch(stream, batchSize, function);
-    }
-
-    /**
-     * Wraps the stream in a stream that is automatically closed after a terminal operation.
-     *
-     * @param stream the stream to wrap.
-     * @return a stream that is automatically closed after a terminal operation.
-     * @param <X> the type of the stream.
-     */
-    static <X> Stream<X> autoClose(@Nonnull Stream<X> stream) {
-        return QueryBuilder.autoClose(stream);
+    static <X, Y> Stream<Y> slice(@Nonnull Stream<X> stream, int batchSize, @Nonnull Function<List<X>, Stream<Y>> function) {
+        return QueryBuilder.slice(stream, batchSize, function);
     }
 
     /**

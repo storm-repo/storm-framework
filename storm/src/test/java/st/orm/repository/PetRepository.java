@@ -8,12 +8,11 @@ import st.orm.model.Visit;
 import java.util.List;
 import java.util.stream.Stream;
 
-@SuppressWarnings("TrailingWhitespacesInTextBlock")
 public interface PetRepository extends EntityRepository<Pet, Integer> {
 
     default List<Pet> findAll() {
         return template()."""
-                SELECT \{this.selectTemplate(Pet.class)}
+                SELECT \{selectTemplate(Pet.class)}
                 FROM \{t(Pet.class, "p")}
                   INNER JOIN \{t(PetType.class, "pt")} ON p.type_id = pt.id
                   LEFT OUTER JOIN \{t(Owner.class, "o")} ON p.owner_id = o.id"""

@@ -3,7 +3,10 @@ package st.orm.kotlin.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.PersistenceException;
 import kotlin.reflect.KClass;
+import kotlin.sequences.Sequence;
+import kotlin.sequences.SequencesKt;
 import st.orm.kotlin.KQuery;
+import st.orm.kotlin.KResultCallback;
 import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
@@ -16,10 +19,14 @@ import st.orm.template.QueryBuilder.TypedJoinBuilder;
 import st.orm.template.QueryBuilder.WhereBuilder;
 import st.orm.template.TemplateFunction;
 
+import java.util.Iterator;
+import java.util.Spliterator;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static java.util.Objects.requireNonNull;
+import static java.util.Spliterators.spliteratorUnknownSize;
 import static st.orm.template.JoinType.cross;
 import static st.orm.template.JoinType.inner;
 import static st.orm.template.JoinType.left;
@@ -32,6 +39,16 @@ public class KQueryBuilderImpl<T, R, ID> implements KQueryBuilder<T, R, ID> {
 
     public KQueryBuilderImpl(@Nonnull QueryBuilder<T, R, ID> builder) {
         this.builder = requireNonNull(builder, "builder");
+    }
+
+    protected <X> Sequence<X> toSequence(@Nonnull Stream<X> stream) {
+        return SequencesKt.asSequence(stream.iterator());
+    }
+
+    protected <X> Stream<X> toStream(@Nonnull Sequence<X> sequence) {
+        Iterator<X> iterator = sequence.iterator();
+        Spliterator<X> spliterator = spliteratorUnknownSize(iterator, Spliterator.ORDERED);
+        return StreamSupport.stream(spliterator, false);
     }
 
     @Override
@@ -69,6 +86,11 @@ public class KQueryBuilderImpl<T, R, ID> implements KQueryBuilder<T, R, ID> {
     @Override
     public Stream<R> stream() {
         return builder.stream();
+    }
+
+    @Override
+    public <X> X result(@Nonnull KResultCallback<R, X> callback) {
+        return builder.result(stream -> callback.process(toSequence(stream)));
     }
 
     @Override

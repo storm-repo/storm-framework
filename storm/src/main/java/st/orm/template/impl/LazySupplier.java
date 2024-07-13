@@ -29,7 +29,7 @@ import static java.util.Optional.ofNullable;
  *
  * @param <T> the type of results supplied by this supplier.
  */
-final class LazySupplier<T> implements Supplier<T> {
+public final class LazySupplier<T> implements Supplier<T> {
 
     /**
      * Returns a supplier which lazy initializes the value.

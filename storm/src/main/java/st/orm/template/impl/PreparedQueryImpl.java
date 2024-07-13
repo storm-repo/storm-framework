@@ -21,6 +21,7 @@ import jakarta.persistence.PersistenceException;
 import st.orm.PreparedQuery;
 
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -68,7 +69,7 @@ final class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
     }
 
     /**
-     * Returns the generated keys as result of an insert statement. Returns an empty stream if the statement did not
+     * Returns the generated keys as result of an insert statement. Returns an empty list if the statement did not
      * generate any keys.
      *
      * @return the generated keys as result of an insert statement.
@@ -77,27 +78,17 @@ final class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
     @Override
     public <ID> Stream<ID> getGeneratedKeys(@Nonnull Class<ID> type) {
         try {
+            // We must not use a lazy stream as we must ensure the generated keys are read immediately.
+            ResultSet resultSet = statement.getGeneratedKeys();
             boolean close = true;
-            var resultSet = statement.getGeneratedKeys();
             try {
                 int columnCount = resultSet.getMetaData().getColumnCount();
-                if (columnCount == 0) {
-                    throw new PersistenceException("No generated keys available. Support varies across databases, often limited to auto-increment columns.");
-                }
                 var mapper = getObjectMapper(columnCount, type, lazyFactory)
                         .orElseThrow(() -> new PersistenceException(STR."No suitable constructor found for \{type}."));
-                // The result set will be closed when the stream is closed, but also when readNext returns null.
-                var stream = generate(() -> readNext(resultSet, columnCount, mapper))
-                        .takeWhile(Objects::nonNull)
-                        .onClose(() -> {
-                            try {
-                                resultSet.close();
-                            } catch (SQLException e) {
-                                throw new PersistenceException(e);
-                            }
-                        });
                 close = false;
-                return AutoClosingStreamProxy.wrap(stream);
+                return ResourceStream.wrap(generate(() -> readNext(resultSet, columnCount, mapper))
+                        .takeWhile(Objects::nonNull)
+                        .onClose(() -> close(resultSet)));
             } finally {
                 if (close) {
                     resultSet.close();

@@ -2,9 +2,12 @@ package st.orm.kotlin.template.impl;
 
 import jakarta.annotation.Nonnull;
 import kotlin.reflect.KClass;
+import kotlin.sequences.Sequence;
+import kotlin.sequences.SequencesKt;
 import st.orm.Query;
 import st.orm.kotlin.KPreparedQuery;
 import st.orm.kotlin.KQuery;
+import st.orm.kotlin.KResultCallback;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 
@@ -21,6 +24,10 @@ public class KQueryImpl implements KQuery {
         this.query = requireNonNull(query, "query");
     }
 
+    private <X> Sequence<X> toSequence(@Nonnull Stream<X> stream) {
+        return SequencesKt.asSequence(stream.iterator());
+    }
+
     @Override
     public KPreparedQuery prepare() {
         return new KPreparedQueryImpl(query.prepare());
@@ -35,6 +42,12 @@ public class KQueryImpl implements KQuery {
     public <T> Stream<T> getResultStream(@Nonnull KClass<T> type) {
         //noinspection unchecked
         return query.getResultStream((Class<T>) REFLECTION.getType(type));
+    }
+
+    @Override
+    public <T, R> R getResult(@Nonnull KClass<T> type, @Nonnull KResultCallback<T, R> callback) {
+        //noinspection unchecked
+        return query.getResult((Class<T>) REFLECTION.getType(type), stream -> callback.process(toSequence(stream)));
     }
 
     @Override

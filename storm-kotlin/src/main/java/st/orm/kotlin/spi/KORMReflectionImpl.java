@@ -16,6 +16,7 @@
 package st.orm.kotlin.spi;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import kotlin.Metadata;
 import kotlin.jvm.JvmClassMappingKt;
 import kotlin.reflect.KCallable;
@@ -159,6 +160,11 @@ public final class KORMReflectionImpl implements ORMReflection {
     @Override
     public boolean isSupportedType(@Nonnull Object clazz) {
         return defaultReflection.isSupportedType(clazz) || clazz instanceof KClass;
+    }
+
+    @Override
+    public boolean isDefaultValue(@Nullable Object o) {
+        return defaultReflection.isDefaultValue(o);
     }
 
     @Override
