@@ -776,8 +776,8 @@ record ElementProcessor(
                     }
                     continue;
                 }
-                // Only include inlined components.
-                continue;
+                // Only allow inlined components.
+                throw new SqlTemplateException(STR."Record component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' must be a primary key, foreign key or inline component.");
             }
             parts.add(placeholders ? "?" : getColumnName(component, columnNameResolver));
             parts.add(", ");
@@ -1186,17 +1186,17 @@ record ElementProcessor(
     }
 
     private static List<Object> getValuesForInsert(@Nonnull Record record) throws SqlTemplateException {
-        return getValuesForInsert(record, null);
+        return getValuesForInsert(record, record.getClass(), false);
     }
 
-    private static List<Object> getValuesForInsert(@Nullable Record record, @Nullable Class<? extends Record> fkClass) throws SqlTemplateException {
+    private static List<Object> getValuesForInsert(@Nullable Record record, @Nonnull Class<? extends Record> recordClass, boolean foreignKey) throws SqlTemplateException {
         try {
             var values = new ArrayList<>();
-            if (record == null) {
+            if (record == null && foreignKey) {
                 values.add(null);
                 return values;
             }
-            for (var component : record.getClass().getRecordComponents()) {
+            for (var component : recordClass.getRecordComponents()) {
                 Persist persist = REFLECTION.getAnnotation(component, Persist.class);
                 if (persist != null && !persist.insertable()) {
                     continue;
@@ -1210,14 +1210,14 @@ record ElementProcessor(
                     if (!REFLECTION.isAnnotationPresent(component, FK.class)) {
                         throw new SqlTemplateException(STR."Lazy component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is not a foreign key.");
                     }
-                    var id = ((Lazy<?>) REFLECTION.invokeComponent(component, record)).id();
+                    var id = record == null ? null : ((Lazy<?>) REFLECTION.invokeComponent(component, record)).id();
                     if (id == null && REFLECTION.isNonnull(component)) {
                         throw new SqlTemplateException(STR."Nonnull Lazy component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
                     }
                     values.add(id);
                     continue;
                 }
-                if (fkClass != null) {
+                if (foreignKey) {
                     if (component.getType().isRecord() && (REFLECTION.isAnnotationPresent(component, PK.class)  // Record PKs are implicitly inlined.
                             || REFLECTION.isAnnotationPresent(component, Inline.class))) {
                         var r = (Record) REFLECTION.invokeComponent(component, record);
@@ -1225,7 +1225,7 @@ record ElementProcessor(
                             // Skipping; We're only interested in finding a PK.
                             continue;
                         }
-                        var pk = getValuesForInsert(r, fkClass);
+                        var pk = getValuesForInsert(r, recordClass, true);
                         if (!pk.isEmpty()) {
                             values.add(pk);
                             // We found the PK for the foreign key. We can now return.
@@ -1242,24 +1242,29 @@ record ElementProcessor(
                         continue;
                     }
                     if (REFLECTION.isAnnotationPresent(component, FK.class)) {
-                        var r = (Record) REFLECTION.invokeComponent(component, record);
+                        var r = record == null ? null : (Record) REFLECTION.invokeComponent(component, record);
                         if (r == null && REFLECTION.isNonnull(component)) {
                             throw new SqlTemplateException(STR."Nonnull foreign key component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
                         }
                         //noinspection unchecked
-                        values.addAll(getValuesForInsert(r, (Class<? extends Record>) component.getType()));
+                        values.addAll(getValuesForInsert(r, (Class<? extends Record>) component.getType(), true));
                         continue;
                     }
-                    if (component.getType().isRecord() && (REFLECTION.isAnnotationPresent(component, PK.class) // Record PKs are implicitly inlined.
-                            || REFLECTION.isAnnotationPresent(component, Inline.class))) {
-                        var r = (Record) REFLECTION.invokeComponent(component, record);
-                        if (r == null && REFLECTION.isNonnull(component)) {
-                            throw new SqlTemplateException(STR."Nonnull component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
+                    if (component.getType().isRecord()) {
+                        if ((REFLECTION.isAnnotationPresent(component, PK.class) // Record PKs are implicitly inlined.
+                                || REFLECTION.isAnnotationPresent(component, Inline.class))) {
+                            var r = record == null ? null : (Record) REFLECTION.invokeComponent(component, record);
+                            if (r == null && REFLECTION.isNonnull(component)) {
+                                throw new SqlTemplateException(STR."Nonnull component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
+                            }
+                            //noinspection unchecked
+                            values.addAll(getValuesForInsert(r, (Class<? extends Record>) component.getType(), false));
+                            continue;
+                        } else {
+                            throw new SqlTemplateException(STR."Record component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' must be a primary key, foreign key or inline component.");
                         }
-                        values.addAll(getValuesForInsert(r, null));
-                        continue;
                     }
-                    values.add(REFLECTION.invokeComponent(component, record));
+                    values.add(record == null ? null : REFLECTION.invokeComponent(component, record));
                 }
             }
             return values;

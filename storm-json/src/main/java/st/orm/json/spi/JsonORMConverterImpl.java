@@ -19,6 +19,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import st.orm.spi.ORMConverter;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
@@ -60,9 +61,9 @@ public class JsonORMConverterImpl implements ORMConverter {
     }
 
     @Override
-    public List<Object> getValues(@Nonnull Record record) throws SqlTemplateException {
+    public List<Object> getValues(@Nullable Record record) throws SqlTemplateException {
         try {
-            return List.of(new ObjectMapper().writeValueAsString(REFLECTION.invokeComponent(component, record)));
+            return List.of(new ObjectMapper().writeValueAsString(record == null ? null : REFLECTION.invokeComponent(component, record)));
         } catch (Throwable e) {
             throw new SqlTemplateException(e);
         }
