@@ -1004,20 +1004,27 @@ record ElementProcessor(
                 .collect(joining(" AND "));
     }
 
-    @SuppressWarnings("unchecked")
     private static List<String> getPkNamesForWhere(@Nonnull Class<? extends Record> recordType,
                                                    @Nonnull String alias,
                                                    @Nullable ColumnNameResolver columnNameResolver) {
+        return getPkNamesForWhere(recordType, alias, columnNameResolver, false);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> getPkNamesForWhere(@Nonnull Class<? extends Record> recordType,
+                                                   @Nonnull String alias,
+                                                   @Nullable ColumnNameResolver columnNameResolver,
+                                                   boolean pk) {
         var names = new ArrayList<String>();
         for (var component : recordType.getRecordComponents()) {
-            if (component.getType().isRecord() && (REFLECTION.isAnnotationPresent(component, PK.class) // Record PKs are implicitly inlined.
-                    || REFLECTION.isAnnotationPresent(component, Inline.class))) {
-                names.addAll(getPkNamesForWhere((Class<? extends Record>) component.getType(), alias, columnNameResolver));
-                continue;
-            }
-            if (REFLECTION.isAnnotationPresent(component, PK.class)) {
+            if (component.getType().isRecord()) {
+                pk = REFLECTION.isAnnotationPresent(component, PK.class);
+                if (component.getType().isRecord() && (pk // Record PKs are implicitly inlined.
+                        || REFLECTION.isAnnotationPresent(component, Inline.class))) {
+                    names.addAll(getPkNamesForWhere((Class<? extends Record>) component.getType(), alias, columnNameResolver, pk));
+                }
+            } else if (pk) {
                 names.add(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getColumnName(component, columnNameResolver)}");
-                break;
             }
         }
         return names;
