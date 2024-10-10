@@ -1014,16 +1014,16 @@ record ElementProcessor(
     private static List<String> getPkNamesForWhere(@Nonnull Class<? extends Record> recordType,
                                                    @Nonnull String alias,
                                                    @Nullable ColumnNameResolver columnNameResolver,
-                                                   boolean pk) {
+                                                   boolean parentPk) {
         var names = new ArrayList<String>();
         for (var component : recordType.getRecordComponents()) {
+            boolean pk = REFLECTION.isAnnotationPresent(component, PK.class);
             if (component.getType().isRecord()) {
-                pk = REFLECTION.isAnnotationPresent(component, PK.class);
-                if (component.getType().isRecord() && (pk // Record PKs are implicitly inlined.
-                        || REFLECTION.isAnnotationPresent(component, Inline.class))) {
-                    names.addAll(getPkNamesForWhere((Class<? extends Record>) component.getType(), alias, columnNameResolver, pk));
+                if (pk || parentPk // Record PKs are implicitly inlined.
+                        || REFLECTION.isAnnotationPresent(component, Inline.class)) {
+                    names.addAll(getPkNamesForWhere((Class<? extends Record>) component.getType(), alias, columnNameResolver, pk || parentPk));
                 }
-            } else if (pk) {
+            } else if (pk || parentPk) {
                 names.add(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getColumnName(component, columnNameResolver)}");
             }
         }
