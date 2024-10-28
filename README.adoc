@@ -19,11 +19,11 @@ public class JPAExample {
     private EntityManager entityManager;
 
     public List findByBirthDate(LocalDate birthDate) {
-        var JPA = JpaTemplate.of(entityManager);
-        Query query = JPA."""
+        var jpa = JpaTemplate.of(entityManager);
+        Query query = jpa.query(RAW."""
             SELECT *
             FROM pet
-            WHERE birth_date = \{birthDate}""";
+            WHERE birth_date = \{birthDate}""");
         return query.getResultList();
     }
 }
@@ -37,11 +37,11 @@ public class PreparedStatementExample {
     @Autowired
     private DataSource dataSource;
     public List<Pet> findByBirthDate(LocalDate birthDate) {
-        var PS = PreparedStatementTemplate.of(dataSource);
-        try (PreparedStatement statement = PS."""
+        var ps = PreparedStatementTemplate.of(dataSource);
+        try (PreparedStatement statement = ps.query(RAW."""
                     SELECT *
                     FROM pet
-                    WHERE birth_date = \{birthDate}""";
+                    WHERE birth_date = \{birthDate}""");
                 ResultSet resultSet = statement.executeQuery()) {
             List<Pet> pets = new ArrayList<>();
             while (resultSet.next()) {
@@ -85,31 +85,28 @@ public record Address (
 public class ORMTemplateExample {
 
     public List<Pet> findByOwner(Owner owner) {
-        var ORM = ORM(dataSource);
         // Select all pets that belong to the owner.
         // Uses the auto join feature based on @FK relationships.
-        var query = ORM."""
+        var query = ORM(dataSource).query(RAW."""
                 SELECT \{Pet.class}
                 FROM \{Pet.class}
-                WHERE \{owner}""";
+                WHERE \{owner}""");
         return query.getResultList(Pet.class);
     }
 
     public int findPetCountByOwner(Owner owner) {
-        var ORM = ORM(dataSource);
         // Count the number of pets that belong to the owner.
         // Uses custom result mapping.
-        var query = ORM."SELECT COUNT(*) FROM \{Pet.class} WHERE \{owner}";
+        var query = ORM(dataSource).query(RAW."SELECT COUNT(*) FROM \{Pet.class} WHERE \{owner}");
         return query.getSingleResult(Integer.class);
     }
 
     public record Count(Owner owner, int count) {}
 
     public List<Count> findAllPetCountByOwner() {
-        var ORM = ORM(dataSource);
         // Group by owner and count the number of pets.
         // Uses custom result mapping using a record.
-        var query = ORM."SELECT \{Owner.class}, COUNT(*) FROM \{Pet.class} GROUP BY \{Owner.class}.id";
+        var query = ORM(dataSource).query(RAW."SELECT \{Owner.class}, COUNT(*) FROM \{Pet.class} GROUP BY \{Owner.class}.id");
         return query.getResultList(Count.class);
     }
 }
@@ -134,36 +131,40 @@ The following example demonstrates how `ORM(datasource).repository(Pet.class)` r
 ----
 public class ORMRepositoryExample {
 
-    public Stream<Pet> findByFirstName(String firstName) {
-        var R = ORM(dataSource).repository(Pet.class);
+    public List<Pet> findByFirstName(String firstName) {
         // Select all pets that belong to an owner with the specified first name. Uses the
         // auto alias feature and parameter binding.
-        return R."WHERE \{Owner.class}.first_name = \{firstName}";
+        return ORM(dataSource)
+            .selectFrom(Pet.class)
+            .append(RAW."WHERE \{Owner.class}.first_name = \{firstName}")
+            .getResultList();
     }
 
-    public Stream<Pet> findByLastName(String lastName) {
-        // Request a repository for the Pet entity.
-        var R = ORM(dataSource).repository(Pet.class);
+    public List<Pet> findByLastName(String lastName) {
         // Use component path to identify column.
-        return R.where("owner.lastName", EQUALS, firstName).stream();
+        return ORM(dataSource)
+            .selectFrom(Pet.class)
+            .where("owner.lastName", EQUALS, firstName)
+            .getResultList();
     }
 
-    public Stream<Pet> findByOwner(Owner owner) {
-        var R = ORM(dataSource).repository(Pet.class);
+    public List<Pet> findByOwner(Owner owner) {
         // Select all pets that belong to the owner, Uses the auto join feature based on @FK relationships.
-        return R.where(owner);
+        return ORM(dataSource)
+            .selectFrom(Pet.class)
+            .where(owner)
+            .getResultList();
     }
 
     public Pet create(String name, PetType petType) {
-        var R = ORM(dataSource).repository(Pet.class);
         // Create a new pet with the specified name and pet type.
         // Returns the newly created pet with the generated ID.
-        return R.upsert(Pet.builder()
+        return ORM(dataSource).repository(Pet.class)
+            .upsert(Pet.builder()
                 .name(name)
                 .birthDate(LocalDate.now())
                 .petType(petType)
-                .build()
-        );
+                .build());
     }
 }
 ----
@@ -174,18 +175,18 @@ The following logic shows howto create a custom repository with custom methods:
 ----
 public interface PetRepository extends EntityRepository<Pet> {
 
-    default Stream<Pet> findByCity(String city) {
+    default List<Pet> findByCity(String city) {
         // Select all pets that belong to an owner in the specified city. Uses the
         // auto alias feature and parameter binding.
-        return this."WHERE \{Owner.class}.city = \{city}";
+        return select().append(RAW."WHERE \{Owner.class}.city = \{city}").getResultList();
     }
 
     default insert(List<Pet> pets) {
         // Insert pets into the database with a batch statement. Uses bind variables.
         var bindVars = createBindVars();
-        try (var query = ORM()."""
+        try (var query = template().query(RAW."""
                 INSERT INTO \{Pet.class}
-                VALUES \{bindVars}""".prepare()) {
+                VALUES \{bindVars}""".prepare())) {
             pets.forEach(query::addBatch);
             // Performs a single batch update.
             query.executeUpdate();
@@ -195,10 +196,10 @@ public interface PetRepository extends EntityRepository<Pet> {
     default update(List<Pet> pets) {
         // Updates pets with a batch statement. Uses bind variables.
         var bindVars = createBindVars();
-        try (var query = ORM()."""
+        try (var query = template(0).query(RAW."""
                 UPDATE \{Pet.class}
                 SET \{bindVars}
-                WHERE \{bindVars}""".prepare()) {
+                WHERE \{bindVars}""".prepare())) {
             pets.forEach(query::addBatch);
             // Performs a single batch update.
             query.executeUpdate();
@@ -225,16 +226,14 @@ public class JSONExample {
     public record VetWithSpecialties(Vet vet, @Json List<Specialty> specialties) {}
 
     public List<VetWithSpecialties> getVetsWithSpecialties() {
-        var ORM = ORM(dataSource);
         // Uses VET as the root entity and aggregates the specialties into a JSON object.
         // The result is a list of VetWithSpecialties records.
-        return ORM.query(Vet.class)
-            .selectTemplat(VetWithSpecialties.class)
-                ."\{Vet.class}, JSON_OBJECTAGG(\{Specialty.class}.id, \{Specialty.class}.name)"
+        return ORM(dataSource)
+            .selectFrom(Vet.class, VetWithSpecialties.class, RAW."\{Vet.class}, JSON_OBJECTAGG(\{Specialty.class}.id, \{Specialty.class}.name)")
             .innerJoin(VetSpecialty.class).on(Vet.class)
             .innerJoin(Specialty.class).on(VetSpecialty.class)
-            ."GROUP BY \{Vet.class}.id"
-            .toList();
+            .append(RAW."GROUP BY \{Vet.class}.id")
+            .getResultList();
     }
 
     public record Owner(
@@ -250,9 +249,9 @@ public class JSONExample {
         // The JSON address field is automatically converted to a map with the keys 'address' and 'city'
         // given that the address field contains the following string:
         // { "address": "638 Cardinal Ave.", "city": "Sun Prairie" }
-        var ORM = ORM(dataSource);
-        return ORM.query(Owner.class)
-            .toList();
+        return ORM(dataSource)
+            .selectFrom(Owner.class)
+            .getResultList();
     }
 }
 
@@ -275,22 +274,21 @@ public class FutureExample {
 
     public record PetCount(Pet pet, int count) {}
 
-    public Stream<VetCount> getVisitCount() {
+    public List<VetCount> getVisitCount() {
         // QueryBuilder example with method based String Templates resulting in a much cleaner syntax.
-        var orm = ORM(dataSource);
-        return orm.query(Pet.class)
-                .select(PetCount.class, "\{Pet.class}, COUNT(*)")
+        return ORM(dataSource)
+                .selectFrom(Pet.class, PetCount.class, "\{Pet.class}, COUNT(*)")
                 .innerJoin(Visit.class).on(Pet.class)
-                .stream("GROUP BY \{Vet.class}.id");
+                .append("GROUP BY \{Vet.class}.id")
+                .getResultList();
     }
 
     public void removeOwners() {
         // Repository example utilizing derived record creation to update record fields.
         var petRepository = ORM(dataSource).repository(Pet.class);
-        var pets = petRepository.selectAll();
-        repository.update(pets.map(pet ->
-                pet with { owner = null; }
-        );
+        try (var pets = petRepository.selectAll()) {
+            repository.update(pets.map(pet -> pet with { owner = null; });
+        }
     }
 }
 

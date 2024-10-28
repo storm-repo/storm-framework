@@ -24,7 +24,7 @@ import st.orm.template.ORMRepositoryTemplate;
 /**
  * Implementation of {@link st.orm.repository.EntityRepository} for MariaDB.
  */
-public class MariadbEntityRepositoryImpl<E extends Entity<ID>, ID> extends MysqlEntityRepositoryImpl<E, ID> {
+public class MariadbEntityRepositoryImpl<E extends Record & Entity<ID>, ID> extends MysqlEntityRepositoryImpl<E, ID> {
 
     public MariadbEntityRepositoryImpl(@Nonnull ORMRepositoryTemplate orm, @Nonnull EntityModel<E, ID> model) {
         super(orm, model);

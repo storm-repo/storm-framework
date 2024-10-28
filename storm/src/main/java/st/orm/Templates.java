@@ -322,10 +322,13 @@ public interface Templates {
      * @throws NonUniqueResultException if more than one result.
      */
     default <T> T singleResult(Stream<T> stream) {
-        return stream
-                .reduce((_, _) -> {
-                    throw new NonUniqueResultException("Expected single result, but found more than one.");
-                }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
+        // TODO Document stream closing.
+        try (stream) {
+            return stream
+                    .reduce((_, _) -> {
+                        throw new NonUniqueResultException("Expected single result, but found more than one.");
+                    }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
+        }
     }
 
     /**
@@ -337,10 +340,13 @@ public interface Templates {
      * @throws NonUniqueResultException if more than one result.
      */
     default <T> Optional<T> optionalResult(Stream<T> stream) {
-        return stream
-                .reduce((_, _) -> {
-                    throw new NonUniqueResultException("Expected single result, but found more than one.");
-                });
+        // TODO Document stream closing.
+        try (stream) {
+            return stream
+                    .reduce((_, _) -> {
+                        throw new NonUniqueResultException("Expected single result, but found more than one.");
+                    });
+        }
     }
 
     /**

@@ -16,7 +16,6 @@
 package st.orm.template;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.PersistenceException;
 import st.orm.BindVars;
 import st.orm.PreparedQuery;
 import st.orm.Query;
@@ -24,9 +23,7 @@ import st.orm.Templates;
 import st.orm.repository.Entity;
 import st.orm.repository.EntityModel;
 
-public interface ORMTemplate extends Templates, StringTemplate.Processor<Query, PersistenceException> {
-
-    Query template(@Nonnull TemplateFunction function);
+public interface ORMTemplate extends Templates {
 
     /**
      * Create a new bind variables instance that can be used to add bind variables to a batch.
@@ -36,7 +33,17 @@ public interface ORMTemplate extends Templates, StringTemplate.Processor<Query, 
      */
     BindVars createBindVars();
 
-    <T extends Entity<ID>, ID> EntityModel<T, ID> model(@Nonnull Class<T> type);
+    <T extends Record & Entity<ID>, ID> EntityModel<T, ID> model(@Nonnull Class<T> type);
 
-    <T extends Record> QueryBuilder<T, T, Object> query(@Nonnull Class<T> recordType);
+    <T extends Record> QueryBuilder<T, T, ?> selectFrom(@Nonnull Class<T> fromType);
+
+    <T extends Record, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType);
+
+    <T extends Record, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType, @Nonnull StringTemplate template);
+
+    <T extends Record, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType, @Nonnull TemplateFunction function);
+
+    Query query(@Nonnull StringTemplate template);
+
+    Query query(@Nonnull TemplateFunction function);
 }

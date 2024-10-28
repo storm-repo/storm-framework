@@ -23,13 +23,14 @@ import st.orm.kotlin.KBatchCallback;
 import st.orm.kotlin.KResultCallback;
 import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.repository.Entity;
+import st.orm.template.QueryBuilder;
 
 import java.util.List;
 
 /**
  * Provides a generic interface with CRUD operations for entities.
  */
-public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository, KQueryBuilder<E, E, ID> {
+public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KRepository {
 
     /**
      * Returns the entity model associated with this repository.
@@ -37,6 +38,12 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      * @return the entity model.
      */
     KEntityModel<E, ID> model();
+
+    // Query builder methods.
+
+    KQueryBuilder<E, E, ID> select();
+
+    KQueryBuilder<E, Long, ID> selectCount();
 
     // Base methods.
 
@@ -54,6 +61,15 @@ public interface KEntityRepository<E extends Entity<ID>, ID> extends KRepository
      *                              connectivity problems or query execution errors.
      */
     E select(@Nonnull ID id);
+
+    /**
+     * Returns the number of entities in the database of the entity type supported by this repository.
+     *
+     * @return the total number of entities in the database as a long value.
+     * @throws PersistenceException if the count operation fails due to underlying database issues, such as
+     * connectivity.
+     */
+    long count();
 
     /**
      * Checks if an entity with the specified primary key exists in the database.

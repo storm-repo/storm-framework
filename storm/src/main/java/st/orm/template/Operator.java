@@ -21,16 +21,16 @@ import jakarta.annotation.Nonnull;
  * Represents a comparison operator in a SQL query.
  */
 public interface Operator {
-    Operator EQUALS = (column, size) -> switch (size) {
-        case 0 -> throw new IllegalArgumentException("Equals operator requires at least one value.");
-        case 1 -> STR."\{column} = ?";
+    Operator IN = (column, size) -> switch (size) {
+        case 0 -> "FALSE";
         default -> STR."\{column} IN (\{"?, ".repeat(size - 1)}?)";
     };
-    Operator NOT_EQUALS = (column, size) -> switch (size) {
-        case 0 -> throw new IllegalArgumentException("Not equals operator requires at least one value.");
-        case 1 -> STR."\{column} <> ?";
+    Operator NOT_IN = (column, size) -> switch (size) {
+        case 0 -> "TRUE";
         default -> STR."\{column} NOT IN (\{"?, ".repeat(size - 1)}?)";
     };
+    Operator EQUALS = (column, size) -> format("Equals", 1, size, STR."\{column} = ?");
+    Operator NOT_EQUALS = (column, size) -> format("Not equals", 1, size, STR."\{column} <> ?");
     Operator LIKE = (column, size) -> format("Like", 1, size, STR."\{column} LIKE ?");
     Operator NOT_LIKE = (column, size) -> format("Not like", 1, size, STR."\{column} NOT LIKE ?");
     Operator GREATER_THAN = (column, size) -> format("Greater than", 1 ,size, STR."\{column} > ?");

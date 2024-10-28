@@ -76,31 +76,46 @@ class ORMTemplateImpl implements ORMTemplate {
     }
 
     @Override
-    public Query template(@Nonnull TemplateFunction function) {
-        return process(TemplateFunctionHelper.template(function));
-    }
-
-    @Override
-    public Query process(@Nonnull StringTemplate stringTemplate) throws PersistenceException {
-        return factory.create(new LazyFactoryImpl(factory, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter), stringTemplate);
-    }
-
-    @Override
     public BindVars createBindVars() {
         return factory.createBindVars();
     }
 
     @Override
-    public <T extends Entity<ID>, ID> EntityModel<T, ID> model(@Nonnull Class<T> type) {
+    public <T extends Record & Entity<ID>, ID> EntityModel<T, ID> model(@Nonnull Class<T> type) {
         return createEntityModel(type);
     }
 
     @Override
-    public <T extends Record> QueryBuilder<T, T, Object> query(@Nonnull Class<T> recordType) {
-        return new QueryBuilderImpl<>(this, recordType, recordType);
+    public <T extends Record> QueryBuilder<T, T, ?> selectFrom(@Nonnull Class<T> fromType) {
+        return new QueryBuilderImpl<>(this, fromType, fromType);
     }
 
-    private <T extends Entity<ID>, ID> EntityModel<T, ID> createEntityModel(@Nonnull Class<T> type) throws PersistenceException {
+    @Override
+    public <T extends Record, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType) {
+        return new QueryBuilderImpl<>(this, fromType, selectType);
+    }
+
+    @Override
+    public <T extends Record, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType, @Nonnull StringTemplate template) {
+        return new QueryBuilderImpl<>(this, fromType, selectType, template);
+    }
+
+    @Override
+    public <T extends Record, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType, @Nonnull TemplateFunction templateFunction) {
+        return new QueryBuilderImpl<>(this, fromType, selectType, TemplateFunctionHelper.template(templateFunction));
+    }
+
+    @Override
+    public Query query(@Nonnull StringTemplate template) {
+        return factory.create(new LazyFactoryImpl(factory, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter), template);
+    }
+
+    @Override
+    public Query query(@Nonnull TemplateFunction function) {
+        return query(TemplateFunctionHelper.template(function));
+    }
+
+    private <T extends Record & Entity<ID>, ID> EntityModel<T, ID> createEntityModel(@Nonnull Class<T> type) throws PersistenceException {
         if (!type.isRecord()) {
             throw new PersistenceException(STR."Entity type must be a record: \{type.getSimpleName()}.");
         }
@@ -116,13 +131,12 @@ class ORMTemplateImpl implements ORMTemplate {
         if (name != null) {
             tableName = name.value();
         } else if (tableNameResolver != null) {
-            //noinspection unchecked
-            tableName = tableNameResolver.resolveTableName((Class<? extends Record>) type);
+            tableName = tableNameResolver.resolveTableName(type);
         } else {
             tableName = type.getSimpleName();
         }
         //noinspection unchecked
-        Class<ID> pkType =  (Class<ID>) REFLECTION.findPKType((Class<? extends Record>) type)
+        Class<ID> pkType =  (Class<ID>) REFLECTION.findPKType(type)
                 .orElseThrow(() -> new PersistenceException(STR."No primary key found for entity type: \{type.getSimpleName()}."));
         return new EntityModel<>(tableName, type, pkType, columns);
     }

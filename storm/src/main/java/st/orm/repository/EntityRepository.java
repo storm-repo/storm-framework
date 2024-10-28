@@ -28,7 +28,7 @@ import java.util.stream.Stream;
 /**
  * Provides a generic interface with CRUD operations for entities.
  */
-public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, QueryBuilder<E, E, ID> {
+public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Repository {
 
     /**
      * Returns the entity model associated with this repository.
@@ -36,6 +36,12 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, 
      * @return the entity model.
      */
     EntityModel<E, ID> model();
+
+    // Query builder methods.
+
+    QueryBuilder<E, E, ID> select();
+
+    QueryBuilder<E, Long, ID> selectCount();
 
     // Base methods.
 
@@ -53,6 +59,15 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, 
      *                              connectivity problems or query execution errors.
      */
     E select(@Nonnull ID id);
+
+    /**
+     * Returns the number of entities in the database of the entity type supported by this repository.
+     *
+     * @return the total number of entities in the database as a long value.
+     * @throws PersistenceException if the count operation fails due to underlying database issues, such as
+     * connectivity.
+     */
+    long count();
 
     /**
      * Checks if an entity with the specified primary key exists in the database.
@@ -408,7 +423,11 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, 
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    <R> R selectAll(@Nonnull ResultCallback<E, R> callback);
+    default <R> R selectAll(@Nonnull ResultCallback<E, R> callback) {
+        try (var stream = selectAll()) {
+            return callback.process(stream);
+        }
+    }
 
     /**
      * Retrieves a stream of entities based on their primary keys.
@@ -460,7 +479,11 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, 
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    <R> R select(@Nonnull Stream<ID> ids, @Nonnull ResultCallback<E, R> callback);
+    default <R> R select(@Nonnull Stream<ID> ids, @Nonnull ResultCallback<E, R> callback) {
+        try (var stream = select(ids)) {
+            return callback.process(stream);
+        }
+    }
 
     /**
      * Retrieves a stream of entities based on their primary keys.
@@ -518,7 +541,11 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository, 
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    <R> R select(@Nonnull Stream<ID> ids, int batchSize, @Nonnull ResultCallback<E, R> callback);
+    default <R> R select(@Nonnull Stream<ID> ids, int batchSize, @Nonnull ResultCallback<E, R> callback) {
+        try (var stream = select(ids, batchSize)) {
+            return callback.process(stream);
+        }
+    }
 
     /**
      * Counts the number of entities identified by the provided stream of IDs using the default batch size.

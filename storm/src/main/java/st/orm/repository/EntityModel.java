@@ -31,7 +31,7 @@ import static java.util.List.copyOf;
  * @param primaryKeyType the Java type of the entity's primary key.
  * @param columns an immutable list of columns in the entity.
  */
-public record EntityModel<E, ID>(
+public record EntityModel<E extends Record, ID>(
         @Nonnull String tableName,
         @Nonnull Class<E> type,
         @Nonnull Class<ID> primaryKeyType,

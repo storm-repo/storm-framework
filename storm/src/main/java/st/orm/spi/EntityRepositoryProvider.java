@@ -23,6 +23,6 @@ import st.orm.template.ORMRepositoryTemplate;
 
 public interface EntityRepositoryProvider extends Provider {
 
-    <ID, E extends Entity<ID>> EntityRepository<E, ID> getEntityRepository(@Nonnull ORMRepositoryTemplate orm,
-                                                                           @Nonnull EntityModel<E, ID> model);
+    <ID, E extends Record & Entity<ID>> EntityRepository<E, ID> getEntityRepository(@Nonnull ORMRepositoryTemplate orm,
+                                                                                    @Nonnull EntityModel<E, ID> model);
 }

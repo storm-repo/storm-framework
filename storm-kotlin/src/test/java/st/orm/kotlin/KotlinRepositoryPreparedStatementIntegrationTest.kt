@@ -25,22 +25,20 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
 
     @Test
     fun testWithArg() {
-        val ORM = ORM(dataSource)
-        val list = ORM.repository(Pet::class)
-                .withTemplate { "WHERE ${it(Pet::class)}.id = 7" }
-                .toList()
+        val list = ORM(dataSource).repository(Pet::class)
+            .select()
+            .append { "WHERE ${it(Pet::class)}.id = 7" }
+            .resultList
         assertEquals(1, list.size)
         assertEquals(7, list[0].id)
     }
 
     @Test
     fun testWithTwoArgs() {
-        val ORM = ORM(dataSource)
-        val list = ORM.repository(Pet::class)
-                .withTemplate {
-                    "WHERE ${it(Pet::class)}.id = 7 OR ${it(Pet::class)}.id = 8"
-                }
-                .toList()
+        val list = ORM(dataSource).repository(Pet::class)
+            .select()
+            .append { "WHERE ${it(Pet::class)}.id = 7 OR ${it(Pet::class)}.id = 8" }
+            .resultList
         assertEquals(2, list.size)
         assertEquals(7, list[0].id)
         assertEquals(8, list[1].id)
@@ -48,19 +46,20 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
 
     @Test
     fun testBuilderWithAutoJoin() {
-        val ORM = ORM(dataSource)
-        val list = ORM.repository(Pet::class)
-                .innerJoin(Visit::class).on(Pet::class)
-                .where(Visit(1, null, null, null))
-                .toList()
+        val list = ORM(dataSource).repository(Pet::class)
+            .select()
+            .innerJoin(Visit::class).on(Pet::class)
+            .where(Visit(1, null, null, null))
+            .resultList
         assertEquals(1, list.size)
         assertEquals(7, list[0].id)
     }
 
     @Test
     fun testWithKotlinDataClass() {
-        val ORM = ORM(dataSource)
-        val list = ORM.repository(KotlinPet::class).toList()
+        val list = ORM(dataSource).repository(KotlinPet::class)
+            .select()
+            .resultList
         assertEquals(13, list.size)
     }
 

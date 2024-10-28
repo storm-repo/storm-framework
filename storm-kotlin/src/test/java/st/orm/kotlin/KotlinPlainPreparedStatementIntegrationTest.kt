@@ -20,7 +20,7 @@ open class KotlinPlainPreparedStatementIntegrationTest {
 
     @Test
     fun testSelectVet() {
-        val stream = ORM(dataSource).template {
+        val stream = ORM(dataSource).query {
             """
             SELECT * FROM vet
             """.trimIndent()

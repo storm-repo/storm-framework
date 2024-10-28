@@ -17,26 +17,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-public interface KQueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<R>, PersistenceException> {
-
-    // Don't let Builder extend Iterable<R>, because that would disallow us from closing the underlying stream.
-
-    KQueryBuilder<T, R, ID> distinct();
-
-    <X extends Record> KQueryBuilder<T, X, ID> select(@Nonnull KClass<X> resultType);
-
-    <X> KQueryBuilder<T, X, ID> selectTemplate(@Nonnull KClass<X> resultType, @Nonnull TemplateFunction function);
-
-    <X> StringTemplate.Processor<KQueryBuilder<T, X, ID>, PersistenceException> selectTemplate(@Nonnull KClass<X> resultType);
-
-    /**
-     * Returns the number of entities in the database of the entity type supported by this repository.
-     *
-     * @return the total number of entities in the database as a long value.
-     * @throws PersistenceException if the count operation fails due to underlying database issues, such as
-     *                              connectivity.
-     */
-    long count();
+public interface KQueryBuilder<T, R, ID> {
 
     interface KTypedJoinBuilder<T, R, ID> extends KJoinBuilder<T, R, ID> {
 
@@ -45,15 +26,13 @@ public interface KQueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream
 
     interface KJoinBuilder<T, R, ID> {
 
-        KOnBuilder<T, R, ID> on();
-    }
+        KQueryBuilder<T, R, ID> on(@Nonnull StringTemplate template);
 
-    interface KOnBuilder<T, R, ID> extends StringTemplate.Processor<KQueryBuilder<T, R, ID>, PersistenceException> {
-        KQueryBuilder<T, R, ID> template(@Nonnull TemplateFunction function);
+        KQueryBuilder<T, R, ID> on(@Nonnull TemplateFunction function);
     }
 
     interface KWhereBuilder<T, R, ID> extends StringTemplate.Processor<KPredicateBuilder<T, R, ID>, PersistenceException> {
-        KPredicateBuilder<T, R, ID> template(@Nonnull TemplateFunction function);
+        KPredicateBuilder<T, R, ID> expression(@Nonnull TemplateFunction function);
 
         /**
          * A predicate that always evaluates to true.
@@ -143,7 +122,7 @@ public interface KQueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream
 
     KJoinBuilder<T, R, ID> rightJoin(@Nonnull String alias, @Nonnull TemplateFunction function);
 
-    StringTemplate.Processor<KJoinBuilder<T, R, ID>, PersistenceException> join(@Nonnull JoinType type, @Nonnull String alias);
+    KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull String alias, @Nonnull StringTemplate template);
 
     KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull String alias, @Nonnull TemplateFunction function);
 
@@ -205,9 +184,9 @@ public interface KQueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream
 
     KQueryBuilder<T, R, ID> where(@Nonnull Function<KWhereBuilder<T, R, ID>, KPredicateBuilder<T, R, ID>> expression);
 
-    KQueryBuilder<T, R, ID> withTemplate(@Nonnull TemplateFunction function);
+    KQueryBuilder<T, R, ID> append(@Nonnull StringTemplate template);
 
-    StringTemplate.Processor<KQueryBuilder<T, R, ID>, PersistenceException> withTemplate();
+    KQueryBuilder<T, R, ID> append(@Nonnull TemplateFunction function);
 
     KQuery build();
 
@@ -215,25 +194,31 @@ public interface KQueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream
         return build().prepare();
     }
 
-    Stream<R> stream(@Nonnull TemplateFunction function);
+    Stream<R> getResultStream();
 
-    Stream<R> stream();
+    <X> X getResult(@Nonnull KResultCallback<R, X> callback);
 
-    <X> X result(@Nonnull KResultCallback<R, X> callback);
-
-    default List<R> toList() {
-        return stream().toList();
+    default long getResultCount() {
+        try (var stream = getResultStream()) {
+            return stream.count();
+        }
     }
 
-    default R singleResult() {
-        return stream()
+    default List<R> getResultList() {
+        try (var stream = getResultStream()) {
+            return stream.toList();
+        }
+    }
+
+    default R getSingleResult() {
+        return getResultStream()
                 .reduce((_, _) -> {
                     throw new NonUniqueResultException("Expected single result, but found more than one.");
                 }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
     }
 
-    default Optional<R> optionalResult() {
-        return stream()
+    default Optional<R> getOptionalResult() {
+        return getResultStream()
                 .reduce((_, _) -> {
                     throw new NonUniqueResultException("Expected single result, but found more than one.");
                 });

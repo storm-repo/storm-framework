@@ -7,8 +7,6 @@ import jakarta.persistence.PersistenceException;
 import st.orm.PreparedQuery;
 import st.orm.Query;
 import st.orm.ResultCallback;
-import st.orm.template.impl.ResourceStream;
-import st.orm.template.impl.Tripwire;
 
 import java.util.Iterator;
 import java.util.List;
@@ -18,6 +16,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static java.lang.Integer.MAX_VALUE;
+import static java.lang.StringTemplate.RAW;
 import static java.util.Spliterators.spliteratorUnknownSize;
 
 /**
@@ -27,36 +26,7 @@ import static java.util.Spliterators.spliteratorUnknownSize;
  * @param <R> the type of the result.
  * @param <ID> the type of the primary key.
  */
-public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<R>, PersistenceException> {
-
-    // Don't let Builder extend Iterable<R>, because that would disallow us from closing the underlying stream.
-
-    /**
-     * Selects the {@code resultType} for the query.
-     *
-     * <p>The query will still target the original table specified by {@code T}, but the results will be mapped to the
-     * specified {@code resultType}.</p>
-     *
-     * @param resultType the type of the result.
-     * @param <X> the type of the result.
-     * @return the query builder.
-     */
-    <X extends Record> QueryBuilder<T, X, ID> select(@Nonnull Class<X> resultType);
-
-    <X> QueryBuilder<T, X, ID> selectTemplate(@Nonnull Class<X> resultType, @Nonnull TemplateFunction function);
-
-    <X> StringTemplate.Processor<QueryBuilder<T, X, ID>, PersistenceException> selectTemplate(@Nonnull Class<X> resultType);
-
-    /**
-     * Returns the number of entities in the database of the entity type supported by this repository.
-     *
-     * @return the total number of entities in the database as a long value.
-     * @throws PersistenceException if the count operation fails due to underlying database issues, such as
-     *                              connectivity.
-     */
-    long count();
-
-    QueryBuilder<T, R, ID> distinct();
+public interface QueryBuilder<T, R, ID> {
 
     /**
      * A builder for constructing join clause of the query.
@@ -79,25 +49,64 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      */
     interface JoinBuilder<T, R, ID> {
 
-        /**
-         * Returns the builder for constructing the ON clause of the join.
-         *
-         * @return the builder for constructing the ON clause of the join.
-         */
-        OnBuilder<T, R, ID> on();
+        QueryBuilder<T, R, ID> on(@Nonnull StringTemplate template);
+
+        QueryBuilder<T, R, ID> on(@Nonnull TemplateFunction function);
     }
 
     /**
-     * A builder for constructing the ON clause of the join.
+     * Adds a cross join to the query.
      *
-     * @param <T> the type of the table being queried.
-     * @param <R> the type of the result.
-     * @param <ID> the type of the primary key.
+     * @param relation the relation to join.
+     * @return the query builder.
      */
-    interface OnBuilder<T, R, ID> extends StringTemplate.Processor<QueryBuilder<T, R, ID>, PersistenceException> {
+    QueryBuilder<T, R, ID> crossJoin(@Nonnull Class<? extends Record> relation);
 
-        QueryBuilder<T, R, ID> template(@Nonnull TemplateFunction function);
-    }
+    /**
+     * Adds an inner join to the query.
+     *
+     * @param relation the relation to join.
+     * @return the query builder.
+     */
+    TypedJoinBuilder<T, R, ID> innerJoin(@Nonnull Class<? extends Record> relation);
+
+    /**
+     * Adds a left join to the query.
+     *
+     * @param relation the relation to join.
+     * @return the query builder.
+     */
+    TypedJoinBuilder<T, R, ID> leftJoin(@Nonnull Class<? extends Record> relation);
+
+    /**
+     * Adds a right join to the query.
+     *
+     * @param relation the relation to join.
+     * @return the query builder.
+     */
+    TypedJoinBuilder<T, R, ID> rightJoin(@Nonnull Class<? extends Record> relation);
+
+    /**
+     * Adds a join of the specified type to the query.
+     *
+     * @param type the type of the join (e.g., INNER, LEFT, RIGHT).
+     * @param relation the relation to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
+    TypedJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull Class<? extends Record> relation, @Nonnull String alias);
+
+    QueryBuilder<T, R, ID> crossJoin(@Nonnull StringTemplate template);
+
+    JoinBuilder<T, R, ID> innerJoin(@Nonnull String alias, @Nonnull StringTemplate template);
+
+    JoinBuilder<T, R, ID> leftJoin(@Nonnull String alias, @Nonnull StringTemplate template);
+
+    JoinBuilder<T, R, ID> rightJoin(@Nonnull String alias, @Nonnull StringTemplate template);
+
+    JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull String alias, @Nonnull StringTemplate template);
+
+    JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull String alias, @Nonnull TemplateFunction function);
 
     /**
      * A builder for constructing the WHERE clause of the query.
@@ -106,23 +115,25 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @param <R> the type of the result.
      * @param <ID> the type of the primary key.
      */
-    interface WhereBuilder<T, R, ID> extends StringTemplate.Processor<PredicateBuilder<T, R, ID>, PersistenceException> {
+    interface WhereBuilder<T, R, ID> {
 
         /**
          * A predicate that always evaluates to true.
          */
         default PredicateBuilder<T, R, ID> TRUE() {
-            return this."TRUE";
+            return expression(RAW."TRUE");
         }
 
         /**
          * A predicate that always evaluates to false.
          */
         default PredicateBuilder<T, R, ID> FALSE() {
-            return this."FALSE";
+            return expression(RAW."FALSE");
         }
 
-        PredicateBuilder<T, R, ID> template(@Nonnull TemplateFunction function);
+        PredicateBuilder<T, R, ID> expression(@Nonnull StringTemplate template);
+
+        PredicateBuilder<T, R, ID> expression(@Nonnull TemplateFunction function);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified object. The object can be the primary
@@ -188,60 +199,6 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
     }
 
     /**
-     * Adds a cross join to the query.
-     *
-     * @param relation the relation to join.
-     * @return the query builder.
-     */
-    QueryBuilder<T, R, ID> crossJoin(@Nonnull Class<? extends Record> relation);
-
-    /**
-     * Adds an inner join to the query.
-     *
-     * @param relation the relation to join.
-     * @return the query builder.
-     */
-    TypedJoinBuilder<T, R, ID> innerJoin(@Nonnull Class<? extends Record> relation);
-
-    /**
-     * Adds a left join to the query.
-     *
-     * @param relation the relation to join.
-     * @return the query builder.
-     */
-    TypedJoinBuilder<T, R, ID> leftJoin(@Nonnull Class<? extends Record> relation);
-
-    /**
-     * Adds a right join to the query.
-     *
-     * @param relation the relation to join.
-     * @return the query builder.
-     */
-    TypedJoinBuilder<T, R, ID> rightJoin(@Nonnull Class<? extends Record> relation);
-
-    /**
-     * Adds a join of the specified type to the query.
-     *
-     * @param type the type of the join (e.g., INNER, LEFT, RIGHT).
-     * @param relation the relation to join.
-     * @param alias the alias to use for the joined relation.
-     * @return the query builder.
-     */
-    TypedJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull Class<? extends Record> relation, @Nonnull String alias);
-
-    StringTemplate.Processor<QueryBuilder<T, R, ID>, PersistenceException> crossJoin();
-
-    StringTemplate.Processor<JoinBuilder<T, R, ID>, PersistenceException> innerJoin(@Nonnull String alias);
-
-    StringTemplate.Processor<JoinBuilder<T, R, ID>, PersistenceException> leftJoin(@Nonnull String alias);
-
-    StringTemplate.Processor<JoinBuilder<T, R, ID>, PersistenceException> rightJoin(@Nonnull String alias);
-
-    StringTemplate.Processor<JoinBuilder<T, R, ID>, PersistenceException> join(@Nonnull JoinType type, @Nonnull String alias);
-
-    JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull String alias, @Nonnull TemplateFunction function);
-
-    /**
      * Adds a condition to the WHERE clause that matches the specified object(s). The object(s) can be the primary key
      * of the table, or a record representing the table, or any of the related tables in the table graph.
      *
@@ -297,7 +254,18 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
         return where(predicate -> predicate.filter(path, operator, o));
     }
 
+    default QueryBuilder<T, R, ID> where(@Nonnull StringTemplate template) {
+        return where(it -> it.filter(template));
+    }
+
     QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<T, R, ID>> expression);
+
+    /**
+     * Returns a processor that can be used to append the query with a string template.
+     *
+     * @return a processor that can be used to append the query with a string template.
+     */
+    QueryBuilder<T, R, ID> append(@Nonnull StringTemplate template);
 
     /**
      * Appends the query with the string provided by the specified template {@code function}.
@@ -305,14 +273,7 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @param function function that provides the string to append to the query using String interpolation.
      * @return the query builder.
      */
-    QueryBuilder<T, R, ID> withTemplate(@Nonnull TemplateFunction function);
-
-    /**
-     * Returns a processor that can be used to append the query with a string template.
-     *
-     * @return a processor that can be used to append the query with a string template.
-     */
-    StringTemplate.Processor<QueryBuilder<T, R, ID>, PersistenceException> withTemplate();
+    QueryBuilder<T, R, ID> append(@Nonnull TemplateFunction function);
 
     /**
      * Builds the query based on the current state of the query builder.
@@ -334,15 +295,9 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
         return build().prepare();
     }
 
-    /**
-     * Appends the query with the string provided by the specified template {@code function}, executes the query, and
-     * returns a stream of results.
-     *
-     * @param function function that provides the string to append to the query using String interpolation.
-     * @return a stream of results.
-     * @throws PersistenceException if the query fails.
-     */
-    Stream<R> stream(@Nonnull TemplateFunction function);
+    //
+    // Execution methods.
+    //
 
     /**
      * Executes the query and returns a stream of results.
@@ -355,7 +310,7 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @return a stream of results.
      * @throws PersistenceException if the query fails.
      */
-    Stream<R> stream();
+    Stream<R> getResultStream();
 
     /**
      * Executes the query and returns a stream of results.
@@ -368,7 +323,24 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @return a stream of results.
      * @throws PersistenceException if the query fails.
      */
-    <X> X result(@Nonnull ResultCallback<R, X> callback);
+    default <X> X getResult(@Nonnull ResultCallback<R, X> callback) {
+        try (Stream<R> stream = getResultStream()) {
+            return callback.process(stream);
+        }
+    }
+
+    /**
+     * Returns the number of entities in the database of the entity type supported by this repository.
+     *
+     * @return the total number of entities in the database as a long value.
+     * @throws PersistenceException if the count operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    default long getResultCount() {
+        try (var stream = getResultStream()) {
+            return stream.count();
+        }
+    }
 
     /**
      * Executes the query and returns a list of results.
@@ -376,8 +348,10 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @return the list of results.
      * @throws PersistenceException if the query fails.
      */
-    default List<R> toList() {
-        return stream().toList();
+    default List<R> getResultList() {
+        try (var stream = getResultStream()) {
+            return stream.toList();
+        }
     }
 
     /**
@@ -388,11 +362,13 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the query fails.
      */
-    default R singleResult() {
-        return stream()
-                .reduce((_, _) -> {
-                    throw new NonUniqueResultException("Expected single result, but found more than one.");
-                }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
+    default R getSingleResult() {
+        try (var stream = getResultStream()) {
+            return stream
+                    .reduce((_, _) -> {
+                        throw new NonUniqueResultException("Expected single result, but found more than one.");
+                    }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
+        }
     }
 
     /**
@@ -402,11 +378,12 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the query fails.
      */
-    default Optional<R> optionalResult() {
-        return stream()
-                .reduce((_, _) -> {
-                    throw new NonUniqueResultException("Expected single result, but found more than one.");
-                });
+    default Optional<R> getOptionalResult() {
+        try (var stream = getResultStream()) {
+            return stream.reduce((_, _) -> {
+                throw new NonUniqueResultException("Expected single result, but found more than one.");
+            });
+        }
     }
 
     /**
@@ -420,7 +397,8 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @param <Y> the type of elements in the result stream.
      */
     static <X, Y> Stream<Y> slice(@Nonnull Stream<X> stream, int batchSize, @Nonnull Function<List<X>, Stream<Y>> function) {
-        return slice(stream, batchSize).flatMap(function);
+        return slice(stream, batchSize)
+                .flatMap(function); // Note that the flatMap operation closes the stream passed to it.
     }
 
     /**
@@ -443,7 +421,7 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
             return Stream.of(stream.toList());
         }
         // We're lifting the resource closing logic from the input stream to the output stream.
-        final Iterator<X> iterator = Tripwire.ignore(stream::iterator);
+        final Iterator<X> iterator = stream.iterator();
         var it = new Iterator<List<X>>() {
             @Override
             public boolean hasNext() {
@@ -472,6 +450,7 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
                 return StreamSupport.stream(spliteratorUnknownSize(sliceIterator, 0), false).toList();
             }
         };
-        return ResourceStream.wrap(StreamSupport.stream(spliteratorUnknownSize(it, 0), false).onClose(stream::close));
+        return StreamSupport.stream(spliteratorUnknownSize(it, 0), false)
+                .onClose(stream::close);
     }
 }

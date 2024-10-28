@@ -394,7 +394,6 @@ record ElementProcessor(
         String column = null;
         int size = 0;
         List<String> args = new ArrayList<>();
-        StringBuilder s = new StringBuilder();
         for (var o : iterable) {
             Class<?> elementType = o.getClass();
             Map<String, Object> valueMap;
@@ -448,24 +447,28 @@ record ElementProcessor(
         }
         if (!args.isEmpty()) {
             args.removeLast();
-            s.append(String.join("", args));
+            return String.join("", args);
         }
-        if (size == 0 && path != null) {
-            var valueMap = getValuesForCondition(null, path, table, aliasMapper, sqlTemplate.columnNameResolver());
+        if (column == null) {
+            var valueMap = path != null
+                    ? getValuesForCondition(null, path, table, aliasMapper, sqlTemplate.columnNameResolver())
+                    : getValuesForCondition(null, table, primaryTable.alias(), sqlTemplate.columnNameResolver());
             if (valueMap.size() == 1) {
                 column = valueMap.sequencedKeySet().getFirst();
+            }
+        }
+        if (column == null) {
+            if (path == null) {
+                throw new SqlTemplateException(STR."Failed to find field for \{table.getSimpleName()}.");
             } else {
                 throw new SqlTemplateException(STR."Failed to find field for \{table.getSimpleName()} table at path \{path}.");
             }
         }
-        if (column != null) {
-            try {
-                s.append(operator.format(column, size));
-            } catch (IllegalArgumentException e) {
-                throw new SqlTemplateException(e);
-            }
+        try {
+            return operator.format(column, size);
+        } catch (IllegalArgumentException e) {
+            throw new SqlTemplateException(e);
         }
-        return s.toString();
     }
 
     ElementResult where(Where it) throws SqlTemplateException {
@@ -1084,10 +1087,10 @@ record ElementProcessor(
         }
     }
 
-    private static SequencedMap<String, Object> getValuesForCondition(@Nonnull Object id,
-                                                             @Nonnull Class<? extends Record> recordType,
-                                                             @Nonnull String alias,
-                                                             @Nullable ColumnNameResolver columnNameResolver) throws SqlTemplateException {
+    private static SequencedMap<String, Object> getValuesForCondition(@Nullable Object id,
+                                                                      @Nonnull Class<? extends Record> recordType,
+                                                                      @Nonnull String alias,
+                                                                      @Nullable ColumnNameResolver columnNameResolver) throws SqlTemplateException {
         try {
             var values = new LinkedHashMap<String, Object>();
             for (var component : recordType.getRecordComponents()) {
@@ -1097,8 +1100,10 @@ record ElementProcessor(
                             values.put(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getColumnName(component, columnNameResolver)}", getPkForForeignKey((Record) id));
                         } else if (recordType.isInstance(id)) {
                             values.putAll(getValuesForInlined((Record) REFLECTION.invokeComponent(component, id), alias, columnNameResolver));
-                        } else {
+                        } else if (id != null) {
                             values.putAll(getValuesForInlined((Record) id, alias, columnNameResolver));
+                        } else {
+                            values.put(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getColumnName(component, columnNameResolver)}", null);
                         }
                     } else {
                         values.put(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getColumnName(component, columnNameResolver)}", id);
@@ -1115,10 +1120,10 @@ record ElementProcessor(
     }
 
     private static SequencedMap<String, Object> getValuesForCondition(@Nullable Object value,
-                                                                          @Nonnull String path,
-                                                                          @Nonnull Class<? extends Record> recordType,
-                                                                          @Nonnull AliasMapper aliasMapper,
-                                                                          @Nullable ColumnNameResolver columnNameResolver) throws SqlTemplateException {
+                                                                      @Nonnull String path,
+                                                                      @Nonnull Class<? extends Record> recordType,
+                                                                      @Nonnull AliasMapper aliasMapper,
+                                                                      @Nullable ColumnNameResolver columnNameResolver) throws SqlTemplateException {
         return getValuesForCondition(value, path, recordType, aliasMapper, columnNameResolver, 0, null, 0);
     }
 

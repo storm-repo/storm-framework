@@ -27,7 +27,7 @@ import static java.util.List.copyOf;
 /**
  * Represents the model of an entity.
  */
-public record KEntityModel<E, ID>(
+public record KEntityModel<E extends Record, ID>(
         @Nonnull String tableName,
         @Nonnull KClass<E> type,
         @Nonnull KClass<ID> primaryKeyType,

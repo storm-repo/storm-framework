@@ -18,6 +18,7 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Lazy;
+import st.orm.repository.Entity;
 import st.orm.template.SqlTemplateException;
 
 import java.lang.reflect.RecordComponent;
@@ -29,5 +30,5 @@ public interface LazyFactory {
 
     Class<?> getPkType(@Nonnull RecordComponent component) throws SqlTemplateException;
 
-    Lazy<?> create(@Nonnull RecordComponent component, @Nullable Object pk) throws SqlTemplateException;
+    <T extends Record & Entity<Object>> Lazy<T> create(@Nonnull RecordComponent component, @Nullable Object pk) throws SqlTemplateException;
 }

@@ -9,7 +9,6 @@ import st.orm.kotlin.repository.KRepository;
 import st.orm.kotlin.spi.KEntityRepositoryImpl;
 import st.orm.kotlin.template.KORMRepositoryTemplate;
 import st.orm.repository.Entity;
-import st.orm.repository.RepositoryLookup;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.ORMRepositoryTemplate;
@@ -46,12 +45,12 @@ public final class KORMRepositoryTemplateImpl extends KORMTemplateImpl implement
     }
 
     @Override
-    public <T extends Entity<ID>, ID> KEntityRepository<T, ID> repository(@Nonnull Class<T> type) {
+    public <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> repository(@Nonnull Class<T> type) {
         return new KEntityRepositoryImpl<>(ORM.repository(type));
     }
 
     @Override
-    public <T extends Entity<ID>, ID> KEntityRepository<T, ID> repository(@Nonnull KClass<T> type) {
+    public <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> repository(@Nonnull KClass<T> type) {
         //noinspection unchecked
         return repository((Class<T>) REFLECTION.getType(type));
     }
@@ -102,7 +101,7 @@ public final class KORMRepositoryTemplateImpl extends KORMTemplateImpl implement
     }
 
     @SuppressWarnings("unchecked")
-    private Optional<KEntityRepository<?, ?>> createEntityRepository(@Nonnull Class<?> type) {
+    private <T extends Record & Entity<ID>, ID> Optional<KEntityRepository<T, ID>> createEntityRepository(@Nonnull Class<?> type) {
         if (KEntityRepository.class.isAssignableFrom(type)) {
             Class<?> entityClass = null;
             // Attempt to find the generic interface that directly extends Repository.
@@ -123,7 +122,7 @@ public final class KORMRepositoryTemplateImpl extends KORMTemplateImpl implement
             if (entityClass == null) {
                 throw new IllegalArgumentException(STR."Could not determine entity class for repository: \{type.getSimpleName()}.");
             }
-            return Optional.of(repository((Class<Entity<Object>>) entityClass));
+            return Optional.of(repository((Class<T>) entityClass));
         }
         return empty();
     }
@@ -131,33 +130,8 @@ public final class KORMRepositoryTemplateImpl extends KORMTemplateImpl implement
     private KRepository createRepository() {
         return new KRepository() {
             @Override
-            public RepositoryLookup bridge() {
-                return ORM;
-            }
-
-            @Override
             public KORMRepositoryTemplate template() {
                 return KORMRepositoryTemplateImpl.this;
-            }
-
-            @Override
-            public <T extends Entity<ID>, ID> KEntityRepository<T, ID> repository(@Nonnull KClass<T> type) {
-                return KORMRepositoryTemplateImpl.this.repository(type);
-            }
-
-            @Override
-            public <R extends KRepository> R repositoryProxy(@Nonnull KClass<R> type) {
-                return KORMRepositoryTemplateImpl.this.repositoryProxy(type);
-            }
-
-            @Override
-            public <T extends Entity<ID>, ID> KEntityRepository<T, ID> repository(@Nonnull Class<T> type) {
-                return KORMRepositoryTemplateImpl.this.repository(type);
-            }
-
-            @Override
-            public <R extends KRepository> R repositoryProxy(@Nonnull Class<R> type) {
-                return KORMRepositoryTemplateImpl.this.repositoryProxy(type);
             }
 
             @Override

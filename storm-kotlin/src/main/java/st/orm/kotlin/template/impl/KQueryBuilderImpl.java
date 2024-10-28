@@ -5,6 +5,7 @@ import jakarta.persistence.PersistenceException;
 import kotlin.reflect.KClass;
 import kotlin.sequences.Sequence;
 import kotlin.sequences.SequencesKt;
+import org.jetbrains.annotations.NotNull;
 import st.orm.kotlin.KQuery;
 import st.orm.kotlin.KResultCallback;
 import st.orm.kotlin.template.KQueryBuilder;
@@ -41,6 +42,7 @@ public class KQueryBuilderImpl<T, R, ID> implements KQueryBuilder<T, R, ID> {
         this.builder = requireNonNull(builder, "builder");
     }
 
+    // TODO
     protected <X> Sequence<X> toSequence(@Nonnull Stream<X> stream) {
         return SequencesKt.asSequence(stream.iterator());
     }
@@ -52,25 +54,13 @@ public class KQueryBuilderImpl<T, R, ID> implements KQueryBuilder<T, R, ID> {
     }
 
     @Override
-    public KQueryBuilder<T, R, ID> withTemplate(@Nonnull TemplateFunction function) {
-        return new KQueryBuilderImpl<>(builder.withTemplate(function));
+    public KQueryBuilder<T, R, ID> append(@Nonnull StringTemplate template) {
+        return new KQueryBuilderImpl<>(builder.append(template));
     }
 
     @Override
-    public StringTemplate.Processor<KQueryBuilder<T, R, ID>, PersistenceException> withTemplate() {
-        return template -> new KQueryBuilderImpl<>(builder.withTemplate().process(template));
-    }
-
-    /**
-     * Returns the number of entities in the database of the entity type supported by this repository.
-     *
-     * @return the total number of entities in the database as a long value.
-     * @throws PersistenceException if the count operation fails due to underlying database issues, such as
-     * connectivity.
-     */
-    @Override
-    public long count() {
-        return builder.count();
+    public KQueryBuilder<T, R, ID> append(@Nonnull TemplateFunction function) {
+        return new KQueryBuilderImpl<>(builder.append(function));
     }
 
     @Override
@@ -79,46 +69,20 @@ public class KQueryBuilderImpl<T, R, ID> implements KQueryBuilder<T, R, ID> {
     }
 
     @Override
-    public Stream<R> stream(@Nonnull TemplateFunction function) {
-        return builder.stream(function);
+    public Stream<R> getResultStream() {
+        return builder.getResultStream();
     }
 
     @Override
-    public Stream<R> stream() {
-        return builder.stream();
-    }
-
-    @Override
-    public <X> X result(@Nonnull KResultCallback<R, X> callback) {
-        return builder.result(stream -> callback.process(toSequence(stream)));
-    }
-
-    @Override
-    public KQueryBuilder<T, R, ID> distinct() {
-        return new KQueryBuilderImpl<>(builder.distinct());
-    }
-
-    @Override
-    public <X extends Record> KQueryBuilder<T, X, ID> select(@Nonnull KClass<X> resultType) {
-        //noinspection unchecked
-        return new KQueryBuilderImpl<>(builder.select((Class<X>) REFLECTION.getRecordType(resultType)));
-    }
-
-    @Override
-    public <X> KQueryBuilder<T, X, ID> selectTemplate(@Nonnull KClass<X> resultType, @Nonnull TemplateFunction function) {
-        //noinspection unchecked
-        return new KQueryBuilderImpl<>(builder.selectTemplate((Class<X>) REFLECTION.getType(resultType), function));
-    }
-
-    @Override
-    public <X> StringTemplate.Processor<KQueryBuilder<T, X, ID>, PersistenceException> selectTemplate(@Nonnull KClass<X> resultType) {
-        //noinspection unchecked
-        return selectBuilder -> new KQueryBuilderImpl<>(builder.selectTemplate((Class<X>) REFLECTION.getType(resultType)).process(selectBuilder));
+    public <X> X getResult(@NotNull KResultCallback<R, X> callback) {
+        try (Stream<R> stream = getResultStream()) {
+            return callback.process(toSequence(stream));
+        }
     }
 
     @Override
     public KQueryBuilder<T, R, ID> crossJoin(@Nonnull KClass<? extends Record> relation) {
-        return join(cross(), relation, "").on().template(_ -> "");
+        return join(cross(), relation, "").on(_ -> "");
     }
 
     @Override
@@ -146,24 +110,20 @@ public class KQueryBuilderImpl<T, R, ID> implements KQueryBuilder<T, R, ID> {
             }
 
             @Override
-            public KOnBuilder<T, R, ID> on() {
-                return new KOnBuilder<>() {
-                    @Override
-                    public KQueryBuilder<T, R, ID> process(StringTemplate stringTemplate) throws PersistenceException {
-                        return new KQueryBuilderImpl<>(joinBuilder.on().process(stringTemplate));
-                    }
+            public KQueryBuilder<T, R, ID> on(@NotNull StringTemplate template) {
+                return new KQueryBuilderImpl<>(joinBuilder.on(template));
+            }
 
-                    public KQueryBuilder<T, R, ID> template(@Nonnull TemplateFunction function) {
-                        return new KQueryBuilderImpl<>(joinBuilder.on().template(function));
-                    }
-                };
+            @Override
+            public KQueryBuilder<T, R, ID> on(@NotNull TemplateFunction function) {
+                return new KQueryBuilderImpl<>(joinBuilder.on(function));
             }
         };
     }
 
     @Override
     public KQueryBuilder<T, R, ID> crossJoin(@Nonnull TemplateFunction function) {
-        return join(cross(), "", function).on().template(_ -> "");
+        return join(cross(), "", function).on(_ -> "");
     }
 
     @Override
@@ -182,18 +142,18 @@ public class KQueryBuilderImpl<T, R, ID> implements KQueryBuilder<T, R, ID> {
     }
 
     @Override
-    public StringTemplate.Processor<KJoinBuilder<T, R, ID>, PersistenceException> join(@Nonnull JoinType type, @Nonnull String alias) {
-        return template -> (KJoinBuilder<T, R, ID>) () -> new KOnBuilder<>() {
-            final JoinBuilder<T, R, ID> joinBuilder = builder.join(type, alias).process(template);
-
+    public KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull String alias, @Nonnull StringTemplate template) {
+        final JoinBuilder<T, R, ID> joinBuilder = builder.join(type, alias, template);
+        //noinspection DuplicatedCode
+        return new KJoinBuilder<>() {
             @Override
-            public KQueryBuilder<T, R, ID> process(StringTemplate stringTemplate) throws PersistenceException {
-                return new KQueryBuilderImpl<>(joinBuilder.on().process(stringTemplate));
+            public KQueryBuilder<T, R, ID> on(@NotNull StringTemplate template) {
+                return new KQueryBuilderImpl<>(joinBuilder.on(template));
             }
 
             @Override
-            public KQueryBuilder<T, R, ID> template(@Nonnull TemplateFunction function) {
-                return new KQueryBuilderImpl<>(joinBuilder.on().template(function));
+            public KQueryBuilder<T, R, ID> on(@NotNull TemplateFunction function) {
+                return new KQueryBuilderImpl<>(joinBuilder.on(function));
             }
         };
     }
@@ -201,15 +161,16 @@ public class KQueryBuilderImpl<T, R, ID> implements KQueryBuilder<T, R, ID> {
     @Override
     public KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull String alias, @Nonnull TemplateFunction function) {
         JoinBuilder<T, R, ID> joinBuilder = builder.join(type, alias, function);
-        return () -> new KOnBuilder<>() {
+        //noinspection DuplicatedCode
+        return new KJoinBuilder<>() {
             @Override
-            public KQueryBuilder<T, R, ID> process(StringTemplate stringTemplate) throws PersistenceException {
-                return new KQueryBuilderImpl<>(joinBuilder.on().process(stringTemplate));
+            public KQueryBuilder<T, R, ID> on(@NotNull StringTemplate template) {
+                return new KQueryBuilderImpl<>(joinBuilder.on(template));
             }
 
             @Override
-            public KQueryBuilder<T, R, ID> template(@Nonnull TemplateFunction function1) {
-                return new KQueryBuilderImpl<>(joinBuilder.on().template(function1));
+            public KQueryBuilder<T, R, ID> on(@NotNull TemplateFunction function) {
+                return new KQueryBuilderImpl<>(joinBuilder.on(function));
             }
         };
     }
@@ -241,12 +202,12 @@ public class KQueryBuilderImpl<T, R, ID> implements KQueryBuilder<T, R, ID> {
 
         @Override
         public KPredicateBuilder<TX, RX, IDX> process(StringTemplate stringTemplate) throws PersistenceException {
-            return new KPredicateBuilderImpl<>(whereBuilder.process(stringTemplate));
+            return new KPredicateBuilderImpl<>(whereBuilder.expression(stringTemplate));
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> template(@Nonnull TemplateFunction function) {
-            return new KPredicateBuilderImpl<>(whereBuilder.template(function));
+        public KPredicateBuilder<TX, RX, IDX> expression(@Nonnull TemplateFunction function) {
+            return new KPredicateBuilderImpl<>(whereBuilder.expression(function));
         }
 
         @Override
@@ -276,10 +237,5 @@ public class KQueryBuilderImpl<T, R, ID> implements KQueryBuilder<T, R, ID> {
             var builder = predicate.apply(new KWhereBuilderImpl<>(whereBuilder));
             return ((KPredicateBuilderImpl<T, R, ID>) builder).predicateBuilder;
         }));
-    }
-
-    @Override
-    public Stream<R> process(StringTemplate stringTemplate) throws PersistenceException {
-        return builder.process(stringTemplate);
     }
 }

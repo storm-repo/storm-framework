@@ -16,7 +16,6 @@
 package st.orm.kotlin.template;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.PersistenceException;
 import kotlin.reflect.KClass;
 import st.orm.BindVars;
 import st.orm.kotlin.KQuery;
@@ -27,13 +26,11 @@ import st.orm.repository.Entity;
 import st.orm.template.ORMTemplate;
 import st.orm.template.TemplateFunction;
 
-public interface KORMTemplate extends KTemplates, StringTemplate.Processor<KQuery, PersistenceException> {
+public interface KORMTemplate extends KTemplates {
 
     static KORMTemplate from(ORMTemplate ormTemplate) {
         return new KORMTemplateImpl(ormTemplate);
     }
-
-    KQuery template(@Nonnull TemplateFunction function);
 
     /**
      * Create a new bind variables instance that can be used to add bind variables to a batch.
@@ -43,7 +40,17 @@ public interface KORMTemplate extends KTemplates, StringTemplate.Processor<KQuer
      */
     BindVars createBindVars();
 
-    <T extends Entity<ID>, ID> KEntityModel<T, ID> model(@Nonnull KClass<T> type);
+    <T extends Record & Entity<ID>, ID> KEntityModel<T, ID> model(@Nonnull KClass<T> type);
 
-    <T extends Record> KQueryBuilder<T, T, Object> query(@Nonnull KClass<T> recordType);
+    <T extends Record> KQueryBuilder<T, T, Object> selectFrom(@Nonnull KClass<T> fromType);
+
+    <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType);
+
+    <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType, @Nonnull StringTemplate template);
+
+    <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType, @Nonnull TemplateFunction templateFunction);
+
+    KQuery query(@Nonnull StringTemplate template);
+
+    KQuery query(@Nonnull TemplateFunction function);
 }

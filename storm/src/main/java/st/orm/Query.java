@@ -68,6 +68,16 @@ public interface Query {
     }
 
     /**
+     * TODO
+     * @return
+     */
+    default long getResultCount() {
+        try (var stream = getResultStream()) {
+            return stream.count();
+        }
+    }
+
+    /**
      * Execute a SELECT query and returns a single row, where the columns of the row are mapped to the constructor
      * arguments of the specified {@code type}.
      *
@@ -105,7 +115,9 @@ public interface Query {
      * @throws PersistenceException if the query fails.
      */
     default List<Object[]> getResultList() {
-        return getResultStream().toList();
+        try (var stream = getResultStream()) {
+            return stream.toList();
+        }
     }
 
     /**
@@ -119,7 +131,9 @@ public interface Query {
      * @throws PersistenceException if the query fails.
      */
     default <T> List<T> getResultList(@Nonnull Class<T> type) {
-        return getResultStream(type).toList();
+        try (var stream = getResultStream(type)) {
+            return stream.toList();
+        }
     }
 
     /**
@@ -152,7 +166,11 @@ public interface Query {
      * @return the result stream.
      * @throws PersistenceException if the query fails.
      */
-    <R> R getResult(@Nonnull ResultCallback<Object[], R> callback);
+    default <R> R getResult(@Nonnull ResultCallback<Object[], R> callback) {
+        try (var stream = getResultStream()) {
+            return callback.process(stream);
+        }
+    }
 
     /**
      * Execute a SELECT query and return the resulting rows as a stream of row instances.
@@ -186,7 +204,11 @@ public interface Query {
      * @return the result stream.
      * @throws PersistenceException if the query fails.
      */
-    <T, R> R getResult(@Nonnull Class<T> type, @Nonnull ResultCallback<T, R> callback);
+    default <T, R> R getResult(@Nonnull Class<T> type, @Nonnull ResultCallback<T, R> callback) {
+        try (var stream = getResultStream(type)) {
+            return callback.process(stream);
+        }
+    }
 
     /**
      * Returns true if the query is version aware, false otherwise.
@@ -223,10 +245,12 @@ public interface Query {
      * @throws NonUniqueResultException if more than one result.
      */
     private <T> T singleResult(Stream<T> stream) {
-        return stream
-                .reduce((_, _) -> {
-                    throw new NonUniqueResultException("Expected single result, but found more than one.");
-                }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
+        try (stream) {
+            return stream
+                    .reduce((_, _) -> {
+                        throw new NonUniqueResultException("Expected single result, but found more than one.");
+                    }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
+        }
     }
 
     /**
@@ -238,9 +262,11 @@ public interface Query {
      * @throws NonUniqueResultException if more than one result.
      */
     private <T> Optional<T> optionalResult(Stream<T> stream) {
-        return stream
-                .reduce((_, _) -> {
-                    throw new NonUniqueResultException("Expected single result, but found more than one.");
-                });
+        try (stream) {
+            return stream
+                    .reduce((_, _) -> {
+                        throw new NonUniqueResultException("Expected single result, but found more than one.");
+                    });
+        }
     }
 }

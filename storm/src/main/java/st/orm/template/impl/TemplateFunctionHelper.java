@@ -28,15 +28,13 @@ final class TemplateFunctionHelper {
     private static final String NULL_CHARACTER = "\0";
 
     static StringTemplate template(@Nonnull TemplateFunction function) {
-        return template(function, false);
-    }
-
-    static StringTemplate template(@Nonnull TemplateFunction function, boolean newLine) {
         List<Object> values = new ArrayList<>();
-        String str = STR."\{newLine ? "\n" : ""}\{function.interpolate(o -> {
+        String str = function.interpolate(o -> {
             values.add(o);
             return NULL_CHARACTER;  // Use NULL_CHARACTER as a safe delimiter.
-        })}";
+        });
+        // StringTemplate tests whether the exact amount of values is passed. This means that client injected
+        // null characters will be caught and rejected.
         return StringTemplate.of(stream(str.split(NULL_CHARACTER, -1)).toList(), values);   // Use -1 to keep trailing empty strings.
     }
 }

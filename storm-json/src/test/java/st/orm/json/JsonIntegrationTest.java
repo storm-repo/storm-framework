@@ -23,6 +23,7 @@ import javax.sql.DataSource;
 import java.util.List;
 import java.util.Map;
 
+import static java.lang.StringTemplate.RAW;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static st.orm.Templates.ORM;
 
@@ -37,8 +38,7 @@ public class JsonIntegrationTest {
     @Test
     public void testSelectOwner() {
         var ORM = ORM(dataSource);
-        var query = ORM."""
-                SELECT id, first_name, last_name, address, telephone FROM owner""";
+        var query = ORM.query(RAW."SELECT id, first_name, last_name, address, telephone FROM owner");
         var owner = query.getResultList(Owner.class);
         assertEquals(10, owner.size());
     }
@@ -79,8 +79,7 @@ public class JsonIntegrationTest {
     @Test
     public void testOwnerWithJsonPerson() {
         var ORM = ORM(dataSource);
-        var query = ORM."""
-                SELECT id, JSON_OBJECT('firstName' VALUE first_name, 'lastName' VALUE last_name) AS person, address, telephone FROM owner""";
+        var query = ORM.query(RAW."SELECT id, JSON_OBJECT('firstName' VALUE first_name, 'lastName' VALUE last_name) AS person, address, telephone FROM owner");
         var owner = query.getResultList(OwnerWithJsonPerson.class);
         assertEquals(10, owner.size());
     }
@@ -109,18 +108,18 @@ public class JsonIntegrationTest {
     @Test
     public void testVetWithSpecialties() {
         var ORM = ORM(dataSource);
-        var vets = ORM.query(Vet.class)
-                .selectTemplate(VetWithSpecialties.class)."""
+        var vets = ORM
+                .selectFrom(Vet.class, VetWithSpecialties.class, RAW."""
                         \{Vet.class}, JSON_ARRAYAGG(
                             JSON_OBJECT(
                                 KEY 'id' VALUE \{ORM.a(Specialty.class)}.id,
                                 KEY 'name' VALUE \{ORM.a(Specialty.class)}.name
                             )
-                        ) AS specialties"""
+                        ) AS specialties""")
                 .innerJoin(VetSpecialty.class).on(Vet.class)
                 .innerJoin(Specialty.class).on(VetSpecialty.class)
-                ."GROUP BY \{Vet.class}.id"
-                .toList();
+                .append(RAW."GROUP BY \{Vet.class}.id")
+                .getResultList();
         assertEquals(4, vets.size());
         assertEquals(5, vets.stream().flatMap(v -> v.specialties().stream()).count());
     }
@@ -130,13 +129,12 @@ public class JsonIntegrationTest {
     @Test
     public void testVetWithSpecialtyList() {
         var ORM = ORM(dataSource);
-        var vets = ORM.query(Vet.class)
-                .selectTemplate(VetWithSpecialtyList.class)."""
-                        \{Vet.class}, JSON_ARRAYAGG(\{ORM.a(Specialty.class)}.name) AS specialties"""
+        var vets = ORM.selectFrom(Vet.class, VetWithSpecialtyList.class, RAW."""
+                        \{Vet.class}, JSON_ARRAYAGG(\{ORM.a(Specialty.class)}.name) AS specialties""")
                 .innerJoin(VetSpecialty.class).on(Vet.class)
                 .innerJoin(Specialty.class).on(VetSpecialty.class)
-                ."GROUP BY \{Vet.class}.id"
-                .toList();
+                .append(RAW."GROUP BY \{Vet.class}.id")
+                .getResultList();
         assertEquals(4, vets.size());
         assertEquals(5, vets.stream().flatMap(v -> v.specialties().stream()).count());
     }

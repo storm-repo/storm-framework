@@ -21,7 +21,7 @@ import st.orm.template.ORMRepositoryTemplate;
 /**
  * Base interface for all repositories.
  */
-public interface Repository extends Templates, RepositoryLookup {
+public interface Repository extends Templates {
 
     /**
      * Provides access to the underlying ORM template.

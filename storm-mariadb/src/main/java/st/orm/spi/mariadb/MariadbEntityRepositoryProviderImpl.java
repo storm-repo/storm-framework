@@ -31,7 +31,7 @@ import st.orm.template.ORMRepositoryTemplate;
 public class MariadbEntityRepositoryProviderImpl implements EntityRepositoryProvider {
 
     @Override
-    public <ID, E extends Entity<ID>> EntityRepository<E, ID> getEntityRepository(
+    public <ID, E extends Record & Entity<ID>> EntityRepository<E, ID> getEntityRepository(
             @Nonnull ORMRepositoryTemplate orm,
             @Nonnull EntityModel<E, ID> model) {
         return new MariadbEntityRepositoryImpl<>(orm, model);

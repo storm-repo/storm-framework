@@ -18,40 +18,49 @@ package st.orm.kotlin.spi;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.PersistenceException;
-import kotlin.reflect.KClass;
 import kotlin.sequences.Sequence;
+import kotlin.sequences.SequencesKt;
 import st.orm.BindVars;
 import st.orm.kotlin.KBatchCallback;
 import st.orm.kotlin.repository.KEntityModel;
 import st.orm.kotlin.repository.KEntityRepository;
-import st.orm.kotlin.repository.KRepository;
 import st.orm.kotlin.KResultCallback;
 import st.orm.kotlin.template.KORMTemplate;
-import st.orm.kotlin.template.impl.KORMRepositoryTemplateImpl;
+import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.kotlin.template.impl.KORMTemplateImpl;
 import st.orm.kotlin.template.impl.KQueryBuilderImpl;
 import st.orm.repository.Entity;
 import st.orm.repository.EntityRepository;
-import st.orm.repository.RepositoryLookup;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 
+import java.util.Iterator;
 import java.util.List;
+import java.util.Spliterator;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static java.util.Objects.requireNonNull;
+import static java.util.Spliterators.spliteratorUnknownSize;
 import static kotlin.sequences.SequencesKt.sequenceOf;
 
 /**
  */
-public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
-        extends KQueryBuilderImpl<E, E, ID> implements KEntityRepository<E, ID> {
-    private static final ORMReflection REFLECTION = Providers.getORMReflection();
-
+public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> implements KEntityRepository<E, ID> {
     private final EntityRepository<E, ID> entityRepository;
 
     public KEntityRepositoryImpl(@Nonnull EntityRepository<E, ID> entityRepository) {
-        super(entityRepository);
         this.entityRepository = requireNonNull(entityRepository);
+    }
+
+    private static <X> Sequence<X> toSequence(@Nonnull Stream<X> stream) {
+        return SequencesKt.asSequence(stream.iterator());
+    }
+
+    private static <X> Stream<X> toStream(@Nonnull Sequence<X> sequence) {
+        Iterator<X> iterator = sequence.iterator();
+        Spliterator<X> spliterator = spliteratorUnknownSize(iterator, Spliterator.ORDERED);
+        return StreamSupport.stream(spliterator, false);
     }
 
     /**
@@ -65,34 +74,18 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     @Override
-    public RepositoryLookup bridge() {
-        return entityRepository;
+    public KQueryBuilder<E, E, ID> select() {
+        return new KQueryBuilderImpl<>(entityRepository.select());
+    }
+
+    @Override
+    public KQueryBuilder<E, Long, ID> selectCount() {
+        return new KQueryBuilderImpl<>(entityRepository.selectCount());
     }
 
     @Override
     public KORMTemplate template() {
         return new KORMTemplateImpl(entityRepository.template());
-    }
-
-    @Override
-    public <T extends Entity<IDX>, IDX> KEntityRepository<T, IDX> repository(@Nonnull KClass<T> type) {
-        //noinspection unchecked
-        return new KEntityRepositoryImpl<>(entityRepository.repository((Class<T>) REFLECTION.getType(type)));
-    }
-
-    @Override
-    public <R extends KRepository> R repositoryProxy(@Nonnull KClass<R> type) {
-        return new KORMRepositoryTemplateImpl(entityRepository.template()).repositoryProxy(type);
-    }
-
-    @Override
-    public <T extends Entity<IDX>, IDX> KEntityRepository<T, IDX> repository(@Nonnull Class<T> type) {
-        return new KORMRepositoryTemplateImpl(entityRepository.template()).repository(type);
-    }
-
-    @Override
-    public <R extends KRepository> R repositoryProxy(@Nonnull Class<R> type) {
-        return new KORMRepositoryTemplateImpl(entityRepository.template()).repositoryProxy(type);
     }
 
     @Override
@@ -115,7 +108,19 @@ public final class KEntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public E select(@Nonnull ID id) {
-        return where(id).singleResult();
+        return entityRepository.select(id);
+    }
+
+    /**
+     * Returns the number of entities in the database of the entity type supported by this repository.
+     *
+     * @return the total number of entities in the database as a long value.
+     * @throws PersistenceException if the count operation fails due to underlying database issues, such as
+     * connectivity.
+     */
+    @Override
+    public long count() {
+        return entityRepository.count();
     }
 
     /**

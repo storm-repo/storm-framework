@@ -59,14 +59,14 @@ public final class LazyFactoryImpl implements LazyFactory {
 
     @SuppressWarnings("unchecked")
     @Override
-    public Lazy<?> create(@Nonnull RecordComponent component, @Nullable Object pk) throws SqlTemplateException {
+    public <T extends Record & Entity<Object>> Lazy<T> create(@Nonnull RecordComponent component, @Nullable Object pk) throws SqlTemplateException {
         //noinspection RedundantCast
-        Class<Entity<Object>> recordType = (Class<Entity<Object>>) (Object) getLazyRecordType(component);
-        LazySupplier<Entity<Object>> supplier = new LazySupplier<>(() -> {
+        Class<T> recordType = (Class<T>) (Object) getLazyRecordType(component);
+        LazySupplier<T> supplier = new LazySupplier<>(() -> {
             if (pk == null) {
                 return null;
             }
-            EntityRepository<Entity<Object>, Object> repository = new ORMRepositoryTemplateImpl(
+            EntityRepository<T, Object> repository = new ORMRepositoryTemplateImpl(
                     factory,
                     tableNameResolver,
                     columnNameResolver,
@@ -74,7 +74,7 @@ public final class LazyFactoryImpl implements LazyFactory {
                     providerFilter).repository(recordType);
             return repository.select(pk);
         });
-        class LazyImpl implements Lazy<Entity<Object>>{
+        class LazyImpl implements Lazy<T>{
             private final Object pk;
 
             LazyImpl(@Nullable Object pk) {
@@ -92,7 +92,7 @@ public final class LazyFactoryImpl implements LazyFactory {
             }
 
             @Override
-            public Entity<Object> fetch() {
+            public T fetch() {
                 if (pk == null) {
                     return null;
                 }

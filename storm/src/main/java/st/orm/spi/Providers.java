@@ -123,7 +123,7 @@ public final class Providers {
 
     /**
      */
-    public static <ID, E extends Entity<ID>> EntityRepository<E, ID> getEntityRepository(
+    public static <ID, E extends Record & Entity<ID>> EntityRepository<E, ID> getEntityRepository(
             @Nonnull ORMRepositoryTemplate orm,
             @Nonnull EntityModel<E, ID> model,
             @Nonnull Predicate<? super EntityRepositoryProvider> filter) {

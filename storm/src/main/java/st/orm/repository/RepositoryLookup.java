@@ -30,7 +30,7 @@ public interface RepositoryLookup {
      * @param <ID> the type of the entity's primary key.
      * @return the repository for the given entity type.
      */
-    <T extends Entity<ID>, ID> EntityRepository<T, ID> repository(@Nonnull Class<T> type);
+    <T extends Record & Entity<ID>, ID> EntityRepository<T, ID> repository(@Nonnull Class<T> type);
 
     /**
      * Returns a proxy for the repository of the given type.

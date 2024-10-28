@@ -24,7 +24,7 @@ open class KotlinTemplatePreparedStatementIntegrationTest {
 
     @Test
     fun testSelectPet() {
-        val stream = ORM(dataSource).template {
+        val stream = ORM(dataSource).query {
             """
             SELECT ${it(Pet::class)}
             FROM ${it(Pet::class)}
@@ -42,7 +42,7 @@ open class KotlinTemplatePreparedStatementIntegrationTest {
     fun testSelectPetWithJoins() {
         val nameFilter = "%y%"
         val orm = ORM(dataSource)
-        val stream = orm.template {
+        val stream = orm.query {
             """
             SELECT ${it(orm.s(Pet::class))}
             FROM ${it(orm.t(Pet::class, "p"))}

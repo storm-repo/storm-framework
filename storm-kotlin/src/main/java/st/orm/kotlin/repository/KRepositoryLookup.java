@@ -27,11 +27,11 @@ public interface KRepositoryLookup {
 
     RepositoryLookup bridge();
 
-    <T extends Entity<ID>, ID> KEntityRepository<T, ID> repository(@Nonnull KClass<T> type);
+    <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> repository(@Nonnull KClass<T> type);
 
     <R extends KRepository> R repositoryProxy(@Nonnull KClass<R> type);
 
-    <T extends Entity<ID>, ID> KEntityRepository<T, ID> repository(@Nonnull Class<T> type);
+    <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> repository(@Nonnull Class<T> type);
 
     <R extends KRepository> R repositoryProxy(@Nonnull Class<R> type);
 }

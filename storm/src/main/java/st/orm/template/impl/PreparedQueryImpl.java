@@ -86,9 +86,10 @@ final class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
                 var mapper = getObjectMapper(columnCount, type, lazyFactory)
                         .orElseThrow(() -> new PersistenceException(STR."No suitable constructor found for \{type}."));
                 close = false;
-                return ResourceStream.wrap(generate(() -> readNext(resultSet, columnCount, mapper))
-                        .takeWhile(Objects::nonNull)
-                        .onClose(() -> close(resultSet)));
+                return MonitoredResource.wrap(
+                        generate(() -> readNext(resultSet, columnCount, mapper))
+                                .takeWhile(Objects::nonNull)
+                                .onClose(() -> close(resultSet)));
             } finally {
                 if (close) {
                     resultSet.close();

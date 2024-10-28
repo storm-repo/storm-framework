@@ -59,7 +59,7 @@ public final class ORMRepositoryTemplateImpl extends ORMTemplateImpl implements 
     }
 
     @Override
-    public <T extends Entity<ID>, ID> EntityRepository<T, ID> repository(@Nonnull Class<T> type) {
+    public <T extends Record & Entity<ID>, ID> EntityRepository<T, ID> repository(@Nonnull Class<T> type) {
         return wrapRepository(Providers.getEntityRepository(this, model(type), providerFilter == null ? _ -> true : providerFilter));
     }
 
@@ -99,10 +99,9 @@ public final class ORMRepositoryTemplateImpl extends ORMTemplateImpl implements 
         }));
     }
 
-    private Optional<EntityRepository<?, ?>> createEntityRepository(@Nonnull Class<?> type) {
+    private <T extends Record & Entity<ID>, ID> Optional<EntityRepository<T, ID>> createEntityRepository(@Nonnull Class<?> type) {
         //noinspection unchecked
-        return findGenericClass(type, EntityRepository.class, 0)
-                .map(entityClass -> repository((Class<Entity<Object>>) entityClass));
+        return findGenericClass(type, EntityRepository.class, 0).map(cls -> repository((Class<T>) (Object) cls));
     }
 
     private Repository createRepository() {
@@ -113,28 +112,19 @@ public final class ORMRepositoryTemplateImpl extends ORMTemplateImpl implements 
             }
 
             @Override
-            public <T extends Entity<ID>, ID> EntityRepository<T, ID> repository(@Nonnull Class<T> type) {
-                return ORMRepositoryTemplateImpl.this.repository(type);
-            }
-
-            @Override
-            public <R extends Repository> R repositoryProxy(@Nonnull Class<R> type) {
-                return ORMRepositoryTemplateImpl.this.repositoryProxy(type);
-            }
-
-            @Override
             public BindVars createBindVars() {
                 return ORMRepositoryTemplateImpl.this.createBindVars();
             }
         };
     }
 
-    private static Optional<Class<?>> findGenericClass(@Nonnull Class<?> clazz,
-                                                       @Nonnull Class<?> targetInterface,
-                                                       int typeArgumentIndex) {
+    private static <T extends Record & Entity<?>> Optional<Class<T>> findGenericClass(@Nonnull Class<?> clazz,
+                                                                                      @Nonnull Class<?> targetInterface,
+                                                                                      int typeArgumentIndex) {
+        //noinspection unchecked
         return findGenericType(clazz, targetInterface, typeArgumentIndex)
                 .filter(type -> type instanceof Class<?>)
-                .map(type -> (Class<?>) type);
+                .map(type -> (Class<T>) type);
     }
 
     public static Optional<Type> findGenericType(@Nonnull Class<?> clazz,

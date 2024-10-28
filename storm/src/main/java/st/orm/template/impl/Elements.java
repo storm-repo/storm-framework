@@ -67,6 +67,11 @@ public final class Elements {
     }
     public record TableSource(@Nonnull Class<? extends Record> table) implements Source {}
     public record TemplateSource(@Nonnull StringTemplate template) implements Source {}
+    // TODO
+    public sealed interface Target {
+    }
+    public record TableTarget(@Nonnull Class<? extends Record> table) implements Target {}
+    public record TemplateTarget(@Nonnull StringTemplate template) implements Target {}
 
     public record From(@Nonnull Source source, @Nonnull String alias) implements Element {
         public From {

@@ -26,7 +26,6 @@ import st.orm.BatchCallback;
 import st.orm.spi.EntityRepositoryImpl;
 import st.orm.template.ORMRepositoryTemplate;
 import st.orm.template.impl.LazySupplier;
-import st.orm.template.impl.Tripwire;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +34,7 @@ import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static java.lang.StringTemplate.RAW;
 import static java.util.stream.Collectors.partitioningBy;
 import static java.util.stream.Stream.empty;
 import static st.orm.Templates.unsafe;
@@ -43,7 +43,7 @@ import static st.orm.template.QueryBuilder.slice;
 /**
  * Implementation of {@link st.orm.repository.EntityRepository} for MySQL.
  */
-public class MysqlEntityRepositoryImpl<E extends Entity<ID>, ID> extends EntityRepositoryImpl<E, ID> {
+public class MysqlEntityRepositoryImpl<E extends Record & Entity<ID>, ID> extends EntityRepositoryImpl<E, ID> {
 
     public MysqlEntityRepositoryImpl(@Nonnull ORMRepositoryTemplate orm, @Nonnull EntityModel<E, ID> model) {
         super(orm, model);
@@ -90,9 +90,9 @@ public class MysqlEntityRepositoryImpl<E extends Entity<ID>, ID> extends EntityR
             update(entity);
             return;
         }
-        var query = ORM."""
+        var query = orm.query(RAW."""
                 INSERT INTO \{model.type()}
-                VALUES \{entity}\{unsafe(onDuplicateKey())}""";
+                VALUES \{entity}\{unsafe(onDuplicateKey())}""");
         query.executeUpdate();
     }
 
@@ -114,9 +114,9 @@ public class MysqlEntityRepositoryImpl<E extends Entity<ID>, ID> extends EntityR
             update(entity);
             return entity.id();
         }
-        try (var query = ORM."""
+        try (var query = orm.query(RAW."""
                 INSERT INTO \{model.type()}
-                VALUES \{entity}\{unsafe(onDuplicateKey())}""".prepare()) {
+                VALUES \{entity}\{unsafe(onDuplicateKey())}""").prepare()) {
             query.executeUpdate();
             return singleResult(query.getGeneratedKeys(model.primaryKeyType()));
         }
@@ -365,10 +365,10 @@ public class MysqlEntityRepositoryImpl<E extends Entity<ID>, ID> extends EntityR
     }
 
     protected PreparedQuery prepareUpsertQuery() {
-        var bindVars = ORM.createBindVars();
-        return ORM."""
+        var bindVars = orm.createBindVars();
+        return orm.query(RAW."""
                 INSERT INTO \{model.type()}
-                VALUES \{bindVars}\{unsafe(onDuplicateKey())}""".prepare();
+                VALUES \{bindVars}\{unsafe(onDuplicateKey())}""").prepare();
     }
 
     protected void upsertAndFetchIds(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> querySupplier, @Nullable BatchCallback<ID> callback) {
@@ -385,7 +385,7 @@ public class MysqlEntityRepositoryImpl<E extends Entity<ID>, ID> extends EntityR
             throw new PersistenceException("Batch upsert failed.");
         }
         if (callback != null) {
-            try (var generatedKeys = Tripwire.autoClose(() -> query.getGeneratedKeys(model.primaryKeyType()))) {
+            try (var generatedKeys = query.getGeneratedKeys(model.primaryKeyType())) {
                 callback.process(generatedKeys);
             }
         }
@@ -393,7 +393,7 @@ public class MysqlEntityRepositoryImpl<E extends Entity<ID>, ID> extends EntityR
 
     protected void upsertAndFetch(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> querySupplier, @Nullable BatchCallback<E> callback) {
         upsertAndFetchIds(batch, querySupplier, callback == null ? null : ids -> {
-            try (var stream = Tripwire.autoClose(() -> select(ids))) {
+            try (var stream = select(ids)) {
                 callback.process(stream);
             }
         });
