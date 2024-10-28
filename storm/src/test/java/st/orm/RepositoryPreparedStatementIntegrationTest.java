@@ -730,12 +730,12 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithJoin() {
-        var ORM = ORM(dataSource);
-        var list = ORM
+        var orm = ORM(dataSource);
+        var list = orm
                 .repository(Pet.class)
                 .select()
-                .innerJoin(Visit.class).on(RAW."\{ORM.a(Pet.class)}.id = \{Visit.class}.pet_id")
-                .append(RAW."WHERE \{ORM.a(Visit.class)}.visit_date = \{LocalDate.of(2023, 1, 8)}")
+                .innerJoin(Visit.class).on(RAW."\{orm.a(Pet.class)}.id = \{Visit.class}.pet_id")
+                .append(RAW."WHERE \{orm.a(Visit.class)}.visit_date = \{LocalDate.of(2023, 1, 8)}")
                 .getResultList();
         assertEquals(3, list.size());
     }
@@ -746,6 +746,20 @@ public class RepositoryPreparedStatementIntegrationTest {
                 .repository(Pet.class)
                 .select()
                 .innerJoin(Visit.class).on(Pet.class)
+                .where(Visit.builder().id(1).build())
+                .getResultList();
+        assertEquals(1, list.size());
+        assertEquals(7, list.getFirst().id());
+    }
+
+    @Test
+    public void testBuilderWithAutoAndCustomJoin() {
+        var orm = ORM(dataSource);
+        var list = orm
+                .repository(Pet.class)
+                .select()
+                .innerJoin(Visit.class).on(Pet.class)
+                .innerJoin("x", RAW."SELECT * FROM \{orm.t(Pet.class)}").on(RAW."\{orm.a(Pet.class)}.id = x.id")    // Join just for the sake of testing multiple joins.
                 .where(Visit.builder().id(1).build())
                 .getResultList();
         assertEquals(1, list.size());

@@ -43,6 +43,9 @@ import st.orm.template.impl.Elements.Select;
 import st.orm.template.impl.Elements.Source;
 import st.orm.template.impl.Elements.Table;
 import st.orm.template.impl.Elements.TableSource;
+import st.orm.template.impl.Elements.Target;
+import st.orm.template.impl.Elements.TemplateSource;
+import st.orm.template.impl.Elements.TemplateTarget;
 import st.orm.template.impl.Elements.Unsafe;
 import st.orm.template.impl.Elements.Update;
 import st.orm.template.impl.Elements.Where;
@@ -77,7 +80,6 @@ import java.util.stream.Stream;
 import static java.lang.Character.isUpperCase;
 import static java.lang.Character.toLowerCase;
 import static java.lang.Long.toHexString;
-import static java.lang.StringTemplate.RAW;
 import static java.lang.System.identityHashCode;
 import static java.lang.ThreadLocal.withInitial;
 import static java.util.Collections.newSetFromMap;
@@ -128,7 +130,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         SELECT, INSERT, UPDATE, DELETE, UNDEFINED
     }
 
-    record Wrapped(@Nonnull List<Element> elements) implements Element {
+    record Wrapped(@Nonnull List<? extends Element> elements) implements Element {
         public Wrapped {
             requireNonNull(elements, "elements");
         }
@@ -166,19 +168,15 @@ public final class SqlTemplateImpl implements SqlTemplate {
         }
     }
 
-    record Join(@Nonnull Source source, @Nonnull String alias, @Nonnull StringTemplate on, @Nonnull JoinType type) implements Element {
+    record Join(@Nonnull Source source, @Nonnull String alias, @Nonnull Target target, @Nonnull JoinType type) implements Element {
         public Join {
             requireNonNull(source, "source");
             requireNonNull(alias, "alias");
-            requireNonNull(on, "on");
+            requireNonNull(target, "target");
             requireNonNull(type, "type");
-        }
-    }
-
-    record On(@Nonnull Class<? extends Record> fromTable, @Nonnull Class<? extends Record> toTable) {
-        public On {
-            requireNonNull(fromTable, "fromTable");
-            requireNonNull(toTable, "toTable");
+            if (source instanceof TemplateSource && !(target instanceof TemplateTarget)) {
+                throw new IllegalArgumentException("TemplateSource must be used in combination with TemplateTarget.");
+            }
         }
     }
 
@@ -697,7 +695,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     String alias;
                     if (j.alias().isEmpty()) {
                         alias = aliasMapper.generateAlias(ts.table(), null);
-                        customJoins.add(new Join(j.source(), alias, j.on(), j.type()));
+                        customJoins.add(new Join(j.source(), alias, j.target(), j.type()));
                         tableMapper.mapPrimaryKey(ts.table(), alias, getPkComponents(ts.table()).toList(), path);
                     } else {
                         alias = j.alias();
@@ -712,35 +710,38 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 it.set(new Unsafe("")); // Replace by empty string to keep fragments and values in sync.
             }
         }
+        List<Join> expandedJoins;
         if (primaryTable.isPresent()) {
-            List<Join> expandedJoins = new ArrayList<>();
-            expandJoins(primaryTable.get(), customJoins, aliasMapper, tableMapper, expandedJoins);
-            if (!expandedJoins.isEmpty()) {
-                List<Element> replacementElements = new ArrayList<>();
-                replacementElements.add(effectiveFrom == null ? from : effectiveFrom);
-                Select select = elements.stream()
-                        .filter(Select.class::isInstance)
-                        .map(Select.class::cast)
-                        .findAny()
-                        .orElse(null);
-                if (select == null) {
-                    replacementElements.addAll(expandedJoins);
-                } else {
-                    for (var join : expandedJoins) {
-                        if (join instanceof Join(
-                                TableSource(var joinTable), _, _, _
-                        ) && joinTable == select.table() && join.type().isOuter()) {
-                            // If join is part of the select table and is an outer join, replace it with an inner join.
-                            replacementElements.add(new Join(new TableSource(joinTable), join.alias(), join.on(), DefaultJoinType.INNER));
-                        } else {
-                            replacementElements.add(join);
-                        }
+             expandedJoins = new ArrayList<>();
+             expandJoins(primaryTable.get(), customJoins, aliasMapper, tableMapper, expandedJoins);
+        } else {
+            expandedJoins = customJoins;
+        }
+        if (!expandedJoins.isEmpty()) {
+            List<Element> replacementElements = new ArrayList<>();
+            replacementElements.add(effectiveFrom == null ? from : effectiveFrom);
+            Select select = elements.stream()
+                    .filter(Select.class::isInstance)
+                    .map(Select.class::cast)
+                    .findAny()
+                    .orElse(null);
+            if (select == null) {
+                replacementElements.addAll(expandedJoins);
+            } else {
+                for (var join : expandedJoins) {
+                    if (join instanceof Join(
+                            TableSource(var joinTable), _, _, _
+                    ) && joinTable == select.table() && join.type().isOuter()) {
+                        // If join is part of the select table and is an outer join, replace it with an inner join.
+                        replacementElements.add(new Join(new TableSource(joinTable), join.alias(), join.target(), DefaultJoinType.INNER));
+                    } else {
+                        replacementElements.add(join);
                     }
                 }
-                elements.replaceAll(element -> element instanceof From
-                        ? new Wrapped(replacementElements)
-                        : element);
             }
+            elements.replaceAll(element -> element instanceof From
+                    ? new Wrapped(replacementElements)
+                    : element);
         }
         if (elements.stream().filter(Where.class::isInstance).count() > 1) {
             throw new SqlTemplateException("Multiple Where elements found.");
@@ -924,7 +925,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 //  tableMapper.mapPrimaryKey(componentType, alias, List.of(pkComponent), pkPath);
                 outerJoin = outerJoin || !REFLECTION.isNonnull(component);
                 JoinType joinType = outerJoin ? DefaultJoinType.LEFT : DefaultJoinType.INNER;
-                expandedJoins.add(new Join(new TableSource(componentType), alias, RAW."\{new Unsafe(STR."\{fromAlias}.\{getForeignKey(component, foreignKeyResolver)} = \{alias}.\{pkColumnName}")}", joinType));
+                expandedJoins.add(new Join(new TableSource(componentType), alias, new TemplateTarget(StringTemplate.of(STR."\{fromAlias}.\{getForeignKey(component, foreignKeyResolver)} = \{alias}.\{pkColumnName}")), joinType));
                 expandJoins(componentType, copy, aliasMapper, tableMapper, expandedJoins, alias, outerJoin);
             } else if (REFLECTION.isAnnotationPresent(component, Inline.class)) {
                 if (!component.getType().isRecord()) {

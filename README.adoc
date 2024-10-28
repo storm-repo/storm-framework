@@ -144,7 +144,7 @@ public class ORMRepositoryExample {
         // Use component path to identify column.
         return ORM(dataSource)
             .selectFrom(Pet.class)
-            .where("owner.lastName", EQUALS, firstName)
+            .where("owner.lastName", EQUALS, lastName)
             .getResultList();
     }
 

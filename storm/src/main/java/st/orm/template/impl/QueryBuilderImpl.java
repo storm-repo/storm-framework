@@ -2,7 +2,6 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.Query;
-import st.orm.Templates;
 import st.orm.template.JoinType;
 import st.orm.template.ORMTemplate;
 import st.orm.template.Operator;
@@ -10,11 +9,12 @@ import st.orm.template.QueryBuilder;
 import st.orm.template.TemplateFunction;
 import st.orm.template.impl.Elements.ObjectExpression;
 import st.orm.template.impl.Elements.TableSource;
+import st.orm.template.impl.Elements.TableTarget;
 import st.orm.template.impl.Elements.TemplateExpression;
 import st.orm.template.impl.Elements.TemplateSource;
+import st.orm.template.impl.Elements.TemplateTarget;
 import st.orm.template.impl.Elements.Where;
 import st.orm.template.impl.SqlTemplateImpl.Join;
-import st.orm.template.impl.SqlTemplateImpl.On;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +36,8 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
     private final StringTemplate selectTemplate;
     private final Class<T> fromType;
     private final Class<R> selectType;
+    private final List<Join> join;
+    private final List<Where> where;
     private final List<StringTemplate> templates;
 
     public QueryBuilderImpl(@Nonnull ORMTemplate orm, @Nonnull Class<T> fromType, @Nonnull Class<R> selectType) {
@@ -47,33 +49,52 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
                             @Nonnull Class<T> fromType,
                             @Nonnull Class<R> selectType,
                             @Nonnull StringTemplate selectTemplate) {
-        this(orm, fromType, selectType, selectTemplate, List.of());
+        this(orm, fromType, selectType, List.of(), List.of(), selectTemplate, List.of());
     }
 
     public QueryBuilderImpl(@Nonnull ORMTemplate orm,
                             @Nonnull Class<T> fromType,
                             @Nonnull Class<R> selectType,
                             @Nonnull TemplateFunction templateFunction) {
-        this(orm, fromType, selectType, TemplateFunctionHelper.template(templateFunction), List.of());
+        this(orm, fromType, selectType, List.of(), List.of(), TemplateFunctionHelper.template(templateFunction), List.of());
     }
 
     private QueryBuilderImpl(@Nonnull ORMTemplate orm,
                              @Nonnull Class<T> fromType,
                              @Nonnull Class<R> selectType,
+                             @Nonnull List<Join> join,
+                             @Nonnull List<Where> where,
                              @Nonnull StringTemplate selectTemplate,
                              @Nonnull List<StringTemplate> templates) {
         this.orm = orm;
         this.fromType = fromType;
         this.selectType = selectType;
+        this.join = List.copyOf(join);
+        this.where = List.copyOf(where);
         this.selectTemplate = selectTemplate;
         this.templates = List.copyOf(templates);
+    }
+
+    private QueryBuilder<T, R, ID> join(@Nonnull Join join) {
+        List<Join> copy = new ArrayList<>(this.join);
+        copy.add(join);
+        return new QueryBuilderImpl<>(orm, fromType, selectType, copy, where, selectTemplate, templates);
+    }
+
+    private QueryBuilder<T, R, ID> where(@Nonnull Where where) {
+        List<Where> copy = new ArrayList<>(this.where);
+        copy.add(where);
+        return new QueryBuilderImpl<>(orm, fromType, selectType, join, copy, selectTemplate, templates);
     }
 
     @Override
     public QueryBuilder<T, R, ID> append(@Nonnull StringTemplate template) {
         List<StringTemplate> copy = new ArrayList<>(templates);
-        copy.add(StringTemplate.combine(RAW."\n", template));
-        return new QueryBuilderImpl<>(orm, fromType, selectType, selectTemplate, copy);
+        if (!template.fragments().isEmpty()) {
+            template = StringTemplate.combine(RAW."\n", template);
+        }
+        copy.add(template);
+        return new QueryBuilderImpl<>(orm, fromType, selectType, join, where, selectTemplate, copy);
     }
 
     @Override
@@ -108,7 +129,7 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
         return new JoinBuilder<>() {
             @Override
             public QueryBuilder<T, R, ID> on(@Nonnull StringTemplate onTemplate) {
-                return append(RAW."\{new Join(new TemplateSource(template), alias, onTemplate, type)}");
+                return join(new Join(new TemplateSource(template), alias, new TemplateTarget(onTemplate), type));
             }
 
             @Override
@@ -146,12 +167,12 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
         return new TypedJoinBuilder<>() {
             @Override
             public QueryBuilder<T, R, ID> on(@Nonnull Class<? extends Record> onRelation) {
-                return append(RAW."\{new Join(new TableSource(relation), alias, RAW."\{new On(relation, onRelation)}", type)}");
+                return join(new Join(new TableSource(relation), alias, new TableTarget(onRelation), type));
             }
 
             @Override
-            public QueryBuilder<T, R, ID> on(@Nonnull StringTemplate template) {
-                return append(RAW."\{new Join(new TableSource(relation), alias, template, type)}");
+            public QueryBuilder<T, R, ID> on(@Nonnull StringTemplate onTemplate) {
+                return join(new Join(new TableSource(relation), alias, new TemplateTarget(onTemplate), type));
             }
 
             @Override
@@ -237,7 +258,7 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
 
             private QueryBuilder<TX, RX, IDX> build(List<StringTemplate> templates) {
                 //noinspection unchecked
-                return (QueryBuilder<TX, RX, IDX>) append(RAW."WHERE \{new Where(new TemplateExpression(StringTemplate.combine(templates)), null)}");
+                return (QueryBuilder<TX, RX, IDX>) where(new Where(new TemplateExpression(StringTemplate.combine(templates)), null));
             }
         }
         var whereBuilder = new WhereBuilderImpl<T, R, ID>();
@@ -245,23 +266,24 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
         return whereBuilder.build(((PredicateBuilderImpl<T, R, ID>) predicate).getTemplates());
     }
 
-    private Query build(@Nonnull StringTemplate template) {
-        List<StringTemplate> copy = new ArrayList<>(templates);
-        if (!template.fragments().isEmpty()) {
-            copy.add(RAW."\n");
-        }
-        copy.add(template);
-        //noinspection unchecked
-        StringTemplate combined = StringTemplate.combine(StringTemplate.combine(
-                RAW."SELECT ", selectTemplate,
-                RAW."\nFROM \{Templates.from((Class<? extends Record>) fromType)}"
-        ), StringTemplate.combine(copy));
-        return orm.query(combined);
-    }
-
     @Override
     public Query build() {
-        return build(RAW."");
+        StringTemplate combined = StringTemplate.combine(RAW."SELECT ", selectTemplate);
+        combined = StringTemplate.combine(combined, RAW."\nFROM \{fromType}");
+        if (!join.isEmpty()) {
+            combined = join.stream()
+                    .reduce(combined, (acc, join) -> StringTemplate.combine(acc, RAW."\{join}"), StringTemplate::combine);
+        }
+        if (!where.isEmpty()) {
+            // We'll leave handling of multiple where's to the sql processor.
+            combined = StringTemplate.combine(combined, RAW."\nWHERE ");
+            combined = where.stream()
+                    .reduce(combined, (acc, where) -> StringTemplate.combine(acc, RAW."\{where}"), StringTemplate::combine);
+        }
+        if (!templates.isEmpty()) {
+            combined = StringTemplate.combine(combined, StringTemplate.combine(templates));
+        }
+        return orm.query(combined);
     }
 
     @Override

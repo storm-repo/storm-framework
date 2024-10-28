@@ -39,7 +39,6 @@ public final class Elements {
     public record Set(@Nullable Record record, @Nullable BindVars bindVars) implements Element {}
 
     public sealed interface Expression {}
-
     public record ObjectExpression(@Nonnull Object object, @Nonnull Operator operator, @Nullable String path) implements Expression {
         public ObjectExpression(@Nonnull Object object) {
             this(object, EQUALS, null);
@@ -67,7 +66,7 @@ public final class Elements {
     }
     public record TableSource(@Nonnull Class<? extends Record> table) implements Source {}
     public record TemplateSource(@Nonnull StringTemplate template) implements Source {}
-    // TODO
+
     public sealed interface Target {
     }
     public record TableTarget(@Nonnull Class<? extends Record> table) implements Target {}
