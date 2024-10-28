@@ -272,13 +272,16 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
         combined = StringTemplate.combine(combined, RAW."\nFROM \{fromType}");
         if (!join.isEmpty()) {
             combined = join.stream()
-                    .reduce(combined, (acc, join) -> StringTemplate.combine(acc, RAW."\{join}"), StringTemplate::combine);
+                    .reduce(combined,
+                            (acc, join) -> StringTemplate.combine(acc, RAW."\{join}"),
+                            StringTemplate::combine);
         }
         if (!where.isEmpty()) {
             // We'll leave handling of multiple where's to the sql processor.
-            combined = StringTemplate.combine(combined, RAW."\nWHERE ");
             combined = where.stream()
-                    .reduce(combined, (acc, where) -> StringTemplate.combine(acc, RAW."\{where}"), StringTemplate::combine);
+                    .reduce(StringTemplate.combine(combined, RAW."\nWHERE "),
+                            (acc, where) -> StringTemplate.combine(acc, RAW."\{where}"),
+                            StringTemplate::combine);
         }
         if (!templates.isEmpty()) {
             combined = StringTemplate.combine(combined, StringTemplate.combine(templates));
