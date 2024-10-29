@@ -16,21 +16,14 @@
 package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
-import st.orm.FK;
-import st.orm.Inline;
-import st.orm.PK;
 
 import java.lang.reflect.RecordComponent;
 import java.util.Optional;
-import java.util.stream.Stream;
-
-import static st.orm.spi.Providers.getORMReflection;
 
 public interface ORMConverterProvider extends Provider {
 
     default boolean isSupported(@Nonnull RecordComponent component) {
-        var reflection = getORMReflection();
-        return Stream.of(PK.class, FK.class, Inline.class).noneMatch(a -> reflection.isAnnotationPresent(component, a));
+        return true;
     }
 
     Optional<ORMConverter> getConverter(@Nonnull RecordComponent component);

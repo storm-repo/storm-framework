@@ -24,8 +24,6 @@ import st.orm.PK;
 import st.orm.Version;
 import st.orm.repository.Entity;
 
-import java.time.Instant;
-
 /**
  * Simple domain object representing an owner.
  *

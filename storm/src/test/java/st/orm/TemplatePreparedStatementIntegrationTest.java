@@ -453,7 +453,30 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testWith() {
-        record FilteredPet(int id, Owner owner) {}
+        record FilteredPet(int id, @FK Owner owner) {}
+        String nameFilter = "%y%";
+        var ORM = ORM(dataSource);
+        try (var query = ORM.query(RAW."""
+                WITH FilteredPet AS (
+                  SELECT * FROM pet WHERE name LIKE \{ORM.p(nameFilter)}
+                )
+                SELECT \{ORM.s(FilteredPet.class)}
+                FROM \{ORM.t(FilteredPet.class, "p")}
+                  LEFT OUTER JOIN \{ORM.t(Owner.class, "o")} ON p.owner_id = o.id""").prepare();
+             var stream = query.getResultStream(FilteredPet.class)) {
+            assertEquals(5, stream.map(FilteredPet::owner).filter(Objects::nonNull).map(Owner::firstName).distinct().count());
+        }
+    }
+
+    @Test
+    public void testWithoutInline() {
+        record Owner(
+                Integer id,
+                @Name("first_name") String firstName,
+                @Name("last_name") String lastName,
+                Address address,
+                String telephone) {}
+        record FilteredPet(int id, @FK Owner owner) {}
         String nameFilter = "%y%";
         var ORM = ORM(dataSource);
         try (var query = ORM.query(RAW."""

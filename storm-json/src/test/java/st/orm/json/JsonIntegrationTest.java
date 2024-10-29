@@ -2,6 +2,7 @@ package st.orm.json;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import jakarta.persistence.PersistenceException;
 import lombok.Builder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -9,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.Inline;
 import st.orm.Name;
 import st.orm.PK;
 import st.orm.json.model.Address;
@@ -17,14 +19,16 @@ import st.orm.json.model.Specialty;
 import st.orm.json.model.Vet;
 import st.orm.json.model.VetSpecialty;
 import st.orm.repository.Entity;
+import st.orm.template.SqlTemplateException;
 
 import javax.sql.DataSource;
-
 import java.util.List;
 import java.util.Map;
 
 import static java.lang.StringTemplate.RAW;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static st.orm.Templates.ORM;
 
 @ExtendWith(SpringExtension.class)
@@ -103,6 +107,27 @@ public class JsonIntegrationTest {
         assertEquals(10, owner.count());
     }
 
+    @Builder(toBuilder = true)
+    @Name("owner")
+    public record OwnerWithInlineJsonMapAddress(
+            @PK Integer id,
+            @Nonnull @Name("first_name") String firstName,
+            @Nonnull @Name("last_name") String lastName,
+            @Nonnull @Inline @Json Map<String, String> address,
+            @Nullable String telephone
+    ) implements Entity<Integer> {
+    }
+
+    @Test
+    public void testOwnerWithInlineJsonMapAddress() {
+        PersistenceException e = assertThrows(PersistenceException.class, () -> {
+            var ORM = ORM(dataSource);
+            var repository = ORM.repository(OwnerWithInlineJsonMapAddress.class);
+            repository.selectAll();
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+    }
+
     public record VetWithSpecialties(@Nonnull Vet vet, @Nonnull @Json List<Specialty> specialties) {}
 
     @Test
@@ -121,7 +146,7 @@ public class JsonIntegrationTest {
                 .append(RAW."GROUP BY \{Vet.class}.id")
                 .getResultList();
         assertEquals(4, vets.size());
-        assertEquals(5, vets.stream().flatMap(v -> v.specialties().stream()).count());
+        assertEquals(5, vets.stream().mapToLong(v -> v.specialties().size()).sum());
     }
 
     public record VetWithSpecialtyList(@Nonnull Vet vet, @Nonnull @Json List<String> specialties) {}
@@ -136,6 +161,6 @@ public class JsonIntegrationTest {
                 .append(RAW."GROUP BY \{Vet.class}.id")
                 .getResultList();
         assertEquals(4, vets.size());
-        assertEquals(5, vets.stream().flatMap(v -> v.specialties().stream()).count());
+        assertEquals(5, vets.stream().mapToLong(v -> v.specialties().size()).sum());
     }
 }

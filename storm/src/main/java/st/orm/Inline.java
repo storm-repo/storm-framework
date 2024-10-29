@@ -24,6 +24,9 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
  * Indicates that the underlying fields of the record component are inlined in this record.
+ *
+ * <p>This annotation must only be used on record components that are also records. Note that record components that do
+ * not specify {@code @FK} or converter annotations are implicitly regarded as inlined.</p>
  */
 @Target({RECORD_COMPONENT, PARAMETER})
 @Retention(RUNTIME)

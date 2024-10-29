@@ -19,7 +19,6 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.PersistenceException;
 import st.orm.FK;
-import st.orm.Inline;
 import st.orm.Lazy;
 import st.orm.PK;
 import st.orm.Persist;
@@ -775,17 +774,14 @@ record ElementProcessor(
                 continue;
             }
             if (component.getType().isRecord()) {
-                if (pk != null || REFLECTION.isAnnotationPresent(component, Inline.class)) {
-                    //noinspection unchecked
-                    String str = getStringForInsert((Class<? extends Record>) component.getType(), placeholders, columnNameResolver, foreignKeyResolver, generatedKeys, primaryKey || pk != null);
-                    if (!str.isEmpty()) {
-                        parts.add(str);
-                        parts.add(", ");
-                    }
-                    continue;
+                // @Inline is implicitly assumed.
+                //noinspection unchecked
+                String str = getStringForInsert((Class<? extends Record>) component.getType(), placeholders, columnNameResolver, foreignKeyResolver, generatedKeys, primaryKey || pk != null);
+                if (!str.isEmpty()) {
+                    parts.add(str);
+                    parts.add(", ");
                 }
-                // Only allow inlined components.
-                throw new SqlTemplateException(STR."Record component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' must be a primary key, foreign key or inline component.");
+                continue;
             }
             parts.add(placeholders ? "?" : getColumnName(component, columnNameResolver));
             parts.add(", ");
@@ -832,18 +828,19 @@ record ElementProcessor(
                 continue;
             }
             if (fkClass != null) {
-                if (component.getType().isRecord() && REFLECTION.isAnnotationPresent(component, Inline.class)) {
+                if (REFLECTION.isAnnotationPresent(component, PK.class)) {
+                    names.add(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{fkName != null ? fkName : getColumnName(component, columnNameResolver)}");
+                    // We found the PK for the foreign key. We can now return.
+                    break;
+                }
+                if (component.getType().isRecord()) {
+                    // @Inline is implicitly assumed.
                     var pks = getNamesForSet(recordType, alias, fkName, fkClass, columnNameResolver, foreignKeyResolver);
                     if (!pks.isEmpty()) {
                         names.addAll(pks);
                         // We found the PK for the foreign key. We can now return.
                         break;
                     }
-                }
-                if (REFLECTION.isAnnotationPresent(component, PK.class)) {
-                    names.add(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{fkName != null ? fkName : getColumnName(component, columnNameResolver)}");
-                    // We found the PK for the foreign key. We can now return.
-                    break;
                 }
             } else {
                 PK pk = REFLECTION.getAnnotation(component, PK.class);
@@ -854,7 +851,8 @@ record ElementProcessor(
                     names.addAll(getNamesForSet(recordType, alias, getForeignKey(component, foreignKeyResolver), (Class<? extends Record>) component.getType(), columnNameResolver, foreignKeyResolver));
                     continue;
                 }
-                if (component.getType().isRecord() || REFLECTION.isAnnotationPresent(component, Inline.class)) {
+                if (component.getType().isRecord()) {
+                    // @Inline is implicitly assumed.
                     names.addAll(getNamesForSet((Class<? extends Record>) component.getType(), alias, getForeignKey(component, foreignKeyResolver), fkClass, columnNameResolver, foreignKeyResolver));
                     continue;
                 }
@@ -909,7 +907,8 @@ record ElementProcessor(
                     continue;
                 }
                 if (fkClass != null) {
-                    if (component.getType().isRecord() && REFLECTION.isAnnotationPresent(component, Inline.class)) {
+                    if (component.getType().isRecord() && !REFLECTION.isAnnotationPresent(component, PK.class)) {
+                        // @Inline is implicitly assumed.
                         var r = (Record) REFLECTION.invokeComponent(component, record);
                         if (r == null) {
                             // Skipping; We're only interested in finding a PK.
@@ -950,7 +949,8 @@ record ElementProcessor(
                         versionAware.setPlain(true);
                         continue;
                     }
-                    if (component.getType().isRecord() || REFLECTION.isAnnotationPresent(component, Inline.class)) {
+                    if (component.getType().isRecord()) {
+                        // @Inline is implicitly assumed.
                         var r = (Record) REFLECTION.invokeComponent(component, record);
                         if (r == null && REFLECTION.isNonnull(component)) {
                             throw new SqlTemplateException(STR."Nonnull inline component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
@@ -1027,10 +1027,14 @@ record ElementProcessor(
         for (var component : recordType.getRecordComponents()) {
             boolean pk = REFLECTION.isAnnotationPresent(component, PK.class);
             if (component.getType().isRecord()) {
-                if (pk || parentPk // Record PKs are implicitly inlined.
-                        || REFLECTION.isAnnotationPresent(component, Inline.class)) {
-                    names.addAll(getPkNamesForWhere((Class<? extends Record>) component.getType(), alias, columnNameResolver, pk || parentPk));
+                if (getORMConverter(component).isPresent()) {
+                    continue;
                 }
+                if (REFLECTION.isAnnotationPresent(component, FK.class)) {
+                    continue;
+                }
+                // @Inline is implicitly assumed.
+                names.addAll(getPkNamesForWhere((Class<? extends Record>) component.getType(), alias, columnNameResolver, pk || parentPk));
             } else if (pk || parentPk) {
                 names.add(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getColumnName(component, columnNameResolver)}");
             }
@@ -1159,19 +1163,36 @@ record ElementProcessor(
             } else {
                 for (var component : components) {
                     if (component.getName().equals(parts[depth])) {
-                        boolean inline = REFLECTION.isAnnotationPresent(component, Inline.class);
-                        var candidateType = component.getType();
-                        if (candidateType.isRecord() && (REFLECTION.isAnnotationPresent(component, FK.class) || inline)) {
-                            //noinspection unchecked
+                        if (component.getType().isRecord()) {
+                            var converter = getORMConverter(component);
+                            if (converter.isPresent()) {
+                                continue;
+                            }
+                            if (REFLECTION.isAnnotationPresent(component, PK.class)) {
+                                continue;
+                            }
+                            boolean fk = REFLECTION.isAnnotationPresent(component, FK.class);
+                            Class<? extends Record> type;
+                            Class<? extends Record> inlineType;
+                            if (fk) {
+                                //noinspection unchecked
+                                type = (Class<? extends Record>) component.getType();
+                                inlineType = null;
+                            } else {
+                                // Assuming @Inline; No need to check for optional annotation.
+                                type = recordType;
+                                //noinspection unchecked
+                                inlineType = (Class<? extends Record>) component.getType();
+                            }
                             values.putAll(getValuesForCondition(
                                     value,
                                     path,
-                                    (Class<? extends Record>) (inline ? recordType : candidateType),
+                                    type,
                                     aliasMapper,
                                     columnNameResolver,
                                     depth + 1,
-                                    (Class<? extends Record>) (inline ? candidateType : null),
-                                    inlineDepth + (inline ? 1 : 0)));
+                                    inlineType,
+                                    inlineDepth + (inlineType != null ? 1 : 0)));
                         }
                         break;
                     }
@@ -1237,8 +1258,8 @@ record ElementProcessor(
                     continue;
                 }
                 if (foreignKey) {
-                    if (component.getType().isRecord() && (REFLECTION.isAnnotationPresent(component, PK.class)  // Record PKs are implicitly inlined.
-                            || REFLECTION.isAnnotationPresent(component, Inline.class))) {
+                    if (component.getType().isRecord() && !REFLECTION.isAnnotationPresent(component, FK.class)) {
+                        // @Inline is implicitly assumed.
                         var r = (Record) REFLECTION.invokeComponent(component, record);
                         if (r == null) {
                             // Skipping; We're only interested in finding a PK.
@@ -1270,18 +1291,14 @@ record ElementProcessor(
                         continue;
                     }
                     if (component.getType().isRecord()) {
-                        if ((REFLECTION.isAnnotationPresent(component, PK.class) // Record PKs are implicitly inlined.
-                                || REFLECTION.isAnnotationPresent(component, Inline.class))) {
-                            var r = record == null ? null : (Record) REFLECTION.invokeComponent(component, record);
-                            if (r == null && REFLECTION.isNonnull(component)) {
-                                throw new SqlTemplateException(STR."Nonnull component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
-                            }
-                            //noinspection unchecked
-                            values.addAll(getValuesForInsert(r, (Class<? extends Record>) component.getType(), false));
-                            continue;
-                        } else {
-                            throw new SqlTemplateException(STR."Record component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' must be a primary key, foreign key or inline component.");
+                        // @Inline is implicitly assumed.
+                        var r = record == null ? null : (Record) REFLECTION.invokeComponent(component, record);
+                        if (r == null && REFLECTION.isNonnull(component)) {
+                            throw new SqlTemplateException(STR."Nonnull component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
                         }
+                        //noinspection unchecked
+                        values.addAll(getValuesForInsert(r, (Class<? extends Record>) component.getType(), false));
+                        continue;
                     }
                     values.add(record == null ? null : REFLECTION.invokeComponent(component, record));
                 }
@@ -1314,8 +1331,11 @@ record ElementProcessor(
             if (REFLECTION.isAnnotationPresent(lastComponent, FK.class)) {
                 return aliasMapper.getAlias(type, p);
             }
-            if (REFLECTION.isAnnotationPresent(lastComponent, PK.class) ||
-                    REFLECTION.isAnnotationPresent(lastComponent, Inline.class)) {
+            if (REFLECTION.isAnnotationPresent(lastComponent, PK.class)) {
+                return alias;
+            }
+            if (getORMConverter(lastComponent).isEmpty()) {
+                // @Inline is implicitly assumed.
                 return alias;
             }
         }
