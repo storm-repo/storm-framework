@@ -1,10 +1,9 @@
 package st.orm.kotlin.template;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.NonUniqueResultException;
-import jakarta.persistence.PersistenceException;
 import kotlin.reflect.KClass;
+import st.orm.NoResultException;
+import st.orm.NonUniqueResultException;
 import st.orm.kotlin.KQuery;
 import st.orm.kotlin.KResultCallback;
 import st.orm.template.JoinType;
@@ -16,6 +15,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
+
+import static java.lang.StringTemplate.RAW;
 
 public interface KQueryBuilder<T, R, ID> {
 
@@ -31,22 +32,25 @@ public interface KQueryBuilder<T, R, ID> {
         KQueryBuilder<T, R, ID> on(@Nonnull TemplateFunction function);
     }
 
-    interface KWhereBuilder<T, R, ID> extends StringTemplate.Processor<KPredicateBuilder<T, R, ID>, PersistenceException> {
-        KPredicateBuilder<T, R, ID> expression(@Nonnull TemplateFunction function);
+    interface KWhereBuilder<T, R, ID> {
 
         /**
          * A predicate that always evaluates to true.
          */
         default KPredicateBuilder<T, R, ID> TRUE() {
-            return this."TRUE";
+            return expression(RAW."TRUE");
         }
 
         /**
          * A predicate that always evaluates to false.
          */
         default KPredicateBuilder<T, R, ID> FALSE() {
-            return this."FALSE";
+            return expression(RAW."FALSE");
         }
+
+        KPredicateBuilder<T, R, ID> expression(@Nonnull StringTemplate template);
+
+        KPredicateBuilder<T, R, ID> expression(@Nonnull TemplateFunction function);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified object. The object can be the primary

@@ -16,10 +16,10 @@
 package st.orm.kotlin;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.NonUniqueResultException;
-import jakarta.persistence.PersistenceException;
 import kotlin.reflect.KClass;
+import st.orm.NoResultException;
+import st.orm.NonUniqueResultException;
+import st.orm.PersistenceException;
 
 import java.util.List;
 import java.util.Optional;

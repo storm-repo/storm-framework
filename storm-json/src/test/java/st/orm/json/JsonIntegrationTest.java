@@ -2,7 +2,6 @@ package st.orm.json;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import jakarta.persistence.PersistenceException;
 import lombok.Builder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,6 +12,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.Inline;
 import st.orm.Name;
 import st.orm.PK;
+import st.orm.PersistenceException;
 import st.orm.json.model.Address;
 import st.orm.json.model.Owner;
 import st.orm.json.model.Specialty;

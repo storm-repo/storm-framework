@@ -3,6 +3,7 @@ module storm.kotlin {
     exports st.orm.kotlin;
     exports st.orm.kotlin.template;
     exports st.orm.kotlin.repository;
+    requires java.sql;
     requires jakarta.persistence;
     requires jakarta.annotation;
     requires kotlin.reflect;

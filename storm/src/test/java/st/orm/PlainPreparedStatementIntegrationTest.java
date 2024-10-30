@@ -1,7 +1,6 @@
 package st.orm;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.PersistenceException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;

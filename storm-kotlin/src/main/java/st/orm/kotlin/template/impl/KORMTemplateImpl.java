@@ -1,10 +1,10 @@
 package st.orm.kotlin.template.impl;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.PersistenceException;
 import kotlin.reflect.KClass;
 import org.jetbrains.annotations.NotNull;
 import st.orm.BindVars;
+import st.orm.PersistenceException;
 import st.orm.kotlin.KQuery;
 import st.orm.kotlin.repository.KEntityModel;
 import st.orm.kotlin.template.KORMTemplate;

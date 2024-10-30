@@ -16,9 +16,9 @@
 package st.orm.kotlin.repository;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.PersistenceException;
 import st.orm.Inline;
 import st.orm.PK;
+import st.orm.PersistenceException;
 import st.orm.repository.Entity;
 import st.orm.repository.EntityRepository;
 

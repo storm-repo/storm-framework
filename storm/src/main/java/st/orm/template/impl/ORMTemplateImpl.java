@@ -17,13 +17,13 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import jakarta.persistence.PersistenceException;
 import st.orm.BindVars;
 import st.orm.FK;
 import st.orm.Lazy;
 import st.orm.Name;
 import st.orm.PK;
 import st.orm.Persist;
+import st.orm.PersistenceException;
 import st.orm.Query;
 import st.orm.Version;
 import st.orm.repository.Column;

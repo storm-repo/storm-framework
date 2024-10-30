@@ -16,9 +16,9 @@
 package st.orm.repository;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.PersistenceException;
 import st.orm.BatchCallback;
+import st.orm.NoResultException;
+import st.orm.PersistenceException;
 import st.orm.ResultCallback;
 import st.orm.template.QueryBuilder;
 

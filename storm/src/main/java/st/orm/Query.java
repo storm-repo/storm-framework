@@ -16,9 +16,6 @@
 package st.orm;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.NonUniqueResultException;
-import jakarta.persistence.PersistenceException;
 
 import java.util.List;
 import java.util.Optional;

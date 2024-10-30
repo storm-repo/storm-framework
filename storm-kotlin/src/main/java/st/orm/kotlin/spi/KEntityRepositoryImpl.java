@@ -16,23 +16,21 @@
 package st.orm.kotlin.spi;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.PersistenceException;
 import kotlin.sequences.Sequence;
 import kotlin.sequences.SequencesKt;
 import st.orm.BindVars;
+import st.orm.NoResultException;
+import st.orm.PersistenceException;
 import st.orm.kotlin.KBatchCallback;
+import st.orm.kotlin.KResultCallback;
 import st.orm.kotlin.repository.KEntityModel;
 import st.orm.kotlin.repository.KEntityRepository;
-import st.orm.kotlin.KResultCallback;
 import st.orm.kotlin.template.KORMTemplate;
 import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.kotlin.template.impl.KORMTemplateImpl;
 import st.orm.kotlin.template.impl.KQueryBuilderImpl;
 import st.orm.repository.Entity;
 import st.orm.repository.EntityRepository;
-import st.orm.spi.ORMReflection;
-import st.orm.spi.Providers;
 
 import java.util.Iterator;
 import java.util.List;

@@ -1,9 +1,9 @@
 package st.orm.kotlin.template.impl;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.PersistenceException;
 import kotlin.reflect.KClass;
 import st.orm.BindVars;
+import st.orm.PersistenceException;
 import st.orm.kotlin.repository.KEntityRepository;
 import st.orm.kotlin.repository.KRepository;
 import st.orm.kotlin.spi.KEntityRepositoryImpl;

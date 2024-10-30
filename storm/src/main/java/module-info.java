@@ -7,6 +7,7 @@ module storm {
     exports st.orm.template;
     exports st.orm.template.impl;
     exports st.orm.spi;
+    requires java.sql;
     requires jakarta.persistence;
     requires jakarta.annotation;
     provides st.orm.spi.ORMReflectionProvider with st.orm.spi.DefaultORMReflectionProviderImpl;

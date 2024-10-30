@@ -17,7 +17,7 @@ package st.orm.spi.mysql;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import jakarta.persistence.PersistenceException;
+import st.orm.PersistenceException;
 import st.orm.PreparedQuery;
 import st.orm.repository.Column;
 import st.orm.repository.Entity;

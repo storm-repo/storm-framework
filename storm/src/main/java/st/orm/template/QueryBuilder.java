@@ -1,9 +1,9 @@
 package st.orm.template;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.NonUniqueResultException;
-import jakarta.persistence.PersistenceException;
+import st.orm.NoResultException;
+import st.orm.NonUniqueResultException;
+import st.orm.PersistenceException;
 import st.orm.PreparedQuery;
 import st.orm.Query;
 import st.orm.ResultCallback;

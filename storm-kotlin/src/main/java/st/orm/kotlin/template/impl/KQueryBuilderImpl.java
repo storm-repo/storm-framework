@@ -1,11 +1,11 @@
 package st.orm.kotlin.template.impl;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.PersistenceException;
 import kotlin.reflect.KClass;
 import kotlin.sequences.Sequence;
 import kotlin.sequences.SequencesKt;
 import org.jetbrains.annotations.NotNull;
+import st.orm.PersistenceException;
 import st.orm.kotlin.KQuery;
 import st.orm.kotlin.KResultCallback;
 import st.orm.kotlin.template.KQueryBuilder;
@@ -201,8 +201,8 @@ public class KQueryBuilderImpl<T, R, ID> implements KQueryBuilder<T, R, ID> {
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> process(StringTemplate stringTemplate) throws PersistenceException {
-            return new KPredicateBuilderImpl<>(whereBuilder.expression(stringTemplate));
+        public KPredicateBuilder<TX, RX, IDX> expression(@Nonnull StringTemplate template) throws PersistenceException {
+            return new KPredicateBuilderImpl<>(whereBuilder.expression(template));
         }
 
         @Override

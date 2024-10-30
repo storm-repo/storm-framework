@@ -17,8 +17,8 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import jakarta.persistence.PersistenceException;
 import st.orm.BindVars;
+import st.orm.PersistenceException;
 import st.orm.Query;
 import st.orm.spi.Provider;
 import st.orm.template.ColumnNameResolver;

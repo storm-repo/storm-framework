@@ -16,14 +16,13 @@
 package st.orm.kotlin.repository;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.PersistenceException;
 import kotlin.sequences.Sequence;
+import st.orm.NoResultException;
+import st.orm.PersistenceException;
 import st.orm.kotlin.KBatchCallback;
 import st.orm.kotlin.KResultCallback;
 import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.repository.Entity;
-import st.orm.template.QueryBuilder;
 
 import java.util.List;
 

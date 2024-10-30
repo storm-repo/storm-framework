@@ -13,23 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.template.impl;
+package st.orm;
 
-import jakarta.annotation.Nonnull;
-import st.orm.BindVars;
-import st.orm.PersistenceException;
-import st.orm.Query;
-
-public interface QueryFactory {
-
-    BindVars createBindVars();
+/**
+ * Thrown when {@code getSingleResult} is executed on a query and there is no result to return.
+ */
+public class NoResultException extends PersistenceException {
 
     /**
-     *
-     * @param lazyFactory the lazy factory to use.
-     * @param template the template to process.
-     * @return a query that can be executed.
-     * @throws PersistenceException if the template is invalid.
+     * Constructs a new {@code NoResultException} exception with {@code null} its detail message.
      */
-    Query create(@Nonnull LazyFactory lazyFactory, @Nonnull StringTemplate template);
+    public NoResultException() {
+        super();
+    }
+
+    /**
+     * Constructs a new {@code NoResultException} exception with the specified detail message.
+     *
+     * @param message the detail message.
+     */
+    public NoResultException(String message) {
+        super(message);
+    }
 }

@@ -16,7 +16,6 @@
 package st.orm;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.PersistenceException;
 
 import java.util.stream.Stream;
 
