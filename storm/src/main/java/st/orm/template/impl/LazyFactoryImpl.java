@@ -20,7 +20,7 @@ import jakarta.annotation.Nullable;
 import st.orm.Lazy;
 import st.orm.repository.Entity;
 import st.orm.repository.EntityRepository;
-import st.orm.spi.EntityRepositoryProvider;
+import st.orm.spi.Provider;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
 import st.orm.template.SqlTemplateException;
@@ -38,13 +38,13 @@ public final class LazyFactoryImpl implements LazyFactory {
     private final TableNameResolver tableNameResolver;
     private final ColumnNameResolver columnNameResolver;
     private final ForeignKeyResolver foreignKeyResolver;
-    private final Predicate<? super EntityRepositoryProvider> providerFilter;
+    private final Predicate<? super Provider> providerFilter;
 
     public LazyFactoryImpl(@Nonnull QueryFactory factory,
                            @Nullable TableNameResolver tableNameResolver,
                            @Nullable ColumnNameResolver columnNameResolver,
                            @Nullable ForeignKeyResolver foreignKeyResolver,
-                           @Nullable Predicate<? super EntityRepositoryProvider> providerFilter) {
+                           @Nullable Predicate<? super Provider> providerFilter) {
         this.factory = Objects.requireNonNull(factory, "factory");
         this.tableNameResolver = tableNameResolver;
         this.columnNameResolver = columnNameResolver;
@@ -71,7 +71,7 @@ public final class LazyFactoryImpl implements LazyFactory {
                     tableNameResolver,
                     columnNameResolver,
                     foreignKeyResolver,
-                    providerFilter).repository(recordType);
+                    providerFilter).entityRepository(recordType);
             return repository.select(pk);
         });
         class LazyImpl implements Lazy<T>{

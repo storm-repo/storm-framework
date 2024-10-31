@@ -17,8 +17,10 @@ package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
 import st.orm.repository.Entity;
-import st.orm.repository.EntityModel;
 import st.orm.repository.EntityRepository;
+import st.orm.repository.Model;
+import st.orm.repository.Projection;
+import st.orm.repository.ProjectionRepository;
 import st.orm.template.ORMRepositoryTemplate;
 
 import java.lang.reflect.RecordComponent;
@@ -50,6 +52,7 @@ public final class Providers {
     private static final Supplier<List<ORMReflectionProvider>> ORM_REFLECTION_PROVIDERS = createProviders(ORMReflectionProvider.class);
     private static final Supplier<List<ORMConverterProvider>> ORM_CONVERTER_PROVIDERS = createProviders(ORMConverterProvider.class);
     private static final Supplier<List<EntityRepositoryProvider>> ENTITY_REPOSITORY_PROVIDERS = createProviders(EntityRepositoryProvider.class);
+    private static final Supplier<List<ProjectionRepositoryProvider>> PROJECTION_REPOSITORY_PROVIDERS = createProviders(ProjectionRepositoryProvider.class);
 
     private static final ConcurrentMap<Object, List<?>> PROVIDER_CACHE = new ConcurrentHashMap<>();
 
@@ -125,11 +128,24 @@ public final class Providers {
      */
     public static <ID, E extends Record & Entity<ID>> EntityRepository<E, ID> getEntityRepository(
             @Nonnull ORMRepositoryTemplate orm,
-            @Nonnull EntityModel<E, ID> model,
+            @Nonnull Model<E, ID> model,
             @Nonnull Predicate<? super EntityRepositoryProvider> filter) {
         return Orderable.sort(ENTITY_REPOSITORY_PROVIDERS.get().stream())
                 .filter(filter)
                 .map(provider -> provider.getEntityRepository(orm, model))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    /**
+     */
+    public static <ID, P extends Record & Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(
+            @Nonnull ORMRepositoryTemplate orm,
+            @Nonnull Model<P, ID> model,
+            @Nonnull Predicate<? super ProjectionRepositoryProvider> filter) {
+        return Orderable.sort(PROJECTION_REPOSITORY_PROVIDERS.get().stream())
+                .filter(filter)
+                .map(provider -> provider.getProjectionRepository(orm, model))
                 .findFirst()
                 .orElseThrow();
     }

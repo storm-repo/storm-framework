@@ -19,8 +19,7 @@ import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
 import st.orm.PreparedQuery;
 import st.orm.Query;
-import st.orm.repository.Entity;
-import st.orm.repository.EntityModel;
+import st.orm.repository.Model;
 
 public interface ORMTemplate {
 
@@ -32,7 +31,7 @@ public interface ORMTemplate {
      */
     BindVars createBindVars();
 
-    <T extends Record & Entity<ID>, ID> EntityModel<T, ID> model(@Nonnull Class<T> type);
+    <T extends Record, ID> Model<T, ID> model(@Nonnull Class<T> type);
 
     <T extends Record> QueryBuilder<T, T, ?> selectFrom(@Nonnull Class<T> fromType);
 

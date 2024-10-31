@@ -18,12 +18,11 @@ package st.orm.kotlin.spi;
 import jakarta.annotation.Nonnull;
 import kotlin.sequences.Sequence;
 import kotlin.sequences.SequencesKt;
-import st.orm.BindVars;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KBatchCallback;
 import st.orm.kotlin.KResultCallback;
-import st.orm.kotlin.repository.KEntityModel;
+import st.orm.kotlin.repository.KModel;
 import st.orm.kotlin.repository.KEntityRepository;
 import st.orm.kotlin.template.KORMTemplate;
 import st.orm.kotlin.template.KQueryBuilder;
@@ -67,8 +66,8 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * @return the entity model.
      */
     @Override
-    public KEntityModel<E, ID> model() {
-        return new KEntityModel<>(entityRepository.model());
+    public KModel<E, ID> model() {
+        return new KModel<>(entityRepository.model());
     }
 
     @Override
@@ -84,11 +83,6 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
     @Override
     public KORMTemplate template() {
         return new KORMTemplateImpl(entityRepository.template());
-    }
-
-    @Override
-    public BindVars createBindVars() {
-        return entityRepository.createBindVars();
     }
 
     /**

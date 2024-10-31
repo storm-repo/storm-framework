@@ -22,22 +22,22 @@ import java.util.List;
 import static java.util.List.copyOf;
 
 /**
- * Represents the model of an entity.
+ * Represents the model of an entity or projection.
  *
- * @param <E> the type of the entity.
- * @param <ID> the type of the entity's primary key.
- * @param tableName the name of the table, may include the schema.
- * @param type the Java type of the entity.
- * @param primaryKeyType the Java type of the entity's primary key.
- * @param columns an immutable list of columns in the entity.
+ * @param <E> the type of the entity or projection.
+ * @param <ID> the type of the primary key, or {@code Void} in case of a projection without a primary key.
+ * @param name the name of the table or view, may include the schema.
+ * @param type the Java type of the entity or projection.
+ * @param primaryKeyType the Java type of the primary key.
+ * @param columns an immutable list of columns in the entity or projection.
  */
-public record EntityModel<E extends Record, ID>(
-        @Nonnull String tableName,
+public record Model<E extends Record, ID>(
+        @Nonnull String name,
         @Nonnull Class<E> type,
         @Nonnull Class<ID> primaryKeyType,
         @Nonnull List<Column> columns) {
 
-    public EntityModel {
+    public Model {
         columns = copyOf(columns); // Defensive copy.
     }
 }

@@ -15,17 +15,12 @@
  */
 package st.orm.repository;
 
-import st.orm.template.ORMRepositoryTemplate;
-
 /**
- * Base interface for all repositories.
+ * Optional marker interface for record-based projections.
+ *
+ * <p>This interface is used to support the {@code ProjectionRepository}, which provides read logic out-of-the-box.</p>
+ *
+ * @see ProjectionRepository
  */
-public interface Repository {
-
-    /**
-     * Provides access to the underlying ORM template.
-     *
-     * @return the ORM template.
-     */
-    ORMRepositoryTemplate template();
+public interface Projection<ID> {
 }

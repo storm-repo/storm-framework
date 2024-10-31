@@ -22,19 +22,20 @@ import st.orm.Inline;
 import st.orm.Name;
 import st.orm.PK;
 import st.orm.Version;
-import st.orm.repository.Entity;
+import st.orm.repository.Projection;
 
 /**
  * Simple domain object representing an owner.
  *
  */
 @Builder(toBuilder = true)
-public record Owner(
+@Name("owner_view")
+public record OwnerView(
         @PK Integer id,
         @Nonnull @Name("first_name") String firstName,
         @Nonnull @Name("last_name") String lastName,
         @Nonnull @Inline Address address,
         @Nullable String telephone,
         @Version int version
-) implements Person, Entity<Integer> {
+) implements Person, Projection<Integer> {
 }

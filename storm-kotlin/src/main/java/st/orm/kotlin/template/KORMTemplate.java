@@ -19,7 +19,7 @@ import jakarta.annotation.Nonnull;
 import kotlin.reflect.KClass;
 import st.orm.BindVars;
 import st.orm.kotlin.KQuery;
-import st.orm.kotlin.repository.KEntityModel;
+import st.orm.kotlin.repository.KModel;
 import st.orm.kotlin.template.impl.KORMTemplateImpl;
 import st.orm.repository.Entity;
 import st.orm.template.ORMTemplate;
@@ -41,7 +41,7 @@ public interface KORMTemplate {
      */
     BindVars createBindVars();
 
-    <T extends Record & Entity<ID>, ID> KEntityModel<T, ID> model(@Nonnull KClass<T> type);
+    <T extends Record & Entity<ID>, ID> KModel<T, ID> model(@Nonnull KClass<T> type);
 
     <T extends Record> KQueryBuilder<T, T, Object> selectFrom(@Nonnull KClass<T> fromType);
 

@@ -5,7 +5,7 @@ import kotlin.reflect.KClass;
 import st.orm.BindVars;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KQuery;
-import st.orm.kotlin.repository.KEntityModel;
+import st.orm.kotlin.repository.KModel;
 import st.orm.kotlin.template.KORMTemplate;
 import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.repository.Entity;
@@ -31,9 +31,9 @@ public class KORMTemplateImpl implements KORMTemplate {
     }
 
     @Override
-    public <T extends Record & Entity<ID>, ID> KEntityModel<T, ID> model(@Nonnull KClass<T> type) {
+    public <T extends Record & Entity<ID>, ID> KModel<T, ID> model(@Nonnull KClass<T> type) {
         //noinspection unchecked
-        return new KEntityModel<>(ORM.model((Class<T>) REFLECTION.getType(type)));
+        return new KModel<>(ORM.model((Class<T>) REFLECTION.getType(type)));
     }
 
     @Override

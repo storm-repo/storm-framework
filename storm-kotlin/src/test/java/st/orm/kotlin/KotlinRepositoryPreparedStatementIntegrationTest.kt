@@ -25,7 +25,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
 
     @Test
     fun testWithArg() {
-        val list = ORM(dataSource).repository(Pet::class)
+        val list = ORM(dataSource).entityRepository(Pet::class)
             .select()
             .where { "${it(Pet::class)}.id = 7" }
             .resultList
@@ -35,7 +35,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
 
     @Test
     fun testWithTwoArgs() {
-        val list = ORM(dataSource).repository(Pet::class)
+        val list = ORM(dataSource).entityRepository(Pet::class)
             .select()
             .where { "${it(Pet::class)}.id = 7 OR ${it(Pet::class)}.id = 8" }
             .resultList
@@ -46,7 +46,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
 
     @Test
     fun testBuilderWithAutoJoin() {
-        val list = ORM(dataSource).repository(Pet::class)
+        val list = ORM(dataSource).entityRepository(Pet::class)
             .select()
             .innerJoin(Visit::class).on(Pet::class)
             .where(Visit(1, null, null, null))
@@ -57,7 +57,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
 
     @Test
     fun testWithKotlinDataClass() {
-        val list = ORM(dataSource).repository(KotlinPet::class)
+        val list = ORM(dataSource).entityRepository(KotlinPet::class)
             .select()
             .resultList
         assertEquals(13, list.size)

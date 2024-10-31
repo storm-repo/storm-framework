@@ -18,7 +18,7 @@ package st.orm.kotlin.repository;
 import jakarta.annotation.Nonnull;
 import kotlin.jvm.JvmClassMappingKt;
 import kotlin.reflect.KClass;
-import st.orm.repository.EntityModel;
+import st.orm.repository.Model;
 
 import java.util.List;
 
@@ -27,19 +27,19 @@ import static java.util.List.copyOf;
 /**
  * Represents the model of an entity.
  */
-public record KEntityModel<E extends Record, ID>(
-        @Nonnull String tableName,
+public record KModel<E extends Record, ID>(
+        @Nonnull String name,
         @Nonnull KClass<E> type,
         @Nonnull KClass<ID> primaryKeyType,
         @Nonnull List<KColumn> columns) {
 
-    public KEntityModel {
+    public KModel {
         columns = copyOf(columns); // Defensive copy.
     }
 
-    public KEntityModel(@Nonnull EntityModel<E, ID> model) {
+    public KModel(@Nonnull Model<E, ID> model) {
         this(
-                model.tableName(),
+                model.name(),
                 JvmClassMappingKt.getKotlinClass(model.type()),
                 JvmClassMappingKt.getKotlinClass(model.primaryKeyType()),
                 model.columns().stream()

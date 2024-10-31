@@ -17,7 +17,6 @@ package st.orm.repository;
 
 import jakarta.annotation.Nonnull;
 import st.orm.BatchCallback;
-import st.orm.BindVars;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.ResultCallback;
@@ -36,14 +35,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      *
      * @return the entity model.
      */
-    EntityModel<E, ID> model();
-
-    /**
-     * Creates and returns a new instance of {@link BindVars} for use in database queries.
-     *
-     * @return a new instance of {@link BindVars}, ready to be populated with data for a database query.
-     */
-    BindVars createBindVars();
+    Model<E, ID> model();
 
     // Query builder methods.
 

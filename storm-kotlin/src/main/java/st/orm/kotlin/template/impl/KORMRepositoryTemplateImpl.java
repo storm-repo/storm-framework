@@ -2,13 +2,15 @@ package st.orm.kotlin.template.impl;
 
 import jakarta.annotation.Nonnull;
 import kotlin.reflect.KClass;
-import st.orm.BindVars;
 import st.orm.PersistenceException;
 import st.orm.kotlin.repository.KEntityRepository;
+import st.orm.kotlin.repository.KProjectionRepository;
 import st.orm.kotlin.repository.KRepository;
 import st.orm.kotlin.spi.KEntityRepositoryImpl;
+import st.orm.kotlin.spi.KProjectionRepositoryImpl;
 import st.orm.kotlin.template.KORMRepositoryTemplate;
 import st.orm.repository.Entity;
+import st.orm.repository.Projection;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.ORMRepositoryTemplate;
@@ -45,14 +47,25 @@ public final class KORMRepositoryTemplateImpl extends KORMTemplateImpl implement
     }
 
     @Override
-    public <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> repository(@Nonnull Class<T> type) {
-        return new KEntityRepositoryImpl<>(ORM.repository(type));
+    public <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> entityRepository(@Nonnull Class<T> type) {
+        return new KEntityRepositoryImpl<>(ORM.entityRepository(type));
     }
 
     @Override
-    public <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> repository(@Nonnull KClass<T> type) {
+    public <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> entityRepository(@Nonnull KClass<T> type) {
         //noinspection unchecked
-        return repository((Class<T>) REFLECTION.getType(type));
+        return entityRepository((Class<T>) REFLECTION.getType(type));
+    }
+
+    @Override
+    public <T extends Record & Projection<ID>, ID> KProjectionRepository<T, ID> projectionRepository(@Nonnull Class<T> type) {
+        return new KProjectionRepositoryImpl<>(ORM.projectionRepository(type));
+    }
+
+    @Override
+    public <T extends Record & Projection<ID>, ID> KProjectionRepository<T, ID> projectionRepository(@Nonnull KClass<T> type) {
+        //noinspection unchecked
+        return projectionRepository((Class<T>) REFLECTION.getType(type));
     }
 
     @Override
@@ -122,7 +135,7 @@ public final class KORMRepositoryTemplateImpl extends KORMTemplateImpl implement
             if (entityClass == null) {
                 throw new IllegalArgumentException(STR."Could not determine entity class for repository: \{type.getSimpleName()}.");
             }
-            return Optional.of(repository((Class<T>) entityClass));
+            return Optional.of(entityRepository((Class<T>) entityClass));
         }
         return empty();
     }
@@ -132,11 +145,6 @@ public final class KORMRepositoryTemplateImpl extends KORMTemplateImpl implement
             @Override
             public KORMRepositoryTemplate template() {
                 return KORMRepositoryTemplateImpl.this;
-            }
-
-            @Override
-            public BindVars createBindVars() {
-                return KORMRepositoryTemplateImpl.this.createBindVars();
             }
         };
     }

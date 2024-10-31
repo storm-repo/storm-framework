@@ -18,23 +18,24 @@ package st.orm.model;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
-import st.orm.Inline;
+import st.orm.FK;
 import st.orm.Name;
-import st.orm.PK;
 import st.orm.Version;
-import st.orm.repository.Entity;
+import st.orm.repository.Projection;
+
+import java.time.Instant;
+import java.time.LocalDate;
 
 /**
- * Simple domain object representing an owner.
+ * Simple domain object representing a visit.
  *
+ * @author Leon van Zantvoort
  */
 @Builder(toBuilder = true)
-public record Owner(
-        @PK Integer id,
-        @Nonnull @Name("first_name") String firstName,
-        @Nonnull @Name("last_name") String lastName,
-        @Nonnull @Inline Address address,
-        @Nullable String telephone,
-        @Version int version
-) implements Person, Entity<Integer> {
-}
+@Name("visit_view")
+public record VisitView(
+        @Nonnull @Name("visit_date") LocalDate visitDate,
+        @Nullable String description,
+        @Nonnull @FK @Name("pet_id") Pet pet,
+        @Version Instant timestamp
+) implements Projection<Void> {}    // Not exposing the primary key of the underlying visit table.

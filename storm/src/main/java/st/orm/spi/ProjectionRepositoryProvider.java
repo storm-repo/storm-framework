@@ -13,24 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spi.mysql;
+package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
-import st.orm.repository.Entity;
 import st.orm.repository.Model;
-import st.orm.repository.EntityRepository;
-import st.orm.spi.EntityRepositoryProvider;
+import st.orm.repository.Projection;
+import st.orm.repository.ProjectionRepository;
 import st.orm.template.ORMRepositoryTemplate;
 
-/**
- * Implementation of {@link EntityRepositoryProvider} for MySQL.
- */
-public class MysqlEntityRepositoryProviderImpl implements EntityRepositoryProvider {
+public interface ProjectionRepositoryProvider extends Provider {
 
-    @Override
-    public <ID, E extends Record & Entity<ID>> EntityRepository<E, ID> getEntityRepository(
-            @Nonnull ORMRepositoryTemplate orm,
-            @Nonnull Model<E, ID> model) {
-        return new MysqlEntityRepositoryImpl<>(orm, model);
-    }
+    <ID, P extends Record & Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(@Nonnull ORMRepositoryTemplate orm,
+                                                                                                @Nonnull Model<P, ID> model);
 }

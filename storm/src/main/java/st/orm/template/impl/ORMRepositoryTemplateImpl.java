@@ -17,13 +17,14 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.BindVars;
 import st.orm.PersistenceException;
 import st.orm.repository.Entity;
 import st.orm.repository.EntityRepository;
+import st.orm.repository.Projection;
+import st.orm.repository.ProjectionRepository;
 import st.orm.repository.Repository;
-import st.orm.spi.EntityRepositoryProvider;
 import st.orm.spi.ORMReflection;
+import st.orm.spi.Provider;
 import st.orm.spi.Providers;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
@@ -54,13 +55,18 @@ public final class ORMRepositoryTemplateImpl extends ORMTemplateImpl implements 
                                      @Nullable TableNameResolver tableNameResolver,
                                      @Nullable ColumnNameResolver columnNameResolver,
                                      @Nullable ForeignKeyResolver foreignKeyResolver,
-                                     @Nullable Predicate<? super EntityRepositoryProvider> providerFilter) {
+                                     @Nullable Predicate<? super Provider> providerFilter) {
         super(factory, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter);
     }
 
     @Override
-    public <T extends Record & Entity<ID>, ID> EntityRepository<T, ID> repository(@Nonnull Class<T> type) {
-        return wrapRepository(Providers.getEntityRepository(this, model(type), providerFilter == null ? _ -> true : providerFilter));
+    public <T extends Record & Entity<ID>, ID> EntityRepository<T, ID> entityRepository(@Nonnull Class<T> type) {
+        return wrapRepository(Providers.getEntityRepository(this, createModel(type, true), providerFilter == null ? _ -> true : providerFilter));
+    }
+
+    @Override
+    public <T extends Record & Projection<ID>, ID> ProjectionRepository<T, ID> projectionRepository(@Nonnull Class<T> type) {
+        return wrapRepository(Providers.getProjectionRepository(this, createModel(type, false), providerFilter == null ? _ -> true : providerFilter));
     }
 
     @SuppressWarnings("unchecked")
@@ -101,7 +107,7 @@ public final class ORMRepositoryTemplateImpl extends ORMTemplateImpl implements 
 
     private <T extends Record & Entity<ID>, ID> Optional<EntityRepository<T, ID>> createEntityRepository(@Nonnull Class<?> type) {
         //noinspection unchecked
-        return findGenericClass(type, EntityRepository.class, 0).map(cls -> repository((Class<T>) (Object) cls));
+        return findGenericClass(type, EntityRepository.class, 0).map(cls -> entityRepository((Class<T>) (Object) cls));
     }
 
     private Repository createRepository() {
@@ -109,11 +115,6 @@ public final class ORMRepositoryTemplateImpl extends ORMTemplateImpl implements 
             @Override
             public ORMRepositoryTemplate template() {
                 return ORMRepositoryTemplateImpl.this;
-            }
-
-            @Override
-            public BindVars createBindVars() {
-                return ORMRepositoryTemplateImpl.this.createBindVars();
             }
         };
     }

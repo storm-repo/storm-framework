@@ -17,7 +17,7 @@ package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
 import st.orm.repository.Entity;
-import st.orm.repository.EntityModel;
+import st.orm.repository.Model;
 import st.orm.repository.EntityRepository;
 import st.orm.spi.Orderable.AfterAny;
 import st.orm.template.ORMRepositoryTemplate;
@@ -28,7 +28,7 @@ public class DefaultEntityRepositoryProviderImpl implements EntityRepositoryProv
     @Override
     public <ID, E extends Record & Entity<ID>> EntityRepository<E, ID> getEntityRepository(
             @Nonnull ORMRepositoryTemplate orm,
-            @Nonnull EntityModel<E, ID> model) {
+            @Nonnull Model<E, ID> model) {
         return new EntityRepositoryImpl<>(orm, model);
     }
 }

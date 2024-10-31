@@ -13,19 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.repository;
+package st.orm.kotlin.repository;
 
-import st.orm.template.ORMRepositoryTemplate;
+import st.orm.repository.Projection;
+import st.orm.repository.ProjectionRepository;
 
 /**
- * Base interface for all repositories.
+ * Optional marker interface for record-based projections.
+ *
+ * <p>This interface is only required when ORM mapping is used in combination with {@code ProjectionRepository}.
+ *
+ * @param <ID> the type of the projection's primary key.
+ * @see ProjectionRepository
  */
-public interface Repository {
-
-    /**
-     * Provides access to the underlying ORM template.
-     *
-     * @return the ORM template.
-     */
-    ORMRepositoryTemplate template();
+public interface KProjection<ID> extends Projection<ID> {
 }
