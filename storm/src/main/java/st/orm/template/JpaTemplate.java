@@ -18,13 +18,12 @@ package st.orm.template;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
-import st.orm.Templates;
 import st.orm.template.impl.JpaTemplateImpl;
 
 /**
  * Provides access to JPA templates.
  */
-public interface JpaTemplate extends Templates {
+public interface JpaTemplate {
 
     /**
      * Creates a new JPA template for the given entity manager.

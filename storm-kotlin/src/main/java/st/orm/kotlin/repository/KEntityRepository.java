@@ -17,6 +17,7 @@ package st.orm.kotlin.repository;
 
 import jakarta.annotation.Nonnull;
 import kotlin.sequences.Sequence;
+import st.orm.BindVars;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KBatchCallback;
@@ -37,6 +38,13 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * @return the entity model.
      */
     KEntityModel<E, ID> model();
+
+    /**
+     * Creates and returns a new instance of {@link BindVars} for use in database queries.
+     *
+     * @return a new instance of {@link BindVars}, ready to be populated with data for a database query.
+     */
+    BindVars createBindVars();
 
     // Query builder methods.
 

@@ -20,8 +20,6 @@ import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import kotlin.reflect.KClass;
 import st.orm.BindVars;
-import st.orm.NoResultException;
-import st.orm.NonUniqueResultException;
 import st.orm.TemporalType;
 import st.orm.kotlin.template.KORMRepositoryTemplate;
 import st.orm.kotlin.template.KORMTemplate;
@@ -87,40 +85,22 @@ public interface KTemplates {
     static Element values(@Nonnull Stream<? extends Record> records) {
         return new Values(requireNonNull(records, "records"), null);
     }
-    default Element v(@Nonnull Stream<? extends Record> records) {
-        return values(records);
-    }
     static Element values(@Nonnull Record record) {
         return new Values(Stream.of(record), null);
     }
-    default Element v(@Nonnull Record record) {
-        return values(record);
-    }
     static Element values(@Nonnull BindVars bindVars) {
         return new Values(null, requireNonNull(bindVars, "bindVars"));
-    }
-    default Element v(@Nonnull BindVars bindVars) {
-        return values(bindVars);
     }
 
     static Element set(@Nonnull Record record) {
         return new Set(requireNonNull(record, "record"), null);
     }
-    default Element st(@Nonnull Record record) {
-        return set(record);
-    }
     static Element set(@Nonnull BindVars bindVars) {
         return new Set(null, requireNonNull(bindVars, "bindVars"));
-    }
-    default Element st(@Nonnull BindVars bindVars) {
-        return set(bindVars);
     }
 
     static Element where(@Nonnull Expression expression) {
         return new Where(expression, null);
-    }
-    default Element w(@Nonnull Expression expression) {
-        return where(expression);
     }
     static Element where(@Nonnull Iterable<?> it) {
         return new Where(new ObjectExpression(it, EQUALS, null), null);
@@ -128,56 +108,29 @@ public interface KTemplates {
     static Element where(@Nonnull Object... o) {
         return new Where(new ObjectExpression(o, EQUALS, null), null);
     }
-    default Element w(@Nonnull Iterable<?> it) {
-        return where(it);
-    }
-    default Element w(@Nonnull Object... o) {
-        return where(o);
-    }
     static Element where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
         return new Where(new ObjectExpression(it, operator, path), null);
     }
     static Element where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
         return new Where(new ObjectExpression(o, operator, path), null);
     }
-    default Element w(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
-        return where(path, operator, it);
-    }
-    default Element w(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
-        return where(path, operator, o);
-    }
     static Element where(@Nonnull BindVars bindVars) {
         return new Where(null, requireNonNull(bindVars, "bindVars"));
-    }
-    default Element w(@Nonnull BindVars bindVars) {
-        return where(bindVars);
     }
 
     static Element param(@Nullable Object value) {
         return new Param(null, value);
     }
-    default Element p(@Nullable Object value) {
-        return param(value);
-    }
     static Element param(@Nonnull String name, @Nullable Object value) {
         return new Param(requireNonNull(name, "name"), value);
-    }
-    default Element p(@Nonnull String name, @Nullable Object value) {
-        return param(name, value);
     }
     static <P> Element param(@Nullable P value, @Nonnull Function<? super P, ?> converter) {
         //noinspection unchecked
         return new Param(null, value, (Function<Object, ?>) requireNonNull(converter, "converter"));
     }
-    default <P> Element p(@Nullable P value, @Nonnull Function<? super P, ?> converter) {
-        return param(value, converter);
-    }
     static <P> Element param(@Nonnull String name, @Nullable P value, @Nonnull Function<? super P, ?> converter) {
         //noinspection unchecked
         return new Param(name, value, (Function<Object, ?>) requireNonNull(converter, "converter"));
-    }
-    default <P> Element p(@Nonnull String name, @Nullable P value, @Nonnull Function<? super P, ?> converter) {
-        return param(name, value, converter);
     }
     static Element param(@Nonnull Date value, @Nonnull TemporalType temporalType) {
         return param(value, v -> switch (temporalType) {
@@ -186,18 +139,12 @@ public interface KTemplates {
             case TIMESTAMP -> new java.sql.Timestamp(v.getTime());
         });
     }
-    default Element p(@Nonnull Date value, @Nonnull TemporalType temporalType) {
-        return param(value, temporalType);
-    }
     static Element param(@Nonnull String name, @Nonnull Date value, @Nonnull TemporalType temporalType) {
         return param(name, value, v -> switch (temporalType) {
             case DATE -> new java.sql.Date(v.getTime());
             case TIME -> new java.sql.Time(v.getTime());
             case TIMESTAMP -> new java.sql.Timestamp(v.getTime());
         });
-    }
-    default Element p(@Nonnull String name, @Nonnull Date value, @Nonnull TemporalType temporalType) {
-        return param(name, value, temporalType);
     }
     static Element param(@Nonnull Calendar value, @Nonnull TemporalType temporalType) {
         return param(value, v -> switch (temporalType) {
@@ -206,9 +153,6 @@ public interface KTemplates {
             case TIMESTAMP -> new java.sql.Timestamp(v.getTimeInMillis());
         });
     }
-    default Element p(@Nonnull Calendar value, @Nonnull TemporalType temporalType) {
-        return param(value, temporalType);
-    }
     static Element param(@Nonnull String name, @Nonnull Calendar value, @Nonnull TemporalType temporalType) {
         return param(name, value, v -> switch (temporalType) {
             case DATE -> new java.sql.Date(v.getTimeInMillis());
@@ -216,101 +160,45 @@ public interface KTemplates {
             case TIMESTAMP -> new java.sql.Timestamp(v.getTimeInMillis());
         });
     }
-    default Element p(@Nonnull String name, @Nonnull Calendar value, @Nonnull TemporalType temporalType) {
-        return param(name, value, temporalType);
-    }
 
     static Element unsafe(@Nonnull String sql) {
         return new Unsafe(sql);
     }
 
-    /**
-     * Returns the single result of the stream.
-     *
-     * @param stream the stream to get the single result from.
-     * @return the single result of the stream.
-     * @param <T> the type of the result.
-     * @throws NoResultException if there is no result.
-     * @throws NonUniqueResultException if more than one result.
-     */
-    default <T> T singleResult(Stream<T> stream) {
-        return stream
-                .reduce((_, _) -> {
-                    throw new NonUniqueResultException("Expected single result, but found more than one.");
-                }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
-    }
-
-    /**
-     * Create a new bind variables instance that can be used to add bind variables to a batch.
-     *
-     * @return a new bind variables instance.
-     */
-    BindVars createBindVars();
-
     static Element select(KClass<? extends Record> table) {
         return new Select(getORMReflection().getRecordType(table));
-    }
-    default Element s(KClass<? extends Record> table) {
-        return select(table);
     }
 
     static Element insert(@Nonnull KClass<? extends Record> table) {
         return new Insert(getORMReflection().getRecordType(table));
     }
-    default Element i(@Nonnull KClass<? extends Record> table) {
-        return insert(table);
-    }
 
     static Element update(@Nonnull KClass<? extends Record> table) {
         return new Update(getORMReflection().getRecordType(table));
     }
-    default Element u(@Nonnull KClass<? extends Record> table) {
-        return update(table);
-    }
     static Element update(@Nonnull KClass<? extends Record> table, @Nonnull String alias) {
         return new Update(getORMReflection().getRecordType(table), alias);
-    }
-    default Element u(@Nonnull KClass<? extends Record> table, @Nonnull String alias) {
-        return update(table, alias);
     }
 
     static Element delete(@Nonnull KClass<? extends Record> table) {
         return new Delete(getORMReflection().getRecordType(table));
     }
-    default Element d(@Nonnull KClass<? extends Record> table) {
-        return delete(table);
-    }
     static Element delete(@Nonnull KClass<? extends Record> table, @Nonnull String alias) {
         return new Delete(getORMReflection().getRecordType(table), alias);
-    }
-    default Element d(@Nonnull KClass<? extends Record> table, @Nonnull String alias) {
-        return delete(table, alias);
     }
 
     static Element from(@Nonnull KClass<? extends Record> table) {
         return new From(getORMReflection().getRecordType(table));
     }
-    default Element f(@Nonnull KClass<? extends Record> table) {
-        return from(table);
-    }
     static Element from(@Nonnull KClass<? extends Record> table, @Nonnull String alias) {
         return new From(new TableSource(getORMReflection().getRecordType(table)), requireNonNull(alias, "alias"));
-    }
-    default Element f(@Nonnull KClass<? extends Record> table, @Nonnull String alias) {
-        return from(table, alias);
     }
 
     static Element table(@Nonnull KClass<? extends Record> table) {
         return new Table(getORMReflection().getRecordType(table));
     }
-    default Element t(@Nonnull KClass<? extends Record> table) {
-        return table(table);
-    }
     static Element table(@Nonnull KClass<? extends Record> table, @Nonnull String alias) {
         return new Table(getORMReflection().getRecordType(table), alias);
-    }
-    default Element t(@Nonnull KClass<? extends Record> table, @Nonnull String alias) {
-        return table(table, alias);
     }
 
     static Element alias(@Nonnull KClass<? extends Record> table) {
@@ -318,11 +206,5 @@ public interface KTemplates {
     }
     static Element alias(@Nonnull KClass<? extends Record> table, @Nullable String path) {
         return new Alias(getORMReflection().getRecordType(table), path);
-    }
-    default Element a(@Nonnull KClass<? extends Record> table) {
-        return a(table, null);
-    }    
-    default Element a(@Nonnull KClass<? extends Record> table, @Nullable String path) {
-        return alias(table, path);
     }
 }

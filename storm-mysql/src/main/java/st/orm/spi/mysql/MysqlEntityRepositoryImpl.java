@@ -17,6 +17,8 @@ package st.orm.spi.mysql;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.NoResultException;
+import st.orm.NonUniqueResultException;
 import st.orm.PersistenceException;
 import st.orm.PreparedQuery;
 import st.orm.repository.Column;
@@ -118,7 +120,12 @@ public class MysqlEntityRepositoryImpl<E extends Record & Entity<ID>, ID> extend
                 INSERT INTO \{model.type()}
                 VALUES \{entity}\{unsafe(onDuplicateKey())}""").prepare()) {
             query.executeUpdate();
-            return singleResult(query.getGeneratedKeys(model.primaryKeyType()));
+            try (var stream = query.getGeneratedKeys(model.primaryKeyType())) {
+                return stream
+                        .reduce((_, _) -> {
+                            throw new NonUniqueResultException("Expected single result, but found more than one.");
+                        }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
+            }
         }
     }
 

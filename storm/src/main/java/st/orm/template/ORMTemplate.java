@@ -19,11 +19,10 @@ import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
 import st.orm.PreparedQuery;
 import st.orm.Query;
-import st.orm.Templates;
 import st.orm.repository.Entity;
 import st.orm.repository.EntityModel;
 
-public interface ORMTemplate extends Templates {
+public interface ORMTemplate {
 
     /**
      * Create a new bind variables instance that can be used to add bind variables to a batch.

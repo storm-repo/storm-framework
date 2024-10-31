@@ -17,7 +17,6 @@ package st.orm.template;
 
 import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
-import st.orm.Templates;
 import st.orm.spi.Provider;
 import st.orm.template.impl.PreparedStatementTemplateImpl;
 
@@ -27,7 +26,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.function.Predicate;
 
-public interface PreparedStatementTemplate extends Templates, StringTemplate.Processor<PreparedStatement, SQLException> {
+public interface PreparedStatementTemplate {
 
     static PreparedStatementTemplate of(@Nonnull DataSource dataSource) {
         return new PreparedStatementTemplateImpl(dataSource);
@@ -62,4 +61,5 @@ public interface PreparedStatementTemplate extends Templates, StringTemplate.Pro
      */
     BindVars createBindVars();
 
+    PreparedStatement query(@Nonnull StringTemplate template) throws SQLException;
 }

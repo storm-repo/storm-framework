@@ -267,7 +267,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     }
 
     @Override
-    public PreparedStatement process(StringTemplate template) throws SQLException {
+    public PreparedStatement query(@Nonnull StringTemplate template) throws SQLException {
         var sql = sqlTemplate().process(template);
         return templateProcessor.process(sql.statement(), sql.parameters(), sql.bindVariables().orElse(null), sql.generatedKeys());
     }

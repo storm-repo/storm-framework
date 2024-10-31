@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.junit.jupiter.SpringExtension
-import st.orm.kotlin.KTemplates.ORM
+import st.orm.kotlin.KTemplates.*
 import st.orm.kotlin.model.Owner
 import st.orm.kotlin.model.Pet
 import st.orm.kotlin.model.PetType
@@ -41,14 +41,13 @@ open class KotlinTemplatePreparedStatementIntegrationTest {
     @Test
     fun testSelectPetWithJoins() {
         val nameFilter = "%y%"
-        val orm = ORM(dataSource)
-        val stream = orm.query {
+        val stream = ORM(dataSource).query {
             """
-            SELECT ${it(orm.s(Pet::class))}
-            FROM ${it(orm.t(Pet::class, "p"))}
-            INNER JOIN ${it(orm.t(PetType::class, "pt"))} ON p.type_id = pt.id
-            LEFT OUTER JOIN ${it(orm.t(Owner::class, "o"))} ON p.owner_id = o.id
-            WHERE p.name LIKE ${it(orm.p(nameFilter))}
+            SELECT ${it(select(Pet::class))}
+            FROM ${it(table(Pet::class, "p"))}
+            INNER JOIN ${it(table(PetType::class, "pt"))} ON p.type_id = pt.id
+            LEFT OUTER JOIN ${it(table(Owner::class, "o"))} ON p.owner_id = o.id
+            WHERE p.name LIKE ${it(param(nameFilter))}
             """.trimIndent()
         }.getResultStream(Pet::class)
         assertEquals(5, stream.filter(Objects::nonNull)

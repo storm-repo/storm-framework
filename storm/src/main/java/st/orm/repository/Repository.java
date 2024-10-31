@@ -15,13 +15,13 @@
  */
 package st.orm.repository;
 
-import st.orm.Templates;
+import st.orm.BindVars;
 import st.orm.template.ORMRepositoryTemplate;
 
 /**
  * Base interface for all repositories.
  */
-public interface Repository extends Templates {
+public interface Repository {
 
     /**
      * Provides access to the underlying ORM template.
@@ -29,4 +29,11 @@ public interface Repository extends Templates {
      * @return the ORM template.
      */
     ORMRepositoryTemplate template();
+
+    /**
+     * Creates and returns a new instance of {@link BindVars} for use in database queries.
+     *
+     * @return a new instance of {@link BindVars}, ready to be populated with data for a database query.
+     */
+    BindVars createBindVars();
 }

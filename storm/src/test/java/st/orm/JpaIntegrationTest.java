@@ -15,7 +15,6 @@ import st.orm.model.PetTypeEnum;
 import st.orm.model.Vet;
 
 import java.time.LocalDate;
-import java.util.Arrays;
 import java.util.Objects;
 
 import static java.lang.StringTemplate.RAW;
@@ -34,8 +33,7 @@ public class JpaIntegrationTest {
     @Test
     public void testSelectVet() {
         try (var query = ORM(entityManager).query(RAW."SELECT * FROM vet").prepare()) {
-            var stream = query.getResultStream();
-            assertEquals(6, stream.map(Arrays::asList).count());
+            assertEquals(6, query.getResultCount());
         }
     }
 
@@ -46,8 +44,7 @@ public class JpaIntegrationTest {
             FROM pet p 
               INNER JOIN pet_type pt ON p.type_id = pt.id 
               INNER JOIN owner o ON p.owner_id = o.id""").prepare()) {
-            var stream = query.getResultStream();
-            assertEquals(12, stream.map(Arrays::asList).count());
+            assertEquals(12, query.getResultCount());
         }
     }
 
@@ -196,8 +193,7 @@ public class JpaIntegrationTest {
     @Test
     public void testSelectVetRecord() {
         try (var query = ORM(entityManager).query(RAW."SELECT \{Vet.class} FROM \{Vet.class}").prepare()) {
-            var stream = query.getResultStream();
-            stream.toList();
+            assertEquals(6, query.getResultCount());
         }
     }
 }

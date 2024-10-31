@@ -561,27 +561,30 @@ record ElementProcessor(
         throw new SqlTemplateException("No values found for Values.");
     }
 
+    private String toArgsString(Iterable<?> iterable) {
+        List<String> args = new ArrayList<>();
+        for (var v : iterable) {
+            args.add("?");
+            args.add(", ");
+            parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), v));
+        }
+        if (!args.isEmpty()) {
+            args.removeLast();    // Remove last ", " element.
+        }
+        return String.join("", args);
+    }
+
     private String registerParam(@Nullable Object value) throws SqlTemplateException {
-        switch (value) {
-            case Object[] _ ->
-                    throw new SqlTemplateException("Array parameters not supported.");   // Max compatibility with JPA.
-            case Iterable<?> it when sqlTemplate.expandCollection() -> {
-                List<String> args = new ArrayList<>();
-                for (var v : it) {
-                    args.add("?");
-                    args.add(", ");
-                    parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), v));
-                }
-                if (!args.isEmpty()) {
-                    args.removeLast();    // Remove last ", " element.
-                }
-                return String.join("", args);
-            }
+        return switch (value) {
+            case Object[] array when sqlTemplate.expandCollection() -> toArgsString(List.of(array));
+            case Iterable<?> it when sqlTemplate.expandCollection() -> toArgsString(it);
+            case Object[] _ -> throw new SqlTemplateException("Array parameters not supported.");
+            case Iterable<?> _ -> throw new SqlTemplateException("Collection parameters not supported.");
             case null, default -> {
                 parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), value));
-                return "?";
+                yield "?";
             }
-        }
+        };
     }
 
     private String registerParam(@Nonnull String name, @Nullable Object value) throws SqlTemplateException {

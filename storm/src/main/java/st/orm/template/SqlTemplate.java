@@ -18,7 +18,6 @@ package st.orm.template;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.BindVars;
-import st.orm.Templates;
 import st.orm.template.impl.BindVarsHandle;
 import st.orm.template.impl.SqlTemplateImpl;
 
@@ -31,7 +30,7 @@ import static st.orm.template.impl.SqlTemplateImpl.CONSUMERS;
 /**
  * A template processor for generating SQL queries.
  */
-public interface SqlTemplate extends Templates, StringTemplate.Processor<Sql, SqlTemplateException> {
+public interface SqlTemplate {
 
     sealed interface Parameter {
         Object dbValue();
@@ -88,6 +87,8 @@ public interface SqlTemplate extends Templates, StringTemplate.Processor<Sql, Sq
     SqlTemplate withSupportRecords(boolean supportRecords);
 
     boolean supportRecords();
+
+    Sql process(@Nonnull StringTemplate template) throws SqlTemplateException;
 
     /**
      * Wrap the given action with a consumer that will be called with the generated SQL. This method is primarily

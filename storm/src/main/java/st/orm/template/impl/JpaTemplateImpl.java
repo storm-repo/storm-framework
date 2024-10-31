@@ -60,11 +60,6 @@ public final class JpaTemplateImpl implements JpaTemplate {
         };
     }
 
-    @Override
-    public BindVars createBindVars() {
-        throw new UnsupportedOperationException("Not supported by JPA.");
-    }
-
     private void setParameters(@Nonnull jakarta.persistence.Query query, @Nonnull List<SqlTemplate.Parameter> parameters) {
         for (var parameter : parameters) {
             var dbValue = parameter.dbValue();

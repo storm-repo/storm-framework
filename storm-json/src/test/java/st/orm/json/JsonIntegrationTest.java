@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static st.orm.Templates.ORM;
+import static st.orm.Templates.alias;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
@@ -132,13 +133,12 @@ public class JsonIntegrationTest {
 
     @Test
     public void testVetWithSpecialties() {
-        var ORM = ORM(dataSource);
-        var vets = ORM
+        var vets = ORM(dataSource)
                 .selectFrom(Vet.class, VetWithSpecialties.class, RAW."""
                         \{Vet.class}, JSON_ARRAYAGG(
                             JSON_OBJECT(
-                                KEY 'id' VALUE \{ORM.a(Specialty.class)}.id,
-                                KEY 'name' VALUE \{ORM.a(Specialty.class)}.name
+                                KEY 'id' VALUE \{alias(Specialty.class)}.id,
+                                KEY 'name' VALUE \{alias(Specialty.class)}.name
                             )
                         ) AS specialties""")
                 .innerJoin(VetSpecialty.class).on(Vet.class)
@@ -153,9 +153,8 @@ public class JsonIntegrationTest {
 
     @Test
     public void testVetWithSpecialtyList() {
-        var ORM = ORM(dataSource);
-        var vets = ORM.selectFrom(Vet.class, VetWithSpecialtyList.class, RAW."""
-                        \{Vet.class}, JSON_ARRAYAGG(\{ORM.a(Specialty.class)}.name) AS specialties""")
+        var vets = ORM(dataSource).selectFrom(Vet.class, VetWithSpecialtyList.class, RAW."""
+                        \{Vet.class}, JSON_ARRAYAGG(\{alias(Specialty.class)}.name) AS specialties""")
                 .innerJoin(VetSpecialty.class).on(Vet.class)
                 .innerJoin(Specialty.class).on(VetSpecialty.class)
                 .append(RAW."GROUP BY \{Vet.class}.id")

@@ -19,7 +19,6 @@ import jakarta.annotation.Nonnull;
 import kotlin.reflect.KClass;
 import st.orm.BindVars;
 import st.orm.kotlin.KQuery;
-import st.orm.kotlin.KTemplates;
 import st.orm.kotlin.repository.KEntityModel;
 import st.orm.kotlin.template.impl.KORMTemplateImpl;
 import st.orm.repository.Entity;
@@ -28,7 +27,7 @@ import st.orm.template.TemplateFunction;
 
 import static st.orm.template.TemplateFunction.template;
 
-public interface KORMTemplate extends KTemplates {
+public interface KORMTemplate {
 
     static KORMTemplate from(ORMTemplate ormTemplate) {
         return new KORMTemplateImpl(ormTemplate);

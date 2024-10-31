@@ -15,13 +15,13 @@
  */
 package st.orm.kotlin.repository;
 
-import st.orm.kotlin.KTemplates;
+import st.orm.BindVars;
 import st.orm.kotlin.template.KORMTemplate;
 
 /**
  * Base interface for all repositories.
  */
-public interface KRepository extends KTemplates {
+public interface KRepository {
 
     /**
      * Provides access to the underlying ORM template.
@@ -29,4 +29,11 @@ public interface KRepository extends KTemplates {
      * @return the ORM template.
      */
     KORMTemplate template();
+
+    /**
+     * Creates and returns a new instance of {@link BindVars} for use in database queries.
+     *
+     * @return a new instance of {@link BindVars}, ready to be populated with data for a database query.
+     */
+    BindVars createBindVars();
 }

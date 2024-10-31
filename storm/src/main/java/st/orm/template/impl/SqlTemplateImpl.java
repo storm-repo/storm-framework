@@ -99,6 +99,8 @@ import static st.orm.Templates.select;
 import static st.orm.Templates.set;
 import static st.orm.Templates.table;
 import static st.orm.Templates.update;
+import static st.orm.Templates.values;
+import static st.orm.Templates.where;
 import static st.orm.spi.Providers.getORMConverter;
 
 /**
@@ -317,13 +319,13 @@ public final class SqlTemplateImpl implements SqlTemplate {
                                            @Nonnull List<Element> resolvedElements,
                                            @Nonnull BindVars bindVars) throws SqlTemplateException {
         return switch (mode) {
-            case SELECT, DELETE -> w(bindVars);
-            case INSERT -> v(bindVars);
+            case SELECT, DELETE -> where(bindVars);
+            case INSERT -> values(bindVars);
             case UPDATE -> {
                 if (resolvedElements.stream().noneMatch(Elements.Set.class::isInstance)) {
                     yield set(bindVars);
                 }
-                yield w(bindVars);
+                yield where(bindVars);
             }
             case UNDEFINED -> throw new SqlTemplateException("BindVars element not supported in undefined sql mode.");
         };
@@ -333,13 +335,13 @@ public final class SqlTemplateImpl implements SqlTemplate {
                                          @Nonnull List<Element> resolvedElements,
                                          @Nonnull Record record) throws SqlTemplateException {
         return switch (mode) {
-            case SELECT, DELETE -> w(record);
-            case INSERT -> v(record);
+            case SELECT, DELETE -> where(record);
+            case INSERT -> values(record);
             case UPDATE -> {
                 if (resolvedElements.stream().noneMatch(Elements.Set.class::isInstance)) {
                     yield set(record);
                 }
-                yield w(record);
+                yield where(record);
             }
             case UNDEFINED -> throw new SqlTemplateException("Record element not supported in undefined sql mode.");
         };
@@ -349,8 +351,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
     private Element resolveStreamElement(@Nonnull SqlMode mode,
                                          @Nonnull Stream<?> stream) throws SqlTemplateException {
         return switch (mode) {
-            case SELECT, DELETE -> w(stream);
-            case INSERT -> v((Stream<Record>) stream);
+            case SELECT, DELETE -> where(stream);
+            case INSERT -> values((Stream<Record>) stream);
             case UPDATE -> throw new SqlTemplateException("Stream element not supported in update sql mode.");
             case UNDEFINED -> throw new SqlTemplateException("Stream element not supported in undefined sql mode.");
         };
@@ -825,7 +827,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 if (delete.alias().isEmpty()) {
                     if (!effectiveFrom.alias().isEmpty()) {
                         elements.replaceAll(element -> element instanceof Delete
-                                ? d(table, alias)
+                                ? delete(table, alias)
                                 : element);
                     }
                 }
@@ -1105,7 +1107,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @throws SqlTemplateException if an error occurs while processing the input.
      */
     @Override
-    public Sql process(StringTemplate stringTemplate) throws SqlTemplateException {
+    public Sql process(@Nonnull StringTemplate stringTemplate) throws SqlTemplateException {
         return process(stringTemplate, false);
     }
 

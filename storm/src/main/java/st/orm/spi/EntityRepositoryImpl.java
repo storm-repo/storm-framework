@@ -20,6 +20,7 @@ import jakarta.annotation.Nullable;
 import st.orm.BatchCallback;
 import st.orm.BindVars;
 import st.orm.NoResultException;
+import st.orm.NonUniqueResultException;
 import st.orm.OptimisticLockException;
 import st.orm.PersistenceException;
 import st.orm.PreparedQuery;
@@ -1090,6 +1091,24 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID> implements 
                     throw new PersistenceException("Batch delete failed.");
                 }
             });
+        }
+    }
+
+    /**
+     * Returns the single result of the stream.
+     *
+     * @param stream the stream to get the single result from.
+     * @return the single result of the stream.
+     * @param <T> the type of the result.
+     * @throws NoResultException if there is no result.
+     * @throws NonUniqueResultException if more than one result.
+     */
+    private <T> T singleResult(Stream<T> stream) {
+        try (stream) {
+            return stream
+                    .reduce((_, _) -> {
+                        throw new NonUniqueResultException("Expected single result, but found more than one.");
+                    }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
         }
     }
 }
