@@ -2,7 +2,6 @@ package st.orm.kotlin.template.impl;
 
 import jakarta.annotation.Nonnull;
 import kotlin.reflect.KClass;
-import org.jetbrains.annotations.NotNull;
 import st.orm.BindVars;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KQuery;
@@ -13,7 +12,6 @@ import st.orm.repository.Entity;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.ORMTemplate;
-import st.orm.template.TemplateFunction;
 
 import static java.util.Objects.requireNonNull;
 
@@ -45,30 +43,19 @@ public class KORMTemplateImpl implements KORMTemplate {
     }
 
     @Override
-    public <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@NotNull Class<T> fromType, Class<R> selectType) {
+    public <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType) {
         //noinspection unchecked
         return new KQueryBuilderImpl<>(ORM.selectFrom((Class<T>) REFLECTION.getRecordType(fromType), selectType));
     }
 
     @Override
-    public <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@NotNull Class<T> fromType, Class<R> selectType, @NotNull StringTemplate template) {
+    public <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType, @Nonnull StringTemplate template) {
         //noinspection unchecked
         return new KQueryBuilderImpl<>(ORM.selectFrom((Class<T>) REFLECTION.getRecordType(fromType), selectType, template));
     }
 
     @Override
-    public <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@NotNull Class<T> fromType, Class<R> selectType, @NotNull TemplateFunction templateFunction) {
-        //noinspection unchecked
-        return new KQueryBuilderImpl<>(ORM.selectFrom((Class<T>) REFLECTION.getRecordType(fromType), selectType, templateFunction));
-    }
-
-    @Override
-    public KQuery query(@Nonnull StringTemplate stringTemplate) throws PersistenceException {
-        return new KQueryImpl(ORM.query(stringTemplate));
-    }
-
-    @Override
-    public KQuery query(@Nonnull TemplateFunction function) {
-        return new KQueryImpl(ORM.query(function));
+    public KQuery query(@Nonnull StringTemplate template) throws PersistenceException {
+        return new KQueryImpl(ORM.query(template));
     }
 }

@@ -6,7 +6,6 @@ import st.orm.template.JoinType;
 import st.orm.template.ORMTemplate;
 import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
-import st.orm.template.TemplateFunction;
 import st.orm.template.impl.Elements.ObjectExpression;
 import st.orm.template.impl.Elements.TableSource;
 import st.orm.template.impl.Elements.TableTarget;
@@ -52,13 +51,6 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
         this(orm, fromType, selectType, List.of(), List.of(), selectTemplate, List.of());
     }
 
-    public QueryBuilderImpl(@Nonnull ORMTemplate orm,
-                            @Nonnull Class<T> fromType,
-                            @Nonnull Class<R> selectType,
-                            @Nonnull TemplateFunction templateFunction) {
-        this(orm, fromType, selectType, List.of(), List.of(), TemplateFunctionHelper.template(templateFunction), List.of());
-    }
-
     private QueryBuilderImpl(@Nonnull ORMTemplate orm,
                              @Nonnull Class<T> fromType,
                              @Nonnull Class<R> selectType,
@@ -98,11 +90,6 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
     }
 
     @Override
-    public QueryBuilder<T, R, ID> append(@Nonnull TemplateFunction function) {
-        return append(TemplateFunctionHelper.template(function));
-    }
-
-    @Override
     public QueryBuilder<T, R, ID> crossJoin(@Nonnull Class<? extends Record> relation) {
         return join(cross(), relation, "").on(RAW."");
     }
@@ -123,40 +110,30 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
     }
 
     @Override
-    public JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull String alias, @Nonnull StringTemplate template) {
+    public JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull StringTemplate template, @Nonnull String alias) {
         requireNonNull(type, "type");
         requireNonNull(alias, "alias");
-        return new JoinBuilder<>() {
-            @Override
-            public QueryBuilder<T, R, ID> on(@Nonnull StringTemplate onTemplate) {
-                return join(new Join(new TemplateSource(template), alias, new TemplateTarget(onTemplate), type));
-            }
-
-            @Override
-            public QueryBuilder<T, R, ID> on(@Nonnull TemplateFunction function) {
-                return on(TemplateFunctionHelper.template(function));
-            }
-        };
+        return onTemplate -> join(new Join(new TemplateSource(template), alias, new TemplateTarget(onTemplate), type));
     }
 
     @Override
     public QueryBuilder<T, R, ID> crossJoin(@Nonnull StringTemplate template) {
-        return join(cross(), "", template).on(RAW."");
+        return join(cross(), template, "").on(RAW."");
     }
 
     @Override
-    public JoinBuilder<T, R, ID> innerJoin(@Nonnull String alias, @Nonnull StringTemplate template) {
-        return join(inner(), alias, template);
+    public JoinBuilder<T, R, ID> innerJoin(@Nonnull StringTemplate template, @Nonnull String alias) {
+        return join(inner(), template, alias);
     }
 
     @Override
-    public JoinBuilder<T, R, ID> leftJoin(@Nonnull String alias, @Nonnull StringTemplate template) {
-        return join(left(), alias, template);
+    public JoinBuilder<T, R, ID> leftJoin(@Nonnull StringTemplate template, @Nonnull String alias) {
+        return join(left(), template, alias);
     }
 
     @Override
-    public JoinBuilder<T, R, ID> rightJoin(@Nonnull String alias, @Nonnull StringTemplate template) {
-        return join(right(), alias, template);
+    public JoinBuilder<T, R, ID> rightJoin(@Nonnull StringTemplate template, @Nonnull String alias) {
+        return join(right(), template, alias);
     }
 
     @Override
@@ -174,17 +151,7 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
             public QueryBuilder<T, R, ID> on(@Nonnull StringTemplate onTemplate) {
                 return join(new Join(new TableSource(relation), alias, new TemplateTarget(onTemplate), type));
             }
-
-            @Override
-            public QueryBuilder<T, R, ID> on(@Nonnull TemplateFunction function) {
-                return on(TemplateFunctionHelper.template(function));
-            }
         };
-    }
-
-    @Override
-    public JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull String alias, @Nonnull TemplateFunction function) {
-        return join(type, alias, TemplateFunctionHelper.template(function));
     }
 
     // Define the raw templates
@@ -193,8 +160,8 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
     private static final StringTemplate RAW_CLOSE = RAW.")";
 
     @Override
-    public QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<T, R, ID>> expression) {
-        requireNonNull(expression, "expression");
+    public QueryBuilder<T, R, ID> wherePredicate(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<T, R, ID>> expression) {
+        requireNonNull(expression, "predicate");
         class PredicateBuilderImpl<TX, RX, IDX> implements PredicateBuilder<TX, RX, IDX> {
             private final List<StringTemplate> templates = new ArrayList<>();
 
@@ -229,11 +196,6 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
             @Override
             public PredicateBuilder<TX, RX, IDX> expression(@Nonnull StringTemplate template) {
                 return new PredicateBuilderImpl<>(template);
-            }
-
-            @Override
-            public PredicateBuilder<TX, RX, IDX> expression(@Nonnull TemplateFunction function) {
-                return new PredicateBuilderImpl<>(TemplateFunctionHelper.template(function));
             }
 
             @Override

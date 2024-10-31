@@ -26,6 +26,7 @@ import static st.orm.template.Operator.EQUALS;
 import static st.orm.template.Operator.IN;
 import static st.orm.template.Operator.NOT_EQUALS;
 import static st.orm.template.Operator.NOT_IN;
+import static st.orm.template.TemplateFunction.template;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
@@ -40,7 +41,7 @@ public class BuilderPreparedStatementIntegrationTest {
         var list = ORM(dataSource)
                 .selectFrom(Pet.class)
                 .innerJoin(Visit.class).on(RAW."\{Pet.class}.id = \{Visit.class}.pet_id")
-                .append(RAW."WHERE \{Visit.class}.visit_date = \{LocalDate.of(2023, 1, 8)}")
+                .where(RAW."\{Visit.class}.visit_date = \{LocalDate.of(2023, 1, 8)}")
                 .getResultList();
          assertEquals(3, list.size());
     }
@@ -49,8 +50,8 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithJoinTemplateFunction() {
         var list = ORM(dataSource)
                 .selectFrom(Pet.class)
-                .innerJoin(Visit.class).on(it -> STR."\{it.invoke(Pet.class)}.id = \{it.invoke(Visit.class)}.pet_id")
-                .append(RAW."WHERE \{Visit.class}.visit_date = \{LocalDate.of(2023, 1, 8)}")
+                .innerJoin(Visit.class).on(template(it -> STR."\{it.invoke(Pet.class)}.id = \{it.invoke(Visit.class)}.pet_id"))
+                .where(RAW."\{Visit.class}.visit_date = \{LocalDate.of(2023, 1, 8)}")
                 .getResultList();
          assertEquals(3, list.size());
     }
@@ -60,7 +61,7 @@ public class BuilderPreparedStatementIntegrationTest {
         var list = ORM(dataSource)
                 .selectFrom(Pet.class)
                 .innerJoin(Visit.class).on(RAW."\{Pet.class}.id = \{1}")
-                .append(RAW."WHERE \{Visit.class}.visit_date = \{LocalDate.of(2023, 1, 8)}")
+                .where(RAW."\{Visit.class}.visit_date = \{LocalDate.of(2023, 1, 8)}")
                 .getResultList();
          assertEquals(3, list.size());
     }
@@ -69,8 +70,8 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithJoinTemplateFunctionParameter() {
         var list = ORM(dataSource)
                 .selectFrom(Pet.class)
-                .innerJoin(Visit.class).on(it -> STR."\{it.invoke(Pet.class)}.id = \{1}")
-                .append(RAW."WHERE \{Visit.class}.visit_date = \{LocalDate.of(2023, 1, 8)}")
+                .innerJoin(Visit.class).on(template(it -> STR."\{it.invoke(Pet.class)}.id = \{1}"))
+                .where(RAW."\{Visit.class}.visit_date = \{LocalDate.of(2023, 1, 8)}")
                 .getResultList();
          assertEquals(3, list.size());
     }
@@ -146,7 +147,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithWhere() {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
-                .where(it -> it.filter(1).or(it.filter(2)))
+                .wherePredicate(it -> it.filter(1).or(it.filter(2)))
                 .getResultList();
         assertEquals(2, list.size());
     }
@@ -204,7 +205,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithWhereTemplate() {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
-                .where(it -> it.filter(1).or(it.expression(RAW."\{Vet.class}.id = 2")))
+                .wherePredicate(it -> it.filter(1).or(it.expression(RAW."\{Vet.class}.id = 2")))
                 .getResultList();
         assertEquals(2, list.size());
     }
@@ -213,7 +214,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithWhereTemplateFunction() {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
-                .where(it -> it.expression(_ -> "1 = 1"))
+                .wherePredicate(it -> it.expression(template(_ -> "1 = 1")))
                 .getResultList();
         assertEquals(6, list.size());
     }
@@ -222,7 +223,8 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithWhereTemplateFunctionAfterOr() {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
-                .where(it -> it.filter(1).or(it.expression(context -> STR."\{context.invoke(Vet.class)}.id = \{context.invoke(2)}")))
+                .wherePredicate(it -> it.filter(1).or(
+                        it.expression(template(ctx -> STR."\{ctx.invoke(Vet.class)}.id = \{ctx.invoke(2)}"))))
                 .getResultList();
         assertEquals(2, list.size());
     }

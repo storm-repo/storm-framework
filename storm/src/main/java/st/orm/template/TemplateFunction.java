@@ -17,6 +17,11 @@ package st.orm.template;
 
 import jakarta.annotation.Nonnull;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import static java.util.Arrays.stream;
+
 /**
  * Represents a template function.
  *
@@ -24,8 +29,20 @@ import jakarta.annotation.Nonnull;
  * language feature. Template functions primarily used to support query builders for Kotlin, as Kotlin does not
  * support Java's String Interpolation feature.</p>
  */
-@FunctionalInterface
+//@FunctionalInterface
 public interface TemplateFunction {
+
+    static StringTemplate template(@Nonnull TemplateFunction function) {
+        final String NULL_CHARACTER = "\0";
+        List<Object> values = new ArrayList<>();
+        String str = function.interpolate(o -> {
+            values.add(o);
+            return NULL_CHARACTER;  // Use NULL_CHARACTER as a safe delimiter.
+        });
+        // StringTemplate tests whether the exact amount of values is passed. This means that client injected
+        // null characters will be caught and rejected.
+        return StringTemplate.of(stream(str.split(NULL_CHARACTER, -1)).toList(), values);   // Use -1 to keep trailing empty strings.
+    }
 
     /**
      * Context object that provides the ability to inject arguments into the string template.

@@ -50,8 +50,6 @@ public interface QueryBuilder<T, R, ID> {
     interface JoinBuilder<T, R, ID> {
 
         QueryBuilder<T, R, ID> on(@Nonnull StringTemplate template);
-
-        QueryBuilder<T, R, ID> on(@Nonnull TemplateFunction function);
     }
 
     /**
@@ -98,15 +96,13 @@ public interface QueryBuilder<T, R, ID> {
 
     QueryBuilder<T, R, ID> crossJoin(@Nonnull StringTemplate template);
 
-    JoinBuilder<T, R, ID> innerJoin(@Nonnull String alias, @Nonnull StringTemplate template);
+    JoinBuilder<T, R, ID> innerJoin(@Nonnull StringTemplate template, @Nonnull String alias);
 
-    JoinBuilder<T, R, ID> leftJoin(@Nonnull String alias, @Nonnull StringTemplate template);
+    JoinBuilder<T, R, ID> leftJoin(@Nonnull StringTemplate template, @Nonnull String alias);
 
-    JoinBuilder<T, R, ID> rightJoin(@Nonnull String alias, @Nonnull StringTemplate template);
+    JoinBuilder<T, R, ID> rightJoin(@Nonnull StringTemplate template, @Nonnull String alias);
 
-    JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull String alias, @Nonnull StringTemplate template);
-
-    JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull String alias, @Nonnull TemplateFunction function);
+    JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull StringTemplate template, @Nonnull String alias);
 
     /**
      * A builder for constructing the WHERE clause of the query.
@@ -132,8 +128,6 @@ public interface QueryBuilder<T, R, ID> {
         }
 
         PredicateBuilder<T, R, ID> expression(@Nonnull StringTemplate template);
-
-        PredicateBuilder<T, R, ID> expression(@Nonnull TemplateFunction function);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified object. The object can be the primary
@@ -209,7 +203,7 @@ public interface QueryBuilder<T, R, ID> {
      * @return the query builder.
      */
     default QueryBuilder<T, R, ID> where(@Nonnull Object o) {
-        return where(predicate -> predicate.filter(o));
+        return wherePredicate(predicate -> predicate.filter(o));
     }
 
     /**
@@ -223,7 +217,7 @@ public interface QueryBuilder<T, R, ID> {
      * @return the query builder.
      */
     default QueryBuilder<T, R, ID> where(@Nonnull Iterable<?> it) {
-        return where(predicate -> predicate.filter(it));
+        return wherePredicate(predicate -> predicate.filter(it));
     }
 
     /**
@@ -237,7 +231,7 @@ public interface QueryBuilder<T, R, ID> {
      * @return the query builder.
      */
     default QueryBuilder<T, R, ID> where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
-        return where(predicate -> predicate.filter(path, operator, it));
+        return wherePredicate(predicate -> predicate.filter(path, operator, it));
     }
 
     /**
@@ -251,14 +245,14 @@ public interface QueryBuilder<T, R, ID> {
      * @return the query builder.
      */
     default QueryBuilder<T, R, ID> where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
-        return where(predicate -> predicate.filter(path, operator, o));
+        return wherePredicate(predicate -> predicate.filter(path, operator, o));
     }
 
     default QueryBuilder<T, R, ID> where(@Nonnull StringTemplate template) {
-        return where(it -> it.filter(template));
+        return wherePredicate(it -> it.expression(template));
     }
 
-    QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<T, R, ID>> expression);
+    QueryBuilder<T, R, ID> wherePredicate(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<T, R, ID>> predicate);
 
     /**
      * Returns a processor that can be used to append the query with a string template.
@@ -266,14 +260,6 @@ public interface QueryBuilder<T, R, ID> {
      * @return a processor that can be used to append the query with a string template.
      */
     QueryBuilder<T, R, ID> append(@Nonnull StringTemplate template);
-
-    /**
-     * Appends the query with the string provided by the specified template {@code function}.
-     *
-     * @param function function that provides the string to append to the query using String interpolation.
-     * @return the query builder.
-     */
-    QueryBuilder<T, R, ID> append(@Nonnull TemplateFunction function);
 
     /**
      * Builds the query based on the current state of the query builder.

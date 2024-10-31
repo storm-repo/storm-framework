@@ -38,7 +38,6 @@ import st.orm.template.ORMTemplate;
 import st.orm.template.QueryBuilder;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.TableNameResolver;
-import st.orm.template.TemplateFunction;
 
 import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
@@ -100,18 +99,8 @@ class ORMTemplateImpl implements ORMTemplate {
     }
 
     @Override
-    public <T extends Record, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType, @Nonnull TemplateFunction templateFunction) {
-        return new QueryBuilderImpl<>(this, fromType, selectType, TemplateFunctionHelper.template(templateFunction));
-    }
-
-    @Override
     public Query query(@Nonnull StringTemplate template) {
         return factory.create(new LazyFactoryImpl(factory, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter), template);
-    }
-
-    @Override
-    public Query query(@Nonnull TemplateFunction function) {
-        return query(TemplateFunctionHelper.template(function));
     }
 
     private <T extends Record & Entity<ID>, ID> EntityModel<T, ID> createEntityModel(@Nonnull Class<T> type) throws PersistenceException {

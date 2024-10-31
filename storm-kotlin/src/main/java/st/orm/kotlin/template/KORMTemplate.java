@@ -26,6 +26,8 @@ import st.orm.repository.Entity;
 import st.orm.template.ORMTemplate;
 import st.orm.template.TemplateFunction;
 
+import static st.orm.template.TemplateFunction.template;
+
 public interface KORMTemplate extends KTemplates {
 
     static KORMTemplate from(ORMTemplate ormTemplate) {
@@ -48,9 +50,13 @@ public interface KORMTemplate extends KTemplates {
 
     <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType, @Nonnull StringTemplate template);
 
-    <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType, @Nonnull TemplateFunction templateFunction);
+    default <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType, @Nonnull TemplateFunction templateFunction) {
+        return selectFrom(fromType, selectType, template(templateFunction));
+    }
 
     KQuery query(@Nonnull StringTemplate template);
 
-    KQuery query(@Nonnull TemplateFunction function);
+    default KQuery query(@Nonnull TemplateFunction function) {
+        return query(template(function));
+    }
 }

@@ -392,6 +392,7 @@ record ElementProcessor(
             case Object[] a -> List.of(a);
             case Iterable<?> i -> i;
             case Stream<?> _ -> throw new SqlTemplateException("Streams not supported. Use Iterable or varargs instead.");
+            case StringTemplate _ -> throw new SqlTemplateException("String template not supported. Use expression method instead.");
             default -> List.of(object);
         };
         Class<?> pkType = REFLECTION.findPKType(primaryTable.table()).orElse(null);

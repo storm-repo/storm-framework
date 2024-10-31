@@ -27,7 +27,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
     fun testWithArg() {
         val list = ORM(dataSource).repository(Pet::class)
             .select()
-            .append { "WHERE ${it(Pet::class)}.id = 7" }
+            .where { "${it(Pet::class)}.id = 7" }
             .resultList
         assertEquals(1, list.size)
         assertEquals(7, list[0].id)
@@ -37,7 +37,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
     fun testWithTwoArgs() {
         val list = ORM(dataSource).repository(Pet::class)
             .select()
-            .append { "WHERE ${it(Pet::class)}.id = 7 OR ${it(Pet::class)}.id = 8" }
+            .where { "${it(Pet::class)}.id = 7 OR ${it(Pet::class)}.id = 8" }
             .resultList
         assertEquals(2, list.size)
         assertEquals(7, list[0].id)

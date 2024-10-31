@@ -27,7 +27,7 @@ open class KotlinBuilderPreparedStatementIntegrationTest {
         val list = ORM(dataSource)
             .selectFrom(Pet::class)
             .innerJoin(Visit::class).on { "${it(Pet::class)}.id = ${it(Visit::class)}.pet_id" }
-            .append { "WHERE ${it(Visit::class)}.visit_date = ${it(LocalDate.of(2023, 1, 8))}" }
+            .where { "${it(Visit::class)}.visit_date = ${it(LocalDate.of(2023, 1, 8))}" }
             .resultList
         Assertions.assertEquals(3, list.size)
     }
@@ -37,7 +37,7 @@ open class KotlinBuilderPreparedStatementIntegrationTest {
         val list = ORM(dataSource)
             .selectFrom(Pet::class)
             .innerJoin(Visit::class).on { "${it(Pet::class)}.id = ${it(1)}" }
-            .append { "WHERE ${it(Visit::class)}.visit_date = ${it(LocalDate.of(2023, 1, 8))}" }
+            .where { "${it(Visit::class)}.visit_date = ${it(LocalDate.of(2023, 1, 8))}" }
             .resultList
         Assertions.assertEquals(3, list.size)
     }
@@ -46,16 +46,25 @@ open class KotlinBuilderPreparedStatementIntegrationTest {
     fun testBuilderWithWhere() {
         val list = ORM(dataSource)
             .selectFrom(Vet::class)
-            .where { it.filter(1).or(it.filter(2)) }
+            .wherePredicate { it.filter(1).or(it.filter(2)) }
             .resultList
         Assertions.assertEquals(2, list.size)
+    }
+
+    @Test
+    fun testBuilderWithWhereExpression() {
+        val list = ORM(dataSource)
+            .selectFrom(Vet::class)
+            .where { "1 = 1" }
+            .resultList
+        Assertions.assertEquals(6, list.size)
     }
 
     @Test
     fun testBuilderWithWhereTemplateFunction() {
         val list = ORM(dataSource)
             .selectFrom(Vet::class)
-            .where { it.expression { "1 = 1" } }
+            .wherePredicate { it.expression { "1 = 1" } }
             .resultList
         Assertions.assertEquals(6, list.size)
     }
@@ -64,7 +73,7 @@ open class KotlinBuilderPreparedStatementIntegrationTest {
     fun testBuilderWithWhereTemplateFunctionAfterOr() {
         val list = ORM(dataSource)
             .selectFrom(Vet::class)
-            .where { it.filter(1).or(it.expression {"${it(Vet::class)}.id = ${it(2)}"}) }
+            .wherePredicate { it.filter(1).or(it.expression {"${it(Vet::class)}.id = ${it(2)}"}) }
             .resultList
         Assertions.assertEquals(2, list.size)
     }

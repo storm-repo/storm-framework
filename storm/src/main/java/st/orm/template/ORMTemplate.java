@@ -41,9 +41,5 @@ public interface ORMTemplate extends Templates {
 
     <T extends Record, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType, @Nonnull StringTemplate template);
 
-    <T extends Record, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType, @Nonnull TemplateFunction function);
-
     Query query(@Nonnull StringTemplate template);
-
-    Query query(@Nonnull TemplateFunction function);
 }

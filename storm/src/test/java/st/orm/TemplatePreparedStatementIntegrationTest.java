@@ -42,6 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static st.orm.Templates.ORM;
 import static st.orm.Templates.from;
+import static st.orm.template.TemplateFunction.template;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
@@ -779,10 +780,10 @@ public class TemplatePreparedStatementIntegrationTest {
     @Test
     public void testCustomTemplate() {
         var ORM = ORM(dataSource);
-        var query = ORM.query(it -> STR."""
+        var query = ORM.query(template(it -> STR."""
                 SELECT \{it.invoke(Pet.class)}
                 FROM \{it.invoke(Pet.class)}
-                """);
+                """));
         assertEquals(13, query.getResultCount());
     }
 }
