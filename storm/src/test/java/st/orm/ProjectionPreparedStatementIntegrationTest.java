@@ -72,4 +72,9 @@ public class ProjectionPreparedStatementIntegrationTest {
     public void testProjectionQuery() {
         assertEquals(6, ORM(dataSource).projectionRepository(VetView.class).selectCount().getSingleResult());
     }
+
+    @Test
+    public void testProjectionQueryWithPk() {
+        assertEquals(14, ORM(dataSource).projectionRepository(VisitView.class).select().getResultList().size());
+    }
 }

@@ -18,24 +18,24 @@ package st.orm.model;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
-import st.orm.Inline;
+import st.orm.FK;
 import st.orm.Name;
 import st.orm.PK;
-import st.orm.Version;
-import st.orm.repository.Entity;
+import st.orm.Persist;
+import st.orm.repository.Projection;
+import st.orm.repository.ProjectionQuery;
+
+import java.time.LocalDate;
 
 /**
- * Simple domain object representing an owner.
- *
+ * Simple business object representing a pet.
  */
 @Builder(toBuilder = true)
-@Name("owner")
-public record Owner(
+@ProjectionQuery("SELECT * FROM pet")
+public record PetView(
         @PK Integer id,
-        @Nonnull @Name("first_name") String firstName,
-        @Nonnull @Name("last_name") String lastName,
-        @Nonnull @Inline Address address,
-        @Nullable String telephone,
-        @Version int version
-) implements Person, Entity<Integer> {
-}
+        @Nonnull String name,
+        @Nonnull @Name("birth_date") @Persist(updatable = false) LocalDate birthDate,
+        @Nonnull @FK @Name("type_id") @Persist(updatable = false) PetType petType,
+        @Nullable @FK @Name("owner_id") Owner owner
+) implements Projection<Integer> {}

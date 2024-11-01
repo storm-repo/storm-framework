@@ -666,23 +666,26 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 .orElse(null);
         final Optional<Class<? extends Record>> primaryTable;
         final From effectiveFrom;
-        if (from != null) {
-            var table = ((TableSource) from.source()).table();
+        if (from != null && from.source() instanceof TableSource ts) {
+            var table = ts.table();
             String path = "";   // Use "" because it's the root table.
             String alias;
             if (from.alias().isEmpty()) {
                 // Replace From element by from element with alias.
                 alias = aliasMapper.generateAlias(table, path);
-                effectiveFrom = new From(new TableSource(table), alias);
-                elements.replaceAll(element -> element instanceof From ? effectiveFrom : element);
             } else {
-                effectiveFrom = null;
                 alias = from.alias();
                 aliasMapper.setAlias(table, alias, path);
             }
+            var projectionQuery = REFLECTION.getAnnotation(table, ProjectionQuery.class);
+            Source source = projectionQuery != null
+                    ? new TemplateSource(StringTemplate.of(projectionQuery.value()))
+                    : ts;
+            effectiveFrom = new From(source, alias);
+            elements.replaceAll(element -> element instanceof From ? effectiveFrom : element);
             // We will only make primary keys available for mapping if the table is not part of the entity graph,
             // because the entities can already be resolved by their foreign keys.
-            //  tableMapper.mapPrimaryKey(table, alias, getPkComponents(table).toList(), path);
+            // tableMapper.mapPrimaryKey(table, alias, getPkComponents(table).toList(), path);
             primaryTable = Optional.of(table);
         } else {
             primaryTable = empty();
@@ -700,13 +703,16 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     String alias;
                     if (j.alias().isEmpty()) {
                         alias = aliasMapper.generateAlias(ts.table(), null);
-                        customJoins.add(new Join(j.source(), alias, j.target(), j.type()));
-                        tableMapper.mapPrimaryKey(ts.table(), alias, getPkComponents(ts.table()).toList(), path);
                     } else {
                         alias = j.alias();
                         aliasMapper.setAlias(ts.table(), j.alias(), null);
-                        customJoins.add(j);
                     }
+                    var projectionQuery = REFLECTION.getAnnotation(ts.table(), ProjectionQuery.class);
+                    Source source = projectionQuery != null
+                            ? new TemplateSource(StringTemplate.of(projectionQuery.value()))
+                            : ts;
+                    customJoins.add(new Join(source, alias, j.target(), j.type()));
+                    tableMapper.mapPrimaryKey(ts.table(), alias, getPkComponents(ts.table()).toList(), path);
                     // Make the FKs of the join also available for mapping.
                     mapForeignKeys(tableMapper, alias, ts.table(), path);
                 } else {
@@ -930,7 +936,11 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 //  tableMapper.mapPrimaryKey(componentType, alias, List.of(pkComponent), pkPath);
                 outerJoin = outerJoin || !REFLECTION.isNonnull(component);
                 JoinType joinType = outerJoin ? DefaultJoinType.LEFT : DefaultJoinType.INNER;
-                expandedJoins.add(new Join(new TableSource(componentType), alias, new TemplateTarget(StringTemplate.of(STR."\{fromAlias}.\{getForeignKey(component, foreignKeyResolver)} = \{alias}.\{pkColumnName}")), joinType));
+                ProjectionQuery query = REFLECTION.getAnnotation(componentType, ProjectionQuery.class);
+                Source source = query != null
+                        ? new TemplateSource(StringTemplate.of(query.value()))
+                        : new TableSource(componentType);
+                expandedJoins.add(new Join(source, alias, new TemplateTarget(StringTemplate.of(STR."\{fromAlias}.\{getForeignKey(component, foreignKeyResolver)} = \{alias}.\{pkColumnName}")), joinType));
                 expandJoins(componentType, copy, aliasMapper, tableMapper, expandedJoins, alias, outerJoin);
             } else if (component.getType().isRecord()) {
                 if (REFLECTION.isAnnotationPresent(component, PK.class) || getORMConverter(component).isPresent()) {

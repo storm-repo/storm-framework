@@ -36,6 +36,6 @@ import java.time.LocalDate;
 public record VisitView(
         @Nonnull @Name("visit_date") LocalDate visitDate,
         @Nullable String description,
-        @Nonnull @FK @Name("pet_id") Pet pet,
+        @Nonnull @FK @Name("pet_id") PetView pet,
         @Version Instant timestamp
 ) implements Projection<Void> {}    // Not exposing the primary key of the underlying visit table.
