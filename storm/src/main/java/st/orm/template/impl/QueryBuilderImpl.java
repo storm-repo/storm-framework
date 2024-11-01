@@ -2,10 +2,14 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.Query;
+import st.orm.repository.ProjectionQuery;
+import st.orm.spi.ORMReflection;
+import st.orm.spi.Providers;
 import st.orm.template.JoinType;
 import st.orm.template.ORMTemplate;
 import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
+import st.orm.template.impl.Elements.From;
 import st.orm.template.impl.Elements.ObjectExpression;
 import st.orm.template.impl.Elements.TableSource;
 import st.orm.template.impl.Elements.TableTarget;
@@ -30,7 +34,9 @@ import static st.orm.template.JoinType.right;
 import static st.orm.template.Operator.EQUALS;
 import static st.orm.template.Operator.IN;
 
-public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
+public class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder<T, R, ID> {
+    private static final ORMReflection REFLECTION = Providers.getORMReflection();
+
     private final ORMTemplate orm;
     private final StringTemplate selectTemplate;
     private final Class<T> fromType;
@@ -170,7 +176,7 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
     @Override
     public QueryBuilder<T, R, ID> wherePredicate(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<T, R, ID>> expression) {
         requireNonNull(expression, "predicate");
-        class PredicateBuilderImpl<TX, RX, IDX> implements PredicateBuilder<TX, RX, IDX> {
+        class PredicateBuilderImpl<TX extends Record, RX, IDX> implements PredicateBuilder<TX, RX, IDX> {
             private final List<StringTemplate> templates = new ArrayList<>();
 
             PredicateBuilderImpl(@Nonnull StringTemplate template) {
@@ -197,7 +203,7 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
                 return templates;
             }
         }
-        class WhereBuilderImpl<TX, RX, IDX> implements WhereBuilder<TX, RX, IDX> {
+        class WhereBuilderImpl<TX extends Record, RX, IDX> implements WhereBuilder<TX, RX, IDX> {
             public WhereBuilderImpl() {
             }
 
@@ -236,10 +242,18 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
         return whereBuilder.build(((PredicateBuilderImpl<T, R, ID>) predicate).getTemplates());
     }
 
+    private From getFrom() {
+        ProjectionQuery query = REFLECTION.getAnnotation(fromType, ProjectionQuery.class);
+        if (query == null) {
+            return new From(fromType);
+        }
+        return new From(StringTemplate.of(query.value()));
+    }
+
     @Override
     public Query build() {
-        StringTemplate combined = StringTemplate.combine(RAW."SELECT \{distinct ? "DISTINCT " : ""}", selectTemplate);
-        combined = StringTemplate.combine(combined, RAW."\nFROM \{fromType}");
+        StringTemplate combined = StringTemplate.combine(StringTemplate.of(STR."SELECT \{distinct ? "DISTINCT " : ""}"), selectTemplate);
+        combined = StringTemplate.combine(combined, RAW."\nFROM \{getFrom()}");
         if (!join.isEmpty()) {
             combined = join.stream()
                     .reduce(combined,

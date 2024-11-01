@@ -24,6 +24,8 @@ import st.orm.Lazy;
 import st.orm.Name;
 import st.orm.PK;
 import st.orm.repository.Entity;
+import st.orm.repository.Projection;
+import st.orm.repository.ProjectionQuery;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.ColumnNameResolver;
@@ -377,7 +379,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 yield select(recordType);
             }
             case INSERT -> insert(recordType);
-            case UPDATE -> update((Class<? extends Record>) recordType);
+            case UPDATE -> update(recordType);
             case DELETE -> {
                 if (removeComments(nextFragment).stripLeading().toUpperCase().startsWith("FROM")) {
                     yield delete(recordType);
@@ -1250,6 +1252,15 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 }
                 if (!component.getType().isRecord() && REFLECTION.isAnnotationPresent(component, Inline.class)) {
                     return STR."Inlined component must be a record: \{component.getType().getSimpleName()} \{component.getName()}.";
+                }
+            }
+            ProjectionQuery projectionQuery = REFLECTION.getAnnotation(recordType, ProjectionQuery.class);
+            if (projectionQuery != null) {
+                if (!Projection.class.isAssignableFrom(recordType)) {
+                    return STR."ProjectionQuery must only be used on records implementing Projection: \{recordType.getSimpleName()}";
+                }
+                if (projectionQuery.value().isEmpty()) {
+                    return STR."ProjectionQuery must specify a query: \{recordType.getSimpleName()}";
                 }
             }
             return "";

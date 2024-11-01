@@ -26,7 +26,7 @@ import static java.util.Spliterators.spliteratorUnknownSize;
  * @param <R> the type of the result.
  * @param <ID> the type of the primary key.
  */
-public interface QueryBuilder<T, R, ID> {
+public interface QueryBuilder<T extends Record, R, ID> {
 
     QueryBuilder<T, R, ID> distinct();
 
@@ -37,7 +37,7 @@ public interface QueryBuilder<T, R, ID> {
      * @param <R> the type of the result.
      * @param <ID> the type of the primary key.
      */
-    interface TypedJoinBuilder<T, R, ID> extends JoinBuilder<T, R, ID> {
+    interface TypedJoinBuilder<T extends Record, R, ID> extends JoinBuilder<T, R, ID> {
 
         QueryBuilder<T, R, ID> on(@Nonnull Class<? extends Record> relation);
     }
@@ -49,7 +49,7 @@ public interface QueryBuilder<T, R, ID> {
      * @param <R> the type of the result.
      * @param <ID> the type of the primary key.
      */
-    interface JoinBuilder<T, R, ID> {
+    interface JoinBuilder<T extends Record, R, ID> {
 
         QueryBuilder<T, R, ID> on(@Nonnull StringTemplate template);
     }
@@ -113,7 +113,7 @@ public interface QueryBuilder<T, R, ID> {
      * @param <R> the type of the result.
      * @param <ID> the type of the primary key.
      */
-    interface WhereBuilder<T, R, ID> {
+    interface WhereBuilder<T extends Record, R, ID> {
 
         /**
          * A predicate that always evaluates to true.
@@ -187,7 +187,7 @@ public interface QueryBuilder<T, R, ID> {
      * @param <R> the type of the result.
      * @param <ID> the type of the primary key.
      */
-    interface PredicateBuilder<T, R, ID> {
+    interface PredicateBuilder<T extends Record, R, ID> {
 
         PredicateBuilder<T, R, ID> and(@Nonnull PredicateBuilder<T, R, ID> predicate);
 

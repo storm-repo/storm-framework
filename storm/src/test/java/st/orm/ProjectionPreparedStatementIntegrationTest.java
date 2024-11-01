@@ -8,6 +8,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.model.Owner;
 import st.orm.model.OwnerView;
+import st.orm.model.VetView;
 import st.orm.model.VisitView;
 
 import javax.sql.DataSource;
@@ -65,5 +66,10 @@ public class ProjectionPreparedStatementIntegrationTest {
     @Test
     public void testSelectByColumnGreaterThanOrEqual() {
         assertEquals(14, ORM(dataSource).projectionRepository(VisitView.class).select().where("visitDate", GREATER_THAN_OR_EQUAL, LocalDate.of(2023, 1, 1)).getResultCount());
+    }
+
+    @Test
+    public void testProjectionQuery() {
+        assertEquals(6, ORM(dataSource).projectionRepository(VetView.class).selectCount().getSingleResult());
     }
 }

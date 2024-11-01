@@ -29,7 +29,7 @@ import static st.orm.template.JoinType.left;
 import static st.orm.template.JoinType.right;
 import static st.orm.template.TemplateFunction.template;
 
-public final class KQueryBuilderImpl<T, R, ID> implements KQueryBuilder<T, R, ID> {
+public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryBuilder<T, R, ID> {
     private final static ORMReflection REFLECTION = Providers.getORMReflection();
 
     private final QueryBuilder<T, R, ID> builder;
@@ -131,7 +131,7 @@ public final class KQueryBuilderImpl<T, R, ID> implements KQueryBuilder<T, R, ID
         return onTemplate -> new KQueryBuilderImpl<>(joinBuilder.on(onTemplate));
     }
 
-    private record KPredicateBuilderImpl<TX, RX, IDX>(PredicateBuilder<TX, RX, IDX> predicateBuilder)
+    private record KPredicateBuilderImpl<TX extends Record, RX, IDX>(PredicateBuilder<TX, RX, IDX> predicateBuilder)
             implements KPredicateBuilder<TX, RX, IDX> {
         private KPredicateBuilderImpl(@Nonnull PredicateBuilder<TX, RX, IDX> predicateBuilder) {
             this.predicateBuilder = predicateBuilder;
@@ -148,7 +148,7 @@ public final class KQueryBuilderImpl<T, R, ID> implements KQueryBuilder<T, R, ID
         }
     }
 
-    private record KWhereBuilderImpl<TX, RX, IDX>(WhereBuilder<TX, RX, IDX> whereBuilder)
+    private record KWhereBuilderImpl<TX extends Record, RX, IDX>(WhereBuilder<TX, RX, IDX> whereBuilder)
             implements KWhereBuilder<TX, RX, IDX> {
         private KWhereBuilderImpl(@Nonnull WhereBuilder<TX, RX, IDX> whereBuilder) {
             this.whereBuilder = whereBuilder;
