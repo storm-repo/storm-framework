@@ -43,6 +43,11 @@ public final class KQueryBuilderImpl<T, R, ID> implements KQueryBuilder<T, R, ID
     }
 
     @Override
+    public KQueryBuilder<T, R, ID> distinct() {
+        return new KQueryBuilderImpl<>(builder.distinct());
+    }
+
+    @Override
     public KQueryBuilder<T, R, ID> append(@Nonnull StringTemplate template) {
         return new KQueryBuilderImpl<>(builder.append(template));
     }

@@ -28,6 +28,8 @@ import static java.util.Spliterators.spliteratorUnknownSize;
  */
 public interface QueryBuilder<T, R, ID> {
 
+    QueryBuilder<T, R, ID> distinct();
+
     /**
      * A builder for constructing join clause of the query.
      *

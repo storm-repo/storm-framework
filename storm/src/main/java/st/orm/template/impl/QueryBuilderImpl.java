@@ -35,6 +35,7 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
     private final StringTemplate selectTemplate;
     private final Class<T> fromType;
     private final Class<R> selectType;
+    private final boolean distinct;
     private final List<Join> join;
     private final List<Where> where;
     private final List<StringTemplate> templates;
@@ -48,12 +49,13 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
                             @Nonnull Class<T> fromType,
                             @Nonnull Class<R> selectType,
                             @Nonnull StringTemplate selectTemplate) {
-        this(orm, fromType, selectType, List.of(), List.of(), selectTemplate, List.of());
+        this(orm, fromType, selectType, false, List.of(), List.of(), selectTemplate, List.of());
     }
 
     private QueryBuilderImpl(@Nonnull ORMTemplate orm,
                              @Nonnull Class<T> fromType,
                              @Nonnull Class<R> selectType,
+                             boolean distinct,
                              @Nonnull List<Join> join,
                              @Nonnull List<Where> where,
                              @Nonnull StringTemplate selectTemplate,
@@ -61,22 +63,28 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
         this.orm = orm;
         this.fromType = fromType;
         this.selectType = selectType;
+        this.distinct = distinct;
         this.join = List.copyOf(join);
         this.where = List.copyOf(where);
         this.selectTemplate = selectTemplate;
         this.templates = List.copyOf(templates);
     }
 
+    @Override
+    public QueryBuilder<T, R, ID> distinct() {
+        return new QueryBuilderImpl<>(orm, fromType, selectType, true, join, where, selectTemplate, templates);
+    }
+
     private QueryBuilder<T, R, ID> join(@Nonnull Join join) {
         List<Join> copy = new ArrayList<>(this.join);
         copy.add(join);
-        return new QueryBuilderImpl<>(orm, fromType, selectType, copy, where, selectTemplate, templates);
+        return new QueryBuilderImpl<>(orm, fromType, selectType, distinct, copy, where, selectTemplate, templates);
     }
 
     private QueryBuilder<T, R, ID> where(@Nonnull Where where) {
         List<Where> copy = new ArrayList<>(this.where);
         copy.add(where);
-        return new QueryBuilderImpl<>(orm, fromType, selectType, join, copy, selectTemplate, templates);
+        return new QueryBuilderImpl<>(orm, fromType, selectType, distinct, join, copy, selectTemplate, templates);
     }
 
     @Override
@@ -86,7 +94,7 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
             template = StringTemplate.combine(RAW."\n", template);
         }
         copy.add(template);
-        return new QueryBuilderImpl<>(orm, fromType, selectType, join, where, selectTemplate, copy);
+        return new QueryBuilderImpl<>(orm, fromType, selectType, distinct, join, where, selectTemplate, copy);
     }
 
     @Override
@@ -230,7 +238,7 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
 
     @Override
     public Query build() {
-        StringTemplate combined = StringTemplate.combine(RAW."SELECT ", selectTemplate);
+        StringTemplate combined = StringTemplate.combine(RAW."SELECT \{distinct ? "DISTINCT " : ""}", selectTemplate);
         combined = StringTemplate.combine(combined, RAW."\nFROM \{fromType}");
         if (!join.isEmpty()) {
             combined = join.stream()

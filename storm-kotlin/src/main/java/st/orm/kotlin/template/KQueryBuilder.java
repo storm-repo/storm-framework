@@ -21,6 +21,8 @@ import static st.orm.template.TemplateFunction.template;
 
 public interface KQueryBuilder<T, R, ID> {
 
+    KQueryBuilder<T, R, ID> distinct();
+
     interface KTypedJoinBuilder<T, R, ID> extends KJoinBuilder<T, R, ID> {
 
         KQueryBuilder<T, R, ID> on(@Nonnull KClass<? extends Record> relation);
