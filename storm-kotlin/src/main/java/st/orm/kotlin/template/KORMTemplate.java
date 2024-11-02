@@ -45,11 +45,11 @@ public interface KORMTemplate {
 
     <T extends Record> KQueryBuilder<T, T, Object> selectFrom(@Nonnull KClass<T> fromType);
 
-    <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType);
+    <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@Nonnull KClass<T> fromType, KClass<R> selectType);
 
-    <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType, @Nonnull StringTemplate template);
+    <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@Nonnull KClass<T> fromType, KClass<R> selectType, @Nonnull StringTemplate template);
 
-    default <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType, @Nonnull TemplateFunction templateFunction) {
+    default <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@Nonnull KClass<T> fromType, KClass<R> selectType, @Nonnull TemplateFunction templateFunction) {
         return selectFrom(fromType, selectType, template(templateFunction));
     }
 

@@ -43,15 +43,15 @@ public class KORMTemplateImpl implements KORMTemplate {
     }
 
     @Override
-    public <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType) {
+    public <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@Nonnull KClass<T> fromType, KClass<R> selectType) {
         //noinspection unchecked
-        return new KQueryBuilderImpl<>(ORM.selectFrom((Class<T>) REFLECTION.getRecordType(fromType), selectType));
+        return new KQueryBuilderImpl<>(ORM.selectFrom((Class<T>) REFLECTION.getRecordType(fromType), (Class<R>) REFLECTION.getType(selectType)));
     }
 
     @Override
-    public <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@Nonnull Class<T> fromType, Class<R> selectType, @Nonnull StringTemplate template) {
+    public <T extends Record, R> KQueryBuilder<T, R, Object> selectFrom(@Nonnull KClass<T> fromType, KClass<R> selectType, @Nonnull StringTemplate template) {
         //noinspection unchecked
-        return new KQueryBuilderImpl<>(ORM.selectFrom((Class<T>) REFLECTION.getRecordType(fromType), selectType, template));
+        return new KQueryBuilderImpl<>(ORM.selectFrom((Class<T>) REFLECTION.getRecordType(fromType), (Class<R>) REFLECTION.getType(selectType), template));
     }
 
     @Override
