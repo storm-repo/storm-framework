@@ -110,6 +110,14 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
+    public void testSelectByColumnEqualsNull() {
+        var e = assertThrows(PersistenceException.class, () -> {
+            ORM(dataSource).entityRepository(Pet.class).select().where("owner", EQUALS, (Object) null).getResultCount();
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+    }
+
+    @Test
     public void testSelectByNestedColumn() {
         assertEquals(2, ORM(dataSource).entityRepository(Visit.class).select().where("pet.name", EQUALS, "Leo").getResultCount());
     }

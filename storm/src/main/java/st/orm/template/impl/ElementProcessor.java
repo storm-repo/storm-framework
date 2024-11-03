@@ -61,6 +61,7 @@ import java.math.BigInteger;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.LinkedHashMap;
@@ -74,6 +75,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
+import static java.util.Arrays.asList;
 import static java.util.List.copyOf;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.empty;
@@ -389,7 +391,8 @@ record ElementProcessor(
         }
         var table = primaryTable.table();
         Iterable<?> iterable = switch (object) {
-            case Object[] a -> List.of(a);
+            case null -> throw new SqlTemplateException("Null object not supported.");
+            case Object[] a -> asList(a);   // Use this instead of List.of() to delay null check.
             case Iterable<?> i -> i;
             case Stream<?> _ -> throw new SqlTemplateException("Streams not supported. Use Iterable or varargs instead.");
             case StringTemplate _ -> throw new SqlTemplateException("String template not supported. Use expression method instead.");
@@ -400,6 +403,9 @@ record ElementProcessor(
         int size = 0;
         List<String> args = new ArrayList<>();
         for (var o : iterable) {
+            if (o == null) {
+                throw new SqlTemplateException("Null object not supported.");
+            }
             Class<?> elementType = o.getClass();
             Map<String, Object> valueMap;
             if (path == null && (pkType != null && (pkType == elementType || (pkType.isPrimitive() && isPrimitiveCompatible(o, pkType))))) {
