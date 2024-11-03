@@ -15,7 +15,7 @@
  */
 package st.orm.kotlin.repository;
 
-import st.orm.kotlin.template.KORMTemplate;
+import st.orm.kotlin.template.KORMRepositoryTemplate;
 
 /**
  * Base interface for all repositories.
@@ -27,5 +27,5 @@ public interface KRepository {
      *
      * @return the ORM template.
      */
-    KORMTemplate template();
+    KORMRepositoryTemplate template();
 }
