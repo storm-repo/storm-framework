@@ -7,8 +7,8 @@ import st.orm.Persist
 import st.orm.kotlin.repository.KEntity
 import java.time.LocalDate
 
-@Name("pet")
 @JvmRecord
+@Name("pet")
 data class KotlinPet(@PK val id: Int = 0,
                      val name: String,
                      @Persist(updatable = false) @Name("birth_date") val birthDate: LocalDate,

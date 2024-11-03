@@ -16,7 +16,6 @@
 package st.orm.model;
 
 import lombok.Builder;
-import st.orm.Name;
 import st.orm.PK;
 import st.orm.repository.Projection;
 import st.orm.repository.ProjectionQuery;
@@ -30,7 +29,7 @@ import st.orm.repository.ProjectionQuery;
 @ProjectionQuery("SELECT * FROM vet")
 public record VetView(
         @PK Integer id,
-        @Name("first_name") String firstName,
-        @Name("last_name") String lastName
+        String firstName,
+        String lastName
 ) implements Projection<Integer>, Person {
 }

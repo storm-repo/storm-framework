@@ -177,10 +177,12 @@ public interface KQuery {
      * @throws NonUniqueResultException if more than one result.
      */
     private <T> T singleResult(Stream<T> stream) {
-        return stream
-                .reduce((_, _) -> {
-                    throw new NonUniqueResultException("Expected single result, but found more than one.");
-                }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
+        try (stream) {
+            return stream
+                    .reduce((_, _) -> {
+                        throw new NonUniqueResultException("Expected single result, but found more than one.");
+                    }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
+        }
     }
 
     /**
@@ -192,9 +194,11 @@ public interface KQuery {
      * @throws NonUniqueResultException if more than one result.
      */
     private <T> Optional<T> optionalResult(Stream<T> stream) {
-        return stream
-                .reduce((_, _) -> {
-                    throw new NonUniqueResultException("Expected single result, but found more than one.");
-                });
+        try (stream) {
+            return stream
+                    .reduce((_, _) -> {
+                        throw new NonUniqueResultException("Expected single result, but found more than one.");
+                    });
+        }
     }
 }

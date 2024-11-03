@@ -17,27 +17,27 @@ package st.orm.template;
 
 import jakarta.annotation.Nonnull;
 
+import static java.lang.Character.toLowerCase;
+
 /**
- * Resolves the table name for a given record type.
+ *
  */
-@FunctionalInterface
-public interface TableNameResolver {
+final class NameResolver {
 
-    TableNameResolver DEFAULT = camelCaseToSnakeCase();
-
-    static TableNameResolver camelCaseToSnakeCase() {
-        return type -> NameResolver.camelCaseToSnakeCase(type.getSimpleName());
+    private NameResolver() {
     }
 
-    static TableNameResolver toUpperCase(@Nonnull TableNameResolver resolver) {
-        return type -> resolver.resolveTableName(type).toUpperCase();
-    }
-
-    /**
-     * Resolves the table name for a given record type.
-     *
-     * @param type the record type.
-     * @return the table name.
-     */
-    String resolveTableName(@Nonnull Class<? extends Record> type);
+    static String camelCaseToSnakeCase(@Nonnull String name) {
+        StringBuilder columnName = new StringBuilder();
+        columnName.append(toLowerCase(name.charAt(0)));
+        for (int i = 1; i < name.length(); i++) {
+            char c = name.charAt(i);
+            if (Character.isUpperCase(c)) {
+                columnName.append("_").append(toLowerCase(c));
+            } else {
+                columnName.append(c);
+            }
+        }
+        return columnName.toString();
+    };
 }

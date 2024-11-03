@@ -23,6 +23,7 @@ import st.orm.repository.spring.PetRepository;
 import st.orm.template.SqlTemplateException;
 
 import javax.sql.DataSource;
+import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -106,6 +107,26 @@ public class TemplatePreparedStatementIntegrationTest {
                   LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
                 WHERE p.name LIKE \{param(nameFilter)}""").prepare();
              var stream = query.getResultStream(Pet.class)) {
+            assertEquals(5, stream.filter(Objects::nonNull)
+                    .map(Pet::owner)
+                    .filter(Objects::nonNull)
+                    .map(Owner::firstName)
+                    .distinct()
+                    .count());
+        }
+    }
+
+    @Test
+    public void testSelectPetWithRecord() throws SQLException  {
+        record Owner(String firstName, String lastName, Address address, String telephone) {}
+        record Pet(String name, LocalDate birthDate, Owner owner) {}
+        String nameFilter = "%y%";
+        var query = ORM(dataSource).query(RAW."""
+                SELECT \{Pet.class}
+                FROM \{Pet.class}
+                  LEFT OUTER JOIN \{Owner.class} ON \{Pet.class}.owner_id = \{Owner.class}.id
+                WHERE \{Pet.class}.name LIKE \{nameFilter}""");
+        try (var stream = query.getResultStream(Pet.class)) {
             assertEquals(5, stream.filter(Objects::nonNull)
                     .map(Pet::owner)
                     .filter(Objects::nonNull)
@@ -475,7 +496,7 @@ public class TemplatePreparedStatementIntegrationTest {
         record FilteredPet(int id, @FK Owner owner) {}
         String nameFilter = "%y%";
         try (var query = ORM(dataSource).query(RAW."""
-                WITH FilteredPet AS (
+                WITH filtered_pet AS (
                   SELECT * FROM pet WHERE name LIKE \{param(nameFilter)}
                 )
                 SELECT \{select(FilteredPet.class)}
@@ -497,7 +518,7 @@ public class TemplatePreparedStatementIntegrationTest {
         record FilteredPet(int id, @FK Owner owner) {}
         String nameFilter = "%y%";
         try (var query = ORM(dataSource).query(RAW."""
-                WITH FilteredPet AS (
+                WITH filtered_pet AS (
                   SELECT * FROM pet WHERE name LIKE \{param(nameFilter)}
                 )
                 SELECT \{select(FilteredPet.class)}
@@ -654,7 +675,7 @@ public class TemplatePreparedStatementIntegrationTest {
     public void testUpdateSetWhereWithAlias() {
         var update = petRepository.findById(1).toBuilder()
                 .name("Leona")
-                .petType(PetType.builder().id(2).build())
+                .type(PetType.builder().id(2).build())
                 .build();
         try (var query = ORM(dataSource).query(RAW."""
                 UPDATE \{update(Pet.class, "p")}
@@ -670,7 +691,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 WHERE \{where(update)}""").prepare()) {
             var result = query.getSingleResult(Pet.class);
             assertEquals("Leona", result.name());
-            assertEquals(1, result.petType().id());
+            assertEquals(1, result.type().id());
         }
     }
 
@@ -706,7 +727,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 WHERE \{where(Pet.builder().id(1).build())}""").prepare()) {
             var result = query.getSingleResult(Pet.class);
             assertEquals("Leona", result.name());
-            assertEquals(2, result.petType().id());
+            assertEquals(2, result.type().id());
         }
     }
 

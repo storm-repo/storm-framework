@@ -25,7 +25,7 @@ import java.lang.reflect.Proxy;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -35,24 +35,34 @@ import java.util.logging.Logger;
  */
 final class MonitoredResource {
 
-    private static final Logger LOGGER = Logger.getLogger(MonitoredResource.class.getName());
+    private static final Logger LOGGER = Logger.getLogger("st.orm.resource");
     private static final Cleaner CLEANER = Cleaner.create();
 
     static <T extends AutoCloseable> T wrap(@Nonnull T resource) {
+        return wrap(resource, new AtomicInteger());
+    }
+    private static <T extends AutoCloseable> T wrap(@Nonnull T resource, AtomicInteger openCount) {
         Exception createStackTrace = new Exception("Create stack trace");
-        var closed = new AtomicBoolean();
+        openCount.getAndIncrement();
         var cleanable = new AtomicReference<Cleanable>();
         //noinspection unchecked
         T proxy = (T) Proxy.newProxyInstance(resource.getClass().getClassLoader(),
-                getInterfaces(resource.getClass()), (_, method, args) -> {
+                getInterfaces(resource.getClass()), (p, method, args) -> {
                     if (method.getName().equals("close")) {
                         // We can safely use plain mode here.
-                        closed.setPlain(true);
+                        openCount.setPlain(-1);
                         cleanable.getPlain().clean();    // Invokes the cleanup method and deregisters the cleanable.
                         return null;
                     }
                     try {
-                        return method.invoke(resource, args);
+                        Object result = method.invoke(resource, args);
+                        if (result == resource) {
+                            return p;   // Ensure monitored resource is returned.
+                        }
+                        if (result instanceof AutoCloseable c) {
+                            return MonitoredResource.wrap(c, openCount);
+                        }
+                        return result;
                     } catch (InvocationTargetException e) {
                         throw e.getTargetException();
                     }
@@ -60,16 +70,19 @@ final class MonitoredResource {
         cleanable.setPlain(CLEANER.register(proxy, () -> {
             // This callback will be invoked when the Cleanable is explicitly cleaned, or when the Cleaner is
             // invoked by the garbage collector. It will be invoked at most once.
-            if (!closed.getPlain()) {
-                LOGGER.log(Level.WARNING, "Stream was not closed properly.", createStackTrace);
+            int count = openCount.decrementAndGet();
+            if (count == 0) {
+                LOGGER.log(Level.WARNING, "Resource was not closed properly.", createStackTrace);
             }
-            try {
-                // Close the resource, also when this call is triggered from the Cleaner.
-                resource.close();
-            } catch (RuntimeException e) {
-                throw e;
-            } catch (Exception e) {
-                throw new PersistenceException(e);
+            if (count <= 0) {
+                try {
+                    // Close the resource, also when this call is triggered from the Cleaner.
+                    resource.close();
+                } catch (RuntimeException e) {
+                    throw e;
+                } catch (Exception e) {
+                    throw new PersistenceException(e);
+                }
             }
         }));
         return proxy;

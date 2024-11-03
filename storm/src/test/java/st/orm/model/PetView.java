@@ -19,7 +19,6 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
 import st.orm.FK;
-import st.orm.Name;
 import st.orm.PK;
 import st.orm.Persist;
 import st.orm.repository.Projection;
@@ -35,7 +34,7 @@ import java.time.LocalDate;
 public record PetView(
         @PK Integer id,
         @Nonnull String name,
-        @Nonnull @Name("birth_date") @Persist(updatable = false) LocalDate birthDate,
-        @Nonnull @FK @Name("type_id") @Persist(updatable = false) PetType petType,
-        @Nullable @FK @Name("owner_id") Owner owner
+        @Nonnull @Persist(updatable = false) LocalDate birthDate,
+        @Nonnull @FK @Persist(updatable = false) PetType type,
+        @Nullable @FK Owner owner
 ) implements Projection<Integer> {}

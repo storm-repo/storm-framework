@@ -19,7 +19,6 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
 import st.orm.FK;
-import st.orm.Name;
 import st.orm.Version;
 import st.orm.repository.Projection;
 
@@ -32,10 +31,9 @@ import java.time.LocalDate;
  * @author Leon van Zantvoort
  */
 @Builder(toBuilder = true)
-@Name("visit_view")
 public record VisitView(
-        @Nonnull @Name("visit_date") LocalDate visitDate,
+        @Nonnull LocalDate visitDate,
         @Nullable String description,
-        @Nonnull @FK @Name("pet_id") PetView pet,
+        @Nonnull @FK PetView pet,
         @Version Instant timestamp
 ) implements Projection<Void> {}    // Not exposing the primary key of the underlying visit table.

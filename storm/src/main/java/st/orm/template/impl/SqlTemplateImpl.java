@@ -75,6 +75,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -112,6 +114,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
 
     public static final ThreadLocal<Set<Consumer<Sql>>> CONSUMERS = withInitial(() -> newSetFromMap(new IdentityHashMap<>()));
 
+    private static final Logger LOGGER = Logger.getLogger("st.orm.sql");
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
     /**
@@ -194,7 +197,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
     private final ForeignKeyResolver foreignKeyResolver;
 
     public SqlTemplateImpl(boolean positionalOnly, boolean expandCollection, boolean supportRecords) {
-        this(positionalOnly, expandCollection, supportRecords, null, null, null, null);
+        this(positionalOnly, expandCollection, supportRecords, TableNameResolver.DEFAULT, TableAliasResolver.DEFAULT, ColumnNameResolver.DEFAULT, ForeignKeyResolver.DEFAULT);
     }
 
     public SqlTemplateImpl(boolean positionalOnly,
@@ -1215,6 +1218,11 @@ public final class SqlTemplateImpl implements SqlTemplate {
         if (!nested) {
             CONSUMERS.get().forEach(c -> c.accept(sql));
         }
+        if (LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.fine(STR."Generated SQL:\n\{sql.statement()}");
+        } else if (LOGGER.isLoggable(Level.FINEST)) {
+            LOGGER.finest(STR."Generated SQL:\n\{sql}");
+        }
         return sql;
     }
 
@@ -1256,12 +1264,12 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 if (getORMConverter(component).isPresent()) {
                     for (var annotation : List.of(PK.class, FK.class, Inline.class)) {
                         if (REFLECTION.isAnnotationPresent(component, annotation)) {
-                            return STR."Converted component must not be @\{annotation.getSimpleName()}: \{component.getType().getSimpleName()} \{component.getName()}.";
+                            return STR."Converted component must not be @\{annotation.getSimpleName()}: \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}.";
                         }
                     }
                 }
                 if (!component.getType().isRecord() && REFLECTION.isAnnotationPresent(component, Inline.class)) {
-                    return STR."Inlined component must be a record: \{component.getType().getSimpleName()} \{component.getName()}.";
+                    return STR."Inlined component must be a record: \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}.";
                 }
             }
             ProjectionQuery projectionQuery = REFLECTION.getAnnotation(recordType, ProjectionQuery.class);
@@ -1428,7 +1436,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         if (foreignKeyResolver != null) {
             return foreignKeyResolver.resolveColumnName(component, recordType);
         }
-        throw new SqlTemplateException(STR."Cannot infer foreign key column name for entity \{component.getType().getSimpleName()}. Specify a @Named annotation or provide a foreign key resolver.");
+        throw new SqlTemplateException(STR."Cannot infer foreign key column name for entity \{component.getDeclaringRecord().getSimpleName()}. Specify a @Name annotation or provide a foreign key resolver.");
     }
 
     // Basic SQL processing.

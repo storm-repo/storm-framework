@@ -25,13 +25,23 @@ import java.lang.reflect.RecordComponent;
 @FunctionalInterface
 public interface ForeignKeyResolver {
 
+    ForeignKeyResolver DEFAULT = camelCaseToSnakeCase();
+
+    static ForeignKeyResolver camelCaseToSnakeCase() {
+        return (component, _) -> STR."\{NameResolver.camelCaseToSnakeCase(component.getName())}_id";
+    }
+
+    static ForeignKeyResolver toUpperCase(@Nonnull ForeignKeyResolver resolver) {
+        return (component, type) -> resolver.resolveColumnName(component, type).toUpperCase();
+    }
+
     /**
      * Resolves the column name for a foreign key record type.
      *
-     * @param recordComponent the record component
-     * @param recordType the record type to resolve the column name for.
+     * @param component the record component
+     * @param type the record type to resolve the column name for.
      * @return the column name.
      */
-    String resolveColumnName(@Nonnull RecordComponent recordComponent,
-                             @Nonnull Class<? extends Record> recordType);
+    String resolveColumnName(@Nonnull RecordComponent component,
+                             @Nonnull Class<? extends Record> type);
 }

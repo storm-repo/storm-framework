@@ -17,18 +17,36 @@ package st.orm.template;
 
 import jakarta.annotation.Nonnull;
 
+import static java.lang.Character.isUpperCase;
+import static java.lang.Character.toLowerCase;
+
 /**
  * Resolves the alias for a table.
  */
 @FunctionalInterface
 public interface TableAliasResolver {
 
+    TableAliasResolver DEFAULT = camelCaseAbbreviation();
+
+    static TableAliasResolver camelCaseAbbreviation() {
+        return (type, counter) -> {
+            // Extract the capitals from the class name to form the base alias.
+            String name = type.getSimpleName();
+            StringBuilder aliasBuilder = new StringBuilder("_");    // Use underscore as prefix to avoid clashes with client aliases.
+            for (char ch : name.toCharArray()) {
+                if (isUpperCase(ch)) {
+                    aliasBuilder.append(toLowerCase(ch));
+                }
+            }
+            return STR."\{aliasBuilder}\{counter == 0 ? "" : STR."_\{counter}"}";
+        };
+    }
     /**
      * Resolves the alias for a table.
      *
-     * @param recordType the record type.
+     * @param type the record type.
      * @param counter counter used track the number of attempts.
      * @return the alias.
      */
-    String resolveTableAlias(@Nonnull Class<? extends Record> recordType, int counter);
+    String resolveTableAlias(@Nonnull Class<? extends Record> type, int counter);
 }

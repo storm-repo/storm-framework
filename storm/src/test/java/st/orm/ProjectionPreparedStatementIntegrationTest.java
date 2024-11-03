@@ -74,7 +74,7 @@ public class ProjectionPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testProjectionQueryWithPk() {
+    public void testProjectionQueryWithoutPk() {
         assertEquals(14, ORM(dataSource).projectionRepository(VisitView.class).select().getResultList().size());
     }
 }

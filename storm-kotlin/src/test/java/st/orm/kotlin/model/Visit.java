@@ -34,9 +34,9 @@ import java.time.LocalDate;
 @Name("visit")
 public record Visit(
         @PK Integer id,
-        @Nonnull @Name("visit_date") LocalDate visitDate,
+        @Nonnull LocalDate visitDate,
         @Nullable String description,
-        @Nonnull @FK @Name("pet_id") Pet pet
+        @Nonnull @FK Pet pet
 ) implements Entity<Integer> {
     public Visit(LocalDate visitDate, String description, Pet pet) {
         this(0, visitDate, description, pet);

@@ -93,10 +93,10 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
             }
             return createProxy(preparedStatement, connection, dataSource);
         };
-        this.tableNameResolver = null;
-        this.tableAliasResolver = null;
-        this.columnNameResolver = null;
-        this.foreignKeyResolver = null;
+        this.tableNameResolver = TableNameResolver.DEFAULT;
+        this.tableAliasResolver = TableAliasResolver.DEFAULT;
+        this.columnNameResolver = ColumnNameResolver.DEFAULT;
+        this.foreignKeyResolver = ForeignKeyResolver.DEFAULT;
         this.providerFilter = null;
     }
 
@@ -120,10 +120,10 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
             }
             return preparedStatement;
         };
-        this.tableNameResolver = null;
-        this.tableAliasResolver = null;
-        this.columnNameResolver = null;
-        this.foreignKeyResolver = null;
+        this.tableNameResolver = TableNameResolver.DEFAULT;
+        this.tableAliasResolver = TableAliasResolver.DEFAULT;
+        this.columnNameResolver = ColumnNameResolver.DEFAULT;
+        this.foreignKeyResolver = ForeignKeyResolver.DEFAULT;
         this.providerFilter = null;
     }
 

@@ -51,6 +51,10 @@ interface AliasMapper {
 
     String getAlias(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException;
 
+    default boolean exists(@Nonnull Class<? extends Record> table) throws SqlTemplateException {
+        return !getAliases(table).isEmpty();
+    }
+
     Optional<String> findAlias(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException;
 
     String generateAlias(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException;

@@ -25,11 +25,21 @@ import java.lang.reflect.RecordComponent;
 @FunctionalInterface
 public interface ColumnNameResolver {
 
+    ColumnNameResolver DEFAULT = camelCaseToSnakeCase();
+
+    static ColumnNameResolver camelCaseToSnakeCase() {
+        return component -> NameResolver.camelCaseToSnakeCase(component.getName());
+    }
+
+    static ColumnNameResolver toUpperCase(@Nonnull ColumnNameResolver resolver) {
+        return component -> resolver.resolveColumnName(component).toUpperCase();
+    }
+
     /**
      * Resolves the column name for a record component.
      *
-     * @param recordComponent the record component
+     * @param component the record component
      * @return the column name.
      */
-    String resolveColumnName(@Nonnull RecordComponent recordComponent);
+    String resolveColumnName(@Nonnull RecordComponent component);
 }

@@ -404,7 +404,7 @@ record ElementProcessor(
             Map<String, Object> valueMap;
             if (path == null && (pkType != null && (pkType == elementType || (pkType.isPrimitive() && isPrimitiveCompatible(o, pkType))))) {
                 assert primaryTable != null;
-                valueMap = getValuesForCondition(o, table, primaryTable.alias(), sqlTemplate.columnNameResolver());
+                valueMap = getValuesForCondition(o, table, primaryTable.alias(), sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver());
                 if (valueMap.isEmpty()) {
                     throw new SqlTemplateException(STR."Failed to find primary key field for \{o.getClass().getSimpleName()} argument on \{table.getSimpleName()} table.");
                 }
@@ -415,7 +415,7 @@ record ElementProcessor(
                     throw new SqlTemplateException(STR."Failed to find field for \{o.getClass().getSimpleName()} argument on \{table.getSimpleName()} table graph.");
                 }
             } else if (path != null) {
-                valueMap = getValuesForCondition(o, path, table, aliasMapper, sqlTemplate.columnNameResolver());
+                valueMap = getValuesForCondition(o, path, table, aliasMapper, sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver());
                 if (valueMap.isEmpty()) {
                     throw new SqlTemplateException(STR."Failed to find field for \{o.getClass().getSimpleName()} argument on \{table.getSimpleName()} table at path '\{path}'.");
                 }
@@ -456,8 +456,8 @@ record ElementProcessor(
         }
         if (column == null) {
             var valueMap = path != null
-                    ? getValuesForCondition(null, path, table, aliasMapper, sqlTemplate.columnNameResolver())
-                    : getValuesForCondition(null, table, primaryTable.alias(), sqlTemplate.columnNameResolver());
+                    ? getValuesForCondition(null, path, table, aliasMapper, sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver())
+                    : getValuesForCondition(null, table, primaryTable.alias(), sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver());
             if (valueMap.size() == 1) {
                 column = valueMap.sequencedKeySet().getFirst();
             }
@@ -1061,7 +1061,7 @@ record ElementProcessor(
                     if (REFLECTION.isAnnotationPresent(component, PK.class)) {
                         Object pk = REFLECTION.invokeComponent(component, record);
                         if (pk instanceof Record) {
-                            values.putAll(getValuesForCondition(pk, primaryTable, alias, columnNameResolver));
+                            values.putAll(getValuesForCondition(pk, primaryTable, alias, columnNameResolver, foreignKeyResolver));
                         } else {
                             values.put(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getColumnName(component, columnNameResolver)}", REFLECTION.invokeComponent(component, record));
                         }
@@ -1103,7 +1103,8 @@ record ElementProcessor(
     private static SequencedMap<String, Object> getValuesForCondition(@Nullable Object id,
                                                                       @Nonnull Class<? extends Record> recordType,
                                                                       @Nonnull String alias,
-                                                                      @Nullable ColumnNameResolver columnNameResolver) throws SqlTemplateException {
+                                                                      @Nullable ColumnNameResolver columnNameResolver,
+                                                                      @Nullable ForeignKeyResolver foreignKeyResolver) throws SqlTemplateException {
         try {
             var values = new LinkedHashMap<String, Object>();
             for (var component : recordType.getRecordComponents()) {
@@ -1111,7 +1112,7 @@ record ElementProcessor(
                     if (component.getType().isRecord()) {
                         if (id != null) {
                             if (REFLECTION.isAnnotationPresent(component, FK.class)) {
-                                values.put(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getColumnName(component, columnNameResolver)}", getPkForForeignKey((Record) id));
+                                values.put(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getForeignKey(component, foreignKeyResolver)}", getPkForForeignKey((Record) id));
                             } else if (recordType.isInstance(id)) {
                                 values.putAll(getValuesForInlined((Record) REFLECTION.invokeComponent(component, id), alias, columnNameResolver));
                             } else {
@@ -1138,8 +1139,9 @@ record ElementProcessor(
                                                                       @Nonnull String path,
                                                                       @Nonnull Class<? extends Record> recordType,
                                                                       @Nonnull AliasMapper aliasMapper,
-                                                                      @Nullable ColumnNameResolver columnNameResolver) throws SqlTemplateException {
-        return getValuesForCondition(value, path, recordType, aliasMapper, columnNameResolver, 0, null, 0);
+                                                                      @Nullable ColumnNameResolver columnNameResolver,
+                                                                      @Nullable ForeignKeyResolver foreignKeyResolver) throws SqlTemplateException {
+        return getValuesForCondition(value, path, recordType, aliasMapper, columnNameResolver, foreignKeyResolver, 0, null, 0);
     }
 
     private static SequencedMap<String, Object> getValuesForCondition(@Nullable Object value,
@@ -1147,6 +1149,7 @@ record ElementProcessor(
                                                                       @Nonnull Class<? extends Record> recordType,
                                                                       @Nonnull AliasMapper aliasMapper,
                                                                       @Nullable ColumnNameResolver columnNameResolver,
+                                                                      @Nullable ForeignKeyResolver foreignKeyResolver,
                                                                       int depth,
                                                                       @Nullable Class<? extends Record> inlineParentType,
                                                                       int inlineDepth) throws SqlTemplateException {
@@ -1160,7 +1163,11 @@ record ElementProcessor(
                 for (var component : components) {
                     if (component.getName().equals(name)) {
                         String alias = aliasMapper.getAlias(recordType, Stream.of(parts).limit(depth - inlineDepth).collect(joining(".")));
-                        values.put(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getColumnName(component, columnNameResolver)}", value);
+                        if (REFLECTION.isAnnotationPresent(component, FK.class)) {
+                            values.put(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getForeignKey(component, foreignKeyResolver)}", value);
+                        } else {
+                            values.put(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getColumnName(component, columnNameResolver)}", value);
+                        }
                         break;
                     }
                 }
@@ -1194,6 +1201,7 @@ record ElementProcessor(
                                     type,
                                     aliasMapper,
                                     columnNameResolver,
+                                    foreignKeyResolver,
                                     depth + 1,
                                     inlineType,
                                     inlineDepth + (inlineType != null ? 1 : 0)));
@@ -1338,9 +1346,9 @@ record ElementProcessor(
             if (REFLECTION.isAnnotationPresent(lastComponent, PK.class)) {
                 return alias;
             }
-            if (getORMConverter(lastComponent).isEmpty()) {
-                // @Inline is implicitly assumed.
-                return alias;
+            if (getORMConverter(lastComponent).isEmpty()
+                    && !aliasMapper.exists(type)) { // Check needed for records without annotations.
+                return alias; // @Inline is implicitly assumed.
             }
         }
         // Fallback for records without annotations.

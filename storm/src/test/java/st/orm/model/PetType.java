@@ -24,7 +24,6 @@ import lombok.Builder;
  * Can be Cat, Dog, Hamster...
  */
 @Builder(toBuilder = true)
-@Name("pet_type")
 public record PetType(
         @PK Integer id,
         @Nonnull String name

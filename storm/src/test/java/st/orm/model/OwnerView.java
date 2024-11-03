@@ -18,8 +18,6 @@ package st.orm.model;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
-import st.orm.Inline;
-import st.orm.Name;
 import st.orm.PK;
 import st.orm.Version;
 import st.orm.repository.Projection;
@@ -29,12 +27,11 @@ import st.orm.repository.Projection;
  *
  */
 @Builder(toBuilder = true)
-@Name("owner_view")
 public record OwnerView(
         @PK Integer id,
-        @Nonnull @Name("first_name") String firstName,
-        @Nonnull @Name("last_name") String lastName,
-        @Nonnull @Inline Address address,
+        @Nonnull String firstName,
+        @Nonnull String lastName,
+        @Nonnull Address address,
         @Nullable String telephone,
         @Version int version
 ) implements Person, Projection<Integer> {
