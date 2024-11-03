@@ -111,10 +111,8 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectByColumnEqualsNull() {
-        var e = assertThrows(PersistenceException.class, () -> {
-            ORM(dataSource).entityRepository(Pet.class).select().where("owner", EQUALS, (Object) null).getResultCount();
-        });
-        assertInstanceOf(SqlTemplateException.class, e.getCause());
+        // Note that id = NULL results in false.
+        assertEquals(0, ORM(dataSource).entityRepository(Pet.class).select().where("owner", EQUALS, (Object) null).getResultCount());
     }
 
     @Test

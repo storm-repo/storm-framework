@@ -358,6 +358,7 @@ record ElementProcessor(
                     if (i < values.size()) {
                         Object value = values.get(i);
                         switch (value) {
+                            case null -> parts.add(registerParam(null));
                             case Expression exp -> {
                                 ElementResult result = expression(exp);
                                 parts.add(result.sql());
@@ -392,11 +393,11 @@ record ElementProcessor(
         var table = primaryTable.table();
         Iterable<?> iterable = switch (object) {
             case null -> throw new SqlTemplateException("Null object not supported.");
-            case Object[] a -> asList(a);   // Use this instead of List.of() to delay null check.
+            case Object[] a -> asList(a);   // Use this instead of List.of() to allow null values.
             case Iterable<?> i -> i;
             case Stream<?> _ -> throw new SqlTemplateException("Streams not supported. Use Iterable or varargs instead.");
             case StringTemplate _ -> throw new SqlTemplateException("String template not supported. Use expression method instead.");
-            default -> List.of(object);
+            default -> List.of(object); // Not expected at the moment though.
         };
         Class<?> pkType = REFLECTION.findPKType(primaryTable.table()).orElse(null);
         String column = null;
@@ -404,7 +405,9 @@ record ElementProcessor(
         List<String> args = new ArrayList<>();
         for (var o : iterable) {
             if (o == null) {
-                throw new SqlTemplateException("Null object not supported.");
+                parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), null));
+                size++;
+                continue;
             }
             Class<?> elementType = o.getClass();
             Map<String, Object> valueMap;
