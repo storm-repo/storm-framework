@@ -28,15 +28,15 @@ public interface KRepositoryLookup {
 
     RepositoryLookup bridge();
 
-    <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> entityRepository(@Nonnull KClass<T> type);
+    <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> entity(@Nonnull KClass<T> type);
 
-    <T extends Record & Projection<ID>, ID> KProjectionRepository<T, ID> projectionRepository(@Nonnull KClass<T> type);
+    <T extends Record & Projection<ID>, ID> KProjectionRepository<T, ID> projection(@Nonnull KClass<T> type);
 
-    <R extends KRepository> R repositoryProxy(@Nonnull KClass<R> type);
+    <R extends KRepository> R proxy(@Nonnull KClass<R> type);
 
-    <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> entityRepository(@Nonnull Class<T> type);
+    <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> entity(@Nonnull Class<T> type);
 
-    <T extends Record & Projection<ID>, ID> KProjectionRepository<T, ID> projectionRepository(@Nonnull Class<T> type);
+    <T extends Record & Projection<ID>, ID> KProjectionRepository<T, ID> projection(@Nonnull Class<T> type);
 
-    <R extends KRepository> R repositoryProxy(@Nonnull Class<R> type);
+    <R extends KRepository> R proxy(@Nonnull Class<R> type);
 }

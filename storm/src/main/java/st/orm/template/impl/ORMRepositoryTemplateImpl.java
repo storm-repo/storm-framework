@@ -59,19 +59,42 @@ public final class ORMRepositoryTemplateImpl extends ORMTemplateImpl implements 
         super(factory, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter);
     }
 
+    /**
+     * Returns the repository for the given entity type.
+     *
+     * @param type the entity type.
+     * @param <T> the entity type.
+     * @param <ID> the type of the entity's primary key.
+     * @return the repository for the given entity type.
+     */
     @Override
-    public <T extends Record & Entity<ID>, ID> EntityRepository<T, ID> entityRepository(@Nonnull Class<T> type) {
+    public <T extends Record & Entity<ID>, ID> EntityRepository<T, ID> entity(@Nonnull Class<T> type) {
         return wrapRepository(Providers.getEntityRepository(this, createModel(type, true), providerFilter == null ? _ -> true : providerFilter));
     }
 
+    /**
+     * Returns the repository for the given projection type.
+     *
+     * @param type the projection type.
+     * @param <T> the projection type.
+     * @param <ID> the type of the projection's primary key, or Void if the projection specifies no primary key.
+     * @return the repository for the given projection type.
+     */
     @Override
-    public <T extends Record & Projection<ID>, ID> ProjectionRepository<T, ID> projectionRepository(@Nonnull Class<T> type) {
+    public <T extends Record & Projection<ID>, ID> ProjectionRepository<T, ID> projection(@Nonnull Class<T> type) {
         return wrapRepository(Providers.getProjectionRepository(this, createModel(type, false), providerFilter == null ? _ -> true : providerFilter));
     }
 
+    /**
+     * Returns a proxy for the repository of the given type.
+     *
+     * @param type the repository type.
+     * @param <R> the repository type.
+     * @return a proxy for the repository of the given type.
+     */
     @SuppressWarnings("unchecked")
     @Override
-    public <R extends Repository> R repositoryProxy(@Nonnull Class<R> type) {
+    public <R extends Repository> R proxy(@Nonnull Class<R> type) {
         EntityRepository<?, ?> entityRepository = createEntityRepository(type)
                 .orElse(null);
         Repository repository = createRepository();
@@ -107,7 +130,7 @@ public final class ORMRepositoryTemplateImpl extends ORMTemplateImpl implements 
 
     private <T extends Record & Entity<ID>, ID> Optional<EntityRepository<T, ID>> createEntityRepository(@Nonnull Class<?> type) {
         //noinspection unchecked
-        return findGenericClass(type, EntityRepository.class, 0).map(cls -> entityRepository((Class<T>) (Object) cls));
+        return findGenericClass(type, EntityRepository.class, 0).map(cls -> entity((Class<T>) (Object) cls));
     }
 
     private Repository createRepository() {

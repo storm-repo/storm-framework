@@ -71,7 +71,7 @@ public final class LazyFactoryImpl implements LazyFactory {
                     tableNameResolver,
                     columnNameResolver,
                     foreignKeyResolver,
-                    providerFilter).entityRepository(recordType);
+                    providerFilter).entity(recordType);
             return repository.select(pk);
         });
         class LazyImpl implements Lazy<T>{

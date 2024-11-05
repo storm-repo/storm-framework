@@ -25,7 +25,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
 
     @Test
     fun testWithArg() {
-        val list = ORM(dataSource).entityRepository(Pet::class)
+        val list = ORM(dataSource).entity(Pet::class)
             .select()
             .where { "${it(Pet::class)}.id = 7" }
             .resultList
@@ -35,7 +35,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
 
     @Test
     fun testWithTwoArgs() {
-        val list = ORM(dataSource).entityRepository(Pet::class)
+        val list = ORM(dataSource).entity(Pet::class)
             .select()
             .where { "${it(Pet::class)}.id = 7 OR ${it(Pet::class)}.id = 8" }
             .resultList
@@ -46,7 +46,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
 
     @Test
     fun testBuilderWithAutoJoin() {
-        val list = ORM(dataSource).entityRepository(Pet::class)
+        val list = ORM(dataSource).entity(Pet::class)
             .select()
             .innerJoin(Visit::class).on(Pet::class)
             .where(Visit(1, null, null, null))
@@ -57,7 +57,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
 
     @Test
     fun testWithKotlinDataClass() {
-        val list = ORM(dataSource).entityRepository(KotlinPet::class)
+        val list = ORM(dataSource).entity(KotlinPet::class)
             .select()
             .resultList
         assertEquals(13, list.size)
@@ -65,13 +65,13 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
 
     @Test
     fun testSelectAll() {
-        val repository = ORM(dataSource).repositoryProxy(KotlinPetRepository::class)
+        val repository = ORM(dataSource).proxy(KotlinPetRepository::class)
         assertEquals(13, repository.selectAll { it.count() })
     }
 
     @Test
     fun testFindAll() {
-        val repository = ORM(dataSource).repositoryProxy(KotlinPetRepository::class)
+        val repository = ORM(dataSource).proxy(KotlinPetRepository::class)
         repository.findAll().let {
             assertEquals(1, it.first().id())
             assertEquals(13, it.size)

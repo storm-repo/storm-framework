@@ -30,51 +30,51 @@ public class ProjectionPreparedStatementIntegrationTest {
 
     @Test
     public void testSelect() {
-        assertEquals(10, ORM(dataSource).projectionRepository(OwnerView.class).selectCount().getSingleResult());
+        assertEquals(10, ORM(dataSource).projection(OwnerView.class).selectCount().getSingleResult());
     }
 
     @Test
     public void testCount() {
-        assertEquals(10, ORM(dataSource).projectionRepository(OwnerView.class).count());
+        assertEquals(10, ORM(dataSource).projection(OwnerView.class).count());
     }
 
     @Test
     public void testResultCount() {
-        assertEquals(10, ORM(dataSource).projectionRepository(OwnerView.class).select().getResultCount());
+        assertEquals(10, ORM(dataSource).projection(OwnerView.class).select().getResultCount());
     }
 
     @Test
     public void testSelectByPk() {
-        assertEquals(1, ORM(dataSource).projectionRepository(OwnerView.class).select(1).id());
+        assertEquals(1, ORM(dataSource).projection(OwnerView.class).select(1).id());
     }
 
     @Test
     public void testSelectByFkNested() {
-        assertEquals(2, ORM(dataSource).projectionRepository(VisitView.class).select().where(Owner.builder().id(1).build()).getResultCount());
+        assertEquals(2, ORM(dataSource).projection(VisitView.class).select().where(Owner.builder().id(1).build()).getResultCount());
     }
 
     @Test
     public void testSelectByColumn() {
-        assertEquals(1, ORM(dataSource).projectionRepository(VisitView.class).select().where("visitDate", EQUALS, LocalDate.of(2023, 1, 1)).getResultCount());
+        assertEquals(1, ORM(dataSource).projection(VisitView.class).select().where("visitDate", EQUALS, LocalDate.of(2023, 1, 1)).getResultCount());
     }
 
     @Test
     public void testSelectByColumnGreaterThan() {
-        assertEquals(13, ORM(dataSource).projectionRepository(VisitView.class).select().where("visitDate", GREATER_THAN, LocalDate.of(2023, 1, 1)).getResultCount());
+        assertEquals(13, ORM(dataSource).projection(VisitView.class).select().where("visitDate", GREATER_THAN, LocalDate.of(2023, 1, 1)).getResultCount());
     }
 
     @Test
     public void testSelectByColumnGreaterThanOrEqual() {
-        assertEquals(14, ORM(dataSource).projectionRepository(VisitView.class).select().where("visitDate", GREATER_THAN_OR_EQUAL, LocalDate.of(2023, 1, 1)).getResultCount());
+        assertEquals(14, ORM(dataSource).projection(VisitView.class).select().where("visitDate", GREATER_THAN_OR_EQUAL, LocalDate.of(2023, 1, 1)).getResultCount());
     }
 
     @Test
     public void testProjectionQuery() {
-        assertEquals(6, ORM(dataSource).projectionRepository(VetView.class).selectCount().getSingleResult());
+        assertEquals(6, ORM(dataSource).projection(VetView.class).selectCount().getSingleResult());
     }
 
     @Test
     public void testProjectionQueryWithoutPk() {
-        assertEquals(14, ORM(dataSource).projectionRepository(VisitView.class).select().getResultList().size());
+        assertEquals(14, ORM(dataSource).projection(VisitView.class).select().getResultList().size());
     }
 }

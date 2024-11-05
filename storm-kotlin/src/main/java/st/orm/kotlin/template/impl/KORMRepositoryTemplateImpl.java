@@ -47,29 +47,29 @@ public final class KORMRepositoryTemplateImpl extends KORMTemplateImpl implement
     }
 
     @Override
-    public <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> entityRepository(@Nonnull Class<T> type) {
-        return new KEntityRepositoryImpl<>(ORM.entityRepository(type));
+    public <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> entity(@Nonnull Class<T> type) {
+        return new KEntityRepositoryImpl<>(ORM.entity(type));
     }
 
     @Override
-    public <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> entityRepository(@Nonnull KClass<T> type) {
+    public <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> entity(@Nonnull KClass<T> type) {
         //noinspection unchecked
-        return entityRepository((Class<T>) REFLECTION.getType(type));
+        return entity((Class<T>) REFLECTION.getType(type));
     }
 
     @Override
-    public <T extends Record & Projection<ID>, ID> KProjectionRepository<T, ID> projectionRepository(@Nonnull Class<T> type) {
-        return new KProjectionRepositoryImpl<>(ORM.projectionRepository(type));
+    public <T extends Record & Projection<ID>, ID> KProjectionRepository<T, ID> projection(@Nonnull Class<T> type) {
+        return new KProjectionRepositoryImpl<>(ORM.projection(type));
     }
 
     @Override
-    public <T extends Record & Projection<ID>, ID> KProjectionRepository<T, ID> projectionRepository(@Nonnull KClass<T> type) {
+    public <T extends Record & Projection<ID>, ID> KProjectionRepository<T, ID> projection(@Nonnull KClass<T> type) {
         //noinspection unchecked
-        return projectionRepository((Class<T>) REFLECTION.getType(type));
+        return projection((Class<T>) REFLECTION.getType(type));
     }
 
     @Override
-    public <R extends KRepository> R repositoryProxy(@Nonnull Class<R> type) {
+    public <R extends KRepository> R proxy(@Nonnull Class<R> type) {
         KEntityRepository<?, ?> entityRepository = createEntityRepository(type)
                 .orElse(null);
         KRepository repository = createRepository();
@@ -108,9 +108,9 @@ public final class KORMRepositoryTemplateImpl extends KORMTemplateImpl implement
     }
 
     @Override
-    public <R extends KRepository> R repositoryProxy(@Nonnull KClass<R> type) {
+    public <R extends KRepository> R proxy(@Nonnull KClass<R> type) {
         //noinspection unchecked
-        return repositoryProxy((Class<R>) REFLECTION.getType(type));
+        return proxy((Class<R>) REFLECTION.getType(type));
     }
 
     @SuppressWarnings("unchecked")
@@ -135,7 +135,7 @@ public final class KORMRepositoryTemplateImpl extends KORMTemplateImpl implement
             if (entityClass == null) {
                 throw new IllegalArgumentException(STR."Could not determine entity class for repository: \{type.getSimpleName()}.");
             }
-            return Optional.of(entityRepository((Class<T>) entityClass));
+            return Optional.of(entity((Class<T>) entityClass));
         }
         return empty();
     }

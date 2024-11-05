@@ -51,7 +51,7 @@ public class JsonIntegrationTest {
     @Test
     public void testInsertOwner() {
         var ORM = ORM(dataSource);
-        var repository = ORM.entityRepository(Owner.class);
+        var repository = ORM.entity(Owner.class);
         var address = new Address("271 University Ave", "Palo Alto");
         var owner = Owner.builder().firstName("Simon").lastName("McDonald").address(address).telephone("555-555-5555").build();
         var inserted = repository.insertAndFetch(owner.toBuilder().address(address).build());
@@ -61,7 +61,7 @@ public class JsonIntegrationTest {
     @Test
     public void testUpdateOwner() {
         var ORM = ORM(dataSource);
-        var repository = ORM.entityRepository(Owner.class);
+        var repository = ORM.entity(Owner.class);
         var owner = repository.select(1);
         var address = new Address("271 University Ave", "Palo Alto");
         repository.update(owner.toBuilder().address(address).build());
@@ -103,7 +103,7 @@ public class JsonIntegrationTest {
     @Test
     public void testOwnerWithJsonMapAddress() {
         var ORM = ORM(dataSource);
-        var repository = ORM.entityRepository(OwnerWithJsonMapAddress.class);
+        var repository = ORM.entity(OwnerWithJsonMapAddress.class);
         var owner = repository.selectAll();
         assertEquals(10, owner.count());
     }
@@ -123,7 +123,7 @@ public class JsonIntegrationTest {
     public void testOwnerWithInlineJsonMapAddress() {
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
             var ORM = ORM(dataSource);
-            var repository = ORM.entityRepository(OwnerWithInlineJsonMapAddress.class);
+            var repository = ORM.entity(OwnerWithInlineJsonMapAddress.class);
             repository.selectAll();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
