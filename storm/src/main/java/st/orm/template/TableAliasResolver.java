@@ -38,7 +38,7 @@ public interface TableAliasResolver {
                     aliasBuilder.append(toLowerCase(ch));
                 }
             }
-            return STR."\{aliasBuilder}\{counter == 0 ? "" : STR."_\{counter}"}";
+            return STR."\{aliasBuilder}\{counter == 0 ? "" : STR."\{counter}"}";
         };
     }
     /**
