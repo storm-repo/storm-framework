@@ -911,7 +911,7 @@ record ElementProcessor(
                     if (!REFLECTION.isAnnotationPresent(component, FK.class)) {
                         throw new SqlTemplateException(STR."Lazy component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is not a foreign key.");
                     }
-                    Lazy<?> lazy = (Lazy<?>) REFLECTION.invokeComponent(component, record);
+                    Lazy<?, ?> lazy = (Lazy<?, ?>) REFLECTION.invokeComponent(component, record);
                     var id = lazy == null ? null : lazy.id();
                     if (id == null && REFLECTION.isNonnull(component)) {
                         throw new SqlTemplateException(STR."Nonnull Lazy component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
@@ -1271,7 +1271,7 @@ record ElementProcessor(
                     if (!REFLECTION.isAnnotationPresent(component, FK.class)) {
                         throw new SqlTemplateException(STR."Lazy component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is not a foreign key.");
                     }
-                    var id = record == null ? null : ((Lazy<?>) REFLECTION.invokeComponent(component, record)).id();
+                    var id = record == null ? null : ((Lazy<?, ?>) REFLECTION.invokeComponent(component, record)).id();
                     if (id == null && REFLECTION.isNonnull(component)) {
                         throw new SqlTemplateException(STR."Nonnull Lazy component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
                     }

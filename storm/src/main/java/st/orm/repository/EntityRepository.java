@@ -16,7 +16,9 @@
 package st.orm.repository;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import st.orm.BatchCallback;
+import st.orm.Lazy;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.ResultCallback;
@@ -36,6 +38,8 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @return the entity model.
      */
     Model<E, ID> model();
+
+    Lazy<E, ID> lazy(@Nullable ID id);
 
     // Query builder methods.
 

@@ -34,6 +34,8 @@ import static java.lang.System.arraycopy;
 import static java.util.Collections.addAll;
 import static java.util.Optional.empty;
 import static st.orm.spi.Providers.getORMConverter;
+import static st.orm.template.impl.SqlTemplateImpl.getLazyPkType;
+import static st.orm.template.impl.SqlTemplateImpl.getLazyRecordType;
 
 /**
  * Factory for creating instances for record types.
@@ -163,7 +165,7 @@ final class RecordMapper {
                 assert constructor != null;
                 assert constructor.getDeclaringClass().isRecord();
                 assert recordComponents != null;
-                expandedTypes.add(lazyFactory.getPkType(recordComponents[i]));
+                expandedTypes.add(getLazyPkType(recordComponents[i]));
             } else {
                 // Non-record type, add directly.
                 expandedTypes.add(paramType);
@@ -217,7 +219,7 @@ final class RecordMapper {
                 // Recursively adapt arguments for nested records, updating currentIndex after processing.
                 nullable |= !REFLECTION.isNonnull(component);
                 AdaptArgumentsResult result = adaptArguments(recordParamTypes, recordConstructor, args, currentIndex, lazyFactory, nullable);
-                if (Arrays.stream(args, currentIndex, result.offset()).allMatch(a -> a == null || (a instanceof Lazy<?> l && l.isNull()))
+                if (Arrays.stream(args, currentIndex, result.offset()).allMatch(a -> a == null || (a instanceof Lazy<?, ?> l && l.isNull()))
                         && nullable) {   // Only apply null if resulting component is marked as nullable.
                     arg = null;
                 } else {
@@ -226,7 +228,7 @@ final class RecordMapper {
                 currentIndex = result.offset();
             } else if (Lazy.class.isAssignableFrom(paramType)) {
                 Object pk = args[currentIndex++];
-                arg = lazyFactory.create(recordComponents[i], pk);
+                arg = lazyFactory.create(getLazyRecordType(recordComponents[i]), pk);
             } else {
                 arg = args[currentIndex++];
             }

@@ -16,8 +16,10 @@
 package st.orm.kotlin.spi;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import kotlin.sequences.Sequence;
 import kotlin.sequences.SequencesKt;
+import st.orm.Lazy;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KBatchCallback;
@@ -68,6 +70,11 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
     @Override
     public KModel<E, ID> model() {
         return new KModel<>(entityRepository.model());
+    }
+
+    @Override
+    public Lazy<E, ID> lazy(@Nullable ID id) {
+        return entityRepository.lazy(id);
     }
 
     @Override

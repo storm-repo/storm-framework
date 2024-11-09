@@ -16,7 +16,9 @@
 package st.orm.template;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import st.orm.BindVars;
+import st.orm.Lazy;
 import st.orm.PreparedQuery;
 import st.orm.Query;
 import st.orm.repository.Model;
@@ -30,6 +32,8 @@ public interface ORMTemplate {
      * @see PreparedQuery#addBatch(Record)
      */
     BindVars createBindVars();
+
+    <T extends Record, ID> Lazy<T, ID> lazy(@Nonnull Class<T> type, @Nullable ID pk);
 
     <T extends Record, ID> Model<T, ID> model(@Nonnull Class<T> type);
 

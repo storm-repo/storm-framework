@@ -18,20 +18,15 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Lazy;
-import st.orm.repository.Entity;
-import st.orm.repository.EntityRepository;
 import st.orm.spi.Provider;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
-import st.orm.template.SqlTemplateException;
 import st.orm.template.TableNameResolver;
 
-import java.lang.reflect.RecordComponent;
 import java.util.Objects;
 import java.util.function.Predicate;
 
-import static st.orm.template.impl.SqlTemplateImpl.getLazyPkType;
-import static st.orm.template.impl.SqlTemplateImpl.getLazyRecordType;
+import static java.util.Objects.requireNonNull;
 
 public final class LazyFactoryImpl implements LazyFactory {
     private final QueryFactory factory;
@@ -45,7 +40,7 @@ public final class LazyFactoryImpl implements LazyFactory {
                            @Nullable ColumnNameResolver columnNameResolver,
                            @Nullable ForeignKeyResolver foreignKeyResolver,
                            @Nullable Predicate<? super Provider> providerFilter) {
-        this.factory = Objects.requireNonNull(factory, "factory");
+        this.factory = requireNonNull(factory, "factory");
         this.tableNameResolver = tableNameResolver;
         this.columnNameResolver = columnNameResolver;
         this.foreignKeyResolver = foreignKeyResolver;
@@ -53,31 +48,23 @@ public final class LazyFactoryImpl implements LazyFactory {
     }
 
     @Override
-    public Class<?> getPkType(@Nonnull RecordComponent component) throws SqlTemplateException {
-        return getLazyPkType(component);
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public <T extends Record & Entity<Object>> Lazy<T> create(@Nonnull RecordComponent component, @Nullable Object pk) throws SqlTemplateException {
-        //noinspection RedundantCast
-        Class<T> recordType = (Class<T>) (Object) getLazyRecordType(component);
+    public <T extends Record, ID> Lazy<T, ID> create(@Nonnull Class<T> type, @Nullable ID pk) {
+        var queryBuilder = new ORMRepositoryTemplateImpl(
+                factory,
+                tableNameResolver,
+                columnNameResolver,
+                foreignKeyResolver,
+                providerFilter).selectFrom(type);
         LazySupplier<T> supplier = new LazySupplier<>(() -> {
             if (pk == null) {
                 return null;
             }
-            EntityRepository<T, Object> repository = new ORMRepositoryTemplateImpl(
-                    factory,
-                    tableNameResolver,
-                    columnNameResolver,
-                    foreignKeyResolver,
-                    providerFilter).entity(recordType);
-            return repository.select(pk);
+            return queryBuilder.where(pk).getSingleResult();
         });
-        class LazyImpl implements Lazy<T>{
-            private final Object pk;
+        class LazyImpl implements Lazy<T, ID>{
+            private final ID pk;
 
-            LazyImpl(@Nullable Object pk) {
+            LazyImpl(@Nullable ID pk) {
                 this.pk = pk;
             }
 
@@ -87,7 +74,7 @@ public final class LazyFactoryImpl implements LazyFactory {
             }
 
             @Override
-            public Object id() {
+            public ID id() {
                 return pk;
             }
 

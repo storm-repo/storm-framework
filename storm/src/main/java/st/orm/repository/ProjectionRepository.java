@@ -16,6 +16,8 @@
 package st.orm.repository;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
+import st.orm.Lazy;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.ResultCallback;
@@ -35,6 +37,8 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @return the projection model.
      */
     Model<P, ID> model();
+
+    Lazy<P, ID> lazy(@Nullable ID id);
 
     // Query builder methods.
 

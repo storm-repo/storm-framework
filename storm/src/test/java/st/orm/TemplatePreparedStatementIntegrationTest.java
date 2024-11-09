@@ -214,7 +214,7 @@ public class TemplatePreparedStatementIntegrationTest {
             @Nonnull String name,
             @Nonnull @Name("birth_date") @Persist(updatable = false) LocalDate birthDate,
             @Nonnull @FK @Name("type_id") @Persist(updatable = false) PetType petType,
-            @Nonnull @FK @Name("owner_id") Lazy<Owner> owner
+            @Nonnull @FK @Name("owner_id") Lazy<Owner, Integer> owner
     ) implements Entity<Integer> {}
 
     @Test
@@ -593,8 +593,8 @@ public class TemplatePreparedStatementIntegrationTest {
     @Name("vet_specialty")
     public record VetSpecialtyLazyPk(
             // PK does not reflect the database, but suffices for the test case.
-            @PK @FK @Name("vet_id") Lazy<Vet> id,
-            @Nonnull @FK @Name("specialty_id") Specialty specialty) implements Entity<Lazy<Vet>> {
+            @PK @FK @Name("vet_id") Lazy<Vet, Integer> id,
+            @Nonnull @FK @Name("specialty_id") Specialty specialty) implements Entity<Lazy<Vet, Integer>> {
     }
 
     @Test

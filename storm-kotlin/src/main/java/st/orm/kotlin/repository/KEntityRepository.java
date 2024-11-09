@@ -16,7 +16,9 @@
 package st.orm.kotlin.repository;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import kotlin.sequences.Sequence;
+import st.orm.Lazy;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KBatchCallback;
@@ -37,6 +39,8 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * @return the entity model.
      */
     KModel<E, ID> model();
+
+    Lazy<E, ID> lazy(@Nullable ID id);
 
     // Query builder methods.
 

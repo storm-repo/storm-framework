@@ -138,7 +138,7 @@ public final class ObjectMapperFactory {
             for (int i = 0; i < parameterTypes.length; i++) {
                 Object arg = args[i];
                 Class<?> paramType = parameterTypes[i];
-                if (arg == null || (arg instanceof Lazy<?> l && l.isNull())) {
+                if (arg == null || (arg instanceof Lazy<?, ?> l && l.isNull())) {
                     if (isNonnull(parameters[i])) {
                         throw new SqlTemplateException(STR."Nonnull argument of \{constructor.getDeclaringClass().getSimpleName()} (\{parameters[i].getName()}) is NULL at position \{offset + i + 1}.");
                     }

@@ -16,6 +16,7 @@
 package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Lazy;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.repository.Column;
@@ -61,6 +62,10 @@ abstract class BaseRepositoryImpl<E extends Record, ID> {
      */
     public Model<E, ID> model() {
         return model;
+    }
+
+    public Lazy<E, ID> lazy(@Nonnull ID id) {
+        return orm.lazy(model.type(), id);
     }
 
     public QueryBuilder<E, E, ID> select() {

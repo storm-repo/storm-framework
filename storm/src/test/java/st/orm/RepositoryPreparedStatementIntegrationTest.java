@@ -231,7 +231,7 @@ public class RepositoryPreparedStatementIntegrationTest {
             @PK Integer id,
             @Nonnull @Name("visit_date") LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK @Name("pet_id") Lazy<Pet> pet
+            @Nonnull @FK @Name("pet_id") Lazy<Pet, Integer> pet
     ) implements Entity<Integer> {
     }
 
@@ -261,7 +261,7 @@ public class RepositoryPreparedStatementIntegrationTest {
             @PK Integer id,
             @Nonnull @Name("visit_date") LocalDate visitDate,
             @Nullable String description,
-            @Nullable @FK @Name("pet_id") Lazy<Pet> pet,
+            @Nullable @FK @Name("pet_id") Lazy<Pet, Integer> pet,
             @Version Instant timestamp
     ) implements Entity<Integer> {
     }
@@ -303,7 +303,7 @@ public class RepositoryPreparedStatementIntegrationTest {
             @Nonnull String name,
             @Nonnull @Name("birth_date") @Persist(updatable = false) LocalDate birthDate,
             @Nonnull @FK @Name("type_id") @Persist(updatable = false) PetType petType,
-            @FK @Name("owner_id") Lazy<Owner> owner
+            @FK @Name("owner_id") Lazy<Owner, Integer> owner
     ) implements Entity<Integer> {}
 
     @Test
@@ -352,7 +352,7 @@ public class RepositoryPreparedStatementIntegrationTest {
             @Nonnull String name,
             @Nonnull @Name("birth_date") @Persist(updatable = false) LocalDate birthDate,
             @Nonnull @FK @Name("type_id") @Persist(updatable = false) PetType petType,
-            @FK @Name("owner_id") Lazy<Owner> owner
+            @FK @Name("owner_id") Lazy<Owner, Integer> owner
     ) implements Entity<Integer> {}
 
     @Test
@@ -431,7 +431,7 @@ public class RepositoryPreparedStatementIntegrationTest {
             @Nonnull @Name("visit_date") LocalDate visitDate,
             @Nullable String description,
             @Nullable @FK @Name("pet_id") PetLazyOwner pet1,
-            @Nullable @FK @Name("pet_id") Lazy<PetLazyOwner> pet2
+            @Nullable @FK @Name("pet_id") Lazy<PetLazyOwner, Integer> pet2
     ) implements Entity<Integer> {
     }
 
@@ -543,8 +543,8 @@ public class RepositoryPreparedStatementIntegrationTest {
             @PK Integer id,
             @Nonnull @Name("visit_date") LocalDate visitDate,
             @Nullable String description,
-            @Nullable @FK @Name("pet_id") Lazy<PetLazyOwner> pet1,
-            @Nullable @FK @Name("pet_id") Lazy<PetLazyOwner> pet2
+            @Nullable @FK @Name("pet_id") Lazy<PetLazyOwner, Integer> pet1,
+            @Nullable @FK @Name("pet_id") Lazy<PetLazyOwner, Integer> pet2
     ) implements Entity<Integer> {
     }
 

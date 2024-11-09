@@ -16,7 +16,9 @@
 package st.orm.kotlin.repository;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import kotlin.sequences.Sequence;
+import st.orm.Lazy;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KResultCallback;
@@ -36,6 +38,8 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
      * @return the entity model.
      */
     KModel<P, ID> model();
+
+    Lazy<P, ID> lazy(@Nullable ID id);
 
     // Query builder methods.
 

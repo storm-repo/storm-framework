@@ -18,17 +18,11 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Lazy;
-import st.orm.repository.Entity;
-import st.orm.template.SqlTemplateException;
-
-import java.lang.reflect.RecordComponent;
 
 /**
  * Bridge for creating lazy instances for records.
  */
 public interface LazyFactory {
 
-    Class<?> getPkType(@Nonnull RecordComponent component) throws SqlTemplateException;
-
-    <T extends Record & Entity<Object>> Lazy<T> create(@Nonnull RecordComponent component, @Nullable Object pk) throws SqlTemplateException;
+    <T extends Record, ID> Lazy<T, ID> create(@Nonnull Class<T> type, @Nullable ID pk);
 }

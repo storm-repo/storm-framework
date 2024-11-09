@@ -17,19 +17,35 @@ package st.orm;
 
 import jakarta.annotation.Nullable;
 import st.orm.repository.Entity;
+import st.orm.repository.Projection;
 
 import java.util.Objects;
 
 /**
  *
  */
-public interface Lazy<T extends Entity<?>> {
+public interface Lazy<T extends Record, ID> {
 
-    static <T extends Entity<?>> Lazy<T> ofNull() {
-        return of(null);
+    static <T extends Record, ID> Lazy<T, ID> ofNull() {
+        return new Lazy<T, ID>() {
+            @Override
+            public boolean isNull() {
+                return true;
+            }
+
+            @Override
+            public ID id() {
+                return null;
+            }
+
+            @Override
+            public T fetch() {
+                return null;
+            }
+        };
     }
 
-    static <T extends Entity<?>> Lazy<T> of(@Nullable T entity) {
+    static <E extends Record & Entity<ID>, ID> Lazy<E, ID> of(@Nullable E entity) {
         return new Lazy<>() {
             @Override
             public boolean isNull() {
@@ -37,12 +53,12 @@ public interface Lazy<T extends Entity<?>> {
             }
 
             @Override
-            public Object id() {
+            public ID id() {
                 return entity == null ? null : entity.id();
             }
 
             @Override
-            public T fetch() {
+            public E fetch() {
                 return entity;
             }
 
@@ -53,7 +69,7 @@ public interface Lazy<T extends Entity<?>> {
 
             @Override
             public boolean equals(Object obj) {
-                if (obj instanceof Lazy<?> other) {
+                if (obj instanceof Lazy<?, ?> other) {
                     var otherId = other.id();
                     return Objects.equals(entity == null
                                     ? null
@@ -69,9 +85,54 @@ public interface Lazy<T extends Entity<?>> {
         };
     }
 
+    static <P extends Record & Projection<ID>, ID> Lazy<P, ID> of(@Nullable P projection, @Nullable ID id) {
+        if (projection == null && id != null) {
+            throw new IllegalArgumentException(STR."Projection is null but id is not: \{id}.");
+        }
+        if (projection != null && id == null) {
+            throw new IllegalArgumentException(STR."Projection is not null but id is: \{projection}.");
+        }
+        return new Lazy<>() {
+            @Override
+            public boolean isNull() {
+                return projection == null;
+            }
+
+            @Override
+            public ID id() {
+                return id;
+            }
+
+            @Override
+            public P fetch() {
+                return projection;
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hashCode(id);
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj instanceof Lazy<?, ?> other) {
+                    var otherId = other.id();
+                    return Objects.equals(id, other.id());
+                }
+                return false;
+            }
+
+            @Override
+            public String toString() {
+                return STR."Lazy[pk=\{projection == null ? null : id}, fetched=\{projection != null}]";
+            }
+        };
+
+    }
+
     boolean isNull();
 
-    Object id();
+    ID id();
 
     T fetch();
 }

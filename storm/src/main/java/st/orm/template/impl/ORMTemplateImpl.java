@@ -57,6 +57,7 @@ class ORMTemplateImpl implements ORMTemplate {
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
     private final QueryFactory factory;
+    private final LazyFactory lazyFactory;
     protected final TableNameResolver tableNameResolver;
     protected final ColumnNameResolver columnNameResolver;
     protected final ForeignKeyResolver foreignKeyResolver;
@@ -68,6 +69,7 @@ class ORMTemplateImpl implements ORMTemplate {
                            @Nullable ForeignKeyResolver foreignKeyResolver,
                            @Nullable Predicate<? super Provider> providerFilter) {
         this.factory = requireNonNull(factory);
+        this.lazyFactory = new LazyFactoryImpl(factory, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter);
         this.tableNameResolver = tableNameResolver;
         this.columnNameResolver = columnNameResolver;
         this.foreignKeyResolver = foreignKeyResolver;
@@ -77,6 +79,11 @@ class ORMTemplateImpl implements ORMTemplate {
     @Override
     public BindVars createBindVars() {
         return factory.createBindVars();
+    }
+
+    @Override
+    public <E extends Record, ID> Lazy<E, ID> lazy(@Nonnull Class<E> type, @Nullable ID pk) {
+        return lazyFactory.create(type, pk);
     }
 
     @Override

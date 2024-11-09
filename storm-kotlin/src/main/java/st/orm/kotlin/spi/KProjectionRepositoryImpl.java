@@ -16,8 +16,10 @@
 package st.orm.kotlin.spi;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import kotlin.sequences.Sequence;
 import kotlin.sequences.SequencesKt;
+import st.orm.Lazy;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KResultCallback;
@@ -67,6 +69,11 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
     @Override
     public KModel<P, ID> model() {
         return new KModel<>(projectionRepository.model());
+    }
+
+    @Override
+    public Lazy<P, ID> lazy(@Nullable ID id) {
+        return projectionRepository.lazy(id);
     }
 
     @Override
