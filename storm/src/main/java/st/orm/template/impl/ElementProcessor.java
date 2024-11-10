@@ -623,33 +623,51 @@ record ElementProcessor(
         return new ElementResult(it.sql());
     }
 
-    public static @Nullable List<RecordComponent> resolvePath(Class<? extends Record> root, Class<? extends Record> target) {
+    public static @Nullable List<RecordComponent> resolvePath(Class<? extends Record> root, Class<? extends Record> target) throws SqlTemplateException{
         List<RecordComponent> path = new ArrayList<>();
-        if (!resolvePath(root, target, path)) {
+        List<RecordComponent> searchPath = new ArrayList<>(); // Temporary path for exploration.
+        int pathsFound = resolvePath(root, target, searchPath, path, 0);
+        if (pathsFound == 0) {
             return null;
+        } else if (pathsFound > 1) {
+            throw new SqlTemplateException(STR."Multiple paths to the target \{target.getSimpleName()} found in \{root.getSimpleName()}.");
         }
         return path;
     }
 
-    private static boolean resolvePath(Class<? extends Record> current, Class<? extends Record> target, List<RecordComponent> path) {
+    private static int resolvePath(Class<? extends Record> current, Class<? extends Record> target,
+                                   List<RecordComponent> searchPath, List<RecordComponent> path, int pathsFound) {
         if (current == target) {
-            return true;
+            if (pathsFound == 0) {
+                path.clear();
+                path.addAll(searchPath);
+            }
+            return pathsFound + 1;
         }
         for (RecordComponent component : current.getRecordComponents()) {
             Class<?> componentType = component.getType();
             if (componentType.isRecord() && REFLECTION.isAnnotationPresent(component, FK.class)) {
-                path.add(component);
+                searchPath.add(component);
                 //noinspection unchecked
-                if (resolvePath((Class<? extends Record>) componentType, target, path)) {
-                    return true;
+                pathsFound = resolvePath((Class<? extends Record>) componentType, target, searchPath, path, pathsFound);
+                if (pathsFound > 1) {
+                    return pathsFound; // Early return if multiple paths are found.
                 }
-                path.removeLast();
+                searchPath.removeLast();
             } else if (componentType == target) {
-                path.add(component);
-                return true;
+                searchPath.add(component);
+                pathsFound++;
+                if (pathsFound == 1) {
+                    path.clear();
+                    path.addAll(searchPath);
+                }
+                searchPath.removeLast();
+                if (pathsFound > 1) {
+                    return pathsFound;
+                }
             }
         }
-        return false;
+        return pathsFound;
     }
 
     private static String getColumnsStringForSelect(@Nonnull Class<? extends Record> type,
@@ -1188,9 +1206,6 @@ record ElementProcessor(
                             if (converter.isPresent()) {
                                 continue;
                             }
-                            if (REFLECTION.isAnnotationPresent(component, PK.class)) {
-                                continue;
-                            }
                             boolean fk = REFLECTION.isAnnotationPresent(component, FK.class);
                             Class<? extends Record> type;
                             Class<? extends Record> inlineType;
@@ -1198,7 +1213,7 @@ record ElementProcessor(
                                 //noinspection unchecked
                                 type = (Class<? extends Record>) component.getType();
                                 inlineType = null;
-                            } else {
+                            } else {    // Can either be PK or Inline.
                                 // Assuming @Inline; No need to check for optional annotation.
                                 type = recordType;
                                 //noinspection unchecked
