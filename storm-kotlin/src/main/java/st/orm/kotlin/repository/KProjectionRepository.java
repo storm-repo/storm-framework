@@ -28,60 +28,78 @@ import st.orm.repository.Projection;
 import java.util.List;
 
 /**
- * Provides a generic interface with CRUD operations for entities.
+ * Provides a generic interface with CRUD operations for projections.
+ * 
+ * @since 1.1
  */
 public interface KProjectionRepository<P extends Record & Projection<ID>, ID> extends KRepository {
 
     /**
-     * Returns the entity model associated with this repository.
+     * Returns the projection model associated with this repository.
      *
-     * @return the entity model.
+     * @return the projection model.
      */
     KModel<P, ID> model();
 
+    /**
+     * Creates a new lazy projection instance with the specified primary key.
+     *
+     * @param id the primary key of the projection.
+     * @return a lazy projection instance.
+     */
     Lazy<P, ID> lazy(@Nullable ID id);
 
     // Query builder methods.
 
+    /**
+     * Creates a new query builder for the projection type managed by this repository.
+     *
+     * @return a new query builder for the projection type.
+     */
     KQueryBuilder<P, P, ID> select();
 
+    /**
+     * Creates a new query builder for the projection type managed by this repository.
+     *
+     * @return a new query builder for the projection type.
+     */
     KQueryBuilder<P, Long, ID> selectCount();
 
     // Base methods.
 
     /**
-     * Retrieves an entity based on its primary key.
+     * Retrieves a projection based on its primary key.
      *
-     * <p>This method performs a lookup in the database, returning the corresponding entity if it exists.</p>
+     * <p>This method performs a lookup in the database, returning the corresponding projection if it exists.</p>
      *
-     * @param id the primary key of the entity to retrieve.
-     * @return the entity associated with the provided primary key. The returned entity encapsulates all relevant data
-     * as mapped by the entity model.
-     * @throws NoResultException    if no entity is found matching the given primary key, indicating that there's no
-     *                              corresponding data in the database.
+     * @param id the primary key of the projection to retrieve.
+     * @return the projection associated with the provided primary key. The returned projection encapsulates all relevant data
+     * as mapped by the projection model.
+     * @throws NoResultException if no projection is found matching the given primary key, indicating that there's no
+     *                           corresponding data in the database.
      * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
      *                              connectivity problems or query execution errors.
      */
     P select(@Nonnull ID id);
 
     /**
-     * Returns the number of entities in the database of the entity type supported by this repository.
+     * Returns the number of projections in the database of the projection type supported by this repository.
      *
-     * @return the total number of entities in the database as a long value.
+     * @return the total number of projections in the database as a long value.
      * @throws PersistenceException if the count operation fails due to underlying database issues, such as
      * connectivity.
      */
     long count();
 
     /**
-     * Checks if an entity with the specified primary key exists in the database.
+     * Checks if a projection with the specified primary key exists in the database.
      *
-     * This method determines the presence of an entity by checking if the count of entities with the given primary key
-     * is greater than zero. It leverages the {@code selectCount} method, which performs a count operation on the
-     * database.
+     * <p>This method determines the presence of a projection by checking if the count of projections with the given primary
+     * key is greater than zero. It leverages the {@code selectCount} method, which performs a count operation on the
+     * database.</p>
      *
-     * @param id the primary key of the entity to check for existence.
-     * @return true if an entity with the specified primary key exists, false otherwise.
+     * @param id the primary key of the projection to check for existence.
+     * @return true if a projection with the specified primary key exists, false otherwise.
      * @throws PersistenceException if there is an underlying database issue during the count operation.
      */
     boolean exists(@Nonnull ID id);
@@ -89,123 +107,117 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
     // List based methods.
 
     /**
-     * Retrieves a list of entities based on their primary keys.
+     * Retrieves a stream of projections based on their primary keys.
      *
-     * <p>This method executes a single query to select multiple entities from the database, using a collection of primary
-     * keys. It is optimized to efficiently retrieve a batch of entities in one operation, reducing the overhead of
-     * executing multiple individual queries.</p>
+     * <p>This method executes queries in batches, depending on the number of primary keys in the specified ids stream.
+     * This optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve projections.
+     * The batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
      *
-     * @param ids the primary keys of the entities to retrieve. This iterable collection should contain the unique
-     *            identifiers of the desired entities. The collection must not contain null elements.
-     * @return a list of entities corresponding to the provided primary keys. The order of entities in the list is not
-     * guaranteed to match the order of ids in the input collection. If an id does not correspond to any entity in the
-     * database, it will simply be skipped, and no corresponding entity will be included in the returned list.
-     * @throws PersistenceException if the selection operation fails. This could be due to issues such as connectivity
-     *                              problems, query execution errors, or invalid input parameters.
+     * <p>The resulting stream is lazily loaded, meaning that the projections are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of projections.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
+     * recommended to use it within a try-with-resources block.</p>
+     *
+     * @param ids a stream of projection IDs to retrieve from the repository.
+     * @return a stream of projections corresponding to the provided primary keys. The order of projections in the stream is
+     *         not guaranteed to match the order of ids in the input stream. If an id does not correspond to any projection
+     *         in the database, it will simply be skipped, and no corresponding projection will be included in the returned
+     *         stream. If the same projection is requested multiple times, it may be included in the stream multiple times
+     *         if it is part of a separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
      */
     List<P> select(@Nonnull Iterable<ID> ids);
 
     // Sequence based methods.
 
     /**
-     * Returns a stream of all entities of the type supported by this repository. Each element in the stream represents
-     * an entity in the database, encapsulating all relevant data as mapped by the entity model.
+     * Processes a sequence of all projections of the type supported by this repository using the specified callback.
+     * This method retrieves the projections and applies the provided callback to process them, returning the
+     * result produced by the callback.
      *
-     * <p>The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
-     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
-     * dealing with large volumes of entities.</p>
+     * <p>This method ensures efficient handling of large data sets by loading projections only as needed.
+     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * resources after processing to prevent resource leaks.</p>
      *
-     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
-     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
-     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
-     * stream is properly closed to release the resources.</p>
-     *
-     * @return a stream of all entities of the type supported by this repository.
-     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
-     *                              connectivity.
+     * @param callback a {@link KResultCallback} defining how to process the sequence of projections and produce a result.
+     * @param <R> the type of result produced by the callback after processing the projections.
+     * @return the result produced by the callback's processing of the projection sequence.
+     * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
     <R> R selectAll(@Nonnull KResultCallback<P, R> callback);
 
     /**
-     * Retrieves a stream of entities based on their primary keys.
+     * Processes a sequence of projections corresponding to the provided IDs using the specified callback.
+     * This method retrieves projections matching the given IDs and applies the callback to process the results,
+     * returning the outcome produced by the callback.
      *
-     * <p>This method executes queries in batches, depending on the number of primary keys in the specified ids stream.
-     * This optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities.
-     * The batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     * <p>This method is designed for efficient data handling by only retrieving specified projections as needed.
+     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * resources after processing to prevent resource leaks.</p>
      *
-     * <p>The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
-     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
-     * dealing with large volumes of entities.</p>
-     *
-     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
-     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
-     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
-     * stream is properly closed to release the resources.</p>
-     *
-     * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
-     * not guaranteed to match the order of ids in the input stream. If an id does not correspond to any entity in the
-     * database, it will simply be skipped, and no corresponding entity will be included in the returned stream. If the
-     * same entity is requested multiple times, it may be included in the stream multiple times if it is part of a
-     * separate batch.
-     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
-     *                              connectivity.
+     * @param ids a sequence of projection IDs to retrieve from the repository.
+     * @param callback a {@link KResultCallback} defining how to process the sequence of projections and produce a result.
+     * @param <R> the type of result produced by the callback after processing the projections.
+     * @return the result produced by the callback's processing of the projection sequence.
+     * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
     <R> R select(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<P, R> callback);
 
     /**
-     * Retrieves a stream of entities based on their primary keys.
+     * Retrieves a sequence of projections based on their primary keys.
      *
      * <p>This method executes queries in batches, with the batch size determined by the provided parameter. This
-     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities. The
+     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve projections. The
      * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
      *
-     * <p>The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
-     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
-     * dealing with large volumes of entities.</p>
+     * <p>This method is designed for efficient data handling by only retrieving specified projections as needed.
+     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * resources after processing to prevent resource leaks.</p>
      *
-     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
-     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
-     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
-     * stream is properly closed to release the resources.</p>
-     *
-     * @param sliceSize the number of primary keys to include in each batch. This parameter determines the size of the
+     * @param ids a sequence of projection IDs to retrieve from the repository.
+     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
      *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
      *                  dealing with large sets of primary keys.
-     * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
-     * not guaranteed to match the order of ids in the input stream. If an id does not correspond to any entity in the
-     * database, it will simply be skipped, and no corresponding entity will be included in the returned stream. If the
-     * same entity is requested multiple times, it may be included in the stream multiple times if it is part of a
+     * @return a sequence of projections corresponding to the provided primary keys. The order of projections in the sequence is
+     * not guaranteed to match the order of ids in the input sequence. If an id does not correspond to any projection in the
+     * database, it will simply be skipped, and no corresponding projection will be included in the returned sequence. If the
+     * same projection is requested multiple times, it may be included in the sequence multiple times if it is part of a
      * separate batch.
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    <R> R select(@Nonnull Sequence<ID> ids, int sliceSize, @Nonnull KResultCallback<P, R> callback);
+    <R> R select(@Nonnull Sequence<ID> ids, int batchSize, @Nonnull KResultCallback<P, R> callback);
 
     /**
-     * Counts the number of entities identified by the provided stream of IDs using the default batch size.
+     * Counts the number of projections identified by the provided sequence of IDs using the default batch size.
      *
-     * This method calculates the total number of entities that match the provided primary keys. The counting
+     * <p>This method calculates the total number of projections that match the provided primary keys. The counting
      * is performed in batches, which helps optimize performance and manage database load when dealing with
-     * large sets of IDs.
+     * large sets of IDs.</p>
      *
-     * @param ids a stream of IDs for which to count matching entities.
-     * @return the total count of entities matching the provided IDs.
+     * @param ids a sequence of IDs for which to count matching projections.
+     * @return the total count of projections matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
     long count(@Nonnull Sequence<ID> ids);
 
     /**
-     * Counts the number of entities identified by the provided stream of IDs, with the counting process divided into
+     * Counts the number of projections identified by the provided sequence of IDs, with the counting process divided into
      * batches of the specified size.
      *
-     * This method performs the counting operation in batches, specified by the {@code batchSize} parameter. This
+     * <p>This method performs the counting operation in batches, specified by the {@code batchSize} parameter. This
      * batching approach is particularly useful for efficiently handling large volumes of IDs, reducing the overhead on
-     * the database and improving performance.
+     * the database and improving performance.</p>
      *
-     * @param ids a stream of IDs for which to count matching entities.
+     * @param ids a sequence of IDs for which to count matching projections.
      * @param batchSize the size of the batches to use for the counting operation. A larger batch size can improve
      *                  performance but may also increase the load on the database.
-     * @return the total count of entities matching the provided IDs.
+     * @return the total count of projections matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
     long count(@Nonnull Sequence<ID> ids, int batchSize);

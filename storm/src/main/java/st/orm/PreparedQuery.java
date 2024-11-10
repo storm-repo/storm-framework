@@ -35,11 +35,20 @@ public interface PreparedQuery extends Query, AutoCloseable {
     void addBatch(@Nonnull Record record);
 
     /**
-     * Returns the generated keys as result of an insert statement. Returns an empty list if the statement did not
-     * generate any keys.
+     * Returns a stream of generated keys as the result of an insert statement. Returns an empty stream if the insert
+     * statement did not generate any keys.
      *
-     * @return the generated keys as result of an insert statement.
-     * @throws PersistenceException if the statement fails.
+     * <p>The returned stream allows for lazy processing, meaning elements are generated only as they are consumed,
+     * optimizing resource usage. Note, however, that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
+     * recommended to use it within a try-with-resources block.</p>
+     *
+     * @param <ID> the type of generated keys
+     * @param type the class of the keys
+     * @return a stream of generated keys resulting from an insert statement; returns an empty stream if no keys are
+     * generated.
+     * @throws PersistenceException if the statement fails
      */
     <ID> Stream<ID> getGeneratedKeys(@Nonnull Class<ID> type);
 

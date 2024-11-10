@@ -20,9 +20,19 @@ import jakarta.annotation.Nullable;
 import st.orm.Lazy;
 
 /**
- * Bridge for creating lazy instances for records.
+ * Interface for creating lazy instances for records.
  */
 public interface LazyFactory {
 
+    /**
+     * Creates a lazy instance for the specified record {@code type} and {@code pk}. This method can be used to generate
+     * lazy instances for entities, projections and regular records.
+     *
+     * @param type record type.
+     * @param pk primary key.
+     * @return lazy instance.
+     * @param <T> record type.
+     * @param <ID> primary key type.
+     */
     <T extends Record, ID> Lazy<T, ID> create(@Nonnull Class<T> type, @Nullable ID pk);
 }

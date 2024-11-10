@@ -1,5 +1,8 @@
 package st.orm;
 
+/**
+ * Represents the type of a temporal attribute.
+ */
 public enum TemporalType {
 
     /** Map as <code>java.sql.Date</code> */

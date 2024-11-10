@@ -28,6 +28,11 @@ import static java.util.Spliterators.spliteratorUnknownSize;
  */
 public interface QueryBuilder<T extends Record, R, ID> {
 
+    /**
+     * Marks the current query as a distinct query.
+     *
+     * @return the query builder.
+     */
     QueryBuilder<T, R, ID> distinct();
 
     /**
@@ -39,6 +44,12 @@ public interface QueryBuilder<T extends Record, R, ID> {
      */
     interface TypedJoinBuilder<T extends Record, R, ID> extends JoinBuilder<T, R, ID> {
 
+        /**
+         * Specifies the relation to join on.
+         * 
+         * @param relation the relation to join on.
+         * @return the query builder.
+         */
         QueryBuilder<T, R, ID> on(@Nonnull Class<? extends Record> relation);
     }
 
@@ -51,6 +62,12 @@ public interface QueryBuilder<T extends Record, R, ID> {
      */
     interface JoinBuilder<T extends Record, R, ID> {
 
+        /**
+         * Specifies the join condition using a custom expression.
+         * 
+         * @param template the condition to join on.
+         * @return the query builder.
+         */
         QueryBuilder<T, R, ID> on(@Nonnull StringTemplate template);
     }
 
@@ -96,14 +113,49 @@ public interface QueryBuilder<T extends Record, R, ID> {
      */
     TypedJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull Class<? extends Record> relation, @Nonnull String alias);
 
+    /**
+     * Adds a cross join to the query.
+     *
+     * @param template the condition to join.
+     * @return the query builder.
+     */
     QueryBuilder<T, R, ID> crossJoin(@Nonnull StringTemplate template);
 
+    /**
+     * Adds an inner join to the query.
+     *
+     * @param template the condition to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
     JoinBuilder<T, R, ID> innerJoin(@Nonnull StringTemplate template, @Nonnull String alias);
 
+    /**
+     * Adds a left join to the query.
+     *
+     * @param template the condition to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
     JoinBuilder<T, R, ID> leftJoin(@Nonnull StringTemplate template, @Nonnull String alias);
 
+    /**
+     * Adds a right join to the query.
+     *
+     * @param template the condition to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
     JoinBuilder<T, R, ID> rightJoin(@Nonnull StringTemplate template, @Nonnull String alias);
 
+    /**
+     * Adds a join of the specified type to the query.
+     *
+     * @param type the join type.
+     * @param template the condition to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
     JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull StringTemplate template, @Nonnull String alias);
 
     /**
@@ -129,14 +181,20 @@ public interface QueryBuilder<T extends Record, R, ID> {
             return expression(RAW."FALSE");
         }
 
+        /**
+         * Adds a custom expression to the WHERE clause.
+         *
+         * @param template the expression to add.
+         * @return the predicate builder.
+         */
         PredicateBuilder<T, R, ID> expression(@Nonnull StringTemplate template);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified object. The object can be the primary
          * key of the table, or a record representing the table, or any of the related tables in the table graph.
          *
-         * <p>If the object type cannot be unambiguously matched, the {@link #filter(String, Operator, Object...)} method can be used to
-         * specify the path to the object in the table graph.</p>
+         * <p>If the object type cannot be unambiguously matched, the {@link #filter(String, Operator, Object...)}
+         * method can be used to specify the path to the object in the table graph.</p>
          *
          * @param o the object to match.
          * @return the predicate builder.
@@ -147,8 +205,8 @@ public interface QueryBuilder<T extends Record, R, ID> {
          * Adds a condition to the WHERE clause that matches the specified objects. The objects can be the primary key
          * of the table, or a record representing the table, or any of the related tables in the table graph.
          *
-         * <p>If the object type cannot be unambiguously matched, the {@link #filter(String, Operator, Iterable)} method can be used to
-         * specify the path to the object in the table graph.</p>
+         * <p>If the object type cannot be unambiguously matched, the {@link #filter(String, Operator, Iterable)} method
+         * can be used to specify the path to the object in the table graph.</p>
          *
          * @param it the objects to match.
          * @return the predicate builder.
@@ -189,8 +247,26 @@ public interface QueryBuilder<T extends Record, R, ID> {
      */
     interface PredicateBuilder<T extends Record, R, ID> {
 
+        /**
+         * Adds a predicate to the WHERE clause using an AND condition.
+         *
+         * <p>This method combines the specified predicate with existing predicates using an AND operation, ensuring
+         * that all added conditions must be true.</p>
+         *
+         * @param predicate the predicate to add.
+         * @return the predicate builder.
+         */
         PredicateBuilder<T, R, ID> and(@Nonnull PredicateBuilder<T, R, ID> predicate);
 
+        /**
+         * Adds a predicate to the WHERE clause using an OR condition.
+         *
+         * <p>This method combines the specified predicate with existing predicates using an OR operation, allowing any
+         * of the added conditions to be true.</p>
+         *
+         * @param predicate the predicate to add.
+         * @return the predicate builder.
+         */
         PredicateBuilder<T, R, ID> or(@Nonnull PredicateBuilder<T, R, ID> predicate);
     }
 
@@ -250,15 +326,28 @@ public interface QueryBuilder<T extends Record, R, ID> {
         return wherePredicate(predicate -> predicate.filter(path, operator, o));
     }
 
+    /**
+     * Adds a WHERE clause to the query for the specified expression.
+     *
+     * @param template the expression.
+     * @return the query builder.
+     */
     default QueryBuilder<T, R, ID> where(@Nonnull StringTemplate template) {
         return wherePredicate(it -> it.expression(template));
     }
 
+    /**
+     * Adds a WHERE clause to the query using a {@link WhereBuilder}.
+     *
+     * @param predicate the predicate to add.
+     * @return the query builder.
+     */
     QueryBuilder<T, R, ID> wherePredicate(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<T, R, ID>> predicate);
 
     /**
      * Returns a processor that can be used to append the query with a string template.
      *
+     * @param template the string template to append.
      * @return a processor that can be used to append the query with a string template.
      */
     QueryBuilder<T, R, ID> append(@Nonnull StringTemplate template);
@@ -276,6 +365,9 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * <p>Unlike regular queries, which are constructed lazily, prepared queries are constructed eagerly.
      * Prepared queries allow the use of bind variables and enable reading generated keys after row insertion.</p>
      *
+     * <p>Note that the prepared query must be closed after usage to prevent resource leaks. As the prepared query is
+     * AutoCloseable, it is recommended to use it within a try-with-resources block.</p>
+     *
      * @return the prepared query.
      * @throws PersistenceException if the query preparation fails.
      */
@@ -290,26 +382,34 @@ public interface QueryBuilder<T extends Record, R, ID> {
     /**
      * Executes the query and returns a stream of results.
      *
-     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
-     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
-     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
-     * stream is properly closed to release the resources.</p>
+     * <p>The resulting stream is lazily loaded, meaning that the records are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of records.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only be invoked 
+     * when the query is intended to run. Since the stream holds resources open while in use, it must be closed after 
+     * usage to prevent resource leaks. As the stream is AutoCloseable, it is recommended to use it within a 
+     * try-with-resources block.</p>
      *
      * @return a stream of results.
-     * @throws PersistenceException if the query fails.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     *                              connectivity.
      */
     Stream<R> getResultStream();
 
     /**
-     * Executes the query and returns a stream of results.
+     * Executes the query and returns a stream of using the specified callback. This method retrieves the records and
+     * applies the provided callback to process them, returning the result produced by the callback.
      *
-     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
-     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
-     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
-     * stream is properly closed to release the resources.</p>
+     * <p>This method ensures efficient handling of large data sets by loading entities only as needed.
+     * It also manages lifecycle of the callback stream, automatically closing the stream after processing to prevent
+     * resource leaks.</p>
      *
-     * @return a stream of results.
-     * @throws PersistenceException if the query fails.
+     * @param callback a {@link ResultCallback} defining how to process the stream of records and produce a result.
+     * @param <X> the type of result produced by the callback after processing the entities.
+     * @return the result produced by the callback's processing of the record stream.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     * connectivity.
      */
     default <X> X getResult(@Nonnull ResultCallback<R, X> callback) {
         try (Stream<R> stream = getResultStream()) {
@@ -318,10 +418,10 @@ public interface QueryBuilder<T extends Record, R, ID> {
     }
 
     /**
-     * Returns the number of entities in the database of the entity type supported by this repository.
+     * Returns the number of results of this query.
      *
-     * @return the total number of entities in the database as a long value.
-     * @throws PersistenceException if the count operation fails due to underlying database issues, such as
+     * @return the total number of results of this query as a long value.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
      *                              connectivity.
      */
     default long getResultCount() {

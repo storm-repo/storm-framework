@@ -16,8 +16,7 @@
 package st.orm;
 
 /**
- *
+ * BindVars instances can be used to mark bind variables in a query.
  */
 public interface BindVars {
-
 }

@@ -20,13 +20,19 @@ import jakarta.annotation.Nonnull;
 import static java.lang.Character.toLowerCase;
 
 /**
- *
+ * Helper class to help with name resolution.
  */
 final class NameResolver {
 
     private NameResolver() {
     }
 
+    /**
+     * Converts a camel case name to a snake case name.
+     *
+     * @param name the name to convert.
+     * @return the converted name.
+     */
     static String camelCaseToSnakeCase(@Nonnull String name) {
         StringBuilder columnName = new StringBuilder();
         columnName.append(toLowerCase(name.charAt(0)));

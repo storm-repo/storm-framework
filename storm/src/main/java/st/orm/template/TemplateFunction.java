@@ -29,9 +29,15 @@ import static java.util.Arrays.stream;
  * language feature. Template functions primarily used to support query builders for Kotlin, as Kotlin does not
  * support Java's String Interpolation feature.</p>
  */
-//@FunctionalInterface
+@FunctionalInterface
 public interface TemplateFunction {
 
+    /**
+     * Uses the specified {@code function} to generate a string template.
+     *
+     * @param function the function to use for template generation.
+     * @return the string template.
+     */
     static StringTemplate template(@Nonnull TemplateFunction function) {
         final String NULL_CHARACTER = "\0";
         List<Object> values = new ArrayList<>();

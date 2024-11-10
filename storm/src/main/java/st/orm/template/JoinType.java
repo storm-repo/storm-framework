@@ -20,8 +20,8 @@ import st.orm.template.impl.SqlTemplateImpl.DefaultJoinType;
 /**
  * Represents a join type in a SQL query.
  *
- * There are four default join types that can be accessed via the static methods. Alternatively, custom join types can
- * be created by implementing this interface.
+ * <p>There are four default join types that can be accessed via the static methods. Alternatively, custom join types can
+ * be created by implementing this interface.</p>
  */
 public interface JoinType {
 

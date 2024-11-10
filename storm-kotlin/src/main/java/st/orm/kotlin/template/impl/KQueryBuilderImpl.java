@@ -2,12 +2,8 @@ package st.orm.kotlin.template.impl;
 
 import jakarta.annotation.Nonnull;
 import kotlin.reflect.KClass;
-import kotlin.sequences.Sequence;
-import kotlin.sequences.SequencesKt;
-import org.jetbrains.annotations.NotNull;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KQuery;
-import st.orm.kotlin.KResultCallback;
 import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
@@ -38,57 +34,109 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
         this.builder = requireNonNull(builder, "builder");
     }
 
-    private <X> Sequence<X> toSequence(@Nonnull Stream<X> stream) {
-        return SequencesKt.asSequence(stream.iterator());
-    }
-
+    /**
+     * Marks the current query as a distinct query.
+     *
+     * @return the query builder.
+     */
     @Override
     public KQueryBuilder<T, R, ID> distinct() {
         return new KQueryBuilderImpl<>(builder.distinct());
     }
 
+    /**
+     * Returns a processor that can be used to append the query with a string template.
+     *
+     * @param template the string template to append.
+     * @return a processor that can be used to append the query with a string template.
+     */
     @Override
     public KQueryBuilder<T, R, ID> append(@Nonnull StringTemplate template) {
         return new KQueryBuilderImpl<>(builder.append(template));
     }
 
+    /**
+     * Builds the query based on the current state of the query builder.
+     *
+     * @return the constructed query.
+     */
     @Override
     public KQuery build() {
         return new KQueryImpl(builder.build());
     }
 
+    /**
+     * Executes the query and returns a stream of results.
+     *
+     * <p>The resulting stream is lazily loaded, meaning that the records are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of records.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only be invoked
+     * when the query is intended to run. Since the stream holds resources open while in use, it must be closed after
+     * usage to prevent resource leaks.</p>
+     *
+     * @return a stream of results.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
     @Override
     public Stream<R> getResultStream() {
         return builder.getResultStream();
     }
 
-    @Override
-    public <X> X getResult(@NotNull KResultCallback<R, X> callback) {
-        try (Stream<R> stream = getResultStream()) {
-            return callback.process(toSequence(stream));
-        }
-    }
-
+    /**
+     * Adds a cross join to the query.
+     *
+     * @param relation the relation to join.
+     * @return the query builder.
+     */
     @Override
     public KQueryBuilder<T, R, ID> crossJoin(@Nonnull KClass<? extends Record> relation) {
         return join(cross(), relation, "").on(template(_ -> ""));
     }
 
+    /**
+     * Adds an inner join to the query.
+     *
+     * @param relation the relation to join.
+     * @return the query builder.
+     */
     @Override
     public KTypedJoinBuilder<T, R, ID> innerJoin(@Nonnull KClass<? extends Record> relation) {
         return join(inner(), relation, "");
     }
 
+    /**
+     * Adds a left join to the query.
+     *
+     * @param relation the relation to join.
+     * @return the query builder.
+     */
     @Override
     public KTypedJoinBuilder<T, R, ID> leftJoin(@Nonnull KClass<? extends Record> relation) {
         return join(left(), relation, "");
     }
 
+    /**
+     * Adds a right join to the query.
+     *
+     * @param relation the relation to join.
+     * @return the query builder.
+     */
     @Override
     public KTypedJoinBuilder<T, R, ID> rightJoin(@Nonnull KClass<? extends Record> relation) {
         return join(right(), relation, "");
     }
 
+    /**
+     * Adds a join of the specified type to the query.
+     *
+     * @param type the type of the join (e.g., INNER, LEFT, RIGHT).
+     * @param relation the relation to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
     @Override
     public KTypedJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull KClass<? extends Record> relation, @Nonnull String alias) {
         TypedJoinBuilder<T, R, ID> joinBuilder = builder.join(type, REFLECTION.getRecordType(relation), alias);
@@ -99,32 +147,67 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
             }
 
             @Override
-            public KQueryBuilder<T, R, ID> on(@NotNull StringTemplate template) {
+            public KQueryBuilder<T, R, ID> on(@Nonnull StringTemplate template) {
                 return new KQueryBuilderImpl<>(joinBuilder.on(template));
             }
         };
     }
 
+    /**
+     * Adds a cross join to the query.
+     *
+     * @param template the condition to join.
+     * @return the query builder.
+     */
     @Override
     public KQueryBuilder<T, R, ID> crossJoin(@Nonnull StringTemplate template) {
         return join(cross(), template, "").on(_ -> "");
     }
 
+    /**
+     * Adds an inner join to the query.
+     *
+     * @param template the condition to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
     @Override
     public KJoinBuilder<T, R, ID> innerJoin(@Nonnull StringTemplate template, @Nonnull String alias) {
         return join(inner(), template, alias);
     }
 
+    /**
+     * Adds a left join to the query.
+     *
+     * @param template the condition to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
     @Override
     public KJoinBuilder<T, R, ID> leftJoin(@Nonnull StringTemplate template, @Nonnull String alias) {
         return join(left(), template, alias);
     }
 
+    /**
+     * Adds a right join to the query.
+     *
+     * @param template the condition to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
     @Override
     public KJoinBuilder<T, R, ID> rightJoin(@Nonnull StringTemplate template, @Nonnull String alias) {
         return join(right(), template, alias);
     }
 
+    /**
+     * Adds a join of the specified type to the query.
+     *
+     * @param type the join type.
+     * @param template the condition to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
     @Override
     public KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull StringTemplate template, @Nonnull String alias) {
         final JoinBuilder<T, R, ID> joinBuilder = builder.join(type, template, alias);
@@ -180,6 +263,12 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
         }
     }
 
+    /**
+     * Adds a WHERE clause to the query using a {@link QueryBuilder.WhereBuilder}.
+     *
+     * @param predicate the predicate to add.
+     * @return the query builder.
+     */
     @Override
     public KQueryBuilder<T, R, ID> wherePredicate(@Nonnull Function<KWhereBuilder<T, R, ID>, KPredicateBuilder<T, R, ID>> predicate) {
         return new KQueryBuilderImpl<>(builder.wherePredicate(whereBuilder -> {

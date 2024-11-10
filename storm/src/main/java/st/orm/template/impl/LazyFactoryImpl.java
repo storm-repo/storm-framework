@@ -28,7 +28,10 @@ import java.util.function.Predicate;
 
 import static java.util.Objects.requireNonNull;
 
-public final class LazyFactoryImpl implements LazyFactory {
+/**
+ * Implementation of {@link LazyFactory}.
+ */
+final class LazyFactoryImpl implements LazyFactory {
     private final QueryFactory factory;
     private final TableNameResolver tableNameResolver;
     private final ColumnNameResolver columnNameResolver;
@@ -47,6 +50,16 @@ public final class LazyFactoryImpl implements LazyFactory {
         this.providerFilter = providerFilter;
     }
 
+    /**
+     * Creates a lazy instance for the specified record {@code type} and {@code pk}. This method can be used to generate
+     * lazy instances for entities, projections and regular records.
+     *
+     * @param type record type.
+     * @param pk primary key.
+     * @return lazy instance.
+     * @param <T> record type.
+     * @param <ID> primary key type.
+     */
     @Override
     public <T extends Record, ID> Lazy<T, ID> create(@Nonnull Class<T> type, @Nullable ID pk) {
         var queryBuilder = new ORMRepositoryTemplateImpl(
@@ -66,11 +79,6 @@ public final class LazyFactoryImpl implements LazyFactory {
 
             LazyImpl(@Nullable ID pk) {
                 this.pk = pk;
-            }
-
-            @Override
-            public boolean isNull() {
-                return pk == null;
             }
 
             @Override

@@ -26,8 +26,16 @@ import static java.lang.Character.toLowerCase;
 @FunctionalInterface
 public interface TableAliasResolver {
 
+    /**
+     * The default table alias resolver.
+     */
     TableAliasResolver DEFAULT = camelCaseAbbreviation();
 
+    /**
+     * Resolves the alias for a table using camel case abbreviation.
+     *
+     * @return the alias resolver.
+     */
     static TableAliasResolver camelCaseAbbreviation() {
         return (type, counter) -> {
             // Extract the capitals from the class name to form the base alias.
@@ -41,6 +49,7 @@ public interface TableAliasResolver {
             return STR."\{aliasBuilder}\{counter == 0 ? "" : STR."\{counter}"}";
         };
     }
+
     /**
      * Resolves the alias for a table.
      *

@@ -23,11 +23,26 @@ import jakarta.annotation.Nonnull;
 @FunctionalInterface
 public interface TableNameResolver {
 
+    /**
+     * The default table name resolver.
+     */
     TableNameResolver DEFAULT = camelCaseToSnakeCase();
 
+    /**
+     * Resolves the table name for a given record type using camel case to snake case conversion.
+     *
+     * @return the table name resolver.
+     */
     static TableNameResolver camelCaseToSnakeCase() {
         return type -> NameResolver.camelCaseToSnakeCase(type.getSimpleName());
     }
+
+    /**
+     * Resolves the table name for a record by converting the table name to upper case.
+     *
+     * @param resolver the table name resolver to wrap.
+     * @return the table name resolver.
+     */
 
     static TableNameResolver toUpperCase(@Nonnull TableNameResolver resolver) {
         return type -> resolver.resolveTableName(type).toUpperCase();

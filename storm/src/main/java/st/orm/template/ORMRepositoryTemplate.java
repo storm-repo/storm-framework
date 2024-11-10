@@ -17,5 +17,8 @@ package st.orm.template;
 
 import st.orm.repository.RepositoryLookup;
 
+/**
+ * Provides access to ORM templates and repositories.
+ */
 public interface ORMRepositoryTemplate extends ORMTemplate, RepositoryLookup {
 }
