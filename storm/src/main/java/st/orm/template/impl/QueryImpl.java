@@ -94,7 +94,7 @@ class QueryImpl implements Query {
                     return MonitoredResource.wrap(
                             generate(() -> readNext(resultSet, columnCount))
                                     .takeWhile(Objects::nonNull)
-                                    .onClose(() -> close(resultSet)));
+                                    .onClose(() -> close(resultSet, statement)));
                 } finally {
                     if (close) {
                         resultSet.close();
@@ -143,7 +143,7 @@ class QueryImpl implements Query {
                 return MonitoredResource.wrap(
                         generate(() -> readNext(resultSet, columnCount, mapper))
                                 .takeWhile(Objects::nonNull)
-                                .onClose(() -> close(resultSet)));
+                                .onClose(() -> close(resultSet, statement)));
             } finally {
                 if (close && closeStatement()) {
                     statement.close();
@@ -154,13 +154,13 @@ class QueryImpl implements Query {
         }
     }
 
-    protected void close(@Nonnull ResultSet resultSet) {
+    protected void close(@Nonnull ResultSet resultSet, @Nonnull PreparedStatement statement) {
         try {
             try {
                 resultSet.close();
             } finally {
                 if (closeStatement()) {
-                    getStatement().close();
+                    statement.close();
                 }
             }
         } catch (SQLException e) {

@@ -41,6 +41,7 @@ final class MonitoredResource {
     static <T extends AutoCloseable> T wrap(@Nonnull T resource) {
         return wrap(resource, new AtomicInteger());
     }
+
     private static <T extends AutoCloseable> T wrap(@Nonnull T resource, AtomicInteger openCount) {
         Exception createStackTrace = new Exception("Create stack trace");
         openCount.getAndIncrement();

@@ -96,7 +96,7 @@ final class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
                 return MonitoredResource.wrap(
                         generate(() -> readNext(resultSet, columnCount, mapper))
                                 .takeWhile(Objects::nonNull)
-                                .onClose(() -> close(resultSet)));
+                                .onClose(() -> close(resultSet, statement)));
             } finally {
                 if (close) {
                     resultSet.close();
