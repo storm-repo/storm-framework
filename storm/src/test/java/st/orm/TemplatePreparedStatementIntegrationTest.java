@@ -85,7 +85,7 @@ public class TemplatePreparedStatementIntegrationTest {
         String nameFilter = "%y%";
         try (var query = ORM(dataSource).query(RAW."""
                 SELECT \{select(Pet.class)}
-                FROM \{from(Pet.class, "p")}
+                FROM \{from(Pet.class, "p", true)}
                 WHERE p.name LIKE \{param(nameFilter)}""").prepare();
              var stream = query.getResultStream(Pet.class)) {
             assertEquals(5, stream.filter(Objects::nonNull)
@@ -323,7 +323,7 @@ public class TemplatePreparedStatementIntegrationTest {
         try {
             try (var query = ORM(dataSource).query(RAW."""
                 DELETE \{Visit.class}
-                FROM \{from(Visit.class, "x")}
+                FROM \{from(Visit.class, "x", true)}
                 WHERE \{where(Visit.builder().id(1).build())}""").prepare()) {
                 query.executeUpdate();
             }
@@ -374,7 +374,7 @@ public class TemplatePreparedStatementIntegrationTest {
         var e = assertThrows(PersistenceException.class, () -> {
             try (var query = ORM(dataSource).query(RAW."""
                     DELETE \{Visit.class}
-                    FROM \{from(Visit.class, "f")}
+                    FROM \{from(Visit.class, "f", true)}
                     WHERE \{where(Visit.builder().id(1).build())}""").prepare()) {
                 query.executeUpdate();
             }

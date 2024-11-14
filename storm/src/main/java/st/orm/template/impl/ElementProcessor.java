@@ -174,8 +174,8 @@ record ElementProcessor(
 
     ElementResult from(From it) throws SqlTemplateException {
         return switch (it) {
-            case From(TableSource ts, _) -> new ElementResult(STR."\{getTableName(ts.table(), sqlTemplate.tableNameResolver())}\{it.alias().isEmpty() ? "" : STR." \{it.alias()}"}");
-            case From(TemplateSource ts, _) -> new ElementResult(STR."(\{getSourceString(ts)})\{it.alias().isEmpty() ? "" : STR." \{it.alias()}"}");
+            case From(TableSource ts, _, _) -> new ElementResult(STR."\{getTableName(ts.table(), sqlTemplate.tableNameResolver())}\{it.alias().isEmpty() ? "" : STR." \{it.alias()}"}");
+            case From(TemplateSource ts, _, _) -> new ElementResult(STR."(\{getSourceString(ts)})\{it.alias().isEmpty() ? "" : STR." \{it.alias()}"}");
         };
     }
 

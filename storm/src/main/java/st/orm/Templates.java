@@ -141,14 +141,14 @@ public interface Templates {
         return new Elements.Delete(table, alias);
     }
 
-    static Element from(@Nonnull Class<? extends Record> table) {
-        return new From(table);
+    static Element from(@Nonnull Class<? extends Record> table, boolean autoJoin) {
+        return new From(table, autoJoin);
     }
-    static Element from(@Nonnull Class<? extends Record> table, @Nonnull String alias) {
-        return new From(new TableSource(table), requireNonNull(alias, "alias"));
+    static Element from(@Nonnull Class<? extends Record> table, @Nonnull String alias, boolean autoJoin) {
+        return new From(new TableSource(table), requireNonNull(alias, "alias"), autoJoin);
     }
     static Element from(@Nonnull StringTemplate template, @Nonnull String alias) {
-        return new From(new TemplateSource(template), requireNonNull(alias, "alias"));
+        return new From(new TemplateSource(template), requireNonNull(alias, "alias"), false);
     }
 
     static Element table(@Nonnull Class<? extends Record> table) {

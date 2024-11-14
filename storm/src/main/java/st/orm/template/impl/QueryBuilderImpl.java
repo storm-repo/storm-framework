@@ -23,6 +23,7 @@ import java.util.stream.Stream;
 
 import static java.lang.StringTemplate.RAW;
 import static java.util.Objects.requireNonNull;
+import static st.orm.Templates.from;
 import static st.orm.Templates.select;
 import static st.orm.template.JoinType.cross;
 import static st.orm.template.JoinType.inner;
@@ -327,7 +328,7 @@ public class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder<T
     @Override
     public Query build() {
         StringTemplate combined = StringTemplate.combine(StringTemplate.of(STR."SELECT \{distinct ? "DISTINCT " : ""}"), selectTemplate);
-        combined = StringTemplate.combine(combined, RAW."\nFROM \{fromType}");
+        combined = StringTemplate.combine(combined, RAW."\nFROM \{from(fromType, true)}");
         if (!join.isEmpty()) {
             combined = join.stream()
                     .reduce(combined,

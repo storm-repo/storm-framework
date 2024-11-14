@@ -187,11 +187,11 @@ public interface KTemplates {
         return new Delete(getORMReflection().getRecordType(table), alias);
     }
 
-    static Element from(@Nonnull KClass<? extends Record> table) {
-        return new From(getORMReflection().getRecordType(table));
+    static Element from(@Nonnull KClass<? extends Record> table, boolean autoJoin) {
+        return new From(getORMReflection().getRecordType(table), autoJoin);
     }
-    static Element from(@Nonnull KClass<? extends Record> table, @Nonnull String alias) {
-        return new From(new TableSource(getORMReflection().getRecordType(table)), requireNonNull(alias, "alias"));
+    static Element from(@Nonnull KClass<? extends Record> table, @Nonnull String alias, boolean autoJoin) {
+        return new From(new TableSource(getORMReflection().getRecordType(table)), requireNonNull(alias, "alias"), autoJoin);
     }
 
     static Element table(@Nonnull KClass<? extends Record> table) {

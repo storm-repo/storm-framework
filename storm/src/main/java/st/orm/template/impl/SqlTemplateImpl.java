@@ -364,6 +364,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
     }
 
     private Element resolveTypeElement(@Nonnull SqlMode mode,
+                                       @Nullable Element first,
                                        @Nonnull String previousFragment,
                                        @Nonnull String nextFragment,
                                        @Nonnull Class<? extends Record> recordType) throws SqlTemplateException {
@@ -374,7 +375,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
             case SELECT -> {
                 String previous = removeComments(previousFragment).stripTrailing().toUpperCase();
                 if (previous.endsWith("FROM")) {
-                    yield from(recordType);
+                    // Only use auto join if the from table is also selected.
+                    boolean autoJoin = first instanceof Select select && select.table().equals(recordType);
+                    yield from(recordType, autoJoin);
                 }
                 if (previous.endsWith("JOIN")) {
                     yield table(recordType);
@@ -388,7 +391,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     yield delete(recordType);
                 }
                 if (removeComments(previousFragment).stripTrailing().toUpperCase().endsWith("FROM")) {
-                    yield from(recordType);
+                    yield from(recordType, false);
                 }
                 yield table(recordType);
             }
@@ -398,12 +401,12 @@ public final class SqlTemplateImpl implements SqlTemplate {
 
     private List<Element> resolveElements(@Nonnull SqlMode sqlMode, @Nonnull List<?> values, @Nonnull List<String> fragments) throws SqlTemplateException {
         List<Element> resolvedValues = new ArrayList<>();
-        boolean first = false;
+        Element first = null;
         for (int i = 0; i < values.size() ; i++) {
             var v = values.get(i);
             var p = fragments.get(i);
             var n = fragments.get(i + 1);
-            switch (v) {
+            var element = switch (v) {
                 case Select _ when sqlMode != SqlMode.SELECT -> throw new SqlTemplateException("Select element is only allowed for select statements.");
                 case Insert _ when sqlMode != SqlMode.INSERT -> throw new SqlTemplateException("Insert element is only allowed for insert statements.");
                 case Update _ when sqlMode != SqlMode.UPDATE -> throw new SqlTemplateException("Update element is only allowed for update statements.");
@@ -415,47 +418,46 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 case Table t when !supportRecords -> throw new SqlTemplateException(STR."Records are not supported in this configuration: '\{t.table().getSimpleName()}'.");
                 case Class<?> c when c.isRecord() && !supportRecords -> throw new SqlTemplateException(STR."Records are not supported in this configuration: '\{c.getSimpleName()}'.");
                 case Select it -> {
-                    if (first) {
+                    if (first != null) {
                         throw new SqlTemplateException("Only a single Select element is allowed.");
                     }
-                    resolvedValues.add(it);
-                    first = true;
+                    yield it;
                 }
                 case Insert it -> {
-                    if (first) {
+                    if (first != null) {
                         throw new SqlTemplateException("Only a single Insert element is allowed.");
                     }
-                    resolvedValues.add(it);
-                    first = true;
+                    yield it;
                 }
                 case Update it -> {
-                    if (first) {
+                    if (first != null) {
                         throw new SqlTemplateException("Only a single Update element is allowed.");
                     }
-                    resolvedValues.add(it);
-                    first = true;
+                    yield it;
                 }
                 case Delete it -> {
-                    if (first) {
+                    if (first != null) {
                         throw new SqlTemplateException("Only a single Delete element is allowed.");
                     }
-                    resolvedValues.add(it);
-                    first = true;
+                    yield it;
                 }
                 case Expression _ -> throw new SqlTemplateException("Expression element not allowed in this context.");
-                case BindVars b -> resolvedValues.add(resolveBindVarsElement(sqlMode, resolvedValues, b));
-                case Element e -> resolvedValues.add(e);
-                case Stream<?> l -> resolvedValues.add(resolveStreamElement(sqlMode, l));
-                case Record r -> resolvedValues.add(resolveRecordElement(sqlMode, resolvedValues, r));
+                case BindVars b -> resolveBindVarsElement(sqlMode, resolvedValues, b);
+                case Element e -> e;
+                case Stream<?> l -> resolveStreamElement(sqlMode, l);
+                case Record r -> resolveRecordElement(sqlMode, resolvedValues, r);
                 case Class<?> c when c.isRecord() -> //noinspection unchecked
-                        resolvedValues.add(
-                        resolveTypeElement(sqlMode, p, n, (Class<? extends Record>) c));
+                        resolveTypeElement(sqlMode, first, p, n, (Class<? extends Record>) c);
                 // Note that the following flow would also support Class<?> c. but we'll keep the Class<?> c case for performance and readability.
                 case Object k when REFLECTION.isSupportedType(k) ->
-                        resolvedValues.add(
-                        resolveTypeElement(sqlMode, p, n, REFLECTION.getRecordType(k)));
-                case null, default -> resolvedValues.add(param(v));
+                        resolveTypeElement(sqlMode, first, p, n, REFLECTION.getRecordType(k));
+                case null, default -> param(v);
+            };
+            if (first == null
+                    && (element instanceof Select || element instanceof Insert || element instanceof Update || element instanceof Delete)) {
+                first = element;
             }
+            resolvedValues.add(element);
         }
         return resolvedValues;
     }
@@ -684,7 +686,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             Source source = projectionQuery != null
                     ? new TemplateSource(StringTemplate.of(projectionQuery.value()))
                     : ts;
-            effectiveFrom = new From(source, alias);
+            effectiveFrom = new From(source, alias, from.autoJoin());
             elements.replaceAll(element -> element instanceof From ? effectiveFrom : element);
             // We will only make primary keys available for mapping if the table is not part of the entity graph,
             // because the entities can already be resolved by their foreign keys.
@@ -701,7 +703,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 aliasMapper.setAlias(t.table(), t.alias(), null);
             } else if (element instanceof Join j) {
                 String path = null; // Custom joins are not part of the primary table.
-                // Move custom join to list of (expanded) joins to allow proper ordering of inner and outer joins.
+                // Move custom join to list of (auto) joins to allow proper ordering of inner and outer joins.
                 if (j instanceof Join(TableSource ts, _, _, _)) {
                     String alias;
                     if (j.alias().isEmpty()) {
@@ -724,14 +726,14 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 it.set(new Unsafe("")); // Replace by empty string to keep fragments and values in sync.
             }
         }
-        List<Join> expandedJoins;
-        if (primaryTable.isPresent()) {
-             expandedJoins = new ArrayList<>();
-             expandJoins(primaryTable.get(), customJoins, aliasMapper, tableMapper, expandedJoins);
+        List<Join> joins;
+        if (primaryTable.isPresent() && effectiveFrom != null && effectiveFrom.autoJoin()) {
+             joins = new ArrayList<>();
+             addAutoJoins(primaryTable.get(), customJoins, aliasMapper, tableMapper, joins);
         } else {
-            expandedJoins = customJoins;
+            joins = customJoins;
         }
-        if (!expandedJoins.isEmpty()) {
+        if (!joins.isEmpty()) {
             List<Element> replacementElements = new ArrayList<>();
             replacementElements.add(effectiveFrom == null ? from : effectiveFrom);
             Select select = elements.stream()
@@ -740,12 +742,11 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     .findAny()
                     .orElse(null);
             if (select == null) {
-                replacementElements.addAll(expandedJoins);
+                replacementElements.addAll(joins);
             } else {
-                for (var join : expandedJoins) {
-                    if (join instanceof Join(
-                            TableSource(var joinTable), _, _, _
-                    ) && joinTable == select.table() && join.type().isOuter()) {
+                for (var join : joins) {
+                    if (join instanceof Join(TableSource(var joinTable), _, _, _) &&
+                            joinTable == select.table() && join.type().isOuter()) {
                         // If join is part of the select table and is an outer join, replace it with an inner join.
                         replacementElements.add(new Join(new TableSource(joinTable), join.alias(), join.target(), DefaultJoinType.INNER));
                     } else {
@@ -815,13 +816,17 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 .findAny()
                 .orElse(null);
         if (from != null) {
+            if (from.autoJoin()) {
+                // Not supported at the moment as joins are not standardized across databases. May be supported in the future.
+                throw new SqlTemplateException("Auto join not allowed in delete statement.");
+            }
             var table = ((TableSource) from.source()).table();
             String path = "";   // Use "" because it's the root table.
             String alias;
             From effectiveFrom;
             if (from.alias().isEmpty()) {
                 alias = delete == null ? "" : aliasMapper.generateAlias(table, path);
-                effectiveFrom = new From(new TableSource(table), alias);
+                effectiveFrom = new From(new TableSource(table), alias, from.autoJoin());
                 elements.replaceAll(element -> element instanceof From ? effectiveFrom : element);
             } else {
                 effectiveFrom = from;
@@ -876,25 +881,25 @@ public final class SqlTemplateImpl implements SqlTemplate {
         }
     }
 
-    private void expandJoins(@Nonnull Class<? extends Record> recordType,
-                             @Nonnull List<Join> joins,
-                             @Nonnull AliasMapper aliasMapper,
-                             @Nonnull TableMapper tableMapper,
-                             @Nonnull List<Join> expandedJoins) throws SqlTemplateException {
-        expandJoins(recordType, List.of(), aliasMapper, tableMapper, expandedJoins, null, false);
+    private void addAutoJoins(@Nonnull Class<? extends Record> recordType,
+                              @Nonnull List<Join> joins,
+                              @Nonnull AliasMapper aliasMapper,
+                              @Nonnull TableMapper tableMapper,
+                              @Nonnull List<Join> expandedJoins) throws SqlTemplateException {
+        addAutoJoins(recordType, List.of(), aliasMapper, tableMapper, expandedJoins, null, false);
         expandedJoins.addAll(joins);
         // Move outer joins to the end of the list to ensure proper filtering across multiple databases.
         expandedJoins.sort(comparing(join -> join.type().isOuter()));
     }
 
     @SuppressWarnings("unchecked")
-    private void expandJoins(@Nonnull Class<? extends Record> recordType,
-                             @Nonnull List<RecordComponent> path,
-                             @Nonnull AliasMapper aliasMapper,
-                             @Nonnull TableMapper tableMapper,
-                             @Nonnull List<Join> expandedJoins,
-                             @Nullable String fkName,
-                             boolean outerJoin) throws SqlTemplateException {
+    private void addAutoJoins(@Nonnull Class<? extends Record> recordType,
+                              @Nonnull List<RecordComponent> path,
+                              @Nonnull AliasMapper aliasMapper,
+                              @Nonnull TableMapper tableMapper,
+                              @Nonnull List<Join> expandedJoins,
+                              @Nullable String fkName,
+                              boolean outerJoin) throws SqlTemplateException {
         for (var component : recordType.getRecordComponents()) {
             var list = new ArrayList<>(path);
             String fkPath = toPathString(path);
@@ -944,7 +949,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                         ? new TemplateSource(StringTemplate.of(query.value()))
                         : new TableSource(componentType);
                 expandedJoins.add(new Join(source, alias, new TemplateTarget(StringTemplate.of(STR."\{fromAlias}.\{getForeignKey(component, foreignKeyResolver)} = \{alias}.\{pkColumnName}")), joinType));
-                expandJoins(componentType, copy, aliasMapper, tableMapper, expandedJoins, alias, outerJoin);
+                addAutoJoins(componentType, copy, aliasMapper, tableMapper, expandedJoins, alias, outerJoin);
             } else if (component.getType().isRecord()) {
                 if (REFLECTION.isAnnotationPresent(component, PK.class) || getORMConverter(component).isPresent()) {
                     continue;
@@ -957,7 +962,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 } else {
                     fromAlias = fkName;
                 }
-                expandJoins(componentType, copy, aliasMapper, tableMapper, expandedJoins, fromAlias, outerJoin);
+                addAutoJoins(componentType, copy, aliasMapper, tableMapper, expandedJoins, fromAlias, outerJoin);
             }
         }
     }
@@ -1105,7 +1110,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 for (var element : elements) {
                     switch (element) {
                         case Table t -> aliasMapper.setAlias(t.table(), t.alias(), null);
-                        case From(TableSource t, String alias) -> aliasMapper.setAlias(t.table(), alias, null);
+                        case From(TableSource t, String alias, _) -> aliasMapper.setAlias(t.table(), alias, null);
                         case Join(TableSource t, String alias, _, _) -> aliasMapper.setAlias(t.table(), alias, null);
                         default -> {}
                     }

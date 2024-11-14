@@ -72,16 +72,16 @@ public final class Elements {
     public record TableTarget(@Nonnull Class<? extends Record> table) implements Target {}
     public record TemplateTarget(@Nonnull StringTemplate template) implements Target {}
 
-    public record From(@Nonnull Source source, @Nonnull String alias) implements Element {
+    public record From(@Nonnull Source source, @Nonnull String alias, boolean autoJoin) implements Element {
         public From {
             requireNonNull(source, "source");
             requireNonNull(alias, "alias");
         }
-        public From(@Nonnull Class<? extends Record> table) {
-            this(new TableSource(table), "");
+        public From(@Nonnull Class<? extends Record> table, boolean autoJoin) {
+            this(new TableSource(table), "", autoJoin);
         }
         public From(@Nonnull StringTemplate template) {
-            this(new TemplateSource(template), "");
+            this(new TemplateSource(template), "", false);
         }
     }
 
