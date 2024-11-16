@@ -70,7 +70,7 @@ public record Owner(
         @PK Integer id,
         String firstName,
         String lastName,
-        @Inline Address address,
+        Address address,
         String telephone
 ) {}
 
@@ -125,7 +125,7 @@ public class ORMTemplateExample {
     ) implements Entity<Integer> {}
 ----
 
-The following example demonstrates how `ORM(datasource).repository(Pet.class)` returns a repository with CRUD features out of the box for the `Pet` entity:
+The following example demonstrates how `ORM(datasource).entity(Pet.class)` returns a repository with CRUD features out of the box for the `Pet` entity:
 
 [source,java,indent=0]
 ----
@@ -159,7 +159,7 @@ public class ORMRepositoryExample {
     public Pet create(String name, PetType petType) {
         // Create a new pet with the specified name and pet type.
         // Returns the newly created pet with the generated ID.
-        return ORM(dataSource).repository(Pet.class)
+        return ORM(dataSource).entity(Pet.class)
             .upsert(Pet.builder()
                 .name(name)
                 .birthDate(LocalDate.now())
@@ -285,8 +285,8 @@ public class FutureExample {
 
     public void removeOwners() {
         // Repository example utilizing derived record creation to update record fields.
-        var petRepository = ORM(dataSource).repository(Pet.class);
-        try (var pets = petRepository.selectAll()) {
+        var repository = ORM(dataSource).entity(Pet.class);
+        try (var pets = repository.selectAll()) {
             repository.update(pets.map(pet -> pet with { owner = null; });
         }
     }
