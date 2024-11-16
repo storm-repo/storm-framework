@@ -3,6 +3,7 @@ package st.orm;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -321,16 +322,23 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testDelete() {
-        try {
+        String expectedSql = """
+                DELETE x
+                FROM visit x
+                INNER JOIN pet _p ON x.pet_id = _p.id
+                INNER JOIN pet_type _pt ON _p.type_id = _pt.id
+                LEFT JOIN owner _o ON _p.owner_id = _o.id
+                WHERE x.id = ?""";
+        SqlTemplate.aroundInvoke(() -> {
             try (var query = ORM(dataSource).query(RAW."""
-                DELETE \{Visit.class}
-                FROM \{from(Visit.class, "x", true)}
-                WHERE \{where(Visit.builder().id(1).build())}""").prepare()) {
-                query.executeUpdate();
+                    DELETE \{Visit.class}
+                    FROM \{from(Visit.class, "x", true)}
+                    WHERE \{where(Visit.builder().id(1).build())}""").prepare()) {
+                Assertions.fail("Should not reach here");
+            } catch (PersistenceException _) {
+                // Not supported in H2.
             }
-        } catch (PersistenceException e) {
-            // Not supported in H2.
-        }
+        }, sql -> assertEquals(expectedSql, sql.statement()));
     }
 
     @Test
@@ -344,16 +352,22 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testDeleteWithType() {
-        // Delete statements with alias are supported by many databases, but not by H2.
-        var e = assertThrows(PersistenceException.class, () -> {
+        String expectedSql = """
+            DELETE _v
+            FROM visit _v
+            WHERE _v.id = ?""";
+        SqlTemplate.aroundInvoke(() -> {
             try (var query = ORM(dataSource).query(RAW."""
                     DELETE \{Visit.class}
                     FROM \{Visit.class}
                     WHERE \{where(Visit.builder().id(1).build())}""").prepare()) {
-                query.executeUpdate();
+                Assertions.fail("Should not reach here");
+            } catch (PersistenceException _) {
+                // Delete statements with alias are supported by many databases, but not by H2.
             }
+        }, sql -> {
+            assertEquals(expectedSql, sql.statement());
         });
-        assertInstanceOf(SQLSyntaxErrorException.class, e.getCause());
     }
 
     @Test
@@ -371,16 +385,20 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testDeleteWithTypeAndAlias() {
-        // Delete statements with alias are supported by many databases, but not by H2.
-        var e = assertThrows(PersistenceException.class, () -> {
+        String expectedSql = """
+                DELETE f
+                FROM visit f
+                WHERE f.id = ?""";
+        SqlTemplate.aroundInvoke(() -> {
             try (var query = ORM(dataSource).query(RAW."""
                     DELETE \{Visit.class}
                     FROM \{from(Visit.class, "f", false)}
                     WHERE \{where(Visit.builder().id(1).build())}""").prepare()) {
-                query.executeUpdate();
+                Assertions.fail("Should not reach here");
+            } catch (PersistenceException _) {
+                // Delete statements with alias are supported by many databases, but not by H2.
             }
-        });
-        assertInstanceOf(SQLSyntaxErrorException.class, e.getCause());
+        }, sql -> assertEquals(expectedSql, sql.statement()));
     }
 
     @Test
@@ -394,16 +412,14 @@ public class TemplatePreparedStatementIntegrationTest {
             WHERE _p.owner_id = ?""";
         SqlTemplate.aroundInvoke(() -> {
             try (var query = ORM(dataSource).query(RAW."""
-            DELETE \{Visit.class}
-            FROM \{from(Visit.class, true)}
-            WHERE \{where(Owner.builder().id(1).build())}""").prepare()) {
-                query.executeUpdate();
+                    DELETE \{Visit.class}
+                    FROM \{from(Visit.class, true)}
+                    WHERE \{where(Owner.builder().id(1).build())}""").prepare()) {
+                Assertions.fail("Should not reach here");
             } catch (PersistenceException _) {
                 // Not supported in H2.
             }
-        }, sql -> {
-            assertEquals(expectedSql, sql.statement());
-        });
+        }, sql -> assertEquals(expectedSql, sql.statement()));
     }
 
     @Test
