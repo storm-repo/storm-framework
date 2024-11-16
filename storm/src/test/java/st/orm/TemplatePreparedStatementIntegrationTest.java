@@ -20,6 +20,8 @@ import st.orm.model.VetSpecialtyPK;
 import st.orm.model.Visit;
 import st.orm.repository.Entity;
 import st.orm.repository.spring.PetRepository;
+import st.orm.template.Sql;
+import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplateException;
 
 import javax.sql.DataSource;
@@ -34,6 +36,8 @@ import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Objects;
 import java.util.TimeZone;
+import java.util.concurrent.Callable;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import static java.lang.StringTemplate.RAW;
@@ -374,12 +378,35 @@ public class TemplatePreparedStatementIntegrationTest {
         var e = assertThrows(PersistenceException.class, () -> {
             try (var query = ORM(dataSource).query(RAW."""
                     DELETE \{Visit.class}
-                    FROM \{from(Visit.class, "f", true)}
+                    FROM \{from(Visit.class, "f", false)}
                     WHERE \{where(Visit.builder().id(1).build())}""").prepare()) {
                 query.executeUpdate();
             }
         });
         assertInstanceOf(SQLSyntaxErrorException.class, e.getCause());
+    }
+
+    @Test
+    public void testDeleteWithAutoJoin() {
+        String expectedSql = """
+            DELETE _v
+            FROM visit _v
+            INNER JOIN pet _p ON _v.pet_id = _p.id
+            INNER JOIN pet_type _pt ON _p.type_id = _pt.id
+            LEFT JOIN owner _o ON _p.owner_id = _o.id
+            WHERE _p.owner_id = ?""";
+        SqlTemplate.aroundInvoke(() -> {
+            try (var query = ORM(dataSource).query(RAW."""
+            DELETE \{Visit.class}
+            FROM \{from(Visit.class, true)}
+            WHERE \{where(Owner.builder().id(1).build())}""").prepare()) {
+                query.executeUpdate();
+            } catch (PersistenceException _) {
+                // Not supported in H2.
+            }
+        }, sql -> {
+            assertEquals(expectedSql, sql.statement());
+        });
     }
 
     @Test

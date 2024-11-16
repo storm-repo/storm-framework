@@ -662,7 +662,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
      *
      * @param elements all elements in the sql statement.
      */
-    private void postProcessSelect(@Nonnull List<Element> elements, @Nonnull AliasMapper aliasMapper, @Nonnull TableMapper tableMapper) throws SqlTemplateException {
+    private void postProcessSelect(@Nonnull List<Element> elements,
+                                   @Nonnull AliasMapper aliasMapper,
+                                   @Nonnull TableMapper tableMapper) throws SqlTemplateException {
         final From from = elements.stream()
                 .filter(From.class::isInstance)
                 .map(From.class::cast)
@@ -691,11 +693,153 @@ public final class SqlTemplateImpl implements SqlTemplate {
             // We will only make primary keys available for mapping if the table is not part of the entity graph,
             // because the entities can already be resolved by their foreign keys.
             // tableMapper.mapPrimaryKey(table, alias, getPkComponents(table).toList(), path);
-            primaryTable = Optional.of(table);
+            addJoins(elements, effectiveFrom, aliasMapper, tableMapper);
         } else {
-            primaryTable = empty();
-            effectiveFrom = null;
+            // If no From element is present, we will only add table aliases.
+            addTableAliases(elements, aliasMapper);
         }
+        validateWhere(elements, aliasMapper);
+    }
+
+    /**
+     * Updates {@code elements} to handle include aliases for the table in the UPDATE clause.
+     *
+     * @param elements all elements in the sql statement.
+     */
+    private void postProcessUpdate(@Nonnull List<Element> elements,
+                                   @Nonnull AliasMapper aliasMapper,
+                                   @Nonnull TableMapper tableMapper) throws SqlTemplateException {
+        final Update update = elements.stream()
+                .filter(Update.class::isInstance)
+                .map(Update.class::cast)
+                .findAny()
+                .orElse(null);
+        if (update != null) {
+            var table = update.table();
+            String path = "";   // Use "" because it's the root table.
+            String alias;
+            if (update.alias().isEmpty()) {
+                alias = aliasMapper.generateAlias(table, path);
+            } else {
+                alias = update.alias();
+                aliasMapper.setAlias(table, alias, path);
+            }
+            // We will only make primary keys available for mapping if the table is not part of the entity graph,
+            // because the entities can already be resolved by their foreign keys.
+            //  tableMapper.mapPrimaryKey(table, alias, getPkComponents(update.table()).toList(), path);
+            // Make the FKs of the entity also available for mapping.
+            mapForeignKeys(tableMapper, alias, table, path);
+        }
+        addTableAliases(elements, aliasMapper);
+        validateWhere(elements, aliasMapper);
+    }
+
+    /**
+     * Updates {@code elements} to handle joins and aliases for the table in the DELETE clause.
+     *
+     * @param elements all elements in the sql statement.
+     */
+    private void postProcessDelete(@Nonnull List<Element> elements,
+                                   @Nonnull AliasMapper aliasMapper,
+                                   @Nonnull TableMapper tableMapper) throws SqlTemplateException {
+        final Delete delete = elements.stream()
+                .filter(Delete.class::isInstance)
+                .map(Delete.class::cast)
+                .findAny()
+                .orElse(null);
+        final From from = elements.stream()
+                .filter(From.class::isInstance)
+                .map(From.class::cast)
+                .filter(f -> f.source() instanceof TableSource)
+                .findAny()
+                .orElse(null);
+        final From effectiveFrom;
+        if (from != null && from.source() instanceof TableSource ts) {
+            var table = ts.table();
+            String path = "";   // Use "" because it's the root table.
+            String alias;
+            if (from.alias().isEmpty()) {
+                alias = delete == null ? "" : aliasMapper.generateAlias(table, path);
+                effectiveFrom = new From(new TableSource(table), alias, from.autoJoin());
+                elements.replaceAll(element -> element instanceof From ? effectiveFrom : element);
+            } else {
+                effectiveFrom = from;
+                alias = from.alias();
+                aliasMapper.setAlias(table, alias, path);
+            }
+            // We will only make primary keys available for mapping if the table is not part of the entity graph,
+            // because the entities can already be resolved by their foreign keys.
+            //  tableMapper.mapPrimaryKey(table, alias, getPkComponents(table).toList(), path);
+            if (delete != null) {
+                if (delete.table() != table) {
+                    throw new SqlTemplateException(STR."Delete entity \{delete.table().getSimpleName()} does not match From table \{table.getSimpleName()}.");
+                }
+                if (delete.alias().isEmpty()) {
+                    if (!effectiveFrom.alias().isEmpty()) {
+                        elements.replaceAll(element -> element instanceof Delete
+                                ? delete(table, alias)
+                                : element);
+                    }
+                }
+            }
+            // Make the FKs of the entity also available for mapping.
+            mapForeignKeys(tableMapper, alias, table, path);
+            // We will only make primary keys available for mapping if the table is not part of the entity graph,
+            // because the entities can already be resolved by their foreign keys.
+            // tableMapper.mapPrimaryKey(table, alias, getPkComponents(table).toList(), path);
+            addJoins(elements, effectiveFrom, aliasMapper, tableMapper);
+        } else if (delete != null) {
+            throw new SqlTemplateException("From element required when using Delete element.");
+        } else {
+            // If no From element is present, we will only add table aliases.
+            addTableAliases(elements, aliasMapper);
+        }
+        validateWhere(elements, aliasMapper);
+    }
+
+    /**
+     * Updates {@code elements} to handle joins and aliases for the table in the scenario where no primary table is
+     * present for the statement.
+     *
+     * @param elements all elements in the sql statement.
+     */
+    private void postProcessOther(@Nonnull List<Element> elements,
+                                  @Nonnull AliasMapper aliasMapper,
+                                  @Nonnull TableMapper tableMapper) throws SqlTemplateException {
+        final From from = elements.stream()
+                .filter(From.class::isInstance)
+                .map(From.class::cast)
+                .filter(f -> f.source() instanceof TableSource)
+                .findAny()
+                .orElse(null);
+        if (from != null) {
+            addJoins(elements, from, aliasMapper, tableMapper);
+        } else {
+            // If no From element is present, we will only add table aliases.
+            addTableAliases(elements, aliasMapper);
+        }
+        validateWhere(elements, aliasMapper);
+    }
+
+    private void mapForeignKeys(@Nonnull TableMapper tableMapper, @Nonnull String alias, @Nonnull Class<? extends Record> table, @Nullable String path)
+            throws SqlTemplateException {
+        for (var component : table.getRecordComponents()) {
+            if (REFLECTION.isAnnotationPresent(component, FK.class)) {
+                if (Lazy.class.isAssignableFrom(component.getType())) {
+                    tableMapper.mapForeignKey(getLazyRecordType(component), alias, component, path);
+                } else {
+                    if (!component.getType().isRecord()) {
+                        throw new SqlTemplateException(STR."FK annotation is only allowed on record types: \{component.getType().getSimpleName()}.");
+                    }
+                    //noinspection unchecked
+                    Class<? extends Record> componentType = (Class<? extends Record>) component.getType();
+                    tableMapper.mapForeignKey(componentType, alias, component, path);
+                }
+            }
+        }
+    }
+
+    void addJoins(@Nonnull List<Element> elements, @Nonnull From from, @Nonnull AliasMapper aliasMapper, @Nonnull TableMapper tableMapper) throws SqlTemplateException {
         List<Join> customJoins = new ArrayList<>();
         for (ListIterator<Element> it = elements.listIterator(); it.hasNext(); ) {
             Element element = it.next();
@@ -727,15 +871,21 @@ public final class SqlTemplateImpl implements SqlTemplate {
             }
         }
         List<Join> joins;
-        if (primaryTable.isPresent() && effectiveFrom != null && effectiveFrom.autoJoin()) {
-             joins = new ArrayList<>();
-             addAutoJoins(primaryTable.get(), customJoins, aliasMapper, tableMapper, joins);
+        if (from != null && from.autoJoin()) {
+            Class<? extends Record> table;
+            if (from.source() instanceof TableSource ts) {
+                table = ts.table();
+            } else {
+                throw new SqlTemplateException("From with table required when using auto join.");
+            }
+            joins = new ArrayList<>();
+            addAutoJoins(table, customJoins, aliasMapper, tableMapper, joins);
         } else {
             joins = customJoins;
         }
         if (!joins.isEmpty()) {
             List<Element> replacementElements = new ArrayList<>();
-            replacementElements.add(effectiveFrom == null ? from : effectiveFrom);
+            replacementElements.add(from);
             Select select = elements.stream()
                     .filter(Select.class::isInstance)
                     .map(Select.class::cast)
@@ -758,138 +908,17 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     ? new Wrapped(replacementElements)
                     : element);
         }
-        if (elements.stream().filter(Where.class::isInstance).count() > 1) {
-            throw new SqlTemplateException("Multiple Where elements found.");
-        }
-    }
-
-    /**
-     * Updates {@code elements} to handle include aliases for the table in the UPDATE clause.
-     *
-     * @param elements all elements in the sql statement.
-     */
-    private void postProcessUpdate(@Nonnull List<Element> elements, @Nonnull AliasMapper aliasMapper, @Nonnull TableMapper tableMapper) throws SqlTemplateException {
-        final Update update = elements.stream()
-                .filter(Update.class::isInstance)
-                .map(Update.class::cast)
-                .findAny()
-                .orElse(null);
-        if (update != null) {
-            var table = update.table();
-            String path = "";   // Use "" because it's the root table.
-            String alias;
-            if (update.alias().isEmpty()) {
-                alias = aliasMapper.generateAlias(table, path);
-            } else {
-                alias = update.alias();
-                aliasMapper.setAlias(table, alias, path);
-            }
-            // We will only make primary keys available for mapping if the table is not part of the entity graph,
-            // because the entities can already be resolved by their foreign keys.
-            //  tableMapper.mapPrimaryKey(table, alias, getPkComponents(update.table()).toList(), path);
-            // Make the FKs of the entity also available for mapping.
-            mapForeignKeys(tableMapper, alias, table, path);
-        }
-        //noinspection DuplicatedCode
-        for (Element element : elements) {
-            if (element instanceof Table t) {
-                aliasMapper.setAlias(t.table(), t.alias(), null);
-            }
-        }
-    }
-
-    /**
-     * Updates {@code elements} to handle aliases for the table in the DELETE clause.
-     *
-     * @param elements all elements in the sql statement.
-     */
-    private void postProcessDelete(@Nonnull List<Element> elements, @Nonnull AliasMapper aliasMapper, @Nonnull TableMapper tableMapper) throws SqlTemplateException {
-        final Delete delete = elements.stream()
-                .filter(Delete.class::isInstance)
-                .map(Delete.class::cast)
-                .findAny()
-                .orElse(null);
-        final From from = elements.stream()
-                .filter(From.class::isInstance)
-                .map(From.class::cast)
-                .filter(f -> f.source() instanceof TableSource)
-                .findAny()
-                .orElse(null);
-        if (from != null) {
-            if (from.autoJoin()) {
-                // Not supported at the moment as joins are not standardized across databases. May be supported in the future.
-                throw new SqlTemplateException("Auto join not allowed in delete statement.");
-            }
-            var table = ((TableSource) from.source()).table();
-            String path = "";   // Use "" because it's the root table.
-            String alias;
-            From effectiveFrom;
-            if (from.alias().isEmpty()) {
-                alias = delete == null ? "" : aliasMapper.generateAlias(table, path);
-                effectiveFrom = new From(new TableSource(table), alias, from.autoJoin());
-                elements.replaceAll(element -> element instanceof From ? effectiveFrom : element);
-            } else {
-                effectiveFrom = from;
-                alias = from.alias();
-                aliasMapper.setAlias(table, alias, path);
-            }
-            // We will only make primary keys available for mapping if the table is not part of the entity graph,
-            // because the entities can already be resolved by their foreign keys.
-            //  tableMapper.mapPrimaryKey(table, alias, getPkComponents(table).toList(), path);
-            if (delete != null) {
-                if (delete.table() != table) {
-                    throw new SqlTemplateException(STR."Delete entity \{delete.table().getSimpleName()} does not match From table \{table.getSimpleName()}.");
-                }
-                if (delete.alias().isEmpty()) {
-                    if (!effectiveFrom.alias().isEmpty()) {
-                        elements.replaceAll(element -> element instanceof Delete
-                                ? delete(table, alias)
-                                : element);
-                    }
-                }
-            }
-            if (effectiveFrom.source() instanceof TableSource ts) {
-                // Make the FKs of the entity also available for mapping.
-                mapForeignKeys(tableMapper, alias, ts.table(), path);
-            }
-        } else if (delete != null) {
-            throw new SqlTemplateException("From element required when using Delete element.");
-        }
-        //noinspection DuplicatedCode
-        for (Element element : elements) {
-            if (element instanceof Table t) {
-                aliasMapper.setAlias(t.table(), t.alias(), null);
-            }
-        }
-    }
-
-    private void mapForeignKeys(@Nonnull TableMapper tableMapper, @Nonnull String alias, @Nonnull Class<? extends Record> table, @Nullable String path)
-            throws SqlTemplateException {
-        for (var component : table.getRecordComponents()) {
-            if (REFLECTION.isAnnotationPresent(component, FK.class)) {
-                if (Lazy.class.isAssignableFrom(component.getType())) {
-                    tableMapper.mapForeignKey(getLazyRecordType(component), alias, component, path);
-                } else {
-                    if (!component.getType().isRecord()) {
-                        throw new SqlTemplateException(STR."FK annotation is only allowed on record types: \{component.getType().getSimpleName()}.");
-                    }
-                    //noinspection unchecked
-                    Class<? extends Record> componentType = (Class<? extends Record>) component.getType();
-                    tableMapper.mapForeignKey(componentType, alias, component, path);
-                }
-            }
-        }
     }
 
     private void addAutoJoins(@Nonnull Class<? extends Record> recordType,
-                              @Nonnull List<Join> joins,
+                              @Nonnull List<Join> customJoins,
                               @Nonnull AliasMapper aliasMapper,
                               @Nonnull TableMapper tableMapper,
-                              @Nonnull List<Join> expandedJoins) throws SqlTemplateException {
-        addAutoJoins(recordType, List.of(), aliasMapper, tableMapper, expandedJoins, null, false);
-        expandedJoins.addAll(joins);
+                              @Nonnull List<Join> joins) throws SqlTemplateException {
+        addAutoJoins(recordType, List.of(), aliasMapper, tableMapper, joins, null, false);
+        joins.addAll(customJoins);
         // Move outer joins to the end of the list to ensure proper filtering across multiple databases.
-        expandedJoins.sort(comparing(join -> join.type().isOuter()));
+        joins.sort(comparing(join -> join.type().isOuter()));
     }
 
     @SuppressWarnings("unchecked")
@@ -897,7 +926,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                               @Nonnull List<RecordComponent> path,
                               @Nonnull AliasMapper aliasMapper,
                               @Nonnull TableMapper tableMapper,
-                              @Nonnull List<Join> expandedJoins,
+                              @Nonnull List<Join> joins,
                               @Nullable String fkName,
                               boolean outerJoin) throws SqlTemplateException {
         for (var component : recordType.getRecordComponents()) {
@@ -948,8 +977,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 Source source = query != null
                         ? new TemplateSource(StringTemplate.of(query.value()))
                         : new TableSource(componentType);
-                expandedJoins.add(new Join(source, alias, new TemplateTarget(StringTemplate.of(STR."\{fromAlias}.\{getForeignKey(component, foreignKeyResolver)} = \{alias}.\{pkColumnName}")), joinType));
-                addAutoJoins(componentType, copy, aliasMapper, tableMapper, expandedJoins, alias, outerJoin);
+                joins.add(new Join(source, alias, new TemplateTarget(StringTemplate.of(STR."\{fromAlias}.\{getForeignKey(component, foreignKeyResolver)} = \{alias}.\{pkColumnName}")), joinType));
+                addAutoJoins(componentType, copy, aliasMapper, tableMapper, joins, alias, outerJoin);
             } else if (component.getType().isRecord()) {
                 if (REFLECTION.isAnnotationPresent(component, PK.class) || getORMConverter(component).isPresent()) {
                     continue;
@@ -962,8 +991,23 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 } else {
                     fromAlias = fkName;
                 }
-                addAutoJoins(componentType, copy, aliasMapper, tableMapper, expandedJoins, fromAlias, outerJoin);
+                addAutoJoins(componentType, copy, aliasMapper, tableMapper, joins, fromAlias, outerJoin);
             }
+        }
+    }
+
+    private void addTableAliases(@Nonnull List<Element> elements,
+                                 @Nonnull AliasMapper aliasMapper) throws SqlTemplateException {
+        for (Element element : elements) {
+            if (element instanceof Table t) {
+                aliasMapper.setAlias(t.table(), t.alias(), null);
+            }
+        }
+    }
+
+    private void validateWhere(@Nonnull List<Element> elements, @Nonnull AliasMapper aliasMapper) throws SqlTemplateException {
+        if (elements.stream().filter(Where.class::isInstance).count() > 1) {
+            throw new SqlTemplateException("Multiple Where elements found.");
         }
     }
 
@@ -1106,16 +1150,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             case SELECT -> postProcessSelect(elements, aliasMapper, tableMapper);
             case UPDATE -> postProcessUpdate(elements, aliasMapper, tableMapper);
             case DELETE -> postProcessDelete(elements, aliasMapper, tableMapper);
-            default -> {
-                for (var element : elements) {
-                    switch (element) {
-                        case Table t -> aliasMapper.setAlias(t.table(), t.alias(), null);
-                        case From(TableSource t, String alias, _) -> aliasMapper.setAlias(t.table(), alias, null);
-                        case Join(TableSource t, String alias, _, _) -> aliasMapper.setAlias(t.table(), alias, null);
-                        default -> {}
-                    }
-                }
-            }
+            default -> postProcessOther(elements, aliasMapper, tableMapper);
         }
     }
 
