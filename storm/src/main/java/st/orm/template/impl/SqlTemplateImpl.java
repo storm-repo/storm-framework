@@ -698,7 +698,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             // If no From element is present, we will only add table aliases.
             addTableAliases(elements, aliasMapper);
         }
-        validateWhere(elements, aliasMapper);
+        validateWhere(elements);
     }
 
     /**
@@ -731,7 +731,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             mapForeignKeys(tableMapper, alias, table, path);
         }
         addTableAliases(elements, aliasMapper);
-        validateWhere(elements, aliasMapper);
+        validateWhere(elements);
     }
 
     /**
@@ -794,7 +794,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             // If no From element is present, we will only add table aliases.
             addTableAliases(elements, aliasMapper);
         }
-        validateWhere(elements, aliasMapper);
+        validateWhere(elements);
     }
 
     /**
@@ -818,7 +818,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             // If no From element is present, we will only add table aliases.
             addTableAliases(elements, aliasMapper);
         }
-        validateWhere(elements, aliasMapper);
+        validateWhere(elements);
     }
 
     private void mapForeignKeys(@Nonnull TableMapper tableMapper, @Nonnull String alias, @Nonnull Class<? extends Record> table, @Nullable String path)
@@ -1005,7 +1005,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         }
     }
 
-    private void validateWhere(@Nonnull List<Element> elements, @Nonnull AliasMapper aliasMapper) throws SqlTemplateException {
+    private void validateWhere(@Nonnull List<Element> elements) throws SqlTemplateException {
         if (elements.stream().filter(Where.class::isInstance).count() > 1) {
             throw new SqlTemplateException("Multiple Where elements found.");
         }
