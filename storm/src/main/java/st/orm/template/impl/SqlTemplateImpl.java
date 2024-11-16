@@ -371,9 +371,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
         if (nextFragment.startsWith(".")) {
             return alias(recordType);
         }
+        String previous = removeComments(previousFragment).stripTrailing().toUpperCase();
         return switch (mode) {
             case SELECT -> {
-                String previous = removeComments(previousFragment).stripTrailing().toUpperCase();
                 if (previous.endsWith("FROM")) {
                     // Only use auto join if the selected table is present in the from-table graph.
                     boolean autoJoin = first instanceof Select select && isTypePresent(recordType, select.table());
@@ -384,13 +384,23 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 }
                 yield select(recordType);
             }
-            case INSERT -> insert(recordType);
-            case UPDATE -> update(recordType);
+            case INSERT -> {
+                if (previous.endsWith("INTO")) {
+                    yield insert(recordType);
+                }
+                yield table(recordType);
+            }
+            case UPDATE -> {
+                if (previous.endsWith("UPDATE")) {
+                    yield update(recordType);
+                }
+                yield table(recordType);
+            }
             case DELETE -> {
-                if (removeComments(nextFragment).stripLeading().toUpperCase().startsWith("FROM")) {
+                if (previous.startsWith("FROM")) {
                     yield delete(recordType);
                 }
-                if (removeComments(previousFragment).stripTrailing().toUpperCase().endsWith("FROM")) {
+                if (previous.endsWith("FROM")) {
                     yield from(recordType, false);
                 }
                 yield table(recordType);
