@@ -371,6 +371,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         if (nextFragment.startsWith(".")) {
             return alias(recordType);
         }
+        String next = removeComments(nextFragment).stripLeading().toUpperCase();
         String previous = removeComments(previousFragment).stripTrailing().toUpperCase();
         return switch (mode) {
             case SELECT -> {
@@ -397,7 +398,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 yield table(recordType);
             }
             case DELETE -> {
-                if (previous.startsWith("FROM")) {
+                if (next.startsWith("FROM")) {
                     yield delete(recordType);
                 }
                 if (previous.endsWith("FROM")) {
