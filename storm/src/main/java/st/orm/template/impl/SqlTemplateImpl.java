@@ -375,8 +375,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
             case SELECT -> {
                 String previous = removeComments(previousFragment).stripTrailing().toUpperCase();
                 if (previous.endsWith("FROM")) {
-                    // Only use auto join if the from table is also selected.
-                    boolean autoJoin = first instanceof Select select && select.table().equals(recordType);
+                    // Only use auto join if the selected table is present in the from-table graph.
+                    boolean autoJoin = first instanceof Select select && isTypePresent(recordType, select.table());
                     yield from(recordType, autoJoin);
                 }
                 if (previous.endsWith("JOIN")) {
@@ -688,7 +688,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             Source source = projectionQuery != null
                     ? new TemplateSource(StringTemplate.of(projectionQuery.value()))
                     : ts;
-            effectiveFrom = new From(source, alias, from.autoJoin());
+            effectiveFrom = new From(source, alias, projectionQuery == null && from.autoJoin());
             elements.replaceAll(element -> element instanceof From ? effectiveFrom : element);
             // We will only make primary keys available for mapping if the table is not part of the entity graph,
             // because the entities can already be resolved by their foreign keys.
@@ -1047,7 +1047,16 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 && !REFLECTION.isAnnotationPresent(component, FK.class);    // PKs that are also FKs are not auto-generated.
     }
 
-    static Optional<RecordComponent> findComponent(@Nonnull List<RecordComponent> components, @Nonnull Class<? extends Record> recordType) throws SqlTemplateException {
+    static boolean isTypePresent(@Nonnull Class<? extends Record> source,
+                                 @Nonnull Class<? extends Record> target) throws SqlTemplateException {
+        if (target.equals(source)) {
+            return true;
+        }
+        return findComponent(List.of(source.getRecordComponents()), target).isPresent();
+    }
+
+    static Optional<RecordComponent> findComponent(@Nonnull List<RecordComponent> components,
+                                                   @Nonnull Class<? extends Record> recordType) throws SqlTemplateException {
         for (var component : components) {
             if (component.getType().equals(recordType)
                     || (Lazy.class.isAssignableFrom(component.getType()) && getLazyRecordType(component).equals(recordType))) {

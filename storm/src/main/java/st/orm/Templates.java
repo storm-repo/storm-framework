@@ -19,7 +19,6 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import st.orm.template.ORMRepositoryTemplate;
-import st.orm.template.ORMTemplate;
 import st.orm.template.Operator;
 import st.orm.template.impl.Element;
 import st.orm.template.impl.Elements;
@@ -52,12 +51,12 @@ import static st.orm.template.Operator.EQUALS;
 public interface Templates {
 
     /**
-     * Returns an {@link ORMTemplate} for use with JPA.
+     * Returns an {@link ORMRepositoryTemplate} for use with JPA.
      *
      * @param entityManager the entity manager to use.
-     * @return an {@link ORMTemplate} for use with JPA.
+     * @return an {@link ORMRepositoryTemplate} for use with JPA.
      */
-    static ORMTemplate ORM(@Nonnull EntityManager entityManager) {
+    static ORMRepositoryTemplate ORM(@Nonnull EntityManager entityManager) {
         return new JpaTemplateImpl(entityManager).toORM();
     }
 

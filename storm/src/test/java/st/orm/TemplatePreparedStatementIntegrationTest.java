@@ -20,7 +20,6 @@ import st.orm.model.VetSpecialtyPK;
 import st.orm.model.Visit;
 import st.orm.repository.Entity;
 import st.orm.repository.spring.PetRepository;
-import st.orm.template.Sql;
 import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplateException;
 
@@ -36,8 +35,6 @@ import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Objects;
 import java.util.TimeZone;
-import java.util.concurrent.Callable;
-import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import static java.lang.StringTemplate.RAW;
