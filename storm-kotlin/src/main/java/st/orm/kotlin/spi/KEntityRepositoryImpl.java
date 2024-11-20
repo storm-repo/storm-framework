@@ -103,6 +103,31 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
     }
 
     /**
+     * Creates a new query builder for the custom {@code selectType}.
+     *
+     * @param selectType the result type of the query.
+     * @return a new query builder for the custom {@code selectType}.
+     * @param <R> the result type of the query.
+     */
+    @Override
+    public <R> KQueryBuilder<E, R, ID> select(@Nonnull Class<R> selectType) {
+        return new KQueryBuilderImpl<>(entityRepository.select(selectType));
+    }
+
+    /**
+     * Creates a new query builder for the custom {@code selectType} and custom {@code template} for the select clause.
+     *
+     * @param selectType the result type of the query.
+     * @param template the custom template for the select clause.
+     * @return a new query builder for the custom {@code selectType}.
+     * @param <R> the result type of the query.
+     */
+    @Override
+    public <R> KQueryBuilder<E, R, ID> select(@Nonnull Class<R> selectType, @Nonnull StringTemplate template) {
+        return new KQueryBuilderImpl<>(entityRepository.select(selectType, template));
+    }
+
+    /**
      * Provides access to the underlying ORM template.
      *
      * @return the ORM template.

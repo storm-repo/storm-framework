@@ -64,6 +64,25 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      */
     QueryBuilder<P, Long, ID> selectCount();
 
+    /**
+     * Creates a new query builder for the custom {@code selectType}.
+     *
+     * @param selectType the result type of the query.
+     * @return a new query builder for the custom {@code selectType}.
+     * @param <R> the result type of the query.
+     */
+    <R> QueryBuilder<P, R, ID> select(@Nonnull Class<R> selectType);
+
+    /**
+     * Creates a new query builder for the custom {@code selectType} and custom {@code template} for the select clause.
+     *
+     * @param selectType the result type of the query.
+     * @param template the custom template for the select clause.
+     * @return a new query builder for the custom {@code selectType}.
+     * @param <R> the result type of the query.
+     */
+    <R> QueryBuilder<P, R, ID> select(@Nonnull Class<R> selectType, @Nonnull StringTemplate template);
+
     // Base methods.
 
     /**

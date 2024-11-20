@@ -1,13 +1,17 @@
 = ST/ORM
 
-ST/ORM is a SQL Template and ORM for Java 21 and higher.
+*Storm* is a SQL Template and ORM framework designed for Java 21 and later versions, focusing on modernizing and simplifying database programming. By leveraging the latest features of Java, it enables developers to define entities and queries in a concise and readable manner, enhancing both productivity and code clarity.
 
-- Simple and easy to use
-- Lightweight
-- No dependencies
-- No magic
-- Supports all SQL databases
+*Key benefits of Storm:*
 
+* *Easy to learn*: With a programming model similar to the Java Persistence API (JPA), developers familiar with JPA can quickly and easily adapt to using Storm.
+* *Modern Syntax and Readability*: Storm allows for clean and succinct code, making it easy to write and understand entities and queries.
+* *Direct Database Interaction*: Method calls in Storm are directly translated into database operations, providing a transparent and immediate programming experience without unnecessary abstractions.
+* *Simplicity and Transparency*: Avoids hidden complexities and “magic,” by using stateless, record-based, entities.
+* *Optimized Performance*: Built with efficiency in mind, Storm supports batch processing, lazy streams, and upsert functionality to enhance performance during database interactions.
+* *Universal Database Compatibility*: Fully compatible with all SQL databases, it offers flexibility and broad applicability across various database systems.
+
+In summary, Storm delivers a modern, efficient, and straightforward ORM solution that prioritizes direct ease of use, database interaction, and wide compatibility. It’s an excellent choice for Java and Kotlin developers seeking simplicity, performance, and enhanced readability in their database operations.
 
 == Level 0 - Parameter Binding
 
@@ -19,12 +23,11 @@ public class JPAExample {
     private EntityManager entityManager;
 
     public List findByBirthDate(LocalDate birthDate) {
-        var jpa = JpaTemplate.of(entityManager);
-        Query query = jpa.query(RAW."""
-            SELECT *
-            FROM pet
-            WHERE birth_date = \{birthDate}""");
-        return query.getResultList();
+        return JpaTemplate.of(entityManager).query(RAW."""
+                SELECT *
+                FROM pet
+                WHERE birth_date = \{birthDate}""")
+            .getResultList();
     }
 }
 ----
@@ -37,8 +40,7 @@ public class PreparedStatementExample {
     @Autowired
     private DataSource dataSource;
     public List<Pet> findByBirthDate(LocalDate birthDate) {
-        var ps = PreparedStatementTemplate.of(dataSource);
-        try (PreparedStatement statement = ps.query(RAW."""
+        try (PreparedStatement statement = PreparedStatementTemplate.of(dataSource).query(RAW."""
                     SELECT *
                     FROM pet
                     WHERE birth_date = \{birthDate}""");
@@ -87,32 +89,71 @@ public class ORMTemplateExample {
     public List<Pet> findByOwner(Owner owner) {
         // Select all pets that belong to the owner.
         // Uses the auto join feature based on @FK relationships.
-        var query = ORM(dataSource).query(RAW."""
+        return ORM(dataSource).query(RAW."""
                 SELECT \{Pet.class}
                 FROM \{Pet.class}
-                WHERE \{owner}""");
-        return query.getResultList(Pet.class);
+                WHERE \{owner}""")
+            .getResultList(Pet.class);
     }
 
     public int findPetCountByOwner(Owner owner) {
         // Count the number of pets that belong to the owner.
         // Uses custom result mapping.
-        var query = ORM(dataSource).query(RAW."SELECT COUNT(*) FROM \{Pet.class} WHERE \{owner}");
-        return query.getSingleResult(Integer.class);
+        return ORM(dataSource)
+                .query(RAW."SELECT COUNT(*) FROM \{Pet.class} WHERE \{owner}")
+                .getSingleResult(Integer.class);
     }
 
-    public record Count(Owner owner, int count) {}
+    public record CountByOwner(Owner owner, int count) {}
 
-    public List<Count> findAllPetCountByOwner() {
+    public List<CountByOwner> getPetCount() {
         // Group by owner and count the number of pets.
         // Uses custom result mapping using a record.
-        var query = ORM(dataSource).query(RAW."SELECT \{Owner.class}, COUNT(*) FROM \{Pet.class} GROUP BY \{Owner.class}.id");
-        return query.getResultList(Count.class);
+        return ORM(dataSource)
+                .query(RAW."SELECT \{Owner.class}, COUNT(*) FROM \{Pet.class} GROUP BY \{Owner.class}.id")
+                .getResultList(CountByOwner.class);
+    }
+
+    public Pet insert(String name, LocalDate birthDate, PetType petType) {
+        var pet = Pet.builder()
+                .name(name)
+                .birthDate(birthDate)
+                .petType(petType)
+                .build();
+        return ORM(dataSource).query(RAW."""
+                INSERT INTO \{Pet.class}
+                VALUES \{pet}""")
+            .executeUpdate();
+    }
+
+    public void insert(List<Pet> pets) {
+        // Insert pets into the database with a batch statement. Uses bind variables.
+        var orm = ORM(dataSource);
+        var bindVars = orm.createBindVars();
+        try (var query = orm.query(RAW."""
+                INSERT INTO \{Pet.class}
+                VALUES \{bindVars}""".prepare())) {
+            pets.forEach(query::addBatch);
+            query.executeUpdate();  // Performs the batch update.
+        }
+    }
+
+    public void update(List<Pet> pets) {
+        // Updates pets with a batch statement. Uses bind variables.
+        var orm = ORM(dataSource);
+        var bindVars = orm.createBindVars();
+        try (var query = orm.query(RAW."""
+                UPDATE \{Pet.class}
+                SET \{bindVars}
+                WHERE \{bindVars}""".prepare())) {
+            pets.forEach(query::addBatch);
+            query.executeUpdate();  // Performs the batch update.
+        }
     }
 }
 ----
 
-== Level 2 - Entity Repository
+== Level 2 - Repository
 
 [source,java,indent=0]
 ----
@@ -131,137 +172,181 @@ The following example demonstrates how `ORM(datasource).entity(Pet.class)` retur
 ----
 public class ORMRepositoryExample {
 
+    public List<Pet> findAll() {
+        // Selects all pets.
+        return ORM(dataSource).entity(Pet.class)
+            .select()
+            .getResultList();   // Use getResultStream() for a lazy loaded stream instead.
+    }
+
     public List<Pet> findByFirstName(String firstName) {
         // Select all pets that belong to an owner with the specified first name. Uses the
         // auto alias feature and parameter binding.
-        return ORM(dataSource)
-            .selectFrom(Pet.class)
-            .append(RAW."WHERE \{Owner.class}.first_name = \{firstName}")
+        return ORM(dataSource).entity(Pet.class)
+            .select()
+            .where(RAW."\{Owner.class}.first_name = \{firstName}")
             .getResultList();
     }
 
     public List<Pet> findByLastName(String lastName) {
         // Use component path to identify column.
-        return ORM(dataSource)
-            .selectFrom(Pet.class)
+        return ORM(dataSource).entity(Pet.class)
+            .select()
             .where("owner.lastName", EQUALS, lastName)
             .getResultList();
     }
 
+    public List<Pet> findByFirstNameAndLastName(String firstName, String lastName) {
+        // Predicate using mixed styles.
+        return ORM(dataSource).entity(Pet.class)
+            .select()
+            .wherePredicate(it -> it.filter("owner.firstName", EQUALS, firstName)
+                       .and(it.expression(RAW."\{Owner.class}.last_name = \{lastName}")))
+            .getResultList();
+    }
+
     public List<Pet> findByOwner(Owner owner) {
-        // Select all pets that belong to the owner, Uses the auto join feature based on @FK relationships.
-        return ORM(dataSource)
-            .selectFrom(Pet.class)
+        // Select all pets that belong to the owner. Uses the auto join feature based on @FK relationships.
+        return ORM(dataSource).entity(Pet.class)
+            .select()
             .where(owner)
             .getResultList();
     }
 
-    public Pet create(String name, PetType petType) {
+    public Pet insert(String name, LocalDate birthDate, PetType petType) {
         // Create a new pet with the specified name and pet type.
         // Returns the newly created pet with the generated ID.
         return ORM(dataSource).entity(Pet.class)
-            .upsert(Pet.builder()
+            .insert(Pet.builder()
                 .name(name)
-                .birthDate(LocalDate.now())
+                .birthDate(birthDate)
                 .petType(petType)
                 .build());
+    }
+
+    public void insert(List<Pet> pets) {
+        // Out of the box insert logic.
+        return ORM(dataSource).entity(Pet.class)
+            .insert(pets);
+    }
+
+    public void update(List<Pet> pets) {
+        // Out of the box insert logic.
+        return ORM(dataSource).entity(Pet.class)
+            .update(pets);
     }
 }
 ----
 
-The following logic shows howto create a custom repository with custom methods:
+The following logic shows howto extend a repository with custom methods:
 
 [source,java,indent=0]
 ----
 public interface PetRepository extends EntityRepository<Pet> {
 
-    default List<Pet> findByCity(String city) {
-        // Select all pets that belong to an owner in the specified city. Uses the
-        // auto alias feature and parameter binding.
-        return select().append(RAW."WHERE \{Owner.class}.city = \{city}").getResultList();
+    default List<Pet> findByOwner(Owner owner) {
+        // Use select() to query the Pet table.
+        return select()
+            .where(owner)
+            .getResultList();
     }
 
-    default insert(List<Pet> pets) {
-        // Insert pets into the database with a batch statement. Uses bind variables.
-        var bindVars = createBindVars();
-        try (var query = template().query(RAW."""
-                INSERT INTO \{Pet.class}
-                VALUES \{bindVars}""".prepare())) {
-            pets.forEach(query::addBatch);
-            // Performs a single batch update.
-            query.executeUpdate();
-        }
+    default Stream<Pet> findByCity(String city) {
+        // Select a lazy loaded stream pets that belong to an owner in the specified city.
+        return select()
+            .where("owner.city", EQUALS, city)
+            .getResultStream();
     }
 
-    default update(List<Pet> pets) {
-        // Updates pets with a batch statement. Uses bind variables.
-        var bindVars = createBindVars();
-        try (var query = template(0).query(RAW."""
-                UPDATE \{Pet.class}
-                SET \{bindVars}
-                WHERE \{bindVars}""".prepare())) {
-            pets.forEach(query::addBatch);
-            // Performs a single batch update.
-            query.executeUpdate();
-        }
-    }
+    // Select, Insert, Update, Delete and Upsert methods are inherited from EntityRepository.
 }
 ----
 
 == Additional Features
 
-=== Query Builder
-
-// TODO
-
 === JSON
+
+JSON is supported as a first-class citizen. The following example demonstrates how to use JSON in a repository:
 
 [source,java,indent=0]
 ----
+public record Vet(@PK Integer id, String firstName, String lastName) implements Entity<Integer> {}
 
-public class JSONExample {
+public record Specialty(@PK Integer id, String name) implements Entity<Integer> {}
 
-    public record Specialty(int id, String name) {}
+public interface VetRepository extends EntityRepository<Vet> {
 
-    public record VetWithSpecialties(Vet vet, @Json List<Specialty> specialties) {}
+    record SpecialtiesByVet(Vet vet, @Json List<Specialty> specialties) {}
 
-    public List<VetWithSpecialties> getVetsWithSpecialties() {
+    default List<SpecialtiesByVet> getSpecialties() {
         // Uses VET as the root entity and aggregates the specialties into a JSON object.
-        // The result is a list of VetWithSpecialties records.
-        return ORM(dataSource)
-            .selectFrom(Vet.class, VetWithSpecialties.class, RAW."\{Vet.class}, JSON_OBJECTAGG(\{Specialty.class}.id, \{Specialty.class}.name)")
+        // The result is a list of SpecialtiesByVet records.
+        return select(SpecialtiesByVet.class, RAW."\{Vet.class}, JSON_OBJECTAGG(\{Specialty.class}.id, \{Specialty.class}.name)")
             .innerJoin(VetSpecialty.class).on(Vet.class)
             .innerJoin(Specialty.class).on(VetSpecialty.class)
             .append(RAW."GROUP BY \{Vet.class}.id")
             .getResultList();
     }
-
-    public record Owner(
-            @PK Integer id,
-            String firstName,
-            String lastName,
-            @Json Map<String, String> address,
-            String telephone
-    ) implements Entity<Integer> {
-    }
-
-    public List<Owner> getOwners() {
-        // The JSON address field is automatically converted to a map with the keys 'address' and 'city'
-        // given that the address field contains the following string:
-        // { "address": "638 Cardinal Ave.", "city": "Sun Prairie" }
-        return ORM(dataSource)
-            .selectFrom(Owner.class)
-            .getResultList();
-    }
 }
+----
 
+The JSON address field is automatically converted to a map with the keys 'address' and 'city' given that the address field contains the following format: `{ "address": "638 Cardinal Ave.", "city": "Sun Prairie" }`
+
+[source,java,indent=0]
+----
+public record Owner(
+        @PK Integer id,
+        String firstName,
+        String lastName,
+        @Json Map<String, String> address,
+        String telephone
+) implements Entity<Integer> {}
+
+public interface OwnerRepository extends EntityRepository<Owner> {
+
+    // Nothing to do here. The JSON annotation takes care of the conversion.
+    // Select, Insert, Update, Delete and Upsert methods are inherited from EntityRepository.
+
+}
 ----
 
 
 === Spring Framework Integration
 
-// TODO
+Spring Framework integration is straightforward. The following example demonstrates how to configure the `ORMRepositoryTemplate` bean using a `DataSource`.
 
+[source,java,indent=0]
+----
+@Configuration
+public class DataTemplateConfiguration {
+
+    private final DataSource dataSource;
+
+    public DataTemplateConfiguration(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    @Bean
+    public ORMRepositoryTemplate ormTemplate() {
+        return PreparedStatementTemplate.of(dataSource).toORM();
+    }
+}
+----
+
+The repositories can be made available for dependency injection by extending the `RepositoryBeanFactoryPostProcessor` class.
+
+[source,java,indent=0]
+----
+@Configuration
+public class AcmeRepositoryBeanFactoryPostProcessor extends RepositoryBeanFactoryPostProcessor {
+
+    @Override
+    public String[] getRepositoryBasePackages() {
+        // Your repository package(s) go here.
+        return new String[] { "com.acme.repository" };
+    }
+}
+----
 
 == Future Work
 
@@ -269,27 +354,23 @@ The following examples show how ST/ORM will evolve once String Template 2.0 and 
 
 [source,java,indent=0]
 ----
+public interface PetRepository extends EntityRepository<Pet> {
 
-public class FutureExample {
+    record CountByPet(Pet pet, int count) {}
 
-    public record PetCount(Pet pet, int count) {}
-
-    public List<VetCount> getVisitCount() {
+    default List<CountByPet> getVisitCount() {
         // QueryBuilder example with method based String Templates resulting in a much cleaner syntax.
-        return ORM(dataSource)
-                .selectFrom(Pet.class, PetCount.class, "\{Pet.class}, COUNT(*)")
+        return select(CountByPet.class, "\{Pet.class}, COUNT(*)")
                 .innerJoin(Visit.class).on(Pet.class)
                 .append("GROUP BY \{Vet.class}.id")
                 .getResultList();
     }
 
-    public void removeOwners() {
+    default void removeOwners() {
         // Repository example utilizing derived record creation to update record fields.
-        var repository = ORM(dataSource).entity(Pet.class);
-        try (var pets = repository.selectAll()) {
-            repository.update(pets.map(pet -> pet with { owner = null; });
+        try (var pets = selectAll()) {
+            update(pets.map(pet -> pet with { owner = null; });
         }
     }
 }
-
 ----

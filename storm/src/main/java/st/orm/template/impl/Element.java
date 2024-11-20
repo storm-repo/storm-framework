@@ -34,6 +34,6 @@ import st.orm.template.impl.SqlTemplateImpl.Wrapped;
  *
  */
 public sealed interface Element
-        permits Alias, Delete, From, Insert, Param, Select, Set, Table, Unsafe, Update, Values, Where, Join, Wrapped {
+        permits Alias, Delete, From, Insert, Param, Select, Set, Table, Update, Values, Where, Join, Unsafe, Wrapped {
 
 }

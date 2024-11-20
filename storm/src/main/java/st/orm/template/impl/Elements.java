@@ -12,6 +12,10 @@ import static java.util.Objects.requireNonNull;
 import static st.orm.template.Operator.EQUALS;
 
 public final class Elements {
+
+    private Elements() {
+    }
+
     public record Select(@Nonnull Class<? extends Record> table) implements Element {
         public Select {
             requireNonNull(table, "table");

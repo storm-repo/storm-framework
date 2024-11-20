@@ -129,12 +129,12 @@ public class JsonIntegrationTest {
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
 
-    public record VetWithSpecialties(@Nonnull Vet vet, @Nonnull @Json List<Specialty> specialties) {}
+    public record SpecialtiesByVet(@Nonnull Vet vet, @Nonnull @Json List<Specialty> specialties) {}
 
     @Test
-    public void testVetWithSpecialties() {
+    public void testSpecialtiesByVet() {
         var vets = ORM(dataSource)
-                .selectFrom(Vet.class, VetWithSpecialties.class, RAW."""
+                .selectFrom(Vet.class, SpecialtiesByVet.class, RAW."""
                         \{Vet.class}, JSON_ARRAYAGG(
                             JSON_OBJECT(
                                 KEY 'id' VALUE \{alias(Specialty.class)}.id,
@@ -149,12 +149,12 @@ public class JsonIntegrationTest {
         assertEquals(5, vets.stream().mapToLong(v -> v.specialties().size()).sum());
     }
 
-    public record VetWithSpecialtyList(@Nonnull Vet vet, @Nonnull @Json List<String> specialties) {}
+    record SpecialtyNamesByVet(@Nonnull Vet vet, @Nonnull @Json List<String> specialties) {}
 
     @Test
-    public void testVetWithSpecialtyList() {
-        var vets = ORM(dataSource).selectFrom(Vet.class, VetWithSpecialtyList.class, RAW."""
-                        \{Vet.class}, JSON_ARRAYAGG(\{alias(Specialty.class)}.name) AS specialties""")
+    public void testSpecialtyNamesByVet() {
+        var vets = ORM(dataSource).selectFrom(Vet.class, SpecialtyNamesByVet.class, RAW."""
+                        \{Vet.class}, JSON_ARRAYAGG(\{Specialty.class}.name) AS specialties""")
                 .innerJoin(VetSpecialty.class).on(Vet.class)
                 .innerJoin(Specialty.class).on(VetSpecialty.class)
                 .append(RAW."GROUP BY \{Vet.class}.id")

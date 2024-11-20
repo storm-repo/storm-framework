@@ -134,6 +134,7 @@ public final class ORMRepositoryTemplateImpl extends ORMTemplateImpl implements 
     }
 
     private Repository createRepository() {
+        //noinspection Convert2Lambda
         return new Repository() {
             @Override
             public ORMRepositoryTemplate template() {
@@ -142,6 +143,7 @@ public final class ORMRepositoryTemplateImpl extends ORMTemplateImpl implements 
         };
     }
 
+    @SuppressWarnings("SameParameterValue")
     private static <T extends Record & Entity<?>> Optional<Class<T>> findGenericClass(@Nonnull Class<?> clazz,
                                                                                       @Nonnull Class<?> targetInterface,
                                                                                       int typeArgumentIndex) {

@@ -32,7 +32,7 @@ import static st.orm.template.JoinType.right;
 import static st.orm.template.Operator.EQUALS;
 import static st.orm.template.Operator.IN;
 
-public class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder<T, R, ID> {
+public final class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder<T, R, ID> {
     private final ORMTemplate orm;
     private final StringTemplate selectTemplate;
     private final Class<T> fromType;

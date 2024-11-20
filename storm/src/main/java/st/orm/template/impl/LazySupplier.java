@@ -64,7 +64,6 @@ public final class LazySupplier<T> implements Supplier<T> {
      * Returns the value if it has already been lazily loaded, otherwise an empty optional is returned.
      *
      * @return the value if it has already been lazily loaded, otherwise an empty optional.
-     * @since 2.10
      */
     public Optional<T> value() {
         return ofNullable(reference.get());

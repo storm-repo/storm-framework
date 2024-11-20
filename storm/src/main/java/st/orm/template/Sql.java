@@ -21,6 +21,9 @@ import st.orm.template.SqlTemplate.Parameter;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Represents the generated SQL statement with parameters.
+ */
 public interface Sql {
 
     /**

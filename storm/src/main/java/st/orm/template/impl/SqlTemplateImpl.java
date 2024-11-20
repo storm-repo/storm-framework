@@ -377,7 +377,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             case SELECT -> {
                 if (previous.endsWith("FROM")) {
                     // Only use auto join if the selected table is present in the from-table graph.
-                    boolean autoJoin = first instanceof Select select && isTypePresent(recordType, select.table());
+                    boolean autoJoin = first instanceof Select(var table) && isTypePresent(recordType, table);
                     yield from(recordType, autoJoin);
                 }
                 if (previous.endsWith("JOIN")) {
@@ -682,10 +682,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 .filter(f -> f.source() instanceof TableSource)
                 .findAny()
                 .orElse(null);
-        final Optional<Class<? extends Record>> primaryTable;
         final From effectiveFrom;
-        if (from != null && from.source() instanceof TableSource ts) {
-            var table = ts.table();
+        if (from != null && from.source() instanceof TableSource(var table)) {
             String path = "";   // Use "" because it's the root table.
             String alias;
             if (from.alias().isEmpty()) {
@@ -698,7 +696,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             var projectionQuery = REFLECTION.getAnnotation(table, ProjectionQuery.class);
             Source source = projectionQuery != null
                     ? new TemplateSource(StringTemplate.of(projectionQuery.value()))
-                    : ts;
+                    : new TableSource(table);
             effectiveFrom = new From(source, alias, projectionQuery == null && from.autoJoin());
             elements.replaceAll(element -> element instanceof From ? effectiveFrom : element);
             // We will only make primary keys available for mapping if the table is not part of the entity graph,
@@ -765,8 +763,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 .findAny()
                 .orElse(null);
         final From effectiveFrom;
-        if (from != null && from.source() instanceof TableSource ts) {
-            var table = ts.table();
+        if (from != null && from.source() instanceof TableSource(var table)) {
             String path = "";   // Use "" because it's the root table.
             String alias;
             if (from.alias().isEmpty()) {
@@ -854,8 +851,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
         List<Join> customJoins = new ArrayList<>();
         for (ListIterator<Element> it = elements.listIterator(); it.hasNext(); ) {
             Element element = it.next();
-            if (element instanceof Table t) {
-                aliasMapper.setAlias(t.table(), t.alias(), null);
+            if (element instanceof Table(var table, var alias)) {
+                aliasMapper.setAlias(table, alias, null);
             } else if (element instanceof Join j) {
                 String path = null; // Custom joins are not part of the primary table.
                 // Move custom join to list of (auto) joins to allow proper ordering of inner and outer joins.
@@ -883,10 +880,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         }
         List<Join> joins;
         if (from != null && from.autoJoin()) {
-            Class<? extends Record> table;
-            if (from.source() instanceof TableSource ts) {
-                table = ts.table();
-            } else {
+            if (!(from.source() instanceof TableSource(var table))) {
                 throw new SqlTemplateException("From with table required when using auto join.");
             }
             joins = new ArrayList<>();
@@ -1010,8 +1004,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
     private void addTableAliases(@Nonnull List<Element> elements,
                                  @Nonnull AliasMapper aliasMapper) throws SqlTemplateException {
         for (Element element : elements) {
-            if (element instanceof Table t) {
-                aliasMapper.setAlias(t.table(), t.alias(), null);
+            if (element instanceof Table(var table, var alias)) {
+                aliasMapper.setAlias(table, alias, null);
             }
         }
     }
@@ -1091,8 +1085,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 .filter(From.class::isInstance)
                 .map(From.class::cast)
                 .map(f -> {
-                    if (f.source() instanceof TableSource ts) {
-                        return new Table(ts.table(), f.alias());
+                    if (f.source() instanceof TableSource(var t)) {
+                        return new Table(t, f.alias());
                     }
                     return null;
                 })
@@ -1204,7 +1198,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         var tableMapper = getTableMapper();
         postProcessElements(sqlMode, elements, aliasMapper, tableMapper);
         var unwrappedElements = elements.stream()
-                .flatMap(e -> e instanceof Wrapped c ? c.elements().stream() : Stream.of(e))
+                .flatMap(e -> e instanceof Wrapped(var we) ? we.stream() : Stream.of(e))
                 .toList();
         assert values.size() == elements.size();
         Optional<Table> primaryTable = getPrimaryTable(unwrappedElements, aliasMapper);

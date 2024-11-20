@@ -44,7 +44,7 @@ public interface Lazy<T extends Record, ID> {
      * @param <ID> primary key type.
      */
     static <T extends Record, ID> Lazy<T, ID> ofNull() {
-        return new Lazy<T, ID>() {
+        return new Lazy<>() {
             @Override
             public ID id() {
                 return null;
@@ -137,7 +137,6 @@ public interface Lazy<T extends Record, ID> {
             @Override
             public boolean equals(Object obj) {
                 if (obj instanceof Lazy<?, ?> other) {
-                    var otherId = other.id();
                     return Objects.equals(id, other.id());
                 }
                 return false;

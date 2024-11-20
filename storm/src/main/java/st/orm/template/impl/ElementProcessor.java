@@ -61,7 +61,6 @@ import java.math.BigInteger;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.LinkedHashMap;
@@ -123,7 +122,7 @@ record ElementProcessor(
         Element fromResolved = element;
         StringBuilder sql = new StringBuilder();
         List<String> args = new ArrayList<>();
-        for (Element fromWrapped : fromResolved instanceof Wrapped w ? w.elements() : List.of(fromResolved)) {
+        for (Element fromWrapped : fromResolved instanceof Wrapped(var elements) ? elements : List.of(fromResolved)) {
             ElementResult result = switch (fromWrapped) {
                 case Wrapped _ -> {
                     assert false;
@@ -182,9 +181,7 @@ record ElementProcessor(
     ElementResult join(Join join) throws SqlTemplateException {
         if (join.type().hasOnClause()) {
             String on = switch (join.target()) {
-                case TableTarget tt when join.source() instanceof TableSource ts -> {
-                    var fromTable = ts.table();
-                    var toTable = tt.table();
+                case TableTarget(var toTable) when join.source() instanceof TableSource(var fromTable) -> {
                     var leftComponents = getFkComponents(fromTable).toList();
                     var rightComponents = getFkComponents(toTable).toList();
                     var leftComponent = findComponent(leftComponents, toTable);
