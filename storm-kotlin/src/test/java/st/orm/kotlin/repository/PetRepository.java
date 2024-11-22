@@ -18,7 +18,7 @@ import static st.orm.kotlin.KTemplates.where;
 public interface PetRepository extends EntityRepository<Pet, Integer> {
 
     default List<Pet> findAll() {
-        return template().query(RAW."""
+        return orm().query(RAW."""
                 SELECT \{Templates.select(Pet.class)}
                 FROM \{table(Pet.class, "p")}
                   INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
@@ -27,7 +27,7 @@ public interface PetRepository extends EntityRepository<Pet, Integer> {
     }
 
     default Pet findById1(int id) {
-        return template().query(RAW."""
+        return orm().query(RAW."""
                 SELECT \{Templates.select(Pet.class)}
                 FROM \{table(Pet.class, "p")}
                   INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
@@ -37,7 +37,7 @@ public interface PetRepository extends EntityRepository<Pet, Integer> {
     }
 
     default Pet findById2(int id) {
-        return template().query(RAW."""
+        return orm().query(RAW."""
                 SELECT \{Pet.class}
                 FROM \{Pet.class}
                 WHERE \{where(Stream.of(id))}""")
@@ -45,21 +45,21 @@ public interface PetRepository extends EntityRepository<Pet, Integer> {
     }
 
     default Pet findById3(int id) {
-        return template().selectFrom(Pet.class).append(RAW."WHERE \{where(Stream.of(id))}").getSingleResult();
+        return orm().selectFrom(Pet.class).append(RAW."WHERE \{where(Stream.of(id))}").getSingleResult();
     }
 
     default Stream<Pet> findByOwnerFirstName(String firstName) {
-        return template().selectFrom(Pet.class).append(RAW."WHERE \{alias(Owner.class)}.first_name = \{firstName}").getResultStream();
+        return orm().selectFrom(Pet.class).append(RAW."WHERE \{alias(Owner.class)}.first_name = \{firstName}").getResultStream();
     }
 
     default Stream<Pet> findByOwnerCity(String city) {
-        return template().selectFrom(Pet.class).append(RAW."WHERE \{alias(Owner.class)}.city = \{city}").getResultStream();
+        return orm().selectFrom(Pet.class).append(RAW."WHERE \{alias(Owner.class)}.city = \{city}").getResultStream();
     }
 
     record PetVisitCount(Pet pet, int visitCount) {}
 
     default Stream<PetVisitCount> petVisitCount() {
-        var ORM = template();
+        var ORM = orm();
         return ORM
                 .selectFrom(Pet.class, PetVisitCount.class, RAW."\{Pet.class}, COUNT(*)")
                 .innerJoin(Visit.class).on(Pet.class)

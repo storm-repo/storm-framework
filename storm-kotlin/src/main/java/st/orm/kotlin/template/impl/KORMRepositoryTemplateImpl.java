@@ -143,7 +143,7 @@ public final class KORMRepositoryTemplateImpl extends KORMTemplateImpl implement
     private KRepository createRepository() {
         return new KRepository() {
             @Override
-            public KORMRepositoryTemplate template() {
+            public KORMRepositoryTemplate orm() {
                 return KORMRepositoryTemplateImpl.this;
             }
         };

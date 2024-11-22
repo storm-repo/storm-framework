@@ -133,8 +133,8 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * @return the ORM template.
      */
     @Override
-    public KORMRepositoryTemplate template() {
-        return new KORMRepositoryTemplateImpl(entityRepository.template());
+    public KORMRepositoryTemplate orm() {
+        return new KORMRepositoryTemplateImpl(entityRepository.orm());
     }
 
     /**

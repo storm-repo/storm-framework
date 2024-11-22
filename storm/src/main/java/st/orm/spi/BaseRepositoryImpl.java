@@ -63,7 +63,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @return the ORM template.
      */
     @Override
-    public ORMRepositoryTemplate template() {
+    public ORMRepositoryTemplate orm() {
         return orm;
     }
 
@@ -308,7 +308,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      */
     public long count(@Nonnull Stream<ID> ids, int batchSize) {
         return slice(ids, batchSize)
-                .mapToLong(slice -> template().selectFrom(model.type(), Long.class, RAW."COUNT(*)")
+                .mapToLong(slice -> orm().selectFrom(model.type(), Long.class, RAW."COUNT(*)")
                         .where(slice)
                         .getSingleResult())
                 .sum();

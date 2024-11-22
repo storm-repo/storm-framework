@@ -133,8 +133,8 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      * @return the ORM template.
      */
     @Override
-    public KORMRepositoryTemplate template() {
-        return new KORMRepositoryTemplateImpl(projectionRepository.template());
+    public KORMRepositoryTemplate orm() {
+        return new KORMRepositoryTemplateImpl(projectionRepository.orm());
     }
 
     /**

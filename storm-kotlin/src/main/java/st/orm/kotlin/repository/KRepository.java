@@ -27,5 +27,5 @@ public interface KRepository {
      *
      * @return the ORM template.
      */
-    KORMRepositoryTemplate template();
+    KORMRepositoryTemplate orm();
 }

@@ -137,7 +137,7 @@ public final class ORMRepositoryTemplateImpl extends ORMTemplateImpl implements 
         //noinspection Convert2Lambda
         return new Repository() {
             @Override
-            public ORMRepositoryTemplate template() {
+            public ORMRepositoryTemplate orm() {
                 return ORMRepositoryTemplateImpl.this;
             }
         };

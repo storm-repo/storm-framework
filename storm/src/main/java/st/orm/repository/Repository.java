@@ -27,5 +27,5 @@ public interface Repository {
      *
      * @return the ORM template.
      */
-    ORMRepositoryTemplate template();
+    ORMRepositoryTemplate orm();
 }
