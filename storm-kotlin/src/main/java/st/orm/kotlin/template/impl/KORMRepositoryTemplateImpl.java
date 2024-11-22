@@ -15,6 +15,7 @@ import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.ORMRepositoryTemplate;
 import st.orm.template.Sql;
+import st.orm.template.SqlInterceptor;
 import st.orm.template.SqlTemplateException;
 
 import java.lang.reflect.InvocationTargetException;
@@ -29,7 +30,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static java.lang.System.identityHashCode;
 import static java.util.Optional.empty;
-import static st.orm.template.SqlTemplate.aroundInvoke;
 
 public final class KORMRepositoryTemplateImpl extends KORMTemplateImpl implements KORMRepositoryTemplate {
     private final static ORMReflection REFLECTION = Providers.getORMReflection();
@@ -173,16 +173,14 @@ public final class KORMRepositoryTemplateImpl extends KORMTemplateImpl implement
     private  <T extends KRepository> T wrapRepository(@Nonnull T repository) {
         return (T) Proxy.newProxyInstance(repository.getClass().getClassLoader(), getAllInterfaces(repository.getClass()).toArray(new Class[0]), (_, method, args) -> {
             var lastSql = new AtomicReference<Sql>();
-            try {
-                return aroundInvoke(() -> {
-                    try {
-                        return method.invoke(repository, args);
-                    } catch (Exception | Error e) {
-                        throw e;
-                    } catch (Throwable e) {
-                        throw new PersistenceException(e);
-                    }
-                }, lastSql::setPlain);
+            try (var _ = SqlInterceptor.intercept(lastSql::setPlain)) {
+                try {
+                    return method.invoke(repository, args);
+                } catch (Exception | Error e) {
+                    throw e;
+                } catch (Throwable e) {
+                    throw new PersistenceException(e);
+                }
             } catch (InvocationTargetException e) {
                 try {
                     throw e.getTargetException();

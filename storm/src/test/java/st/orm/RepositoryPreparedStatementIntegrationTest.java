@@ -20,7 +20,6 @@ import st.orm.model.Visit;
 import st.orm.repository.Entity;
 import st.orm.repository.PetRepository;
 import st.orm.template.Sql;
-import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplateException;
 
 import javax.sql.DataSource;
@@ -48,6 +47,7 @@ import static st.orm.template.Operator.GREATER_THAN;
 import static st.orm.template.Operator.GREATER_THAN_OR_EQUAL;
 import static st.orm.template.Operator.IN;
 import static st.orm.template.Operator.IS_NULL;
+import static st.orm.template.SqlInterceptor.intercept;
 import static st.orm.template.TemplateFunction.template;
 import static st.orm.template.impl.SqlTemplateImpl.DefaultJoinType.INNER;
 
@@ -404,12 +404,14 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWithTwoPetsWithMultipleParameters() throws Exception {
-        var ORM = ORM(dataSource);
-        var owner = ORM.entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
+        var orm = ORM(dataSource);
+        var owner = orm.entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        var visits = SqlTemplate.aroundInvoke(() -> ORM.entity(VisitWithTwoPets.class).select().wherePredicate(it -> it.filter("pet1.owner", EQUALS, owner).or(it.filter("pet2.owner", EQUALS, owner))).getResultList(), sql::setPlain);
-        assertEquals(2, sql.getPlain().parameters().size());
-        assertEquals(2, visits.size());
+        try (var _ = intercept(sql::setPlain)) {
+            var visits = orm.entity(VisitWithTwoPets.class).select().wherePredicate(it -> it.filter("pet1.owner", EQUALS, owner).or(it.filter("pet2.owner", EQUALS, owner))).getResultList();
+            assertEquals(2, sql.getPlain().parameters().size());
+            assertEquals(2, visits.size());
+        }
     }
 
 
@@ -417,11 +419,13 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetsWithMultipleParametersTemplate() throws Exception {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        var visits = SqlTemplate.aroundInvoke(() -> ORM(dataSource).entity(VisitWithTwoPets.class)
-                .select()
-                .wherePredicate(it -> it.expression(RAW."\{alias(PetLazyOwner.class, "pet1")}.owner_id = \{owner.id()} OR \{alias(PetLazyOwner.class, "pet2")}.owner_id = \{owner.id()}")).getResultList(), sql::setPlain);
-        assertEquals(2, sql.getPlain().parameters().size());
-        assertEquals(2, visits.size());
+        try (var _ = intercept(sql::setPlain)) {
+            var visits = ORM(dataSource).entity(VisitWithTwoPets.class)
+                    .select()
+                    .wherePredicate(it -> it.expression(RAW."\{alias(PetLazyOwner.class, "pet1")}.owner_id = \{owner.id()} OR \{alias(PetLazyOwner.class, "pet2")}.owner_id = \{owner.id()}")).getResultList();
+            assertEquals(2, sql.getPlain().parameters().size());
+            assertEquals(2, visits.size());
+        }
     }
 
     @Builder(toBuilder = true)
@@ -439,40 +443,48 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetsOneLazyWithoutPath() throws Exception {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        var visits = SqlTemplate.aroundInvoke(() -> ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().where(owner).getResultList(), sql::setPlain);
-        assertEquals(1, sql.getPlain().parameters().size());
-        assertEquals(2, visits.size());
+        try (var _ = intercept(sql::setPlain)) {
+            var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().where(owner).getResultList();
+            assertEquals(1, sql.getPlain().parameters().size());
+            assertEquals(2, visits.size());
+        }
     }
 
     @Test
     public void testSelectWithTwoPetsOneLazyWithoutPathTemplate() throws Exception {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        var visits = SqlTemplate.aroundInvoke(() -> ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
-                .select()
-                .wherePredicate(it -> it.expression(RAW."\{PetLazyOwner.class}.owner_id = \{owner.id()}")).getResultList(), sql::setPlain);
-        assertEquals(1, sql.getPlain().parameters().size());
-        assertEquals(2, visits.size());
+        try (var _ = intercept(sql::setPlain)) {
+            var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
+                    .select()
+                    .wherePredicate(it -> it.expression(RAW."\{PetLazyOwner.class}.owner_id = \{owner.id()}")).getResultList();
+            assertEquals(1, sql.getPlain().parameters().size());
+            assertEquals(2, visits.size());
+        }
     }
 
     @Test
     public void testSelectWithTwoPetsOneLazyWithPath() throws Exception {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        var visits = SqlTemplate.aroundInvoke(() -> ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().where("pet1.owner", EQUALS, owner).getResultList(), sql::setPlain);
-        assertEquals(1, sql.getPlain().parameters().size());
-        assertEquals(2, visits.size());
+        try (var _ = intercept(sql::setPlain)) {
+            var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().where("pet1.owner", EQUALS, owner).getResultList();
+            assertEquals(1, sql.getPlain().parameters().size());
+            assertEquals(2, visits.size());
+        }
     }
 
     @Test
     public void testSelectWithTwoPetsOneLazyWithPathTemplate() throws Exception {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        var visits = SqlTemplate.aroundInvoke(() -> ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
-                .select()
-                .wherePredicate(it -> it.expression(RAW."\{alias(PetLazyOwner.class, "pet1")}.owner_id = \{owner.id()}")).getResultList(), sql::setPlain);
-        assertEquals(1, sql.getPlain().parameters().size());
-        assertEquals(2, visits.size());
+        try (var _ = intercept(sql::setPlain)) {
+            var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
+                    .select()
+                    .wherePredicate(it -> it.expression(RAW."\{alias(PetLazyOwner.class, "pet1")}.owner_id = \{owner.id()}")).getResultList();
+            assertEquals(1, sql.getPlain().parameters().size());
+            assertEquals(2, visits.size());
+        }
     }
 
     @Test
@@ -498,9 +510,11 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetsOneLazyPetWithPath() throws Exception {
         var pet = ORM(dataSource).entity(PetLazyOwner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        var visits = SqlTemplate.aroundInvoke(() -> ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().where("pet1", EQUALS, pet).getResultList(), sql::setPlain);
-        assertEquals(1, sql.getPlain().parameters().size());
-        assertEquals(2, visits.size());
+        try (var _ = intercept(sql::setPlain)) {
+            var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().where("pet1", EQUALS, pet).getResultList();
+            assertEquals(1, sql.getPlain().parameters().size());
+            assertEquals(2, visits.size());
+        }
     }
 
     @Test
@@ -508,20 +522,24 @@ public class RepositoryPreparedStatementIntegrationTest {
         var ORM = ORM(dataSource);
         var pet = ORM.entity(PetLazyOwner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        var visits = SqlTemplate.aroundInvoke(() -> ORM.entity(VisitWithTwoPetsOneLazy.class)
-                .select()
-                .wherePredicate(it -> it.expression(RAW."\{alias(PetLazyOwner.class, "pet1")}.id = \{pet.id()}")).getResultList(), sql::setPlain);
-        assertEquals(1, sql.getPlain().parameters().size());
-        assertEquals(2, visits.size());
+        try (var _ = intercept(sql::setPlain)) {
+            var visits = ORM.entity(VisitWithTwoPetsOneLazy.class)
+                    .select()
+                    .wherePredicate(it -> it.expression(RAW."\{alias(PetLazyOwner.class, "pet1")}.id = \{pet.id()}")).getResultList();
+            assertEquals(1, sql.getPlain().parameters().size());
+            assertEquals(2, visits.size());
+        }
     }
 
     @Test
     public void testSelectWithTwoPetsOneLazyOtherPetWithPath() throws Exception {
         var pet = ORM(dataSource).entity(PetLazyOwner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        var visits = SqlTemplate.aroundInvoke(() -> ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().where("pet2", EQUALS, pet).getResultList(), sql::setPlain);
-        assertEquals(1, sql.getPlain().parameters().size());
-        assertEquals(2, visits.size());
+        try (var _ = intercept(sql::setPlain)) {
+            var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().where("pet2", EQUALS, pet).getResultList();
+            assertEquals(1, sql.getPlain().parameters().size());
+            assertEquals(2, visits.size());
+        }
     }
 
     @Test

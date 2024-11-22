@@ -30,6 +30,7 @@ import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
 import st.orm.template.ORMRepositoryTemplate;
 import st.orm.template.Sql;
+import st.orm.template.SqlInterceptor;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.TableNameResolver;
 
@@ -45,7 +46,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 import static java.lang.System.identityHashCode;
-import static st.orm.template.SqlTemplate.aroundInvoke;
 
 public final class ORMRepositoryTemplateImpl extends ORMTemplateImpl implements ORMRepositoryTemplate {
 
@@ -208,16 +208,14 @@ public final class ORMRepositoryTemplateImpl extends ORMTemplateImpl implements 
     private  <T extends Repository> T wrapRepository(@Nonnull T repository) {
         return (T) Proxy.newProxyInstance(repository.getClass().getClassLoader(), getAllInterfaces(repository.getClass()).toArray(new Class[0]), (_, method, args) -> {
             var lastSql = new AtomicReference<Sql>();
-            try {
-                return aroundInvoke(() -> {
-                    try {
-                        return method.invoke(repository, args);
-                    } catch (Exception | Error e) {
-                        throw e;
-                    } catch (Throwable e) {
-                        throw new PersistenceException(e);
-                    }
-                }, lastSql::setPlain);
+            try (var _ = SqlInterceptor.intercept(lastSql::setPlain)) {
+                try {
+                    return method.invoke(repository, args);
+                } catch (Exception | Error e) {
+                    throw e;
+                } catch (Throwable e) {
+                    throw new PersistenceException(e);
+                }
             } catch (InvocationTargetException e) {
                 try {
                     throw e.getTargetException();

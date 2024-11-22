@@ -58,7 +58,6 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListIterator;
@@ -67,12 +66,10 @@ import java.util.MissingFormatArgumentException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.SequencedCollection;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.logging.Level;
@@ -85,8 +82,6 @@ import static java.lang.Character.isUpperCase;
 import static java.lang.Character.toLowerCase;
 import static java.lang.Long.toHexString;
 import static java.lang.System.identityHashCode;
-import static java.lang.ThreadLocal.withInitial;
-import static java.util.Collections.newSetFromMap;
 import static java.util.Comparator.comparing;
 import static java.util.List.copyOf;
 import static java.util.Objects.requireNonNull;
@@ -111,8 +106,6 @@ import static st.orm.spi.Providers.getORMConverter;
  *
  */
 public final class SqlTemplateImpl implements SqlTemplate {
-
-    public static final ThreadLocal<Set<Consumer<Sql>>> CONSUMERS = withInitial(() -> newSetFromMap(new IdentityHashMap<>()));
 
     private static final Logger LOGGER = Logger.getLogger("st.orm.sql");
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
@@ -1265,12 +1258,12 @@ public final class SqlTemplateImpl implements SqlTemplate {
         validateNamedParameters(parameters);
         Sql sql = new SqlImpl(
                 String.join("", parts),
-                parameters,
+                copyOf(parameters),
                 ofNullable(bindVariables.get()),
                 copyOf(generatedKeys),
                 versionAware.getPlain());
         if (!nested) {
-            CONSUMERS.get().forEach(c -> c.accept(sql));
+            SqlInterceptorManager.intercept(sql);
         }
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.fine(STR."Generated SQL:\n\{sql.statement()}");
