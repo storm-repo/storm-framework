@@ -17,6 +17,7 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.BindVars;
 import st.orm.FK;
 import st.orm.Lazy;
 import st.orm.PK;
@@ -364,7 +365,6 @@ record ElementProcessor(
                             case Unsafe u -> parts.add(u.sql());
                             case Table t -> parts.add(STR."\{getTableName(t.table(), sqlTemplate.tableNameResolver())}\{t.alias().isEmpty() ? "" : STR." \{t.alias()}"}");
                             case Alias a -> parts.add(aliasMapper.getAlias(a.table(), a.path()));
-                            case Stream<?> s -> parts.add(getObjectString(s, EQUALS, null));
                             case Param p when p.name() != null -> parts.add(registerParam(p.name(), p.dbValue()));
                             case Param p -> parts.add(registerParam(p.dbValue()));
                             case Record r -> parts.add(getObjectString(r, EQUALS, null));
@@ -383,7 +383,8 @@ record ElementProcessor(
         };
     }
 
-    private String getObjectString(@Nonnull Object object, @Nonnull Operator operator, @Nullable String path) throws SqlTemplateException {
+    private String getObjectString(@Nonnull Object object, @Nonnull Operator operator, @Nullable String path)
+            throws SqlTemplateException {
         if (primaryTable == null) {
             throw new SqlTemplateException("Primary table unknown.");
         }
@@ -392,8 +393,9 @@ record ElementProcessor(
             case null -> throw new SqlTemplateException("Null object not supported.");
             case Object[] a -> asList(a);   // Use this instead of List.of() to allow null values.
             case Iterable<?> i -> i;
-            case Stream<?> _ -> throw new SqlTemplateException("Streams not supported. Use Iterable or varargs instead.");
-            case StringTemplate _ -> throw new SqlTemplateException("String template not supported. Use expression method instead.");
+            case BindVars _ -> throw new SqlTemplateException("BindVars not supported in this context.");
+            case Stream<?> _ -> throw new SqlTemplateException("Stream not supported in this context. Use Iterable or varargs instead.");
+            case StringTemplate _ -> throw new SqlTemplateException("String template not supported in this context. Use expression method instead.");
             default -> List.of(object); // Not expected at the moment though.
         };
         Class<?> pkType = REFLECTION.findPKType(primaryTable.table()).orElse(null);
@@ -522,7 +524,7 @@ record ElementProcessor(
         var records = it.records();
         if (records != null) {
             List<String> args = new ArrayList<>();
-            for (var record : records.toList()) {
+            for (var record : records) {
                 if (record == null) {
                     throw new SqlTemplateException("Record is null.");
                 }

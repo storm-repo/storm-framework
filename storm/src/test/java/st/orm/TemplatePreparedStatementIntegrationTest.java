@@ -21,6 +21,7 @@ import st.orm.model.VetSpecialtyPK;
 import st.orm.model.Visit;
 import st.orm.repository.Entity;
 import st.orm.repository.spring.PetRepository;
+import st.orm.template.Operator;
 import st.orm.template.SqlTemplateException;
 
 import javax.sql.DataSource;
@@ -33,10 +34,11 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TimeZone;
-import java.util.stream.Stream;
 
 import static java.lang.StringTemplate.RAW;
+import static java.util.stream.Collectors.toSet;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -487,7 +489,7 @@ public class TemplatePreparedStatementIntegrationTest {
         Visit visit2 = new Visit(LocalDate.now(), "test2", Pet.builder().id(1).build());
         try (var query = ORM(dataSource).query(RAW."""
                 INSERT INTO \{Visit.class}
-                VALUES \{values(Stream.of(visit1, visit2))}""").prepare()) {
+                VALUES \{values(visit1, visit2)}""").prepare()) {
             assertEquals(2, query.executeUpdate());
         }
         try (var query = ORM(dataSource).query(RAW."""
@@ -633,14 +635,49 @@ public class TemplatePreparedStatementIntegrationTest {
     @Test
     public void testSelectWhereLazyPk() {
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
-            try (var query = ORM(dataSource).query(RAW."""
+            ORM(dataSource).query(RAW."""
                     SELECT \{VetSpecialtyLazyPk.class}
                     FROM \{VetSpecialtyLazyPk.class}
-                    WHERE \{where(Stream.of(Lazy.of(Vet.builder().id(1).build())))}""").prepare()) {
-                query.getResultStream(VetSpecialtyLazyPk.class);
-            }
+                    WHERE \{where(Lazy.of(Vet.builder().id(1).build()))}""")
+                .getResultStream(VetSpecialtyLazyPk.class);
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
+    }
+
+    @Test
+    public void testSelectWherePathPk() {
+        var owner = ORM(dataSource).entity(Owner.class).select(3);
+        var pets = ORM(dataSource).query(RAW."""
+                SELECT \{Pet.class}
+                FROM \{Pet.class}
+                WHERE \{where("owner", Operator.BETWEEN, 1, 3)}""")
+            .getResultList(Pet.class);
+        assertEquals(4, pets.size());
+        assertEquals(3, pets.stream().map(Pet::owner).filter(Objects::nonNull).map(Owner::id).distinct().count());
+    }
+
+    @Test
+    public void testSelectWherePathRecord() {
+        var owner = ORM(dataSource).entity(Owner.class).select(3);
+        var pets = ORM(dataSource).query(RAW."""
+                SELECT \{Pet.class}
+                FROM \{Pet.class}
+                WHERE \{where("owner", Operator.EQUALS, owner)}""")
+            .getResultList(Pet.class);
+        assertEquals(2, pets.size());
+        assertEquals(Set.of(owner), pets.stream().map(Pet::owner).collect(toSet()));
+    }
+
+    @Test
+    public void testSelectWhereSubPathPk() {
+        var owner = ORM(dataSource).entity(Owner.class).select(3);
+        var pets = ORM(dataSource).query(RAW."""
+                SELECT \{Pet.class}
+                FROM \{Pet.class}
+                WHERE \{where("owner.id", Operator.EQUALS, owner.id())}""")
+            .getResultList(Pet.class);
+        assertEquals(2, pets.size());
+        assertEquals(Set.of(owner), pets.stream().map(Pet::owner).collect(toSet()));
     }
 
     @Test

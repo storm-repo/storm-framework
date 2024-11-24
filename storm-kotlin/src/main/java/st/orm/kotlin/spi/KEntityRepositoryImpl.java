@@ -386,7 +386,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
         entityRepository.deleteAll();
     }
 
-    // List based methods. These methods operate in a single batch.
+    // List based methods.
 
     /**
      * Retrieves a list of entities based on their primary keys.

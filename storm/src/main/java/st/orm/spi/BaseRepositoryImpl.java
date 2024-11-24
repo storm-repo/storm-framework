@@ -170,7 +170,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
         return count(Stream.of(id)) > 0;
     }
 
-    // List based methods. These methods operate in a single batch.
+    // List based methods.
 
     /**
      * Retrieves a list of entities based on their primary keys.

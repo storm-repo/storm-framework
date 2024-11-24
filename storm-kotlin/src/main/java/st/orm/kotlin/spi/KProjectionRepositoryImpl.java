@@ -184,7 +184,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
         return count(sequenceOf(id)) > 0;
     }
 
-    // List based methods. These methods operate in a single batch.
+    // List based methods.
 
     /**
      * Retrieves a stream of projections based on their primary keys.

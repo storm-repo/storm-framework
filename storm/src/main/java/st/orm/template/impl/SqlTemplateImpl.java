@@ -77,6 +77,7 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static java.lang.Character.isUpperCase;
 import static java.lang.Character.toLowerCase;
@@ -314,45 +315,115 @@ public final class SqlTemplateImpl implements SqlTemplate {
     }
 
     private Element resolveBindVarsElement(@Nonnull SqlMode mode,
-                                           @Nonnull List<Element> resolvedElements,
+                                           @Nonnull String previousFragment,
                                            @Nonnull BindVars bindVars) throws SqlTemplateException {
+        String previous = removeComments(previousFragment).stripTrailing().toUpperCase();
         return switch (mode) {
-            case SELECT, DELETE -> where(bindVars);
-            case INSERT -> values(bindVars);
+            case SELECT, DELETE, UNDEFINED -> {
+                if (previous.endsWith("WHERE")) {
+                    yield where(bindVars);
+                }
+                throw new SqlTemplateException("BindVars element expected after WHERE.");
+            }
+            case INSERT -> {
+                if (previous.endsWith("WHERE")) {
+                    yield where(bindVars);
+                }
+                if (previous.endsWith("VALUES")) {
+                    yield values(bindVars);
+                }
+                throw new SqlTemplateException("BindVars element expected after VALUES or WHERE.");
+            }
             case UPDATE -> {
-                if (resolvedElements.stream().noneMatch(Elements.Set.class::isInstance)) {
+                if (previous.endsWith("SET")) {
                     yield set(bindVars);
                 }
-                yield where(bindVars);
+                if (previous.endsWith("WHERE")) {
+                    yield where(bindVars);
+                }
+                throw new SqlTemplateException("BindVars element expected after SET or WHERE.");
             }
-            case UNDEFINED -> throw new SqlTemplateException("BindVars element not supported in undefined sql mode.");
         };
     }
 
-    private Element resolveRecordElement(@Nonnull SqlMode mode,
-                                         @Nonnull List<Element> resolvedElements,
-                                         @Nonnull Record record) throws SqlTemplateException {
+    private Element resolveObjectElement(@Nonnull SqlMode mode,
+                                         @Nonnull String previousFragment,
+                                         @Nullable Object o) throws SqlTemplateException {
+        String previous = removeComments(previousFragment).stripTrailing().toUpperCase();
         return switch (mode) {
-            case SELECT, DELETE -> where(record);
-            case INSERT -> values(record);
-            case UPDATE -> {
-                if (resolvedElements.stream().noneMatch(Elements.Set.class::isInstance)) {
-                    yield set(record);
+            case SELECT, DELETE, UNDEFINED -> {
+                if (previous.endsWith("WHERE")) {
+                    if (o != null) {
+                        yield where(o);
+                    }
+                    throw new SqlTemplateException("Non-null object expected after WHERE.");
                 }
-                yield where(record);
+                yield param(o);
             }
-            case UNDEFINED -> throw new SqlTemplateException("Record element not supported in undefined sql mode.");
+            case INSERT -> {
+                if (previous.endsWith("VALUES")) {
+                    if (o instanceof Record r) {
+                        yield values(r);
+                    }
+                    throw new SqlTemplateException("Record expected after VALUES.");
+                }
+                if (previous.endsWith("WHERE")) {
+                    if (o != null) {
+                        yield where(o);
+                    }
+                    throw new SqlTemplateException("Non-null object expected after WHERE.");
+                }
+                yield param(o);
+            }
+            case UPDATE -> {
+                if (previous.endsWith("SET")) {
+                    if (o instanceof Record r) {
+                        yield set(r);
+                    }
+                    throw new SqlTemplateException("Record expected after SET.");
+                }
+                if (previous.endsWith("WHERE")) {
+                    if (o != null) {
+                        yield where(o);
+                    }
+                    throw new SqlTemplateException("Non-null object expected after WHERE.");
+                }
+                yield param(o);
+            }
         };
+    }
+
+    private Element resolveArrayElement(@Nonnull SqlMode mode,
+                                        @Nonnull String previousFragment,
+                                        @Nonnull Object[] array) throws SqlTemplateException {
+        return resolveIterableElement(mode, previousFragment, List.of(array));
     }
 
     @SuppressWarnings("unchecked")
-    private Element resolveStreamElement(@Nonnull SqlMode mode,
-                                         @Nonnull Stream<?> stream) throws SqlTemplateException {
+    private Element resolveIterableElement(@Nonnull SqlMode mode,
+                                           @Nonnull String previousFragment,
+                                           @Nonnull Iterable<?> iterable) throws SqlTemplateException {
+        String previous = removeComments(previousFragment).stripTrailing().toUpperCase();
         return switch (mode) {
-            case SELECT, DELETE -> where(stream);
-            case INSERT -> values((Stream<Record>) stream);
-            case UPDATE -> throw new SqlTemplateException("Stream element not supported in update sql mode.");
-            case UNDEFINED -> throw new SqlTemplateException("Stream element not supported in undefined sql mode.");
+            case SELECT, UPDATE, DELETE, UNDEFINED -> {
+                if (previous.endsWith("WHERE")) {
+                    yield where(iterable);
+                }
+                yield param(iterable);
+            }
+            case INSERT -> {
+                if (previous.endsWith("VALUES")) {
+                    if (StreamSupport.stream(iterable.spliterator(), false)
+                            .allMatch(it -> it instanceof Record)) {
+                        yield values((Iterable<? extends Record>) iterable);
+                    }
+                    throw new SqlTemplateException("Records expected after VALUES.");
+                }
+                if (previous.endsWith("WHERE")) {
+                    yield where(iterable);
+                }
+                yield param(iterable);
+            }
         };
     }
 
@@ -399,7 +470,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 }
                 yield table(recordType);
             }
-            case UNDEFINED -> throw new SqlTemplateException(STR."Class type value \{recordType.getSimpleName()} not supported in undefined sql mode.");
+            case UNDEFINED -> table(recordType);
         };
     }
 
@@ -446,16 +517,20 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     yield it;
                 }
                 case Expression _ -> throw new SqlTemplateException("Expression element not allowed in this context.");
-                case BindVars b -> resolveBindVarsElement(sqlMode, resolvedValues, b);
+                case BindVars b -> resolveBindVarsElement(sqlMode, p, b);
+                case Object[] a -> resolveArrayElement(sqlMode, p, a);
+                case Iterable<?> l -> resolveIterableElement(sqlMode, p, l);
                 case Element e -> e;
-                case Stream<?> l -> resolveStreamElement(sqlMode, l);
-                case Record r -> resolveRecordElement(sqlMode, resolvedValues, r);
                 case Class<?> c when c.isRecord() -> //noinspection unchecked
                         resolveTypeElement(sqlMode, first, p, n, (Class<? extends Record>) c);
                 // Note that the following flow would also support Class<?> c. but we'll keep the Class<?> c case for performance and readability.
                 case Object k when REFLECTION.isSupportedType(k) ->
                         resolveTypeElement(sqlMode, first, p, n, REFLECTION.getRecordType(k));
-                case null, default -> param(v);
+                case Stream<?> _ -> throw new SqlTemplateException("Stream not supported in this context.");
+                case StringTemplate _ -> throw new SqlTemplateException("String template not supported in this context.");
+                case Object o -> resolveObjectElement(sqlMode, p, o);
+                case null -> //noinspection ConstantValue
+                        param(v);
             };
             if (first == null
                     && (element instanceof Select || element instanceof Insert || element instanceof Update || element instanceof Delete)) {

@@ -293,7 +293,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         orm.query(RAW."DELETE FROM \{model.type()}").executeUpdate();
     }
 
-    // List based methods. These methods operate in a single batch.
+    // List based methods.
 
     /**
      * Inserts a collection of entities into the database in batches.
