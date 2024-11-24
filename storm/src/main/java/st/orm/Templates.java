@@ -30,6 +30,7 @@ import st.orm.template.impl.Elements.ObjectExpression;
 import st.orm.template.impl.Elements.Param;
 import st.orm.template.impl.Elements.Select;
 import st.orm.template.impl.Elements.Set;
+import st.orm.template.impl.Elements.Unsafe;
 import st.orm.template.impl.Elements.Update;
 import st.orm.template.impl.Elements.Values;
 import st.orm.template.impl.Elements.Where;
@@ -72,7 +73,7 @@ import static st.orm.template.Operator.IN;
  *         SELECT \{User.class}
  *         FROM \{User.class}
  *         WHERE city_id = \{1}""")
- *     .getResultList();
+ *     .getResultList(User.class);
  * }</pre>
  *
  * <h3>Using JDBC</h3>
@@ -86,7 +87,7 @@ import static st.orm.template.Operator.IN;
  *         SELECT \{User.class}
  *         FROM \{User.class}
  *         WHERE city_id = \{1}""")
- *     .getResultList();
+ *     .getResultList(User.class);
  * }</pre>
  *
  * <h3>Fluent API Usage</h3>
@@ -195,7 +196,7 @@ public interface Templates {
      *         SELECT \{User.class}
      *         FROM \{User.class}
      *         WHERE city = \{"Sunnyvale"}""")
-     *     .getResultList();
+     *     .getResultList(User.class);
      * }</pre>
      *
      * @param entityManager the {@link EntityManager} to use for database operations; must not be {@code null}.
@@ -219,7 +220,7 @@ public interface Templates {
      *         SELECT \{User.class}
      *         FROM \{User.class}
      *         WHERE city = \{"Sunnyvale"}""")
-     *     .getResultList();
+     *     .getResultList(User.class);
      * }</pre>
      *
      * @param dataSource the {@link DataSource} to use for database operations; must not be {@code null}.
@@ -244,7 +245,7 @@ public interface Templates {
      *             SELECT \{User.class}
      *             FROM \{User.class}
      *             WHERE city = \{"Sunnyvale"}""")
-     *         .getResultList()
+     *         .getResultList(User.class)
      * }
      * }</pre>
      *
@@ -1325,6 +1326,6 @@ public interface Templates {
      * @return an {@link Element} that represents the raw SQL code to be inserted into the query.
      */
     static Element unsafe(@Nonnull String sql) {
-        return new Elements.Unsafe(sql);
+        return new Unsafe(sql);
     }
 }

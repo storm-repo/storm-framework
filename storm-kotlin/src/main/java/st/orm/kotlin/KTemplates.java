@@ -34,6 +34,7 @@ import st.orm.template.impl.Elements;
 import st.orm.template.impl.Elements.ObjectExpression;
 import st.orm.template.impl.Elements.TableSource;
 import st.orm.template.impl.Elements.TemplateSource;
+import st.orm.template.impl.Elements.Unsafe;
 import st.orm.template.impl.JpaTemplateImpl;
 import st.orm.template.impl.PreparedStatementTemplateImpl;
 
@@ -84,7 +85,7 @@ import static st.orm.template.impl.Elements.Where;
  *         SELECT \{User.class}
  *         FROM \{User.class}
  *         WHERE city_id = \{1}""")
- *     .getResultList();
+ *     .getResultList(User.class);
  * }</pre>
  *
  * <h3>Using JDBC</h3>
@@ -98,7 +99,7 @@ import static st.orm.template.impl.Elements.Where;
  *         SELECT \{User.class}
  *         FROM \{User.class}
  *         WHERE city_id = \{1}""")
- *     .getResultList();
+ *     .getResultList(User.class);
  * }</pre>
  *
  * <h3>Fluent API Usage</h3>
@@ -181,7 +182,7 @@ import static st.orm.template.impl.Elements.Where;
  *         SELECT \{User.class}
  *         FROM \{User.class}
  *         WHERE \{city)}""")
- *     .getResultList();
+ *     .getResultList(User.class);
  * }</pre>
  *
  * <h2>Conclusion</h2>
@@ -227,7 +228,7 @@ public interface KTemplates {
      *         SELECT \{User.class}
      *         FROM \{User.class}
      *         WHERE city = \{"Sunnyvale"}""")
-     *     .getResultList();
+     *     .getResultList(User.class);
      * }</pre>
      *
      * @param entityManager the {@link EntityManager} to use for database operations; must not be {@code null}.
@@ -251,7 +252,7 @@ public interface KTemplates {
      *         SELECT \{User.class}
      *         FROM \{User.class}
      *         WHERE city = \{"Sunnyvale"}""")
-     *     .getResultList();
+     *     .getResultList(User.class);
      * }</pre>
      *
      * @param dataSource the {@link DataSource} to use for database operations; must not be {@code null}.
@@ -276,7 +277,7 @@ public interface KTemplates {
      *             SELECT \{User.class}
      *             FROM \{User.class}
      *             WHERE city = \{"Sunnyvale"}""")
-     *         .getResultList()
+     *         .getResultList(User.class)
      * }
      * }</pre>
      *
@@ -1380,6 +1381,6 @@ public interface KTemplates {
      * @return an {@link Element} that represents the raw SQL code to be inserted into the query.
      */
     static Element unsafe(@Nonnull String sql) {
-        return new Elements.Unsafe(sql);
+        return new Unsafe(sql);
     }
 }

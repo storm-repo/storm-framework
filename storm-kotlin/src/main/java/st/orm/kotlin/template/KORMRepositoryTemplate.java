@@ -98,7 +98,7 @@ import st.orm.template.ORMRepositoryTemplate;
  *         SELECT \{User.class}
  *         FROM \{User.class}
  *         WHERE \{city)}""")
- *     .getResultList();
+ *     .getResultList(User.class);
  * }</pre>
  *
  * <h2>Conclusion</h2>
