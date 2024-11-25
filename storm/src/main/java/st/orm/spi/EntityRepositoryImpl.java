@@ -18,6 +18,7 @@ package st.orm.spi;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.BatchCallback;
+import st.orm.Lazy;
 import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
 import st.orm.OptimisticLockException;
@@ -79,6 +80,17 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
     @Override
     public Model<E, ID> model() {
         return model;
+    }
+
+    /**
+     * Creates a new lazy entity instance with the specified entity.
+     *
+     * @param entity the entity.
+     * @return a lazy entity instance.
+     */
+    @Override
+    public Lazy<E, ID> lazy(@Nullable E entity) {
+        return Lazy.of(entity);
     }
 
     /**

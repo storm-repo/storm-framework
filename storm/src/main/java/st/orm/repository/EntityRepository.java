@@ -40,6 +40,14 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
     Model<E, ID> model();
 
     /**
+     * Creates a new lazy entity instance with the specified entity.
+     *
+     * @param entity the entity.
+     * @return a lazy entity instance.
+     */
+    Lazy<E, ID> lazy(@Nullable E entity);
+
+    /**
      * Creates a new lazy entity instance with the specified primary key.
      *
      * @param id the primary key of the entity.
