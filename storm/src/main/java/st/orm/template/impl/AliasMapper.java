@@ -24,17 +24,18 @@ import java.util.List;
 import java.util.Optional;
 
 import static java.util.Optional.empty;
+import static st.orm.template.ResolveScope.INNER;
 
 interface AliasMapper {
 
-    default String useAlias(@Nonnull Class<? extends Record> table, @Nonnull String alias) throws SqlTemplateException {
-        if (getAliases(table).stream().noneMatch(a -> a.equals(alias))) {
+    default String useAlias(@Nonnull Class<? extends Record> table, @Nonnull String alias, @Nonnull ResolveScope scope) throws SqlTemplateException {
+        if (getAliases(table, scope).stream().noneMatch(a -> a.equals(alias))) {
             throw new SqlTemplateException(STR."Alias \{alias} for table \{table.getSimpleName()} not found.");
         }
         return alias;
     }
 
-    List<String> getAliases(@Nonnull Class<? extends Record> table);
+    List<String> getAliases(@Nonnull Class<? extends Record> table, @Nonnull ResolveScope scope);
 
     /**
      * Returns the primary alias for the specified table.
@@ -43,7 +44,7 @@ interface AliasMapper {
      * @return the primary alias.
      */
     default Optional<String> getPrimaryAlias(@Nonnull Class<? extends Record> table) {
-        var list = getAliases(table);
+        var list = getAliases(table, INNER);
         if (list.isEmpty()) {
             return empty();
         }
@@ -52,8 +53,8 @@ interface AliasMapper {
 
     String getAlias(@Nonnull Class<? extends Record> table, @Nullable String path, @Nonnull ResolveScope scope) throws SqlTemplateException;
 
-    default boolean exists(@Nonnull Class<? extends Record> table) throws SqlTemplateException {
-        return !getAliases(table).isEmpty();
+    default boolean exists(@Nonnull Class<? extends Record> table, @Nonnull ResolveScope scope) throws SqlTemplateException {
+        return !getAliases(table, scope).isEmpty();
     }
 
     Optional<String> findAlias(@Nonnull Class<? extends Record> table, @Nullable String path, @Nonnull ResolveScope scope) throws SqlTemplateException;

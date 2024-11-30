@@ -170,7 +170,8 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         return sqlTemplate().createBindVars();
     }
 
-    private BatchListener getBatchListener(@Nonnull PreparedStatement preparedStatement, @Nonnull List<Parameter> parameters) {
+    private BatchListener getBatchListener(@Nonnull PreparedStatement preparedStatement,
+                                           @Nonnull List<Parameter> parameters) {
         return batchParameters -> {
             try {
                 setParameters(preparedStatement, parameters);

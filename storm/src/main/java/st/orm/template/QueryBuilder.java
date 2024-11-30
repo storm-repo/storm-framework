@@ -182,7 +182,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
         }
 
         /**
-         * Adds a custom expression to the WHERE clause.
+         * Appends a custom expression to the WHERE clause.
          *
          * @param template the expression to add.
          * @return the predicate builder.
@@ -307,7 +307,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     default QueryBuilder<T, R, ID> where(@Nonnull Object o) {
-        return wherePredicate(predicate -> predicate.filter(o));
+        return where(predicate -> predicate.filter(o));
     }
 
     /**
@@ -321,7 +321,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     default QueryBuilder<T, R, ID> where(@Nonnull Iterable<?> it) {
-        return wherePredicate(predicate -> predicate.filter(it));
+        return where(predicate -> predicate.filter(it));
     }
 
     /**
@@ -335,7 +335,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     default QueryBuilder<T, R, ID> where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
-        return wherePredicate(predicate -> predicate.filter(path, operator, it));
+        return where(predicate -> predicate.filter(path, operator, it));
     }
 
     /**
@@ -349,7 +349,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     default QueryBuilder<T, R, ID> where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
-        return wherePredicate(predicate -> predicate.filter(path, operator, o));
+        return where(predicate -> predicate.filter(path, operator, o));
     }
 
     /**
@@ -359,7 +359,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     default QueryBuilder<T, R, ID> where(@Nonnull StringTemplate template) {
-        return wherePredicate(it -> it.expression(template));
+        return where(it -> it.expression(template));
     }
 
     /**
@@ -368,7 +368,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param predicate the predicate to add.
      * @return the query builder.
      */
-    QueryBuilder<T, R, ID> wherePredicate(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<T, R, ID>> predicate);
+    QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<?, ?, ?>> predicate);
 
     /**
      * Returns a processor that can be used to append the query with a string template.

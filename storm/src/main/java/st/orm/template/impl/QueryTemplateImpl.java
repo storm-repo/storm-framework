@@ -33,8 +33,8 @@ import st.orm.spi.Provider;
 import st.orm.spi.Providers;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
-import st.orm.template.QueryTemplate;
 import st.orm.template.QueryBuilder;
+import st.orm.template.QueryTemplate;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.TableNameResolver;
 

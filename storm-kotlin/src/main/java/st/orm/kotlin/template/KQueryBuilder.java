@@ -21,7 +21,6 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static java.lang.StringTemplate.RAW;
-import static st.orm.template.TemplateFunction.template;
 
 public interface KQueryBuilder<T, R, ID> {
 
@@ -74,7 +73,7 @@ public interface KQueryBuilder<T, R, ID> {
          * @return the query builder.
          */
         default KQueryBuilder<T, R, ID> on(@Nonnull TemplateFunction function) {
-            return on(template(function));
+            return on(TemplateFunction.template(function));
         }
     }
 
@@ -135,7 +134,7 @@ public interface KQueryBuilder<T, R, ID> {
      * @return the query builder.
      */
     default KQueryBuilder<T, R, ID> crossJoin(@Nonnull TemplateFunction function) {
-        return crossJoin(template(function));
+        return crossJoin(TemplateFunction.template(function));
     }
 
     /**
@@ -155,7 +154,7 @@ public interface KQueryBuilder<T, R, ID> {
      * @return the query builder.
      */
     default KJoinBuilder<T, R, ID> innerJoin(@Nonnull TemplateFunction function, @Nonnull String alias) {
-        return innerJoin(template(function), alias);
+        return innerJoin(TemplateFunction.template(function), alias);
     }
 
     /**
@@ -175,7 +174,7 @@ public interface KQueryBuilder<T, R, ID> {
      * @return the query builder.
      */
     default KJoinBuilder<T, R, ID> leftJoin(@Nonnull TemplateFunction function, @Nonnull String alias) {
-        return leftJoin(template(function), alias);
+        return leftJoin(TemplateFunction.template(function), alias);
     }
 
     /**
@@ -195,7 +194,7 @@ public interface KQueryBuilder<T, R, ID> {
      * @return the query builder.
      */
     default KJoinBuilder<T, R, ID> rightJoin(@Nonnull TemplateFunction function, @Nonnull String alias) {
-        return rightJoin(template(function), alias);
+        return rightJoin(TemplateFunction.template(function), alias);
     }
 
     /**
@@ -217,7 +216,7 @@ public interface KQueryBuilder<T, R, ID> {
      * @return the query builder.
      */  
     default KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull TemplateFunction function, @Nonnull String alias) {
-        return join(type, template(function), alias);
+        return join(type, TemplateFunction.template(function), alias);
     }
 
     /**
@@ -258,7 +257,7 @@ public interface KQueryBuilder<T, R, ID> {
          * @return the predicate builder.
          */
         default KPredicateBuilder<T, R, ID> expression(@Nonnull TemplateFunction function) {
-            return expression(template(function));
+            return expression(TemplateFunction.template(function));
         }
 
         /**
@@ -334,6 +333,19 @@ public interface KQueryBuilder<T, R, ID> {
          * @return the predicate builder.
          */
         KPredicateBuilder<T, R, ID> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o);
+
+
+        /**
+         * Adds a custom expression to the WHERE clause.
+         *
+         * <p>This method calls the {@link #expression(TemplateFunction)}</p> method.
+         *
+         * @param function used to define the expression to add.
+         * @return the predicate builder.
+         */
+        default KPredicateBuilder<T, R, ID> invoke(@Nonnull TemplateFunction function) {
+            return expression(function);
+        }
     }
 
     /**
@@ -379,7 +391,7 @@ public interface KQueryBuilder<T, R, ID> {
      * @return the query builder.
      */
     default KQueryBuilder<T, R, ID> where(@Nonnull Iterable<?> iterable) {
-        return wherePredicate(predicate -> predicate.filter(iterable));
+        return where(predicate -> predicate.filter(iterable));
     }
 
     /**
@@ -393,7 +405,7 @@ public interface KQueryBuilder<T, R, ID> {
      * @return the query builder.
      */
     default KQueryBuilder<T, R, ID> where(@Nonnull Object... o) {
-        return wherePredicate(it -> it.filter(o));
+        return where(it -> it.filter(o));
     }
 
     /**
@@ -407,7 +419,7 @@ public interface KQueryBuilder<T, R, ID> {
      * @return the query builder.
      */
     default KQueryBuilder<T, R, ID> where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> iterable) {
-        return wherePredicate(it -> it.filter(path, operator, iterable));
+        return where(it -> it.filter(path, operator, iterable));
     }
 
     /**
@@ -421,7 +433,7 @@ public interface KQueryBuilder<T, R, ID> {
      * @return the query builder.
      */
     default KQueryBuilder<T, R, ID> where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
-        return wherePredicate(it -> it.filter(path, operator, o));
+        return where(it -> it.filter(path, operator, o));
     }
 
     /**
@@ -431,18 +443,26 @@ public interface KQueryBuilder<T, R, ID> {
      * @return the query builder.
      */
     default KQueryBuilder<T, R, ID> where(@Nonnull StringTemplate template) {
-        return wherePredicate(it -> it.expression(template));
+        return where(it -> it.expression(template));
     }
 
-    /**
-     * Adds a WHERE clause to the query for the specified expression.
-     *
-     * @param function used to define the expression.
-     * @return the query builder.
-     */
-    default KQueryBuilder<T, R, ID> where(@Nonnull TemplateFunction function) {
-        return where(template(function));
-    }
+    //
+    // We can't use this method because it's not possible to infer the type of the template function. We added an
+    // invoke method to the KWhereBuilder interface to allow the use of template functions.
+    //
+    // Instead of invoking where { "a = b" }, you can use where { it { "a = b" } }.
+    //
+
+//
+//    /**
+//     * Adds a WHERE clause to the query for the specified expression.
+//     *
+//     * @param function used to define the expression.
+//     * @return the query builder.
+//     */
+//    default KQueryBuilder<T, R, ID> where(@Nonnull TemplateFunction function) {
+//        return where(expression(function));
+//    }
 
     /**
      * Adds a WHERE clause to the query using a {@link QueryBuilder.WhereBuilder}.
@@ -450,7 +470,7 @@ public interface KQueryBuilder<T, R, ID> {
      * @param predicate the predicate to add.
      * @return the query builder.
      */
-    KQueryBuilder<T, R, ID> wherePredicate(@Nonnull Function<KWhereBuilder<T, R, ID>, KPredicateBuilder<T, R, ID>> predicate);
+    KQueryBuilder<T, R, ID> where(@Nonnull Function<KWhereBuilder<T, R, ID>, KPredicateBuilder<?, ?, ?>> predicate);
 
     /**
      * Returns a processor that can be used to append the query with a string template.
@@ -467,7 +487,7 @@ public interface KQueryBuilder<T, R, ID> {
      * @return a processor that can be used to append the query with a string template.
      */
     default KQueryBuilder<T, R, ID> append(@Nonnull TemplateFunction function) {
-        return append(template(function));
+        return append(TemplateFunction.template(function));
     }
 
     /**

@@ -147,7 +147,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithWhere() {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
-                .wherePredicate(it -> it.filter(1).or(it.filter(2)))
+                .where(it -> it.filter(1).or(it.filter(2)))
                 .getResultList();
         assertEquals(2, list.size());
     }
@@ -205,7 +205,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithWhereTemplate() {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
-                .wherePredicate(it -> it.filter(1).or(it.expression(RAW."\{Vet.class}.id = 2")))
+                .where(it -> it.filter(1).or(it.expression(RAW."\{Vet.class}.id = 2")))
                 .getResultList();
         assertEquals(2, list.size());
     }
@@ -214,7 +214,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithWhereTemplateFunction() {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
-                .wherePredicate(it -> it.expression(template(_ -> "1 = 1")))
+                .where(it -> it.expression(template(_ -> "1 = 1")))
                 .getResultList();
         assertEquals(6, list.size());
     }
@@ -223,7 +223,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithWhereTemplateFunctionAfterOr() {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
-                .wherePredicate(it -> it.filter(1).or(
+                .where(it -> it.filter(1).or(
                         it.expression(template(ctx -> STR."\{ctx.invoke(Vet.class)}.id = \{ctx.invoke(2)}"))))
                 .getResultList();
         assertEquals(2, list.size());

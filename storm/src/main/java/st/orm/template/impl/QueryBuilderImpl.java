@@ -264,7 +264,7 @@ public final class QueryBuilderImpl<T extends Record, R, ID> implements QueryBui
      * @return the query builder.
      */
     @Override
-    public QueryBuilder<T, R, ID> wherePredicate(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<T, R, ID>> predicate) {
+    public QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<?, ?, ?>> predicate) {
         requireNonNull(predicate, "predicate");
         class PredicateBuilderImpl<TX extends Record, RX, IDX> implements PredicateBuilder<TX, RX, IDX> {
             private final List<StringTemplate> templates = new ArrayList<>();
@@ -341,7 +341,7 @@ public final class QueryBuilderImpl<T extends Record, R, ID> implements QueryBui
             }
         }
         var whereBuilder = new WhereBuilderImpl<T, R, ID>();
-        return whereBuilder.build(((PredicateBuilderImpl<T, R, ID>) predicate.apply(whereBuilder)).getTemplates());
+        return whereBuilder.build(((PredicateBuilderImpl<?, ?, ?>) predicate.apply(whereBuilder)).getTemplates());
     }
 
     @Override

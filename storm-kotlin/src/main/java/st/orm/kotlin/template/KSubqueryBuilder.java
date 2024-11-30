@@ -34,7 +34,7 @@ public interface KSubqueryBuilder {
      * @param <T> the table type.
      * @return the subquery builder.
      */
-    default <T extends Record> KQueryBuilder<T, T, ?> subquery(@Nonnull KClass<T> fromType) {
+    default <T extends Record> KQueryBuilder<?, ?, ?> subquery(@Nonnull KClass<T> fromType) {
         return subquery(fromType, fromType);
     }
 

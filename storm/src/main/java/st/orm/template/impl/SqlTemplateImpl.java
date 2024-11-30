@@ -38,6 +38,7 @@ import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.TableAliasResolver;
 import st.orm.template.TableNameResolver;
+import st.orm.template.impl.Elements.Alias;
 import st.orm.template.impl.Elements.Delete;
 import st.orm.template.impl.Elements.Expression;
 import st.orm.template.impl.Elements.From;
@@ -93,7 +94,6 @@ import static java.util.Optional.empty;
 import static java.util.Optional.ofNullable;
 import static java.util.function.Predicate.not;
 import static java.util.regex.Pattern.DOTALL;
-import static st.orm.Templates.alias;
 import static st.orm.Templates.delete;
 import static st.orm.Templates.from;
 import static st.orm.Templates.insert;
@@ -105,6 +105,7 @@ import static st.orm.Templates.update;
 import static st.orm.Templates.values;
 import static st.orm.Templates.where;
 import static st.orm.spi.Providers.getORMConverter;
+import static st.orm.template.ResolveScope.CASCADE;
 import static st.orm.template.ResolveScope.INNER;
 
 /**
@@ -437,7 +438,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                                        @Nonnull String nextFragment,
                                        @Nonnull Class<? extends Record> recordType) throws SqlTemplateException {
         if (nextFragment.startsWith(".")) {
-            return alias(recordType);
+            return new Alias(recordType, null, CASCADE);
         }
         String next = removeComments(nextFragment).stripLeading().toUpperCase();
         String previous = removeComments(previousFragment).stripTrailing().toUpperCase();
@@ -563,7 +564,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
         return new SqlTemplateException(STR."Multiple aliases found for \{table.getSimpleName()} in table graph. Specify one of the following paths to uniquely identify the table: \{String.join(", ", paths)}.");
     }
 
-    private AliasMapper getAliasMapper(@Nullable TableAliasResolver tableAliasResolver, @Nullable AliasMapper parent) {
+    private AliasMapper getAliasMapper(@Nullable TableAliasResolver tableAliasResolver,
+                                       @Nullable AliasMapper parent) {
         record TableAlias(Class<? extends Record> table, String path, String alias) {}
         class AliasMapperImpl implements AliasMapper {
             private final Map<Class<? extends Record>, SequencedCollection<TableAlias>> aliasMap = new HashMap<>();
@@ -572,11 +574,17 @@ public final class SqlTemplateImpl implements SqlTemplate {
              * Retrieves all aliases, including those from the parent. Note that the stream may contain duplicates as
              * parents may contain the same aliases.
              */
-            private Stream<String> aliases() {
-                return Stream.concat(
-                        aliasMap.values().stream().flatMap(it -> it.stream()
-                                .map(TableAlias::alias)),
-                        parent == null ? Stream.empty() : ((AliasMapperImpl) parent).aliases());
+            private Stream<String> aliases(@Nonnull ResolveScope scope) {
+                var local = switch (scope) {
+                    case INNER, CASCADE -> aliasMap.values().stream().flatMap(it -> it.stream()
+                            .map(TableAlias::alias));
+                    case OUTER -> Stream.<String>of();
+                };
+                var global = switch (scope) {
+                    case INNER -> Stream.<String>of();
+                    case CASCADE, OUTER -> parent == null ? Stream.<String>of() : ((AliasMapperImpl) parent).aliases(CASCADE);   // Use STRICT to include parents recursively.
+                };
+                return Stream.concat(local, global);
             }
 
             /**
@@ -585,11 +593,17 @@ public final class SqlTemplateImpl implements SqlTemplate {
              *
              * @param table the table to retrieve the aliases for.
              */
-            private Stream<String> aliases(Class<? extends Record> table) {
-                return Stream.concat(
-                        aliasMap.getOrDefault(table, List.of()).stream()
-                                .map(TableAlias::alias),
-                        parent == null ? Stream.empty() : ((AliasMapperImpl) parent).aliases(table));
+            private Stream<String> aliases(Class<? extends Record> table, @Nonnull ResolveScope scope) {
+                var local = switch (scope) {
+                    case INNER, CASCADE -> aliasMap.getOrDefault(table, List.of()).stream()
+                            .map(TableAlias::alias);
+                    case OUTER -> Stream.<String>of();
+                };
+                var global = switch (scope) {
+                    case INNER -> Stream.<String>of();
+                    case CASCADE, OUTER -> parent == null ? Stream.<String>of() : ((AliasMapperImpl) parent).aliases(table, CASCADE);   // Use STRICT to include parents recursively.
+                };
+                return Stream.concat(local, global);
             }
 
             /**
@@ -599,19 +613,19 @@ public final class SqlTemplateImpl implements SqlTemplate {
              *
              * @param table the table to retrieve the aliases for.
              * @param path the path to retrieve the aliases for.
-             * @param resolveMode STRICT to include local and outer aliases, LOCAL to include local aliases only, and
-             *                    OUTER to include outer aliases only.
+             * @param scope CASCADE to include local and outer aliases, LOCAL to include local aliases only, and
+             *              OUTER to include outer aliases only.
              */
-            private Stream<String> aliases(Class<? extends Record> table, @Nullable String path, @Nonnull ResolveScope resolveMode, boolean includeNull) {
-                var local = switch (resolveMode) {
+            private Stream<String> aliases(Class<? extends Record> table, @Nullable String path, @Nonnull ResolveScope scope) {
+                var local = switch (scope) {
                     case INNER, CASCADE -> aliasMap.getOrDefault(table, List.of()).stream()
-                            .filter(a -> (includeNull && (path == null || a.path() == null)) || Objects.equals(path, a.path()))
+                            .filter(a -> path == null || Objects.equals(path, a.path()))
                             .map(TableAlias::alias);
                     case OUTER -> Stream.<String>of();
                 };
-                var global = switch (resolveMode) {
+                var global = switch (scope) {
                     case INNER -> Stream.<String>of();
-                    case CASCADE, OUTER -> parent == null ? Stream.<String>of() : ((AliasMapperImpl) parent).aliases(table, path, ResolveScope.CASCADE, includeNull);   // Use STRICT to include parents recursively.
+                    case CASCADE, OUTER -> parent == null ? Stream.<String>of() : ((AliasMapperImpl) parent).aliases(table, path, CASCADE);   // Use STRICT to include parents recursively.
                 };
                 return Stream.concat(local, global);
             }
@@ -630,8 +644,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
             }
 
             @Override
-            public List<String> getAliases(@Nonnull Class<? extends Record> table) {
-                return aliases(table).toList();
+            public List<String> getAliases(@Nonnull Class<? extends Record> table, @Nonnull ResolveScope scope) {
+                return aliases(table, scope).toList();
             }
 
             @Override
@@ -643,15 +657,18 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 if (path != null) {
                     throw new SqlTemplateException(STR."Alias for \{table.getSimpleName()} not found at path: '\{path}'.");
                 }
-                // Use the full table name of no path was given and no alias was found.
-                return getTableName(table, tableNameResolver);
+                if (exists(table, scope)) {
+                    // Table is registered, but alias could not be resolved (due to empty registration). Revert to full table name.
+                    return getTableName(table, tableNameResolver);
+                }
+                throw new SqlTemplateException(STR."Alias for \{table.getSimpleName()} not found.");
             }
 
             @Override
             public Optional<String> findAlias(@Nonnull Class<? extends Record> table, @Nullable String path, @Nonnull ResolveScope scope) throws SqlTemplateException {
-                var list = aliases(table, path, scope, false).toList();
-                if (list.isEmpty()) {
-                    list = aliases(table, path, scope, true).toList();
+                var list = aliases(table, path, scope).toList();
+                if (list.isEmpty() && path != null) {
+                    list = aliases(table, path, scope).toList();
                 }
                 if (list.isEmpty()) {
                     return Optional.empty();
@@ -669,7 +686,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             @Override
             public String generateAlias(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException {
                 String alias = SqlTemplateImpl.this.generateAlias(table, tableAliasResolver,
-                        proposedAlias -> aliases().noneMatch(proposedAlias::equals));
+                        proposedAlias -> aliases(CASCADE).noneMatch(proposedAlias::equals));    // Take all aliases into account to prevent unnecessary shadowing.
                 if (alias.isEmpty()) {
                     throw new SqlTemplateException(STR."Failed to generate alias for \{table.getSimpleName()}.");
                 }
@@ -681,7 +698,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             public void setAlias(@Nonnull Class<? extends Record> table, @Nonnull String alias, @Nullable String path) throws SqlTemplateException {
                 if (!aliasMap.computeIfAbsent(table, _ -> new LinkedHashSet<>()).add(new TableAlias(table, path, alias))) {
                     // Only detect duplicated aliases at the same level.
-                    throw new SqlTemplateException(STR."Alias \{alias} already exists for table \{table.getSimpleName()}.");
+                    throw new SqlTemplateException(STR."Alias already exists for table \{table.getSimpleName()}.");
                 }
             }
         }
@@ -885,7 +902,13 @@ public final class SqlTemplateImpl implements SqlTemplate {
             String path = "";   // Use "" because it's the root table.
             String alias;
             if (from.alias().isEmpty()) {
-                alias = delete == null ? "" : aliasMapper.generateAlias(table, path);
+                if (delete == null) {
+                    // Only include alias when delete element is present as some database don't support aliases in delete statements.
+                    aliasMapper.setAlias(table, "", path);
+                    alias = "";
+                } else {
+                    alias = aliasMapper.generateAlias(table, path);
+                }
                 effectiveFrom = new From(new TableSource(table), alias, from.autoJoin());
                 elements.replaceAll(element -> element instanceof From ? effectiveFrom : element);
             } else {
@@ -1313,10 +1336,10 @@ public final class SqlTemplateImpl implements SqlTemplate {
         if (!values.isEmpty()) {
             var sqlMode = getSqlMode(template);
             var elements = resolveElements(sqlMode, values, fragments);
+            var tableMapper = getTableMapper(); // No need to pass parent table mapper as only aliases are correlated.
             var aliasMapper = getAliasMapper(tableAliasResolver, ElementProcessor.current()
                     .map(ElementProcessor::aliasMapper)
                     .orElse(null));
-            var tableMapper = getTableMapper(); // No need to pass parent table mapper as only aliases are correlated.
             postProcessElements(sqlMode, elements, aliasMapper, tableMapper);
             var unwrappedElements = elements.stream()
                     .flatMap(e -> e instanceof Wrapped(var we) ? we.stream() : Stream.of(e))

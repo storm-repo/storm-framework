@@ -235,7 +235,7 @@ record ElementProcessor(
             };
             return switch (join) {
                 case Join(TableSource ts, var alias, _, _) ->
-                        new ElementResult(STR."\n\{join.type().sql()} \{getTableName(ts.table(), sqlTemplate.tableNameResolver())} \{aliasMapper.useAlias(ts.table(), alias)} ON \{on.sql()}", on.args());
+                        new ElementResult(STR."\n\{join.type().sql()} \{getTableName(ts.table(), sqlTemplate.tableNameResolver())} \{aliasMapper.useAlias(ts.table(), alias, INNER)} ON \{on.sql()}", on.args());
                 case Join(TemplateSource ts, var alias, _, _) -> {
                     var source = parse(ts.template(), false);   // Source is not correlated.
                     yield new ElementResult(STR."\n\{join.type().sql()} (\{source}) \{alias} ON \{on.sql()}", on.args());
@@ -707,8 +707,13 @@ record ElementProcessor(
                 pathString = toPathString(pathList);
             }
         }
-        getColumnsStringForSelect(type, path, aliasMapper, primaryTable, aliasMapper.findAlias(type, pathString, INNER) // Only use local aliases.
-                .orElse(""), parts, columnNameResolver, foreignKeyResolver);
+        // Path is implicit. First try the path, if not found, try without the path.
+        var resolvedAlias = aliasMapper.findAlias(type, pathString, INNER);
+        if (resolvedAlias.isEmpty()) {
+            resolvedAlias = aliasMapper.findAlias(type, null, INNER);
+        }
+        var alias = resolvedAlias.orElse("");
+        getColumnsStringForSelect(type, path, aliasMapper, primaryTable, alias, parts, columnNameResolver, foreignKeyResolver);
         if (!parts.isEmpty()) {
             parts.removeLast();
         }
@@ -1374,7 +1379,7 @@ record ElementProcessor(
                                    @Nonnull String alias,
                                    @Nonnull AliasMapper aliasMapper) throws SqlTemplateException {
         if (path == null) {
-            var result = aliasMapper.findAlias(type, "", INNER);
+            var result = aliasMapper.findAlias(type, null, INNER);
             if (result.isPresent()) {
                 return result.get();
             }
@@ -1387,13 +1392,19 @@ record ElementProcessor(
         if (!path.isEmpty()) {
             RecordComponent lastComponent = path.getLast();
             if (REFLECTION.isAnnotationPresent(lastComponent, FK.class)) {
-                return aliasMapper.getAlias(type, p, INNER);
+                // Path is implicit. First try the path, if not found, try without the path.
+                var resolvedAlias = aliasMapper.findAlias(type, p, INNER);
+                if (resolvedAlias.isPresent()) {
+                    return resolvedAlias.get();
+                }
+                return aliasMapper.findAlias(type, null, INNER)
+                        .orElseThrow(() -> new SqlTemplateException(STR."Alias not found for \{type.getSimpleName()} at path \{p}."));
             }
             if (REFLECTION.isAnnotationPresent(lastComponent, PK.class)) {
                 return alias;
             }
             if (getORMConverter(lastComponent).isEmpty()
-                    && !aliasMapper.exists(type)) { // Check needed for records without annotations.
+                    && !aliasMapper.exists(type, INNER)) { // Check needed for records without annotations.
                 return alias; // @Inline is implicitly assumed.
             }
         }

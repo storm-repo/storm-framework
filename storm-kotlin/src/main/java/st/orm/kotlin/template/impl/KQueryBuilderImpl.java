@@ -17,6 +17,7 @@ import st.orm.template.QueryBuilder.PredicateBuilder;
 import st.orm.template.QueryBuilder.TypedJoinBuilder;
 import st.orm.template.QueryBuilder.WhereBuilder;
 import st.orm.template.SubqueryTemplate;
+import st.orm.template.TemplateFunction;
 import st.orm.template.impl.Templatable;
 
 import java.util.function.Function;
@@ -27,7 +28,6 @@ import static st.orm.template.JoinType.cross;
 import static st.orm.template.JoinType.inner;
 import static st.orm.template.JoinType.left;
 import static st.orm.template.JoinType.right;
-import static st.orm.template.TemplateFunction.template;
 
 public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryBuilder<T, R, ID>, Templatable {
     private final static ORMReflection REFLECTION = Providers.getORMReflection();
@@ -97,7 +97,7 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
      */
     @Override
     public KQueryBuilder<T, R, ID> crossJoin(@Nonnull KClass<? extends Record> relation) {
-        return join(cross(), relation, "").on(template(_ -> ""));
+        return join(cross(), relation, "").on(TemplateFunction.template(_ -> ""));
     }
 
     /**
@@ -300,10 +300,10 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
      * @return the query builder.
      */
     @Override
-    public KQueryBuilder<T, R, ID> wherePredicate(@Nonnull Function<KWhereBuilder<T, R, ID>, KPredicateBuilder<T, R, ID>> predicate) {
-        return new KQueryBuilderImpl<>(builder.wherePredicate(whereBuilder -> {
+    public KQueryBuilder<T, R, ID> where(@Nonnull Function<KWhereBuilder<T, R, ID>, KPredicateBuilder<?, ?, ?>> predicate) {
+        return new KQueryBuilderImpl<>(builder.where(whereBuilder -> {
             var builder = predicate.apply(new KWhereBuilderImpl<>(whereBuilder));
-            return ((KPredicateBuilderImpl<T, R, ID>) builder).predicateBuilder;
+            return ((KPredicateBuilderImpl<?, ?, ?>) builder).predicateBuilder;
         }));
     }
 

@@ -27,7 +27,7 @@ open class KotlinBuilderPreparedStatementIntegrationTest {
         val list = ORM(dataSource)
             .selectFrom(Pet::class)
             .innerJoin(Visit::class).on { "${it(Pet::class)}.id = ${it(Visit::class)}.pet_id" }
-            .where { "${it(Visit::class)}.visit_date = ${it(LocalDate.of(2023, 1, 8))}" }
+            .where { it { "${it(Visit::class)}.visit_date = ${it(LocalDate.of(2023, 1, 8))}" } }
             .resultList
         Assertions.assertEquals(3, list.size)
     }
@@ -37,7 +37,7 @@ open class KotlinBuilderPreparedStatementIntegrationTest {
         val list = ORM(dataSource)
             .selectFrom(Pet::class)
             .innerJoin(Visit::class).on { "${it(Pet::class)}.id = ${it(1)}" }
-            .where { "${it(Visit::class)}.visit_date = ${it(LocalDate.of(2023, 1, 8))}" }
+            .where { it { "${it(Visit::class)}.visit_date = ${it(LocalDate.of(2023, 1, 8))}" } }
             .resultList
         Assertions.assertEquals(3, list.size)
     }
@@ -46,7 +46,7 @@ open class KotlinBuilderPreparedStatementIntegrationTest {
     fun testBuilderWithWhere() {
         val list = ORM(dataSource)
             .selectFrom(Vet::class)
-            .wherePredicate { it.filter(1).or(it.filter(2)) }
+            .where { it.filter(1).or(it.filter(2)) }
             .resultList
         Assertions.assertEquals(2, list.size)
     }
@@ -55,7 +55,7 @@ open class KotlinBuilderPreparedStatementIntegrationTest {
     fun testBuilderWithWhereExpression() {
         val list = ORM(dataSource)
             .selectFrom(Vet::class)
-            .where { "1 = 1" }
+            .where { it { "1 = 1" } }
             .resultList
         Assertions.assertEquals(6, list.size)
     }
@@ -64,7 +64,7 @@ open class KotlinBuilderPreparedStatementIntegrationTest {
     fun testBuilderWithWhereTemplateFunction() {
         val list = ORM(dataSource)
             .selectFrom(Vet::class)
-            .wherePredicate { it.expression { "1 = 1" } }
+            .where { it.expression { "1 = 1" } }
             .resultList
         Assertions.assertEquals(6, list.size)
     }
@@ -73,7 +73,7 @@ open class KotlinBuilderPreparedStatementIntegrationTest {
     fun testBuilderWithWhereTemplateFunctionAfterOr() {
         val list = ORM(dataSource)
             .selectFrom(Vet::class)
-            .wherePredicate { it.filter(1).or(it.expression {"${it(Vet::class)}.id = ${it(2)}"}) }
+            .where { it.filter(1).or(it.expression {"${it(Vet::class)}.id = ${it(2)}"}) }
             .resultList
         Assertions.assertEquals(2, list.size)
     }

@@ -30,7 +30,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
     fun testWithArg() {
         val list = ORM(dataSource).entity(Pet::class)
             .select()
-            .where { "${it(Pet::class)}.id = 7" }
+            .where { it { "${it(Pet::class)}.id = 7" } }
             .resultList
         assertEquals(1, list.size)
         assertEquals(7, list[0].id)
@@ -40,7 +40,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
     fun testWithTwoArgs() {
         val list = ORM(dataSource).entity(Pet::class)
             .select()
-            .where { "${it(Pet::class)}.id = 7 OR ${it(Pet::class)}.id = 8" }
+            .where { it { "${it(Pet::class)}.id = 7 OR ${it(Pet::class)}.id = 8" } }
             .resultList
         assertEquals(2, list.size)
         assertEquals(7, list[0].id)
@@ -85,7 +85,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
     fun testExists() {
         val repository = ORM(dataSource).entity(Pet::class)
         repository.select()
-            .wherePredicate { it.exists(it.subquery(Pet::class).where { "${it(alias(Pet::class, OUTER))}.id <> ${it(alias(Pet::class, INNER))}.id"}) }
+            .where { it.exists(it.subquery(Pet::class).where { it { "${it(alias(Pet::class, OUTER))}.id <> ${it(alias(Pet::class, INNER))}.id"} }) }
             .resultList.let {
                 assertEquals(13, it.size)
             }
@@ -95,7 +95,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
     fun testNotExists() {
         val repository = ORM(dataSource).entity(Pet::class)
         repository.select()
-            .wherePredicate { it.notExists(it.subquery(Pet::class).where { "${it(alias(Pet::class, OUTER))}.id <> ${it(alias(Pet::class, INNER))}.id"}) }
+            .where { it.notExists(it.subquery(Pet::class).where { it { "${it(alias(Pet::class, OUTER))}.id <> ${it(alias(Pet::class, INNER))}.id"} }) }
             .resultList.let {
                 assertEquals(0, it.size)
             }
