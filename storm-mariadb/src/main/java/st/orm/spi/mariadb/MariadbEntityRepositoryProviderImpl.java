@@ -22,7 +22,7 @@ import st.orm.repository.EntityRepository;
 import st.orm.spi.EntityRepositoryProvider;
 import st.orm.spi.Orderable.Before;
 import st.orm.spi.mysql.MysqlEntityRepositoryProviderImpl;
-import st.orm.template.ORMRepositoryTemplate;
+import st.orm.template.ORMTemplate;
 
 /**
  * Implementation of {@link EntityRepositoryProvider} for MariaDB.
@@ -32,7 +32,7 @@ public class MariadbEntityRepositoryProviderImpl implements EntityRepositoryProv
 
     @Override
     public <ID, E extends Record & Entity<ID>> EntityRepository<E, ID> getEntityRepository(
-            @Nonnull ORMRepositoryTemplate orm,
+            @Nonnull ORMTemplate orm,
             @Nonnull Model<E, ID> model) {
         return new MariadbEntityRepositoryImpl<>(orm, model);
     }

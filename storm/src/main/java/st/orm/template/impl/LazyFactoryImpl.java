@@ -31,7 +31,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * Implementation of {@link LazyFactory}.
  */
-final class LazyFactoryImpl implements LazyFactory {
+public final class LazyFactoryImpl implements LazyFactory {
     private final QueryFactory factory;
     private final TableNameResolver tableNameResolver;
     private final ColumnNameResolver columnNameResolver;
@@ -62,7 +62,7 @@ final class LazyFactoryImpl implements LazyFactory {
      */
     @Override
     public <T extends Record, ID> Lazy<T, ID> create(@Nonnull Class<T> type, @Nullable ID pk) {
-        var queryBuilder = new ORMRepositoryTemplateImpl(
+        var queryBuilder = new ORMTemplateImpl(
                 factory,
                 tableNameResolver,
                 columnNameResolver,

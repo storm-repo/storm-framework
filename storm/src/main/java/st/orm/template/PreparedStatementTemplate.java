@@ -36,11 +36,11 @@ public interface PreparedStatementTemplate {
         return new PreparedStatementTemplateImpl(connection);
     }
 
-    static ORMRepositoryTemplate ORM(@Nonnull DataSource dataSource) {
+    static ORMTemplate ORM(@Nonnull DataSource dataSource) {
         return new PreparedStatementTemplateImpl(dataSource).toORM();
     }
 
-    static ORMRepositoryTemplate ORM(@Nonnull Connection connection) {
+    static ORMTemplate ORM(@Nonnull Connection connection) {
         return new PreparedStatementTemplateImpl(connection).toORM();
     }
 
@@ -52,7 +52,7 @@ public interface PreparedStatementTemplate {
 
     PreparedStatementTemplate withProviderFilter(@Nonnull Predicate<Provider> providerFilter);
 
-    ORMRepositoryTemplate toORM();
+    ORMTemplate toORM();
 
     /**
      * Create a new bind variables instance that can be used to add bind variables to a batch.

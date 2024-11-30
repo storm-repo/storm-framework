@@ -18,6 +18,7 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.template.SqlTemplateException;
+import st.orm.template.ResolveScope;
 
 import java.util.List;
 import java.util.Optional;
@@ -49,13 +50,13 @@ interface AliasMapper {
         return Optional.of(list.getFirst());
     }
 
-    String getAlias(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException;
+    String getAlias(@Nonnull Class<? extends Record> table, @Nullable String path, @Nonnull ResolveScope scope) throws SqlTemplateException;
 
     default boolean exists(@Nonnull Class<? extends Record> table) throws SqlTemplateException {
         return !getAliases(table).isEmpty();
     }
 
-    Optional<String> findAlias(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException;
+    Optional<String> findAlias(@Nonnull Class<? extends Record> table, @Nullable String path, @Nonnull ResolveScope scope) throws SqlTemplateException;
 
     String generateAlias(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException;
 

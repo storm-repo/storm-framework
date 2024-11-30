@@ -26,9 +26,9 @@ import st.orm.kotlin.KBatchCallback;
 import st.orm.kotlin.KResultCallback;
 import st.orm.kotlin.repository.KEntityRepository;
 import st.orm.kotlin.repository.KModel;
-import st.orm.kotlin.template.KORMRepositoryTemplate;
+import st.orm.kotlin.template.KORMTemplate;
 import st.orm.kotlin.template.KQueryBuilder;
-import st.orm.kotlin.template.impl.KORMRepositoryTemplateImpl;
+import st.orm.kotlin.template.impl.KORMTemplateImpl;
 import st.orm.kotlin.template.impl.KQueryBuilderImpl;
 import st.orm.repository.Entity;
 import st.orm.repository.EntityRepository;
@@ -133,8 +133,8 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * @return the ORM template.
      */
     @Override
-    public KORMRepositoryTemplate orm() {
-        return new KORMRepositoryTemplateImpl(entityRepository.orm());
+    public KORMTemplate orm() {
+        return new KORMTemplateImpl(entityRepository.orm());
     }
 
     /**

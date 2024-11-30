@@ -13,19 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.repository;
-
-import st.orm.template.ORMTemplate;
+package st.orm.template;
 
 /**
- * Base interface for all repositories.
+ * Enumeration of the different modes for resolving an alias.
+ *
+ * @since 1.1
  */
-public interface Repository {
+public enum ResolveScope {
 
     /**
-     * Provides access to the underlying ORM template.
-     *
-     * @return the ORM template.
+     * Enforce unambiguity by requiring the alias to be resolved uniquely.
      */
-    ORMTemplate orm();
+    CASCADE,
+
+    /**
+     * Resolve the alias locally, i.e. within the current scope.
+     */
+    INNER,
+
+    /**
+     * Resolve the alias from the outer scope(s) only.e
+     */
+    OUTER
 }

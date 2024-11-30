@@ -54,6 +54,8 @@ import static st.orm.Templates.table;
 import static st.orm.Templates.update;
 import static st.orm.Templates.values;
 import static st.orm.Templates.where;
+import static st.orm.template.ResolveScope.INNER;
+import static st.orm.template.ResolveScope.OUTER;
 import static st.orm.template.SqlInterceptor.intercept;
 import static st.orm.template.TemplateFunction.template;
 
@@ -878,5 +880,29 @@ public class TemplatePreparedStatementIntegrationTest {
                 FROM \{it.invoke(Pet.class)}
                 """));
         assertEquals(13, query.getResultCount());
+    }
+
+    @Test
+    public void testCustomTemplateExists() {
+        var orm = ORM(dataSource);
+        var query = orm.query(template(it -> STR."""
+                SELECT \{it.invoke(Pet.class)}
+                FROM \{it.invoke(Pet.class)}
+                WHERE EXISTS (\{it.invoke(orm.subquery(Pet.class)
+                    .where(template(i -> STR."\{i.invoke(alias(Pet.class, OUTER))}.id = \{i.invoke(alias(Pet.class, INNER))}.id")))} )
+                """));
+        assertEquals(13, query.getResultCount());
+    }
+
+    @Test
+    public void testCustomTemplateNotExists() {
+        var orm = ORM(dataSource);
+        var query = orm.query(template(it -> STR."""
+                SELECT \{it.invoke(Pet.class)}
+                FROM \{it.invoke(Pet.class)}
+                WHERE NOT EXISTS (\{it.invoke(orm.subquery(Pet.class)
+                    .where(template(i -> STR."\{i.invoke(alias(Pet.class, OUTER))}.id = \{i.invoke(alias(Pet.class, INNER))}.id")))} )
+                """));
+        assertEquals(0, query.getResultCount());
     }
 }

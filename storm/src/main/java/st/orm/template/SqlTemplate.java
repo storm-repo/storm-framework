@@ -85,5 +85,4 @@ public interface SqlTemplate {
     boolean supportRecords();
 
     Sql process(@Nonnull StringTemplate template) throws SqlTemplateException;
-
 }

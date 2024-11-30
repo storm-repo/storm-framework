@@ -9,10 +9,13 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.kotlin.IntegrationConfig
 import st.orm.kotlin.KTemplates.ORM
+import st.orm.kotlin.KTemplates.alias
 import st.orm.kotlin.model.KotlinPet
 import st.orm.kotlin.model.Pet
 import st.orm.kotlin.model.Visit
 import st.orm.kotlin.repository.KotlinPetRepository
+import st.orm.template.ResolveScope.INNER
+import st.orm.template.ResolveScope.OUTER
 import javax.sql.DataSource
 
 @ExtendWith(SpringExtension::class)
@@ -76,5 +79,25 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
             assertEquals(1, it.first().id())
             assertEquals(13, it.size)
         }
+    }
+
+    @Test
+    fun testExists() {
+        val repository = ORM(dataSource).entity(Pet::class)
+        repository.select()
+            .wherePredicate { it.exists(it.subquery(Pet::class).where { "${it(alias(Pet::class, OUTER))}.id <> ${it(alias(Pet::class, INNER))}.id"}) }
+            .resultList.let {
+                assertEquals(13, it.size)
+            }
+    }
+
+    @Test
+    fun testNotExists() {
+        val repository = ORM(dataSource).entity(Pet::class)
+        repository.select()
+            .wherePredicate { it.notExists(it.subquery(Pet::class).where { "${it(alias(Pet::class, OUTER))}.id <> ${it(alias(Pet::class, INNER))}.id"}) }
+            .resultList.let {
+                assertEquals(0, it.size)
+            }
     }
 }

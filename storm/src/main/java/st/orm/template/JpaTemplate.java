@@ -41,12 +41,12 @@ public interface JpaTemplate {
      * @param entityManager the entity manager.
      * @return the ORM template.
      */
-    static ORMTemplate ORM(@Nonnull EntityManager entityManager) {
+    static QueryTemplate ORM(@Nonnull EntityManager entityManager) {
         return new JpaTemplateImpl(entityManager).toORM();
     }
 
     /**
-     * Returns a ORM template for this JPA template.
+     * Returns an ORM template for this JPA template.
      */
     ORMTemplate toORM();
 

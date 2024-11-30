@@ -2,9 +2,11 @@ package st.orm.kotlin.template.impl;
 
 import jakarta.annotation.Nonnull;
 import kotlin.reflect.KClass;
+import org.jetbrains.annotations.NotNull;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KQuery;
 import st.orm.kotlin.template.KQueryBuilder;
+import st.orm.kotlin.template.KSubqueryBuilder;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.JoinType;
@@ -14,6 +16,8 @@ import st.orm.template.QueryBuilder.JoinBuilder;
 import st.orm.template.QueryBuilder.PredicateBuilder;
 import st.orm.template.QueryBuilder.TypedJoinBuilder;
 import st.orm.template.QueryBuilder.WhereBuilder;
+import st.orm.template.SubqueryTemplate;
+import st.orm.template.impl.Templatable;
 
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -25,7 +29,7 @@ import static st.orm.template.JoinType.left;
 import static st.orm.template.JoinType.right;
 import static st.orm.template.TemplateFunction.template;
 
-public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryBuilder<T, R, ID> {
+public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryBuilder<T, R, ID>, Templatable {
     private final static ORMReflection REFLECTION = Providers.getORMReflection();
 
     private final QueryBuilder<T, R, ID> builder;
@@ -129,6 +133,16 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
         return join(right(), relation, "");
     }
 
+    private KSubqueryBuilder subqueryBuilder(@Nonnull SubqueryTemplate builder) {
+        return new KSubqueryBuilder() {
+            @Override
+            public <F extends Record, S> KQueryBuilder<F, S, ?> subquery(@Nonnull KClass<F> fromType, @Nonnull KClass<S> selectType, @Nonnull StringTemplate template) {
+                //noinspection unchecked
+                return new KQueryBuilderImpl<>(builder.subquery((Class<F>) REFLECTION.getRecordType(fromType), (Class<S>) REFLECTION.getType(selectType), template));
+            }
+        };
+    }
+
     /**
      * Adds a join of the specified type to the query.
      *
@@ -210,7 +224,7 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
      */
     @Override
     public KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull StringTemplate template, @Nonnull String alias) {
-        final JoinBuilder<T, R, ID> joinBuilder = builder.join(type, template, alias);
+        JoinBuilder<T, R, ID> joinBuilder = builder.join(type, template, alias);
         return onTemplate -> new KQueryBuilderImpl<>(joinBuilder.on(onTemplate));
     }
 
@@ -238,8 +252,24 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
         }
 
         @Override
+        public <T extends Record, R> KQueryBuilder<T, R, ?> subquery(@NotNull KClass<T> fromType, @NotNull KClass<R> selectType, @NotNull StringTemplate template) {
+            //noinspection unchecked
+            return new KQueryBuilderImpl<>(whereBuilder.subquery((Class<T>) REFLECTION.getRecordType(fromType), (Class<R>) REFLECTION.getType(selectType), template));
+        }
+
+        @Override
         public KPredicateBuilder<TX, RX, IDX> expression(@Nonnull StringTemplate template) throws PersistenceException {
             return new KPredicateBuilderImpl<>(whereBuilder.expression(template));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> exists(@NotNull KQueryBuilder<?, ?, ?> subquery) {
+            return new KPredicateBuilderImpl<>(whereBuilder.exists(((KQueryBuilderImpl<?, ?, ?>) subquery).builder));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> notExists(@NotNull KQueryBuilder<?, ?, ?> subquery) {
+            return new KPredicateBuilderImpl<>(whereBuilder.notExists(((KQueryBuilderImpl<?, ?, ?>) subquery).builder));
         }
 
         @Override
@@ -275,5 +305,10 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
             var builder = predicate.apply(new KWhereBuilderImpl<>(whereBuilder));
             return ((KPredicateBuilderImpl<T, R, ID>) builder).predicateBuilder;
         }));
+    }
+
+    @Override
+    public StringTemplate asStringTemplate() {
+        return ((Templatable) builder).asStringTemplate();
     }
 }

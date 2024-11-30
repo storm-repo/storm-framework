@@ -20,7 +20,7 @@ import st.orm.repository.Entity;
 import st.orm.repository.Model;
 import st.orm.repository.EntityRepository;
 import st.orm.spi.EntityRepositoryProvider;
-import st.orm.template.ORMRepositoryTemplate;
+import st.orm.template.ORMTemplate;
 
 /**
  * Implementation of {@link EntityRepositoryProvider} for MySQL.
@@ -29,7 +29,7 @@ public class MysqlEntityRepositoryProviderImpl implements EntityRepositoryProvid
 
     @Override
     public <ID, E extends Record & Entity<ID>> EntityRepository<E, ID> getEntityRepository(
-            @Nonnull ORMRepositoryTemplate orm,
+            @Nonnull ORMTemplate orm,
             @Nonnull Model<E, ID> model) {
         return new MysqlEntityRepositoryImpl<>(orm, model);
     }

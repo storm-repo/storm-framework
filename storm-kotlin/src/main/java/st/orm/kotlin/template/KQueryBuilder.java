@@ -227,7 +227,7 @@ public interface KQueryBuilder<T, R, ID> {
      * @param <R> the type of the result.
      * @param <ID> the type of the primary key.
      */
-    interface KWhereBuilder<T, R, ID> {
+    interface KWhereBuilder<T, R, ID> extends KSubqueryBuilder {
 
         /**
          * A predicate that always evaluates to true.
@@ -256,9 +256,36 @@ public interface KQueryBuilder<T, R, ID> {
          *
          * @param function used to define the expression to add.
          * @return the predicate builder.
-         */        default KPredicateBuilder<T, R, ID> expression(@Nonnull TemplateFunction function) {
+         */
+        default KPredicateBuilder<T, R, ID> expression(@Nonnull TemplateFunction function) {
             return expression(template(function));
         }
+
+        /**
+         * Adds an <code>EXISTS</code> condition to the WHERE clause using the specified subquery.
+         *
+         * <p>This method appends an <code>EXISTS</code> clause to the current query's WHERE condition.
+         * It checks whether the provided subquery returns any rows, allowing you to filter results based
+         * on the existence of related data. This is particularly useful for constructing queries that need
+         * to verify the presence of certain records in a related table or subquery.
+         *
+         * @param subquery the subquery to check for existence.
+         * @return the updated {@link QueryBuilder.PredicateBuilder} with the EXISTS condition applied.
+         */
+        KPredicateBuilder<T, R, ID> exists(@Nonnull KQueryBuilder<?, ?, ?> subquery);
+
+        /**
+         * Adds an <code>NOT EXISTS</code> condition to the WHERE clause using the specified subquery.
+         *
+         * <p>This method appends an <code>NOT EXISTS</code> clause to the current query's WHERE condition.
+         * It checks whether the provided subquery returns any rows, allowing you to filter results based
+         * on the existence of related data. This is particularly useful for constructing queries that need
+         * to verify the absence of certain records in a related table or subquery.
+         *
+         * @param subquery the subquery to check for existence.
+         * @return the updated {@link QueryBuilder.PredicateBuilder} with the NOT EXISTS condition applied.
+         */
+        KPredicateBuilder<T, R, ID> notExists(@Nonnull KQueryBuilder<?, ?, ?> subquery);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified object. The object can be the primary

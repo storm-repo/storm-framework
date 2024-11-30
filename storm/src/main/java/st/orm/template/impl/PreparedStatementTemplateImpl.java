@@ -23,7 +23,7 @@ import st.orm.Query;
 import st.orm.spi.Provider;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
-import st.orm.template.ORMRepositoryTemplate;
+import st.orm.template.ORMTemplate;
 import st.orm.template.PreparedStatementTemplate;
 import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplate.BatchListener;
@@ -63,6 +63,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     private final ColumnNameResolver columnNameResolver;
     private final ForeignKeyResolver foreignKeyResolver;
     private final Predicate<Provider> providerFilter;
+    private final LazyFactory lazyFactory;
 
     public PreparedStatementTemplateImpl(@Nonnull DataSource dataSource) {
         // Note that this logic does not use Spring's DataSourceUtils, so it is not aware of Spring's transaction
@@ -98,6 +99,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         this.columnNameResolver = ColumnNameResolver.DEFAULT;
         this.foreignKeyResolver = ForeignKeyResolver.DEFAULT;
         this.providerFilter = null;
+        this.lazyFactory = new LazyFactoryImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, null);
     }
 
     public PreparedStatementTemplateImpl(@Nonnull Connection connection) {
@@ -125,6 +127,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         this.columnNameResolver = ColumnNameResolver.DEFAULT;
         this.foreignKeyResolver = ForeignKeyResolver.DEFAULT;
         this.providerFilter = null;
+        this.lazyFactory = new LazyFactoryImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, null);
     }
 
     private PreparedStatementTemplateImpl(@Nonnull TemplateProcessor templateProcessor,
@@ -139,6 +142,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         this.columnNameResolver = columnNameResolver;
         this.foreignKeyResolver = foreignKeyResolver;
         this.providerFilter = providerFilter;
+        this.lazyFactory = new LazyFactoryImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter);
     }
 
     @Override
@@ -214,8 +218,8 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     }
 
     @Override
-    public ORMRepositoryTemplate toORM() {
-        return new ORMRepositoryTemplateImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter);
+    public ORMTemplate toORM() {
+        return new ORMTemplateImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter);
     }
 
     /**
@@ -250,7 +254,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     }
 
     @Override
-    public Query create(@Nonnull LazyFactory lazyFactory, @Nonnull StringTemplate template) {
+    public Query create(@Nonnull StringTemplate template) {
         try {
             var sql = sqlTemplate().process(template);
             var bindVariables = sql.bindVariables().orElse(null);

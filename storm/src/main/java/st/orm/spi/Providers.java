@@ -21,7 +21,7 @@ import st.orm.repository.EntityRepository;
 import st.orm.repository.Model;
 import st.orm.repository.Projection;
 import st.orm.repository.ProjectionRepository;
-import st.orm.template.ORMRepositoryTemplate;
+import st.orm.template.ORMTemplate;
 
 import java.lang.reflect.RecordComponent;
 import java.util.Collections;
@@ -127,7 +127,7 @@ public final class Providers {
     /**
      */
     public static <ID, E extends Record & Entity<ID>> EntityRepository<E, ID> getEntityRepository(
-            @Nonnull ORMRepositoryTemplate orm,
+            @Nonnull ORMTemplate orm,
             @Nonnull Model<E, ID> model,
             @Nonnull Predicate<? super EntityRepositoryProvider> filter) {
         return Orderable.sort(ENTITY_REPOSITORY_PROVIDERS.get().stream())
@@ -140,7 +140,7 @@ public final class Providers {
     /**
      */
     public static <ID, P extends Record & Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(
-            @Nonnull ORMRepositoryTemplate orm,
+            @Nonnull ORMTemplate orm,
             @Nonnull Model<P, ID> model,
             @Nonnull Predicate<? super ProjectionRepositoryProvider> filter) {
         return Orderable.sort(PROJECTION_REPOSITORY_PROVIDERS.get().stream())

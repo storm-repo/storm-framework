@@ -21,22 +21,26 @@ import jakarta.persistence.EntityManager;
 import kotlin.reflect.KClass;
 import st.orm.BindVars;
 import st.orm.TemporalType;
-import st.orm.kotlin.template.KORMRepositoryTemplate;
 import st.orm.kotlin.template.KORMTemplate;
-import st.orm.kotlin.template.impl.KORMRepositoryTemplateImpl;
+import st.orm.kotlin.template.KQueryBuilder;
+import st.orm.kotlin.template.KQueryTemplate;
 import st.orm.kotlin.template.impl.KORMTemplateImpl;
-import st.orm.template.ORMRepositoryTemplate;
+import st.orm.kotlin.template.impl.KQueryTemplateImpl;
 import st.orm.template.ORMTemplate;
 import st.orm.template.Operator;
+import st.orm.template.QueryTemplate;
+import st.orm.template.ResolveScope;
 import st.orm.template.TemplateFunction;
 import st.orm.template.impl.Element;
 import st.orm.template.impl.Elements;
 import st.orm.template.impl.Elements.ObjectExpression;
+import st.orm.template.impl.Elements.Subquery;
 import st.orm.template.impl.Elements.TableSource;
 import st.orm.template.impl.Elements.TemplateSource;
 import st.orm.template.impl.Elements.Unsafe;
 import st.orm.template.impl.JpaTemplateImpl;
 import st.orm.template.impl.PreparedStatementTemplateImpl;
+import st.orm.template.impl.Templatable;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -48,6 +52,8 @@ import java.util.function.Function;
 import static java.util.Objects.requireNonNull;
 import static st.orm.spi.Providers.getORMReflection;
 import static st.orm.template.Operator.IN;
+import static st.orm.template.ResolveScope.CASCADE;
+import static st.orm.template.TemplateFunction.template;
 import static st.orm.template.impl.Elements.Alias;
 import static st.orm.template.impl.Elements.Delete;
 import static st.orm.template.impl.Elements.From;
@@ -68,7 +74,7 @@ import static st.orm.template.impl.Elements.Where;
  * {@code INSERT}, {@code UPDATE}, and {@code DELETE}, as well as utility methods for working with parameters,
  * tables, aliases, and more.
  *
- * <p>Additionally, the {@code Templates} interface provides methods to create {@link KORMRepositoryTemplate}
+ * <p>Additionally, the {@code Templates} interface provides methods to create {@link KORMTemplate}
  * instances for use with different data sources like JPA's {@link EntityManager}, JDBC's {@link DataSource}, or
  * {@link Connection}. These repository templates facilitate database operations using the constructed SQL queries.
  *
@@ -104,7 +110,7 @@ import static st.orm.template.impl.Elements.Where;
  *
  * <h3>Fluent API Usage</h3>
  *
- * <p>The {@link KORMRepositoryTemplate} also supports a fluent API that allows you to build queries in a more concise manner:
+ * <p>The {@link KORMTemplate} also supports a fluent API that allows you to build queries in a more concise manner:
  *
  * <pre>{@code
  * DataSource dataSource = ...;
@@ -129,7 +135,7 @@ import static st.orm.template.impl.Elements.Where;
  *
  * <h2>Creating KORMRepositoryTemplate Instances</h2>
  *
- * <p>The {@code KTemplates} interface provides static methods to create {@link KORMRepositoryTemplate} instances based on your data source:
+ * <p>The {@code KTemplates} interface provides static methods to create {@link KORMTemplate} instances based on your data source:
  *
  * <h3>Using EntityManager (JPA)</h3>
  * <pre>{@code
@@ -195,6 +201,16 @@ import static st.orm.template.impl.Elements.Where;
 public interface KTemplates {
 
     /**
+     * Converts an {@link QueryTemplate} to a {@link KQueryTemplate}.
+     *
+     * @param orm the {@link QueryTemplate} to convert.
+     * @return a {@link KQueryTemplate} instance.
+     */
+    static KQueryTemplate ORM(@Nonnull QueryTemplate orm) {
+        return new KQueryTemplateImpl(orm);
+    }
+
+    /**
      * Converts an {@link ORMTemplate} to a {@link KORMTemplate}.
      *
      * @param orm the {@link ORMTemplate} to convert.
@@ -205,17 +221,7 @@ public interface KTemplates {
     }
 
     /**
-     * Converts an {@link ORMRepositoryTemplate} to a {@link KORMRepositoryTemplate}.
-     *
-     * @param orm the {@link ORMRepositoryTemplate} to convert.
-     * @return a {@link KORMRepositoryTemplate} instance.
-     */
-    static KORMRepositoryTemplate ORM(@Nonnull ORMRepositoryTemplate orm) {
-        return new KORMRepositoryTemplateImpl(orm);
-    }
-
-    /**
-     * Returns an {@link KORMRepositoryTemplate} for use with JPA.
+     * Returns an {@link KORMTemplate} for use with JPA.
      *
      * <p>This method creates an ORM repository template using the provided {@link EntityManager}.
      * It allows you to perform database operations using JPA in a fluent and type-safe manner.
@@ -232,14 +238,14 @@ public interface KTemplates {
      * }</pre>
      *
      * @param entityManager the {@link EntityManager} to use for database operations; must not be {@code null}.
-     * @return an {@link KORMRepositoryTemplate} configured for use with JPA.
+     * @return an {@link KORMTemplate} configured for use with JPA.
      */
-    static KORMRepositoryTemplate ORM(@Nonnull EntityManager entityManager) {
+    static KORMTemplate ORM(@Nonnull EntityManager entityManager) {
         return ORM(new JpaTemplateImpl(entityManager).toORM());
     }
 
     /**
-     * Returns an {@link KORMRepositoryTemplate} for use with JDBC.
+     * Returns an {@link KORMTemplate} for use with JDBC.
      *
      * <p>This method creates an ORM repository template using the provided {@link DataSource}.
      * It allows you to perform database operations using JDBC in a fluent and type-safe manner.
@@ -256,14 +262,14 @@ public interface KTemplates {
      * }</pre>
      *
      * @param dataSource the {@link DataSource} to use for database operations; must not be {@code null}.
-     * @return an {@link ORMRepositoryTemplate} configured for use with JDBC.
+     * @return an {@link ORMTemplate} configured for use with JDBC.
      */
-    static KORMRepositoryTemplate ORM(@Nonnull DataSource dataSource) {
+    static KORMTemplate ORM(@Nonnull DataSource dataSource) {
         return ORM(new PreparedStatementTemplateImpl(dataSource).toORM());
     }
 
     /**
-     * Returns an {@link KORMRepositoryTemplate} for use with JDBC.
+     * Returns an {@link KORMTemplate} for use with JDBC.
      *
      * <p>This method creates an ORM repository template using the provided {@link Connection}.
      * It allows you to perform database operations using JDBC in a fluent and type-safe manner.
@@ -282,9 +288,9 @@ public interface KTemplates {
      * }</pre>
      *
      * @param connection the {@link Connection} to use for database operations; must not be {@code null}.
-     * @return an {@link ORMRepositoryTemplate} configured for use with JDBC.
+     * @return an {@link ORMTemplate} configured for use with JDBC.
      */
-    static KORMRepositoryTemplate ORM(@Nonnull Connection connection) {
+    static KORMTemplate ORM(@Nonnull Connection connection) {
         return ORM(new PreparedStatementTemplateImpl(connection).toORM());
     }
 
@@ -412,7 +418,7 @@ public interface KTemplates {
      * @return an {@link Element} representing the FROM clause with the specified template and alias.
      */
     static Element from(@Nonnull TemplateFunction function, @Nonnull String alias) {
-        return from(TemplateFunction.template(function), alias);
+        return from(template(function), alias);
     }
 
     /**
@@ -1108,7 +1114,7 @@ public interface KTemplates {
      * @return an {@link Element} representing the table's alias.
      */
     static Element alias(@Nonnull KClass<? extends Record> table) {
-        return alias(table, null);
+        return new Alias(getORMReflection().getRecordType(table), null, CASCADE);
     }
 
     /**
@@ -1138,7 +1144,75 @@ public interface KTemplates {
      * @return an {@link Element} representing the table's alias with the specified path.
      */
     static Element alias(@Nonnull KClass<? extends Record> table, @Nullable String path) {
-        return new Alias(getORMReflection().getRecordType(table), path);
+        return new Alias(getORMReflection().getRecordType(table), requireNonNull(path, "path"), CASCADE);
+    }
+
+    /**
+     * Generates an alias element for the specified table class.
+     *
+     * <p>This method returns the alias of the table as used in the query. It is useful when you need to refer to
+     * the table's alias, especially in situations where the SQL template engine cannot automatically determine
+     * the appropriate element based on context.
+     *
+     * <p>Example usage in a string template:
+     * <pre>{@code
+     * SELECT \{alias(Table.class)}.column_name FROM \{table(Table.class, "t")}
+     * }</pre>
+     *
+     * <p>According to the resolution rules, if {@code \{Table.class}} is followed by a dot {@code '.'}, the SQL template engine
+     * automatically resolves it into an alias element:
+     * <pre>{@code
+     * SELECT \{Table.class}.column_name FROM \{Table.class}
+     * }</pre>
+     *
+     * <p>As per the resolution rules:
+     * <ul>
+     *   <li>If {@code \{Table.class}} is placed after keywords like SELECT, FROM, INSERT INTO, UPDATE, or DELETE,
+     *       the SQL template engine resolves it into the appropriate element (e.g., SELECT element, FROM element).</li>
+     *   <li>If {@code \{Table.class}} is not in such a placement and is not followed by a dot {@code '.'},
+     *       it is resolved into a table element.</li>
+     *   <li>If {@code \{Table.class}} is followed by a dot {@code '.'}, it is resolved into an alias element.</li>
+     * </ul>
+     *
+     * @param table the {@link Class} object representing the table record.
+     * @param scope the {@link ResolveScope} to use when resolving the alias. Use CASCADE to include local and outer
+     *                   scopes, INNER to include local aliases only, and OUTER to include outer aliases only.
+     * @return an {@link Element} representing the table's alias.
+     */
+    static Element alias(@Nonnull KClass<? extends Record> table, @Nonnull ResolveScope scope) {
+        return new Alias(getORMReflection().getRecordType(table), null, scope);
+    }
+
+    /**
+     * Generates an alias element for a table found at a specific path within the table's hierarchy as used in the query.
+     *
+     * <p>This method is particularly useful when the same table class appears multiple times in a query through different paths,
+     * and you need to specify which instance you're referring to. The {@code path} parameter uniquely identifies the table by
+     * specifying the sequence of field names from the root table to the target table. This helps avoid ambiguity when generating
+     * SQL queries that involve multiple relationships to the same table class.
+     *
+     * <p>The path is constructed by concatenating the names of the fields that lead to the target table from the root table.
+     *
+     * <p>Example usage in a string template where {@code User} is referenced twice:
+     * <pre>{@code
+     * // Define a record with two references to User
+     * record Table(int id, User child, User parent) {}
+     *
+     * // In the SQL template
+     * SELECT \{alias(User.class, "child")}.column_name FROM \{Table.class}
+     * }</pre>
+     *
+     * <p>In this example, the path "child" specifies that we are referring to the {@code child} field of the {@code Table} record,
+     * which is of type {@code User}. This distinguishes it from the {@code parent} field, which is also of type {@code User}.
+     *
+     * @param table the {@link Class} object representing the table record.
+     * @param path an optional path within the table's hierarchy to uniquely identify the table.
+     * @param scope the {@link ResolveScope} to use when resolving the alias. Use CASCADE to include local and outer
+     *                   scopes, INNER to include local aliases only, and OUTER to include outer aliases only.
+     * @return an {@link Element} representing the table's alias with the specified path.
+     */
+    static Element alias(@Nonnull KClass<? extends Record> table, @Nonnull String path, @Nonnull ResolveScope scope) {
+        return new Alias(getORMReflection().getRecordType(table), requireNonNull(path, "path"), scope);
     }
 
     /**
@@ -1358,6 +1432,34 @@ public interface KTemplates {
             case TIME -> new java.sql.Time(v.getTimeInMillis());
             case TIMESTAMP -> new java.sql.Timestamp(v.getTimeInMillis());
         });
+    }
+
+    /**
+     * Creates a new subquery element using a query builder.
+     *
+     * @param builder   the query builder used to construct the subquery; must not be null.
+     * @param correlate a flag indicating whether the subquery should correlate with the outer query.
+     *                  If {@code true}, the subquery can reference elements from the outer query.
+     *                  If {@code false}, the subquery is independent and does not access the outer query.
+     * @return a new {@code Subquery} element based on the provided query builder and correlation flag.
+     * @throws NullPointerException if the {@code builder} is null.
+     */
+    static Element subquery(@Nonnull KQueryBuilder<?, ?, ?> builder, boolean correlate) {
+        return new Subquery(((Templatable) builder).asStringTemplate(), correlate);
+    }
+
+    /**
+     * Creates a new subquery element using a string template.
+     *
+     * @param template  the string template representing the subquery; must not be null.
+     * @param correlate a flag indicating whether the subquery should correlate with the outer query.
+     *                  If {@code true}, the subquery can reference elements from the outer query.
+     *                  If {@code false}, the subquery is independent and does not access the outer query.
+     * @return a new {@code Subquery} element based on the provided template and correlation flag.
+     * @throws NullPointerException if the {@code template} is null.
+     */
+    static Element subquery(@Nonnull StringTemplate template, boolean correlate) {
+        return new Subquery(template, correlate);
     }
 
     /**

@@ -23,6 +23,7 @@ import st.orm.Inline;
 import st.orm.Lazy;
 import st.orm.Name;
 import st.orm.PK;
+import st.orm.Query;
 import st.orm.repository.Entity;
 import st.orm.repository.Projection;
 import st.orm.repository.ProjectionQuery;
@@ -31,6 +32,7 @@ import st.orm.spi.Providers;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
 import st.orm.template.JoinType;
+import st.orm.template.ResolveScope;
 import st.orm.template.Sql;
 import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplateException;
@@ -43,6 +45,7 @@ import st.orm.template.impl.Elements.Insert;
 import st.orm.template.impl.Elements.Param;
 import st.orm.template.impl.Elements.Select;
 import st.orm.template.impl.Elements.Source;
+import st.orm.template.impl.Elements.Subquery;
 import st.orm.template.impl.Elements.Table;
 import st.orm.template.impl.Elements.TableSource;
 import st.orm.template.impl.Elements.Target;
@@ -102,6 +105,7 @@ import static st.orm.Templates.update;
 import static st.orm.Templates.values;
 import static st.orm.Templates.where;
 import static st.orm.spi.Providers.getORMConverter;
+import static st.orm.template.ResolveScope.INNER;
 
 /**
  *
@@ -474,7 +478,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
         };
     }
 
-    private List<Element> resolveElements(@Nonnull SqlMode sqlMode, @Nonnull List<?> values, @Nonnull List<String> fragments) throws SqlTemplateException {
+    private List<Element> resolveElements(@Nonnull SqlMode sqlMode,
+                                          @Nonnull List<?> values,
+                                          @Nonnull List<String> fragments) throws SqlTemplateException {
         List<Element> resolvedValues = new ArrayList<>();
         Element first = null;
         for (int i = 0; i < values.size() ; i++) {
@@ -518,6 +524,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 }
                 case Expression _ -> throw new SqlTemplateException("Expression element not allowed in this context.");
                 case BindVars b -> resolveBindVarsElement(sqlMode, p, b);
+                case Templatable t -> new Subquery(t.asStringTemplate(), true); // Correlate implicit subqueries.
+                case StringTemplate t -> new Subquery(t, true);                 // Correlate implicit subqueries.
                 case Object[] a -> resolveArrayElement(sqlMode, p, a);
                 case Iterable<?> l -> resolveIterableElement(sqlMode, p, l);
                 case Element e -> e;
@@ -526,8 +534,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 // Note that the following flow would also support Class<?> c. but we'll keep the Class<?> c case for performance and readability.
                 case Object k when REFLECTION.isSupportedType(k) ->
                         resolveTypeElement(sqlMode, first, p, n, REFLECTION.getRecordType(k));
-                case Stream<?> _ -> throw new SqlTemplateException("Stream not supported in this context.");
-                case StringTemplate _ -> throw new SqlTemplateException("String template not supported in this context.");
+                case Stream<?> _ -> throw new SqlTemplateException("Stream not supported as string template value.");
+                case Query _ -> throw new SqlTemplateException("Query not supported as string template value. Use QueryBuilder instead.");
                 case Object o -> resolveObjectElement(sqlMode, p, o);
                 case null -> //noinspection ConstantValue
                         param(v);
@@ -545,39 +553,90 @@ public final class SqlTemplateImpl implements SqlTemplate {
         return components.stream().map(RecordComponent::getName).collect(Collectors.joining("."));
     }
 
-    private AliasMapper getAliasMapper(@Nullable TableAliasResolver tableAliasResolver) {
+    static SqlTemplateException multiplePathsFoundException(@Nonnull Class<? extends Record> table, @Nonnull List<String> paths) {
+        if (paths.isEmpty()) {
+            return new SqlTemplateException(STR."Multiple aliases found for \{table.getSimpleName()}.");
+        }
+        if (paths.size() == 1) {
+            return new SqlTemplateException(STR."Multiple aliases found for \{table.getSimpleName()}. Specify path \{paths.getFirst()} to uniquely identify the table.");
+        }
+        return new SqlTemplateException(STR."Multiple aliases found for \{table.getSimpleName()} in table graph. Specify one of the following paths to uniquely identify the table: \{String.join(", ", paths)}.");
+    }
+
+    private AliasMapper getAliasMapper(@Nullable TableAliasResolver tableAliasResolver, @Nullable AliasMapper parent) {
         record TableAlias(Class<? extends Record> table, String path, String alias) {}
         class AliasMapperImpl implements AliasMapper {
             private final Map<Class<? extends Record>, SequencedCollection<TableAlias>> aliasMap = new HashMap<>();
 
-            @Override
-            public List<String> getAliases(@Nonnull Class<? extends Record> table) {
-                var list = aliasMap.get(table);
-                if (list == null) {
-                    return List.of();
-                }
-                return list.stream().map(TableAlias::alias).toList();
+            /**
+             * Retrieves all aliases, including those from the parent. Note that the stream may contain duplicates as
+             * parents may contain the same aliases.
+             */
+            private Stream<String> aliases() {
+                return Stream.concat(
+                        aliasMap.values().stream().flatMap(it -> it.stream()
+                                .map(TableAlias::alias)),
+                        parent == null ? Stream.empty() : ((AliasMapperImpl) parent).aliases());
             }
 
-            private SqlTemplateException multipleFoundException(@Nonnull Class<? extends Record> table) {
+            /**
+             * Retrieves all aliases for the specified table, including those from the parent. Note that the stream may
+             * contain duplicates as parents may contain the same aliases.
+             *
+             * @param table the table to retrieve the aliases for.
+             */
+            private Stream<String> aliases(Class<? extends Record> table) {
+                return Stream.concat(
+                        aliasMap.getOrDefault(table, List.of()).stream()
+                                .map(TableAlias::alias),
+                        parent == null ? Stream.empty() : ((AliasMapperImpl) parent).aliases(table));
+            }
+
+            /**
+             * Retrieves all aliases for the specified table and path, including those from the parent. Note that the
+             * stream may contain duplicates as parents may contain the same aliases. If path is null, all aliases for
+             * the table are returned.
+             *
+             * @param table the table to retrieve the aliases for.
+             * @param path the path to retrieve the aliases for.
+             * @param resolveMode STRICT to include local and outer aliases, LOCAL to include local aliases only, and
+             *                    OUTER to include outer aliases only.
+             */
+            private Stream<String> aliases(Class<? extends Record> table, @Nullable String path, @Nonnull ResolveScope resolveMode, boolean includeNull) {
+                var local = switch (resolveMode) {
+                    case INNER, CASCADE -> aliasMap.getOrDefault(table, List.of()).stream()
+                            .filter(a -> (includeNull && (path == null || a.path() == null)) || Objects.equals(path, a.path()))
+                            .map(TableAlias::alias);
+                    case OUTER -> Stream.<String>of();
+                };
+                var global = switch (resolveMode) {
+                    case INNER -> Stream.<String>of();
+                    case CASCADE, OUTER -> parent == null ? Stream.<String>of() : ((AliasMapperImpl) parent).aliases(table, path, ResolveScope.CASCADE, includeNull);   // Use STRICT to include parents recursively.
+                };
+                return Stream.concat(local, global);
+            }
+
+           private SqlTemplateException multipleFoundException(@Nonnull Class<? extends Record> table, @Nullable String path, @Nonnull ResolveScope resolveMode) {
+                if (resolveMode != INNER) {
+                    return new SqlTemplateException(STR."Multiple aliases found for: \{table.getSimpleName()} at path: '\{path}'. Use LOCAL resolve mode to limit alias resolution to the current scope.");
+                }
                 var paths = aliasMap.get(table).stream()
                         .map(TableAlias::path)
                         .filter(Objects::nonNull)
                         .map(p -> STR."'\{p}'")
                         .distinct()
                         .toList();
-                if (paths.isEmpty()) {
-                    return new SqlTemplateException(STR."Multiple aliases found for \{table.getSimpleName()}.");
-                }
-                if (paths.size() == 1) {
-                    return new SqlTemplateException(STR."Multiple aliases found for \{table.getSimpleName()}. Specify path \{paths.getFirst()} to uniquely identify the table.");
-                }
-                return new SqlTemplateException(STR."Multiple aliases found for \{table.getSimpleName()} in table graph. Specify one of the following paths to uniquely identify the table: \{String.join(", ", paths)}.");
+                return multiplePathsFoundException(table, paths);
             }
 
             @Override
-            public String getAlias(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException {
-                var result = findAlias(table, path);
+            public List<String> getAliases(@Nonnull Class<? extends Record> table) {
+                return aliases(table).toList();
+            }
+
+            @Override
+            public String getAlias(@Nonnull Class<? extends Record> table, @Nullable String path, @Nonnull ResolveScope scope) throws SqlTemplateException {
+                var result = findAlias(table, path, scope);
                 if (result.isPresent()) {
                     return result.get();
                 }
@@ -589,35 +648,31 @@ public final class SqlTemplateImpl implements SqlTemplate {
             }
 
             @Override
-            public Optional<String> findAlias(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException {
-                var list = aliasMap.getOrDefault(table, List.of());
-                if (path != null) {
-                    var candidate = list.stream().filter(a -> Objects.equals(a.path(), path))
-                            .findFirst();
-                    if (candidate.isPresent()) {
-                        list = List.of(candidate.get());
-                    } else {
-                        list = list.stream().filter(a -> a.path() == null)
-                                .toList();
-                        if (list.isEmpty()) {
-                            return Optional.empty();
-                        }
-                    }
+            public Optional<String> findAlias(@Nonnull Class<? extends Record> table, @Nullable String path, @Nonnull ResolveScope scope) throws SqlTemplateException {
+                var list = aliases(table, path, scope, false).toList();
+                if (list.isEmpty()) {
+                    list = aliases(table, path, scope, true).toList();
                 }
-                if (list.size() > 1) {
-                    throw multipleFoundException(table);
-                }
-                String alias = list.isEmpty() ? "" : list.getFirst().alias();
-                if (alias.isEmpty()) {
+                if (list.isEmpty()) {
                     return Optional.empty();
                 }
-                return Optional.of(alias);
+                if (list.size() > 1) {
+                    throw multipleFoundException(table, path, scope);
+                }
+                if (path != null) {
+                    return Optional.of(list.getFirst());
+                }
+                String alias = list.getFirst();
+                return alias.isEmpty() ? Optional.empty() : Optional.of(alias);
             }
 
             @Override
             public String generateAlias(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException {
                 String alias = SqlTemplateImpl.this.generateAlias(table, tableAliasResolver,
-                        proposedAlias -> aliasMap.values().stream().flatMap(it -> it.stream().map(TableAlias::alias)).noneMatch(proposedAlias::equals));
+                        proposedAlias -> aliases().noneMatch(proposedAlias::equals));
+                if (alias.isEmpty()) {
+                    throw new SqlTemplateException(STR."Failed to generate alias for \{table.getSimpleName()}.");
+                }
                 aliasMap.computeIfAbsent(table, _ -> new LinkedHashSet<>()).add(new TableAlias(table, path, alias));
                 return alias;
             }
@@ -625,6 +680,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             @Override
             public void setAlias(@Nonnull Class<? extends Record> table, @Nonnull String alias, @Nullable String path) throws SqlTemplateException {
                 if (!aliasMap.computeIfAbsent(table, _ -> new LinkedHashSet<>()).add(new TableAlias(table, path, alias))) {
+                    // Only detect duplicated aliases at the same level.
                     throw new SqlTemplateException(STR."Alias \{alias} already exists for table \{table.getSimpleName()}.");
                 }
             }
@@ -683,13 +739,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     return new SqlTemplateException(STR."Multiple occurences of \{table.getSimpleName()} found in table graph.");
                 }
                 paths = paths.stream().filter(Objects::nonNull).map(p -> STR."'\{p}'").toList();
-                if (paths.isEmpty()) {
-                    return new SqlTemplateException(STR."Multiple occurences of \{table.getSimpleName()} found in table graph.");
-                }
-                if (paths.size() == 1) {
-                    return new SqlTemplateException(STR."Multiple occurences of \{table.getSimpleName()} found in table graph. Specify path \{paths.getFirst()} to uniquely identify the table.");
-                }
-                return new SqlTemplateException(STR."Multiple occurences of \{table.getSimpleName()} found in table graph. Specify one of the following paths to uniquely identify the table: \{String.join(", ", paths)}.");
+                return multiplePathsFoundException(table, paths);
             }
 
             @Override
@@ -1013,7 +1063,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     // No join needed for lazy components, but we will map the table, so we can query the lazy component.
                     String fromAlias;
                     if (fkName == null) {
-                        fromAlias = aliasMapper.getAlias(recordType, fkPath);
+                        fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER);    // Use local resolve mode to prevent shadowing.
                     } else {
                         fromAlias = fkName;
                     }
@@ -1032,7 +1082,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 // in a unified way (auto join vs manual join).
                 String fromAlias;
                 if (fkName == null) {
-                    fromAlias = aliasMapper.getAlias(recordType, fkPath);
+                    fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER);    // Use local resolve mode to prevent shadowing.
                 } else {
                     fromAlias = fkName;
                 }
@@ -1060,7 +1110,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 Class<? extends Record> componentType = (Class<? extends Record>) component.getType();
                 String fromAlias;
                 if (fkName == null) {
-                    fromAlias = aliasMapper.getAlias(recordType, fkPath);
+                    fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER);    // Use local resolve mode to prevent shadowing.
                 } else {
                     fromAlias = fkName;
                 }
@@ -1240,113 +1290,120 @@ public final class SqlTemplateImpl implements SqlTemplate {
     /**
      * Processes the specified {@code stringTemplate} and returns the resulting SQL and parameters.
      *
-     * @param stringTemplate the string template to process.
+     * @param template the string template to process.
      * @return the resulting SQL and parameters.
      * @throws SqlTemplateException if an error occurs while processing the input.
      */
     @Override
-    public Sql process(@Nonnull StringTemplate stringTemplate) throws SqlTemplateException {
-        return process(stringTemplate, false);
+    public Sql process(@Nonnull StringTemplate template) throws SqlTemplateException {
+        return process(template, false);
     }
 
     /**
      * Processes the specified {@code stringTemplate} and returns the resulting SQL and parameters.
      *
-     * @param stringTemplate the string template to process.
-     * @param nested whether to the call is recursive.
+     * @param template the string template to process.
      * @return the resulting SQL and parameters.
      * @throws SqlTemplateException if an error occurs while processing the input.
      */
-    public Sql process(StringTemplate stringTemplate, boolean nested) throws SqlTemplateException {
-        var fragments = stringTemplate.fragments();
-        var values = stringTemplate.values();
-        assert fragments.size() == values.size() + 1;
-        var sqlMode = getSqlMode(stringTemplate);
-        var elements = resolveElements(sqlMode, values, fragments);
-        var aliasMapper = getAliasMapper(tableAliasResolver);
-        var tableMapper = getTableMapper();
-        postProcessElements(sqlMode, elements, aliasMapper, tableMapper);
-        var unwrappedElements = elements.stream()
-                .flatMap(e -> e instanceof Wrapped(var we) ? we.stream() : Stream.of(e))
-                .toList();
-        assert values.size() == elements.size();
-        Optional<Table> primaryTable = getPrimaryTable(unwrappedElements, aliasMapper);
-        if (primaryTable.isPresent()) {
-            validateRecordType(sqlMode, primaryTable.get().table());
-        }
-        List<String> parts = new ArrayList<>();
-        List<Parameter> parameters = new ArrayList<>();
-        AtomicReference<BindVariables> bindVariables = new AtomicReference<>();
-        List<String> generatedKeys = new ArrayList<>();
-        AtomicBoolean versionAware = new AtomicBoolean();
-        AtomicInteger parameterPosition = new AtomicInteger(1);
-        AtomicInteger nameIndex = new AtomicInteger();
-        StringBuilder rawSql = new StringBuilder();
-        List<String> args = new ArrayList<>();
-        for (int i = 0; i < fragments.size(); i++) {
-            String fragment = fragments.get(i);
-            try {
-                if (i < values.size()) {
-                    Element e = elements.get(i);
-                    var result = new ElementProcessor(
-                            this,
-                            e,
-                            parameters,
-                            parameterPosition,
-                            nameIndex,
-                            aliasMapper,
-                            tableMapper,
-                            bindVariables,
-                            generatedKeys,
-                            versionAware,
-                            primaryTable.orElse(null)
-                    ).process().orElse(null);
-                    if (result != null) {
-                        String sql = result.sql();
-                        if (!result.args().isEmpty()) {
-                            args.addAll(result.args());
+    public Sql process(@Nonnull StringTemplate template, boolean nested) throws SqlTemplateException {
+        var fragments = template.fragments();
+        var values = template.values();
+        Sql generated;
+        if (!values.isEmpty()) {
+            var sqlMode = getSqlMode(template);
+            var elements = resolveElements(sqlMode, values, fragments);
+            var aliasMapper = getAliasMapper(tableAliasResolver, ElementProcessor.current()
+                    .map(ElementProcessor::aliasMapper)
+                    .orElse(null));
+            var tableMapper = getTableMapper(); // No need to pass parent table mapper as only aliases are correlated.
+            postProcessElements(sqlMode, elements, aliasMapper, tableMapper);
+            var unwrappedElements = elements.stream()
+                    .flatMap(e -> e instanceof Wrapped(var we) ? we.stream() : Stream.of(e))
+                    .toList();
+            assert values.size() == elements.size();
+            Optional<Table> primaryTable = getPrimaryTable(unwrappedElements, aliasMapper);
+            if (primaryTable.isPresent()) {
+                validateRecordType(sqlMode, primaryTable.get().table());
+            }
+            List<String> parts = new ArrayList<>();
+            List<Parameter> parameters = new ArrayList<>();
+            AtomicReference<BindVariables> bindVariables = new AtomicReference<>();
+            List<String> generatedKeys = new ArrayList<>();
+            AtomicBoolean versionAware = new AtomicBoolean();
+            AtomicInteger parameterPosition = new AtomicInteger(1);
+            AtomicInteger nameIndex = new AtomicInteger();
+            StringBuilder rawSql = new StringBuilder();
+            List<String> args = new ArrayList<>();
+            for (int i = 0; i < fragments.size(); i++) {
+                String fragment = fragments.get(i);
+                try {
+                    if (i < values.size()) {
+                        Element e = elements.get(i);
+                        var result = new ElementProcessor(
+                                this,
+                                e,
+                                parameters,
+                                parameterPosition,
+                                nameIndex,
+                                aliasMapper,
+                                tableMapper,
+                                bindVariables,
+                                generatedKeys,
+                                versionAware,
+                                primaryTable.orElse(null)
+                        ).process().orElse(null);
+                        if (result != null) {
+                            String sql = result.sql();
+                            if (!result.args().isEmpty()) {
+                                args.addAll(result.args());
+                            }
+                            if (!sql.isEmpty() && !args.isEmpty()) {
+                                sql = sql.formatted(args.toArray());
+                                args.clear();
+                            }
+                            rawSql.append(fragment);
+                            rawSql.append(sql);
+                            if (e instanceof Param) {
+                                parts.add(rawSql.toString());
+                                rawSql.setLength(0);
+                            }
+                        } else {
+                            rawSql.append(fragment);
                         }
-                        if (!sql.isEmpty() && !args.isEmpty()) {
-                            sql = sql.formatted(args.toArray());
-                            args.clear();
-                        }
+                    } else {
                         rawSql.append(fragment);
-                        rawSql.append(sql);
-                        if (e instanceof Param) {
+                        if (!args.isEmpty()) {
+                            parts.add(rawSql.toString().formatted(args.toArray()));
+                        } else {
                             parts.add(rawSql.toString());
-                            rawSql.setLength(0);
                         }
-                    } else {
-                        rawSql.append(fragment);
                     }
-                } else {
-                    rawSql.append(fragment);
-                    if (!args.isEmpty()) {
-                        parts.add(rawSql.toString().formatted(args.toArray()));
-                    } else {
-                        parts.add(rawSql.toString());
-                    }
+                } catch (MissingFormatArgumentException ex) {
+                    throw new SqlTemplateException("Invalid number of argument placeholders found. Template appears to specify custom %s placeholders.", ex);
                 }
-            } catch (MissingFormatArgumentException ex) {
-                throw new SqlTemplateException("Invalid number of argument placeholders found. Template appears to specify custom %s placeholders.", ex);
+            }
+            validateNamedParameters(parameters);
+            generated = new SqlImpl(
+                    String.join("", parts),
+                    copyOf(parameters),
+                    ofNullable(bindVariables.get()),
+                    copyOf(generatedKeys),
+                    versionAware.getPlain());
+        } else {
+            assert fragments.size() == 1;
+            generated = new SqlImpl(fragments.getFirst(), List.of(), empty(), List.of(), false);
+        }
+        if (!nested) {
+            // Don't intercept nested calls.
+            SqlInterceptorManager.intercept(generated);
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.fine(STR."Generated SQL:\n\{generated.statement()}");
+            } else if (LOGGER.isLoggable(Level.FINEST)) {
+                LOGGER.finest(STR."Generated SQL:\n\{generated}");
             }
         }
-        validateNamedParameters(parameters);
-        Sql sql = new SqlImpl(
-                String.join("", parts),
-                copyOf(parameters),
-                ofNullable(bindVariables.get()),
-                copyOf(generatedKeys),
-                versionAware.getPlain());
-        if (!nested) {
-            SqlInterceptorManager.intercept(sql);
-        }
-        if (LOGGER.isLoggable(Level.FINE)) {
-            LOGGER.fine(STR."Generated SQL:\n\{sql.statement()}");
-        } else if (LOGGER.isLoggable(Level.FINEST)) {
-            LOGGER.finest(STR."Generated SQL:\n\{sql}");
-        }
-        return sql;
+        return generated;
     }
 
     record ValidationKey(@Nonnull SqlMode sqlMode, Class<? extends Record> recordType) {}

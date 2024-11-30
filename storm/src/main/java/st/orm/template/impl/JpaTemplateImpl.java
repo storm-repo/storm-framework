@@ -23,7 +23,7 @@ import st.orm.BindVars;
 import st.orm.PreparedQuery;
 import st.orm.Query;
 import st.orm.template.JpaTemplate;
-import st.orm.template.ORMRepositoryTemplate;
+import st.orm.template.ORMTemplate;
 import st.orm.template.SqlTemplate;
 
 import java.sql.SQLException;
@@ -96,15 +96,15 @@ public final class JpaTemplateImpl implements JpaTemplate {
     }
 
     @Override
-    public ORMRepositoryTemplate toORM() {
-        return new ORMRepositoryTemplateImpl(new QueryFactory() {
+    public ORMTemplate toORM() {
+        return new ORMTemplateImpl(new QueryFactory() {
             @Override
             public BindVars createBindVars() {
                 throw new PersistenceException("Not supported by JPA.");
             }
 
             @Override
-            public Query create(@Nonnull LazyFactory lazyFactory, @Nonnull StringTemplate template) {
+            public Query create(@Nonnull StringTemplate template) {
                 return new PreparedQuery() {
                     @Override
                     public PreparedQuery prepare() {

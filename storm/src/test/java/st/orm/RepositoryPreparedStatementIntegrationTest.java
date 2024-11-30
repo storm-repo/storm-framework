@@ -19,7 +19,10 @@ import st.orm.model.VetSpecialtyPK;
 import st.orm.model.Visit;
 import st.orm.repository.Entity;
 import st.orm.repository.PetRepository;
+import st.orm.template.ResolveScope;
 import st.orm.template.Sql;
+import st.orm.template.SqlInterceptor;
+import st.orm.template.SqlTemplate.PositionalParameter;
 import st.orm.template.SqlTemplateException;
 
 import javax.sql.DataSource;
@@ -47,6 +50,7 @@ import static st.orm.template.Operator.GREATER_THAN;
 import static st.orm.template.Operator.GREATER_THAN_OR_EQUAL;
 import static st.orm.template.Operator.IN;
 import static st.orm.template.Operator.IS_NULL;
+import static st.orm.template.ResolveScope.OUTER;
 import static st.orm.template.SqlInterceptor.intercept;
 import static st.orm.template.TemplateFunction.template;
 import static st.orm.template.impl.SqlTemplateImpl.DefaultJoinType.INNER;
@@ -550,7 +554,7 @@ public class RepositoryPreparedStatementIntegrationTest {
             var pet = ORM(dataSource).entity(PetLazyOwner.class).select().append(RAW."LIMIT 1").getSingleResult();
             ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
                     .select()
-                    .wherePredicate(it -> it.expression(RAW."\{alias(PetLazyOwner.class, "pet2")}.id = \{pet.id()}")).getResultList();
+                    .wherePredicate(it -> it.expression(RAW."\{alias(PetLazyOwner.class, "pet2")}.id = \{1}")).getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
@@ -849,7 +853,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void updateOwnerWrongIntegerVersion() {
+    public void testUpdateOwnerWrongIntegerVersion() {
         var repo = ORM(dataSource).entity(Owner.class);
         Owner owner = repo.select(1);
         Owner modifiedOwner = owner.toBuilder().address(owner.address().toBuilder().address("Test Street").build()).build();
@@ -858,7 +862,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void updateVisitTimestampVersion() {
+    public void testUpdateVisitTimestampVersion() {
         var repo = ORM(dataSource).entity(Visit.class);
         Visit visit = repo.select().getResultList().getFirst();
         Visit modifiedVisit = visit.toBuilder().visitDate(LocalDate.now()).build();
@@ -867,11 +871,138 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void updateVisitWrongTimestampVersion() {
+    public void testUpdateVisitWrongTimestampVersion() {
         var repo = ORM(dataSource).entity(Visit.class);
         Visit visit = repo.select().getResultList().getFirst();
         Visit modifiedVisit = visit.toBuilder().visitDate(LocalDate.now()).build();
         repo.update(modifiedVisit);
         assertThrows(OptimisticLockException.class, () -> repo.update(modifiedVisit));
+    }
+
+    @Test
+    public void testWhereExists() {
+        var list = ORM(dataSource).entity(Owner.class)
+                .select()
+                .wherePredicate(it -> it.exists(it.subquery(Visit.class).where(RAW."\{alias(Owner.class, "")}.id = \{alias(Owner.class, "pet.owner")}.id")))
+                .getResultList();
+        assertEquals(6, list.size());
+    }
+
+    @Test
+    public void testWhereExistsAmbiguous() {
+        var e = assertThrows(PersistenceException.class, () -> {
+            ORM(dataSource).entity(Owner.class)
+                    .select()
+                    .wherePredicate(it -> it.exists(it.subquery(Visit.class).where(RAW."\{Owner.class}.id = \{Owner.class}.id")))
+                    .getResultList();
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+    }
+
+    @Test
+    public void testWhereExistsPredicateAmbiguous() {
+        var e = assertThrows(PersistenceException.class, () -> {
+            ORM(dataSource).entity(Owner.class)
+                    .select()
+                    .wherePredicate(it ->
+                            it.expression(RAW."EXISTS (\{
+                                    it.subquery(Visit.class).where(RAW."\{Owner.class}.id = \{Owner.class}.id")
+                            })"))
+                    .getResultList();
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+    }
+
+    @Test
+    public void testWhereExistsPredicate() {
+        var list = ORM(dataSource).entity(Owner.class)
+                .select()
+                .wherePredicate(it ->
+                        it.expression(RAW."EXISTS (\{
+                                it.subquery(Visit.class).where(RAW."\{alias(Owner.class, OUTER)}.id = \{alias(Owner.class, ResolveScope.INNER)}.id")
+                        })"))
+                .getResultList();
+        assertEquals(6, list.size());
+    }
+
+    @Test
+    public void testWhereExistsAppendSubquery() {
+        var orm = ORM(dataSource);
+        var list = ORM(dataSource).entity(Owner.class)
+                .select()
+                .append(RAW."WHERE EXISTS (\{
+                        orm.subquery(Visit.class).where(RAW."\{alias(Owner.class, "")}.id = \{alias(Owner.class, "pet.owner")}.id")
+                })")
+                .getResultList();
+        assertEquals(6, list.size());
+    }
+
+    @Test
+    public void testWhereAppendQuery() {
+        // We cannot append a query, we need to use a query builder instead.
+        var e = assertThrows(PersistenceException.class, () -> {
+            ORM(dataSource).entity(Owner.class)
+                    .select()
+                    .append(RAW."WHERE (\{ORM(dataSource).query(RAW."SELECT 1")})")
+                    .getResultList();
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+    }
+
+    @Test
+    public void testWherePredicateSubqueryParameters() {
+        String expectedSql = """
+            SELECT _o.id, _o.first_name, _o.last_name, _o.address, _o.city, _o.telephone, _o.version
+            FROM owner _o
+            WHERE id = ? AND (EXISTS (SELECT _o1.id, _o1.first_name, _o1.last_name, _o1.address, _o1.city, _o1.telephone, _o1.version
+            FROM owner _o1
+            WHERE id = ?)) AND (3 = ?)""";
+        try (var _ = SqlInterceptor.intercept(sql -> {
+            assertEquals(expectedSql, sql.statement());
+            assertTrue(sql.parameters().get(0) instanceof PositionalParameter(int position, Object dbValue)
+                    && position == 1 && Integer.valueOf(1).equals(dbValue));
+            assertTrue(sql.parameters().get(1) instanceof PositionalParameter(int position, Object dbValue)
+                    && position == 2 && Integer.valueOf(2).equals(dbValue));
+            assertTrue(sql.parameters().get(2) instanceof PositionalParameter(int position, Object dbValue)
+                    && position == 3 && Integer.valueOf(3).equals(dbValue));
+        })) {
+            var orm = ORM(dataSource);
+            orm.entity(Owner.class)
+                    .select()
+                    .wherePredicate(it -> it.expression(RAW."id = \{1}")
+                            .and(it.expression(RAW."EXISTS (\{it.subquery(Owner.class).where(RAW."id = \{2}")})"))
+                            .and(it.expression(RAW."3 = \{3}"))
+                    )
+                    .getResultList();
+        }
+    }
+
+    @Test
+    public void testWhereAppendQueryBuilderParameters() {
+        String expectedSql = """
+            SELECT _o.id, _o.first_name, _o.last_name, _o.address, _o.city, _o.telephone, _o.version
+            FROM owner _o
+            WHERE id = ?
+            AND EXISTS (SELECT _o1.id, _o1.first_name, _o1.last_name, _o1.address, _o1.city, _o1.telephone, _o1.version
+            FROM owner _o1
+            WHERE id = ?)
+            AND 3 = ?""";
+        try (var _ = SqlInterceptor.intercept(sql -> {
+            assertEquals(expectedSql, sql.statement());
+            assertTrue(sql.parameters().get(0) instanceof PositionalParameter(int position, Object dbValue)
+                    && position == 1 && Integer.valueOf(1).equals(dbValue));
+            assertTrue(sql.parameters().get(1) instanceof PositionalParameter(int position, Object dbValue)
+                    && position == 2 && Integer.valueOf(2).equals(dbValue));
+            assertTrue(sql.parameters().get(2) instanceof PositionalParameter(int position, Object dbValue)
+                    && position == 3 && Integer.valueOf(3).equals(dbValue));
+        })) {
+            var orm = ORM(dataSource);
+            orm.entity(Owner.class)
+                    .select()
+                    .append(RAW."WHERE id = \{1}")
+                    .append(RAW."AND EXISTS (\{orm.subquery(Owner.class).where(RAW."id = \{2}")})")
+                    .append(RAW."AND 3 = \{3}")
+                    .getResultList();
+        }
     }
 }

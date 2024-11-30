@@ -20,14 +20,14 @@ import st.orm.repository.Model;
 import st.orm.repository.Projection;
 import st.orm.repository.ProjectionRepository;
 import st.orm.spi.Orderable.AfterAny;
-import st.orm.template.ORMRepositoryTemplate;
+import st.orm.template.ORMTemplate;
 
 @AfterAny
 public class DefaultProjectionRepositoryProviderImpl implements ProjectionRepositoryProvider {
 
     @Override
     public <ID, P extends Record & Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(
-            @Nonnull ORMRepositoryTemplate orm,
+            @Nonnull ORMTemplate orm,
             @Nonnull Model<P, ID> model) {
         return new ProjectionRepositoryImpl<>(orm, model);
     }

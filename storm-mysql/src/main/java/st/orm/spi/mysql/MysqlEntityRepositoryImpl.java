@@ -26,7 +26,7 @@ import st.orm.repository.Entity;
 import st.orm.repository.Model;
 import st.orm.BatchCallback;
 import st.orm.spi.EntityRepositoryImpl;
-import st.orm.template.ORMRepositoryTemplate;
+import st.orm.template.ORMTemplate;
 import st.orm.template.impl.LazySupplier;
 
 import java.util.ArrayList;
@@ -47,7 +47,7 @@ import static st.orm.template.QueryBuilder.slice;
  */
 public class MysqlEntityRepositoryImpl<E extends Record & Entity<ID>, ID> extends EntityRepositoryImpl<E, ID> {
 
-    public MysqlEntityRepositoryImpl(@Nonnull ORMRepositoryTemplate orm, @Nonnull Model<E, ID> model) {
+    public MysqlEntityRepositoryImpl(@Nonnull ORMTemplate orm, @Nonnull Model<E, ID> model) {
         super(orm, model);
     }
 

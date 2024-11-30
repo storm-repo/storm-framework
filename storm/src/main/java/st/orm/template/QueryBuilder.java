@@ -165,7 +165,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param <R> the type of the result.
      * @param <ID> the type of the primary key.
      */
-    interface WhereBuilder<T extends Record, R, ID> {
+    interface WhereBuilder<T extends Record, R, ID> extends SubqueryTemplate {
 
         /**
          * A predicate that always evaluates to true.
@@ -188,6 +188,32 @@ public interface QueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          */
         PredicateBuilder<T, R, ID> expression(@Nonnull StringTemplate template);
+
+        /**
+         * Adds an <code>EXISTS</code> condition to the WHERE clause using the specified subquery.
+         *
+         * <p>This method appends an <code>EXISTS</code> clause to the current query's WHERE condition.
+         * It checks whether the provided subquery returns any rows, allowing you to filter results based
+         * on the existence of related data. This is particularly useful for constructing queries that need
+         * to verify the presence of certain records in a related table or subquery.
+         *
+         * @param subquery the subquery to check for existence.
+         * @return the updated {@link PredicateBuilder} with the EXISTS condition applied.
+         */
+        PredicateBuilder<T, R, ID> exists(@Nonnull QueryBuilder<?, ?, ?> subquery);
+
+        /**
+         * Adds an <code>NOT EXISTS</code> condition to the WHERE clause using the specified subquery.
+         *
+         * <p>This method appends an <code>NOT EXISTS</code> clause to the current query's WHERE condition.
+         * It checks whether the provided subquery returns any rows, allowing you to filter results based
+         * on the existence of related data. This is particularly useful for constructing queries that need
+         * to verify the absence of certain records in a related table or subquery.
+         *
+         * @param subquery the subquery to check for existence.
+         * @return the updated {@link PredicateBuilder} with the NOT EXISTS condition applied.
+         */
+        PredicateBuilder<T, R, ID> notExists(@Nonnull QueryBuilder<?, ?, ?> subquery);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified object. The object can be the primary

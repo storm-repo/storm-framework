@@ -19,7 +19,7 @@ import jakarta.annotation.Nonnull;
 import st.orm.repository.Model;
 import st.orm.repository.Projection;
 import st.orm.repository.ProjectionRepository;
-import st.orm.template.ORMRepositoryTemplate;
+import st.orm.template.ORMTemplate;
 
 /**
  */
@@ -27,7 +27,7 @@ public final class ProjectionRepositoryImpl<P extends Record & Projection<ID>, I
         extends BaseRepositoryImpl<P, ID>
         implements ProjectionRepository<P, ID> {
 
-    public ProjectionRepositoryImpl(@Nonnull ORMRepositoryTemplate orm, @Nonnull Model<P, ID> model) {
+    public ProjectionRepositoryImpl(@Nonnull ORMTemplate orm, @Nonnull Model<P, ID> model) {
         super(orm, model);
     }
 }

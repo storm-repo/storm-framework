@@ -23,7 +23,7 @@ import st.orm.PersistenceException;
 import st.orm.repository.Column;
 import st.orm.repository.Model;
 import st.orm.repository.Repository;
-import st.orm.template.ORMRepositoryTemplate;
+import st.orm.template.ORMTemplate;
 import st.orm.template.QueryBuilder;
 import st.orm.template.impl.QueryBuilderImpl;
 
@@ -41,11 +41,11 @@ import static st.orm.template.QueryBuilder.slice;
  */
 abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
 
-    protected final ORMRepositoryTemplate orm;
+    protected final ORMTemplate orm;
     protected final Model<E, ID> model;
     protected final int defaultSliceSize;
 
-    public BaseRepositoryImpl(@Nonnull ORMRepositoryTemplate orm, @Nonnull Model<E, ID> model) {
+    public BaseRepositoryImpl(@Nonnull ORMTemplate orm, @Nonnull Model<E, ID> model) {
         this.orm = requireNonNull(orm);
         this.model = requireNonNull(model);
         this.defaultSliceSize = model.columns().stream().filter(Column::primaryKey).count() > 1
@@ -63,7 +63,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @return the ORM template.
      */
     @Override
-    public ORMRepositoryTemplate orm() {
+    public ORMTemplate orm() {
         return orm;
     }
 

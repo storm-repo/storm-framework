@@ -313,7 +313,7 @@ public interface OwnerRepository extends EntityRepository<Owner> {
 
 === Spring Framework Integration
 
-Spring Framework integration is straightforward. The following example demonstrates how to configure the `ORMRepositoryTemplate` bean using a `DataSource`.
+Spring Framework integration is straightforward. The following example demonstrates how to configure the `ORMTemplate` bean using a `DataSource`.
 
 [source,java,indent=0]
 ----

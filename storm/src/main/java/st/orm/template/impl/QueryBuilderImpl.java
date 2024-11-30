@@ -4,9 +4,9 @@ import jakarta.annotation.Nonnull;
 import st.orm.PersistenceException;
 import st.orm.Query;
 import st.orm.template.JoinType;
-import st.orm.template.ORMTemplate;
 import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
+import st.orm.template.QueryTemplate;
 import st.orm.template.impl.Elements.ObjectExpression;
 import st.orm.template.impl.Elements.TableSource;
 import st.orm.template.impl.Elements.TableTarget;
@@ -32,8 +32,8 @@ import static st.orm.template.JoinType.right;
 import static st.orm.template.Operator.EQUALS;
 import static st.orm.template.Operator.IN;
 
-public final class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder<T, R, ID> {
-    private final ORMTemplate orm;
+public final class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder<T, R, ID>, Templatable {
+    private final QueryTemplate orm;
     private final StringTemplate selectTemplate;
     private final Class<T> fromType;
     private final Class<R> selectType;
@@ -41,27 +41,37 @@ public final class QueryBuilderImpl<T extends Record, R, ID> implements QueryBui
     private final List<Join> join;
     private final List<Where> where;
     private final List<StringTemplate> templates;
+    private final boolean subquery;
 
-    public QueryBuilderImpl(@Nonnull ORMTemplate orm, @Nonnull Class<T> fromType, @Nonnull Class<R> selectType) {
+    public QueryBuilderImpl(@Nonnull QueryTemplate orm, @Nonnull Class<T> fromType, @Nonnull Class<R> selectType) {
         //noinspection unchecked
-        this(orm, fromType, selectType, RAW."\{select((Class<? extends Record>) selectType)}");
+        this(orm, fromType, selectType, RAW."\{select((Class<? extends Record>) selectType)}", false);
     }
 
-    public QueryBuilderImpl(@Nonnull ORMTemplate orm,
+    public QueryBuilderImpl(@Nonnull QueryTemplate orm,
                             @Nonnull Class<T> fromType,
                             @Nonnull Class<R> selectType,
                             @Nonnull StringTemplate selectTemplate) {
-        this(orm, fromType, selectType, false, List.of(), List.of(), selectTemplate, List.of());
+        this(orm, fromType, selectType, false, List.of(), List.of(), selectTemplate, List.of(), false);
     }
 
-    private QueryBuilderImpl(@Nonnull ORMTemplate orm,
+    public QueryBuilderImpl(@Nonnull QueryTemplate orm,
+                            @Nonnull Class<T> fromType,
+                            @Nonnull Class<R> selectType,
+                            @Nonnull StringTemplate selectTemplate,
+                            boolean subquery) {
+        this(orm, fromType, selectType, false, List.of(), List.of(), selectTemplate, List.of(), subquery);
+    }
+
+    private QueryBuilderImpl(@Nonnull QueryTemplate orm,
                              @Nonnull Class<T> fromType,
                              @Nonnull Class<R> selectType,
                              boolean distinct,
                              @Nonnull List<Join> join,
                              @Nonnull List<Where> where,
                              @Nonnull StringTemplate selectTemplate,
-                             @Nonnull List<StringTemplate> templates) {
+                             @Nonnull List<StringTemplate> templates,
+                             boolean subquery) {
         this.orm = orm;
         this.fromType = fromType;
         this.selectType = selectType;
@@ -70,6 +80,7 @@ public final class QueryBuilderImpl<T extends Record, R, ID> implements QueryBui
         this.where = List.copyOf(where);
         this.selectTemplate = selectTemplate;
         this.templates = List.copyOf(templates);
+        this.subquery = subquery;
     }
 
     /**
@@ -79,19 +90,19 @@ public final class QueryBuilderImpl<T extends Record, R, ID> implements QueryBui
      */
     @Override
     public QueryBuilder<T, R, ID> distinct() {
-        return new QueryBuilderImpl<>(orm, fromType, selectType, true, join, where, selectTemplate, templates);
+        return new QueryBuilderImpl<>(orm, fromType, selectType, true, join, where, selectTemplate, templates, subquery);
     }
 
     private QueryBuilder<T, R, ID> join(@Nonnull Join join) {
         List<Join> copy = new ArrayList<>(this.join);
         copy.add(join);
-        return new QueryBuilderImpl<>(orm, fromType, selectType, distinct, copy, where, selectTemplate, templates);
+        return new QueryBuilderImpl<>(orm, fromType, selectType, distinct, copy, where, selectTemplate, templates, subquery);
     }
 
     private QueryBuilder<T, R, ID> where(@Nonnull Where where) {
         List<Where> copy = new ArrayList<>(this.where);
         copy.add(where);
-        return new QueryBuilderImpl<>(orm, fromType, selectType, distinct, join, copy, selectTemplate, templates);
+        return new QueryBuilderImpl<>(orm, fromType, selectType, distinct, join, copy, selectTemplate, templates, subquery);
     }
 
     /**
@@ -106,7 +117,7 @@ public final class QueryBuilderImpl<T extends Record, R, ID> implements QueryBui
             template = StringTemplate.combine(RAW."\n", template);
         }
         copy.add(template);
-        return new QueryBuilderImpl<>(orm, fromType, selectType, distinct, join, where, selectTemplate, copy);
+        return new QueryBuilderImpl<>(orm, fromType, selectType, distinct, join, where, selectTemplate, copy, subquery);
     }
 
     /**
@@ -283,12 +294,25 @@ public final class QueryBuilderImpl<T extends Record, R, ID> implements QueryBui
             }
         }
         class WhereBuilderImpl<TX extends Record, RX, IDX> implements WhereBuilder<TX, RX, IDX> {
-            public WhereBuilderImpl() {
+
+            @Override
+            public <F extends Record, S> QueryBuilder<F, S, ?> subquery(@Nonnull Class<F> fromType, @Nonnull Class<S> selectType, @Nonnull StringTemplate template) {
+                return orm.subquery(fromType, selectType, template);
             }
 
             @Override
             public PredicateBuilder<TX, RX, IDX> expression(@Nonnull StringTemplate template) {
                 return new PredicateBuilderImpl<>(template);
+            }
+
+            @Override
+            public PredicateBuilder<TX, RX, IDX> exists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+                return new PredicateBuilderImpl<>(RAW."EXISTS (\{subquery})");
+            }
+
+            @Override
+            public PredicateBuilder<TX, RX, IDX> notExists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+                return new PredicateBuilderImpl<>(RAW."NOT EXISTS (\{subquery})");
             }
 
             @Override
@@ -320,13 +344,8 @@ public final class QueryBuilderImpl<T extends Record, R, ID> implements QueryBui
         return whereBuilder.build(((PredicateBuilderImpl<T, R, ID>) predicate.apply(whereBuilder)).getTemplates());
     }
 
-    /**
-     * Builds the query based on the current state of the query builder.
-     *
-     * @return the constructed query.
-     */
     @Override
-    public Query build() {
+    public StringTemplate asStringTemplate() {
         StringTemplate combined = StringTemplate.combine(StringTemplate.of(STR."SELECT \{distinct ? "DISTINCT " : ""}"), selectTemplate);
         combined = StringTemplate.combine(combined, RAW."\nFROM \{from(fromType, true)}");
         if (!join.isEmpty()) {
@@ -345,7 +364,20 @@ public final class QueryBuilderImpl<T extends Record, R, ID> implements QueryBui
         if (!templates.isEmpty()) {
             combined = StringTemplate.combine(combined, StringTemplate.combine(templates));
         }
-        return orm.query(combined);
+        return combined;
+    }
+
+    /**
+     * Builds the query based on the current state of the query builder.
+     *
+     * @return the constructed query.
+     */
+    @Override
+    public Query build() {
+        if (subquery) {
+            throw new PersistenceException("Cannot build a query from a subquery.");
+        }
+        return orm.query(asStringTemplate());
     }
 
     /**

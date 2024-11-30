@@ -25,9 +25,9 @@ import st.orm.PersistenceException;
 import st.orm.kotlin.KResultCallback;
 import st.orm.kotlin.repository.KModel;
 import st.orm.kotlin.repository.KProjectionRepository;
-import st.orm.kotlin.template.KORMRepositoryTemplate;
+import st.orm.kotlin.template.KORMTemplate;
 import st.orm.kotlin.template.KQueryBuilder;
-import st.orm.kotlin.template.impl.KORMRepositoryTemplateImpl;
+import st.orm.kotlin.template.impl.KORMTemplateImpl;
 import st.orm.kotlin.template.impl.KQueryBuilderImpl;
 import st.orm.repository.Projection;
 import st.orm.repository.ProjectionRepository;
@@ -133,8 +133,8 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      * @return the ORM template.
      */
     @Override
-    public KORMRepositoryTemplate orm() {
-        return new KORMRepositoryTemplateImpl(projectionRepository.orm());
+    public KORMTemplate orm() {
+        return new KORMTemplateImpl(projectionRepository.orm());
     }
 
     /**

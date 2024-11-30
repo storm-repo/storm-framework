@@ -13,19 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.repository;
-
-import st.orm.template.ORMTemplate;
+package st.orm.template.impl;
 
 /**
- * Base interface for all repositories.
+ * The query template is used to construct queries that may be linked to the outer query.
+ *
+ * @since 1.1
  */
-public interface Repository {
+public interface Templatable {
 
     /**
-     * Provides access to the underlying ORM template.
+     * Returns the template for the query.
      *
-     * @return the ORM template.
+     * @return the template.
      */
-    ORMTemplate orm();
+    StringTemplate asStringTemplate();
 }

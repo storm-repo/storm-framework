@@ -19,6 +19,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.BindVars;
 import st.orm.template.Operator;
+import st.orm.template.ResolveScope;
 
 import java.util.function.Function;
 
@@ -113,9 +114,11 @@ public final class Elements {
         }
     }
 
-    public record Alias(@Nonnull Class<? extends Record> table, @Nullable String path) implements Element {
+    public record Alias(@Nonnull Class<? extends Record> table, @Nullable String path, @Nonnull ResolveScope scope) implements Element {
+
         public Alias {
             requireNonNull(table, "table");
+            requireNonNull(scope, "scope");
         }
     }
 
@@ -129,6 +132,8 @@ public final class Elements {
             return name == null ? "?" : STR.":\{name}";
         }
     }
+
+    public record Subquery(@Nonnull StringTemplate template, boolean correlate) implements Element {}
 
     public record Unsafe(@Nonnull String sql) implements Element {
         public Unsafe {
