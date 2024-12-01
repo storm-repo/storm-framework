@@ -59,6 +59,7 @@ import st.orm.template.impl.Elements.Where;
 import st.orm.template.impl.SqlTemplateImpl.BindVarsImpl;
 import st.orm.template.impl.SqlTemplateImpl.Join;
 import st.orm.template.impl.SqlTemplateImpl.Wrapped;
+import st.orm.template.impl.TableMapper.Mapping;
 
 import java.lang.reflect.RecordComponent;
 import java.math.BigInteger;
@@ -1126,7 +1127,7 @@ record ElementProcessor(
                 }
                 return values;
             }
-            TableMapper.Mapping mapping = tableMapper.getMapping(record.getClass(), path);
+            Mapping mapping = tableMapper.getMapping(record.getClass(), path);
             String a = mapping.alias();
             if (mapping.primaryKey()) {
                 for (var component : mapping.components()) {

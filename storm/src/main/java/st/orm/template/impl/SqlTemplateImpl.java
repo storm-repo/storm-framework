@@ -557,11 +557,11 @@ public final class SqlTemplateImpl implements SqlTemplate {
     }
 
     private TableMapper getTableMapper() {
-        return new TableMapperImpl();
+        return new TableMapper();
     }
 
     private AliasMapper getAliasMapper() {
-        return new AliasMapperImpl(tableAliasResolver, tableNameResolver, ElementProcessor.current()
+        return new AliasMapper(tableAliasResolver, tableNameResolver, ElementProcessor.current()
                 .map(ElementProcessor::aliasMapper)
                 .orElse(null));
     }
