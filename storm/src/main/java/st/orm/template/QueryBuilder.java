@@ -241,24 +241,32 @@ public interface QueryBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph. The objects can be the primary key of the table, or a record representing the table, or any field in
-         * the table graph.
+         * graph. When the objects are records representing a table, the `path` acts as a search path to locate the
+         * table within the table graph - meaning it does not need to be an exact match. In other scenarios, where the
+         * objects represent fields (including primary keys), the `path` must be an exact match to the field's location
+         * in the table graph.
          *
-         * @param path the path to the object in the table graph.
+         * @param path the path to the object in the table graph. For record (table) based filters, this is a search
+         *             path to the table.
          * @param operator the operator to use for the comparison.
-         * @param it the objects to match.
+         * @param it the objects to match, which can be primary keys, records representing the table, or fields in the
+         *           table graph.
          * @return the predicate builder.
          */
         PredicateBuilder<T, R, ID> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified object(s) at the specified path in the table
-         * graph. The object(s) can be the primary key of the table, or a record representing the table, or any field in the
-         * table graph.
+         * graph. When the object(s) are records representing a table, the `path` acts as a search path to locate the
+         * table within the table graph — meaning it does not need to be an exact match. In other scenarios, where the
+         * object(s) represent fields (including primary keys), the `path` must be an exact match to the field's
+         * location in the table graph.
          *
-         * @param path the path to the object in the table graph.
+         * @param path the path to the object in the table graph. For record (table) based filters, this is a search
+         *             path to the table.
          * @param operator the operator to use for the comparison.
-         * @param o the object(s) to match.
+         * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
+         *          table graph.
          * @return the predicate builder.
          */
         PredicateBuilder<T, R, ID> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o);
@@ -326,12 +334,16 @@ public interface QueryBuilder<T extends Record, R, ID> {
 
     /**
      * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-     * graph. The objects can be the primary key of the table, or a record representing the table, or any field in the
-     * table graph.
+     * graph. When the objects are records representing a table, the `path` acts as a search path to locate the table
+     * within the table graph — meaning it does not need to be an exact match. In other scenarios, where the objects
+     * represent fields (including primary keys), the `path` must be an exact match to the field's location in the table
+     * graph.
      *
-     * @param path the path to the object in the table graph.
+     * @param path the path to the object in the table graph. For record (table) based filters, this is a search path to
+     *             the table.
      * @param operator the operator to use for the comparison.
-     * @param it the objects to match.
+     * @param it the objects to match, which can be primary keys, records representing the table, or fields in the table
+     *           graph.
      * @return the query builder.
      */
     default QueryBuilder<T, R, ID> where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
@@ -340,12 +352,14 @@ public interface QueryBuilder<T extends Record, R, ID> {
 
     /**
      * Adds a condition to the WHERE clause that matches the specified object(s) at the specified path in the table
-     * graph. The object(s) can be the primary key of the table, or a record representing the table, or any field in the
-     * table graph.
+     * graph. When the object(s) are records representing a table, the `path` acts as a search path to locate the table
+     * within the table graph — meaning it does not need to be an exact match. In other scenarios, where the object(s)
+     * represent fields (including primary keys), the `path` must be an exact match to the field's location in the table
+     * graph.
      *
-     * @param path the path to the object in the table graph.
+     * @param path the path to the object in the table graph. For record (table) based filters, this is a search path to the table.
      * @param operator the operator to use for the comparison.
-     * @param o the object(s) to match.
+     * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the table graph.
      * @return the query builder.
      */
     default QueryBuilder<T, R, ID> where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
