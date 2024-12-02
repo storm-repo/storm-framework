@@ -18,20 +18,15 @@ package st.orm.template;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.BindVars;
-import st.orm.Templates;
 import st.orm.template.impl.BindVarsHandle;
 import st.orm.template.impl.SqlTemplateImpl;
 
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.function.Consumer;
-
-import static st.orm.template.impl.SqlTemplateImpl.CONSUMERS;
 
 /**
  * A template processor for generating SQL queries.
  */
-public interface SqlTemplate extends Templates, StringTemplate.Processor<Sql, SqlTemplateException> {
+public interface SqlTemplate {
 
     sealed interface Parameter {
         Object dbValue();
@@ -89,29 +84,5 @@ public interface SqlTemplate extends Templates, StringTemplate.Processor<Sql, Sq
 
     boolean supportRecords();
 
-    /**
-     * Wrap the given action with a consumer that will be called with the generated SQL. This method is primarily
-     * intended for debugging purposes.
-     */
-    static void aroundInvoke(@Nonnull Runnable action, @Nonnull Consumer<Sql> consumer) {
-        CONSUMERS.get().add(consumer);
-        try {
-            action.run();
-        } finally {
-            CONSUMERS.get().remove(consumer);
-        }
-    }
-
-    /**
-     * Wrap the given action with a consumer that will be called with the generated SQL. This method is primarily
-     * intended for debugging purposes.
-     */
-    static <T> T aroundInvoke(@Nonnull Callable<T> action, @Nonnull Consumer<Sql> consumer) throws Exception {
-        CONSUMERS.get().add(consumer);
-        try {
-            return action.call();
-        } finally {
-            CONSUMERS.get().remove(consumer);
-        }
-    }
+    Sql process(@Nonnull StringTemplate template) throws SqlTemplateException;
 }

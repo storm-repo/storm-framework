@@ -1,14 +1,12 @@
 package st.orm.template;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.NonUniqueResultException;
-import jakarta.persistence.PersistenceException;
+import st.orm.NoResultException;
+import st.orm.NonUniqueResultException;
+import st.orm.PersistenceException;
 import st.orm.PreparedQuery;
 import st.orm.Query;
 import st.orm.ResultCallback;
-import st.orm.template.impl.ResourceStream;
-import st.orm.template.impl.Tripwire;
 
 import java.util.Iterator;
 import java.util.List;
@@ -18,6 +16,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static java.lang.Integer.MAX_VALUE;
+import static java.lang.StringTemplate.RAW;
 import static java.util.Spliterators.spliteratorUnknownSize;
 
 /**
@@ -27,35 +26,13 @@ import static java.util.Spliterators.spliteratorUnknownSize;
  * @param <R> the type of the result.
  * @param <ID> the type of the primary key.
  */
-public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<R>, PersistenceException> {
-
-    // Don't let Builder extend Iterable<R>, because that would disallow us from closing the underlying stream.
+public interface QueryBuilder<T extends Record, R, ID> {
 
     /**
-     * Selects the {@code resultType} for the query.
+     * Marks the current query as a distinct query.
      *
-     * <p>The query will still target the original table specified by {@code T}, but the results will be mapped to the
-     * specified {@code resultType}.</p>
-     *
-     * @param resultType the type of the result.
-     * @param <X> the type of the result.
      * @return the query builder.
      */
-    <X extends Record> QueryBuilder<T, X, ID> select(@Nonnull Class<X> resultType);
-
-    <X> QueryBuilder<T, X, ID> selectTemplate(@Nonnull Class<X> resultType, @Nonnull TemplateFunction function);
-
-    <X> StringTemplate.Processor<QueryBuilder<T, X, ID>, PersistenceException> selectTemplate(@Nonnull Class<X> resultType);
-
-    /**
-     * Returns the number of entities in the database of the entity type supported by this repository.
-     *
-     * @return the total number of entities in the database as a long value.
-     * @throws PersistenceException if the count operation fails due to underlying database issues, such as
-     *                              connectivity.
-     */
-    long count();
-
     QueryBuilder<T, R, ID> distinct();
 
     /**
@@ -65,8 +42,14 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @param <R> the type of the result.
      * @param <ID> the type of the primary key.
      */
-    interface TypedJoinBuilder<T, R, ID> extends JoinBuilder<T, R, ID> {
+    interface TypedJoinBuilder<T extends Record, R, ID> extends JoinBuilder<T, R, ID> {
 
+        /**
+         * Specifies the relation to join on.
+         * 
+         * @param relation the relation to join on.
+         * @return the query builder.
+         */
         QueryBuilder<T, R, ID> on(@Nonnull Class<? extends Record> relation);
     }
 
@@ -77,114 +60,15 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @param <R> the type of the result.
      * @param <ID> the type of the primary key.
      */
-    interface JoinBuilder<T, R, ID> {
+    interface JoinBuilder<T extends Record, R, ID> {
 
         /**
-         * Returns the builder for constructing the ON clause of the join.
-         *
-         * @return the builder for constructing the ON clause of the join.
+         * Specifies the join condition using a custom expression.
+         * 
+         * @param template the condition to join on.
+         * @return the query builder.
          */
-        OnBuilder<T, R, ID> on();
-    }
-
-    /**
-     * A builder for constructing the ON clause of the join.
-     *
-     * @param <T> the type of the table being queried.
-     * @param <R> the type of the result.
-     * @param <ID> the type of the primary key.
-     */
-    interface OnBuilder<T, R, ID> extends StringTemplate.Processor<QueryBuilder<T, R, ID>, PersistenceException> {
-
-        QueryBuilder<T, R, ID> template(@Nonnull TemplateFunction function);
-    }
-
-    /**
-     * A builder for constructing the WHERE clause of the query.
-     *
-     * @param <T> the type of the table being queried.
-     * @param <R> the type of the result.
-     * @param <ID> the type of the primary key.
-     */
-    interface WhereBuilder<T, R, ID> extends StringTemplate.Processor<PredicateBuilder<T, R, ID>, PersistenceException> {
-
-        /**
-         * A predicate that always evaluates to true.
-         */
-        default PredicateBuilder<T, R, ID> TRUE() {
-            return this."TRUE";
-        }
-
-        /**
-         * A predicate that always evaluates to false.
-         */
-        default PredicateBuilder<T, R, ID> FALSE() {
-            return this."FALSE";
-        }
-
-        PredicateBuilder<T, R, ID> template(@Nonnull TemplateFunction function);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified object. The object can be the primary
-         * key of the table, or a record representing the table, or any of the related tables in the table graph.
-         *
-         * <p>If the object type cannot be unambiguously matched, the {@link #filter(String, Operator, Object...)} method can be used to
-         * specify the path to the object in the table graph.</p>
-         *
-         * @param o the object to match.
-         * @return the predicate builder.
-         */
-        PredicateBuilder<T, R, ID> filter(@Nonnull Object o);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified objects. The objects can be the primary key
-         * of the table, or a record representing the table, or any of the related tables in the table graph.
-         *
-         * <p>If the object type cannot be unambiguously matched, the {@link #filter(String, Operator, Iterable)} method can be used to
-         * specify the path to the object in the table graph.</p>
-         *
-         * @param it the objects to match.
-         * @return the predicate builder.
-         */
-        PredicateBuilder<T, R, ID> filter(@Nonnull Iterable<?> it);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph. The objects can be the primary key of the table, or a record representing the table, or any field in
-         * the table graph.
-         *
-         * @param path the path to the object in the table graph.
-         * @param operator the operator to use for the comparison.
-         * @param it the objects to match.
-         * @return the predicate builder.
-         */
-        PredicateBuilder<T, R, ID> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified object(s) at the specified path in the table
-         * graph. The object(s) can be the primary key of the table, or a record representing the table, or any field in the
-         * table graph.
-         *
-         * @param path the path to the object in the table graph.
-         * @param operator the operator to use for the comparison.
-         * @param o the object(s) to match.
-         * @return the predicate builder.
-         */
-        PredicateBuilder<T, R, ID> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o);
-    }
-
-    /**
-     * A builder for constructing the predicates of the WHERE clause of the query.
-     *
-     * @param <T> the type of the table being queried.
-     * @param <R> the type of the result.
-     * @param <ID> the type of the primary key.
-     */
-    interface PredicateBuilder<T, R, ID> {
-
-        PredicateBuilder<T, R, ID> and(@Nonnull PredicateBuilder<T, R, ID> predicate);
-
-        PredicateBuilder<T, R, ID> or(@Nonnull PredicateBuilder<T, R, ID> predicate);
+        QueryBuilder<T, R, ID> on(@Nonnull StringTemplate template);
     }
 
     /**
@@ -229,17 +113,196 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      */
     TypedJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull Class<? extends Record> relation, @Nonnull String alias);
 
-    StringTemplate.Processor<QueryBuilder<T, R, ID>, PersistenceException> crossJoin();
+    /**
+     * Adds a cross join to the query.
+     *
+     * @param template the condition to join.
+     * @return the query builder.
+     */
+    QueryBuilder<T, R, ID> crossJoin(@Nonnull StringTemplate template);
 
-    StringTemplate.Processor<JoinBuilder<T, R, ID>, PersistenceException> innerJoin(@Nonnull String alias);
+    /**
+     * Adds an inner join to the query.
+     *
+     * @param template the condition to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
+    JoinBuilder<T, R, ID> innerJoin(@Nonnull StringTemplate template, @Nonnull String alias);
 
-    StringTemplate.Processor<JoinBuilder<T, R, ID>, PersistenceException> leftJoin(@Nonnull String alias);
+    /**
+     * Adds a left join to the query.
+     *
+     * @param template the condition to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
+    JoinBuilder<T, R, ID> leftJoin(@Nonnull StringTemplate template, @Nonnull String alias);
 
-    StringTemplate.Processor<JoinBuilder<T, R, ID>, PersistenceException> rightJoin(@Nonnull String alias);
+    /**
+     * Adds a right join to the query.
+     *
+     * @param template the condition to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
+    JoinBuilder<T, R, ID> rightJoin(@Nonnull StringTemplate template, @Nonnull String alias);
 
-    StringTemplate.Processor<JoinBuilder<T, R, ID>, PersistenceException> join(@Nonnull JoinType type, @Nonnull String alias);
+    /**
+     * Adds a join of the specified type to the query.
+     *
+     * @param type the join type.
+     * @param template the condition to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
+    JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull StringTemplate template, @Nonnull String alias);
 
-    JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull String alias, @Nonnull TemplateFunction function);
+    /**
+     * A builder for constructing the WHERE clause of the query.
+     *
+     * @param <T> the type of the table being queried.
+     * @param <R> the type of the result.
+     * @param <ID> the type of the primary key.
+     */
+    interface WhereBuilder<T extends Record, R, ID> extends SubqueryTemplate {
+
+        /**
+         * A predicate that always evaluates to true.
+         */
+        default PredicateBuilder<T, R, ID> TRUE() {
+            return expression(RAW."TRUE");
+        }
+
+        /**
+         * A predicate that always evaluates to false.
+         */
+        default PredicateBuilder<T, R, ID> FALSE() {
+            return expression(RAW."FALSE");
+        }
+
+        /**
+         * Appends a custom expression to the WHERE clause.
+         *
+         * @param template the expression to add.
+         * @return the predicate builder.
+         */
+        PredicateBuilder<T, R, ID> expression(@Nonnull StringTemplate template);
+
+        /**
+         * Adds an <code>EXISTS</code> condition to the WHERE clause using the specified subquery.
+         *
+         * <p>This method appends an <code>EXISTS</code> clause to the current query's WHERE condition.
+         * It checks whether the provided subquery returns any rows, allowing you to filter results based
+         * on the existence of related data. This is particularly useful for constructing queries that need
+         * to verify the presence of certain records in a related table or subquery.
+         *
+         * @param subquery the subquery to check for existence.
+         * @return the updated {@link PredicateBuilder} with the EXISTS condition applied.
+         */
+        PredicateBuilder<T, R, ID> exists(@Nonnull QueryBuilder<?, ?, ?> subquery);
+
+        /**
+         * Adds an <code>NOT EXISTS</code> condition to the WHERE clause using the specified subquery.
+         *
+         * <p>This method appends an <code>NOT EXISTS</code> clause to the current query's WHERE condition.
+         * It checks whether the provided subquery returns any rows, allowing you to filter results based
+         * on the existence of related data. This is particularly useful for constructing queries that need
+         * to verify the absence of certain records in a related table or subquery.
+         *
+         * @param subquery the subquery to check for existence.
+         * @return the updated {@link PredicateBuilder} with the NOT EXISTS condition applied.
+         */
+        PredicateBuilder<T, R, ID> notExists(@Nonnull QueryBuilder<?, ?, ?> subquery);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified object. The object can be the primary
+         * key of the table, or a record representing the table, or any of the related tables in the table graph.
+         *
+         * <p>If the object type cannot be unambiguously matched, the {@link #filter(String, Operator, Object...)}
+         * method can be used to specify the path to the object in the table graph.</p>
+         *
+         * @param o the object to match.
+         * @return the predicate builder.
+         */
+        PredicateBuilder<T, R, ID> filter(@Nonnull Object o);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified objects. The objects can be the primary key
+         * of the table, or a record representing the table, or any of the related tables in the table graph.
+         *
+         * <p>If the object type cannot be unambiguously matched, the {@link #filter(String, Operator, Iterable)} method
+         * can be used to specify the path to the object in the table graph.</p>
+         *
+         * @param it the objects to match.
+         * @return the predicate builder.
+         */
+        PredicateBuilder<T, R, ID> filter(@Nonnull Iterable<?> it);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
+         * graph. When the objects are records representing a table, the `path` acts as a search path to locate the
+         * table within the table graph - meaning it does not need to be an exact match. In other scenarios, where the
+         * objects represent fields (including primary keys), the `path` must be an exact match to the field's location
+         * in the table graph.
+         *
+         * @param path the path to the object in the table graph. For record (table) based filters, this is a search
+         *             path to the table.
+         * @param operator the operator to use for the comparison.
+         * @param it the objects to match, which can be primary keys, records representing the table, or fields in the
+         *           table graph.
+         * @return the predicate builder.
+         */
+        PredicateBuilder<T, R, ID> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified object(s) at the specified path in the table
+         * graph. When the object(s) are records representing a table, the `path` acts as a search path to locate the
+         * table within the table graph — meaning it does not need to be an exact match. In other scenarios, where the
+         * object(s) represent fields (including primary keys), the `path` must be an exact match to the field's
+         * location in the table graph.
+         *
+         * @param path the path to the object in the table graph. For record (table) based filters, this is a search
+         *             path to the table.
+         * @param operator the operator to use for the comparison.
+         * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
+         *          table graph.
+         * @return the predicate builder.
+         */
+        PredicateBuilder<T, R, ID> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o);
+    }
+
+    /**
+     * A builder for constructing the predicates of the WHERE clause of the query.
+     *
+     * @param <T> the type of the table being queried.
+     * @param <R> the type of the result.
+     * @param <ID> the type of the primary key.
+     */
+    interface PredicateBuilder<T extends Record, R, ID> {
+
+        /**
+         * Adds a predicate to the WHERE clause using an AND condition.
+         *
+         * <p>This method combines the specified predicate with existing predicates using an AND operation, ensuring
+         * that all added conditions must be true.</p>
+         *
+         * @param predicate the predicate to add.
+         * @return the predicate builder.
+         */
+        PredicateBuilder<T, R, ID> and(@Nonnull PredicateBuilder<T, R, ID> predicate);
+
+        /**
+         * Adds a predicate to the WHERE clause using an OR condition.
+         *
+         * <p>This method combines the specified predicate with existing predicates using an OR operation, allowing any
+         * of the added conditions to be true.</p>
+         *
+         * @param predicate the predicate to add.
+         * @return the predicate builder.
+         */
+        PredicateBuilder<T, R, ID> or(@Nonnull PredicateBuilder<T, R, ID> predicate);
+    }
 
     /**
      * Adds a condition to the WHERE clause that matches the specified object(s). The object(s) can be the primary key
@@ -271,12 +334,16 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
 
     /**
      * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-     * graph. The objects can be the primary key of the table, or a record representing the table, or any field in the
-     * table graph.
+     * graph. When the objects are records representing a table, the `path` acts as a search path to locate the table
+     * within the table graph — meaning it does not need to be an exact match. In other scenarios, where the objects
+     * represent fields (including primary keys), the `path` must be an exact match to the field's location in the table
+     * graph.
      *
-     * @param path the path to the object in the table graph.
+     * @param path the path to the object in the table graph. For record (table) based filters, this is a search path to
+     *             the table.
      * @param operator the operator to use for the comparison.
-     * @param it the objects to match.
+     * @param it the objects to match, which can be primary keys, records representing the table, or fields in the table
+     *           graph.
      * @return the query builder.
      */
     default QueryBuilder<T, R, ID> where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
@@ -285,34 +352,45 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
 
     /**
      * Adds a condition to the WHERE clause that matches the specified object(s) at the specified path in the table
-     * graph. The object(s) can be the primary key of the table, or a record representing the table, or any field in the
-     * table graph.
+     * graph. When the object(s) are records representing a table, the `path` acts as a search path to locate the table
+     * within the table graph — meaning it does not need to be an exact match. In other scenarios, where the object(s)
+     * represent fields (including primary keys), the `path` must be an exact match to the field's location in the table
+     * graph.
      *
-     * @param path the path to the object in the table graph.
+     * @param path the path to the object in the table graph. For record (table) based filters, this is a search path to the table.
      * @param operator the operator to use for the comparison.
-     * @param o the object(s) to match.
+     * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the table graph.
      * @return the query builder.
      */
     default QueryBuilder<T, R, ID> where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
         return where(predicate -> predicate.filter(path, operator, o));
     }
 
-    QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<T, R, ID>> expression);
-
     /**
-     * Appends the query with the string provided by the specified template {@code function}.
+     * Adds a WHERE clause to the query for the specified expression.
      *
-     * @param function function that provides the string to append to the query using String interpolation.
+     * @param template the expression.
      * @return the query builder.
      */
-    QueryBuilder<T, R, ID> withTemplate(@Nonnull TemplateFunction function);
+    default QueryBuilder<T, R, ID> where(@Nonnull StringTemplate template) {
+        return where(it -> it.expression(template));
+    }
+
+    /**
+     * Adds a WHERE clause to the query using a {@link WhereBuilder}.
+     *
+     * @param predicate the predicate to add.
+     * @return the query builder.
+     */
+    QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<?, ?, ?>> predicate);
 
     /**
      * Returns a processor that can be used to append the query with a string template.
      *
+     * @param template the string template to append.
      * @return a processor that can be used to append the query with a string template.
      */
-    StringTemplate.Processor<QueryBuilder<T, R, ID>, PersistenceException> withTemplate();
+    QueryBuilder<T, R, ID> append(@Nonnull StringTemplate template);
 
     /**
      * Builds the query based on the current state of the query builder.
@@ -327,6 +405,9 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * <p>Unlike regular queries, which are constructed lazily, prepared queries are constructed eagerly.
      * Prepared queries allow the use of bind variables and enable reading generated keys after row insertion.</p>
      *
+     * <p>Note that the prepared query must be closed after usage to prevent resource leaks. As the prepared query is
+     * AutoCloseable, it is recommended to use it within a try-with-resources block.</p>
+     *
      * @return the prepared query.
      * @throws PersistenceException if the query preparation fails.
      */
@@ -334,41 +415,60 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
         return build().prepare();
     }
 
-    /**
-     * Appends the query with the string provided by the specified template {@code function}, executes the query, and
-     * returns a stream of results.
-     *
-     * @param function function that provides the string to append to the query using String interpolation.
-     * @return a stream of results.
-     * @throws PersistenceException if the query fails.
-     */
-    Stream<R> stream(@Nonnull TemplateFunction function);
+    //
+    // Execution methods.
+    //
 
     /**
      * Executes the query and returns a stream of results.
      *
-     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
-     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
-     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
-     * stream is properly closed to release the resources.</p>
+     * <p>The resulting stream is lazily loaded, meaning that the records are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of records.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only be invoked 
+     * when the query is intended to run. Since the stream holds resources open while in use, it must be closed after 
+     * usage to prevent resource leaks. As the stream is AutoCloseable, it is recommended to use it within a 
+     * try-with-resources block.</p>
      *
      * @return a stream of results.
-     * @throws PersistenceException if the query fails.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     *                              connectivity.
      */
-    Stream<R> stream();
+    Stream<R> getResultStream();
 
     /**
-     * Executes the query and returns a stream of results.
+     * Executes the query and returns a stream of using the specified callback. This method retrieves the records and
+     * applies the provided callback to process them, returning the result produced by the callback.
      *
-     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
-     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
-     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
-     * stream is properly closed to release the resources.</p>
+     * <p>This method ensures efficient handling of large data sets by loading entities only as needed.
+     * It also manages lifecycle of the callback stream, automatically closing the stream after processing to prevent
+     * resource leaks.</p>
      *
-     * @return a stream of results.
-     * @throws PersistenceException if the query fails.
+     * @param callback a {@link ResultCallback} defining how to process the stream of records and produce a result.
+     * @param <X> the type of result produced by the callback after processing the entities.
+     * @return the result produced by the callback's processing of the record stream.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     * connectivity.
      */
-    <X> X result(@Nonnull ResultCallback<R, X> callback);
+    default <X> X getResult(@Nonnull ResultCallback<R, X> callback) {
+        try (Stream<R> stream = getResultStream()) {
+            return callback.process(stream);
+        }
+    }
+
+    /**
+     * Returns the number of results of this query.
+     *
+     * @return the total number of results of this query as a long value.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    default long getResultCount() {
+        try (var stream = getResultStream()) {
+            return stream.count();
+        }
+    }
 
     /**
      * Executes the query and returns a list of results.
@@ -376,8 +476,10 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @return the list of results.
      * @throws PersistenceException if the query fails.
      */
-    default List<R> toList() {
-        return stream().toList();
+    default List<R> getResultList() {
+        try (var stream = getResultStream()) {
+            return stream.toList();
+        }
     }
 
     /**
@@ -388,11 +490,13 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the query fails.
      */
-    default R singleResult() {
-        return stream()
-                .reduce((_, _) -> {
-                    throw new NonUniqueResultException("Expected single result, but found more than one.");
-                }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
+    default R getSingleResult() {
+        try (var stream = getResultStream()) {
+            return stream
+                    .reduce((_, _) -> {
+                        throw new NonUniqueResultException("Expected single result, but found more than one.");
+                    }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
+        }
     }
 
     /**
@@ -402,11 +506,12 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the query fails.
      */
-    default Optional<R> optionalResult() {
-        return stream()
-                .reduce((_, _) -> {
-                    throw new NonUniqueResultException("Expected single result, but found more than one.");
-                });
+    default Optional<R> getOptionalResult() {
+        try (var stream = getResultStream()) {
+            return stream.reduce((_, _) -> {
+                throw new NonUniqueResultException("Expected single result, but found more than one.");
+            });
+        }
     }
 
     /**
@@ -420,7 +525,8 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
      * @param <Y> the type of elements in the result stream.
      */
     static <X, Y> Stream<Y> slice(@Nonnull Stream<X> stream, int batchSize, @Nonnull Function<List<X>, Stream<Y>> function) {
-        return slice(stream, batchSize).flatMap(function);
+        return slice(stream, batchSize)
+                .flatMap(function); // Note that the flatMap operation closes the stream passed to it.
     }
 
     /**
@@ -443,7 +549,7 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
             return Stream.of(stream.toList());
         }
         // We're lifting the resource closing logic from the input stream to the output stream.
-        final Iterator<X> iterator = Tripwire.ignore(stream::iterator);
+        final Iterator<X> iterator = stream.iterator();
         var it = new Iterator<List<X>>() {
             @Override
             public boolean hasNext() {
@@ -472,6 +578,7 @@ public interface QueryBuilder<T, R, ID> extends StringTemplate.Processor<Stream<
                 return StreamSupport.stream(spliteratorUnknownSize(sliceIterator, 0), false).toList();
             }
         };
-        return ResourceStream.wrap(StreamSupport.stream(spliteratorUnknownSize(it, 0), false).onClose(stream::close));
+        return StreamSupport.stream(spliteratorUnknownSize(it, 0), false)
+                .onClose(stream::close);
     }
 }

@@ -16,7 +16,7 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.PersistenceException;
+import st.orm.PersistenceException;
 
 import java.util.Optional;
 

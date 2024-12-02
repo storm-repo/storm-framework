@@ -2,10 +2,9 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import jakarta.persistence.PersistenceException;
+import st.orm.PersistenceException;
 import st.orm.PreparedQuery;
 import st.orm.Query;
-import st.orm.ResultCallback;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -20,7 +19,6 @@ import static java.lang.Integer.toHexString;
 import static java.lang.System.identityHashCode;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Stream.generate;
-import static st.orm.template.impl.ResourceStream.lazy;
 import static st.orm.template.impl.ObjectMapperFactory.getObjectMapper;
 
 class QueryImpl implements Query {
@@ -39,9 +37,21 @@ class QueryImpl implements Query {
         this.versionAware = versionAware;
     }
 
+    /**
+     * Prepares the query for execution.
+     *
+     * <p>Queries are normally constructed in a lazy fashion, unlike prepared queries which are constructed eagerly.
+     * Prepared queries allow the use of bind variables and enable reading generated keys after row insertion.</p>
+     *
+     * <p>Note that the prepared query must be closed after usage to prevent resource leaks. As the prepared query is
+     * AutoCloseable, it is recommended to use it within a try-with-resources block.</p>
+     *
+     * @return the prepared query.
+     * @throws PersistenceException if the query preparation fails.
+     */
     @Override
     public PreparedQuery prepare() {
-        return new PreparedQueryImpl(lazyFactory, statement.get(), bindVarsHandle, versionAware);
+        return MonitoredResource.wrap(new PreparedQueryImpl(lazyFactory, statement.get(), bindVarsHandle, versionAware));
     }
 
     private PreparedStatement getStatement() {
@@ -58,94 +68,46 @@ class QueryImpl implements Query {
      * <p>Each element in the stream represents a row in the result, where the columns of the row corresponds to the
      * order of values in the row array.</p>
      *
-     * @return the result stream.
-     * @throws PersistenceException if the query fails.
+     * <p>The resulting stream is lazily loaded, meaning that the records are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of records.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only be invoked
+     * when the query is intended to run. Since the stream holds resources open while in use, it must be closed after
+     * usage to prevent resource leaks. As the stream is AutoCloseable, it is recommended to use it within a
+     * try-with-resources block.</p>
+     *
+     * @return a stream of results.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     *                              connectivity.
      */
     @Override
     public Stream<Object[]> getResultStream() {
-        return lazy(() -> {
-            try {
-                PreparedStatement statement = getStatement();
-                boolean close = true;
-                try {
-                    ResultSet resultSet = statement.executeQuery();
-                    try {
-                        int columnCount = resultSet.getMetaData().getColumnCount();
-                        close = false;
-                        return generate(() -> readNext(resultSet, columnCount))
-                                .takeWhile(Objects::nonNull)
-                                .onClose(() -> close(resultSet));
-                    } finally {
-                        if (close) {
-                            resultSet.close();
-                        }
-                    }
-                } finally {
-                    if (close && closeStatement()) {
-                        statement.close();
-                    }
-                }
-            } catch (SQLException e) {
-                throw new PersistenceException(e);
-            }
-        });
-    }
-
-    /**
-     * Execute a SELECT query and return the resulting rows as a stream of row instances.
-     *
-     * <p>Each element in the stream represents a row in the result, where the columns of the row corresponds to the
-     * order of values in the row array.</p>
-     *
-     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
-     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
-     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
-     * stream is properly closed to release the resources.</p>
-     *
-     * @return the result stream.
-     * @throws PersistenceException if the query fails.
-     */
-    @Override
-    public <R> R getResult(@Nonnull ResultCallback<Object[], R> callback) {
-        try (var stream = Tripwire.autoClose(this::getResultStream)) {
-            return callback.process(stream);
-        }
-    }
-
-    /**
-     * Execute a SELECT query and return the resulting rows as a stream of row instances.
-     *
-     * <p>Each element in the stream represents a row in the result, where the columns of the row are mapped to the
-     * constructor arguments of the specified {@code type}.</p>
-     *
-     * @param type the type of the result.
-     * @return the result stream.
-     * @throws PersistenceException if the query fails.
-     */
-    @Override
-    public <T> Stream<T> getResultStream(@Nonnull Class<T> type) {
-        return lazy(() -> {
+        try {
             PreparedStatement statement = getStatement();
             boolean close = true;
             try {
+                ResultSet resultSet = statement.executeQuery();
                 try {
-                    ResultSet resultSet = statement.executeQuery();
                     int columnCount = resultSet.getMetaData().getColumnCount();
-                    var mapper = getObjectMapper(columnCount, type, lazyFactory)
-                            .orElseThrow(() -> new PersistenceException(STR."No suitable constructor found for \{type}."));
                     close = false;
-                    return generate(() -> readNext(resultSet, columnCount, mapper))
-                            .takeWhile(Objects::nonNull)
-                            .onClose(() -> close(resultSet));
+                    return MonitoredResource.wrap(
+                            generate(() -> readNext(resultSet, columnCount))
+                                    .takeWhile(Objects::nonNull)
+                                    .onClose(() -> close(resultSet, statement)));
                 } finally {
-                    if (close && closeStatement()) {
-                        statement.close();
+                    if (close) {
+                        resultSet.close();
                     }
                 }
-            } catch (SQLException e) {
-                throw new PersistenceException(e);
+            } finally {
+                if (close && closeStatement()) {
+                    statement.close();
+                }
             }
-        });
+        } catch (SQLException e) {
+            throw new PersistenceException(e);
+        }
     }
 
     /**
@@ -154,29 +116,51 @@ class QueryImpl implements Query {
      * <p>Each element in the stream represents a row in the result, where the columns of the row are mapped to the
      * constructor arguments of the specified {@code type}.</p>
      *
-     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
-     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
-     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
-     * stream is properly closed to release the resources.</p>
+     * <p>The resulting stream is lazily loaded, meaning that the records are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of records.</p>
      *
-     * @param type the type of the result.
-     * @return the result stream.
-     * @throws PersistenceException if the query fails.
+     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only be invoked
+     * when the query is intended to run. Since the stream holds resources open while in use, it must be closed after
+     * usage to prevent resource leaks. As the stream is AutoCloseable, it is recommended to use it within a
+     * try-with-resources block.</p>
+     *
+     * @return a stream of results.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     *                              connectivity.
      */
     @Override
-    public <T, R> R getResult(@Nonnull Class<T> type, @Nonnull ResultCallback<T, R> callback) {
-        try (var stream = Tripwire.autoClose(() -> getResultStream(type))) {
-            return callback.process(stream);
+    public <T> Stream<T> getResultStream(@Nonnull Class<T> type) {
+        PreparedStatement statement = getStatement();
+        boolean close = true;
+        try {
+            try {
+                ResultSet resultSet = statement.executeQuery();
+                int columnCount = resultSet.getMetaData().getColumnCount();
+                var mapper = getObjectMapper(columnCount, type, lazyFactory)
+                        .orElseThrow(() -> new PersistenceException(STR."No suitable constructor found for \{type}."));
+                close = false;
+                return MonitoredResource.wrap(
+                        generate(() -> readNext(resultSet, columnCount, mapper))
+                                .takeWhile(Objects::nonNull)
+                                .onClose(() -> close(resultSet, statement)));
+            } finally {
+                if (close && closeStatement()) {
+                    statement.close();
+                }
+            }
+        } catch (SQLException e) {
+            throw new PersistenceException(e);
         }
     }
 
-    protected void close(@Nonnull ResultSet resultSet) {
+    protected void close(@Nonnull ResultSet resultSet, @Nonnull PreparedStatement statement) {
         try {
             try {
                 resultSet.close();
             } finally {
                 if (closeStatement()) {
-                    getStatement().close();
+                    statement.close();
                 }
             }
         } catch (SQLException e) {

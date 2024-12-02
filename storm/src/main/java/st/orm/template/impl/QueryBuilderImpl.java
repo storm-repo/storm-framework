@@ -1,185 +1,239 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.PersistenceException;
+import st.orm.PersistenceException;
 import st.orm.Query;
-import st.orm.Templates;
-import st.orm.ResultCallback;
 import st.orm.template.JoinType;
-import st.orm.template.ORMTemplate;
 import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
-import st.orm.template.TemplateFunction;
+import st.orm.template.QueryTemplate;
 import st.orm.template.impl.Elements.ObjectExpression;
 import st.orm.template.impl.Elements.TableSource;
+import st.orm.template.impl.Elements.TableTarget;
 import st.orm.template.impl.Elements.TemplateExpression;
 import st.orm.template.impl.Elements.TemplateSource;
+import st.orm.template.impl.Elements.TemplateTarget;
 import st.orm.template.impl.Elements.Where;
 import st.orm.template.impl.SqlTemplateImpl.Join;
-import st.orm.template.impl.SqlTemplateImpl.On;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Spliterator;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import static java.lang.StringTemplate.RAW;
 import static java.util.Objects.requireNonNull;
-import static java.util.Spliterators.spliteratorUnknownSize;
+import static st.orm.Templates.from;
+import static st.orm.Templates.select;
 import static st.orm.template.JoinType.cross;
 import static st.orm.template.JoinType.inner;
 import static st.orm.template.JoinType.left;
 import static st.orm.template.JoinType.right;
 import static st.orm.template.Operator.EQUALS;
+import static st.orm.template.Operator.IN;
 
-public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
-    private final ORMTemplate ORM;
-    private final boolean distinct;
-    private final Class<T> sourceType;
-    private final Class<R> resultType;
+public final class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder<T, R, ID>, Templatable {
+    private final QueryTemplate orm;
     private final StringTemplate selectTemplate;
-    private final StringTemplate fromTemplate;
+    private final Class<T> fromType;
+    private final Class<R> selectType;
+    private final boolean distinct;
+    private final List<Join> join;
+    private final List<Where> where;
     private final List<StringTemplate> templates;
+    private final boolean subquery;
 
-    public QueryBuilderImpl(@Nonnull ORMTemplate orm, @Nonnull Class<T> sourceType, @Nonnull Class<R> resultType) {
+    public QueryBuilderImpl(@Nonnull QueryTemplate orm, @Nonnull Class<T> fromType, @Nonnull Class<R> selectType) {
         //noinspection unchecked
-        this(orm, false, RAW."\{Templates.select((Class<? extends Record>) resultType)}", RAW."\{Templates.from((Class<? extends Record>) sourceType)}", List.of(), sourceType, resultType);
+        this(orm, fromType, selectType, RAW."\{select((Class<? extends Record>) selectType)}", false);
     }
 
-    private QueryBuilderImpl(@Nonnull ORMTemplate orm, boolean distinct, @Nonnull StringTemplate selectTemplate, @Nonnull StringTemplate fromTemplate, @Nonnull List<StringTemplate> templates, @Nonnull Class<T> sourceType, @Nonnull Class<R> resultType) {
-        this.ORM = orm;
+    public QueryBuilderImpl(@Nonnull QueryTemplate orm,
+                            @Nonnull Class<T> fromType,
+                            @Nonnull Class<R> selectType,
+                            @Nonnull StringTemplate selectTemplate) {
+        this(orm, fromType, selectType, false, List.of(), List.of(), selectTemplate, List.of(), false);
+    }
+
+    public QueryBuilderImpl(@Nonnull QueryTemplate orm,
+                            @Nonnull Class<T> fromType,
+                            @Nonnull Class<R> selectType,
+                            @Nonnull StringTemplate selectTemplate,
+                            boolean subquery) {
+        this(orm, fromType, selectType, false, List.of(), List.of(), selectTemplate, List.of(), subquery);
+    }
+
+    private QueryBuilderImpl(@Nonnull QueryTemplate orm,
+                             @Nonnull Class<T> fromType,
+                             @Nonnull Class<R> selectType,
+                             boolean distinct,
+                             @Nonnull List<Join> join,
+                             @Nonnull List<Where> where,
+                             @Nonnull StringTemplate selectTemplate,
+                             @Nonnull List<StringTemplate> templates,
+                             boolean subquery) {
+        this.orm = orm;
+        this.fromType = fromType;
+        this.selectType = selectType;
         this.distinct = distinct;
-        this.sourceType = sourceType;
-        this.resultType = resultType;
+        this.join = List.copyOf(join);
+        this.where = List.copyOf(where);
         this.selectTemplate = selectTemplate;
-        this.fromTemplate = fromTemplate;
         this.templates = List.copyOf(templates);
-    }
-
-    protected QueryBuilderImpl<T, R, ID> withTemplate(@Nonnull StringTemplate template) {
-        List<StringTemplate> copy = new ArrayList<>(templates);
-        copy.add(template);
-        return new QueryBuilderImpl<>(ORM, distinct, selectTemplate, fromTemplate, copy, sourceType, resultType);
-    }
-
-    protected QueryBuilder<T, R, ID> invokeTemplateFunction(@Nonnull TemplateFunction function) {
-        return withTemplate(getTemplate(function, true));
-    }
-
-    private StringTemplate getTemplate(@Nonnull TemplateFunction function, boolean newLine) {
-        return TemplateFunctionHelper.template(function, newLine);
-    }
-
-    @Override
-    public QueryBuilder<T, R, ID> withTemplate(@Nonnull TemplateFunction function) {
-        return invokeTemplateFunction(function);
-    }
-
-    @Override
-    public StringTemplate.Processor<QueryBuilder<T, R, ID>, PersistenceException> withTemplate() {
-        return template -> withTemplate(StringTemplate.combine(RAW."\n", template));
-    }
-
-    @Override
-    public QueryBuilder<T, R, ID> distinct() {
-        return new QueryBuilderImpl<>(ORM, true, selectTemplate, fromTemplate, templates, sourceType, resultType);
-    }
-
-    @Override
-    public <X extends Record> QueryBuilder<T, X, ID> select(@Nonnull Class<X> resultType) {
-        return new QueryBuilderImpl<>(ORM, distinct, RAW."\{Templates.select(resultType)}", fromTemplate, templates, sourceType, resultType);
-    }
-
-    @Override
-    public <X> QueryBuilder<T, X, ID> selectTemplate(@Nonnull Class<X> resultType, @Nonnull TemplateFunction function) {
-        return selectTemplate(resultType).process(getTemplate(function, true));
-    }
-
-    @Override
-    public <X> StringTemplate.Processor<QueryBuilder<T, X, ID>, PersistenceException> selectTemplate(@Nonnull Class<X> resultType) {
-        return stringTemplate -> new QueryBuilderImpl<>(
-                ORM,
-                distinct,
-                stringTemplate,
-                fromTemplate,
-                templates,
-                sourceType,
-                resultType);
+        this.subquery = subquery;
     }
 
     /**
-     * Returns the number of entities in the database of the entity type supported by this repository.
+     * Marks the current query as a distinct query.
      *
-     * @return the total number of entities in the database as a long value.
-     * @throws PersistenceException if the count operation fails due to underlying database issues, such as
-     * connectivity.
+     * @return the query builder.
      */
     @Override
-    public long count() {
-        return selectTemplate(Long.class)."COUNT(*)"
-                .singleResult();
+    public QueryBuilder<T, R, ID> distinct() {
+        return new QueryBuilderImpl<>(orm, fromType, selectType, true, join, where, selectTemplate, templates, subquery);
     }
 
+    private QueryBuilder<T, R, ID> join(@Nonnull Join join) {
+        List<Join> copy = new ArrayList<>(this.join);
+        copy.add(join);
+        return new QueryBuilderImpl<>(orm, fromType, selectType, distinct, copy, where, selectTemplate, templates, subquery);
+    }
+
+    private QueryBuilder<T, R, ID> where(@Nonnull Where where) {
+        List<Where> copy = new ArrayList<>(this.where);
+        copy.add(where);
+        return new QueryBuilderImpl<>(orm, fromType, selectType, distinct, join, copy, selectTemplate, templates, subquery);
+    }
+
+    /**
+     * Returns a processor that can be used to append the query with a string template.
+     *
+     * @return a processor that can be used to append the query with a string template.
+     */
+    @Override
+    public QueryBuilder<T, R, ID> append(@Nonnull StringTemplate template) {
+        List<StringTemplate> copy = new ArrayList<>(templates);
+        if (!template.fragments().isEmpty()) {
+            template = StringTemplate.combine(RAW."\n", template);
+        }
+        copy.add(template);
+        return new QueryBuilderImpl<>(orm, fromType, selectType, distinct, join, where, selectTemplate, copy, subquery);
+    }
+
+    /**
+     * Adds a cross join to the query.
+     *
+     * @param relation the relation to join.
+     * @return the query builder.
+     */
     @Override
     public QueryBuilder<T, R, ID> crossJoin(@Nonnull Class<? extends Record> relation) {
-        return join(cross(), relation, "").on()."";
+        return join(cross(), relation, "").on(RAW."");
     }
 
+    /**
+     * Adds an inner join to the query.
+     *
+     * @param relation the relation to join.
+     * @return the query builder.
+     */
     @Override
     public TypedJoinBuilder<T, R, ID> innerJoin(@Nonnull Class<? extends Record> relation) {
         return join(inner(), relation, "");
     }
 
+    /**
+     * Adds a left join to the query.
+     *
+     * @param relation the relation to join.
+     * @return the query builder.
+     */
     @Override
     public TypedJoinBuilder<T, R, ID> leftJoin(@Nonnull Class<? extends Record> relation) {
         return join(left(), relation, "");
     }
 
+    /**
+     * Adds a right join to the query.
+     *
+     * @param relation the relation to join.
+     * @return the query builder.
+     */
     @Override
     public TypedJoinBuilder<T, R, ID> rightJoin(@Nonnull Class<? extends Record> relation) {
         return join(right(), relation, "");
     }
 
+    /**
+     * Adds a join of the specified type to the query.
+     *
+     * @param type the join type.
+     * @param template the template to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
     @Override
-    public StringTemplate.Processor<JoinBuilder<T, R, ID>, PersistenceException> join(@Nonnull JoinType type, @Nonnull String alias) {
+    public JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull StringTemplate template, @Nonnull String alias) {
         requireNonNull(type, "type");
         requireNonNull(alias, "alias");
-        return sourceTemplate -> (JoinBuilder<T, R, ID>) () -> new OnBuilder<>() {
-            @Override
-            public QueryBuilder<T, R, ID> template(@Nonnull TemplateFunction function) {
-                return process(getTemplate(function, false));
-            }
-
-            @Override
-            public QueryBuilder<T, R, ID> process(StringTemplate onTemplate) throws PersistenceException {
-                return withTemplate(RAW."\{new Join(new TemplateSource(sourceTemplate), alias, onTemplate, type)}");
-            }
-        };
+        return onTemplate -> join(new Join(new TemplateSource(template), alias, new TemplateTarget(onTemplate), type));
     }
 
+    /**
+     * Adds a cross join to the query.
+     *
+     * @param template the template to join.
+     * @return the query builder.
+     */
     @Override
-    public StringTemplate.Processor<QueryBuilder<T, R, ID>, PersistenceException> crossJoin() {
-        return template -> join(cross(), "").process(template).on()."";
+    public QueryBuilder<T, R, ID> crossJoin(@Nonnull StringTemplate template) {
+        return join(cross(), template, "").on(RAW."");
     }
 
+    /**
+     * Adds an inner join to the query.
+     *
+     * @param template the template to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
     @Override
-    public StringTemplate.Processor<JoinBuilder<T, R, ID>, PersistenceException> innerJoin(@Nonnull String alias) {
-        return join(inner(), alias);
+    public JoinBuilder<T, R, ID> innerJoin(@Nonnull StringTemplate template, @Nonnull String alias) {
+        return join(inner(), template, alias);
     }
 
+    /**
+     * Adds a left join to the query.
+     *
+     * @param template the template to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
     @Override
-    public StringTemplate.Processor<JoinBuilder<T, R, ID>, PersistenceException> leftJoin(@Nonnull String alias) {
-        return join(left(), alias);
+    public JoinBuilder<T, R, ID> leftJoin(@Nonnull StringTemplate template, @Nonnull String alias) {
+        return join(left(), template, alias);
     }
 
+    /**
+     * Adds a right join to the query.
+     *
+     * @param template the template to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
     @Override
-    public StringTemplate.Processor<JoinBuilder<T, R, ID>, PersistenceException> rightJoin(@Nonnull String alias) {
-        return join(right(), alias);
+    public JoinBuilder<T, R, ID> rightJoin(@Nonnull StringTemplate template, @Nonnull String alias) {
+        return join(right(), template, alias);
     }
 
+    /**
+     * Adds a join of the specified type to the query.
+     *
+     * @param type the type of the join (e.g., INNER, LEFT, RIGHT).
+     * @param relation the relation to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
     @Override
     public TypedJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull Class<? extends Record> relation, @Nonnull String alias) {
         requireNonNull(type, "type");
@@ -188,29 +242,14 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
         return new TypedJoinBuilder<>() {
             @Override
             public QueryBuilder<T, R, ID> on(@Nonnull Class<? extends Record> onRelation) {
-                return withTemplate(RAW."\{new Join(new TableSource(relation), alias, RAW."\{new On(relation, onRelation)}", type)}");
+                return join(new Join(new TableSource(relation), alias, new TableTarget(onRelation), type));
             }
 
             @Override
-            public OnBuilder<T, R, ID> on() {
-                return new OnBuilder<>() {
-                    @Override
-                    public QueryBuilder<T, R, ID> template(@Nonnull TemplateFunction function) {
-                        return process(getTemplate(function, false));
-                    }
-
-                    @Override
-                    public QueryBuilder<T, R, ID> process(StringTemplate stringTemplate) throws PersistenceException {
-                        return withTemplate(RAW."\{new Join(new TableSource(relation), alias, stringTemplate, type)}");
-                    }
-                };
+            public QueryBuilder<T, R, ID> on(@Nonnull StringTemplate onTemplate) {
+                return join(new Join(new TableSource(relation), alias, new TemplateTarget(onTemplate), type));
             }
         };
-    }
-
-    @Override
-    public JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull String alias, @Nonnull TemplateFunction function) {
-        return join(type, alias).process(getTemplate(function, false));
     }
 
     // Define the raw templates
@@ -218,12 +257,17 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
     private static final StringTemplate RAW_OR = RAW." OR (";
     private static final StringTemplate RAW_CLOSE = RAW.")";
 
+    /**
+     * Adds a WHERE clause to the query using a {@link WhereBuilder}.
+     *
+     * @param predicate the predicate to add.
+     * @return the query builder.
+     */
     @Override
-    public QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<T, R, ID>> expression) {
-        requireNonNull(expression, "expression");
-        class PredicateBuilderImpl<TX, RX, IDX> implements PredicateBuilder<TX, RX, IDX> {
+    public QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<?, ?, ?>> predicate) {
+        requireNonNull(predicate, "predicate");
+        class PredicateBuilderImpl<TX extends Record, RX, IDX> implements PredicateBuilder<TX, RX, IDX> {
             private final List<StringTemplate> templates = new ArrayList<>();
-            private final AtomicInteger nestLevel = new AtomicInteger(0);
 
             PredicateBuilderImpl(@Nonnull StringTemplate template) {
                 templates.add(requireNonNull(template, "template"));
@@ -249,18 +293,26 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
                 return templates;
             }
         }
-        class WhereBuilderImpl<TX, RX, IDX> implements WhereBuilder<TX, RX, IDX> {
-            public WhereBuilderImpl() {
+        class WhereBuilderImpl<TX extends Record, RX, IDX> implements WhereBuilder<TX, RX, IDX> {
+
+            @Override
+            public <F extends Record, S> QueryBuilder<F, S, ?> subquery(@Nonnull Class<F> fromType, @Nonnull Class<S> selectType, @Nonnull StringTemplate template) {
+                return orm.subquery(fromType, selectType, template);
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> process(StringTemplate template) throws PersistenceException {
+            public PredicateBuilder<TX, RX, IDX> expression(@Nonnull StringTemplate template) {
                 return new PredicateBuilderImpl<>(template);
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> template(@Nonnull TemplateFunction function) {
-                return new PredicateBuilderImpl<>(getTemplate(function, false));
+            public PredicateBuilder<TX, RX, IDX> exists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+                return new PredicateBuilderImpl<>(RAW."EXISTS (\{subquery})");
+            }
+
+            @Override
+            public PredicateBuilder<TX, RX, IDX> notExists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
+                return new PredicateBuilderImpl<>(RAW."NOT EXISTS (\{subquery})");
             }
 
             @Override
@@ -270,7 +322,7 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
 
             @Override
             public PredicateBuilder<TX, RX, IDX> filter(@Nonnull Iterable<?> it) {
-                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(it, EQUALS, null)}");
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(it, IN, null)}");
             }
 
             @Override
@@ -285,58 +337,67 @@ public class QueryBuilderImpl<T, R, ID> implements QueryBuilder<T, R, ID> {
 
             private QueryBuilder<TX, RX, IDX> build(List<StringTemplate> templates) {
                 //noinspection unchecked
-                return (QueryBuilder<TX, RX, IDX>) QueryBuilderImpl.this.withTemplate(RAW."\nWHERE \{new Where(new TemplateExpression(StringTemplate.combine(templates)), null)}");
+                return (QueryBuilder<TX, RX, IDX>) where(new Where(new TemplateExpression(StringTemplate.combine(templates)), null));
             }
         }
         var whereBuilder = new WhereBuilderImpl<T, R, ID>();
-        var predicate = expression.apply(whereBuilder);
-        return whereBuilder.build(((PredicateBuilderImpl<T, R, ID>) predicate).getTemplates());
+        return whereBuilder.build(((PredicateBuilderImpl<?, ?, ?>) predicate.apply(whereBuilder)).getTemplates());
     }
 
-    private Query build(@Nonnull StringTemplate template) {
-        List<StringTemplate> copy = new ArrayList<>(templates);
-        if (!template.fragments().isEmpty()) {
-            copy.add(RAW."\n");
+    @Override
+    public StringTemplate asStringTemplate() {
+        StringTemplate combined = StringTemplate.combine(StringTemplate.of(STR."SELECT \{distinct ? "DISTINCT " : ""}"), selectTemplate);
+        combined = StringTemplate.combine(combined, RAW."\nFROM \{from(fromType, true)}");
+        if (!join.isEmpty()) {
+            combined = join.stream()
+                    .reduce(combined,
+                            (acc, join) -> StringTemplate.combine(acc, RAW."\{join}"),
+                            StringTemplate::combine);
         }
-        copy.add(template);
-        StringTemplate combined = StringTemplate.combine(StringTemplate.combine(
-                RAW."SELECT ",
-                distinct ? RAW."DISTINCT " : RAW."",
-                selectTemplate,
-                RAW."\nFROM ",
-                fromTemplate
-        ), StringTemplate.combine(copy));
-        return ORM.process(combined);
+        if (!where.isEmpty()) {
+            // We'll leave handling of multiple where's to the sql processor.
+            combined = where.stream()
+                    .reduce(StringTemplate.combine(combined, RAW."\nWHERE "),
+                            (acc, where) -> StringTemplate.combine(acc, RAW."\{where}"),
+                            StringTemplate::combine);
+        }
+        if (!templates.isEmpty()) {
+            combined = StringTemplate.combine(combined, StringTemplate.combine(templates));
+        }
+        return combined;
     }
 
+    /**
+     * Builds the query based on the current state of the query builder.
+     *
+     * @return the constructed query.
+     */
     @Override
     public Query build() {
-        return build(RAW."");
-    }
-
-    @Override
-    public Stream<R> stream(@Nonnull TemplateFunction function) {
-        return invokeTemplateFunction(function).stream();
-    }
-
-    @Override
-    public Stream<R> stream() {
-        return process(RAW."");
-    }
-
-    @Override
-    public <X> X result(@Nonnull ResultCallback<R, X> callback) {
-        try (Stream<R> stream = Tripwire.autoClose(this::stream)) {
-            return callback.process(stream);
+        if (subquery) {
+            throw new PersistenceException("Cannot build a query from a subquery.");
         }
+        return orm.query(asStringTemplate());
     }
 
-    protected <X> Stream<X> toStream(@Nonnull Iterable<X> iterable) {
-        return StreamSupport.stream(spliteratorUnknownSize(iterable.iterator(), Spliterator.ORDERED), false);
-    }
-
+    /**
+     * Executes the query and returns a stream of results.
+     *
+     * <p>The resulting stream is lazily loaded, meaning that the records are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of records.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only be invoked
+     * when the query is intended to run. Since the stream holds resources open while in use, it must be closed after
+     * usage to prevent resource leaks. As the stream is AutoCloseable, it is recommended to use it within a
+     * try-with-resources block.</p>
+     *
+     * @return a stream of results.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
     @Override
-    public Stream<R> process(@Nonnull StringTemplate template) {
-        return build(template).getResultStream(resultType);
+    public Stream<R> getResultStream() {
+        return build().getResultStream(selectType);
     }
 }

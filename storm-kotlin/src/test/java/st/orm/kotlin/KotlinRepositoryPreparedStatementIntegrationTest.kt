@@ -9,10 +9,13 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.kotlin.IntegrationConfig
 import st.orm.kotlin.KTemplates.ORM
+import st.orm.kotlin.KTemplates.alias
 import st.orm.kotlin.model.KotlinPet
 import st.orm.kotlin.model.Pet
 import st.orm.kotlin.model.Visit
 import st.orm.kotlin.repository.KotlinPetRepository
+import st.orm.template.ResolveScope.INNER
+import st.orm.template.ResolveScope.OUTER
 import javax.sql.DataSource
 
 @ExtendWith(SpringExtension::class)
@@ -25,22 +28,20 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
 
     @Test
     fun testWithArg() {
-        val ORM = ORM(dataSource)
-        val list = ORM.repository(Pet::class)
-                .withTemplate { "WHERE ${it(Pet::class)}.id = 7" }
-                .toList()
+        val list = ORM(dataSource).entity(Pet::class)
+            .select()
+            .where { it { "${it(Pet::class)}.id = 7" } }
+            .resultList
         assertEquals(1, list.size)
         assertEquals(7, list[0].id)
     }
 
     @Test
     fun testWithTwoArgs() {
-        val ORM = ORM(dataSource)
-        val list = ORM.repository(Pet::class)
-                .withTemplate {
-                    "WHERE ${it(Pet::class)}.id = 7 OR ${it(Pet::class)}.id = 8"
-                }
-                .toList()
+        val list = ORM(dataSource).entity(Pet::class)
+            .select()
+            .where { it { "${it(Pet::class)}.id = 7 OR ${it(Pet::class)}.id = 8" } }
+            .resultList
         assertEquals(2, list.size)
         assertEquals(7, list[0].id)
         assertEquals(8, list[1].id)
@@ -48,34 +49,55 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
 
     @Test
     fun testBuilderWithAutoJoin() {
-        val ORM = ORM(dataSource)
-        val list = ORM.repository(Pet::class)
-                .innerJoin(Visit::class).on(Pet::class)
-                .where(Visit(1, null, null, null))
-                .toList()
+        val list = ORM(dataSource).entity(Pet::class)
+            .select()
+            .innerJoin(Visit::class).on(Pet::class)
+            .where(Visit(1, null, null, null))
+            .resultList
         assertEquals(1, list.size)
         assertEquals(7, list[0].id)
     }
 
     @Test
     fun testWithKotlinDataClass() {
-        val ORM = ORM(dataSource)
-        val list = ORM.repository(KotlinPet::class).toList()
+        val list = ORM(dataSource).entity(KotlinPet::class)
+            .select()
+            .resultList
         assertEquals(13, list.size)
     }
 
     @Test
     fun testSelectAll() {
-        val repository = ORM(dataSource).repositoryProxy(KotlinPetRepository::class)
+        val repository = ORM(dataSource).proxy(KotlinPetRepository::class)
         assertEquals(13, repository.selectAll { it.count() })
     }
 
     @Test
     fun testFindAll() {
-        val repository = ORM(dataSource).repositoryProxy(KotlinPetRepository::class)
+        val repository = ORM(dataSource).proxy(KotlinPetRepository::class)
         repository.findAll().let {
             assertEquals(1, it.first().id())
             assertEquals(13, it.size)
         }
+    }
+
+    @Test
+    fun testExists() {
+        val repository = ORM(dataSource).entity(Pet::class)
+        repository.select()
+            .where { it.exists(it.subquery(Pet::class).where { it { "${it(alias(Pet::class, OUTER))}.id <> ${it(alias(Pet::class, INNER))}.id"} }) }
+            .resultList.let {
+                assertEquals(13, it.size)
+            }
+    }
+
+    @Test
+    fun testNotExists() {
+        val repository = ORM(dataSource).entity(Pet::class)
+        repository.select()
+            .where { it.notExists(it.subquery(Pet::class).where { it { "${it(alias(Pet::class, OUTER))}.id <> ${it(alias(Pet::class, INNER))}.id"} }) }
+            .resultList.let {
+                assertEquals(0, it.size)
+            }
     }
 }

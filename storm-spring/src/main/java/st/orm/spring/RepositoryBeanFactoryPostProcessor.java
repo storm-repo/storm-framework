@@ -17,10 +17,10 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.context.annotation.Configuration;
 import st.orm.kotlin.repository.KRepository;
-import st.orm.kotlin.template.KORMRepositoryTemplate;
+import st.orm.kotlin.template.KORMTemplate;
 import st.orm.repository.EntityRepository;
 import st.orm.repository.Repository;
-import st.orm.template.ORMRepositoryTemplate;
+import st.orm.template.ORMTemplate;
 
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
@@ -31,11 +31,11 @@ import java.util.stream.Stream;
 @Configuration
 public class RepositoryBeanFactoryPostProcessor implements BeanFactoryPostProcessor {
 
-    public String getORMRepositoryTemplateBeanName() {
+    public String getORMTemplateBeanName() {
         return null;
     }
 
-    public String getKORMRepositoryTemplateBeanName() {
+    public String getKORMTemplateBeanName() {
         return null;
     }
 
@@ -78,7 +78,7 @@ public class RepositoryBeanFactoryPostProcessor implements BeanFactoryPostProces
             //noinspection unchecked
             Class<Repository> repositoryType = (Class<Repository>) type;
             AbstractBeanDefinition proxyBeanDefinition = BeanDefinitionBuilder
-                    .genericBeanDefinition(repositoryType, () -> getBeanORMRepositoryTemplate(beanFactory).repositoryProxy(repositoryType))
+                    .genericBeanDefinition(repositoryType, () -> getBeanORMTemplate(beanFactory).proxy(repositoryType))
                     .getBeanDefinition();
             proxyBeanDefinition.setAttribute("qualifier", getRepositoryPrefix());
             String name = getRepositoryPrefix() + type.getSimpleName();
@@ -91,7 +91,7 @@ public class RepositoryBeanFactoryPostProcessor implements BeanFactoryPostProces
             //noinspection unchecked
             Class<KRepository> repositoryType = (Class<KRepository>) type;
             AbstractBeanDefinition proxyBeanDefinition = BeanDefinitionBuilder
-                    .genericBeanDefinition(repositoryType, () -> getBeanKORMRepositoryTemplate(beanFactory).repositoryProxy(repositoryType))
+                    .genericBeanDefinition(repositoryType, () -> getBeanKORMTemplate(beanFactory).proxy(repositoryType))
                     .getBeanDefinition();
             proxyBeanDefinition.setAttribute("qualifier", getRepositoryPrefix());
             String name = getRepositoryPrefix() + type.getSimpleName();
@@ -99,18 +99,18 @@ public class RepositoryBeanFactoryPostProcessor implements BeanFactoryPostProces
         });
     }
 
-    private ORMRepositoryTemplate getBeanORMRepositoryTemplate(@Nonnull ConfigurableListableBeanFactory beanFactory) {
-        if (getORMRepositoryTemplateBeanName() != null) {
-            return beanFactory.getBean(getORMRepositoryTemplateBeanName(), ORMRepositoryTemplate.class);
+    private ORMTemplate getBeanORMTemplate(@Nonnull ConfigurableListableBeanFactory beanFactory) {
+        if (getORMTemplateBeanName() != null) {
+            return beanFactory.getBean(getORMTemplateBeanName(), ORMTemplate.class);
         }
-        return beanFactory.getBean(ORMRepositoryTemplate.class);
+        return beanFactory.getBean(ORMTemplate.class);
     }
 
-    private KORMRepositoryTemplate getBeanKORMRepositoryTemplate(@Nonnull ConfigurableListableBeanFactory beanFactory) {
-        if (getKORMRepositoryTemplateBeanName() != null) {
-            return beanFactory.getBean(getKORMRepositoryTemplateBeanName(), KORMRepositoryTemplate.class);
+    private KORMTemplate getBeanKORMTemplate(@Nonnull ConfigurableListableBeanFactory beanFactory) {
+        if (getKORMTemplateBeanName() != null) {
+            return beanFactory.getBean(getKORMTemplateBeanName(), KORMTemplate.class);
         }
-        return beanFactory.getBean(KORMRepositoryTemplate.class);
+        return beanFactory.getBean(KORMTemplate.class);
     }
 
     /**

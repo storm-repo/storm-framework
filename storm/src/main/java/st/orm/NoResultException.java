@@ -13,15 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.kotlin.template;
+package st.orm;
 
-import st.orm.kotlin.repository.KRepositoryLookup;
-import st.orm.kotlin.template.impl.KORMRepositoryTemplateImpl;
-import st.orm.template.ORMRepositoryTemplate;
+/**
+ * Thrown when {@code getSingleResult} is executed on a query and there is no result to return.
+ */
+public class NoResultException extends PersistenceException {
 
-public interface KORMRepositoryTemplate extends KORMTemplate, KRepositoryLookup {
+    /**
+     * Constructs a new {@code NoResultException} exception with {@code null} its detail message.
+     */
+    public NoResultException() {
+        super();
+    }
 
-    static KORMRepositoryTemplate from(ORMRepositoryTemplate ormRepositoryTemplate) {
-        return new KORMRepositoryTemplateImpl(ormRepositoryTemplate);
+    /**
+     * Constructs a new {@code NoResultException} exception with the specified detail message.
+     *
+     * @param message the detail message.
+     */
+    public NoResultException(String message) {
+        super(message);
     }
 }

@@ -13,9 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.template;
+package st.orm.spi;
 
-import st.orm.repository.RepositoryLookup;
+import jakarta.annotation.Nonnull;
+import st.orm.repository.Model;
+import st.orm.repository.Projection;
+import st.orm.repository.ProjectionRepository;
+import st.orm.template.ORMTemplate;
 
-public interface ORMRepositoryTemplate extends ORMTemplate, RepositoryLookup {
+public interface ProjectionRepositoryProvider extends Provider {
+
+    <ID, P extends Record & Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(@Nonnull ORMTemplate orm,
+                                                                                                @Nonnull Model<P, ID> model);
 }

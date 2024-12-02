@@ -16,9 +16,6 @@
 package st.orm;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.NonUniqueResultException;
-import jakarta.persistence.PersistenceException;
 
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +32,9 @@ public interface Query {
      *
      * <p>Queries are normally constructed in a lazy fashion, unlike prepared queries which are constructed eagerly.
      * Prepared queries allow the use of bind variables and enable reading generated keys after row insertion.</p>
+     *
+     * <p>Note that the prepared query must be closed after usage to prevent resource leaks. As the prepared query is
+     * AutoCloseable, it is recommended to use it within a try-with-resources block.</p>
      *
      * @return the prepared query.
      * @throws PersistenceException if the query preparation fails.
@@ -65,6 +65,19 @@ public interface Query {
      */
     default Optional<Object[]> getOptionalResult() {
         return optionalResult(getResultStream());
+    }
+
+    /**
+     * Returns the number of results of this query.
+     *
+     * @return the total number of results of this query as a long value.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    default long getResultCount() {
+        try (var stream = getResultStream()) {
+            return stream.count();
+        }
     }
 
     /**
@@ -105,7 +118,9 @@ public interface Query {
      * @throws PersistenceException if the query fails.
      */
     default List<Object[]> getResultList() {
-        return getResultStream().toList();
+        try (var stream = getResultStream()) {
+            return stream.toList();
+        }
     }
 
     /**
@@ -119,7 +134,9 @@ public interface Query {
      * @throws PersistenceException if the query fails.
      */
     default <T> List<T> getResultList(@Nonnull Class<T> type) {
-        return getResultStream(type).toList();
+        try (var stream = getResultStream(type)) {
+            return stream.toList();
+        }
     }
 
     /**
@@ -128,13 +145,18 @@ public interface Query {
      * <p>Each element in the stream represents a row in the result, where the columns of the row corresponds to the
      * order of values in the row array.</p>
      *
-     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
-     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
-     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
-     * stream is properly closed to release the resources.</p>
+     * <p>The resulting stream is lazily loaded, meaning that the records are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of records.</p>
      *
-     * @return the result stream.
-     * @throws PersistenceException if the query fails.
+     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only be invoked
+     * when the query is intended to run. Since the stream holds resources open while in use, it must be closed after
+     * usage to prevent resource leaks. As the stream is AutoCloseable, it is recommended to use it within a
+     * try-with-resources block.</p>
+     *
+     * @return a stream of results.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     *                              connectivity.
      */
     Stream<Object[]> getResultStream();
 
@@ -144,15 +166,18 @@ public interface Query {
      * <p>Each element in the stream represents a row in the result, where the columns of the row corresponds to the
      * order of values in the row array.</p>
      *
-     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
-     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
-     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
-     * stream is properly closed to release the resources.</p>
+     * <p>This method ensures efficient handling of large data sets by loading entities only as needed.
+     * It also manages lifecycle of the callback stream, automatically closing the stream after processing to prevent
+     * resource leaks.</p>
      *
      * @return the result stream.
      * @throws PersistenceException if the query fails.
      */
-    <R> R getResult(@Nonnull ResultCallback<Object[], R> callback);
+    default <R> R getResult(@Nonnull ResultCallback<Object[], R> callback) {
+        try (var stream = getResultStream()) {
+            return callback.process(stream);
+        }
+    }
 
     /**
      * Execute a SELECT query and return the resulting rows as a stream of row instances.
@@ -160,14 +185,18 @@ public interface Query {
      * <p>Each element in the stream represents a row in the result, where the columns of the row are mapped to the
      * constructor arguments of the specified {@code type}.</p>
      *
-     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
-     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
-     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
-     * stream is properly closed to release the resources.</p>
+     * <p>The resulting stream is lazily loaded, meaning that the records are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of records.</p>
      *
-     * @param type the type of the result.
-     * @return the result stream.
-     * @throws PersistenceException if the query fails.
+     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only be invoked
+     * when the query is intended to run. Since the stream holds resources open while in use, it must be closed after
+     * usage to prevent resource leaks. As the stream is AutoCloseable, it is recommended to use it within a
+     * try-with-resources block.</p>
+     *
+     * @return a stream of results.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     *                              connectivity.
      */
     <T> Stream<T> getResultStream(@Nonnull Class<T> type);
 
@@ -177,16 +206,19 @@ public interface Query {
      * <p>Each element in the stream represents a row in the result, where the columns of the row are mapped to the
      * constructor arguments of the specified {@code type}.</p>
      *
-     * <p>The resulting stream will automatically close the underlying resources when a terminal operation is
-     * invoked, such as {@code collect}, {@code forEach}, or {@code toList}, among others. If no terminal operation is
-     * invoked, the stream will not close the resources, and it's the responsibility of the caller to ensure that the
-     * stream is properly closed to release the resources.</p>
+     * <p>This method ensures efficient handling of large data sets by loading entities only as needed.
+     * It also manages lifecycle of the callback stream, automatically closing the stream after processing to prevent
+     * resource leaks.</p>
      *
      * @param type the type of the result.
      * @return the result stream.
      * @throws PersistenceException if the query fails.
      */
-    <T, R> R getResult(@Nonnull Class<T> type, @Nonnull ResultCallback<T, R> callback);
+    default <T, R> R getResult(@Nonnull Class<T> type, @Nonnull ResultCallback<T, R> callback) {
+        try (var stream = getResultStream(type)) {
+            return callback.process(stream);
+        }
+    }
 
     /**
      * Returns true if the query is version aware, false otherwise.
@@ -223,10 +255,12 @@ public interface Query {
      * @throws NonUniqueResultException if more than one result.
      */
     private <T> T singleResult(Stream<T> stream) {
-        return stream
-                .reduce((_, _) -> {
-                    throw new NonUniqueResultException("Expected single result, but found more than one.");
-                }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
+        try (stream) {
+            return stream
+                    .reduce((_, _) -> {
+                        throw new NonUniqueResultException("Expected single result, but found more than one.");
+                    }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
+        }
     }
 
     /**
@@ -238,9 +272,11 @@ public interface Query {
      * @throws NonUniqueResultException if more than one result.
      */
     private <T> Optional<T> optionalResult(Stream<T> stream) {
-        return stream
-                .reduce((_, _) -> {
-                    throw new NonUniqueResultException("Expected single result, but found more than one.");
-                });
+        try (stream) {
+            return stream
+                    .reduce((_, _) -> {
+                        throw new NonUniqueResultException("Expected single result, but found more than one.");
+                    });
+        }
     }
 }

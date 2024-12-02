@@ -9,9 +9,11 @@ import st.orm.model.Pet;
 import javax.sql.DataSource;
 import java.util.List;
 
+import static java.lang.StringTemplate.RAW;
+import static st.orm.Templates.select;
+import static st.orm.Templates.table;
 import static st.orm.template.PreparedStatementTemplate.ORM;
 
-@SuppressWarnings("TrailingWhitespacesInTextBlock")
 @Repository
 public class PetRepository {
 
@@ -19,23 +21,21 @@ public class PetRepository {
     private DataSource dataSource;
 
     public List<Pet> findAll() {
-        var ORM = ORM(dataSource);
-        return ORM."""
-                SELECT \{ORM.s(Pet.class)}
-                FROM \{ORM.t(Pet.class, "p")}
-                  INNER JOIN \{ORM.t(PetType.class, "pt")} ON p.type_id = pt.id
-                  LEFT OUTER JOIN \{ORM.t(Owner.class, "o")} ON p.owner_id = o.id"""
+        return ORM(dataSource).query(RAW."""
+                SELECT \{select(Pet.class)}
+                FROM \{table(Pet.class, "p")}
+                  INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
+                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id""")
         .getResultList(Pet.class);
     }
 
     public Pet findById(int id) {
-        var ORM = ORM(dataSource);
-        return ORM."""
-                SELECT \{ORM.s(Pet.class)}
-                FROM \{ORM.t(Pet.class, "p")}
-                  INNER JOIN \{ORM.t(PetType.class, "pt")} ON p.type_id = pt.id
-                  LEFT OUTER JOIN \{ORM.t(Owner.class, "o")} ON p.owner_id = o.id
-                WHERE p.id = \{id}"""
+        return ORM(dataSource).query(RAW."""
+                SELECT \{select(Pet.class)}
+                FROM \{table(Pet.class, "p")}
+                  INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
+                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                WHERE p.id = \{id}""")
             .getSingleResult(Pet.class);
     }
 }

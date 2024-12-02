@@ -18,81 +18,76 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Lazy;
-import st.orm.repository.Entity;
-import st.orm.repository.EntityRepository;
-import st.orm.spi.EntityRepositoryProvider;
+import st.orm.spi.Provider;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
-import st.orm.template.SqlTemplateException;
 import st.orm.template.TableNameResolver;
 
-import java.lang.reflect.RecordComponent;
 import java.util.Objects;
 import java.util.function.Predicate;
 
-import static st.orm.template.impl.SqlTemplateImpl.getLazyPkType;
-import static st.orm.template.impl.SqlTemplateImpl.getLazyRecordType;
+import static java.util.Objects.requireNonNull;
 
+/**
+ * Implementation of {@link LazyFactory}.
+ */
 public final class LazyFactoryImpl implements LazyFactory {
     private final QueryFactory factory;
     private final TableNameResolver tableNameResolver;
     private final ColumnNameResolver columnNameResolver;
     private final ForeignKeyResolver foreignKeyResolver;
-    private final Predicate<? super EntityRepositoryProvider> providerFilter;
+    private final Predicate<? super Provider> providerFilter;
 
     public LazyFactoryImpl(@Nonnull QueryFactory factory,
                            @Nullable TableNameResolver tableNameResolver,
                            @Nullable ColumnNameResolver columnNameResolver,
                            @Nullable ForeignKeyResolver foreignKeyResolver,
-                           @Nullable Predicate<? super EntityRepositoryProvider> providerFilter) {
-        this.factory = Objects.requireNonNull(factory, "factory");
+                           @Nullable Predicate<? super Provider> providerFilter) {
+        this.factory = requireNonNull(factory, "factory");
         this.tableNameResolver = tableNameResolver;
         this.columnNameResolver = columnNameResolver;
         this.foreignKeyResolver = foreignKeyResolver;
         this.providerFilter = providerFilter;
     }
 
+    /**
+     * Creates a lazy instance for the specified record {@code type} and {@code pk}. This method can be used to generate
+     * lazy instances for entities, projections and regular records.
+     *
+     * @param type record type.
+     * @param pk primary key.
+     * @return lazy instance.
+     * @param <T> record type.
+     * @param <ID> primary key type.
+     */
     @Override
-    public Class<?> getPkType(@Nonnull RecordComponent component) throws SqlTemplateException {
-        return getLazyPkType(component);
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public Lazy<?> create(@Nonnull RecordComponent component, @Nullable Object pk) throws SqlTemplateException {
-        //noinspection RedundantCast
-        Class<Entity<Object>> recordType = (Class<Entity<Object>>) (Object) getLazyRecordType(component);
-        LazySupplier<Entity<Object>> supplier = new LazySupplier<>(() -> {
+    public <T extends Record, ID> Lazy<T, ID> create(@Nonnull Class<T> type, @Nullable ID pk) {
+        var queryBuilder = new ORMTemplateImpl(
+                factory,
+                tableNameResolver,
+                columnNameResolver,
+                foreignKeyResolver,
+                providerFilter).selectFrom(type);
+        LazySupplier<T> supplier = new LazySupplier<>(() -> {
             if (pk == null) {
                 return null;
             }
-            EntityRepository<Entity<Object>, Object> repository = new ORMRepositoryTemplateImpl(
-                    factory,
-                    tableNameResolver,
-                    columnNameResolver,
-                    foreignKeyResolver,
-                    providerFilter).repository(recordType);
-            return repository.select(pk);
+            return queryBuilder.where(pk).getSingleResult();
         });
-        class LazyImpl implements Lazy<Entity<Object>>{
-            private final Object pk;
+        class LazyImpl implements Lazy<T, ID>{
+            private final ID pk;
 
-            LazyImpl(@Nullable Object pk) {
+            LazyImpl(@Nullable ID pk) {
                 this.pk = pk;
             }
 
             @Override
-            public boolean isNull() {
-                return pk == null;
-            }
-
-            @Override
-            public Object id() {
+            public ID id() {
                 return pk;
             }
 
             @Override
-            public Entity<Object> fetch() {
+            public T fetch() {
                 if (pk == null) {
                     return null;
                 }

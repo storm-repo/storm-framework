@@ -17,7 +17,6 @@ package st.orm.template;
 
 import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
-import st.orm.Templates;
 import st.orm.spi.Provider;
 import st.orm.template.impl.PreparedStatementTemplateImpl;
 
@@ -27,7 +26,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.function.Predicate;
 
-public interface PreparedStatementTemplate extends Templates, StringTemplate.Processor<PreparedStatement, SQLException> {
+public interface PreparedStatementTemplate {
 
     static PreparedStatementTemplate of(@Nonnull DataSource dataSource) {
         return new PreparedStatementTemplateImpl(dataSource);
@@ -37,11 +36,11 @@ public interface PreparedStatementTemplate extends Templates, StringTemplate.Pro
         return new PreparedStatementTemplateImpl(connection);
     }
 
-    static ORMRepositoryTemplate ORM(@Nonnull DataSource dataSource) {
+    static ORMTemplate ORM(@Nonnull DataSource dataSource) {
         return new PreparedStatementTemplateImpl(dataSource).toORM();
     }
 
-    static ORMRepositoryTemplate ORM(@Nonnull Connection connection) {
+    static ORMTemplate ORM(@Nonnull Connection connection) {
         return new PreparedStatementTemplateImpl(connection).toORM();
     }
 
@@ -53,7 +52,7 @@ public interface PreparedStatementTemplate extends Templates, StringTemplate.Pro
 
     PreparedStatementTemplate withProviderFilter(@Nonnull Predicate<Provider> providerFilter);
 
-    ORMRepositoryTemplate toORM();
+    ORMTemplate toORM();
 
     /**
      * Create a new bind variables instance that can be used to add bind variables to a batch.
@@ -62,4 +61,5 @@ public interface PreparedStatementTemplate extends Templates, StringTemplate.Pro
      */
     BindVars createBindVars();
 
+    PreparedStatement query(@Nonnull StringTemplate template) throws SQLException;
 }

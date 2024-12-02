@@ -17,18 +17,20 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import jakarta.persistence.PersistenceException;
+import st.orm.BindVars;
 import st.orm.FK;
-import st.orm.Inline;
 import st.orm.Lazy;
 import st.orm.PK;
 import st.orm.Persist;
+import st.orm.PersistenceException;
+import st.orm.Query;
 import st.orm.Version;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
 import st.orm.template.Operator;
+import st.orm.template.Sql;
 import st.orm.template.SqlTemplate.BindVariables;
 import st.orm.template.SqlTemplate.NamedParameter;
 import st.orm.template.SqlTemplate.Parameter;
@@ -43,18 +45,21 @@ import st.orm.template.impl.Elements.ObjectExpression;
 import st.orm.template.impl.Elements.Param;
 import st.orm.template.impl.Elements.Select;
 import st.orm.template.impl.Elements.Set;
+import st.orm.template.impl.Elements.Subquery;
 import st.orm.template.impl.Elements.Table;
 import st.orm.template.impl.Elements.TableSource;
+import st.orm.template.impl.Elements.TableTarget;
 import st.orm.template.impl.Elements.TemplateExpression;
 import st.orm.template.impl.Elements.TemplateSource;
+import st.orm.template.impl.Elements.TemplateTarget;
 import st.orm.template.impl.Elements.Unsafe;
 import st.orm.template.impl.Elements.Update;
 import st.orm.template.impl.Elements.Values;
 import st.orm.template.impl.Elements.Where;
 import st.orm.template.impl.SqlTemplateImpl.BindVarsImpl;
 import st.orm.template.impl.SqlTemplateImpl.Join;
-import st.orm.template.impl.SqlTemplateImpl.On;
 import st.orm.template.impl.SqlTemplateImpl.Wrapped;
+import st.orm.template.impl.TableMapper.Mapping;
 
 import java.lang.reflect.RecordComponent;
 import java.math.BigInteger;
@@ -68,18 +73,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.SequencedMap;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
+import static java.util.Arrays.asList;
 import static java.util.List.copyOf;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.empty;
+import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
 import static st.orm.spi.Providers.getORMConverter;
 import static st.orm.template.Operator.EQUALS;
+import static st.orm.template.ResolveScope.CASCADE;
+import static st.orm.template.ResolveScope.INNER;
 import static st.orm.template.impl.SqlTemplateImpl.findComponent;
 import static st.orm.template.impl.SqlTemplateImpl.getColumnName;
 import static st.orm.template.impl.SqlTemplateImpl.getFkComponents;
@@ -117,11 +127,17 @@ record ElementProcessor(
         }
     }
 
+    private static final ScopedValue<ElementProcessor> CURRENT_PROCESSOR = ScopedValue.newInstance();
+
+    static Optional<ElementProcessor> current() {
+        return ofNullable(CURRENT_PROCESSOR.orElse(null));
+    }
+
     Optional<ElementResult> process() throws SqlTemplateException {
         Element fromResolved = element;
         StringBuilder sql = new StringBuilder();
         List<String> args = new ArrayList<>();
-        for (Element fromWrapped : fromResolved instanceof Wrapped w ? w.elements() : List.of(fromResolved)) {
+        for (Element fromWrapped : fromResolved instanceof Wrapped(var elements) ? elements : List.of(fromResolved)) {
             ElementResult result = switch (fromWrapped) {
                 case Wrapped _ -> {
                     assert false;
@@ -132,14 +148,15 @@ record ElementProcessor(
                 case Update it -> update(it);
                 case Delete it -> delete(it);
                 case From it -> from(it);
+                case Join it -> join(it);
                 case Table it -> table(it);
                 case Alias it -> alias(it);
                 case Set it -> set(it);
                 case Where it -> where(it);
                 case Values it -> values(it);
                 case Param it -> param(it);
+                case Subquery it -> subquery(it);
                 case Unsafe it -> unsafe(it);
-                case Join it -> join(it);
             };
             sql.append(result.sql());
             args.addAll(result.args());
@@ -172,90 +189,67 @@ record ElementProcessor(
 
     ElementResult from(From it) throws SqlTemplateException {
         return switch (it) {
-            case From(TableSource ts, _) -> new ElementResult(STR."\{getTableName(ts.table(), sqlTemplate.tableNameResolver())}\{it.alias().isEmpty() ? "" : STR." \{it.alias()}"}");
-            case From(TemplateSource ts, _) -> new ElementResult(STR."(\{getSourceString(ts)})\{it.alias().isEmpty() ? "" : STR." \{it.alias()}"}");
+            case From(TableSource ts, _, _) -> new ElementResult(STR."\{getTableName(ts.table(), sqlTemplate.tableNameResolver())}\{it.alias().isEmpty() ? "" : STR." \{it.alias()}"}");
+            case From(TemplateSource ts, _, _) -> {
+                var from = parse(ts.template(), false);   // From-clause is not correlated.
+                yield new ElementResult(STR."(\{from})\{it.alias().isEmpty() ? "" : STR." \{it.alias()}"}");
+            }
         };
     }
 
     ElementResult join(Join join) throws SqlTemplateException {
         if (join.type().hasOnClause()) {
-            StringTemplate stringTemplate = join.on();
-            var fragments = stringTemplate.fragments();
-            var values = stringTemplate.values();
-            assert fragments.size() == values.size() + 1;
-            List<String> evalStrings = new ArrayList<>();
-            List<String> parts = new ArrayList<>();
-            for (int i = 0; i < fragments.size(); i++) {
-                String fragment = fragments.get(i);
-                parts.add(fragment);
-                if (i < values.size()) {
-                    Object value = values.get(i);
-                    switch (value) {
-                        case Unsafe u -> parts.add(u.sql());
-                        case Table t -> parts.add(STR."\{getTableName(t.table(), sqlTemplate.tableNameResolver())}\{t.alias().isEmpty() ? "" : STR." \{t.alias()}"}");
-                        case Alias a -> parts.add(aliasMapper.getAlias(a.table(), a.path()));
-                        case On o -> {
-                            var leftComponents = getFkComponents(o.fromTable()).toList();
-                            var rightComponents = getFkComponents(o.toTable()).toList();
-                            var leftComponent = findComponent(leftComponents, o.toTable());
-                            Supplier<SqlTemplateException> exception = () -> new SqlTemplateException(STR."Failed to join \{o.fromTable().getSimpleName()} with \{o.toTable().getSimpleName()}.");
-                            if (leftComponent.isPresent()) {
-                                // Joins foreign key of left table to primary key of right table.
-                                var fk = getForeignKey(leftComponent.get(), sqlTemplate.foreignKeyResolver());
-                                var pk = getColumnName(getPkComponents(o.toTable()).findFirst().orElseThrow(exception), sqlTemplate.columnNameResolver());
-                                parts.add(STR."\{aliasMapper.getAlias(o.fromTable(), null)}.\{fk} = \{aliasMapper.getAlias(o.toTable(), null)}.\{pk}");
-                            } else {
-                                var rightComponent = findComponent(rightComponents, o.fromTable());
-                                if (rightComponent.isPresent()) {
-                                    // Joins foreign key of right table to primary key of left table.
-                                    var fk = getForeignKey(rightComponent.get(), sqlTemplate.foreignKeyResolver());
-                                    var pk = getColumnName(getPkComponents(o.fromTable()).findFirst().orElseThrow(exception), sqlTemplate.columnNameResolver());
-                                    parts.add(STR."\{aliasMapper.getAlias(o.fromTable(), null)}.\{pk} = \{aliasMapper.getAlias(o.toTable(), null)}.\{fk}");
-                                } else {
-                                    // Joins foreign keys of two compound primary keys.
-                                    leftComponent = leftComponents.stream()
-                                            .filter(f -> rightComponents.stream().anyMatch(r -> r.getType().equals(f.getType())))
-                                            .findFirst();
-                                    rightComponent = rightComponents.stream()
-                                            .filter(f -> leftComponents.stream().anyMatch(l -> l.getType().equals(f.getType())))
-                                            .findFirst();
-                                    var fk = getForeignKey(leftComponent.orElseThrow(exception), sqlTemplate.foreignKeyResolver());
-                                    var pk = getForeignKey(rightComponent.orElseThrow(exception), sqlTemplate.foreignKeyResolver());
-                                    parts.add(STR."\{aliasMapper.getAlias(o.fromTable(), null)}.\{fk} = \{aliasMapper.getAlias(o.toTable(), null)}.\{pk}");
-                                }
-                            }
+            ElementResult on = switch (join.target()) {
+                case TableTarget(var toTable) when join.source() instanceof TableSource(var fromTable) -> {
+                    var leftComponents = getFkComponents(fromTable).toList();
+                    var rightComponents = getFkComponents(toTable).toList();
+                    var leftComponent = findComponent(leftComponents, toTable);
+                    Supplier<SqlTemplateException> exception = () -> new SqlTemplateException(STR."Failed to join \{fromTable.getSimpleName()} with \{toTable.getSimpleName()}.");
+                    if (leftComponent.isPresent()) {
+                        // Joins foreign key of left table to primary key of right table.
+                        var fk = getForeignKey(leftComponent.get(), sqlTemplate.foreignKeyResolver());
+                        var pk = getColumnName(getPkComponents(toTable).findFirst().orElseThrow(exception), sqlTemplate.columnNameResolver());
+                        yield new ElementResult(STR."\{aliasMapper.getAlias(fromTable, null, INNER)}.\{fk} = \{aliasMapper.getAlias(toTable, null, INNER)}.\{pk}");
+                    } else {
+                        var rightComponent = findComponent(rightComponents, fromTable);
+                        if (rightComponent.isPresent()) {
+                            // Joins foreign key of right table to primary key of left table.
+                            var fk = getForeignKey(rightComponent.get(), sqlTemplate.foreignKeyResolver());
+                            var pk = getColumnName(getPkComponents(fromTable).findFirst().orElseThrow(exception), sqlTemplate.columnNameResolver());
+                            yield new ElementResult(STR."\{aliasMapper.getAlias(fromTable, null, INNER)}.\{pk} = \{aliasMapper.getAlias(toTable, null, INNER)}.\{fk}");
+                        } else {
+                            // Joins foreign keys of two compound primary keys.
+                            leftComponent = leftComponents.stream()
+                                    .filter(f -> rightComponents.stream().anyMatch(r -> r.getType().equals(f.getType())))
+                                    .findFirst();
+                            rightComponent = rightComponents.stream()
+                                    .filter(f -> leftComponents.stream().anyMatch(l -> l.getType().equals(f.getType())))
+                                    .findFirst();
+                            var fk = getForeignKey(leftComponent.orElseThrow(exception), sqlTemplate.foreignKeyResolver());
+                            var pk = getForeignKey(rightComponent.orElseThrow(exception), sqlTemplate.foreignKeyResolver());
+                            yield new ElementResult(STR."\{aliasMapper.getAlias(fromTable, null, INNER)}.\{fk} = \{aliasMapper.getAlias(toTable, null, INNER)}.\{pk}");
                         }
-                        case Class<?> c when c.isRecord() -> //noinspection unchecked
-                                parts.add(aliasMapper.getAlias((Class<? extends Record>) c, null));
-                        case Object k when REFLECTION.isSupportedType(k) -> parts.add(aliasMapper.getAlias(REFLECTION.getRecordType(k), null));
-                        case Element e -> throw new SqlTemplateException(STR."Unsupported element type: \{e.getClass().getSimpleName()}.");
-                        default -> parts.add(registerParam(value));
                     }
                 }
-            }
-            String on = String.join("", parts);
+                case TableTarget _ -> throw new SqlTemplateException("Unsupported source type.");   // Should not happen. See Join validation logic.
+                case TemplateTarget ts -> new ElementResult(parse(ts.template(), true));   // On-clause is correlated.
+            };
             return switch (join) {
                 case Join(TableSource ts, var alias, _, _) ->
-                        new ElementResult(STR."\n\{join.type().sql()} \{getTableName(ts.table(), sqlTemplate.tableNameResolver())} \{aliasMapper.useAlias(ts.table(), alias)} ON \{on}", evalStrings);
-                case Join(TemplateSource ts, var alias, _, _) ->
-                        new ElementResult(STR."\n\{join.type().sql()} (\{getSourceString(ts)}) \{alias} ON \{on}", evalStrings);
+                        new ElementResult(STR."\n\{join.type().sql()} \{getTableName(ts.table(), sqlTemplate.tableNameResolver())} \{aliasMapper.useAlias(ts.table(), alias, INNER)} ON \{on.sql()}", on.args());
+                case Join(TemplateSource ts, var alias, _, _) -> {
+                    var source = parse(ts.template(), false);   // Source is not correlated.
+                    yield new ElementResult(STR."\n\{join.type().sql()} (\{source}) \{alias} ON \{on.sql()}", on.args());
+                }
             };
         }
         return switch (join) {
             case Join(TableSource ts, var alias, _, _) -> new ElementResult(STR."\n\{join.type().sql()} \{getTableName(ts.table(), sqlTemplate.tableNameResolver())}\{alias.isEmpty() ? "" : STR." \{alias}"}");
-            case Join(TemplateSource ts, var alias, _, _) -> new ElementResult(STR."\n\{join.type().sql()} (\{getSourceString(ts)})\{alias.isEmpty() ? "" : STR." \{alias}"}");
-        };
-    }
-
-    private String getSourceString(TemplateSource templateSource) throws SqlTemplateException {
-        var sql = sqlTemplate.process(templateSource.template(), true);
-        for (var parameter : sql.parameters()) {
-            switch (parameter) {
-                case PositionalParameter p -> registerParam(p.dbValue());
-                case NamedParameter n -> registerParam(n.name(), n.dbValue());
+            case Join(TemplateSource ts, var alias, _, _) -> {
+                var source = parse(ts.template(), false);   // Source is not correlated.
+                yield new ElementResult(STR."\n\{join.type().sql()} (\{source})\{alias.isEmpty() ? "" : STR." \{alias}"}");
             }
-        }
-        return sql.statement();
+        };
     }
 
     ElementResult table(Table it) {
@@ -268,7 +262,7 @@ record ElementProcessor(
     }
 
     ElementResult alias(Alias it) throws SqlTemplateException {
-        return new ElementResult(aliasMapper.getAlias(it.table(), it.path()));
+        return new ElementResult(aliasMapper.getAlias(it.table(), it.path(), it.scope()));
     }
 
     ElementResult set(Set it) throws SqlTemplateException {
@@ -339,68 +333,82 @@ record ElementProcessor(
         throw new SqlTemplateException("No values found for Set.");
     }
 
-    private ElementResult expression(Expression expression) throws SqlTemplateException {
-        return switch(expression) {
-            case TemplateExpression it -> {
-                var fragments = it.template().fragments();
-                var values = it.template().values();
-                List<String> evalStrings = new ArrayList<>();
-                List<String> parts = new ArrayList<>();
-                for (int i = 0; i < fragments.size(); i++) {
-                    String fragment = fragments.get(i);
-                    parts.add(fragment);
-                    if (i < values.size()) {
-                        Object value = values.get(i);
-                        switch (value) {
-                            case Expression exp -> {
-                                ElementResult result = expression(exp);
-                                parts.add(result.sql());
-                                evalStrings.addAll(result.args());
-                            }
-                            case Unsafe u -> parts.add(u.sql());
-                            case Table t -> parts.add(STR."\{getTableName(t.table(), sqlTemplate.tableNameResolver())}\{t.alias().isEmpty() ? "" : STR." \{t.alias()}"}");
-                            case Alias a -> parts.add(aliasMapper.getAlias(a.table(), a.path()));
-                            case Stream<?> s -> parts.add(getObjectString(s, EQUALS, null));
-                            case Param p when p.name() != null -> parts.add(registerParam(p.name(), p.dbValue()));
-                            case Param p -> parts.add(registerParam(p.dbValue()));
-                            case Record r -> parts.add(getObjectString(r, EQUALS, null));
-                            case Element e -> throw new SqlTemplateException(STR."Unsupported element type: \{e.getClass().getSimpleName()}.");
-                            case Class<?> c when c.isRecord() -> //noinspection unchecked
-                                    parts.add(aliasMapper.getAlias((Class<? extends Record>) c, null));
-                            case Object k when REFLECTION.isSupportedType(k) -> parts.add(aliasMapper.getAlias(REFLECTION.getRecordType(k), null));
-                            default -> parts.add(registerParam(value));
-                        }
-                    }
-                }
-                String sql = String.join("", parts);
-                yield new ElementResult(sql, evalStrings);
-            }
-            case ObjectExpression it -> new ElementResult(getObjectString(it.object(), it.operator(), it.path()));
+    private Object resolveSubqueries(@Nullable Object value) {
+        return switch (value) {
+            case Templatable t -> new Subquery(t.asStringTemplate(), true);
+            case StringTemplate t -> new Subquery(t, true);
+            case null, default -> value;
         };
     }
 
-    private String getObjectString(@Nonnull Object object, @Nonnull Operator operator, @Nullable String path) throws SqlTemplateException {
+    private String getTemplateExpressionString(@Nonnull StringTemplate template) throws SqlTemplateException{
+        var fragments = template.fragments();
+        var values = template.values();
+        List<String> parts = new ArrayList<>();
+        for (int i = 0; i < fragments.size(); i++) {
+            String fragment = fragments.get(i);
+            parts.add(fragment);
+            if (i < values.size()) {
+                Object value = resolveSubqueries(values.get(i));
+                switch (value) {
+                    case Expression exp -> parts.add(getExpressionString(exp));
+                    case Subquery s -> parts.add(parse(s.template(), s.correlate()));
+                    case Unsafe u -> parts.add(u.sql());
+                    case Table t -> parts.add(STR."\{getTableName(t.table(), sqlTemplate.tableNameResolver())}\{t.alias().isEmpty() ? "" : STR." \{t.alias()}"}");
+                    case Alias a -> parts.add(aliasMapper.getAlias(a.table(), a.path(), a.scope()));
+                    case Param p when p.name() != null -> parts.add(registerParam(p.name(), p.dbValue()));
+                    case Param p -> parts.add(registerParam(p.dbValue()));
+                    case Record r -> parts.add(getObjectExpressionString(r, EQUALS, null));
+                    case Class<?> c when c.isRecord() -> //noinspection unchecked
+                            parts.add(aliasMapper.getAlias((Class<? extends Record>) c, null, CASCADE));
+                    case Object k when REFLECTION.isSupportedType(k) -> parts.add(aliasMapper.getAlias(REFLECTION.getRecordType(k), null, CASCADE));
+                    case Stream<?> _ -> throw new SqlTemplateException("Stream not supported in expression.");
+                    case Query _ -> throw new SqlTemplateException("Query not supported in expression. Use QueryBuilder instead.");
+                    case Element e -> throw new SqlTemplateException(STR."Unsupported element type in expression: \{e.getClass().getSimpleName()}.");
+                    default -> parts.add(registerParam(value));
+                }
+            }
+        }
+        return String.join("", parts);
+    }
+
+    private String getExpressionString(Expression expression) throws SqlTemplateException {
+        return switch(expression) {
+            case TemplateExpression it -> getTemplateExpressionString(it.template());
+            case ObjectExpression it -> getObjectExpressionString(it.object(), it.operator(), it.path());
+        };
+    }
+
+    private String getObjectExpressionString(@Nonnull Object object, @Nonnull Operator operator, @Nullable String path)
+            throws SqlTemplateException {
         if (primaryTable == null) {
             throw new SqlTemplateException("Primary table unknown.");
         }
         var table = primaryTable.table();
         Iterable<?> iterable = switch (object) {
-            case Object[] a -> List.of(a);
+            case null -> throw new SqlTemplateException("Null object not supported.");
+            case Object[] a -> asList(a);   // Use this instead of List.of() to allow null values.
             case Iterable<?> i -> i;
-            case Stream<?> _ -> throw new SqlTemplateException("Streams not supported. Use Iterable or varargs instead.");
-            default -> List.of(object);
+            case BindVars _ -> throw new SqlTemplateException("BindVars not supported in this context.");
+            case Stream<?> _ -> throw new SqlTemplateException("Stream not supported in this context. Use Iterable or varargs instead.");
+            case StringTemplate _ -> throw new SqlTemplateException("String template not supported in this context. Use expression method instead.");
+            default -> List.of(object); // Not expected at the moment though.
         };
         Class<?> pkType = REFLECTION.findPKType(primaryTable.table()).orElse(null);
         String column = null;
         int size = 0;
         List<String> args = new ArrayList<>();
-        StringBuilder s = new StringBuilder();
         for (var o : iterable) {
+            if (o == null) {
+                parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), null));
+                size++;
+                continue;
+            }
             Class<?> elementType = o.getClass();
             Map<String, Object> valueMap;
             if (path == null && (pkType != null && (pkType == elementType || (pkType.isPrimitive() && isPrimitiveCompatible(o, pkType))))) {
                 assert primaryTable != null;
-                valueMap = getValuesForCondition(o, table, primaryTable.alias(), sqlTemplate.columnNameResolver());
+                valueMap = getValuesForCondition(o, table, primaryTable.alias(), sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver());
                 if (valueMap.isEmpty()) {
                     throw new SqlTemplateException(STR."Failed to find primary key field for \{o.getClass().getSimpleName()} argument on \{table.getSimpleName()} table.");
                 }
@@ -411,7 +419,7 @@ record ElementProcessor(
                     throw new SqlTemplateException(STR."Failed to find field for \{o.getClass().getSimpleName()} argument on \{table.getSimpleName()} table graph.");
                 }
             } else if (path != null) {
-                valueMap = getValuesForCondition(o, path, table, aliasMapper, sqlTemplate.columnNameResolver());
+                valueMap = getValuesForCondition(o, path, table, aliasMapper, sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver());
                 if (valueMap.isEmpty()) {
                     throw new SqlTemplateException(STR."Failed to find field for \{o.getClass().getSimpleName()} argument on \{table.getSimpleName()} table at path '\{path}'.");
                 }
@@ -448,24 +456,28 @@ record ElementProcessor(
         }
         if (!args.isEmpty()) {
             args.removeLast();
-            s.append(String.join("", args));
+            return String.join("", args);
         }
-        if (size == 0 && path != null) {
-            var valueMap = getValuesForCondition(null, path, table, aliasMapper, sqlTemplate.columnNameResolver());
+        if (column == null) {
+            var valueMap = path != null
+                    ? getValuesForCondition(null, path, table, aliasMapper, sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver())
+                    : getValuesForCondition(null, table, primaryTable.alias(), sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver());
             if (valueMap.size() == 1) {
                 column = valueMap.sequencedKeySet().getFirst();
+            }
+        }
+        if (column == null) {
+            if (path == null) {
+                throw new SqlTemplateException(STR."Failed to find field for \{table.getSimpleName()}.");
             } else {
                 throw new SqlTemplateException(STR."Failed to find field for \{table.getSimpleName()} table at path \{path}.");
             }
         }
-        if (column != null) {
-            try {
-                s.append(operator.format(column, size));
-            } catch (IllegalArgumentException e) {
-                throw new SqlTemplateException(e);
-            }
+        try {
+            return operator.format(column, size);
+        } catch (IllegalArgumentException e) {
+            throw new SqlTemplateException(e);
         }
-        return s.toString();
     }
 
     ElementResult where(Where it) throws SqlTemplateException {
@@ -474,7 +486,7 @@ record ElementProcessor(
         }
         Expression expression = it.expression();
         if (expression != null) {
-            return expression(expression);
+            return new ElementResult(getExpressionString(expression));
         } else if (it.bindVars() != null) {
             String bindVarsStr = getBindVarsStringForWhere(primaryTable.table(), primaryTable.alias(), sqlTemplate.columnNameResolver());
             if (it.bindVars() instanceof BindVarsImpl vars) {
@@ -508,7 +520,7 @@ record ElementProcessor(
         var records = it.records();
         if (records != null) {
             List<String> args = new ArrayList<>();
-            for (var record : records.toList()) {
+            for (var record : records) {
                 if (record == null) {
                     throw new SqlTemplateException("Record is null.");
                 }
@@ -553,27 +565,30 @@ record ElementProcessor(
         throw new SqlTemplateException("No values found for Values.");
     }
 
+    private String toArgsString(Iterable<?> iterable) {
+        List<String> args = new ArrayList<>();
+        for (var v : iterable) {
+            args.add("?");
+            args.add(", ");
+            parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), v));
+        }
+        if (!args.isEmpty()) {
+            args.removeLast();    // Remove last ", " element.
+        }
+        return String.join("", args);
+    }
+
     private String registerParam(@Nullable Object value) throws SqlTemplateException {
-        switch (value) {
-            case Object[] _ ->
-                    throw new SqlTemplateException("Array parameters not supported.");   // Max compatibility with JPA.
-            case Iterable<?> it when sqlTemplate.expandCollection() -> {
-                List<String> args = new ArrayList<>();
-                for (var v : it) {
-                    args.add("?");
-                    args.add(", ");
-                    parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), v));
-                }
-                if (!args.isEmpty()) {
-                    args.removeLast();    // Remove last ", " element.
-                }
-                return String.join("", args);
-            }
+        return switch (value) {
+            case Object[] array when sqlTemplate.expandCollection() -> toArgsString(List.of(array));
+            case Iterable<?> it when sqlTemplate.expandCollection() -> toArgsString(it);
+            case Object[] _ -> throw new SqlTemplateException("Array parameters not supported.");
+            case Iterable<?> _ -> throw new SqlTemplateException("Collection parameters not supported.");
             case null, default -> {
                 parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), value));
-                return "?";
+                yield "?";
             }
-        }
+        };
     }
 
     private String registerParam(@Nonnull String name, @Nullable Object value) throws SqlTemplateException {
@@ -599,37 +614,82 @@ record ElementProcessor(
         }
     }
 
+    ElementResult subquery(Subquery it) throws SqlTemplateException{
+        return new ElementResult(parse(it.template(), it.correlate()));
+    }
+
+    String parse(StringTemplate template, boolean correlate) throws SqlTemplateException{
+        Callable<String> callable = () -> {
+            Sql sql = sqlTemplate.process(template, true);
+            for (var parameter : sql.parameters()) {
+                switch (parameter) {
+                    case PositionalParameter p -> registerParam(p.dbValue());
+                    case NamedParameter n -> registerParam(n.name(), n.dbValue());
+                }
+            }
+            return sql.statement();
+        };
+        try {
+            if (correlate) {
+                return ScopedValue.callWhere(CURRENT_PROCESSOR, this, callable);
+            }
+            return callable.call();
+        } catch (SqlTemplateException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new SqlTemplateException(e);
+        }
+    }
+
     ElementResult unsafe(Unsafe it) {
         return new ElementResult(it.sql());
     }
 
-    public static @Nullable List<RecordComponent> resolvePath(Class<? extends Record> root, Class<? extends Record> target) {
+    public static @Nullable List<RecordComponent> resolvePath(Class<? extends Record> root, Class<? extends Record> target) throws SqlTemplateException{
         List<RecordComponent> path = new ArrayList<>();
-        if (!resolvePath(root, target, path)) {
+        List<RecordComponent> searchPath = new ArrayList<>(); // Temporary path for exploration.
+        int pathsFound = resolvePath(root, target, searchPath, path, 0);
+        if (pathsFound == 0) {
             return null;
+        } else if (pathsFound > 1) {
+            throw new SqlTemplateException(STR."Multiple paths to the target \{target.getSimpleName()} found in \{root.getSimpleName()}.");
         }
         return path;
     }
 
-    private static boolean resolvePath(Class<? extends Record> current, Class<? extends Record> target, List<RecordComponent> path) {
+    private static int resolvePath(Class<? extends Record> current, Class<? extends Record> target,
+                                   List<RecordComponent> searchPath, List<RecordComponent> path, int pathsFound) {
         if (current == target) {
-            return true;
+            if (pathsFound == 0) {
+                path.clear();
+                path.addAll(searchPath);
+            }
+            return pathsFound + 1;
         }
         for (RecordComponent component : current.getRecordComponents()) {
             Class<?> componentType = component.getType();
             if (componentType.isRecord() && REFLECTION.isAnnotationPresent(component, FK.class)) {
-                path.add(component);
+                searchPath.add(component);
                 //noinspection unchecked
-                if (resolvePath((Class<? extends Record>) componentType, target, path)) {
-                    return true;
+                pathsFound = resolvePath((Class<? extends Record>) componentType, target, searchPath, path, pathsFound);
+                if (pathsFound > 1) {
+                    return pathsFound; // Early return if multiple paths are found.
                 }
-                path.removeLast();
+                searchPath.removeLast();
             } else if (componentType == target) {
-                path.add(component);
-                return true;
+                searchPath.add(component);
+                pathsFound++;
+                if (pathsFound == 1) {
+                    path.clear();
+                    path.addAll(searchPath);
+                }
+                searchPath.removeLast();
+                if (pathsFound > 1) {
+                    return pathsFound;
+                }
             }
         }
-        return false;
+        return pathsFound;
     }
 
     private static String getColumnsStringForSelect(@Nonnull Class<? extends Record> type,
@@ -648,7 +708,13 @@ record ElementProcessor(
                 pathString = toPathString(pathList);
             }
         }
-        getColumnsStringForSelect(type, path, aliasMapper, primaryTable, aliasMapper.findAlias(type, pathString).orElse(""), parts, columnNameResolver, foreignKeyResolver);
+        // Path is implicit. First try the path, if not found, try without the path.
+        var resolvedAlias = aliasMapper.findAlias(type, pathString, INNER);
+        if (resolvedAlias.isEmpty()) {
+            resolvedAlias = aliasMapper.findAlias(type, null, INNER);
+        }
+        var alias = resolvedAlias.orElse("");
+        getColumnsStringForSelect(type, path, aliasMapper, primaryTable, alias, parts, columnNameResolver, foreignKeyResolver);
         if (!parts.isEmpty()) {
             parts.removeLast();
         }
@@ -767,17 +833,14 @@ record ElementProcessor(
                 continue;
             }
             if (component.getType().isRecord()) {
-                if (pk != null || REFLECTION.isAnnotationPresent(component, Inline.class)) {
-                    //noinspection unchecked
-                    String str = getStringForInsert((Class<? extends Record>) component.getType(), placeholders, columnNameResolver, foreignKeyResolver, generatedKeys, primaryKey || pk != null);
-                    if (!str.isEmpty()) {
-                        parts.add(str);
-                        parts.add(", ");
-                    }
-                    continue;
+                // @Inline is implicitly assumed.
+                //noinspection unchecked
+                String str = getStringForInsert((Class<? extends Record>) component.getType(), placeholders, columnNameResolver, foreignKeyResolver, generatedKeys, primaryKey || pk != null);
+                if (!str.isEmpty()) {
+                    parts.add(str);
+                    parts.add(", ");
                 }
-                // Only allow inlined components.
-                throw new SqlTemplateException(STR."Record component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' must be a primary key, foreign key or inline component.");
+                continue;
             }
             parts.add(placeholders ? "?" : getColumnName(component, columnNameResolver));
             parts.add(", ");
@@ -824,18 +887,19 @@ record ElementProcessor(
                 continue;
             }
             if (fkClass != null) {
-                if (component.getType().isRecord() && REFLECTION.isAnnotationPresent(component, Inline.class)) {
+                if (REFLECTION.isAnnotationPresent(component, PK.class)) {
+                    names.add(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{fkName != null ? fkName : getColumnName(component, columnNameResolver)}");
+                    // We found the PK for the foreign key. We can now return.
+                    break;
+                }
+                if (component.getType().isRecord()) {
+                    // @Inline is implicitly assumed.
                     var pks = getNamesForSet(recordType, alias, fkName, fkClass, columnNameResolver, foreignKeyResolver);
                     if (!pks.isEmpty()) {
                         names.addAll(pks);
                         // We found the PK for the foreign key. We can now return.
                         break;
                     }
-                }
-                if (REFLECTION.isAnnotationPresent(component, PK.class)) {
-                    names.add(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{fkName != null ? fkName : getColumnName(component, columnNameResolver)}");
-                    // We found the PK for the foreign key. We can now return.
-                    break;
                 }
             } else {
                 PK pk = REFLECTION.getAnnotation(component, PK.class);
@@ -846,7 +910,8 @@ record ElementProcessor(
                     names.addAll(getNamesForSet(recordType, alias, getForeignKey(component, foreignKeyResolver), (Class<? extends Record>) component.getType(), columnNameResolver, foreignKeyResolver));
                     continue;
                 }
-                if (component.getType().isRecord() || REFLECTION.isAnnotationPresent(component, Inline.class)) {
+                if (component.getType().isRecord()) {
+                    // @Inline is implicitly assumed.
                     names.addAll(getNamesForSet((Class<? extends Record>) component.getType(), alias, getForeignKey(component, foreignKeyResolver), fkClass, columnNameResolver, foreignKeyResolver));
                     continue;
                 }
@@ -892,7 +957,7 @@ record ElementProcessor(
                     if (!REFLECTION.isAnnotationPresent(component, FK.class)) {
                         throw new SqlTemplateException(STR."Lazy component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is not a foreign key.");
                     }
-                    Lazy<?> lazy = (Lazy<?>) REFLECTION.invokeComponent(component, record);
+                    Lazy<?, ?> lazy = (Lazy<?, ?>) REFLECTION.invokeComponent(component, record);
                     var id = lazy == null ? null : lazy.id();
                     if (id == null && REFLECTION.isNonnull(component)) {
                         throw new SqlTemplateException(STR."Nonnull Lazy component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
@@ -901,7 +966,8 @@ record ElementProcessor(
                     continue;
                 }
                 if (fkClass != null) {
-                    if (component.getType().isRecord() && REFLECTION.isAnnotationPresent(component, Inline.class)) {
+                    if (component.getType().isRecord() && !REFLECTION.isAnnotationPresent(component, PK.class)) {
+                        // @Inline is implicitly assumed.
                         var r = (Record) REFLECTION.invokeComponent(component, record);
                         if (r == null) {
                             // Skipping; We're only interested in finding a PK.
@@ -942,7 +1008,8 @@ record ElementProcessor(
                         versionAware.setPlain(true);
                         continue;
                     }
-                    if (component.getType().isRecord() || REFLECTION.isAnnotationPresent(component, Inline.class)) {
+                    if (component.getType().isRecord()) {
+                        // @Inline is implicitly assumed.
                         var r = (Record) REFLECTION.invokeComponent(component, record);
                         if (r == null && REFLECTION.isNonnull(component)) {
                             throw new SqlTemplateException(STR."Nonnull inline component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
@@ -1019,10 +1086,14 @@ record ElementProcessor(
         for (var component : recordType.getRecordComponents()) {
             boolean pk = REFLECTION.isAnnotationPresent(component, PK.class);
             if (component.getType().isRecord()) {
-                if (pk || parentPk // Record PKs are implicitly inlined.
-                        || REFLECTION.isAnnotationPresent(component, Inline.class)) {
-                    names.addAll(getPkNamesForWhere((Class<? extends Record>) component.getType(), alias, columnNameResolver, pk || parentPk));
+                if (getORMConverter(component).isPresent()) {
+                    continue;
                 }
+                if (REFLECTION.isAnnotationPresent(component, FK.class)) {
+                    continue;
+                }
+                // @Inline is implicitly assumed.
+                names.addAll(getPkNamesForWhere((Class<? extends Record>) component.getType(), alias, columnNameResolver, pk || parentPk));
             } else if (pk || parentPk) {
                 names.add(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getColumnName(component, columnNameResolver)}");
             }
@@ -1045,7 +1116,7 @@ record ElementProcessor(
                     if (REFLECTION.isAnnotationPresent(component, PK.class)) {
                         Object pk = REFLECTION.invokeComponent(component, record);
                         if (pk instanceof Record) {
-                            values.putAll(getValuesForCondition(pk, primaryTable, alias, columnNameResolver));
+                            values.putAll(getValuesForCondition(pk, primaryTable, alias, columnNameResolver, foreignKeyResolver));
                         } else {
                             values.put(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getColumnName(component, columnNameResolver)}", REFLECTION.invokeComponent(component, record));
                         }
@@ -1056,7 +1127,7 @@ record ElementProcessor(
                 }
                 return values;
             }
-            TableMapper.Mapping mapping = tableMapper.getMapping(record.getClass(), path);
+            Mapping mapping = tableMapper.getMapping(record.getClass(), path);
             String a = mapping.alias();
             if (mapping.primaryKey()) {
                 for (var component : mapping.components()) {
@@ -1084,21 +1155,26 @@ record ElementProcessor(
         }
     }
 
-    private static SequencedMap<String, Object> getValuesForCondition(@Nonnull Object id,
-                                                             @Nonnull Class<? extends Record> recordType,
-                                                             @Nonnull String alias,
-                                                             @Nullable ColumnNameResolver columnNameResolver) throws SqlTemplateException {
+    private static SequencedMap<String, Object> getValuesForCondition(@Nullable Object id,
+                                                                      @Nonnull Class<? extends Record> recordType,
+                                                                      @Nonnull String alias,
+                                                                      @Nullable ColumnNameResolver columnNameResolver,
+                                                                      @Nullable ForeignKeyResolver foreignKeyResolver) throws SqlTemplateException {
         try {
             var values = new LinkedHashMap<String, Object>();
             for (var component : recordType.getRecordComponents()) {
                 if (REFLECTION.isAnnotationPresent(component, PK.class)) {
                     if (component.getType().isRecord()) {
-                        if (REFLECTION.isAnnotationPresent(component, FK.class)) {
-                            values.put(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getColumnName(component, columnNameResolver)}", getPkForForeignKey((Record) id));
-                        } else if (recordType.isInstance(id)) {
-                            values.putAll(getValuesForInlined((Record) REFLECTION.invokeComponent(component, id), alias, columnNameResolver));
+                        if (id != null) {
+                            if (REFLECTION.isAnnotationPresent(component, FK.class)) {
+                                values.put(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getForeignKey(component, foreignKeyResolver)}", getPkForForeignKey((Record) id));
+                            } else if (recordType.isInstance(id)) {
+                                values.putAll(getValuesForInlined((Record) REFLECTION.invokeComponent(component, id), alias, columnNameResolver));
+                            } else {
+                                values.putAll(getValuesForInlined((Record) id, alias, columnNameResolver));
+                            }
                         } else {
-                            values.putAll(getValuesForInlined((Record) id, alias, columnNameResolver));
+                            values.put(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getColumnName(component, columnNameResolver)}", null);
                         }
                     } else {
                         values.put(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getColumnName(component, columnNameResolver)}", id);
@@ -1115,11 +1191,12 @@ record ElementProcessor(
     }
 
     private static SequencedMap<String, Object> getValuesForCondition(@Nullable Object value,
-                                                                          @Nonnull String path,
-                                                                          @Nonnull Class<? extends Record> recordType,
-                                                                          @Nonnull AliasMapper aliasMapper,
-                                                                          @Nullable ColumnNameResolver columnNameResolver) throws SqlTemplateException {
-        return getValuesForCondition(value, path, recordType, aliasMapper, columnNameResolver, 0, null, 0);
+                                                                      @Nonnull String path,
+                                                                      @Nonnull Class<? extends Record> recordType,
+                                                                      @Nonnull AliasMapper aliasMapper,
+                                                                      @Nullable ColumnNameResolver columnNameResolver,
+                                                                      @Nullable ForeignKeyResolver foreignKeyResolver) throws SqlTemplateException {
+        return getValuesForCondition(value, path, recordType, aliasMapper, columnNameResolver, foreignKeyResolver, 0, null, 0);
     }
 
     private static SequencedMap<String, Object> getValuesForCondition(@Nullable Object value,
@@ -1127,6 +1204,7 @@ record ElementProcessor(
                                                                       @Nonnull Class<? extends Record> recordType,
                                                                       @Nonnull AliasMapper aliasMapper,
                                                                       @Nullable ColumnNameResolver columnNameResolver,
+                                                                      @Nullable ForeignKeyResolver foreignKeyResolver,
                                                                       int depth,
                                                                       @Nullable Class<? extends Record> inlineParentType,
                                                                       int inlineDepth) throws SqlTemplateException {
@@ -1139,27 +1217,46 @@ record ElementProcessor(
                 String name = parts[depth];
                 for (var component : components) {
                     if (component.getName().equals(name)) {
-                        String alias = aliasMapper.getAlias(recordType, Stream.of(parts).limit(depth - inlineDepth).collect(joining(".")));
-                        values.put(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getColumnName(component, columnNameResolver)}", value);
+                        String alias = aliasMapper.getAlias(recordType, Stream.of(parts).limit(depth - inlineDepth).collect(joining(".")), INNER);
+                        if (REFLECTION.isAnnotationPresent(component, FK.class)) {
+                            values.put(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getForeignKey(component, foreignKeyResolver)}", value);
+                        } else {
+                            values.put(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getColumnName(component, columnNameResolver)}", value);
+                        }
                         break;
                     }
                 }
             } else {
                 for (var component : components) {
                     if (component.getName().equals(parts[depth])) {
-                        boolean inline = REFLECTION.isAnnotationPresent(component, Inline.class);
-                        var candidateType = component.getType();
-                        if (candidateType.isRecord() && (REFLECTION.isAnnotationPresent(component, FK.class) || inline)) {
-                            //noinspection unchecked
+                        if (component.getType().isRecord()) {
+                            var converter = getORMConverter(component);
+                            if (converter.isPresent()) {
+                                continue;
+                            }
+                            boolean fk = REFLECTION.isAnnotationPresent(component, FK.class);
+                            Class<? extends Record> type;
+                            Class<? extends Record> inlineType;
+                            if (fk) {
+                                //noinspection unchecked
+                                type = (Class<? extends Record>) component.getType();
+                                inlineType = null;
+                            } else {    // Can either be PK or Inline.
+                                // Assuming @Inline; No need to check for optional annotation.
+                                type = recordType;
+                                //noinspection unchecked
+                                inlineType = (Class<? extends Record>) component.getType();
+                            }
                             values.putAll(getValuesForCondition(
                                     value,
                                     path,
-                                    (Class<? extends Record>) (inline ? recordType : candidateType),
+                                    type,
                                     aliasMapper,
                                     columnNameResolver,
+                                    foreignKeyResolver,
                                     depth + 1,
-                                    (Class<? extends Record>) (inline ? candidateType : null),
-                                    inlineDepth + (inline ? 1 : 0)));
+                                    inlineType,
+                                    inlineDepth + (inlineType != null ? 1 : 0)));
                         }
                         break;
                     }
@@ -1217,7 +1314,7 @@ record ElementProcessor(
                     if (!REFLECTION.isAnnotationPresent(component, FK.class)) {
                         throw new SqlTemplateException(STR."Lazy component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is not a foreign key.");
                     }
-                    var id = record == null ? null : ((Lazy<?>) REFLECTION.invokeComponent(component, record)).id();
+                    var id = record == null ? null : ((Lazy<?, ?>) REFLECTION.invokeComponent(component, record)).id();
                     if (id == null && REFLECTION.isNonnull(component)) {
                         throw new SqlTemplateException(STR."Nonnull Lazy component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
                     }
@@ -1225,8 +1322,8 @@ record ElementProcessor(
                     continue;
                 }
                 if (foreignKey) {
-                    if (component.getType().isRecord() && (REFLECTION.isAnnotationPresent(component, PK.class)  // Record PKs are implicitly inlined.
-                            || REFLECTION.isAnnotationPresent(component, Inline.class))) {
+                    if (component.getType().isRecord() && !REFLECTION.isAnnotationPresent(component, FK.class)) {
+                        // @Inline is implicitly assumed.
                         var r = (Record) REFLECTION.invokeComponent(component, record);
                         if (r == null) {
                             // Skipping; We're only interested in finding a PK.
@@ -1258,18 +1355,14 @@ record ElementProcessor(
                         continue;
                     }
                     if (component.getType().isRecord()) {
-                        if ((REFLECTION.isAnnotationPresent(component, PK.class) // Record PKs are implicitly inlined.
-                                || REFLECTION.isAnnotationPresent(component, Inline.class))) {
-                            var r = record == null ? null : (Record) REFLECTION.invokeComponent(component, record);
-                            if (r == null && REFLECTION.isNonnull(component)) {
-                                throw new SqlTemplateException(STR."Nonnull component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
-                            }
-                            //noinspection unchecked
-                            values.addAll(getValuesForInsert(r, (Class<? extends Record>) component.getType(), false));
-                            continue;
-                        } else {
-                            throw new SqlTemplateException(STR."Record component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' must be a primary key, foreign key or inline component.");
+                        // @Inline is implicitly assumed.
+                        var r = record == null ? null : (Record) REFLECTION.invokeComponent(component, record);
+                        if (r == null && REFLECTION.isNonnull(component)) {
+                            throw new SqlTemplateException(STR."Nonnull component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
                         }
+                        //noinspection unchecked
+                        values.addAll(getValuesForInsert(r, (Class<? extends Record>) component.getType(), false));
+                        continue;
                     }
                     values.add(record == null ? null : REFLECTION.invokeComponent(component, record));
                 }
@@ -1287,7 +1380,7 @@ record ElementProcessor(
                                    @Nonnull String alias,
                                    @Nonnull AliasMapper aliasMapper) throws SqlTemplateException {
         if (path == null) {
-            var result = aliasMapper.findAlias(type, "");
+            var result = aliasMapper.findAlias(type, null, INNER);
             if (result.isPresent()) {
                 return result.get();
             }
@@ -1300,15 +1393,24 @@ record ElementProcessor(
         if (!path.isEmpty()) {
             RecordComponent lastComponent = path.getLast();
             if (REFLECTION.isAnnotationPresent(lastComponent, FK.class)) {
-                return aliasMapper.getAlias(type, p);
+                // Path is implicit. First try the path, if not found, try without the path.
+                var resolvedAlias = aliasMapper.findAlias(type, p, INNER);
+                if (resolvedAlias.isPresent()) {
+                    return resolvedAlias.get();
+                }
+                return aliasMapper.findAlias(type, null, INNER)
+                        .orElseThrow(() -> new SqlTemplateException(STR."Alias not found for \{type.getSimpleName()} at path \{p}."));
             }
-            if (REFLECTION.isAnnotationPresent(lastComponent, PK.class) ||
-                    REFLECTION.isAnnotationPresent(lastComponent, Inline.class)) {
+            if (REFLECTION.isAnnotationPresent(lastComponent, PK.class)) {
                 return alias;
+            }
+            if (getORMConverter(lastComponent).isEmpty()
+                    && !aliasMapper.exists(type, INNER)) { // Check needed for records without annotations.
+                return alias; // @Inline is implicitly assumed.
             }
         }
         // Fallback for records without annotations.
-        return aliasMapper.getAlias(type, null);
+        return aliasMapper.getAlias(type, null, INNER);
     }
 
     private boolean isPrimitiveCompatible(Object o, Class<?> clazz) {

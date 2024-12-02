@@ -25,7 +25,8 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 /**
  * Allows the persistence properties of a record component to be configured.
  *
- * <p>This annotation is only relevant in case the record is going to be persisted using an INSERT or UPDATE statement.</p>
+ * <p>This annotation is only relevant in case the record is going to be persisted using an INSERT or UPDATE
+ * statement.</p>
  */
 @Target({RECORD_COMPONENT, PARAMETER})
 @Retention(RUNTIME)

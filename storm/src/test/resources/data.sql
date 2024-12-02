@@ -18,6 +18,8 @@ alter table pet add constraint pet_pet_type_fk foreign key (type_id) references 
 alter table vet_specialty add constraint vet_specialty_specialty_fk foreign key (specialty_id) references specialty (id);
 alter table vet_specialty add constraint vet_specialty_vet_fk foreign key (vet_id) references vet (id);
 alter table visit add constraint visit_pet_fk foreign key (pet_id) references pet (id);
+create view owner_view as select * from owner;
+create view visit_view as select visit_date, description, pet_id, timestamp from visit;
 
 INSERT INTO vet (first_name, last_name) VALUES ('James', 'Carter');
 INSERT INTO vet (first_name, last_name) VALUES ('Helen', 'Leary');

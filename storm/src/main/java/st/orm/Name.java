@@ -31,7 +31,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 public @interface Name {
 
     /**
-     * (Optional) The name of the table or column.
+     * The name of the table or column (Optional).
      */
     String value() default "";
 }

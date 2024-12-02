@@ -16,20 +16,22 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.PersistenceException;
 import st.orm.BindVars;
+import st.orm.PersistenceException;
 import st.orm.Query;
 
+/**
+ * Factory for creating queries.
+ */
 public interface QueryFactory {
 
     BindVars createBindVars();
 
     /**
      *
-     * @param lazyFactory the lazy factory to use.
      * @param template the template to process.
      * @return a query that can be executed.
      * @throws PersistenceException if the template is invalid.
      */
-    Query create(@Nonnull LazyFactory lazyFactory, @Nonnull StringTemplate template);
+    Query create(@Nonnull StringTemplate template);
 }

@@ -15,18 +15,17 @@
  */
 package st.orm.kotlin.repository;
 
-import st.orm.kotlin.KTemplates;
 import st.orm.kotlin.template.KORMTemplate;
 
 /**
  * Base interface for all repositories.
  */
-public interface KRepository extends KTemplates, KRepositoryLookup {
+public interface KRepository {
 
     /**
      * Provides access to the underlying ORM template.
      *
      * @return the ORM template.
      */
-    KORMTemplate template();
+    KORMTemplate orm();
 }

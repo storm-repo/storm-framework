@@ -2,9 +2,8 @@ package st.orm;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import jakarta.persistence.PersistenceException;
-import jakarta.persistence.TemporalType;
 import lombok.Builder;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,10 +21,11 @@ import st.orm.model.VetSpecialtyPK;
 import st.orm.model.Visit;
 import st.orm.repository.Entity;
 import st.orm.repository.spring.PetRepository;
+import st.orm.template.Operator;
 import st.orm.template.SqlTemplateException;
 
 import javax.sql.DataSource;
-import java.sql.SQLSyntaxErrorException;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -34,16 +34,30 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TimeZone;
-import java.util.stream.Stream;
 
 import static java.lang.StringTemplate.RAW;
+import static java.util.stream.Collectors.toSet;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static st.orm.Templates.ORM;
+import static st.orm.Templates.alias;
 import static st.orm.Templates.from;
+import static st.orm.Templates.insert;
+import static st.orm.Templates.param;
+import static st.orm.Templates.select;
+import static st.orm.Templates.set;
+import static st.orm.Templates.table;
+import static st.orm.Templates.update;
+import static st.orm.Templates.values;
+import static st.orm.Templates.where;
+import static st.orm.template.ResolveScope.INNER;
+import static st.orm.template.ResolveScope.OUTER;
+import static st.orm.template.SqlInterceptor.intercept;
+import static st.orm.template.TemplateFunction.template;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
@@ -58,11 +72,10 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectPet() {
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 SELECT \{Pet.class}
-                FROM \{Pet.class}""".prepare()) {
-            var stream = query.getResultStream(Pet.class);
+                FROM \{Pet.class}""").prepare();
+             var stream = query.getResultStream(Pet.class)) {
             assertEquals(10, stream.filter(Objects::nonNull)
                     .map(Pet::owner)
                     .filter(Objects::nonNull)
@@ -73,16 +86,52 @@ public class TemplatePreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testSelectPetWithJoins() {
+    public void testSelectPetWithFromAndJoins() {
         String nameFilter = "%y%";
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
-                SELECT \{ORM.s(Pet.class)}
-                FROM \{ORM.t(Pet.class, "p")}
-                  INNER JOIN \{ORM.t(PetType.class, "pt")} ON p.type_id = pt.id
-                  LEFT OUTER JOIN \{ORM.t(Owner.class, "o")} ON p.owner_id = o.id
-                WHERE p.name LIKE \{ORM.p(nameFilter)}""".prepare()) {
-            var stream = query.getResultStream(Pet.class);
+        try (var query = ORM(dataSource).query(RAW."""
+                SELECT \{select(Pet.class)}
+                FROM \{from(Pet.class, "p", true)}
+                WHERE p.name LIKE \{param(nameFilter)}""").prepare();
+             var stream = query.getResultStream(Pet.class)) {
+            assertEquals(5, stream.filter(Objects::nonNull)
+                    .map(Pet::owner)
+                    .filter(Objects::nonNull)
+                    .map(Owner::firstName)
+                    .distinct()
+                    .count());
+        }
+    }
+
+    @Test
+    public void testSelectPetWithTableAndJoins() {
+        String nameFilter = "%y%";
+        try (var query = ORM(dataSource).query(RAW."""
+                SELECT \{select(Pet.class)}
+                FROM \{table(Pet.class, "p")}
+                  INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
+                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                WHERE p.name LIKE \{param(nameFilter)}""").prepare();
+             var stream = query.getResultStream(Pet.class)) {
+            assertEquals(5, stream.filter(Objects::nonNull)
+                    .map(Pet::owner)
+                    .filter(Objects::nonNull)
+                    .map(Owner::firstName)
+                    .distinct()
+                    .count());
+        }
+    }
+
+    @Test
+    public void testSelectPetWithRecord() throws SQLException  {
+        record Owner(String firstName, String lastName, Address address, String telephone) {}
+        record Pet(String name, LocalDate birthDate, Owner owner) {}
+        String nameFilter = "%y%";
+        var query = ORM(dataSource).query(RAW."""
+                SELECT \{Pet.class}
+                FROM \{Pet.class}
+                  LEFT OUTER JOIN \{Owner.class} ON \{Pet.class}.owner_id = \{Owner.class}.id
+                WHERE \{Pet.class}.name LIKE \{nameFilter}""");
+        try (var stream = query.getResultStream(Pet.class)) {
             assertEquals(5, stream.filter(Objects::nonNull)
                     .map(Pet::owner)
                     .filter(Objects::nonNull)
@@ -95,14 +144,13 @@ public class TemplatePreparedStatementIntegrationTest {
     @Test
     public void testSelectPetWithAlias() {
         String nameFilter = "%y%";
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
-                SELECT \{ORM.s(Pet.class)}
-                FROM \{ORM.t(Pet.class, "p")}
-                  INNER JOIN \{ORM.t(PetType.class, "pt")} ON p.type_id = pt.id
-                  LEFT OUTER JOIN \{ORM.t(Owner.class, "o")} ON p.owner_id = o.id
-                WHERE \{ORM.a(Pet.class)}.name LIKE \{ORM.p(nameFilter)}""".prepare()) {
-            var stream = query.getResultStream(Pet.class);
+        try (var query = ORM(dataSource).query(RAW."""
+                SELECT \{select(Pet.class)}
+                FROM \{table(Pet.class, "p")}
+                  INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
+                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                WHERE \{alias(Pet.class)}.name LIKE \{param(nameFilter)}""").prepare();
+             var stream = query.getResultStream(Pet.class)) {
             assertEquals(5, stream.filter(Objects::nonNull)
                     .map(Pet::owner)
                     .filter(Objects::nonNull)
@@ -114,14 +162,32 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectPetWithInParams() {
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
-                SELECT \{ORM.s(Pet.class)}
-                FROM \{ORM.t(Pet.class, "p")}
-                  INNER JOIN \{ORM.t(PetType.class, "pt")} ON p.type_id = pt.id
-                  LEFT OUTER JOIN \{ORM.t(Owner.class, "o")} ON p.owner_id = o.id
-                WHERE p.name IN (\{ORM.p(List.of("Iggy", "Lucky", "Sly"))})""".prepare()) {
-            var stream = query.getResultStream(Pet.class);
+        try (var query = ORM(dataSource).query(RAW."""
+                SELECT \{select(Pet.class)}
+                FROM \{table(Pet.class, "p")}
+                  INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
+                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                WHERE p.name IN (\{param(List.of("Iggy", "Lucky", "Sly"))})""").prepare();
+             var stream = query.getResultStream(Pet.class)) {
+            assertEquals(3, stream.filter(Objects::nonNull)
+                    .map(Pet::owner)
+                    .filter(Objects::nonNull)
+                    .map(Owner::firstName)
+                    .distinct()
+                    .count());
+        }
+    }
+
+
+    @Test
+    public void testSelectPetWithInParamsArray() {
+        try (var query = ORM(dataSource).query(RAW."""
+                SELECT \{select(Pet.class)}
+                FROM \{table(Pet.class, "p")}
+                  INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
+                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                WHERE p.name IN (\{param(new Object[]{"Iggy", "Lucky", "Sly"})})""").prepare();
+             var stream = query.getResultStream(Pet.class)) {
             assertEquals(3, stream.filter(Objects::nonNull)
                     .map(Pet::owner)
                     .filter(Objects::nonNull)
@@ -132,15 +198,12 @@ public class TemplatePreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testSelectPetWithInParamsDirect() {
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
-                SELECT \{ORM.s(Pet.class)}
-                FROM \{ORM.t(Pet.class, "p")}
-                  INNER JOIN \{ORM.t(PetType.class, "pt")} ON p.type_id = pt.id
-                  LEFT OUTER JOIN \{ORM.t(Owner.class, "o")} ON p.owner_id = o.id
-                WHERE p.name IN (\{ORM.p(List.of("Iggy", "Lucky", "Sly"))})""".prepare()) {
-            var stream = query.getResultStream(Pet.class);
+    public void testSelectPetImplicit() {
+        try (var query = ORM(dataSource).query(RAW."""
+                SELECT \{Pet.class}
+                FROM \{Pet.class}
+                WHERE \{Pet.class}.name IN (\{List.of("Iggy", "Lucky", "Sly")})""").prepare();
+             var stream = query.getResultStream(Pet.class)) {
             assertEquals(3, stream.filter(Objects::nonNull)
                     .map(Pet::owner)
                     .filter(Objects::nonNull)
@@ -156,18 +219,17 @@ public class TemplatePreparedStatementIntegrationTest {
             @Nonnull String name,
             @Nonnull @Name("birth_date") @Persist(updatable = false) LocalDate birthDate,
             @Nonnull @FK @Name("type_id") @Persist(updatable = false) PetType petType,
-            @Nonnull @FK @Name("owner_id") Lazy<Owner> owner
+            @Nonnull @FK @Name("owner_id") Lazy<Owner, Integer> owner
     ) implements Entity<Integer> {}
 
     @Test
     public void testSelectLazyNullViolation() {
         var e = assertThrows(PersistenceException.class, () -> {
-            var ORM = ORM(dataSource);
-            try (var query = ORM."""
-                    SELECT \{ORM.s(PetWithLazyNonNullViolation.class)}
-                    FROM \{ORM.t(PetWithLazyNonNullViolation.class, "p")}
-                      INNER JOIN \{ORM.t(PetType.class, "pt")} ON p.type_id = pt.id
-                    WHERE p.name IN (\{ORM.p(List.of("Sly"))})""".prepare()) {
+            try (var query = ORM(dataSource).query(RAW."""
+                    SELECT \{select(PetWithLazyNonNullViolation.class)}
+                    FROM \{table(PetWithLazyNonNullViolation.class, "p")}
+                      INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
+                    WHERE p.name IN (\{param("Sly")})""").prepare()) {
                 query.getSingleResult(PetWithLazyNonNullViolation.class);
             }
         });
@@ -186,11 +248,10 @@ public class TemplatePreparedStatementIntegrationTest {
         LocalDate localDate = LocalDate.of(2023, 1, 9);
         ZonedDateTime zonedDateTime = localDate.atStartOfDay(ZoneId.of("UTC"));
         Date date = Date.from(zonedDateTime.toInstant());
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 SELECT \{Visit.class}
                 FROM \{Visit.class}
-                WHERE \{ORM.a(Visit.class)}.visit_date >= \{ORM.p(date, TemporalType.DATE)}""".prepare();
+                WHERE \{alias(Visit.class)}.visit_date >= \{param(date, TemporalType.DATE)}""").prepare();
              var stream = query.getResultStream(Visit.class)) {
             assertEquals(5, stream.count());
         }
@@ -207,11 +268,10 @@ public class TemplatePreparedStatementIntegrationTest {
         LocalDate localDate = LocalDate.of(2023, 1, 9);
         ZonedDateTime zonedDateTime = localDate.atStartOfDay(ZoneId.of("UTC"));
         Date date = Date.from(zonedDateTime.toInstant());
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 SELECT \{Visit.class}
                 FROM \{Visit.class}
-                WHERE visit_date >= \{ORM.p(date, TemporalType.DATE)}""".prepare();
+                WHERE visit_date >= \{param(date, TemporalType.DATE)}""").prepare();
              var stream = query.getResultStream(Visit.class)) {
             assertEquals(5, stream.count());
         }
@@ -228,11 +288,10 @@ public class TemplatePreparedStatementIntegrationTest {
         Calendar calendar = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
         calendar.set(2023, Calendar.JANUARY, 9, 0, 0, 0);
         calendar.set(Calendar.MILLISECOND, 0);
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 SELECT \{CustomVisit.class}
                 FROM \{CustomVisit.class}
-                WHERE visit_date >= \{ORM.p(calendar, TemporalType.DATE)}""".prepare();
+                WHERE visit_date >= \{param(calendar, TemporalType.DATE)}""").prepare();
              var stream = query.getResultStream(CustomVisit.class)) {
             assertEquals(5, stream.count());
         }
@@ -241,10 +300,9 @@ public class TemplatePreparedStatementIntegrationTest {
     @Test
     public void testMissingTable() {
         var e = assertThrows(PersistenceException.class, () -> {
-            var ORM = ORM(dataSource);
-            try (var query = ORM."""
+            try (var query = ORM(dataSource).query(RAW."""
                     SELECT \{Visit.class}
-                    FROM visit""".prepare()) {
+                    FROM visit""").prepare()) {
                 var stream = query.getResultStream(Visit.class);
                 stream.toList();
             }
@@ -255,13 +313,11 @@ public class TemplatePreparedStatementIntegrationTest {
     @Test
     public void testDuplicateTable() {
         var e = assertThrows(PersistenceException.class, () -> {
-            var ORM = ORM(dataSource);
-            try (var query = ORM."""
+            try (var query = ORM(dataSource).query(RAW."""
                     SELECT \{Visit.class}
-                    FROM \{ORM.t(Visit.class, "a")}
-                      INNER JOIN \{ORM.t(Visit.class, "b")} ON a.id = b.id""".prepare()) {
-                var stream = query.getResultStream(Visit.class);
-                stream.toList();
+                    FROM \{table(Visit.class, "a")}
+                      INNER JOIN \{table(Visit.class, "b")} ON a.id = b.id""").prepare()) {
+                query.getResultList(Visit.class);
             }
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
@@ -269,52 +325,57 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testDelete() {
-        try {
-            var ORM = ORM(dataSource);
-            try (var query = ORM."""
+        String expectedSql = """
+                DELETE x
+                FROM visit x
+                INNER JOIN pet _p ON x.pet_id = _p.id
+                INNER JOIN pet_type _pt ON _p.type_id = _pt.id
+                LEFT JOIN owner _o ON _p.owner_id = _o.id
+                WHERE x.id = ?""";
+        try (var _ = intercept(sql -> assertEquals(expectedSql, sql.statement()));
+             var query = ORM(dataSource).query(RAW."""
                 DELETE \{Visit.class}
-                FROM \{ORM.f(Visit.class, "x")}
-                WHERE \{ORM.w(Visit.builder().id(1).build())}""".prepare()) {
-                query.executeUpdate();
-            }
-        } catch (PersistenceException e) {
+                FROM \{from(Visit.class, "x", true)}
+                WHERE \{where(Visit.builder().id(1).build())}""").prepare()) {
+            Assertions.fail("Should not reach here");
+        } catch (PersistenceException _) {
             // Not supported in H2.
         }
     }
 
     @Test
     public void testDeleteWithAlias() {
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
             DELETE FROM \{Visit.class}
-            WHERE \{Visit.class}.id = \{1}""".prepare()) {
+            WHERE \{Visit.class}.id = \{1}""").prepare()) {
             query.executeUpdate();
         }
     }
 
     @Test
     public void testDeleteWithType() {
-        // Delete statements with alias are supported by many databases, but not by H2.
-        var e = assertThrows(PersistenceException.class, () -> {
-            var ORM = ORM(dataSource);
-            try (var query = ORM."""
-                    DELETE \{Visit.class}
-                    FROM \{Visit.class}
-                    WHERE \{ORM.w(Visit.builder().id(1).build())}""".prepare()) {
-                query.executeUpdate();
-            }
-        });
-        assertInstanceOf(SQLSyntaxErrorException.class, e.getCause());
+        String expectedSql = """
+            DELETE _v
+            FROM visit _v
+            WHERE _v.id = ?""";
+        try (var _ = intercept(sql -> assertEquals(expectedSql, sql.statement()));
+             var query = ORM(dataSource).query(RAW."""
+                DELETE \{Visit.class}
+                FROM \{Visit.class}
+                WHERE \{where(Visit.builder().id(1).build())}""").prepare()) {
+            Assertions.fail("Should not reach here");
+        } catch (PersistenceException _) {
+            // Delete statements with alias are supported by many databases, but not by H2.
+        }
     }
 
     @Test
     public void testDeleteWithWrongType() {
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
-            var ORM = ORM(dataSource);
-            try (var query = ORM."""
+            try (var query = ORM(dataSource).query(RAW."""
                     DELETE \{Visit.class}
                     FROM \{Pet.class}
-                    WHERE \{ORM.w(Pet.builder().id(1).build())}""".prepare()) {
+                    WHERE \{where(Pet.builder().id(1).build())}""").prepare()) {
                 query.executeUpdate();
             }
         });
@@ -323,36 +384,57 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testDeleteWithTypeAndAlias() {
-        // Delete statements with alias are supported by many databases, but not by H2.
-        var e = assertThrows(PersistenceException.class, () -> {
-            var ORM = ORM(dataSource);
-            try (var query = ORM."""
-                    DELETE \{Visit.class}
-                    FROM \{ORM.f(Visit.class, "f")}
-                    WHERE \{ORM.w(Visit.builder().id(1).build())}""".prepare()) {
-                query.executeUpdate();
-            }
-        });
-        assertInstanceOf(SQLSyntaxErrorException.class, e.getCause());
+        String expectedSql = """
+                DELETE f
+                FROM visit f
+                WHERE f.id = ?""";
+        try (var _ = intercept(sql -> assertEquals(expectedSql, sql.statement()));
+             var query = ORM(dataSource).query(RAW."""
+                DELETE \{Visit.class}
+                FROM \{from(Visit.class, "f", false)}
+                WHERE \{where(Visit.builder().id(1).build())}""").prepare()) {
+            Assertions.fail("Should not reach here");
+        } catch (PersistenceException _) {
+            // Delete statements with alias are supported by many databases, but not by H2.
+        }
+    }
+
+    @Test
+    public void testDeleteWithAutoJoin() {
+        String expectedSql = """
+            DELETE _v
+            FROM visit _v
+            INNER JOIN pet _p ON _v.pet_id = _p.id
+            INNER JOIN pet_type _pt ON _p.type_id = _pt.id
+            LEFT JOIN owner _o ON _p.owner_id = _o.id
+            WHERE _p.owner_id = ?""";
+        try (var _ = intercept(sql -> assertEquals(expectedSql, sql.statement()));
+             var query = ORM(dataSource).query(RAW."""
+                DELETE \{Visit.class}
+                FROM \{from(Visit.class, true)}
+                WHERE \{where(Owner.builder().id(1).build())}""").prepare()) {
+            Assertions.fail("Should not reach here");
+        } catch (PersistenceException _) {
+            // Not supported in H2.
+        }
     }
 
     @Test
     public void testSingleInsert() {
         Visit visit = new Visit(LocalDate.now(), "test", Pet.builder().id(1).build());
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 INSERT INTO \{Visit.class}
-                VALUES \{ORM.v(visit)}""".prepare()) {
+                VALUES \{values(visit)}""").prepare()) {
             assertEquals(1, query.executeUpdate());
         }
-        try (var query = ORM."""
-                SELECT \{ORM.s(Visit.class)}
-                FROM \{ORM.t(Visit.class, "v")}
-                  INNER JOIN \{ORM.t(Pet.class, "p")} ON v.pet_id = p.id
-                  INNER JOIN \{ORM.t(PetType.class, "pt")} ON p.type_id = pt.id
-                  LEFT OUTER JOIN \{ORM.t(Owner.class, "o")} ON p.owner_id = o.id
-                WHERE v.description LIKE \{"test%"}""".prepare()) {
-            var stream = query.getResultStream(Visit.class);
+        try (var query = ORM(dataSource).query(RAW."""
+                SELECT \{select(Visit.class)}
+                FROM \{table(Visit.class, "v")}
+                  INNER JOIN \{table(Pet.class, "p")} ON v.pet_id = p.id
+                  INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
+                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                WHERE v.description LIKE \{"test%"}""").prepare();
+             var stream = query.getResultStream(Visit.class)) {
             assertEquals(1, stream.map(Visit::description).distinct().count());
         }
     }
@@ -360,10 +442,9 @@ public class TemplatePreparedStatementIntegrationTest {
     @Test
     public void testSingleInsertTypeMismatch() {
         var e = assertThrows(PersistenceException.class, () ->{
-            var ORM = ORM(dataSource);
-            try (var query = ORM."""
+            try (var query = ORM(dataSource).query(RAW."""
                     INSERT INTO \{Visit.class}
-                    VALUES \{ORM.v(Pet.builder().id(1).build())}""".prepare()) {
+                    VALUES \{values(Pet.builder().id(1).build())}""").prepare()) {
                 query.executeUpdate();
             }
         });
@@ -374,10 +455,9 @@ public class TemplatePreparedStatementIntegrationTest {
     public void testSingleInsertMissingInsertType() {
         Visit visit = new Visit(LocalDate.now(), "test", Pet.builder().id(1).build());
         var e = assertThrows(PersistenceException.class, () ->{
-            var ORM = ORM(dataSource);
-            try (var query = ORM."""
+            try (var query = ORM(dataSource).query(RAW."""
                     INSERT INTO visit
-                    VALUES \{ORM.v(visit)}""".prepare()) {
+                    VALUES \{values(visit)}""").prepare()) {
                 query.executeUpdate();
             }
         });
@@ -388,20 +468,19 @@ public class TemplatePreparedStatementIntegrationTest {
     public void testMultiInsert() {
         Visit visit1 = new Visit(LocalDate.now(), "test1", Pet.builder().id(1).build());
         Visit visit2 = new Visit(LocalDate.now(), "test2", Pet.builder().id(1).build());
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
-                INSERT INTO \{ORM.i(Visit.class)}
-                VALUES \{ORM.v(visit1)}, \{ORM.v(visit2)}""".prepare()) {
+        try (var query = ORM(dataSource).query(RAW."""
+                INSERT INTO \{insert(Visit.class)}
+                VALUES \{values(visit1)}, \{values(visit2)}""").prepare()) {
             assertEquals(2, query.executeUpdate());
         }
-        try (var query = ORM."""
-                SELECT \{ORM.s(Visit.class)}
-                FROM \{ORM.t(Visit.class, "v")}
-                  INNER JOIN \{ORM.t(Pet.class, "p")} ON v.pet_id = p.id
-                  INNER JOIN \{ORM.t(PetType.class, "pt")} ON p.type_id = pt.id
-                  LEFT OUTER JOIN \{ORM.t(Owner.class, "o")} ON p.owner_id = o.id
-                WHERE v.description LIKE \{"test%"}""".prepare()) {
-            var stream = query.getResultStream(Visit.class);
+        try (var query = ORM(dataSource).query(RAW."""
+                SELECT \{select(Visit.class)}
+                FROM \{table(Visit.class, "v")}
+                  INNER JOIN \{table(Pet.class, "p")} ON v.pet_id = p.id
+                  INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
+                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                WHERE v.description LIKE \{"test%"}""").prepare();
+             var stream = query.getResultStream(Visit.class)) {
             assertEquals(2, stream.map(Visit::description).distinct().count());
         }
     }
@@ -410,20 +489,19 @@ public class TemplatePreparedStatementIntegrationTest {
     public void testListInsert() {
         Visit visit1 = new Visit(LocalDate.now(), "test1", Pet.builder().id(1).build());
         Visit visit2 = new Visit(LocalDate.now(), "test2", Pet.builder().id(1).build());
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 INSERT INTO \{Visit.class}
-                VALUES \{ORM.v(Stream.of(visit1, visit2))}""".prepare()) {
+                VALUES \{values(visit1, visit2)}""").prepare()) {
             assertEquals(2, query.executeUpdate());
         }
-        try (var query = ORM."""
-                SELECT \{ORM.s(Visit.class)}
-                FROM \{ORM.t(Visit.class, "v")}
-                  INNER JOIN \{ORM.t(Pet.class, "p")} ON v.pet_id = p.id
-                  INNER JOIN \{ORM.t(PetType.class, "pt")} ON p.type_id = pt.id
-                  LEFT OUTER JOIN \{ORM.t(Owner.class, "o")} ON p.owner_id = o.id
-                WHERE v.description LIKE \{"test%"}""".prepare()) {
-            var stream = query.getResultStream(Visit.class);
+        try (var query = ORM(dataSource).query(RAW."""
+                SELECT \{select(Visit.class)}
+                FROM \{table(Visit.class, "v")}
+                  INNER JOIN \{table(Pet.class, "p")} ON v.pet_id = p.id
+                  INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
+                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                WHERE v.description LIKE \{"test%"}""").prepare();
+             var stream = query.getResultStream(Visit.class)) {
             assertEquals(2, stream.map(Visit::description).distinct().count());
         }
     }
@@ -436,99 +514,114 @@ public class TemplatePreparedStatementIntegrationTest {
                 .address(new Address("271 University Ave", "Palo Alto"))
                 .telephone("1234567890")
                 .build();
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 INSERT INTO \{Owner.class}
-                VALUES \{ORM.v(owner)}""".prepare()) {
+                VALUES \{values(owner)}""").prepare()) {
             assertEquals(1, query.executeUpdate());
         }
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 SELECT \{Owner.class}
                 FROM \{Owner.class}
-                WHERE first_name = \{owner.firstName()}""".prepare()) {
-            var stream = query.getResultStream(Owner.class);
+                WHERE first_name = \{owner.firstName()}""").prepare();
+             var stream = query.getResultStream(Owner.class)) {
             assertEquals(1, stream.count());
         }
     }
 
     @Test
     public void testWith() {
-        record FilteredPet(int id, Owner owner) {}
+        record FilteredPet(int id, @FK Owner owner) {}
         String nameFilter = "%y%";
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
-                WITH FilteredPet AS (
-                  SELECT * FROM pet WHERE name LIKE \{ORM.p(nameFilter)}
+        try (var query = ORM(dataSource).query(RAW."""
+                WITH filtered_pet AS (
+                  SELECT * FROM pet WHERE name LIKE \{param(nameFilter)}
                 )
-                SELECT \{ORM.s(FilteredPet.class)}
-                FROM \{ORM.t(FilteredPet.class, "p")}
-                  LEFT OUTER JOIN \{ORM.t(Owner.class, "o")} ON p.owner_id = o.id""".prepare()) {
-            var stream = query.getResultStream(FilteredPet.class);
+                SELECT \{select(FilteredPet.class)}
+                FROM \{table(FilteredPet.class, "p")}
+                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id""").prepare();
+             var stream = query.getResultStream(FilteredPet.class)) {
+            assertEquals(5, stream.map(FilteredPet::owner).filter(Objects::nonNull).map(Owner::firstName).distinct().count());
+        }
+    }
+
+    @Test
+    public void testWithoutInline() {
+        record Owner(
+                Integer id,
+                @Name("first_name") String firstName,
+                @Name("last_name") String lastName,
+                Address address,
+                String telephone) {}
+        record FilteredPet(int id, @FK Owner owner) {}
+        String nameFilter = "%y%";
+        try (var query = ORM(dataSource).query(RAW."""
+                WITH filtered_pet AS (
+                  SELECT * FROM pet WHERE name LIKE \{param(nameFilter)}
+                )
+                SELECT \{select(FilteredPet.class)}
+                FROM \{table(FilteredPet.class, "p")}
+                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id""").prepare();
+             var stream = query.getResultStream(FilteredPet.class)) {
             assertEquals(5, stream.map(FilteredPet::owner).filter(Objects::nonNull).map(Owner::firstName).distinct().count());
         }
     }
 
     @Test
     public void testSelectCompoundPk() {
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 SELECT \{VetSpecialty.class}
-                FROM \{VetSpecialty.class}""".prepare()) {
-            var stream = query.getResultStream(VetSpecialty.class);
+                FROM \{VetSpecialty.class}""").prepare();
+             var stream = query.getResultStream(VetSpecialty.class)) {
             assertEquals(5, stream.count());
         }
     }
 
     @Test
     public void testSelectCompoundPkWithTables() {
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 SELECT \{VetSpecialty.class}
-                FROM \{ORM.t(VetSpecialty.class, "vs")}
-                  INNER JOIN \{ORM.t(Vet.class, "v")} ON vs.vet_id = v.id
-                  INNER JOIN \{ORM.t(Specialty.class, "s")} ON vs.specialty_id = s.id""".prepare()) {
-            var stream = query.getResultStream(VetSpecialty.class);
+                FROM \{table(VetSpecialty.class, "vs")}
+                  INNER JOIN \{table(Vet.class, "v")} ON vs.vet_id = v.id
+                  INNER JOIN \{table(Specialty.class, "s")} ON vs.specialty_id = s.id""").prepare();
+             var stream = query.getResultStream(VetSpecialty.class)) {
             assertEquals(5, stream.count());
         }
     }
 
     @Test
     public void testSelectWhereCompoundPk() {
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 SELECT \{VetSpecialty.class}
                 FROM \{VetSpecialty.class}
-                WHERE \{ORM.w(VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(2).specialtyId(1).build()).build())}""".prepare()) {
-            var stream = query.getResultStream(VetSpecialty.class);
+                WHERE \{where(VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(2).specialtyId(1).build()).build())}""").prepare();
+             var stream = query.getResultStream(VetSpecialty.class)) {
             assertEquals(1, stream.count());
         }
     }
 
     @Test
     public void testSelectWhereCompoundPks() {
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 SELECT \{VetSpecialty.class}
                 FROM \{VetSpecialty.class}
-                WHERE \{ORM.w(VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(2).specialtyId(1).build()).build(),
+                WHERE \{where(VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(2).specialtyId(1).build()).build(),
                         VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(3).specialtyId(2).build()).build()
-                )}""".prepare()) {
-            var stream = query.getResultStream(VetSpecialty.class);
+                )}""").prepare();
+             var stream = query.getResultStream(VetSpecialty.class)) {
             assertEquals(2, stream.count());
         }
     }
 
     @Test
     public void testSelectWherePkCompoundPks() {
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 SELECT \{VetSpecialty.class}
                 FROM \{VetSpecialty.class}
-                WHERE \{ORM.w(
+                WHERE \{where(
                         VetSpecialtyPK.builder().vetId(2).specialtyId(1).build(),
                         VetSpecialtyPK.builder().vetId(3).specialtyId(2).build()
-                )}""".prepare()) {
-            var stream = query.getResultStream(VetSpecialty.class);
+                )}""").prepare();
+             var stream = query.getResultStream(VetSpecialty.class)) {
             assertEquals(2, stream.count());
         }
     }
@@ -537,46 +630,79 @@ public class TemplatePreparedStatementIntegrationTest {
     @Name("vet_specialty")
     public record VetSpecialtyLazyPk(
             // PK does not reflect the database, but suffices for the test case.
-            @PK @FK @Name("vet_id") Lazy<Vet> id,
-            @Nonnull @FK @Name("specialty_id") Specialty specialty) implements Entity<Lazy<Vet>> {
+            @PK @FK @Name("vet_id") Lazy<Vet, Integer> id,
+            @Nonnull @FK @Name("specialty_id") Specialty specialty) implements Entity<Lazy<Vet, Integer>> {
     }
 
     @Test
     public void testSelectWhereLazyPk() {
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
-            var ORM = ORM(dataSource);
-            try (var query = ORM."""
+            ORM(dataSource).query(RAW."""
                     SELECT \{VetSpecialtyLazyPk.class}
                     FROM \{VetSpecialtyLazyPk.class}
-                    WHERE \{ORM.w(Stream.of(Lazy.of(Vet.builder().id(1).build())))}""".prepare()) {
-                query.getResultStream(VetSpecialtyLazyPk.class);
-            }
+                    WHERE \{where(Lazy.of(Vet.builder().id(1).build()))}""")
+                .getResultStream(VetSpecialtyLazyPk.class);
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
 
     @Test
+    public void testSelectWherePathPk() {
+        var owner = ORM(dataSource).entity(Owner.class).select(3);
+        var pets = ORM(dataSource).query(RAW."""
+                SELECT \{Pet.class}
+                FROM \{Pet.class}
+                WHERE \{where("owner", Operator.BETWEEN, 1, 3)}""")
+            .getResultList(Pet.class);
+        assertEquals(4, pets.size());
+        assertEquals(3, pets.stream().map(Pet::owner).filter(Objects::nonNull).map(Owner::id).distinct().count());
+    }
+
+    @Test
+    public void testSelectWherePathRecord() {
+        var owner = ORM(dataSource).entity(Owner.class).select(3);
+        var pets = ORM(dataSource).query(RAW."""
+                SELECT \{Pet.class}
+                FROM \{Pet.class}
+                WHERE \{where("owner", Operator.EQUALS, owner)}""")
+            .getResultList(Pet.class);
+        assertEquals(2, pets.size());
+        assertEquals(Set.of(owner), pets.stream().map(Pet::owner).collect(toSet()));
+    }
+
+    @Test
+    public void testSelectWhereSubPathPk() {
+        var owner = ORM(dataSource).entity(Owner.class).select(3);
+        var pets = ORM(dataSource).query(RAW."""
+                SELECT \{Pet.class}
+                FROM \{Pet.class}
+                WHERE \{where("owner.id", Operator.EQUALS, owner.id())}""")
+            .getResultList(Pet.class);
+        assertEquals(2, pets.size());
+        assertEquals(Set.of(owner), pets.stream().map(Pet::owner).collect(toSet()));
+    }
+
+    @Test
     public void testInsertCompoundPk() {
-        var ORM = ORM(dataSource);
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 SELECT \{VetSpecialty.class}
-                FROM \{ORM.t(VetSpecialty.class, "vs")}
-                  INNER JOIN \{ORM.t(Vet.class, "v")} ON vs.vet_id = v.id
-                  INNER JOIN \{ORM.t(Specialty.class, "s")} ON vs.specialty_id = s.id""".prepare()) {
+                FROM \{table(VetSpecialty.class, "vs")}
+                  INNER JOIN \{table(Vet.class, "v")} ON vs.vet_id = v.id
+                  INNER JOIN \{table(Specialty.class, "s")} ON vs.specialty_id = s.id""").prepare()) {
             var list = query.getResultList(VetSpecialty.class);
             assertFalse(list.stream().filter(vs -> vs.vet().id() == 1 && vs.specialty().id() == 1).map(VetSpecialty::vet).map(Vet::firstName).findFirst().isPresent());
             assertFalse(list.stream().filter(vs -> vs.vet().id() == 1 && vs.specialty().id() == 1).map(VetSpecialty::specialty).map(Specialty::name).findFirst().isPresent());
         }
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 INSERT INTO \{VetSpecialty.class}
-                VALUES \{ORM.v(new VetSpecialty(new VetSpecialtyPK(1, 1)))}""".prepare()) {
+                VALUES \{values(new VetSpecialty(new VetSpecialtyPK(1, 1)))}""").prepare()) {
             query.executeUpdate();
         }
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 SELECT \{VetSpecialty.class}
-                FROM \{ORM.t(VetSpecialty.class, "vs")}
-                  INNER JOIN \{ORM.t(Vet.class, "v")} ON vs.vet_id = v.id
-                  INNER JOIN \{ORM.t(Specialty.class, "s")} ON vs.specialty_id = s.id""".prepare()) {
+                FROM \{table(VetSpecialty.class, "vs")}
+                  INNER JOIN \{table(Vet.class, "v")} ON vs.vet_id = v.id
+                  INNER JOIN \{table(Specialty.class, "s")} ON vs.specialty_id = s.id""").prepare()) {
             var list = query.getResultList(VetSpecialty.class);
             assertEquals("James", list.stream().filter(vs -> vs.vet().id() == 1 && vs.specialty().id() == 1).map(VetSpecialty::vet).map(Vet::firstName).findFirst().orElseThrow());
             assertEquals("radiology", list.stream().filter(vs -> vs.vet().id() == 1 && vs.specialty().id() == 1).map(VetSpecialty::specialty).map(Specialty::name).findFirst().orElseThrow());
@@ -585,62 +711,59 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSingleUpdate() {
-        var ORM = ORM(dataSource);
         var update = Pet.builder().id(1).build();
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 UPDATE \{Pet.class}
                 SET name = \{"Leona"}
-                WHERE \{ORM.w(update)}""".prepare()) {
+                WHERE \{where(update)}""").prepare()) {
             assertEquals(1, query.executeUpdate());
         }
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 SELECT COUNT(*)
-                FROM \{ORM.t(Pet.class)}
-                WHERE name = \{"Leona"}""".prepare()) {
+                FROM \{table(Pet.class)}
+                WHERE name = \{"Leona"}""").prepare()) {
             assertEquals(1, query.getSingleResult(Long.class));
         }
     }
 
     @Test
     public void testUpdateSetWhere() {
-        var ORM = ORM(dataSource);
         var update = new Pet(1, "Leona", LocalDate.now(), PetType.builder().id(1).build(), Owner.builder().id(1).build());
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 UPDATE \{Pet.class}
-                SET \{ORM.st(update)}
-                WHERE \{ORM.w(update)}""".prepare()) {
+                SET \{set(update)}
+                WHERE \{where(update)}""").prepare()) {
             assertEquals(1, query.executeUpdate());
         }
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 SELECT COUNT(*)
-                FROM \{ORM.t(Pet.class)}
-                WHERE name = \{"Leona"}""".prepare()) {
+                FROM \{table(Pet.class)}
+                WHERE name = \{"Leona"}""").prepare()) {
             assertEquals(1, query.getSingleResult(Long.class));
         }
     }
 
     @Test
     public void testUpdateSetWhereWithAlias() {
-        var ORM = ORM(dataSource);
         var update = petRepository.findById(1).toBuilder()
                 .name("Leona")
-                .petType(PetType.builder().id(2).build())
+                .type(PetType.builder().id(2).build())
                 .build();
-        try (var query = ORM."""
-                UPDATE \{ORM.u(Pet.class, "p")}
-                SET \{ORM.st(update)}
-                WHERE \{ORM.w(update)}""".prepare()) {
+        try (var query = ORM(dataSource).query(RAW."""
+                UPDATE \{update(Pet.class, "p")}
+                SET \{set(update)}
+                WHERE \{where(update)}""").prepare()) {
             assertEquals(1, query.executeUpdate());
         }
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 SELECT \{Pet.class}
-                FROM \{ORM.t(Pet.class, "p")}
-                  INNER JOIN \{ORM.t(PetType.class, "pt")} ON p.type_id = pt.id
-                  LEFT OUTER JOIN \{ORM.t(Owner.class, "o")} ON p.owner_id = o.id
-                WHERE \{ORM.w(update)}""".prepare()) {
+                FROM \{table(Pet.class, "p")}
+                  INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
+                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                WHERE \{where(update)}""").prepare()) {
             var result = query.getSingleResult(Pet.class);
             assertEquals("Leona", result.name());
-            assertEquals(1, result.petType().id());
+            assertEquals(1, result.type().id());
         }
     }
 
@@ -656,45 +779,43 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testUpdateSetWhereWithAliasAndUpdatableType() {
-        var ORM = ORM(dataSource);
         var update = PetWithUpdatable.builder()
                 .id(1)
                 .name("Leona")
                 .petType(PetType.builder().id(2).build())
                 .owner(Owner.builder().id(1).build())
                 .build();
-        try (var query = ORM."""
-                UPDATE \{ORM.u(PetWithUpdatable.class, "p")}
-                SET \{ORM.st(update)}
-                WHERE \{ORM.w(update)}""".prepare()) {
+        try (var query = ORM(dataSource).query(RAW."""
+                UPDATE \{update(PetWithUpdatable.class, "p")}
+                SET \{set(update)}
+                WHERE \{where(update)}""").prepare()) {
             assertEquals(1, query.executeUpdate());
         }
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 SELECT \{Pet.class}
-                FROM \{ORM.t(Pet.class, "p")}
-                  INNER JOIN \{ORM.t(PetType.class, "pt")} ON p.type_id = pt.id
-                  LEFT OUTER JOIN \{ORM.t(Owner.class, "o")} ON p.owner_id = o.id
-                WHERE \{ORM.w(Pet.builder().id(1).build())}""".prepare()) {
+                FROM \{table(Pet.class, "p")}
+                  INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
+                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                WHERE \{where(Pet.builder().id(1).build())}""").prepare()) {
             var result = query.getSingleResult(Pet.class);
             assertEquals("Leona", result.name());
-            assertEquals(2, result.petType().id());
+            assertEquals(2, result.type().id());
         }
     }
 
     @Test
     public void testUpdateSetWhereWithAliasAndTypeMismatch() {
         var e = assertThrows(PersistenceException.class, () -> {
-            var ORM = ORM(dataSource);
             var update = PetWithUpdatable.builder()
                     .id(1)
                     .name("Leona")
                     .petType(PetType.builder().id(2).build())
                     .owner(Owner.builder().id(1).build())
                     .build();
-            try (var query = ORM."""
-                    UPDATE \{ORM.u(Pet.class, "p")}
-                    SET \{ORM.st(update)}
-                    WHERE \{ORM.w(update)}""".prepare()) {
+            try (var query = ORM(dataSource).query(RAW."""
+                    UPDATE \{update(Pet.class, "p")}
+                    SET \{set(update)}
+                    WHERE \{where(update)}""").prepare()) {
                 assertEquals(1, query.executeUpdate());
             }
         });
@@ -713,25 +834,24 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testUpdateSetWhereWithAliasAndUpdatableTypeWithoutPersist() {
-        var ORM = ORM(dataSource);
         var update = PetWithoutPersist.builder()
                 .id(1)
                 .name("Leona")
                 .petType(PetType.builder().id(2).build())
                 .owner(Owner.builder().id(1).build())
                 .build();
-        try (var query = ORM."""
-                UPDATE \{ORM.u(PetWithoutPersist.class, "p")}
-                SET \{ORM.st(update)}
-                WHERE \{ORM.w(update)}""".prepare()) {
+        try (var query = ORM(dataSource).query(RAW."""
+                UPDATE \{update(PetWithoutPersist.class, "p")}
+                SET \{set(update)}
+                WHERE \{where(update)}""").prepare()) {
             assertEquals(1, query.executeUpdate());
         }
-        try (var query = ORM."""
+        try (var query = ORM(dataSource).query(RAW."""
                 SELECT \{PetWithoutPersist.class}
-                FROM \{ORM.t(PetWithoutPersist.class, "p")}
-                  INNER JOIN \{ORM.t(PetType.class, "pt")} ON p.type_id = pt.id
-                  LEFT OUTER JOIN \{ORM.t(Owner.class, "o")} ON p.owner_id = o.id
-                WHERE \{ORM.w(update)}""".prepare()) {
+                FROM \{table(PetWithoutPersist.class, "p")}
+                  INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
+                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                WHERE \{where(update)}""").prepare()) {
             var result = query.getSingleResult(PetWithoutPersist.class);
             assertEquals("Leona", result.name());
             assertEquals(2, result.petType().id());
@@ -740,28 +860,49 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelect() {
-        var ORM = ORM(dataSource);
-        var count = ORM.query(Visit.class)."WHERE \{ORM.a(Visit.class)}.id = \{1}".count();
+        var count = ORM(dataSource).selectFrom(Visit.class).append(RAW."WHERE \{alias(Visit.class)}.id = \{1}").getResultCount();
         assertEquals(1, count);
     }
 
     @Test
     public void testCustomFrom() {
-        var ORM = ORM(dataSource);
-        var query = ORM."""
+        var query = ORM(dataSource).query(RAW."""
                 SELECT a.*
                 FROM \{from(RAW."SELECT * FROM visit", "a")}
-                """;
-        assertEquals(14, query.getResultStream().count());
+                """);
+        assertEquals(14, query.getResultCount());
     }
 
     @Test
     public void testCustomTemplate() {
-        var ORM = ORM(dataSource);
-        var query = ORM.template(it -> STR."""
+        var query = ORM(dataSource).query(template(it -> STR."""
                 SELECT \{it.invoke(Pet.class)}
                 FROM \{it.invoke(Pet.class)}
-                """);
-        assertEquals(13, query.getResultStream().count());
+                """));
+        assertEquals(13, query.getResultCount());
+    }
+
+    @Test
+    public void testCustomTemplateExists() {
+        var orm = ORM(dataSource);
+        var query = orm.query(template(it -> STR."""
+                SELECT \{it.invoke(Pet.class)}
+                FROM \{it.invoke(Pet.class)}
+                WHERE EXISTS (\{it.invoke(orm.subquery(Pet.class)
+                    .where(template(i -> STR."\{i.invoke(alias(Pet.class, OUTER))}.id = \{i.invoke(alias(Pet.class, INNER))}.id")))} )
+                """));
+        assertEquals(13, query.getResultCount());
+    }
+
+    @Test
+    public void testCustomTemplateNotExists() {
+        var orm = ORM(dataSource);
+        var query = orm.query(template(it -> STR."""
+                SELECT \{it.invoke(Pet.class)}
+                FROM \{it.invoke(Pet.class)}
+                WHERE NOT EXISTS (\{it.invoke(orm.subquery(Pet.class)
+                    .where(template(i -> STR."\{i.invoke(alias(Pet.class, OUTER))}.id = \{i.invoke(alias(Pet.class, INNER))}.id")))} )
+                """));
+        assertEquals(0, query.getResultCount());
     }
 }

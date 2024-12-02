@@ -17,13 +17,13 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import jakarta.persistence.PersistenceException;
 import st.orm.BindVars;
+import st.orm.PersistenceException;
 import st.orm.Query;
 import st.orm.spi.Provider;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
-import st.orm.template.ORMRepositoryTemplate;
+import st.orm.template.ORMTemplate;
 import st.orm.template.PreparedStatementTemplate;
 import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplate.BatchListener;
@@ -63,6 +63,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     private final ColumnNameResolver columnNameResolver;
     private final ForeignKeyResolver foreignKeyResolver;
     private final Predicate<Provider> providerFilter;
+    private final LazyFactory lazyFactory;
 
     public PreparedStatementTemplateImpl(@Nonnull DataSource dataSource) {
         // Note that this logic does not use Spring's DataSourceUtils, so it is not aware of Spring's transaction
@@ -93,11 +94,12 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
             }
             return createProxy(preparedStatement, connection, dataSource);
         };
-        this.tableNameResolver = null;
-        this.tableAliasResolver = null;
-        this.columnNameResolver = null;
-        this.foreignKeyResolver = null;
+        this.tableNameResolver = TableNameResolver.DEFAULT;
+        this.tableAliasResolver = TableAliasResolver.DEFAULT;
+        this.columnNameResolver = ColumnNameResolver.DEFAULT;
+        this.foreignKeyResolver = ForeignKeyResolver.DEFAULT;
         this.providerFilter = null;
+        this.lazyFactory = new LazyFactoryImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, null);
     }
 
     public PreparedStatementTemplateImpl(@Nonnull Connection connection) {
@@ -120,11 +122,12 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
             }
             return preparedStatement;
         };
-        this.tableNameResolver = null;
-        this.tableAliasResolver = null;
-        this.columnNameResolver = null;
-        this.foreignKeyResolver = null;
+        this.tableNameResolver = TableNameResolver.DEFAULT;
+        this.tableAliasResolver = TableAliasResolver.DEFAULT;
+        this.columnNameResolver = ColumnNameResolver.DEFAULT;
+        this.foreignKeyResolver = ForeignKeyResolver.DEFAULT;
         this.providerFilter = null;
+        this.lazyFactory = new LazyFactoryImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, null);
     }
 
     private PreparedStatementTemplateImpl(@Nonnull TemplateProcessor templateProcessor,
@@ -139,6 +142,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         this.columnNameResolver = columnNameResolver;
         this.foreignKeyResolver = foreignKeyResolver;
         this.providerFilter = providerFilter;
+        this.lazyFactory = new LazyFactoryImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter);
     }
 
     @Override
@@ -166,7 +170,8 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         return sqlTemplate().createBindVars();
     }
 
-    private BatchListener getBatchListener(@Nonnull PreparedStatement preparedStatement, @Nonnull List<Parameter> parameters) {
+    private BatchListener getBatchListener(@Nonnull PreparedStatement preparedStatement,
+                                           @Nonnull List<Parameter> parameters) {
         return batchParameters -> {
             try {
                 setParameters(preparedStatement, parameters);
@@ -214,8 +219,8 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     }
 
     @Override
-    public ORMRepositoryTemplate toORM() {
-        return new ORMRepositoryTemplateImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter);
+    public ORMTemplate toORM() {
+        return new ORMTemplateImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter);
     }
 
     /**
@@ -250,7 +255,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     }
 
     @Override
-    public Query create(@Nonnull LazyFactory lazyFactory, @Nonnull StringTemplate template) {
+    public Query create(@Nonnull StringTemplate template) {
         try {
             var sql = sqlTemplate().process(template);
             var bindVariables = sql.bindVariables().orElse(null);
@@ -267,7 +272,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     }
 
     @Override
-    public PreparedStatement process(StringTemplate template) throws SQLException {
+    public PreparedStatement query(@Nonnull StringTemplate template) throws SQLException {
         var sql = sqlTemplate().process(template);
         return templateProcessor.process(sql.statement(), sql.parameters(), sql.bindVariables().orElse(null), sql.generatedKeys());
     }

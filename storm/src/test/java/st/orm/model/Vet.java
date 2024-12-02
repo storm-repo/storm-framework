@@ -16,9 +16,8 @@
 package st.orm.model;
 
 import lombok.Builder;
-import st.orm.repository.Entity;
-import st.orm.Name;
 import st.orm.PK;
+import st.orm.repository.Entity;
 
 /**
  * Simple domain object representing a veterinarian.
@@ -28,7 +27,7 @@ import st.orm.PK;
 @Builder(toBuilder = true)
 public record Vet(
         @PK Integer id,
-        @Name("first_name") String firstName,
-        @Name("last_name") String lastName
+        String firstName,
+        String lastName
 ) implements Entity<Integer>, Person {
 }

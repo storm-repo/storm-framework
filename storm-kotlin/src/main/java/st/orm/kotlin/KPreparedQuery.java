@@ -16,8 +16,8 @@
 package st.orm.kotlin;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.PersistenceException;
 import kotlin.reflect.KClass;
+import st.orm.PersistenceException;
 
 import java.util.stream.Stream;
 

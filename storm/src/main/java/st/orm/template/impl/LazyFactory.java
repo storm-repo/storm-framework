@@ -18,16 +18,21 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Lazy;
-import st.orm.template.SqlTemplateException;
-
-import java.lang.reflect.RecordComponent;
 
 /**
- * Bridge for creating lazy instances for records.
+ * Interface for creating lazy instances for records.
  */
 public interface LazyFactory {
 
-    Class<?> getPkType(@Nonnull RecordComponent component) throws SqlTemplateException;
-
-    Lazy<?> create(@Nonnull RecordComponent component, @Nullable Object pk) throws SqlTemplateException;
+    /**
+     * Creates a lazy instance for the specified record {@code type} and {@code pk}. This method can be used to generate
+     * lazy instances for entities, projections and regular records.
+     *
+     * @param type record type.
+     * @param pk primary key.
+     * @return lazy instance.
+     * @param <T> record type.
+     * @param <ID> primary key type.
+     */
+    <T extends Record, ID> Lazy<T, ID> create(@Nonnull Class<T> type, @Nullable ID pk);
 }

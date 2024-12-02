@@ -26,10 +26,34 @@ import java.lang.reflect.RecordComponent;
 public interface ColumnNameResolver {
 
     /**
+     * The default column name resolver used by the ORM template.
+     */
+    ColumnNameResolver DEFAULT = camelCaseToSnakeCase();
+
+    /**
+     * Resolves the column name for a record component using camel case to snake case conversion.
+     *
+     * @return the column name resolver.
+     */
+    static ColumnNameResolver camelCaseToSnakeCase() {
+        return component -> NameResolver.camelCaseToSnakeCase(component.getName());
+    }
+
+    /**
+     * Resolves the column name for a record component by converting the column name to upper case.
+     *
+     * @param resolver the column name resolver to wrap.
+     * @return the column name resolver.
+     */
+    static ColumnNameResolver toUpperCase(@Nonnull ColumnNameResolver resolver) {
+        return component -> resolver.resolveColumnName(component).toUpperCase();
+    }
+
+    /**
      * Resolves the column name for a record component.
      *
-     * @param recordComponent the record component
+     * @param component the record component
      * @return the column name.
      */
-    String resolveColumnName(@Nonnull RecordComponent recordComponent);
+    String resolveColumnName(@Nonnull RecordComponent component);
 }

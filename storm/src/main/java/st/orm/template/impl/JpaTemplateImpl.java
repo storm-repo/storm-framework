@@ -22,7 +22,6 @@ import jakarta.persistence.PersistenceException;
 import st.orm.BindVars;
 import st.orm.PreparedQuery;
 import st.orm.Query;
-import st.orm.ResultCallback;
 import st.orm.template.JpaTemplate;
 import st.orm.template.ORMTemplate;
 import st.orm.template.SqlTemplate;
@@ -61,20 +60,6 @@ public final class JpaTemplateImpl implements JpaTemplate {
         };
     }
 
-    @Override
-    public jakarta.persistence.Query process(StringTemplate template) {
-        return templateProcessor.process(template, null);
-    }
-
-    private jakarta.persistence.Query process(@Nonnull StringTemplate template, @Nonnull Class<?> resultClass) {
-        return templateProcessor.process(template, resultClass);
-    }
-
-    @Override
-    public BindVars createBindVars() {
-        throw new UnsupportedOperationException("Not supported by JPA.");
-    }
-
     private void setParameters(@Nonnull jakarta.persistence.Query query, @Nonnull List<SqlTemplate.Parameter> parameters) {
         for (var parameter : parameters) {
             var dbValue = parameter.dbValue();
@@ -102,6 +87,15 @@ public final class JpaTemplateImpl implements JpaTemplate {
     }
 
     @Override
+    public jakarta.persistence.Query query(@Nonnull StringTemplate template) {
+        return templateProcessor.process(template, null);
+    }
+
+    private jakarta.persistence.Query query(@Nonnull StringTemplate template, @Nonnull Class<?> resultClass) {
+        return templateProcessor.process(template, resultClass);
+    }
+
+    @Override
     public ORMTemplate toORM() {
         return new ORMTemplateImpl(new QueryFactory() {
             @Override
@@ -110,7 +104,7 @@ public final class JpaTemplateImpl implements JpaTemplate {
             }
 
             @Override
-            public Query create(@Nonnull LazyFactory lazyFactory, @Nonnull StringTemplate template) {
+            public Query create(@Nonnull StringTemplate template) {
                 return new PreparedQuery() {
                     @Override
                     public PreparedQuery prepare() {
@@ -120,27 +114,13 @@ public final class JpaTemplateImpl implements JpaTemplate {
                     @SuppressWarnings("unchecked")
                     @Override
                     public Stream<Object[]> getResultStream() {
-                        return process(template).getResultStream().map(this::convert);
-                    }
-
-                    @Override
-                    public <R> R getResult(@Nonnull ResultCallback<Object[], R> callback) {
-                        try (var stream = Tripwire.autoClose(this::getResultStream)) {
-                            return callback.process(stream);
-                        }
+                        return JpaTemplateImpl.this.query(template).getResultStream().map(this::convert);
                     }
 
                     @SuppressWarnings("unchecked")
                     @Override
                     public <T> Stream<T> getResultStream(@Nonnull Class<T> type) {
-                        return process(template, type).getResultStream();
-                    }
-
-                    @Override
-                    public <T, R> R getResult(@Nonnull Class<T> type, @Nonnull ResultCallback<T, R> callback) {
-                        try (var stream = Tripwire.autoClose(() -> getResultStream(type))) {
-                            return callback.process(stream);
-                        }
+                        return query(template, type).getResultStream();
                     }
 
                     @Override
@@ -150,7 +130,7 @@ public final class JpaTemplateImpl implements JpaTemplate {
 
                     @Override
                     public int executeUpdate() {
-                        return process(template).executeUpdate();
+                        return JpaTemplateImpl.this.query(template).executeUpdate();
                     }
 
                     /**

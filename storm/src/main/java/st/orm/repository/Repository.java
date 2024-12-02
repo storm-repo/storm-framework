@@ -15,18 +15,17 @@
  */
 package st.orm.repository;
 
-import st.orm.Templates;
-import st.orm.template.ORMRepositoryTemplate;
+import st.orm.template.ORMTemplate;
 
 /**
  * Base interface for all repositories.
  */
-public interface Repository extends Templates, RepositoryLookup {
+public interface Repository {
 
     /**
      * Provides access to the underlying ORM template.
      *
      * @return the ORM template.
      */
-    ORMRepositoryTemplate template();
+    ORMTemplate orm();
 }

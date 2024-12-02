@@ -17,15 +17,13 @@ package st.orm.template;
 
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceException;
 import jakarta.persistence.Query;
-import st.orm.Templates;
 import st.orm.template.impl.JpaTemplateImpl;
 
 /**
  * Provides access to JPA templates.
  */
-public interface JpaTemplate extends Templates, StringTemplate.Processor<Query, PersistenceException> {
+public interface JpaTemplate {
 
     /**
      * Creates a new JPA template for the given entity manager.
@@ -43,12 +41,14 @@ public interface JpaTemplate extends Templates, StringTemplate.Processor<Query, 
      * @param entityManager the entity manager.
      * @return the ORM template.
      */
-    static ORMTemplate ORM(@Nonnull EntityManager entityManager) {
+    static QueryTemplate ORM(@Nonnull EntityManager entityManager) {
         return new JpaTemplateImpl(entityManager).toORM();
     }
 
     /**
-     * Returns a ORM template for this JPA template.
+     * Returns an ORM template for this JPA template.
      */
     ORMTemplate toORM();
+
+    Query query(@Nonnull StringTemplate template);
 }

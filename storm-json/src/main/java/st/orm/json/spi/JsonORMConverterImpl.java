@@ -32,9 +32,10 @@ import java.util.function.Function;
 public class JsonORMConverterImpl implements ORMConverter {
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     private final RecordComponent component;
     private final TypeReference<?> typeReference;
-
     public JsonORMConverterImpl(@Nonnull RecordComponent component, @Nonnull TypeReference<?> typeReference) {
         this.component = component;
         this.typeReference = typeReference;
@@ -49,7 +50,7 @@ public class JsonORMConverterImpl implements ORMConverter {
     public Object convert(@Nonnull Object[] args) throws SqlTemplateException {
         try {
             Object arg = args[0];
-            return arg == null ? null : new ObjectMapper().readValue((String) args[0], typeReference);
+            return arg == null ? null : OBJECT_MAPPER.readValue((String) args[0], typeReference);
         } catch (JsonProcessingException e) {
             throw new SqlTemplateException(e);
         }
@@ -63,7 +64,7 @@ public class JsonORMConverterImpl implements ORMConverter {
     @Override
     public List<Object> getValues(@Nullable Record record) throws SqlTemplateException {
         try {
-            return List.of(new ObjectMapper().writeValueAsString(record == null ? null : REFLECTION.invokeComponent(component, record)));
+            return List.of(OBJECT_MAPPER.writeValueAsString(record == null ? null : REFLECTION.invokeComponent(component, record)));
         } catch (Throwable e) {
             throw new SqlTemplateException(e);
         }

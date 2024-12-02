@@ -26,12 +26,36 @@ import java.lang.reflect.RecordComponent;
 public interface ForeignKeyResolver {
 
     /**
+     * The default foreign key resolver used by the ORM template.
+     */
+    ForeignKeyResolver DEFAULT = camelCaseToSnakeCase();
+
+    /**
+     * Resolves the column name for a record component using camel case to snake case conversion.
+     *
+     * @return the column name resolver.
+     */
+    static ForeignKeyResolver camelCaseToSnakeCase() {
+        return (component, _) -> STR."\{NameResolver.camelCaseToSnakeCase(component.getName())}_id";
+    }
+
+    /**
+     * Resolves the column name for a record component by converting the column name to upper case.
+     *
+     * @param resolver the column name resolver to wrap.
+     * @return the column name resolver.
+     */
+    static ForeignKeyResolver toUpperCase(@Nonnull ForeignKeyResolver resolver) {
+        return (component, type) -> resolver.resolveColumnName(component, type).toUpperCase();
+    }
+
+    /**
      * Resolves the column name for a foreign key record type.
      *
-     * @param recordComponent the record component
-     * @param recordType the record type to resolve the column name for.
+     * @param component the record component
+     * @param type the record type to resolve the column name for.
      * @return the column name.
      */
-    String resolveColumnName(@Nonnull RecordComponent recordComponent,
-                             @Nonnull Class<? extends Record> recordType);
+    String resolveColumnName(@Nonnull RecordComponent component,
+                             @Nonnull Class<? extends Record> type);
 }

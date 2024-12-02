@@ -16,15 +16,16 @@
 package st.orm.kotlin.repository;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.PersistenceException;
-import st.orm.Inline;
+import st.orm.FK;
 import st.orm.PK;
+import st.orm.PersistenceException;
 import st.orm.repository.Entity;
 import st.orm.repository.EntityRepository;
 
 import java.lang.reflect.RecordComponent;
 import java.util.stream.Stream;
 
+import static st.orm.spi.Providers.getORMConverter;
 import static st.orm.spi.Providers.getORMReflection;
 
 /**
@@ -43,9 +44,9 @@ public interface KEntity<ID> extends Entity<ID> {
         return Stream.of(componentType.getRecordComponents())
                 .flatMap(c -> reflection.isAnnotationPresent(c, PK.class)
                         ? Stream.of(c)
-                        : reflection.isAnnotationPresent(c, Inline.class) && c.getType().isRecord()
-                        ? getPkComponents((Class<? extends Record>) c.getType())
-                        : Stream.empty());
+                        : c.getType().isRecord() && !reflection.isAnnotationPresent(c, FK.class) && getORMConverter(c).isEmpty()
+                            ? getPkComponents((Class<? extends Record>) c.getType())        // @Inline is implicitly assumed.
+                            : Stream.empty());
     }
 
     /**

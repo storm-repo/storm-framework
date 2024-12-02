@@ -28,7 +28,6 @@ import st.orm.repository.Entity;
  *
  */
 @Builder(toBuilder = true)
-@Name("owner")
 public record Owner(
         @PK Integer id,
         @Nonnull @Name("first_name") String firstName,

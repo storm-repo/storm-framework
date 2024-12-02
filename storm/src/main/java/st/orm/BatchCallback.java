@@ -13,7 +13,7 @@ import java.util.stream.Stream;
 public interface BatchCallback<T> {
 
     /**
-     * Process the given stream.
+     * Process the given batch stream.
      *
      * @param batch batch stream to process.
      */
