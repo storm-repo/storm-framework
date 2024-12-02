@@ -39,6 +39,7 @@ import static java.util.Optional.empty;
 import static st.orm.template.ResolveScope.CASCADE;
 import static st.orm.template.ResolveScope.INNER;
 import static st.orm.template.impl.SqlTemplateImpl.getTableName;
+import static st.orm.template.impl.SqlTemplateImpl.multiplePathsFoundException;
 
 final class AliasMapper {
     private final Map<Class<? extends Record>, SequencedCollection<TableAlias>> aliasMap;
@@ -116,15 +117,12 @@ final class AliasMapper {
 
     private SqlTemplateException multipleFoundException(@Nonnull Class<? extends Record> table, @Nullable String path, @Nonnull ResolveScope resolveMode) {
         if (resolveMode != INNER) {
-            return new SqlTemplateException(STR."Multiple aliases found for: \{table.getSimpleName()} at path: '\{path}'. Use LOCAL resolve mode to limit alias resolution to the current scope.");
+            return new SqlTemplateException(STR."Multiple aliases found for: \{table.getSimpleName()} at path: '\{path}'. Use INNER scope to limit alias resolution to the current scope.");
         }
         var paths = aliasMap.get(table).stream()
                 .map(TableAlias::path)
-                .filter(Objects::nonNull)
-                .map(p -> STR."'\{p}'")
-                .distinct()
                 .toList();
-        return SqlTemplateImpl.multiplePathsFoundException(table, paths);
+        return multiplePathsFoundException(table, paths);
     }
 
     public String useAlias(@Nonnull Class<? extends Record> table, @Nonnull String alias, @Nonnull ResolveScope scope) throws SqlTemplateException {

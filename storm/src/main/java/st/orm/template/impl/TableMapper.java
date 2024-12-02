@@ -33,6 +33,7 @@ import java.util.stream.Stream;
 import static java.util.Comparator.comparingInt;
 import static java.util.List.copyOf;
 import static java.util.stream.Collectors.groupingBy;
+import static st.orm.template.impl.SqlTemplateImpl.multiplePathsFoundException;
 
 final class TableMapper {
     record Mapping(
@@ -60,14 +61,22 @@ final class TableMapper {
     }
 
     public Mapping getMapping(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException {
+        // While it might seem appropriate to return the mapping at the root level when the path is null or empty,
+        // doing so can lead to unexpected results if a field is added at the root level in the future.
+        // Such an addition would cause the search to switch to that root element, altering the semantics of the query.
+        // To avoid this ambiguity, it is better to raise an exception to indicate the ambiguity.
         var tableMappings = mappings.getOrDefault(table, List.of());
         var matches = findMappings(tableMappings, path);
         if (matches.size() == 1) {
             return matches.getFirst();
         }
-        var paths = tableMappings.stream().map(Mapping::pkPath).filter(Objects::nonNull).toList();
+        var paths = tableMappings.stream()
+                .map(Mapping::pkPath)
+                .filter(Objects::nonNull)
+                .sorted(comparingInt(TableMapper::countLevels))  // Sort by number of levels (dots).
+                .toList();
         if (matches.size() > 1) {
-            throw multipleFoundException(table, paths);
+            throw multiplePathsFoundException(table, paths);
         } else {
             throw notFoundException(table, path, paths);
         }
@@ -108,14 +117,30 @@ final class TableMapper {
         };
         paths
                 .filter(filter)
-                .sorted(comparingInt(String::length))
+                .sorted(comparingInt(TableMapper::countLevels))  // Sort by number of levels (dots).
                 .forEach(p -> {
-                    boolean isSubPath = shortestPaths.stream().anyMatch(existing -> p.startsWith(STR."\{existing}."));
+                    boolean isSubPath = shortestPaths.stream().anyMatch(existing -> p.startsWith(existing + "."));
                     if (!isSubPath) {
                         shortestPaths.add(p);
                     }
                 });
         return shortestPaths;
+    }
+
+    /**
+     * Counts the number of levels (dots) in the path.
+     *
+     * @param path the path to count the levels for.
+     * @return the number of levels in the path.
+     */
+    private static int countLevels(String path) {
+        int count = 0;
+        for (int i = 0; i < path.length(); i++) {
+            if (path.charAt(i) == '.') {
+                count++;
+            }
+        }
+        return count;
     }
 
     private static String getPath(@Nonnull List<RecordComponent> components, @Nullable String path) {
@@ -146,9 +171,10 @@ final class TableMapper {
         // Return all mappings for which the path is unknown, but hides the mappings that are more specific.
         // Example: with mappings null, null, "a.b", "a.b.c", "a.c", "b" and no path, the result would be
         // null, null, "a.b", "a.c" and "b".
-        return mappings.stream()
-                .filter(m -> m.pkPath() == null || shortestPath.contains(m.pkPath()))
-                .toList();
+        return Stream.concat(
+                mappings.stream().filter(m -> m.pkPath() == null),
+                shortestPath.stream().flatMap(p -> mapped.get(p).stream())
+        ).toList();
     }
 
     private SqlTemplateException notFoundException(@Nonnull Class<? extends Record> table, @Nullable String path, @Nonnull List<String> paths) {
@@ -166,13 +192,5 @@ final class TableMapper {
             return new SqlTemplateException(STR."\{table.getSimpleName()} not found at path: '\{path}'. Specify path '\{paths.getFirst()}' to identify the table.");
         }
         return new SqlTemplateException(STR."\{table.getSimpleName()} not found at path: '\{path}'. Specify one of the following paths to identify the table: \{String.join(", ", paths)}.");
-    }
-
-    private SqlTemplateException multipleFoundException(@Nonnull Class<? extends Record> table, @Nonnull List<String> paths) {
-        if (paths.isEmpty()) {
-            return new SqlTemplateException(STR."Multiple occurences of \{table.getSimpleName()} found in table graph.");
-        }
-        paths = paths.stream().filter(Objects::nonNull).map(p -> STR."'\{p}'").toList();
-        return SqlTemplateImpl.multiplePathsFoundException(table, paths);
     }
 }

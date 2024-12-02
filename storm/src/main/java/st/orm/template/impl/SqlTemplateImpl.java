@@ -547,13 +547,14 @@ public final class SqlTemplateImpl implements SqlTemplate {
     }
 
     static SqlTemplateException multiplePathsFoundException(@Nonnull Class<? extends Record> table, @Nonnull List<String> paths) {
+        paths = paths.stream().filter(Objects::nonNull).distinct().map(p -> STR."'\{p}'").toList();
         if (paths.isEmpty()) {
-            return new SqlTemplateException(STR."Multiple aliases found for \{table.getSimpleName()}.");
+            return new SqlTemplateException(STR."Multiple paths found for \{table.getSimpleName()}.");
         }
         if (paths.size() == 1) {
-            return new SqlTemplateException(STR."Multiple aliases found for \{table.getSimpleName()}. Specify path \{paths.getFirst()} to uniquely identify the table.");
+            return new SqlTemplateException(STR."Multiple paths found for \{table.getSimpleName()}. Specify path \{paths.getFirst()} to uniquely identify the table.");
         }
-        return new SqlTemplateException(STR."Multiple aliases found for \{table.getSimpleName()} in table graph. Specify one of the following paths to uniquely identify the table: \{String.join(", ", paths)}.");
+        return new SqlTemplateException(STR."Multiple patths found for \{table.getSimpleName()} in table graph. Specify one of the following paths to uniquely identify the table: \{String.join(", ", paths)}.");
     }
 
     private TableMapper getTableMapper() {
