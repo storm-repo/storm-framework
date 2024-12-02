@@ -40,7 +40,7 @@ public class RepositoryBeanFactoryPostProcessor implements BeanFactoryPostProces
     }
 
     public String[] getRepositoryBasePackages() {
-        return new String[] {"com.beatgridmedia.panelsync.repository"};
+        return new String[0];
     }
 
     public String getRepositoryPrefix() {
