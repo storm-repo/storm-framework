@@ -16,17 +16,19 @@
 package st.orm.template;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 /**
  * Represents a comparison operator in a SQL query.
  */
+@SuppressWarnings({"SwitchStatementWithTooFewBranches", "unused"})
 public interface Operator {
     Operator IN = (column, size) -> switch (size) {
-        case 0 -> "FALSE";
+        case 0 -> "1 <> 1";
         default -> STR."\{column} IN (\{"?, ".repeat(size - 1)}?)";
     };
     Operator NOT_IN = (column, size) -> switch (size) {
-        case 0 -> "TRUE";
+        case 0 -> "1 = 1";
         default -> STR."\{column} NOT IN (\{"?, ".repeat(size - 1)}?)";
     };
     Operator EQUALS = (column, size) -> format("Equals", 1, size, STR."\{column} = ?");
@@ -51,9 +53,12 @@ public interface Operator {
      * @return the formatted operator.
      * @throws IllegalArgumentException if the specified size is not supported by the operator.
      */
-    String format(@Nonnull String column, int size);
+    String format(@Nullable String column, int size);
 
-    private static String format(@Nonnull String name, int requiredSize, int actualSize, @Nonnull String operator) {
+    private static String format(@Nullable String name, int requiredSize, int actualSize, @Nonnull String operator) {
+        if (name == null) {
+            throw new IllegalArgumentException("Column name cannot be null.");
+        }
         if (requiredSize != actualSize) {
             throw new IllegalArgumentException(STR."\{name} operator requires \{requiredSize} value(s). Found \{actualSize} value(s).");
         }
