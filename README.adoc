@@ -197,7 +197,7 @@ public class ORMRepositoryExample {
     }
 
     public List<Pet> findByFirstNameAndLastName(String firstName, String lastName) {
-        // Predicate using mixed styles.
+        // Build where using mixed styles.
         return ORM(dataSource).entity(Pet.class)
             .select()
             .wherePredicate(it -> it.filter("owner.firstName", EQUALS, firstName)

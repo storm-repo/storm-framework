@@ -473,6 +473,8 @@ record ElementProcessor(
                 throw new SqlTemplateException(STR."Failed to find field for \{table.getSimpleName()} table at path \{path}.");
             }
         }
+        // If column is still not resolved, we will let the operator take care it, and potentially raise an error.
+        // A common (valid) use case is where object is an empty array or collection and no path is specified.
         try {
             return operator.format(column, size);
         } catch (IllegalArgumentException e) {
