@@ -179,7 +179,7 @@ record ElementProcessor(
         return new ElementResult(STR."\{getTableName(it.table(), sqlTemplate.tableNameResolver())} (\{getColumnsStringForInsert(it.table(), sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver(), generatedKeys)})");
     }
 
-    ElementResult update(Update it) {
+    ElementResult update(Update it) throws SqlTemplateException {
         return new ElementResult(STR."\{getTableName(it.table(), sqlTemplate.tableNameResolver())}\{it.alias().isEmpty() ? "" : STR." \{it.alias()}"}");
     }
 
@@ -252,7 +252,7 @@ record ElementProcessor(
         };
     }
 
-    ElementResult table(Table it) {
+    ElementResult table(Table it) throws SqlTemplateException {
         StringBuilder s = new StringBuilder();
         s.append(getTableName(it.table(), sqlTemplate.tableNameResolver()));
         if (!it.alias().isEmpty()) {
@@ -464,13 +464,6 @@ record ElementProcessor(
                     : getValuesForCondition(null, table, primaryTable.alias(), sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver());
             if (valueMap.size() == 1) {
                 column = valueMap.sequencedKeySet().getFirst();
-            }
-        }
-        if (column == null) {
-            if (path == null) {
-                throw new SqlTemplateException(STR."Failed to find field for \{table.getSimpleName()}.");
-            } else {
-                throw new SqlTemplateException(STR."Failed to find field for \{table.getSimpleName()} table at path \{path}.");
             }
         }
         // If column is still not resolved, we will let the operator take care it, and potentially raise an error.
@@ -1067,7 +1060,8 @@ record ElementProcessor(
 
     private static String getBindVarsStringForWhere(@Nonnull Class<? extends Record> recordType,
                                                     @Nonnull String alias,
-                                                    @Nullable ColumnNameResolver columnNameResolver) {
+                                                    @Nullable ColumnNameResolver columnNameResolver)
+            throws SqlTemplateException {
         return getPkNamesForWhere(recordType, alias, columnNameResolver).stream()
                 .map(pkName -> STR."\{pkName} = ?")
                 .collect(joining(" AND "));
@@ -1075,7 +1069,8 @@ record ElementProcessor(
 
     private static List<String> getPkNamesForWhere(@Nonnull Class<? extends Record> recordType,
                                                    @Nonnull String alias,
-                                                   @Nullable ColumnNameResolver columnNameResolver) {
+                                                   @Nullable ColumnNameResolver columnNameResolver)
+            throws SqlTemplateException {
         return getPkNamesForWhere(recordType, alias, columnNameResolver, false);
     }
 
@@ -1083,7 +1078,7 @@ record ElementProcessor(
     private static List<String> getPkNamesForWhere(@Nonnull Class<? extends Record> recordType,
                                                    @Nonnull String alias,
                                                    @Nullable ColumnNameResolver columnNameResolver,
-                                                   boolean parentPk) {
+                                                   boolean parentPk) throws SqlTemplateException {
         var names = new ArrayList<String>();
         for (var component : recordType.getRecordComponents()) {
             boolean pk = REFLECTION.isAnnotationPresent(component, PK.class);

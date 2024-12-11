@@ -57,5 +57,5 @@ public interface TableAliasResolver {
      * @param counter counter used track the number of attempts.
      * @return the alias.
      */
-    String resolveTableAlias(@Nonnull Class<? extends Record> type, int counter);
+    String resolveTableAlias(@Nonnull Class<? extends Record> type, int counter) throws SqlTemplateException;
 }

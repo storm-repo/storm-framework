@@ -15,7 +15,6 @@
  */
 package st.orm.model;
 
-import st.orm.Name;
 import st.orm.PK;
 import jakarta.annotation.Nonnull;
 import lombok.Builder;

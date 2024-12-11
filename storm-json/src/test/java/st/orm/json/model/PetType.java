@@ -17,14 +17,14 @@ package st.orm.json.model;
 
 import jakarta.annotation.Nonnull;
 import lombok.Builder;
-import st.orm.Name;
+import st.orm.DbName;
 import st.orm.PK;
 
 /**
  * Can be Cat, Dog, Hamster...
  */
 @Builder(toBuilder = true)
-@Name("pet_type")
+@DbName("pet_type")
 public record PetType(
         @PK Integer id,
         @Nonnull String name

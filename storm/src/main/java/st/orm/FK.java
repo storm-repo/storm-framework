@@ -23,9 +23,35 @@ import static java.lang.annotation.ElementType.RECORD_COMPONENT;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
- * Marks a record component as holder of a foreign key.
+ * Marks a field as a foreign key. You can specify the foreign key’s database column name using either:
+ * <ul>
+ *   <li>{@link #value()}</li>
+ *   <li>{@link #dbName()}</li>
+ * </ul>
+ * Both attributes are aliases. If both are specified, they must have the same value.
+ *
+ * <p>Usage examples:
+ * <ul>
+ *   <li>{@code @FK("user_id")}</li>
+ *   <li>{@code @FK(dbName = "user_id")}</li>
+ *   <li>{@code @FK @DbName("user_id")}</li>
+ * </ul>
+ * Each sets the foreign key’s database column name to {@code "user_id"}.
+ *
+ * <p>If no value is specified (i.e., both {@code value()} and {@code dbName()} are set to {@code ""}),
+ * an automatic column name resolution strategy will be applied.
  */
 @Target({RECORD_COMPONENT, PARAMETER})
 @Retention(RUNTIME)
 public @interface FK {
+
+    /**
+     * The database column name for the foreign key. Acts as an alias for {@link #dbName()}.
+     */
+    String value() default "";
+
+    /**
+     * The database column name for the foreign key. Acts as an alias for {@link #value()}.
+     */
+    String dbName() default "";
 }

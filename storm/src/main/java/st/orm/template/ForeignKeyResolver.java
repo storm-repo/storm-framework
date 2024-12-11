@@ -57,5 +57,5 @@ public interface ForeignKeyResolver {
      * @return the column name.
      */
     String resolveColumnName(@Nonnull RecordComponent component,
-                             @Nonnull Class<? extends Record> type);
+                             @Nonnull Class<? extends Record> type) throws SqlTemplateException;
 }

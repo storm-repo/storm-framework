@@ -54,5 +54,5 @@ public interface TableNameResolver {
      * @param type the record type.
      * @return the table name.
      */
-    String resolveTableName(@Nonnull Class<? extends Record> type);
+    String resolveTableName(@Nonnull Class<? extends Record> type) throws SqlTemplateException;
 }

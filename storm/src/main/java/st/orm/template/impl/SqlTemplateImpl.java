@@ -21,7 +21,7 @@ import st.orm.BindVars;
 import st.orm.FK;
 import st.orm.Inline;
 import st.orm.Lazy;
-import st.orm.Name;
+import st.orm.DbName;
 import st.orm.PK;
 import st.orm.Query;
 import st.orm.repository.Entity;
@@ -55,13 +55,13 @@ import st.orm.template.impl.Elements.Unsafe;
 import st.orm.template.impl.Elements.Update;
 import st.orm.template.impl.Elements.Where;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Map;
 import java.util.MissingFormatArgumentException;
 import java.util.Objects;
 import java.util.Optional;
@@ -596,12 +596,12 @@ public final class SqlTemplateImpl implements SqlTemplate {
             Source source = projectionQuery != null
                     ? new TemplateSource(StringTemplate.of(projectionQuery.value()))
                     : new TableSource(table);
-            effectiveFrom = new From(source, alias, projectionQuery == null && from.autoJoin());
+            effectiveFrom = new From(source, alias, from.autoJoin());
             elements.replaceAll(element -> element instanceof From ? effectiveFrom : element);
             // We will only make primary keys available for mapping if the table is not part of the entity graph,
             // because the entities can already be resolved by their foreign keys.
             // tableMapper.mapPrimaryKey(table, alias, getPkComponents(table).toList(), path);
-            addJoins(elements, effectiveFrom, aliasMapper, tableMapper);
+            addJoins(table, elements, effectiveFrom, aliasMapper, tableMapper);
         } else {
             // If no From element is present, we will only add table aliases.
             addTableAliases(elements, aliasMapper);
@@ -700,7 +700,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             // We will only make primary keys available for mapping if the table is not part of the entity graph,
             // because the entities can already be resolved by their foreign keys.
             // tableMapper.mapPrimaryKey(table, alias, getPkComponents(table).toList(), path);
-            addJoins(elements, effectiveFrom, aliasMapper, tableMapper);
+            addJoins(table, elements, effectiveFrom, aliasMapper, tableMapper);
         } else if (delete != null) {
             throw new SqlTemplateException("From element required when using Delete element.");
         } else {
@@ -722,11 +722,10 @@ public final class SqlTemplateImpl implements SqlTemplate {
         final From from = elements.stream()
                 .filter(From.class::isInstance)
                 .map(From.class::cast)
-                .filter(f -> f.source() instanceof TableSource)
                 .findAny()
                 .orElse(null);
-        if (from != null) {
-            addJoins(elements, from, aliasMapper, tableMapper);
+        if (from != null && from.source() instanceof TableSource(var table)) {
+            addJoins(table, elements, from, aliasMapper, tableMapper);
         } else {
             // If no From element is present, we will only add table aliases.
             addTableAliases(elements, aliasMapper);
@@ -752,7 +751,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         }
     }
 
-    void addJoins(@Nonnull List<Element> elements, @Nonnull From from, @Nonnull AliasMapper aliasMapper, @Nonnull TableMapper tableMapper) throws SqlTemplateException {
+    void addJoins(@Nonnull Class<? extends Record> fromTable, @Nonnull List<Element> elements, @Nonnull From from, @Nonnull AliasMapper aliasMapper, @Nonnull TableMapper tableMapper) throws SqlTemplateException {
         List<Join> customJoins = new ArrayList<>();
         for (ListIterator<Element> it = elements.listIterator(); it.hasNext(); ) {
             Element element = it.next();
@@ -784,12 +783,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
             }
         }
         List<Join> joins;
-        if (from != null && from.autoJoin()) {
-            if (!(from.source() instanceof TableSource(var table))) {
-                throw new SqlTemplateException("From with table required when using auto join.");
-            }
+        if (from.autoJoin()) {
             joins = new ArrayList<>();
-            addAutoJoins(table, customJoins, aliasMapper, tableMapper, joins);
+            addAutoJoins(fromTable, customJoins, aliasMapper, tableMapper, joins);
         } else {
             joins = customJoins;
         }
@@ -1153,7 +1149,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
     }
 
     record ValidationKey(@Nonnull SqlMode sqlMode, Class<? extends Record> recordType) {}
-    private static final Map<ValidationKey, String> VALIDATION_CACHE = new ConcurrentHashMap<>();
+    private static final java.util.Map<ValidationKey, String> VALIDATION_CACHE = new ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")
     private void validateRecordType(@Nonnull SqlMode sqlMode,
@@ -1193,8 +1189,17 @@ public final class SqlTemplateImpl implements SqlTemplate {
                             return STR."Converted component must not be @\{annotation.getSimpleName()}: \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}.";
                         }
                     }
-                }
-                if (!component.getType().isRecord() && REFLECTION.isAnnotationPresent(component, Inline.class)) {
+                } else if (component.getType().isRecord()) {
+                    if (!REFLECTION.isAnnotationPresent(component, FK.class) && !REFLECTION.isAnnotationPresent(component, Inline.class)) {
+                        // Accidentally inlining entities can have unexpected side effects.
+                        if (Entity.class.isAssignableFrom(component.getType())) {
+                            return STR."Entity must be marked as @FK or @Inline: \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}.";
+                        }
+                        if (Projection.class.isAssignableFrom(component.getType())) {
+                            return STR."Projection must be marked as @FK or @Inline: \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}.";
+                        }
+                    }
+                } else if (REFLECTION.isAnnotationPresent(component, Inline.class)) {
                     return STR."Inlined component must be a record: \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}.";
                 }
             }
@@ -1251,7 +1256,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             this((Class<? extends Record>) component.getDeclaringRecord(), component.getName());
         }
     }
-    private static final Map<RecordComponentKey, Class<?>> LAZY_PK_TYPE_CACHE = new ConcurrentHashMap<>();
+    private static final java.util.Map<RecordComponentKey, Class<?>> LAZY_PK_TYPE_CACHE = new ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")
     static Class<?> getLazyPkType(@Nonnull RecordComponent component) throws SqlTemplateException {
@@ -1276,7 +1281,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         }
     }
 
-    private static final Map<RecordComponentKey, Class<? extends Record>> LAZY_RECORD_TYPE_CACHE = new ConcurrentHashMap<>();
+    private static final java.util.Map<RecordComponentKey, Class<? extends Record>> LAZY_RECORD_TYPE_CACHE = new ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")
     static Class<? extends Record> getLazyRecordType(@Nonnull RecordComponent component) throws SqlTemplateException {
@@ -1314,14 +1319,26 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @param tableNameResolver the table name resolver.
      * @return the table name for the specified record type.
      */
-    static String getTableName(@Nonnull Class<? extends Record> recordType, @Nullable TableNameResolver tableNameResolver) {
-        return ofNullable(REFLECTION.getAnnotation(recordType, Name.class))
-                .map(Name::value)
+    static String getTableName(@Nonnull Class<? extends Record> recordType,
+                               @Nullable TableNameResolver tableNameResolver) throws SqlTemplateException {
+        return ofNullable(REFLECTION.getAnnotation(recordType, DbName.class))
+                .map(DbName::value)
                 .filter(not(String::isEmpty))
                 .orElse(tableNameResolver != null
                         ? tableNameResolver.resolveTableName(recordType)
                         : recordType.getSimpleName());
     }
+
+    private static Stream<String> getColumnNames(@Nonnull Annotation annotation) {
+        return switch (annotation) {
+            case PK pk -> Stream.of(pk.dbName(), pk.value());
+            case FK fk -> Stream.of(fk.dbName(), fk.value());
+            case DbName dbName -> Stream.of(dbName.value());
+            default -> throw new IllegalArgumentException(STR."Unsupported annotation: \{annotation}.");
+        };
+    }
+
+    private static final List<Class<? extends Annotation>> COLUMN_ANNOTATIONS = List.of(PK.class, FK.class, DbName.class);
 
     /**
      * Returns the column name for the specified record component taking the column name resolver into account,
@@ -1331,14 +1348,40 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @param columnNameResolver the column name resolver.
      * @return the column name for the specified record component.
      */
-    static String getColumnName(@Nonnull RecordComponent component, @Nullable ColumnNameResolver columnNameResolver) {
-        return ofNullable(REFLECTION.getAnnotation(component, Name.class))
-                .map(Name::value)
-                .filter(not(String::isEmpty))
-                .orElse(columnNameResolver != null
-                        ? columnNameResolver.resolveColumnName(component)
-                        : component.getName());
+    static String getColumnName(@Nonnull RecordComponent component, @Nullable ColumnNameResolver columnNameResolver)
+            throws SqlTemplateException {
+        return getColumnName(component, COLUMN_ANNOTATIONS).orElse(columnNameResolver != null
+                ? columnNameResolver.resolveColumnName(component)
+                : component.getName());
     }
+
+    /**
+     * Returns the column name for the specified record component taking the column name resolver into account,
+     * if present.
+     *
+     * @param component the record component to obtain the column name for.
+     * @return the column name for the specified record component.
+     */
+    static Optional<String> getColumnName(@Nonnull RecordComponent component,
+                                          @Nonnull List<Class<? extends Annotation>> annotationTypes)
+            throws SqlTemplateException {
+        var columNames = annotationTypes.stream()
+                .map(c -> REFLECTION.getAnnotation(component, c))
+                .filter(Objects::nonNull)
+                .flatMap(SqlTemplateImpl::getColumnNames)
+                .filter(not(String::isEmpty))
+                .distinct()
+                .toList();
+        if (columNames.isEmpty()) {
+            return Optional.empty();
+        }
+        if (columNames.size() > 1) {
+            throw new SqlTemplateException(STR."Multiple column names found for \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}: \{columNames}");
+        }
+        return Optional.of(columNames.getFirst());
+    }
+
+    private static final List<Class<? extends Annotation>> FK_COLUMN_ANNOTATIONS = List.of(FK.class, DbName.class);
 
     /**
      * Returns the column name for the specified record component taking the column name resolver into account,
@@ -1349,12 +1392,11 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @return the column name for the specified record component.
      */
     @SuppressWarnings("unchecked")
-    static String getForeignKey(@Nonnull RecordComponent component, @Nullable ForeignKeyResolver foreignKeyResolver) throws SqlTemplateException {
-        var foreignKey = ofNullable(REFLECTION.getAnnotation(component, Name.class))
-                .map(Name::value)
-                .filter(not(String::isEmpty));
-        if (foreignKey.isPresent()) {
-            return foreignKey.get();
+    static String getForeignKey(@Nonnull RecordComponent component,
+                                @Nullable ForeignKeyResolver foreignKeyResolver) throws SqlTemplateException {
+        var columnName = getColumnName(component, FK_COLUMN_ANNOTATIONS);
+        if (columnName.isPresent()) {
+            return columnName.get();
         }
         Class<? extends Record> recordType = Lazy.class.isAssignableFrom(component.getType())
                 ? getLazyRecordType(component)
@@ -1362,13 +1404,13 @@ public final class SqlTemplateImpl implements SqlTemplate {
         if (foreignKeyResolver != null) {
             return foreignKeyResolver.resolveColumnName(component, recordType);
         }
-        throw new SqlTemplateException(STR."Cannot infer foreign key column name for entity \{component.getDeclaringRecord().getSimpleName()}. Specify a @Name annotation or provide a foreign key resolver.");
+        throw new SqlTemplateException(STR."Cannot infer foreign key column name for entity \{component.getDeclaringRecord().getSimpleName()}. Specify a @DbName annotation or provide a foreign key resolver.");
     }
 
     // Basic SQL processing.
 
     private static final Pattern WITH_PATTERN = Pattern.compile("^(?i:WITH)\\W.*", DOTALL);
-    private static final Map<Pattern, SqlMode> SQL_MODES = Map.of(
+    private static final java.util.Map<Pattern, SqlMode> SQL_MODES = java.util.Map.of(
             Pattern.compile("^(?i:SELECT)\\W.*", DOTALL), SqlMode.SELECT,
             Pattern.compile("^(?i:INSERT)\\W.*", DOTALL), SqlMode.INSERT,
             Pattern.compile("^(?i:UPDATE)\\W.*", DOTALL), SqlMode.UPDATE,
@@ -1398,7 +1440,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         String sql = input.stripLeading();
         return SQL_MODES.entrySet().stream()
                 .filter(e -> e.getKey().matcher(sql).matches())
-                .map(Map.Entry::getValue)
+                .map(java.util.Map.Entry::getValue)
                 .findFirst()
                 .orElse(SqlMode.UNDEFINED);
     }

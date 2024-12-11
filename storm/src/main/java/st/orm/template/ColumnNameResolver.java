@@ -55,5 +55,5 @@ public interface ColumnNameResolver {
      * @param component the record component
      * @return the column name.
      */
-    String resolveColumnName(@Nonnull RecordComponent component);
+    String resolveColumnName(@Nonnull RecordComponent component) throws SqlTemplateException;
 }

@@ -23,11 +23,36 @@ import static java.lang.annotation.ElementType.RECORD_COMPONENT;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
- * Marks a record component as a primary key.
+ * Marks a field as the primary key of an entity. This annotation can also specify the database column name
+ * for the primary key using either {@link #value()} or {@link #dbName()}. These attributes are aliases:
+ * if both are provided, they must have the same value.
+ *
+ * <p>Usage examples:
+ * <ul>
+ *   <li>{@code @PK("id")}</li>
+ *   <li>{@code @PK(dbName = "id")}</li>
+ *   <li>{@code @PK @DbName("id")}</li>
+ * </ul>
+ * Each sets the primary key column name to {@code "id"}.
+ *
+ * <p>If no value is specified (i.e., both {@code value()} and {@code dbName()} are {@code ""}),
+ * the automatic column name resolution strategy will be applied.
  */
 @Target({RECORD_COMPONENT, PARAMETER})
 @Retention(RUNTIME)
 public @interface PK {
+
+    /**
+     * The database column name for the primary key.
+     * Acts as an alias for {@link #dbName()}.
+     */
+    String value() default "";
+
+    /**
+     * The database column name for the primary key.
+     * Acts as an alias for {@link #value()}.
+     */
+    String dbName() default "";
 
     /**
      * Whether the primary key is auto generated.

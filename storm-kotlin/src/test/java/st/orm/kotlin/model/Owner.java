@@ -19,7 +19,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
 import st.orm.Inline;
-import st.orm.Name;
+import st.orm.DbName;
 import st.orm.PK;
 import st.orm.repository.Entity;
 
@@ -30,8 +30,8 @@ import st.orm.repository.Entity;
 @Builder(toBuilder = true)
 public record Owner(
         @PK Integer id,
-        @Nonnull @Name("first_name") String firstName,
-        @Nonnull @Name("last_name") String lastName,
+        @Nonnull @DbName("first_name") String firstName,
+        @Nonnull @DbName("last_name") String lastName,
         @Nonnull @Inline Address address,
         @Nullable String telephone
 ) implements Person, Entity<Integer> {}
