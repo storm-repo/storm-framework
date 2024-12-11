@@ -59,9 +59,6 @@ public final class KORMReflectionImpl implements ORMReflection {
     @Override
     public Optional<Class<?>> findPKType(@Nonnull Class<? extends Record> recordType) {
         assert recordType.isRecord();
-        if (!defaultReflection.isSupportedType(recordType)) {
-            return defaultReflection.findPKType(recordType);
-        }
         Constructor<?> constructor = findCanonicalConstructor(recordType)
                 .orElseThrow(() -> new IllegalArgumentException(STR."No canonical constructor found for record type: \{recordType.getSimpleName()}."));
         Class<?> pkType = null;
@@ -100,9 +97,6 @@ public final class KORMReflectionImpl implements ORMReflection {
 
     @Override
     public <A extends Annotation> A getAnnotation(@Nonnull RecordComponent component, @Nonnull Class<A> annotationType) {
-        if (!defaultReflection.isSupportedType(component.getDeclaringRecord())) {
-            return defaultReflection.getAnnotation(component, annotationType);
-        }
         var parameter = COMPONENT_PARAMETER_CACHE.computeIfAbsent(new ComponentCacheKey(component), k -> {
             //noinspection unchecked
             Class<? extends Record> recordType = (Class<? extends Record>) component.getDeclaringRecord();

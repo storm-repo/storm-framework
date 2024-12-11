@@ -17,6 +17,7 @@ package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.template.ColumnNameResolver;
 import st.orm.template.SqlTemplateException;
 
 import java.lang.reflect.RecordComponent;
@@ -35,11 +36,11 @@ public interface ORMConverter {
 
     Object convert(@Nonnull Object[] args) throws SqlTemplateException;
 
-    List<String> getColumns(@Nonnull Function<RecordComponent, String> columnNameResolver) throws SqlTemplateException;
+    List<String> getColumns(@Nonnull ColumnNameResolver columnNameResolver) throws SqlTemplateException;
 
     List<Object> getValues(@Nullable Record record) throws SqlTemplateException;
 
-    default SequencedMap<String, Object> getValues(@Nullable Record record, @Nonnull Function<RecordComponent, String> columnNameResolver) throws SqlTemplateException {
+    default SequencedMap<String, Object> getValues(@Nullable Record record, @Nonnull ColumnNameResolver columnNameResolver) throws SqlTemplateException {
         var columns = getColumns(columnNameResolver);
         var values = getValues(record);
         if (columns.size() != values.size()) {

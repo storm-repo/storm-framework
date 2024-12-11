@@ -23,11 +23,11 @@ import jakarta.annotation.Nullable;
 import st.orm.spi.ORMConverter;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
+import st.orm.template.ColumnNameResolver;
 import st.orm.template.SqlTemplateException;
 
 import java.lang.reflect.RecordComponent;
 import java.util.List;
-import java.util.function.Function;
 
 public class JsonORMConverterImpl implements ORMConverter {
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
@@ -57,8 +57,8 @@ public class JsonORMConverterImpl implements ORMConverter {
     }
 
     @Override
-    public List<String> getColumns(@Nonnull Function<RecordComponent, String> columnNameResolver) {
-        return List.of(columnNameResolver.apply(component));
+    public List<String> getColumns(@Nonnull ColumnNameResolver columnNameResolver) throws SqlTemplateException {
+        return List.of(columnNameResolver.resolveColumnName(component));
     }
 
     @Override

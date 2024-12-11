@@ -24,14 +24,14 @@ import static java.lang.annotation.ElementType.TYPE;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
- * Specifies the name of a table or column.
+ * Specifies the database name for the annotated element (e.g., a table or column).
  */
 @Target({TYPE, RECORD_COMPONENT, PARAMETER})
 @Retention(RUNTIME)
-public @interface Name {
+public @interface DbName {
 
     /**
-     * The name of the table or column (Optional).
+     * The database name to be used.
      */
-    String value() default "";
+    String value();
 }

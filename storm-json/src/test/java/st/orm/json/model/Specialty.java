@@ -17,14 +17,14 @@ package st.orm.json.model;
 
 import jakarta.annotation.Nonnull;
 import lombok.Builder;
-import st.orm.Name;
+import st.orm.DbName;
 import st.orm.PK;
 
 /**
  * Models a {@link Vet Vet's} specialty (for example, dentistry).
  */
 @Builder(toBuilder = true)
-@Name("specialty")
+@DbName("specialty")
 public record Specialty(
         @PK Integer id,
         @Nonnull String name

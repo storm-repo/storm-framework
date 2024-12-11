@@ -16,11 +16,46 @@
 package st.orm.repository;
 
 /**
- * Optional marker interface for record-based projections.
+ * Marker interface for record-based projections.
  *
- * <p>This interface is used to support the {@code ProjectionRepository}, which provides read logic out-of-the-box.</p>
+ * <p>This interface is leveraged by {@link ProjectionRepository} to provide built-in read operations.</p>
+ *
+ * <p>Projections represent read-only data structures, such as database views or tables defined by custom
+ * SQL queries using the {@link ProjectionQuery} annotation.</p>
+ *
+ * <p>Usage examples:
+ *
+ * <p>Define a projection record based on the {@code basket_summary_view} view, with a {@code basket_id} primary
+ * key.
+ * <pre>{@code
+ * @DbName("basket_summary_view")
+ * record BasketSummary(@PK @FK Basket basket, int itemCount, BigDecimal totalPrice) implements Projection<Integer> {}
+ * }</pre>
+ *
+ * <p>Then, you can use the projection in a query like this:
+ * <pre>{@code
+ * var baskets = ...
+ * List<BasketSummary> summaries = ORM(dataSource).projection(BasketSummary.class)
+ *     .select()
+ *     .where(baskets)
+ *     .getResultList();
+ * }</pre>
+ *
+ * <p>Or use it as a foreign key in an entity:
+ * <pre>{@code
+ * record User(@PK int id, @FK("basket_id") BasketSummary basketSummary) implements Entity<Integer> {}
+ * }</pre>
+ *
+ * <p>Then, you can query all users having a basket with at least 1 item:</p>
+ * <pre>{@code
+ * List<User> users = ORM(dataSource).projection(User.class)
+ *     .select()
+ *     .where("basketSummary.itemCount", GREATER_THAN, 0)
+ *     .getResultList();
+ * }</pre>
  *
  * @see ProjectionRepository
+ * @see ProjectionQuery
  */
 public interface Projection<ID> {
 }
