@@ -95,8 +95,8 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     @SuppressWarnings("unchecked")
     @Override
     public <R extends Repository> R proxy(@Nonnull Class<R> type) {
-        EntityRepository<?, ?> entityRepository = createEntityRepository(type)
-                .orElse(null);
+        EntityRepository<?, ?> entityRepository = createEntityRepository(type).orElse(null);
+        ProjectionRepository<?, ?> projectionRepository = createProjectionRepository(type).orElse(null);
         Repository repository = createRepository();
         return wrapRepository((R) Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {
             try {
@@ -114,9 +114,18 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
                     return method.invoke(repository, args);
                 }
                 if (method.getDeclaringClass().isAssignableFrom(EntityRepository.class)) {
-                    assert entityRepository != null;
+                    if (entityRepository == null) {
+                        throw new UnsupportedOperationException(STR."EntityRepository not available for \{type.getName()}.");
+                    }
                     // Handle EntityRepository interface methods by delegating to the 'entityRepository' instance.
                     return method.invoke(entityRepository, args);
+                }
+                if (method.getDeclaringClass().isAssignableFrom(ProjectionRepository.class)) {
+                    if (projectionRepository == null) {
+                        throw new UnsupportedOperationException(STR."ProjectionRepository not available for \{type.getName()}.");
+                    }
+                    // Handle ProjectionRepository interface methods by delegating to the 'projectionRepository' instance.
+                    return method.invoke(projectionRepository, args);
                 }
                 if (REFLECTION.isDefaultMethod(method)) {
                     return REFLECTION.execute(proxy, method, args);
@@ -129,8 +138,19 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     }
 
     private <T extends Record & Entity<ID>, ID> Optional<EntityRepository<T, ID>> createEntityRepository(@Nonnull Class<?> type) {
+        if (!EntityRepository.class.isAssignableFrom(type)) {
+            return Optional.empty();
+        }
         //noinspection unchecked
         return findGenericClass(type, EntityRepository.class, 0).map(cls -> entity((Class<T>) (Object) cls));
+    }
+
+    private <T extends Record & Projection<ID>, ID> Optional<ProjectionRepository<T, ID>> createProjectionRepository(@Nonnull Class<?> type) {
+        if (!ProjectionRepository.class.isAssignableFrom(type)) {
+            return Optional.empty();
+        }
+        //noinspection unchecked
+        return findGenericClass(type, ProjectionRepository.class, 0).map(cls -> projection((Class<T>) (Object) cls));
     }
 
     private Repository createRepository() {
