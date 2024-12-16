@@ -825,6 +825,19 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
+    public void testBuilderWithSubqueryJoin() {
+        record Result(int petId, int visitCount) {}
+        var orm = ORM(dataSource);
+        var list = orm
+                .selectFrom(Pet.class, Result.class, RAW."\{alias(Pet.class)}.id, COUNT(*)")
+                .join(INNER, orm.subquery(Visit.class), "x").on(RAW."\{Pet.class}.id = x.pet_id")
+                .append(RAW."GROUP BY \{alias(Pet.class)}.id")
+                .getResultList();
+        assertEquals(8, list.size());
+        assertEquals(14, list.stream().mapToInt(Result::visitCount).sum());
+    }
+
+    @Test
     public void testWithArg() {
         var list = ORM(dataSource).entity(Pet.class).select().where(template(it -> STR."\{it.invoke(Pet.class)}.id = 7")).getResultList();
         assertEquals(1, list.size());
@@ -952,9 +965,11 @@ public class RepositoryPreparedStatementIntegrationTest {
         String expectedSql = """
             SELECT _o.id, _o.first_name, _o.last_name, _o.address, _o.city, _o.telephone, _o.version
             FROM owner _o
-            WHERE id = ? AND (EXISTS (SELECT _o1.id, _o1.first_name, _o1.last_name, _o1.address, _o1.city, _o1.telephone, _o1.version
-            FROM owner _o1
-            WHERE id = ?)) AND (3 = ?)""";
+            WHERE id = ? AND (EXISTS (
+              SELECT _o1.id, _o1.first_name, _o1.last_name, _o1.address, _o1.city, _o1.telephone, _o1.version
+              FROM owner _o1
+              WHERE id = ?
+            )) AND (3 = ?)""";
         try (var _ = SqlInterceptor.intercept(sql -> {
             assertEquals(expectedSql, sql.statement());
             assertTrue(sql.parameters().get(0) instanceof PositionalParameter(int position, Object dbValue)
@@ -981,9 +996,11 @@ public class RepositoryPreparedStatementIntegrationTest {
             SELECT _o.id, _o.first_name, _o.last_name, _o.address, _o.city, _o.telephone, _o.version
             FROM owner _o
             WHERE id = ?
-            AND EXISTS (SELECT _o1.id, _o1.first_name, _o1.last_name, _o1.address, _o1.city, _o1.telephone, _o1.version
-            FROM owner _o1
-            WHERE id = ?)
+            AND EXISTS (
+              SELECT _o1.id, _o1.first_name, _o1.last_name, _o1.address, _o1.city, _o1.telephone, _o1.version
+              FROM owner _o1
+              WHERE id = ?
+            )
             AND 3 = ?""";
         try (var _ = SqlInterceptor.intercept(sql -> {
             assertEquals(expectedSql, sql.statement());

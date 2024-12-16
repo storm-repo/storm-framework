@@ -288,7 +288,36 @@ public interface Templates {
      * @return an {@link Element} representing the SELECT clause for the specified table.
      */
     static Element select(Class<? extends Record> table) {
-        return new Select(table);
+        return select(table, true);
+    }
+
+    /**
+     * Generates a SELECT element for the specified table class.
+     *
+     * <p>This method creates a {@code SELECT} clause for the provided table record, including all of its
+     * columns as well as columns from any foreign key relationships defined within the record. It is
+     * designed to be used within SQL string templates to dynamically construct queries based on the
+     * table's structure.
+     *
+     * <p>Example usage in a string template:
+     * <pre>{@code
+     * SELECT \{select(Table.class, true)}
+     * FROM \{from(Table.class)}
+     * }</pre>
+     *
+     * <p>For convenience, you can also use the shorthand notation. The SQL template engine
+     * automatically detects that a SELECT element is required based on its placement in the query:
+     * <pre>{@code
+     * SELECT \{Table.class}
+     * FROM \{Table.class}
+     * }</pre>
+     *
+     * @param table the {@link Class} object representing the table record.
+     * @param nested if {@code true}, include columns from foreign key relationships.
+     * @return an {@link Element} representing the SELECT clause for the specified table.
+     */
+    static Element select(Class<? extends Record> table, boolean nested) {
+        return new Select(table, nested);
     }
 
     /**

@@ -6,7 +6,6 @@ import org.jetbrains.annotations.NotNull;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KQuery;
 import st.orm.kotlin.template.KQueryBuilder;
-import st.orm.kotlin.template.KSubqueryBuilder;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.JoinType;
@@ -16,7 +15,6 @@ import st.orm.template.QueryBuilder.JoinBuilder;
 import st.orm.template.QueryBuilder.PredicateBuilder;
 import st.orm.template.QueryBuilder.TypedJoinBuilder;
 import st.orm.template.QueryBuilder.WhereBuilder;
-import st.orm.template.SubqueryTemplate;
 import st.orm.template.TemplateFunction;
 import st.orm.template.impl.Templatable;
 
@@ -133,16 +131,6 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
         return join(right(), relation, "");
     }
 
-    private KSubqueryBuilder subqueryBuilder(@Nonnull SubqueryTemplate builder) {
-        return new KSubqueryBuilder() {
-            @Override
-            public <F extends Record, S> KQueryBuilder<F, S, ?> subquery(@Nonnull KClass<F> fromType, @Nonnull KClass<S> selectType, @Nonnull StringTemplate template) {
-                //noinspection unchecked
-                return new KQueryBuilderImpl<>(builder.subquery((Class<F>) REFLECTION.getRecordType(fromType), (Class<S>) REFLECTION.getType(selectType), template));
-            }
-        };
-    }
-
     /**
      * Adds a join of the specified type to the query.
      *
@@ -215,16 +203,30 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
     }
 
     /**
-     * Adds a join of the specified type to the query.
+     * Adds a join of the specified type to the query using a template.
      *
      * @param type the join type.
-     * @param template the condition to join.
+     * @param template the template to join.
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
     @Override
     public KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull StringTemplate template, @Nonnull String alias) {
         JoinBuilder<T, R, ID> joinBuilder = builder.join(type, template, alias);
+        return onTemplate -> new KQueryBuilderImpl<>(joinBuilder.on(onTemplate));
+    }
+
+    /**
+     * Adds a join of the specified type to the query using a subquery.
+     *
+     * @param type the join type.
+     * @param subquery the subquery to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
+    @Override
+    public KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull KQueryBuilder<?, ?, ?> subquery, @Nonnull String alias) {
+        JoinBuilder<T, R, ID> joinBuilder = builder.join(type, ((KQueryBuilderImpl<?, ?, ?>) subquery).builder, alias);
         return onTemplate -> new KQueryBuilderImpl<>(joinBuilder.on(onTemplate));
     }
 

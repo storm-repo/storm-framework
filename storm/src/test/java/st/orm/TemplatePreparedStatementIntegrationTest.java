@@ -409,7 +409,7 @@ public class TemplatePreparedStatementIntegrationTest {
             LEFT JOIN owner _o ON _p.owner_id = _o.id
             WHERE _p.owner_id = ?""";
         try (var _ = intercept(sql -> assertEquals(expectedSql, sql.statement()));
-             var query = ORM(dataSource).query(RAW."""
+             var _ = ORM(dataSource).query(RAW."""
                 DELETE \{Visit.class}
                 FROM \{from(Visit.class, true)}
                 WHERE \{where(Owner.builder().id(1).build())}""").prepare()) {

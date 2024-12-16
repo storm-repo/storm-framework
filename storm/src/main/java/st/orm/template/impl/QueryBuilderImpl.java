@@ -165,7 +165,7 @@ public final class QueryBuilderImpl<T extends Record, R, ID> implements QueryBui
     }
 
     /**
-     * Adds a join of the specified type to the query.
+     * Adds a join of the specified type to the query using a template.
      *
      * @param type the join type.
      * @param template the template to join.
@@ -175,8 +175,25 @@ public final class QueryBuilderImpl<T extends Record, R, ID> implements QueryBui
     @Override
     public JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull StringTemplate template, @Nonnull String alias) {
         requireNonNull(type, "type");
+        requireNonNull(type, "template");
         requireNonNull(alias, "alias");
         return onTemplate -> join(new Join(new TemplateSource(template), alias, new TemplateTarget(onTemplate), type));
+    }
+
+    /**
+     * Adds a join of the specified type to the query using a subquery.
+     *
+     * @param type the join type.
+     * @param subquery the subquery to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
+    @Override
+    public JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull QueryBuilder<?, ?, ?> subquery, @Nonnull String alias) {
+        requireNonNull(type, "type");
+        requireNonNull(type, "subquery");
+        requireNonNull(alias, "alias");
+        return onTemplate -> join(new Join(new TemplateSource(RAW."\{subquery}"), alias, new TemplateTarget(onTemplate), type));
     }
 
     /**
@@ -355,7 +372,7 @@ public final class QueryBuilderImpl<T extends Record, R, ID> implements QueryBui
                             StringTemplate::combine);
         }
         if (!where.isEmpty()) {
-            // We'll leave handling of multiple where's to the sql processor.
+            // Leave handling of multiple where's to the sql processor.
             combined = where.stream()
                     .reduce(StringTemplate.combine(combined, RAW."\nWHERE "),
                             (acc, where) -> StringTemplate.combine(acc, RAW."\{where}"),

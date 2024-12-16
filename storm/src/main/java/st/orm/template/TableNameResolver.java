@@ -43,7 +43,6 @@ public interface TableNameResolver {
      * @param resolver the table name resolver to wrap.
      * @return the table name resolver.
      */
-
     static TableNameResolver toUpperCase(@Nonnull TableNameResolver resolver) {
         return type -> resolver.resolveTableName(type).toUpperCase();
     }

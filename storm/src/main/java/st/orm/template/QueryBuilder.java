@@ -133,7 +133,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
     /**
      * Adds a left join to the query.
      *
-     * @param template the condition to join.
+     * @param template the template to join.
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
@@ -142,21 +142,31 @@ public interface QueryBuilder<T extends Record, R, ID> {
     /**
      * Adds a right join to the query.
      *
-     * @param template the condition to join.
+     * @param template the template to join.
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
     JoinBuilder<T, R, ID> rightJoin(@Nonnull StringTemplate template, @Nonnull String alias);
 
     /**
-     * Adds a join of the specified type to the query.
+     * Adds a join of the specified type to the query using a template.
      *
      * @param type the join type.
-     * @param template the condition to join.
+     * @param template the template to join.
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
     JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull StringTemplate template, @Nonnull String alias);
+
+    /**
+     * Adds a join of the specified type to the query using a subquery.
+     *
+     * @param type the join type.
+     * @param subquery the subquery to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
+    JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull QueryBuilder<?, ?, ?> subquery, @Nonnull String alias);
 
     /**
      * A builder for constructing the WHERE clause of the query.

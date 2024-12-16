@@ -438,7 +438,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             case SELECT -> {
                 if (previous.endsWith("FROM")) {
                     // Only use auto join if the selected table is present in the from-table graph.
-                    boolean autoJoin = first instanceof Select(var table) && isTypePresent(recordType, table);
+                    boolean autoJoin = first instanceof Select(var table, _) && isTypePresent(recordType, table);
                     yield from(recordType, autoJoin);
                 }
                 if (previous.endsWith("JOIN")) {
@@ -1047,6 +1047,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * Processes the specified {@code stringTemplate} and returns the resulting SQL and parameters.
      *
      * @param template the string template to process.
+     * @param nested whether the call is nested.
      * @return the resulting SQL and parameters.
      * @throws SqlTemplateException if an error occurs while processing the input.
      */
@@ -1126,8 +1127,13 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 }
             }
             validateNamedParameters(parameters);
+            String sql = String.join("", parts);
+            if (nested && !sql.startsWith("\n") && sql.contains("\n")) {
+                //noinspection StringTemplateMigration
+                sql = "\n" + sql.indent(2);
+            }
             generated = new SqlImpl(
-                    String.join("", parts),
+                    sql,
                     copyOf(parameters),
                     ofNullable(bindVariables.get()),
                     copyOf(generatedKeys),
