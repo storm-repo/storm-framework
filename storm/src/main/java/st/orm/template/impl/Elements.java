@@ -31,7 +31,7 @@ public final class Elements {
     private Elements() {
     }
 
-    public record Select(@Nonnull Class<? extends Record> table) implements Element {
+    public record Select(@Nonnull Class<? extends Record> table, boolean nested) implements Element {
         public Select {
             requireNonNull(table, "table");
         }

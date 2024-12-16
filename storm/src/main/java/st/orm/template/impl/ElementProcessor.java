@@ -168,7 +168,9 @@ record ElementProcessor(
     }
 
     ElementResult select(Select select) throws SqlTemplateException {
-        return new ElementResult(getColumnsStringForSelect(select.table(),
+        return new ElementResult(getColumnsStringForSelect(
+                select.table(),
+                select.nested(),
                 aliasMapper,
                 primaryTable == null ? null : primaryTable.table(),
                 sqlTemplate.columnNameResolver(),
@@ -688,6 +690,7 @@ record ElementProcessor(
     }
 
     private static String getColumnsStringForSelect(@Nonnull Class<? extends Record> type,
+                                                    boolean nested,
                                                     @Nonnull AliasMapper aliasMapper,
                                                     @Nullable Class<? extends Record> primaryTable,
                                                     @Nullable ColumnNameResolver columnNameResolver,
@@ -709,7 +712,7 @@ record ElementProcessor(
             resolvedAlias = aliasMapper.findAlias(type, null, INNER);
         }
         var alias = resolvedAlias.orElse("");
-        getColumnsStringForSelect(type, path, aliasMapper, primaryTable, alias, parts, columnNameResolver, foreignKeyResolver);
+        getColumnsStringForSelect(type, nested, path, aliasMapper, primaryTable, alias, parts, columnNameResolver, foreignKeyResolver);
         if (!parts.isEmpty()) {
             parts.removeLast();
         }
@@ -717,6 +720,7 @@ record ElementProcessor(
     }
 
     private static void getColumnsStringForSelect(@Nonnull Class<? extends Record> type,
+                                                  boolean nested,
                                                   @Nullable List<RecordComponent> path,
                                                   @Nonnull AliasMapper aliasMapper,
                                                   @Nullable Class<? extends Record> primaryTable,
@@ -725,6 +729,8 @@ record ElementProcessor(
                                                   @Nullable ColumnNameResolver columnNameResolver,
                                                   @Nullable ForeignKeyResolver foreignKeyResolver) throws SqlTemplateException {
         for (var component : type.getRecordComponents()) {
+            boolean fk = REFLECTION.isAnnotationPresent(component, FK.class);
+            boolean lazy = Lazy.class.isAssignableFrom(component.getType());
             var converter = getORMConverter(component).orElse(null);
             if (converter != null) {
                 converter.getColumns(c -> getColumnName(c, columnNameResolver)).forEach(name -> {
@@ -735,6 +741,14 @@ record ElementProcessor(
                     }
                     parts.add(", ");
                 });
+            } else if (fk && (!nested || lazy)) {   // Use foreign key column if not nested or if lazy.
+                String name = getForeignKey(component, foreignKeyResolver);
+                if (!alias.isEmpty()) {
+                    parts.add(STR."\{alias}.\{name}");
+                } else {
+                    parts.add(name);
+                }
+                parts.add(", ");
             } else if (component.getType().isRecord()) {
                 @SuppressWarnings("unchecked")
                 var recordType = (Class<? extends Record>) component.getType();
@@ -748,19 +762,11 @@ record ElementProcessor(
                 } else {
                     newPath = null;
                 }
-                getColumnsStringForSelect(recordType, newPath, aliasMapper, primaryTable, getAlias(recordType, newPath, alias, aliasMapper), parts, columnNameResolver, foreignKeyResolver);
-            } else if (Lazy.class.isAssignableFrom(component.getType())) {
-                if (!REFLECTION.isAnnotationPresent(component, FK.class)) {
+                getColumnsStringForSelect(recordType, true, newPath, aliasMapper, primaryTable, getAlias(recordType, newPath, alias, aliasMapper), parts, columnNameResolver, foreignKeyResolver);
+            } else {
+                if (lazy) {
                     throw new SqlTemplateException(STR."Lazy component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is not a foreign key.");
                 }
-                String name = getForeignKey(component, foreignKeyResolver);
-                if (!alias.isEmpty()) {
-                    parts.add(STR."\{alias}.\{name}");
-                } else {
-                    parts.add(name);
-                }
-                parts.add(", ");
-            } else {
                 String name = getColumnName(component, columnNameResolver);
                 if (!alias.isEmpty()) {
                     parts.add(STR."\{alias}.\{name}");

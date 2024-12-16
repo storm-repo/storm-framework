@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.template;
+package st.orm.kotlin.template;
 
 import jakarta.annotation.Nonnull;
+import kotlin.reflect.KClass;
 
 import static java.lang.StringTemplate.RAW;
-import static st.orm.Templates.select;
 
 /**
  * The subquery builder is used to construct subqueries that can be linked to the outer query.
@@ -29,7 +29,7 @@ import static st.orm.Templates.select;
  *
  * @since 1.1
  */
-public interface SubqueryTemplate {
+public interface KSubqueryTemplate {
 
     /**
      * Create a subquery for the given table.
@@ -38,7 +38,7 @@ public interface SubqueryTemplate {
      * @param <T> the table type.
      * @return the subquery builder.
      */
-    default <T extends Record> QueryBuilder<T, T, ?> subquery(@Nonnull Class<T> fromType) {
+    default <T extends Record> KQueryBuilder<?, ?, ?> subquery(@Nonnull KClass<T> fromType) {
         return subquery(fromType, fromType);
     }
 
@@ -51,9 +51,9 @@ public interface SubqueryTemplate {
      * @param <T> the table type.
      * @param <R> the select type.
      */
-    default <T extends Record, R extends Record> QueryBuilder<T, R, ?> subquery(@Nonnull Class<T> fromType,
-                                                                                @Nonnull Class<R> selectType) {
-        return subquery(fromType, selectType, RAW."\{select(selectType, false)}");
+    default <T extends Record, R extends Record> KQueryBuilder<T, R, ?> subquery(@Nonnull KClass<T> fromType,
+                                                                                 @Nonnull KClass<R> selectType) {
+        return subquery(fromType, selectType, RAW."\{selectType}");
     }
 
     /**
@@ -66,7 +66,7 @@ public interface SubqueryTemplate {
      * @param <T> the table type.
      * @param <R> the select type.
      */
-    <T extends Record, R> QueryBuilder<T, R, ?> subquery(@Nonnull Class<T> fromType,
-                                                         @Nonnull Class<R> selectType,
-                                                         @Nonnull StringTemplate template);
+    <T extends Record, R> KQueryBuilder<T, R, ?> subquery(@Nonnull KClass<T> fromType,
+                                                          @Nonnull KClass<R> selectType,
+                                                          @Nonnull StringTemplate template);
 }

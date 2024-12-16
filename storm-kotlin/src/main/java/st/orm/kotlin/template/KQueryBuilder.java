@@ -198,14 +198,24 @@ public interface KQueryBuilder<T, R, ID> {
     }
 
     /**
-     * Adds a join of the specified type to the query.
+     * Adds a join of the specified type to the query using a template.
      *
      * @param type the join type.
-     * @param template the condition to join.
+     * @param template the template to join.
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
     KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull StringTemplate template, @Nonnull String alias);
+
+    /**
+     * Adds a join of the specified type to the query using a subquery.
+     *
+     * @param type the join type.
+     * @param subquery the subquery to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
+    KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull KQueryBuilder<?, ?, ?> subquery, @Nonnull String alias);
 
     /**
      * Adds a join of the specified type to the query.
@@ -226,7 +236,7 @@ public interface KQueryBuilder<T, R, ID> {
      * @param <R> the type of the result.
      * @param <ID> the type of the primary key.
      */
-    interface KWhereBuilder<T, R, ID> extends KSubqueryBuilder {
+    interface KWhereBuilder<T, R, ID> extends KSubqueryTemplate {
 
         /**
          * A predicate that always evaluates to true.
