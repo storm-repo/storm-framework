@@ -60,11 +60,14 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.MissingFormatArgumentException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -583,6 +586,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 .orElse(null);
         final From effectiveFrom;
         if (from != null && from.source() instanceof TableSource(var table)) {
+            validateRecordGraph(table);
             String path = "";   // Use "" because it's the root table.
             String alias;
             if (from.alias().isEmpty()) {
@@ -624,6 +628,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 .orElse(null);
         if (update != null) {
             var table = update.table();
+            validateRecordGraph(table);
             String path = "";   // Use "" because it's the root table.
             String alias;
             if (update.alias().isEmpty()) {
@@ -663,6 +668,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 .orElse(null);
         final From effectiveFrom;
         if (from != null && from.source() instanceof TableSource(var table)) {
+            validateRecordGraph(table);
             String path = "";   // Use "" because it's the root table.
             String alias;
             if (from.alias().isEmpty()) {
@@ -725,6 +731,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 .findAny()
                 .orElse(null);
         if (from != null && from.source() instanceof TableSource(var table)) {
+            validateRecordGraph(table);
             addJoins(table, elements, from, aliasMapper, tableMapper);
         } else {
             // If no From element is present, we will only add table aliases.
@@ -1154,13 +1161,13 @@ public final class SqlTemplateImpl implements SqlTemplate {
         return generated;
     }
 
-    record ValidationKey(@Nonnull SqlMode sqlMode, Class<? extends Record> recordType) {}
-    private static final java.util.Map<ValidationKey, String> VALIDATION_CACHE = new ConcurrentHashMap<>();
+    record TypeValidationKey(@Nonnull SqlMode sqlMode, @Nonnull Class<? extends Record> recordType) {}
+    private static final Map<TypeValidationKey, String> VALIDATE_RECORD_TYPE_CACHE = new ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")
     private void validateRecordType(@Nonnull SqlMode sqlMode,
                                     @Nonnull Class<? extends Record> recordType) throws SqlTemplateException {
-        String message = VALIDATION_CACHE.computeIfAbsent(new ValidationKey(sqlMode, recordType), _ -> {
+        String message = VALIDATE_RECORD_TYPE_CACHE.computeIfAbsent(new TypeValidationKey(sqlMode, recordType), _ -> {
             // Note that this result can be cached as we're inspecting types.
             var pkComponents = getPkComponents(recordType).toList();
             if (pkComponents.isEmpty()) {
@@ -1223,6 +1230,83 @@ public final class SqlTemplateImpl implements SqlTemplate {
         if (!message.isEmpty()) {
             throw new SqlTemplateException(message);
         }
+    }
+
+    record GraphValidationKey(@Nonnull Class<? extends Record> recordType) {}
+    private static final Map<GraphValidationKey, String> VALIDATE_RECORD_GRAPH_CACHE = new ConcurrentHashMap<>();
+
+    /**
+     * Validates that the provided record type does not contain cyclic dependencies. Specifically, it ensures that no
+     * record type appears multiple times along any path from the specified {@code recordType}.
+     *
+     * <p>For example:
+     * <ul>
+     *     <li>Record A(B, C) and Record B(C) is valid.</li>
+     *     <li>Record A(B, C) and Record B(A) is invalid due to a cycle A → B → A.</li>
+     * </ul>
+     *
+     * @param recordType The root Record class to validate. Must not be null.
+     * @throws SqlTemplateException if a cycle is detected in the Record graph.
+     */
+    private void validateRecordGraph(@Nonnull Class<? extends Record> recordType) throws SqlTemplateException {
+        String message = VALIDATE_RECORD_GRAPH_CACHE.computeIfAbsent(new GraphValidationKey(recordType), _ -> {
+            // Initialize an empty set to keep track of the current traversal path.
+            Set<Class<? extends Record>> currentPath = new LinkedHashSet<>();
+            // Start the recursive validation with the root record type.
+            return validateRecordGraph(recordType, currentPath).orElse("");
+        });
+        if (!message.isEmpty()) {
+            throw new SqlTemplateException(message);
+        }
+    }
+
+    /**
+     * Recursively validates the record graph to detect cycles.
+     *
+     * @param recordType  The current Record class being validated.
+     * @param currentPath The set of Record classes in the current traversal path.
+     * @return an empty optional if the record graph is valid, otherwise an optional containing an error message.
+     */
+    private Optional<String> validateRecordGraph(@Nonnull Class<? extends Record> recordType,
+                                                 @Nonnull Set<Class<? extends Record>> currentPath) {
+        // Check if the current record type is already in the path (cycle detected).
+        if (currentPath.contains(recordType)) {
+            return Optional.of(STR."Cyclic dependency detected: \{buildCyclePath(recordType, currentPath)}.");
+        }
+        currentPath.add(recordType);
+        RecordComponent[] components = recordType.getRecordComponents();
+        for (RecordComponent component : components) {
+            Class<?> componentType = component.getType();
+            if (Record.class.isAssignableFrom(componentType)) {
+                @SuppressWarnings("unchecked")
+                Class<? extends Record> componentRecordType = (Class<? extends Record>) componentType;
+                // Recursively validate the component record type.
+                var path = validateRecordGraph(componentRecordType, currentPath);
+                if (path.isPresent()) {
+                    return path;
+                }
+            }
+        }
+        // Remove the current record type from the path after processing.
+        currentPath.remove(recordType);
+        return empty();
+    }
+
+    /**
+     * Builds a string representation of the cycle path for error messaging.
+     *
+     * @param currentType the record type where the cycle was detected.
+     * @param path        the current traversal path leading up to the cycle.
+     * @return a string describing the cycle path.
+     */
+    private String buildCyclePath(@Nonnull Class<? extends Record> currentType,
+                                  @Nonnull Set<Class<? extends Record>> path) {
+        StringBuilder cyclePath = new StringBuilder();
+        for (Class<? extends Record> type : path) {
+            cyclePath.append(type.getSimpleName()).append(" -> ");
+        }
+        cyclePath.append(currentType.getSimpleName());
+        return cyclePath.toString();
     }
 
     /**
