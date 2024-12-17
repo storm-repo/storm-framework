@@ -10,7 +10,9 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.model.Address;
 import st.orm.model.Owner;
+import st.orm.model.Person;
 import st.orm.model.Pet;
 import st.orm.model.PetType;
 import st.orm.model.Vet;
@@ -417,7 +419,6 @@ public class RepositoryPreparedStatementIntegrationTest {
         }
     }
 
-
     @Test
     public void testSelectWithTwoPetsWithMultipleParametersTemplate() throws Exception {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
@@ -429,6 +430,36 @@ public class RepositoryPreparedStatementIntegrationTest {
             assertEquals(2, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
         }
+    }
+
+    @Builder(toBuilder = true)
+    @DbName("pet")
+    public record PetOwnerRecursion(
+            @PK Integer id,
+            @Nonnull String name,
+            @Nonnull LocalDate birthDate,
+            @Nonnull @FK PetType petType,
+            @FK OwnerRecursion owner
+    ) implements Entity<Integer> {}
+
+    @Builder(toBuilder = true)
+    @DbName("owner")
+    public record OwnerRecursion(
+            @PK Integer id,
+            @Nonnull String firstName,
+            @Nonnull String lastName,
+            @Nonnull Address address,
+            @Nullable String telephone,
+            @FK PetOwnerRecursion pet   // Recursive reference; We can test this even though the column does not exist.
+    ) implements Entity<Integer> {
+    }
+
+    @Test
+    public void testPetOwnerRecursion() {
+        var e = assertThrows(PersistenceException.class, () -> {
+            ORM(dataSource).entity(PetOwnerRecursion.class).select().getResultList();
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
 
     @Builder(toBuilder = true)
