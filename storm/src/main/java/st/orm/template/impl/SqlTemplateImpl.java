@@ -19,13 +19,9 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.BindVars;
 import st.orm.FK;
-import st.orm.Inline;
 import st.orm.Lazy;
-import st.orm.DbName;
 import st.orm.PK;
 import st.orm.Query;
-import st.orm.repository.Entity;
-import st.orm.repository.Projection;
 import st.orm.repository.ProjectionQuery;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
@@ -53,29 +49,21 @@ import st.orm.template.impl.Elements.TemplateSource;
 import st.orm.template.impl.Elements.TemplateTarget;
 import st.orm.template.impl.Elements.Unsafe;
 import st.orm.template.impl.Elements.Update;
-import st.orm.template.impl.Elements.Where;
+import st.orm.template.impl.SqlParser.SqlMode;
 
-import java.lang.annotation.Annotation;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Map;
 import java.util.MissingFormatArgumentException;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -87,8 +75,6 @@ import static java.util.List.copyOf;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.empty;
 import static java.util.Optional.ofNullable;
-import static java.util.function.Predicate.not;
-import static java.util.regex.Pattern.DOTALL;
 import static st.orm.Templates.delete;
 import static st.orm.Templates.from;
 import static st.orm.Templates.insert;
@@ -102,6 +88,22 @@ import static st.orm.Templates.where;
 import static st.orm.spi.Providers.getORMConverter;
 import static st.orm.template.ResolveScope.CASCADE;
 import static st.orm.template.ResolveScope.INNER;
+import static st.orm.template.impl.RecordReflection.getColumnName;
+import static st.orm.template.impl.RecordReflection.getForeignKey;
+import static st.orm.template.impl.RecordReflection.getLazyRecordType;
+import static st.orm.template.impl.RecordReflection.getPkComponents;
+import static st.orm.template.impl.RecordReflection.isTypePresent;
+import static st.orm.template.impl.RecordReflection.mapForeignKeys;
+import static st.orm.template.impl.RecordValidation.validateNamedParameters;
+import static st.orm.template.impl.RecordValidation.validateRecordGraph;
+import static st.orm.template.impl.RecordValidation.validateRecordType;
+import static st.orm.template.impl.RecordValidation.validateWhere;
+import static st.orm.template.impl.SqlParser.SqlMode.DELETE;
+import static st.orm.template.impl.SqlParser.SqlMode.INSERT;
+import static st.orm.template.impl.SqlParser.SqlMode.SELECT;
+import static st.orm.template.impl.SqlParser.SqlMode.UPDATE;
+import static st.orm.template.impl.SqlParser.getSqlMode;
+import static st.orm.template.impl.SqlParser.removeComments;
 
 /**
  *
@@ -128,9 +130,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             boolean versionAware
     ) implements Sql {}
 
-    private enum SqlMode {
-        SELECT, INSERT, UPDATE, DELETE, UNDEFINED
-    }
+
 
     record Wrapped(@Nonnull List<? extends Element> elements) implements Element {
         public Wrapped {
@@ -484,10 +484,10 @@ public final class SqlTemplateImpl implements SqlTemplate {
             var p = fragments.get(i);
             var n = fragments.get(i + 1);
             var element = switch (v) {
-                case Select _ when sqlMode != SqlMode.SELECT -> throw new SqlTemplateException("Select element is only allowed for select statements.");
-                case Insert _ when sqlMode != SqlMode.INSERT -> throw new SqlTemplateException("Insert element is only allowed for insert statements.");
-                case Update _ when sqlMode != SqlMode.UPDATE -> throw new SqlTemplateException("Update element is only allowed for update statements.");
-                case Delete _ when sqlMode != SqlMode.DELETE -> throw new SqlTemplateException("Delete element is only allowed for delete statements.");
+                case Select _ when sqlMode != SELECT -> throw new SqlTemplateException("Select element is only allowed for select statements.");
+                case Insert _ when sqlMode != INSERT -> throw new SqlTemplateException("Insert element is only allowed for insert statements.");
+                case Update _ when sqlMode != UPDATE -> throw new SqlTemplateException("Update element is only allowed for update statements.");
+                case Delete _ when sqlMode != DELETE -> throw new SqlTemplateException("Delete element is only allowed for delete statements.");
                 case Select it when !supportRecords -> throw new SqlTemplateException(STR."Records are not supported in this configuration: '\{it.table().getSimpleName()}'.");
                 case Insert it when !supportRecords -> throw new SqlTemplateException(STR."Records are not supported in this configuration: '\{it.table().getSimpleName()}'.");
                 case Update it when !supportRecords -> throw new SqlTemplateException(STR."Records are not supported in this configuration: '\{it.table().getSimpleName()}'.");
@@ -740,24 +740,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
         validateWhere(elements);
     }
 
-    private void mapForeignKeys(@Nonnull TableMapper tableMapper, @Nonnull String alias, @Nonnull Class<? extends Record> table, @Nullable String path)
-            throws SqlTemplateException {
-        for (var component : table.getRecordComponents()) {
-            if (REFLECTION.isAnnotationPresent(component, FK.class)) {
-                if (Lazy.class.isAssignableFrom(component.getType())) {
-                    tableMapper.mapForeignKey(getLazyRecordType(component), alias, component, path);
-                } else {
-                    if (!component.getType().isRecord()) {
-                        throw new SqlTemplateException(STR."FK annotation is only allowed on record types: \{component.getType().getSimpleName()}.");
-                    }
-                    //noinspection unchecked
-                    Class<? extends Record> componentType = (Class<? extends Record>) component.getType();
-                    tableMapper.mapForeignKey(componentType, alias, component, path);
-                }
-            }
-        }
-    }
-
     void addJoins(@Nonnull Class<? extends Record> fromTable, @Nonnull List<Element> elements, @Nonnull From from, @Nonnull AliasMapper aliasMapper, @Nonnull TableMapper tableMapper) throws SqlTemplateException {
         List<Join> customJoins = new ArrayList<>();
         for (ListIterator<Element> it = elements.listIterator(); it.hasNext(); ) {
@@ -916,68 +898,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 aliasMapper.setAlias(table, alias, null);
             }
         }
-    }
-
-    private void validateWhere(@Nonnull List<Element> elements) throws SqlTemplateException {
-        if (elements.stream().filter(Where.class::isInstance).count() > 1) {
-            throw new SqlTemplateException("Multiple Where elements found.");
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    static Stream<RecordComponent> getPkComponents(@Nonnull Class<? extends Record> componentType) {
-        return Stream.of(componentType.getRecordComponents())
-                .flatMap(c -> {
-                    if (REFLECTION.isAnnotationPresent(c, PK.class)) {
-                        return Stream.of(c);
-                    }
-                    if (c.getType().isRecord() && getORMConverter(c).isEmpty()
-                            && !REFLECTION.isAnnotationPresent(c, FK.class)) {
-                        return getPkComponents((Class<? extends Record>) c.getType());
-                    }
-                    return Stream.empty();
-                });
-    }
-
-    @SuppressWarnings("unchecked")
-    static Stream<RecordComponent> getFkComponents(@Nonnull Class<? extends Record> componentType) {
-        return Stream.of(componentType.getRecordComponents())
-                .flatMap(c -> {
-                    if (REFLECTION.isAnnotationPresent(c, FK.class)) {
-                        return Stream.of(c);
-                    }
-                    if (c.getType().isRecord() && getORMConverter(c).isEmpty()) {
-                        return getFkComponents((Class<? extends Record>) c.getType());
-                    }
-                    return Stream.empty();
-                });
-    }
-
-    static boolean isAutoGenerated(@Nonnull RecordComponent component) {
-        PK pk = REFLECTION.getAnnotation(component, PK.class);
-        return pk != null
-                && pk.autoGenerated()
-                && !component.getType().isRecord()                          // Record PKs are not auto-generated.
-                && !REFLECTION.isAnnotationPresent(component, FK.class);    // PKs that are also FKs are not auto-generated.
-    }
-
-    static boolean isTypePresent(@Nonnull Class<? extends Record> source,
-                                 @Nonnull Class<? extends Record> target) throws SqlTemplateException {
-        if (target.equals(source)) {
-            return true;
-        }
-        return findComponent(List.of(source.getRecordComponents()), target).isPresent();
-    }
-
-    static Optional<RecordComponent> findComponent(@Nonnull List<RecordComponent> components,
-                                                   @Nonnull Class<? extends Record> recordType) throws SqlTemplateException {
-        for (var component : components) {
-            if (component.getType().equals(recordType)
-                    || (Lazy.class.isAssignableFrom(component.getType()) && getLazyRecordType(component).equals(recordType))) {
-                return Optional.of(component);
-            }
-        }
-        return empty();
     }
 
     /**
@@ -1159,438 +1079,5 @@ public final class SqlTemplateImpl implements SqlTemplate {
             }
         }
         return generated;
-    }
-
-    record TypeValidationKey(@Nonnull SqlMode sqlMode, @Nonnull Class<? extends Record> recordType) {}
-    private static final Map<TypeValidationKey, String> VALIDATE_RECORD_TYPE_CACHE = new ConcurrentHashMap<>();
-
-    @SuppressWarnings("unchecked")
-    private void validateRecordType(@Nonnull SqlMode sqlMode,
-                                    @Nonnull Class<? extends Record> recordType) throws SqlTemplateException {
-        String message = VALIDATE_RECORD_TYPE_CACHE.computeIfAbsent(new TypeValidationKey(sqlMode, recordType), _ -> {
-            // Note that this result can be cached as we're inspecting types.
-            var pkComponents = getPkComponents(recordType).toList();
-            if (pkComponents.isEmpty()) {
-                if (sqlMode != SqlMode.SELECT && sqlMode != SqlMode.UNDEFINED) {
-                    return STR."No primary key found for record \{recordType.getSimpleName()}.";
-                }
-            }
-            for (var pkComponent : pkComponents) {
-                if (Lazy.class.isAssignableFrom(pkComponent.getType())) {
-                    return STR."Primary key must not be lazy: \{recordType.getSimpleName()}.";
-                }
-            }
-            if (pkComponents.size() > 1) {
-                return STR."Multiple primary keys found for record \{recordType.getSimpleName()}.";
-            }
-            for (var fkComponent : getFkComponents(recordType).toList()) {
-                if (fkComponent.getType().isRecord()) {
-                    if (getPkComponents((Class<? extends Record>) fkComponent.getType()).anyMatch(pk -> pk.getType().isRecord())) {
-                        return STR."Foreign key must not specify a compound primary key: \{fkComponent.getType().getSimpleName()} \{fkComponent.getName()}.";
-                    }
-                    if (REFLECTION.isAnnotationPresent(fkComponent, Inline.class)) {
-                        return STR."Foreign key must not be inlined: \{fkComponent.getType().getSimpleName()} \{fkComponent.getName()}.";
-                    }
-                } else if (!Lazy.class.isAssignableFrom(fkComponent.getType())) {
-                    return STR."Foreign key must be a record: \{fkComponent.getType().getSimpleName()} \{fkComponent.getName()}.";
-                }
-            }
-            for (var component : recordType.getRecordComponents()) {
-                if (getORMConverter(component).isPresent()) {
-                    for (var annotation : List.of(PK.class, FK.class, Inline.class)) {
-                        if (REFLECTION.isAnnotationPresent(component, annotation)) {
-                            return STR."Converted component must not be @\{annotation.getSimpleName()}: \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}.";
-                        }
-                    }
-                } else if (component.getType().isRecord()) {
-                    if (!REFLECTION.isAnnotationPresent(component, FK.class) && !REFLECTION.isAnnotationPresent(component, Inline.class)) {
-                        // Accidentally inlining entities can have unexpected side effects.
-                        if (Entity.class.isAssignableFrom(component.getType())) {
-                            return STR."Entity must be marked as @FK or @Inline: \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}.";
-                        }
-                        if (Projection.class.isAssignableFrom(component.getType())) {
-                            return STR."Projection must be marked as @FK or @Inline: \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}.";
-                        }
-                    }
-                } else if (REFLECTION.isAnnotationPresent(component, Inline.class)) {
-                    return STR."Inlined component must be a record: \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}.";
-                }
-            }
-            ProjectionQuery projectionQuery = REFLECTION.getAnnotation(recordType, ProjectionQuery.class);
-            if (projectionQuery != null) {
-                if (!Projection.class.isAssignableFrom(recordType)) {
-                    return STR."ProjectionQuery must only be used on records implementing Projection: \{recordType.getSimpleName()}";
-                }
-                if (projectionQuery.value().isEmpty()) {
-                    return STR."ProjectionQuery must specify a query: \{recordType.getSimpleName()}";
-                }
-            }
-            return "";
-        });
-        if (!message.isEmpty()) {
-            throw new SqlTemplateException(message);
-        }
-    }
-
-    record GraphValidationKey(@Nonnull Class<? extends Record> recordType) {}
-    private static final Map<GraphValidationKey, String> VALIDATE_RECORD_GRAPH_CACHE = new ConcurrentHashMap<>();
-
-    /**
-     * Validates that the provided record type does not contain cyclic dependencies. Specifically, it ensures that no
-     * record type appears multiple times along any path from the specified {@code recordType}.
-     *
-     * <p>For example:
-     * <ul>
-     *     <li>Record A(B, C) and Record B(C) is valid.</li>
-     *     <li>Record A(B, C) and Record B(A) is invalid due to a cycle A → B → A.</li>
-     * </ul>
-     *
-     * @param recordType The root Record class to validate. Must not be null.
-     * @throws SqlTemplateException if a cycle is detected in the Record graph.
-     */
-    private void validateRecordGraph(@Nonnull Class<? extends Record> recordType) throws SqlTemplateException {
-        String message = VALIDATE_RECORD_GRAPH_CACHE.computeIfAbsent(new GraphValidationKey(recordType), _ -> {
-            // Initialize an empty set to keep track of the current traversal path.
-            Set<Class<? extends Record>> currentPath = new LinkedHashSet<>();
-            // Start the recursive validation with the root record type.
-            return validateRecordGraph(recordType, currentPath).orElse("");
-        });
-        if (!message.isEmpty()) {
-            throw new SqlTemplateException(message);
-        }
-    }
-
-    /**
-     * Recursively validates the record graph to detect cycles.
-     *
-     * @param recordType  The current Record class being validated.
-     * @param currentPath The set of Record classes in the current traversal path.
-     * @return an empty optional if the record graph is valid, otherwise an optional containing an error message.
-     */
-    private Optional<String> validateRecordGraph(@Nonnull Class<? extends Record> recordType,
-                                                 @Nonnull Set<Class<? extends Record>> currentPath) {
-        // Check if the current record type is already in the path (cycle detected).
-        if (currentPath.contains(recordType)) {
-            return Optional.of(STR."Cyclic dependency detected: \{buildCyclePath(recordType, currentPath)}.");
-        }
-        currentPath.add(recordType);
-        RecordComponent[] components = recordType.getRecordComponents();
-        for (RecordComponent component : components) {
-            Class<?> componentType = component.getType();
-            if (Record.class.isAssignableFrom(componentType)) {
-                @SuppressWarnings("unchecked")
-                Class<? extends Record> componentRecordType = (Class<? extends Record>) componentType;
-                // Recursively validate the component record type.
-                var path = validateRecordGraph(componentRecordType, currentPath);
-                if (path.isPresent()) {
-                    return path;
-                }
-            }
-        }
-        // Remove the current record type from the path after processing.
-        currentPath.remove(recordType);
-        return empty();
-    }
-
-    /**
-     * Builds a string representation of the cycle path for error messaging.
-     *
-     * @param currentType the record type where the cycle was detected.
-     * @param path        the current traversal path leading up to the cycle.
-     * @return a string describing the cycle path.
-     */
-    private String buildCyclePath(@Nonnull Class<? extends Record> currentType,
-                                  @Nonnull Set<Class<? extends Record>> path) {
-        StringBuilder cyclePath = new StringBuilder();
-        for (Class<? extends Record> type : path) {
-            cyclePath.append(type.getSimpleName()).append(" -> ");
-        }
-        cyclePath.append(currentType.getSimpleName());
-        return cyclePath.toString();
-    }
-
-    /**
-     * Validates that named parameters are not being used multiple times with varying values.
-     *
-     * @param parameters the parameters to validate.
-     * @throws SqlTemplateException if a named parameter is being used multiple times with varying values.
-     */
-    private void validateNamedParameters(List<Parameter> parameters) throws SqlTemplateException {
-        var namedParameters = parameters.stream()
-                .filter(NamedParameter.class::isInstance)
-                .map(NamedParameter.class::cast)
-                .collect(Collectors.<NamedParameter, String>groupingBy(NamedParameter::name));
-        for (var entry : namedParameters.entrySet()) {
-            var list = entry.getValue();
-            if (list.size() > 1) {
-                Object first = null;
-                for (var value : list) {
-                    var v = value.dbValue();
-                    if (first == null) {
-                        first = v;
-                    } else {
-                        if (!first.equals(v)) {
-                            throw new SqlTemplateException(STR."Named parameter '\{value.name()}' is being used multiple times with varying values.");
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Use RecordComponentKey as key as multiple new instances of the same RecordComponent are created, which return
-    // false for equals and hashCode.
-    record RecordComponentKey(Class<? extends Record> recordType, String name) {
-        RecordComponentKey(@Nonnull RecordComponent component) {
-            //noinspection unchecked
-            this((Class<? extends Record>) component.getDeclaringRecord(), component.getName());
-        }
-    }
-    private static final java.util.Map<RecordComponentKey, Class<?>> LAZY_PK_TYPE_CACHE = new ConcurrentHashMap<>();
-
-    @SuppressWarnings("unchecked")
-    static Class<?> getLazyPkType(@Nonnull RecordComponent component) throws SqlTemplateException {
-        try {
-            return LAZY_PK_TYPE_CACHE.computeIfAbsent(new RecordComponentKey(component), _ -> {
-                try {
-                    var type = component.getGenericType();
-                    if (type instanceof ParameterizedType parameterizedType) {
-                        Type supplied = parameterizedType.getActualTypeArguments()[0];
-                        if (supplied instanceof Class<?> c && c.isRecord()) {
-                            return REFLECTION.findPKType((Class<? extends Record>) c)
-                                    .orElseThrow(() -> new SqlTemplateException(STR."Primary key not found for entity: \{c.getSimpleName()}."));
-                        }
-                    }
-                    throw new SqlTemplateException(STR."Lazy component must specify an entity: \{component.getType().getSimpleName()}.");
-                } catch (SqlTemplateException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-        } catch (RuntimeException e) {
-            throw (SqlTemplateException) e.getCause();
-        }
-    }
-
-    private static final java.util.Map<RecordComponentKey, Class<? extends Record>> LAZY_RECORD_TYPE_CACHE = new ConcurrentHashMap<>();
-
-    @SuppressWarnings("unchecked")
-    static Class<? extends Record> getLazyRecordType(@Nonnull RecordComponent component) throws SqlTemplateException {
-        try {
-            return LAZY_RECORD_TYPE_CACHE.computeIfAbsent(new RecordComponentKey(component), _ -> {
-                try {
-                    Class<? extends Record> recordType = null;
-                    var type = component.getGenericType();
-                    if (type instanceof ParameterizedType parameterizedType) {
-                        Type supplied = parameterizedType.getActualTypeArguments()[0];
-                        if (supplied instanceof Class<?> c && c.isRecord()) {
-                            recordType = (Class<? extends Record>) c;
-                        }
-                    }
-                    if (!Entity.class.isAssignableFrom(component.getType()) && recordType == null) {
-                        throw new SqlTemplateException(STR."Lazy component must specify an entity: \{component.getType().getSimpleName()}.");
-                    }
-                    if (recordType == null) {
-                        throw new SqlTemplateException(STR."Lazy component must be a record: \{component.getType().getSimpleName()}.");
-                    }
-                    return recordType;
-                } catch (SqlTemplateException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-        } catch (RuntimeException e) {
-            throw (SqlTemplateException) e.getCause();
-        }
-    }
-
-    /**
-     * Returns the table name for the specified record type taking the table name resolver into account, if present.
-     *
-     * @param recordType the record type to obtain the table name for.
-     * @param tableNameResolver the table name resolver.
-     * @return the table name for the specified record type.
-     */
-    static String getTableName(@Nonnull Class<? extends Record> recordType,
-                               @Nullable TableNameResolver tableNameResolver) throws SqlTemplateException {
-        return ofNullable(REFLECTION.getAnnotation(recordType, DbName.class))
-                .map(DbName::value)
-                .filter(not(String::isEmpty))
-                .orElse(tableNameResolver != null
-                        ? tableNameResolver.resolveTableName(recordType)
-                        : recordType.getSimpleName());
-    }
-
-    private static Stream<String> getColumnNames(@Nonnull Annotation annotation) {
-        return switch (annotation) {
-            case PK pk -> Stream.of(pk.dbName(), pk.value());
-            case FK fk -> Stream.of(fk.dbName(), fk.value());
-            case DbName dbName -> Stream.of(dbName.value());
-            default -> throw new IllegalArgumentException(STR."Unsupported annotation: \{annotation}.");
-        };
-    }
-
-    private static final List<Class<? extends Annotation>> COLUMN_ANNOTATIONS = List.of(PK.class, FK.class, DbName.class);
-
-    /**
-     * Returns the column name for the specified record component taking the column name resolver into account,
-     * if present.
-     *
-     * @param component the record component to obtain the column name for.
-     * @param columnNameResolver the column name resolver.
-     * @return the column name for the specified record component.
-     */
-    static String getColumnName(@Nonnull RecordComponent component, @Nullable ColumnNameResolver columnNameResolver)
-            throws SqlTemplateException {
-        return getColumnName(component, COLUMN_ANNOTATIONS).orElse(columnNameResolver != null
-                ? columnNameResolver.resolveColumnName(component)
-                : component.getName());
-    }
-
-    /**
-     * Returns the column name for the specified record component taking the column name resolver into account,
-     * if present.
-     *
-     * @param component the record component to obtain the column name for.
-     * @return the column name for the specified record component.
-     */
-    static Optional<String> getColumnName(@Nonnull RecordComponent component,
-                                          @Nonnull List<Class<? extends Annotation>> annotationTypes)
-            throws SqlTemplateException {
-        var columNames = annotationTypes.stream()
-                .map(c -> REFLECTION.getAnnotation(component, c))
-                .filter(Objects::nonNull)
-                .flatMap(SqlTemplateImpl::getColumnNames)
-                .filter(not(String::isEmpty))
-                .distinct()
-                .toList();
-        if (columNames.isEmpty()) {
-            return Optional.empty();
-        }
-        if (columNames.size() > 1) {
-            throw new SqlTemplateException(STR."Multiple column names found for \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}: \{columNames}");
-        }
-        return Optional.of(columNames.getFirst());
-    }
-
-    private static final List<Class<? extends Annotation>> FK_COLUMN_ANNOTATIONS = List.of(FK.class, DbName.class);
-
-    /**
-     * Returns the column name for the specified record component taking the column name resolver into account,
-     * if present.
-     *
-     * @param component the record component to obtain the foreign key column name for.
-     * @param foreignKeyResolver the foreign key resolver.
-     * @return the column name for the specified record component.
-     */
-    @SuppressWarnings("unchecked")
-    static String getForeignKey(@Nonnull RecordComponent component,
-                                @Nullable ForeignKeyResolver foreignKeyResolver) throws SqlTemplateException {
-        var columnName = getColumnName(component, FK_COLUMN_ANNOTATIONS);
-        if (columnName.isPresent()) {
-            return columnName.get();
-        }
-        Class<? extends Record> recordType = Lazy.class.isAssignableFrom(component.getType())
-                ? getLazyRecordType(component)
-                : (Class<? extends Record>) component.getType();
-        if (foreignKeyResolver != null) {
-            return foreignKeyResolver.resolveColumnName(component, recordType);
-        }
-        throw new SqlTemplateException(STR."Cannot infer foreign key column name for entity \{component.getDeclaringRecord().getSimpleName()}. Specify a @DbName annotation or provide a foreign key resolver.");
-    }
-
-    // Basic SQL processing.
-
-    private static final Pattern WITH_PATTERN = Pattern.compile("^(?i:WITH)\\W.*", DOTALL);
-    private static final java.util.Map<Pattern, SqlMode> SQL_MODES = java.util.Map.of(
-            Pattern.compile("^(?i:SELECT)\\W.*", DOTALL), SqlMode.SELECT,
-            Pattern.compile("^(?i:INSERT)\\W.*", DOTALL), SqlMode.INSERT,
-            Pattern.compile("^(?i:UPDATE)\\W.*", DOTALL), SqlMode.UPDATE,
-            Pattern.compile("^(?i:DELETE)\\W.*", DOTALL), SqlMode.DELETE
-    );
-
-    /**
-     * Determines the SQL mode for the specified {@code stringTemplate}.
-     *
-     * @param stringTemplate The string template.
-     * @return the SQL mode.
-     */
-    private static SqlMode getSqlMode(@Nonnull StringTemplate stringTemplate) {
-        String first = stringTemplate.fragments().getFirst().stripLeading();
-        if (first.isEmpty()) {
-            first = stringTemplate.values().stream()
-                    .findFirst()
-                    .filter(Unsafe.class::isInstance)
-                    .map(Unsafe.class::cast)
-                    .map(Unsafe::sql)
-                    .orElse("");
-        }
-        String input = removeComments(first).stripLeading();
-        if (WITH_PATTERN.matcher(input).matches()) {
-            input = removeWithClause(removeComments(String.join("", stringTemplate.fragments())));
-        }
-        String sql = input.stripLeading();
-        return SQL_MODES.entrySet().stream()
-                .filter(e -> e.getKey().matcher(sql).matches())
-                .map(java.util.Map.Entry::getValue)
-                .findFirst()
-                .orElse(SqlMode.UNDEFINED);
-    }
-
-    private static String removeWithClause(String sql) {
-        assert sql.trim().toUpperCase().startsWith("WITH");
-        int depth = 0; // Depth of nested parentheses.
-        boolean inSingleQuotes = false; // Track whether inside single quotes.
-        boolean inDoubleQuotes = false; // Track whether inside double quotes.
-        int startIndex = sql.indexOf('('); // Find the first opening parenthesis.
-        // If there's no opening parenthesis after "WITH", return the original string.
-        if (startIndex == -1) {
-            return sql;
-        }
-        for (int i = startIndex; i < sql.length(); i++) {
-            char ch = sql.charAt(i);
-            // Toggle state for single quotes.
-            if (ch == '\'' && !inDoubleQuotes) {
-                inSingleQuotes = !inSingleQuotes;
-            }
-            // Toggle state for double quotes.
-            else if (ch == '"' && !inSingleQuotes) {
-                inDoubleQuotes = !inDoubleQuotes;
-            }
-            // Count parentheses depth if not within quotes.
-            if (!inSingleQuotes && !inDoubleQuotes) {
-                if (ch == '(') {
-                    depth++;
-                } else if (ch == ')') {
-                    depth--;
-                    if (depth == 0) {
-                        // Found the matching closing parenthesis for the first opening parenthesis.
-                        String afterWithClause = sql.substring(i + 1).trim();
-                        // Check if it needs to remove a comma right after the closing parenthesis of WITH clause.
-                        if (afterWithClause.startsWith(",")) {
-                            afterWithClause = afterWithClause.substring(1).trim();
-                        }
-                        return afterWithClause;
-                    }
-                }
-            }
-        }
-        // If depth never reaches 0, return the original string as it might be malformed or the logic above didn't correctly parse it.
-        return sql;
-    }
-
-    /**
-     * Removes both single-line and multi-line comments from a SQL string.
-     *
-     * @param sql The original SQL string.
-     * @return The SQL string with comments removed.
-     */
-    private static String removeComments(@Nonnull String sql) {
-        // Pattern for multi-line comments.
-        String multiLineCommentRegex = "(?s)/\\*.*?\\*/";
-        // Pattern for single-line comments (both -- and #).
-        String singleLineCommentRegex = "(--|#).*?(\\n|$)";
-        // Remove multi-line comments, then single-line comments.
-        return sql.replaceAll(multiLineCommentRegex, "")
-                .replaceAll(singleLineCommentRegex, "")
-                .stripLeading();
     }
 }

@@ -34,8 +34,8 @@ import static java.lang.System.arraycopy;
 import static java.util.Collections.addAll;
 import static java.util.Optional.empty;
 import static st.orm.spi.Providers.getORMConverter;
-import static st.orm.template.impl.SqlTemplateImpl.getLazyPkType;
-import static st.orm.template.impl.SqlTemplateImpl.getLazyRecordType;
+import static st.orm.template.impl.RecordReflection.getLazyPkType;
+import static st.orm.template.impl.RecordReflection.getLazyRecordType;
 
 /**
  * Factory for creating instances for record types.
