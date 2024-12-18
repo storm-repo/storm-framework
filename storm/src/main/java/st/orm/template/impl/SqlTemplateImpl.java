@@ -740,7 +740,11 @@ public final class SqlTemplateImpl implements SqlTemplate {
         validateWhere(elements);
     }
 
-    void addJoins(@Nonnull Class<? extends Record> fromTable, @Nonnull List<Element> elements, @Nonnull From from, @Nonnull AliasMapper aliasMapper, @Nonnull TableMapper tableMapper) throws SqlTemplateException {
+    void addJoins(@Nonnull Class<? extends Record> fromTable,
+                  @Nonnull List<Element> elements,
+                  @Nonnull From from,
+                  @Nonnull AliasMapper aliasMapper,
+                  @Nonnull TableMapper tableMapper) throws SqlTemplateException {
         List<Join> customJoins = new ArrayList<>();
         for (ListIterator<Element> it = elements.listIterator(); it.hasNext(); ) {
             Element element = it.next();
@@ -866,14 +870,14 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 // We will only make primary keys available for mapping if the table is not part of the entity graph,
                 // because the entities can already be resolved by their foreign keys.
                 //  tableMapper.mapPrimaryKey(componentType, alias, List.of(pkComponent), pkPath);
-                outerJoin = outerJoin || !REFLECTION.isNonnull(component);
-                JoinType joinType = outerJoin ? DefaultJoinType.LEFT : DefaultJoinType.INNER;
+                boolean effectiveOuterJoin = outerJoin || !REFLECTION.isNonnull(component);
+                JoinType joinType = effectiveOuterJoin ? DefaultJoinType.LEFT : DefaultJoinType.INNER;
                 ProjectionQuery query = REFLECTION.getAnnotation(componentType, ProjectionQuery.class);
                 Source source = query != null
                         ? new TemplateSource(StringTemplate.of(query.value()))
                         : new TableSource(componentType);
                 joins.add(new Join(source, alias, new TemplateTarget(StringTemplate.of(STR."\{fromAlias}.\{getForeignKey(component, foreignKeyResolver)} = \{alias}.\{pkColumnName}")), joinType));
-                addAutoJoins(componentType, copy, aliasMapper, tableMapper, joins, alias, outerJoin);
+                addAutoJoins(componentType, copy, aliasMapper, tableMapper, joins, alias, effectiveOuterJoin);
             } else if (component.getType().isRecord()) {
                 if (REFLECTION.isAnnotationPresent(component, PK.class) || getORMConverter(component).isPresent()) {
                     continue;
