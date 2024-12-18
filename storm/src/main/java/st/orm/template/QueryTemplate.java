@@ -25,6 +25,9 @@ import st.orm.repository.Model;
 
 import static java.lang.StringTemplate.RAW;
 
+/**
+ * The query template is used to construct queries.
+ */
 public interface QueryTemplate extends SubqueryTemplate {
 
     /**
@@ -35,22 +38,73 @@ public interface QueryTemplate extends SubqueryTemplate {
      */
     BindVars createBindVars();
 
+    /**
+     * Creates a lazy instance for the specified record {@code type} and {@code pk}. This method can be used to generate
+     * lazy instances for entities, projections and regular records.
+     *
+     * @param type record type.
+     * @param pk primary key.
+     * @return lazy instance.
+     * @param <T> table type.
+     * @param <ID> primary key type.
+     */
     <T extends Record, ID> Lazy<T, ID> lazy(@Nonnull Class<T> type, @Nullable ID pk);
 
+    /**
+     * Get the model for the specified record {@code type}. The model provides information about the type's database
+     * name, primary keys and columns.
+     *
+     * @param type record type.
+     * @return the model.
+     * @param <T> table type.
+     * @param <ID> primary key type.
+     */
     <T extends Record, ID> Model<T, ID> model(@Nonnull Class<T> type);
 
+    /**
+     * Creates a query builder for the specified table.
+     *
+     * @param fromType the table to select from.
+     * @return the query builder.
+     * @param <T> the table type to select from.
+     */
     default <T extends Record> QueryBuilder<T, T, ?> selectFrom(@Nonnull Class<T> fromType) {
         return selectFrom(fromType, fromType);
     }
 
+    /**
+     * Creates a query builder for the specified table and select type.
+     *
+     * @param fromType the table to select from.
+     * @param selectType the result type of the query.
+     * @return the query builder.
+     * @param <T> the table type to select from.
+     * @param <R> the result type.
+     */
     default <T extends Record, R extends Record> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType,
                                                                                   @Nonnull Class<R> selectType) {
         return selectFrom(fromType, selectType, RAW."\{selectType}");
     }
 
+    /**
+     * Creates a query builder for the specified table and select type using the given {@code template}.
+     *
+     * @param fromType the table to select from.
+     * @param selectType the result type of the query.
+     * @param template the select clause template.
+     * @return the query builder.
+     * @param <T> the table type to select from.
+     * @param <R> the result type.
+     */
     <T extends Record, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType,
                                                            @Nonnull Class<R> selectType,
                                                            @Nonnull StringTemplate template);
 
+    /**
+     * Creates a query for the specified query {@code template}.
+     *
+     * @param template the query template.
+     * @return the query.
+     */
     Query query(@Nonnull StringTemplate template);
 }
