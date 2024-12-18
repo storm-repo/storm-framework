@@ -21,7 +21,7 @@ import jakarta.persistence.Query;
 import st.orm.template.impl.JpaTemplateImpl;
 
 /**
- * Provides access to JPA templates.
+ * A template backed by JPA.
  */
 public interface JpaTemplate {
 
@@ -50,5 +50,11 @@ public interface JpaTemplate {
      */
     ORMTemplate toORM();
 
+    /**
+     * Creates a query for the specified query {@code template}.
+     *
+     * @param template the query template.
+     * @return the query.
+     */
     Query query(@Nonnull StringTemplate template);
 }

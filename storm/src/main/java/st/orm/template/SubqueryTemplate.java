@@ -21,7 +21,7 @@ import static java.lang.StringTemplate.RAW;
 import static st.orm.Templates.select;
 
 /**
- * The subquery builder is used to construct subqueries that can be linked to the outer query.
+ * The subquery template is used to construct subqueries that can be linked to the outer query.
  *
  * <p>Unlike regular queries, subqueries only select fields from the primary table; fields from nested (foreign key)
  * records are not included. Additionally, subqueries cannot be directly built — they should be passed as
@@ -35,7 +35,7 @@ public interface SubqueryTemplate {
      * Create a subquery for the given table.
      *
      * @param fromType the table to create the subquery for.
-     * @param <T> the table type.
+     * @param <T> the table type to select from.
      * @return the subquery builder.
      */
     default <T extends Record> QueryBuilder<T, T, ?> subquery(@Nonnull Class<T> fromType) {
@@ -48,8 +48,8 @@ public interface SubqueryTemplate {
      * @param fromType the table to create the subquery for.
      * @param selectType the type to select.
      * @return the subquery builder.
-     * @param <T> the table type.
-     * @param <R> the select type.
+     * @param <T> the table type to select from.
+     * @param <R> the result type.
      */
     default <T extends Record, R extends Record> QueryBuilder<T, R, ?> subquery(@Nonnull Class<T> fromType,
                                                                                 @Nonnull Class<R> selectType) {
@@ -57,14 +57,14 @@ public interface SubqueryTemplate {
     }
 
     /**
-     * Create a subquery for the given table and select type using the given template.
+     * Create a subquery for the given table and select type using the given {@code template}.
      *
      * @param fromType the table to create the subquery for.
      * @param selectType the type to select.
-     * @param template the template to use for the subquery.
+     * @param template the select clause template.
      * @return the subquery builder.
-     * @param <T> the table type.
-     * @param <R> the select type.
+     * @param <T> the table type to select from.
+     * @param <R> the result type.
      */
     <T extends Record, R> QueryBuilder<T, R, ?> subquery(@Nonnull Class<T> fromType,
                                                          @Nonnull Class<R> selectType,

@@ -26,6 +26,9 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.function.Predicate;
 
+/**
+ * A template backed by JDBC.
+ */
 public interface PreparedStatementTemplate {
 
     static PreparedStatementTemplate of(@Nonnull DataSource dataSource) {
@@ -61,5 +64,11 @@ public interface PreparedStatementTemplate {
      */
     BindVars createBindVars();
 
+    /**
+     * Creates a query for the specified query {@code template}.
+     *
+     * @param template the query template.
+     * @return the query.
+     */
     PreparedStatement query(@Nonnull StringTemplate template) throws SQLException;
 }
