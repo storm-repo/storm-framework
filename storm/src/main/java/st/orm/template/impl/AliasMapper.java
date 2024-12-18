@@ -38,7 +38,7 @@ import static java.lang.Character.toLowerCase;
 import static java.util.Optional.empty;
 import static st.orm.template.ResolveScope.CASCADE;
 import static st.orm.template.ResolveScope.INNER;
-import static st.orm.template.impl.SqlTemplateImpl.getTableName;
+import static st.orm.template.impl.RecordReflection.getTableName;
 import static st.orm.template.impl.SqlTemplateImpl.multiplePathsFoundException;
 
 final class AliasMapper {
