@@ -74,11 +74,21 @@ public final class LazyFactoryImpl implements LazyFactory {
             }
             return queryBuilder.where(pk).getSingleResult();
         });
-        class LazyImpl implements Lazy<T, ID>{
+        class LazyImpl extends AbstractLazy<T, ID>{
             private final ID pk;
 
             LazyImpl(@Nullable ID pk) {
                 this.pk = pk;
+            }
+
+            @Override
+            protected Class<T> type() {
+                return type;
+            }
+
+            @Override
+            protected boolean isFetched() {
+                return supplier.value().isPresent();
             }
 
             @Override
@@ -92,24 +102,6 @@ public final class LazyFactoryImpl implements LazyFactory {
                     return null;
                 }
                 return supplier.get();
-            }
-
-            @Override
-            public int hashCode() {
-                return Objects.hash(pk);
-            }
-
-            @Override
-            public boolean equals(Object obj) {
-                if (obj instanceof LazyImpl other) {
-                    return Objects.equals(pk, other.pk);
-                }
-                return false;
-            }
-
-            @Override
-            public String toString() {
-                return STR."Lazy[pk=\{pk}, fetched=\{supplier.value().isPresent()}]";
             }
         }
         return new LazyImpl(pk);

@@ -18,8 +18,7 @@ package st.orm;
 import jakarta.annotation.Nullable;
 import st.orm.repository.Entity;
 import st.orm.repository.Projection;
-
-import java.util.Objects;
+import st.orm.template.impl.AbstractLazy;
 
 /**
  * Lazy records are used to represent records that are not yet fetched from the database. This can be used to defer the
@@ -66,7 +65,18 @@ public interface Lazy<T extends Record, ID> {
      * @param <ID> primary key type.
      */
     static <E extends Record & Entity<ID>, ID> Lazy<E, ID> of(@Nullable E entity) {
-        return new Lazy<>() {
+        return new AbstractLazy<>() {
+            @Override
+            protected Class<E> type() {
+                //noinspection unchecked
+                return entity != null ? (Class<E>) entity.getClass() : null;
+            }
+
+            @Override
+            protected boolean isFetched() {
+                return entity != null;
+            }
+
             @Override
             public ID id() {
                 return entity == null ? null : entity.id();
@@ -75,27 +85,6 @@ public interface Lazy<T extends Record, ID> {
             @Override
             public E fetch() {
                 return entity;
-            }
-
-            @Override
-            public int hashCode() {
-                return Objects.hashCode(entity == null ? null : entity.id());
-            }
-
-            @Override
-            public boolean equals(Object obj) {
-                if (obj instanceof Lazy<?, ?> other) {
-                    var otherId = other.id();
-                    return Objects.equals(entity == null
-                                    ? null
-                                    : entity.id(), otherId);
-                }
-                return false;
-            }
-
-            @Override
-            public String toString() {
-                return STR."Lazy[pk=\{entity == null ? null : entity.id()}, fetched=\{entity != null}]";
             }
         };
     }
@@ -118,7 +107,18 @@ public interface Lazy<T extends Record, ID> {
         if (projection != null && id == null) {
             throw new IllegalArgumentException(STR."Projection is not null but id is: \{projection}.");
         }
-        return new Lazy<>() {
+        return new AbstractLazy<>() {
+            @Override
+            protected Class<P> type() {
+                //noinspection unchecked
+                return projection != null ? (Class<P>) projection.getClass() : null;
+            }
+
+            @Override
+            protected boolean isFetched() {
+                return projection != null;
+            }
+
             @Override
             public ID id() {
                 return id;
@@ -128,26 +128,7 @@ public interface Lazy<T extends Record, ID> {
             public P fetch() {
                 return projection;
             }
-
-            @Override
-            public int hashCode() {
-                return Objects.hashCode(id);
-            }
-
-            @Override
-            public boolean equals(Object obj) {
-                if (obj instanceof Lazy<?, ?> other) {
-                    return Objects.equals(id, other.id());
-                }
-                return false;
-            }
-
-            @Override
-            public String toString() {
-                return STR."Lazy[pk=\{projection == null ? null : id}, fetched=\{projection != null}]";
-            }
         };
-
     }
 
     /**
