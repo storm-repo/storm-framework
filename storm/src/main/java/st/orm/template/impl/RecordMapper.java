@@ -34,6 +34,7 @@ import static java.lang.System.arraycopy;
 import static java.util.Collections.addAll;
 import static java.util.Optional.empty;
 import static st.orm.spi.Providers.getORMConverter;
+import static st.orm.template.impl.ObjectMapperFactory.construct;
 import static st.orm.template.impl.RecordReflection.getLazyPkType;
 import static st.orm.template.impl.RecordReflection.getLazyRecordType;
 
@@ -108,6 +109,7 @@ final class RecordMapper {
     private static <T> ObjectMapper<T> wrapConstructor(@Nonnull Constructor<?> constructor, @Nonnull LazyFactory lazyFactory) throws SqlTemplateException {
         // Prefetch the parameter types to avoid reflection overhead.
         Class<?>[] parameterTypes = expandParameterTypes(constructor.getParameterTypes(), constructor, lazyFactory);
+        var interner = new WeakInterner();
         return new ObjectMapper<>() {
             @Override
             public Class<?>[] getParameterTypes() {
@@ -124,8 +126,10 @@ final class RecordMapper {
                         args,
                         0,
                         lazyFactory,
-                        false).arguments();
-                return ObjectMapperFactory.construct((Constructor<T>) constructor, adaptedArgs, 0);
+                        false,
+                        interner).arguments();
+                // Don't intern top level records.
+                return construct((Constructor<T>) constructor, adaptedArgs, 0);
             }
         };
     }
@@ -197,7 +201,8 @@ final class RecordMapper {
                                                        @Nonnull Object[] args,
                                                        int argsIndex,
                                                        @Nonnull LazyFactory lazyFactory,
-                                                       boolean nullable) throws SqlTemplateException {
+                                                       boolean nullable,
+                                                       @Nonnull WeakInterner interner) throws SqlTemplateException {
         Object[] adaptedArgs = new Object[parameterTypes.length];
         int currentIndex = argsIndex;
         var recordComponents = RECORD_COMPONENT_CACHE.computeIfAbsent(constructor.getDeclaringClass(), Class::getRecordComponents);
@@ -218,12 +223,16 @@ final class RecordMapper {
                 Class<?>[] recordParamTypes = recordConstructor.getParameterTypes();
                 // Recursively adapt arguments for nested records, updating currentIndex after processing.
                 nullable |= !REFLECTION.isNonnull(component);
-                AdaptArgumentsResult result = adaptArguments(recordParamTypes, recordConstructor, args, currentIndex, lazyFactory, nullable);
+                AdaptArgumentsResult result = adaptArguments(recordParamTypes, recordConstructor, args, currentIndex, lazyFactory, nullable, interner);
                 if (Arrays.stream(args, currentIndex, result.offset()).allMatch(a -> a == null || (a instanceof Lazy<?, ?> l && l.isNull()))
                         && nullable) {   // Only apply null if resulting component is marked as nullable.
                     arg = null;
                 } else {
-                    arg = ObjectMapperFactory.construct(recordConstructor, result.arguments(), argsIndex + i);
+                    // Using the weak interner to use canonical instances of nested records. The interner uses weak
+                    // references to allow interning being used even in the event of (infinite) result streams. If the
+                    // caller keeps the records the interner will reuse those same records. If the caller discards the
+                    // records the interner will not keep track of them and new instances will be outputted.
+                    arg = interner.intern(construct(recordConstructor, result.arguments(), argsIndex + i));
                 }
                 currentIndex = result.offset();
             } else if (Lazy.class.isAssignableFrom(paramType)) {
