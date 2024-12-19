@@ -15,17 +15,24 @@
  */
 package st.orm.template.impl;
 
+import jakarta.annotation.Nonnull;
+
 import java.lang.ref.WeakReference;
 import java.util.Map;
-import java.util.Objects;
 import java.util.WeakHashMap;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * A weak interner that allows fast lookups and retrieval of existing instances based on equality, while holding
  * elements weakly to permit garbage collection.
  */
-class WeakInterner {
-    private final Map<Object, WeakReference<Object>> map = new WeakHashMap<>();
+final class WeakInterner {
+    private final Map<Object, WeakReference<Object>> map;
+
+    public WeakInterner() {
+        map = new WeakHashMap<>();
+    }
 
     /**
      * Interns the given object, ensuring that only one canonical instance exists. If an equivalent object is already
@@ -34,8 +41,8 @@ class WeakInterner {
      * @param obj The object to intern.
      * @return the canonical instance of the object.
      */
-    public <T> T intern(T obj) {
-        Objects.requireNonNull(obj, "Cannot intern null object.");
+    public <T> T intern(@Nonnull T obj) {
+        requireNonNull(obj, "Cannot intern null object.");
         // Check if an equivalent object already exists.
         WeakReference<Object> existing = map.get(obj);
         if (existing != null) {
