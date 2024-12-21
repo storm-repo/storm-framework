@@ -41,7 +41,7 @@ import st.orm.template.impl.Elements.Values;
 import st.orm.template.impl.Elements.Where;
 import st.orm.template.impl.JpaTemplateImpl;
 import st.orm.template.impl.PreparedStatementTemplateImpl;
-import st.orm.template.impl.Templatable;
+import st.orm.template.impl.Subqueryable;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -1419,7 +1419,7 @@ public interface Templates {
      * @return a new {@code Subquery} element based on the provided query builder and correlation flag.
      */
     static Element subquery(@Nonnull QueryBuilder<?, ?, ?> builder, boolean correlate) {
-        return new Subquery(((Templatable) builder).asStringTemplate(), correlate);
+        return new Subquery(((Subqueryable) builder).getStringTemplate(), correlate);
     }
 
     /**

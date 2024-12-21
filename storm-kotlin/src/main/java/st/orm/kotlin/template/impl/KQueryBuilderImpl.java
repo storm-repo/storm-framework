@@ -16,7 +16,7 @@ import st.orm.template.QueryBuilder.PredicateBuilder;
 import st.orm.template.QueryBuilder.TypedJoinBuilder;
 import st.orm.template.QueryBuilder.WhereBuilder;
 import st.orm.template.TemplateFunction;
-import st.orm.template.impl.Templatable;
+import st.orm.template.impl.Subqueryable;
 
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -27,7 +27,7 @@ import static st.orm.template.JoinType.inner;
 import static st.orm.template.JoinType.left;
 import static st.orm.template.JoinType.right;
 
-public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryBuilder<T, R, ID>, Templatable {
+public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryBuilder<T, R, ID>, Subqueryable {
     private final static ORMReflection REFLECTION = Providers.getORMReflection();
 
     private final QueryBuilder<T, R, ID> builder;
@@ -310,7 +310,7 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
     }
 
     @Override
-    public StringTemplate asStringTemplate() {
-        return ((Templatable) builder).asStringTemplate();
+    public StringTemplate getStringTemplate() {
+        return ((Subqueryable) builder).getStringTemplate();
     }
 }

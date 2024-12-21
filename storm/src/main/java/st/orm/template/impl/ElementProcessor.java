@@ -337,7 +337,7 @@ record ElementProcessor(
 
     private Object resolveSubqueries(@Nullable Object value) {
         return switch (value) {
-            case Templatable t -> new Subquery(t.asStringTemplate(), true);
+            case Subqueryable t -> new Subquery(t.getStringTemplate(), true);
             case StringTemplate t -> new Subquery(t, true);
             case null, default -> value;
         };

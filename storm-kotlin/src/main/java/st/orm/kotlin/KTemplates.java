@@ -40,7 +40,7 @@ import st.orm.template.impl.Elements.TemplateSource;
 import st.orm.template.impl.Elements.Unsafe;
 import st.orm.template.impl.JpaTemplateImpl;
 import st.orm.template.impl.PreparedStatementTemplateImpl;
-import st.orm.template.impl.Templatable;
+import st.orm.template.impl.Subqueryable;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -1474,7 +1474,7 @@ public interface KTemplates {
      * @throws NullPointerException if the {@code builder} is null.
      */
     static Element subquery(@Nonnull KQueryBuilder<?, ?, ?> builder, boolean correlate) {
-        return new Subquery(((Templatable) builder).asStringTemplate(), correlate);
+        return new Subquery(((Subqueryable) builder).getStringTemplate(), correlate);
     }
 
     /**

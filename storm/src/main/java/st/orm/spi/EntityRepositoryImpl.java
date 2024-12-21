@@ -29,6 +29,7 @@ import st.orm.repository.Entity;
 import st.orm.repository.EntityRepository;
 import st.orm.repository.Model;
 import st.orm.template.ORMTemplate;
+import st.orm.template.QueryBuilder;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -37,11 +38,11 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static java.lang.StringTemplate.RAW;
+import static st.orm.spi.Providers.deleteFrom;
 import static st.orm.template.QueryBuilder.slice;
 
 /**
  */
-@SuppressWarnings("DuplicatedCode")
 public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         extends BaseRepositoryImpl<E, ID>
         implements EntityRepository<E, ID> {
@@ -91,6 +92,16 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
     @Override
     public Lazy<E, ID> lazy(@Nullable E entity) {
         return Lazy.of(entity);
+    }
+
+    /**
+     * Creates a new query builder for delete entities of the type managed by this repository.
+     *
+     * @return a new query builder for the entity type.
+     */
+    @Override
+    public QueryBuilder<E, ?, ID> delete() {
+        return deleteFrom(orm, model.type());
     }
 
     /**
@@ -269,6 +280,24 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
     }
 
     /**
+     * Deletes an entity from the database based on its primary key.
+     *
+     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
+     * deletion exists in the database.</p>
+     *
+     * @param id the primary key of the entity to delete.
+     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
+     *                              being found in the database, violations of database constraints, connectivity
+     *                              issues, or if the entity parameter is null.
+     */
+    @Override
+    public void delete(@Nonnull ID id) {
+        if (delete().where(id).executeUpdate() != 1) {
+            throw new PersistenceException("Delete failed.");
+        }
+    }
+
+    /**
      * Deletes an entity from the database.
      *
      * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
@@ -282,10 +311,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
      */
     @Override
     public void delete(@Nonnull E entity) {
-        var query = orm.query(RAW."""
-                DELETE FROM \{model.type()}
-                WHERE \{entity}""");
-        if (query.executeUpdate() != 1) {
+        if (delete().where(entity).executeUpdate() != 1) {
             throw new PersistenceException("Delete failed.");
         }
     }
@@ -302,7 +328,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
      */
     @Override
     public void deleteAll() {
-        orm.query(RAW."DELETE FROM \{model.type()}").executeUpdate();
+        delete().executeUpdate();
     }
 
     // List based methods.
@@ -687,9 +713,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
     @Override
     public void update(@Nonnull Stream<E> entities, int batchSize) {
         try (var query = prepareUpdateQuery()) {
-            slice(entities, batchSize).forEach(batch -> {
-                updateAndFetch(batch, () -> query, null);
-            });
+            slice(entities, batchSize).forEach(batch -> updateAndFetch(batch, () -> query, null));
         }
     }
 

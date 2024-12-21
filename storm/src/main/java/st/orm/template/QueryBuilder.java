@@ -525,6 +525,16 @@ public interface QueryBuilder<T extends Record, R, ID> {
     }
 
     /**
+     * Execute a DELETE statement.
+     *
+     * @return the number of rows impacted as result of the statement.
+     * @throws PersistenceException if the statement fails.
+     */
+    default int executeUpdate() {
+        return build().executeUpdate();
+    }
+
+    /**
      * Performs the function in multiple batches, each containing up to {@code batchSize} elements from the stream.
      *
      * @param stream the stream to batch.

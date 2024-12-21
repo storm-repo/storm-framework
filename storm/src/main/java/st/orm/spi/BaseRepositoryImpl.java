@@ -25,16 +25,16 @@ import st.orm.repository.Model;
 import st.orm.repository.Repository;
 import st.orm.template.ORMTemplate;
 import st.orm.template.QueryBuilder;
-import st.orm.template.impl.QueryBuilderImpl;
 
 import java.util.List;
-import java.util.Spliterator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static java.lang.StringTemplate.RAW;
 import static java.util.Objects.requireNonNull;
+import static java.util.Spliterator.ORDERED;
 import static java.util.Spliterators.spliteratorUnknownSize;
+import static st.orm.spi.Providers.selectFrom;
 import static st.orm.template.QueryBuilder.slice;
 
 /**
@@ -54,7 +54,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
     }
 
     protected static <X> Stream<X> toStream(@Nonnull Iterable<X> iterable) {
-        return StreamSupport.stream(spliteratorUnknownSize(iterable.iterator(), Spliterator.ORDERED), false);
+        return StreamSupport.stream(spliteratorUnknownSize(iterable.iterator(), ORDERED), false);
     }
 
     /**
@@ -92,7 +92,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @return a new query builder for the entity type.
      */
     public QueryBuilder<E, E, ID> select() {
-        return new QueryBuilderImpl<>(orm, model.type(), model.type());
+        return select(model.type());
     }
 
     /**
@@ -101,7 +101,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @return a new query builder for the entity type.
      */
     public QueryBuilder<E, Long, ID> selectCount() {
-        return new QueryBuilderImpl<>(orm, model.type(), Long.class, RAW."COUNT(*)");
+        return selectFrom(orm, model.type(), Long.class, RAW."COUNT(*)", false);
     }
 
     /**
@@ -112,7 +112,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @param <R> the result type of the query.
      */
     public <R> QueryBuilder<E, R, ID> select(@Nonnull Class<R> selectType) {
-        return new QueryBuilderImpl<>(orm, model.type(), selectType);
+        return select(selectType, RAW."\{selectType}");
     }
 
     /**
@@ -124,7 +124,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @param <R> the result type of the query.
      */
     public <R> QueryBuilder<E, R, ID> select(@Nonnull Class<R> selectType, @Nonnull StringTemplate template) {
-        return new QueryBuilderImpl<>(orm, model.type(), selectType, template);
+        return selectFrom(orm, model().type(), selectType, template, false);
     }
 
     /**

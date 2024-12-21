@@ -12,7 +12,6 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.model.Address;
 import st.orm.model.Owner;
-import st.orm.model.Person;
 import st.orm.model.Pet;
 import st.orm.model.PetType;
 import st.orm.model.Vet;
@@ -743,25 +742,39 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void delete() {
-        var R = ORM(dataSource).entity(Visit.class);
-        R.delete(Visit.builder().id(1).build());
-        assertEquals(13, R.select().getResultCount());
+        var repo = ORM(dataSource).entity(Visit.class);
+        repo.delete(Visit.builder().id(1).build());
+        assertEquals(13, repo.select().getResultCount());
+    }
+
+    @Test
+    public void deleteByPet() {
+        var repo = ORM(dataSource).entity(Visit.class);
+        repo.delete().where(Pet.builder().id(1).build()).executeUpdate();
+        assertEquals(12, repo.select().getResultCount());
+    }
+
+    @Test
+    public void deleteByOwner() {
+        var repo = ORM(dataSource).entity(Visit.class);
+        repo.delete().where(Owner.builder().id(1).build()).executeUpdate();
+        assertEquals(12, repo.select().getResultCount());
     }
 
     @Test
     public void deleteAll() {
-        var R = ORM(dataSource).entity(Visit.class);
-        R.deleteAll();
-        assertEquals(0, R.select().getResultCount());
+        var repo = ORM(dataSource).entity(Visit.class);
+        repo.deleteAll();
+        assertEquals(0, repo.select().getResultCount());
     }
 
     @Test
     public void deleteBatch() {
-        var R = ORM(dataSource).entity(Visit.class);
-        try (var stream = R.selectAll()) {
-            R.delete(stream);
+        var repo = ORM(dataSource).entity(Visit.class);
+        try (var stream = repo.selectAll()) {
+            repo.delete(stream);
         }
-        assertEquals(0, R.count());
+        assertEquals(0, repo.count());
     }
 
     @Test

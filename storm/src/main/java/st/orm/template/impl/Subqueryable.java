@@ -20,12 +20,12 @@ package st.orm.template.impl;
  *
  * @since 1.1
  */
-public interface Templatable {
+public interface Subqueryable {
 
     /**
-     * Returns the template for the query.
+     * Returns the template for the query for the subquery.
      *
      * @return the template.
      */
-    StringTemplate asStringTemplate();
+    StringTemplate getStringTemplate();
 }
