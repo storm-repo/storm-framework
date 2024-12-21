@@ -22,6 +22,8 @@ import st.orm.repository.Model;
 import st.orm.repository.Projection;
 import st.orm.repository.ProjectionRepository;
 import st.orm.template.ORMTemplate;
+import st.orm.template.QueryBuilder;
+import st.orm.template.QueryTemplate;
 
 import java.lang.reflect.RecordComponent;
 import java.util.Collections;
@@ -53,6 +55,7 @@ public final class Providers {
     private static final Supplier<List<ORMConverterProvider>> ORM_CONVERTER_PROVIDERS = createProviders(ORMConverterProvider.class);
     private static final Supplier<List<EntityRepositoryProvider>> ENTITY_REPOSITORY_PROVIDERS = createProviders(EntityRepositoryProvider.class);
     private static final Supplier<List<ProjectionRepositoryProvider>> PROJECTION_REPOSITORY_PROVIDERS = createProviders(ProjectionRepositoryProvider.class);
+    private static final Supplier<List<QueryBuilderProvider>> QUERY_BUILDER_REPOSITORY_PROVIDERS = createProviders(QueryBuilderProvider.class);
 
     private static final ConcurrentMap<Object, List<?>> PROVIDER_CACHE = new ConcurrentHashMap<>();
 
@@ -124,8 +127,6 @@ public final class Providers {
                         .findFirst());
     }
 
-    /**
-     */
     public static <ID, E extends Record & Entity<ID>> EntityRepository<E, ID> getEntityRepository(
             @Nonnull ORMTemplate orm,
             @Nonnull Model<E, ID> model,
@@ -137,8 +138,6 @@ public final class Providers {
                 .orElseThrow();
     }
 
-    /**
-     */
     public static <ID, P extends Record & Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(
             @Nonnull ORMTemplate orm,
             @Nonnull Model<P, ID> model,
@@ -146,6 +145,29 @@ public final class Providers {
         return Orderable.sort(PROJECTION_REPOSITORY_PROVIDERS.get().stream())
                 .filter(filter)
                 .map(provider -> provider.getProjectionRepository(orm, model))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    public static <T extends Record, R, ID> QueryBuilder<T, R, ID> selectFrom(
+            @Nonnull QueryTemplate queryTemplate,
+            @Nonnull Class<T> fromType,
+            @Nonnull Class<R> selectType,
+            @Nonnull StringTemplate template,
+            boolean subquery) {
+        //noinspection unchecked
+        return (QueryBuilder<T, R, ID>) Orderable.sort(QUERY_BUILDER_REPOSITORY_PROVIDERS.get().stream())
+                .map(provider -> provider.selectFrom(queryTemplate, fromType, selectType, template, subquery))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    public static <T extends Record, ID> QueryBuilder<T, ?, ID> deleteFrom(
+            @Nonnull QueryTemplate queryTemplate,
+            @Nonnull Class<T> fromType) {
+        //noinspection unchecked
+        return (QueryBuilder<T, ?, ID>) Orderable.sort(QUERY_BUILDER_REPOSITORY_PROVIDERS.get().stream())
+                .map(provider -> provider.deleteFrom(queryTemplate, fromType))
                 .findFirst()
                 .orElseThrow();
     }

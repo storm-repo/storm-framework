@@ -50,6 +50,12 @@ public class KQueryTemplateImpl implements KQueryTemplate {
     }
 
     @Override
+    public <T extends Record> KQueryBuilder<T, ?, ?> deleteFrom(@Nonnull KClass<T> fromType) {
+        //noinspection unchecked
+        return new KQueryBuilderImpl<>(orm.deleteFrom((Class<T>) REFLECTION.getRecordType(fromType)));
+    }
+
+    @Override
     public KQuery query(@Nonnull StringTemplate template) throws PersistenceException {
         return new KQueryImpl(orm.query(template));
     }

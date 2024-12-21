@@ -4,4 +4,5 @@ module storm.mysql {
     requires storm;
     requires jakarta.annotation;
     provides st.orm.spi.EntityRepositoryProvider with st.orm.spi.mysql.MysqlEntityRepositoryProviderImpl;
+    provides st.orm.spi.QueryBuilderProvider with st.orm.spi.mysql.MysqlQueryBuilderProviderImpl;
 }

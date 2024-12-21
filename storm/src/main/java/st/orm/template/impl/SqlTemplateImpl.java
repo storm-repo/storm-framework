@@ -130,8 +130,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
             boolean versionAware
     ) implements Sql {}
 
-
-
     record Wrapped(@Nonnull List<? extends Element> elements) implements Element {
         public Wrapped {
             requireNonNull(elements, "elements");
@@ -520,7 +518,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 }
                 case Expression _ -> throw new SqlTemplateException("Expression element not allowed in this context.");
                 case BindVars b -> resolveBindVarsElement(sqlMode, p, b);
-                case Templatable t -> new Subquery(t.asStringTemplate(), true); // Correlate implicit subqueries.
+                case Subqueryable t -> new Subquery(t.getStringTemplate(), true); // Correlate implicit subqueries.
                 case StringTemplate t -> new Subquery(t, true);                 // Correlate implicit subqueries.
                 case Object[] a -> resolveArrayElement(sqlMode, p, a);
                 case Iterable<?> l -> resolveIterableElement(sqlMode, p, l);

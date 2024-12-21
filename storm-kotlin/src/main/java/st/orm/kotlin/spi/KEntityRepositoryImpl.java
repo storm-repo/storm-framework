@@ -19,6 +19,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import kotlin.sequences.Sequence;
 import kotlin.sequences.SequencesKt;
+import org.jetbrains.annotations.NotNull;
 import st.orm.Lazy;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
@@ -80,6 +81,16 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
     @Override
     public Lazy<E, ID> lazy(@Nullable ID id) {
         return entityRepository.lazy(id);
+    }
+
+    /**
+     * Creates a new query builder for delete entities of the type managed by this repository.
+     *
+     * @return a new query builder for the entity type.
+     */
+    @Override
+    public KQueryBuilder<E, ?, ID> delete() {
+        return new KQueryBuilderImpl<>(entityRepository.delete());
     }
 
     /**
@@ -352,6 +363,22 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
     @Override
     public E upsertAndFetch(@Nonnull E entity) {
         return entityRepository.upsertAndFetch(entity);
+    }
+
+    /**
+     * Deletes an entity from the database based on its primary key.
+     *
+     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
+     * deletion exists in the database.</p>
+     *
+     * @param id the primary key of the entity to delete.
+     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
+     *                              being found in the database, violations of database constraints, connectivity
+     *                              issues, or if the entity parameter is null.
+     */
+    @Override
+    public void delete(@NotNull ID id) {
+        entityRepository.delete(id);
     }
 
     /**

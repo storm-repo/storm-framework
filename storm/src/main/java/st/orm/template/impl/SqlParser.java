@@ -17,6 +17,8 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
 import static java.util.regex.Pattern.DOTALL;
@@ -31,7 +33,7 @@ final class SqlParser {
     }
 
     private static final Pattern WITH_PATTERN = Pattern.compile("^(?i:WITH)\\W.*", DOTALL);
-    private static final java.util.Map<Pattern, SqlMode> SQL_MODES = java.util.Map.of(
+    private static final Map<Pattern, SqlMode> SQL_MODES = Map.of(
             Pattern.compile("^(?i:SELECT)\\W.*", DOTALL), SqlMode.SELECT,
             Pattern.compile("^(?i:INSERT)\\W.*", DOTALL), SqlMode.INSERT,
             Pattern.compile("^(?i:UPDATE)\\W.*", DOTALL), SqlMode.UPDATE,
@@ -64,7 +66,7 @@ final class SqlParser {
         String sql = input.stripLeading();
         return SQL_MODES.entrySet().stream()
                 .filter(e -> e.getKey().matcher(sql).matches())
-                .map(java.util.Map.Entry::getValue)
+                .map(Entry::getValue)
                 .findFirst()
                 .orElse(SqlMode.UNDEFINED);
     }

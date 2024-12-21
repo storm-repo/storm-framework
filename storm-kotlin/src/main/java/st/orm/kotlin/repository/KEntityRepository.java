@@ -51,7 +51,7 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
     // Query builder methods.
 
     /**
-     * Creates a new query builder for the entity type managed by this repository.
+     * Creates a new query builder for selecting entities of the type managed by this repository.
      *
      * @return a new query builder for the entity type.
      */
@@ -82,6 +82,13 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * @param <R> the result type of the query.
      */
     <R> KQueryBuilder<E, R, ID> select(@Nonnull Class<R> selectType, @Nonnull StringTemplate template);
+
+    /**
+     * Creates a new query builder for delete entities of the type managed by this repository.
+     *
+     * @return a new query builder for the entity type.
+     */
+    KQueryBuilder<E, ?, ID> delete();
 
     // Base methods.
 
@@ -244,6 +251,19 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      *                              problems, constraints violations, or invalid entity data.
      */
     E upsertAndFetch(@Nonnull E entity);
+
+    /**
+     * Deletes an entity from the database based on its primary key.
+     *
+     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
+     * deletion exists in the database.</p>
+     *
+     * @param id the primary key of the entity to delete.
+     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
+     *                              being found in the database, violations of database constraints, connectivity
+     *                              issues, or if the entity parameter is null.
+     */
+    void delete(@Nonnull ID id);
 
     /**
      * Deletes an entity from the database.
