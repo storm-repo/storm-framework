@@ -16,7 +16,6 @@
 package st.orm.json.model;
 
 import lombok.Builder;
-import st.orm.DbName;
 import st.orm.PK;
 import st.orm.repository.Entity;
 
@@ -26,10 +25,9 @@ import st.orm.repository.Entity;
  * @author Leon van Zantvoort
  */
 @Builder(toBuilder = true)
-@DbName("vet")
 public record Vet(
         @PK Integer id,
-        @DbName("first_name") String firstName,
-        @DbName("last_name") String lastName
+        String firstName,
+        String lastName
 ) implements Entity<Integer> {
 }

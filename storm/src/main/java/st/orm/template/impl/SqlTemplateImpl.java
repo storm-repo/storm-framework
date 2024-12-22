@@ -699,8 +699,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     }
                 }
             }
-            // Make the FKs of the entity also available for mapping.
-            mapForeignKeys(tableMapper, alias, table, path);
             // We will only make primary keys available for mapping if the table is not part of the entity graph,
             // because the entities can already be resolved by their foreign keys.
             // tableMapper.mapPrimaryKey(table, alias, getPkComponents(table).toList(), path);

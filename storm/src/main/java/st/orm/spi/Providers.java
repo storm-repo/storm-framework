@@ -24,6 +24,7 @@ import st.orm.repository.ProjectionRepository;
 import st.orm.template.ORMTemplate;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryTemplate;
+import st.orm.template.impl.LazySupplier;
 
 import java.lang.reflect.RecordComponent;
 import java.util.Collections;
@@ -56,6 +57,7 @@ public final class Providers {
     private static final Supplier<List<EntityRepositoryProvider>> ENTITY_REPOSITORY_PROVIDERS = createProviders(EntityRepositoryProvider.class);
     private static final Supplier<List<ProjectionRepositoryProvider>> PROJECTION_REPOSITORY_PROVIDERS = createProviders(ProjectionRepositoryProvider.class);
     private static final Supplier<List<QueryBuilderProvider>> QUERY_BUILDER_REPOSITORY_PROVIDERS = createProviders(QueryBuilderProvider.class);
+    private static final Supplier<List<SqlDialectProvider>> SQL_DIALECT_PROVIDERS = createProviders(SqlDialectProvider.class);
 
     private static final ConcurrentMap<Object, List<?>> PROVIDER_CACHE = new ConcurrentHashMap<>();
 
@@ -170,5 +172,15 @@ public final class Providers {
                 .map(provider -> provider.deleteFrom(queryTemplate, fromType))
                 .findFirst()
                 .orElseThrow();
+    }
+
+    private static final Supplier<SqlDialect> SQL_DIALECT = new LazySupplier<>(
+            () -> Orderable.sort(SQL_DIALECT_PROVIDERS.get().stream())
+                    .map(SqlDialectProvider::getSqlDialect)
+                    .findFirst()
+                    .orElseThrow());
+
+    public static SqlDialect getSqlDialect() {
+        return SQL_DIALECT.get();
     }
 }

@@ -13,25 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm;
+package st.orm.spi;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
+import jakarta.annotation.Nonnull;
 
-import static java.lang.annotation.ElementType.PARAMETER;
-import static java.lang.annotation.ElementType.RECORD_COMPONENT;
-import static java.lang.annotation.ElementType.TYPE;
-import static java.lang.annotation.RetentionPolicy.RUNTIME;
+public class DefaultSqlDialect implements SqlDialect {
 
-/**
- * Specifies the database name for the annotated element (e.g., a table or column).
- */
-@Target({TYPE, RECORD_COMPONENT, PARAMETER})
-@Retention(RUNTIME)
-public @interface DbName {
+    @Override
+    public boolean supportsDeleteAlias() {
+        return false;
+    }
 
-    /**
-     * The database name to be used.
-     */
-    String value();
+    @Override
+    public String escape(@Nonnull String name) {
+        return STR."\"\{name}\"";
+    }
 }

@@ -17,13 +17,16 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.DbName;
+import st.orm.DbColumn;
+import st.orm.DbTable;
 import st.orm.FK;
 import st.orm.Lazy;
 import st.orm.PK;
+import st.orm.PersistenceException;
 import st.orm.repository.Entity;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
+import st.orm.spi.SqlDialect;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
 import st.orm.template.SqlTemplateException;
@@ -40,7 +43,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 import static java.util.Optional.empty;
-import static java.util.Optional.ofNullable;
 import static java.util.function.Predicate.not;
 import static st.orm.spi.Providers.getORMConverter;
 
@@ -183,24 +185,52 @@ final class RecordReflection {
      */
     static String getTableName(@Nonnull Class<? extends Record> recordType,
                                @Nullable TableNameResolver tableNameResolver) throws SqlTemplateException {
-        return ofNullable(REFLECTION.getAnnotation(recordType, DbName.class))
-                .map(DbName::value)
-                .filter(not(String::isEmpty))
-                .orElse(tableNameResolver != null
-                        ? tableNameResolver.resolveTableName(recordType)
-                        : recordType.getSimpleName());
+        String tableName = null;
+        DbTable dbTable = REFLECTION.getAnnotation(recordType, DbTable.class);
+        if (dbTable != null) {
+            var tableNames = Stream.of(dbTable.name(), dbTable.value())
+                    .filter(not(String::isEmpty))
+                    .distinct()
+                    .toList();
+            if (tableNames.size() > 1) {
+                throw new PersistenceException(STR."Multiple table names found for \{recordType.getSimpleName()}.");
+            }
+            if (!tableNames.isEmpty()) {
+                tableName = tableNames.getFirst();
+            }
+        }
+        if (tableName == null) {
+            if (tableNameResolver != null) {
+                try {
+                    tableName = tableNameResolver.resolveTableName(recordType);
+                } catch (SqlTemplateException e) {
+                    throw new PersistenceException(e);
+                }
+            } else {
+                tableName = recordType.getSimpleName();
+            }
+        }
+        if (dbTable != null) {
+            SqlDialect dialect = Providers.getSqlDialect();
+            String schemaPrefix = "";
+            if (!dbTable.schema().isEmpty()) {
+                schemaPrefix = (dbTable.escape() ? dialect.escape(dbTable.schema()) : dbTable.schema()) + '.';
+            }
+            tableName = schemaPrefix + (dbTable.escape() ? dialect.escape(tableName) : tableName);
+        }
+        return tableName;
     }
 
     private static Stream<String> getColumnNames(@Nonnull Annotation annotation) {
         return switch (annotation) {
-            case PK pk -> Stream.of(pk.dbName(), pk.value());
-            case FK fk -> Stream.of(fk.dbName(), fk.value());
-            case DbName dbName -> Stream.of(dbName.value());
+            case PK pk -> Stream.of(pk.name(), pk.value());
+            case FK fk -> Stream.of(fk.name(), fk.value());
+            case DbColumn dbColumn -> Stream.of(dbColumn.name(), dbColumn.value());
             default -> throw new IllegalArgumentException(STR."Unsupported annotation: \{annotation}.");
         };
     }
 
-    private static final List<Class<? extends Annotation>> COLUMN_ANNOTATIONS = List.of(PK.class, FK.class, DbName.class);
+    private static final List<Class<? extends Annotation>> COLUMN_ANNOTATIONS = List.of(PK.class, FK.class, DbColumn.class);
 
     /**
      * Returns the column name for the specified record component taking the column name resolver into account,
@@ -212,9 +242,15 @@ final class RecordReflection {
      */
     static String getColumnName(@Nonnull RecordComponent component, @Nullable ColumnNameResolver columnNameResolver)
             throws SqlTemplateException {
-        return getColumnName(component, COLUMN_ANNOTATIONS).orElse(columnNameResolver != null
+        String name = getColumnName(component, COLUMN_ANNOTATIONS).orElse(columnNameResolver != null
                 ? columnNameResolver.resolveColumnName(component)
                 : component.getName());
+        DbColumn dbColumn = REFLECTION.getAnnotation(component, DbColumn.class);
+        if (dbColumn != null && dbColumn.escape()) {
+            SqlDialect dialect = Providers.getSqlDialect();
+            name = dialect.escape(name);
+        }
+        return name;
     }
 
     /**
@@ -238,12 +274,12 @@ final class RecordReflection {
             return Optional.empty();
         }
         if (columNames.size() > 1) {
-            throw new SqlTemplateException(STR."Multiple column names found for \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}: \{columNames}");
+            throw new SqlTemplateException(STR."Multiple column names found for \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}: \{columNames}.");
         }
         return Optional.of(columNames.getFirst());
     }
 
-    private static final List<Class<? extends Annotation>> FK_COLUMN_ANNOTATIONS = List.of(FK.class, DbName.class);
+    private static final List<Class<? extends Annotation>> FK_COLUMN_ANNOTATIONS = List.of(FK.class, DbColumn.class);
 
     /**
      * Returns the column name for the specified record component taking the column name resolver into account,

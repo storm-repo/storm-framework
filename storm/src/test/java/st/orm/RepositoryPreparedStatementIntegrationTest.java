@@ -230,12 +230,12 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Builder(toBuilder = true)
-    @DbName("visit")
+    @DbTable("visit")
     public record VisitWithLazyNonnullPet(
             @PK Integer id,
-            @Nonnull @DbName("visit_date") LocalDate visitDate,
+            @Nonnull LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK @DbName("pet_id") Lazy<Pet, Integer> pet
+            @Nonnull @FK Lazy<Pet, Integer> pet
     ) implements Entity<Integer> {
     }
 
@@ -260,12 +260,12 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Builder(toBuilder = true)
-    @DbName("visit")
+    @DbTable("visit")
     public record VisitWithLazyNullablePet(
             @PK Integer id,
-            @Nonnull @DbName("visit_date") LocalDate visitDate,
+            @Nonnull LocalDate visitDate,
             @Nullable String description,
-            @Nullable @FK @DbName("pet_id") Lazy<Pet, Integer> pet,
+            @Nullable @FK Lazy<Pet, Integer> pet,
             @Version Instant timestamp
     ) implements Entity<Integer> {
     }
@@ -301,13 +301,13 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertEquals(1, visitFromDb.pet().fetch().id());
     }
 
-    @DbName("pet")
+    @DbTable("pet")
     public record PetWithLazyNullableOwner(
             @PK Integer id,
             @Nonnull String name,
-            @Nonnull @DbName("birth_date") @Persist(updatable = false) LocalDate birthDate,
-            @Nonnull @FK @DbName("type_id") @Persist(updatable = false) PetType petType,
-            @FK @DbName("owner_id") Lazy<Owner, Integer> owner
+            @Nonnull @Persist(updatable = false) LocalDate birthDate,
+            @Nonnull @FK @Persist(updatable = false) @DbColumn("type_id") PetType petType,
+            @FK Lazy<Owner, Integer> owner
     ) implements Entity<Integer> {}
 
     @Test
@@ -339,24 +339,24 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Builder(toBuilder = true)
-    @DbName("visit")
+    @DbTable("visit")
     public record VisitWithTwoPets(
             @PK Integer id,
-            @Nonnull @DbName("visit_date") LocalDate visitDate,
+            @Nonnull @DbColumn("visit_date") LocalDate visitDate,
             @Nullable String description,
-            @FK @DbName("pet_id") @Qualifier("mom") PetLazyOwner pet1,
-            @FK @DbName("pet_id") @Qualifier("dad") PetLazyOwner pet2
+            @FK @DbColumn("pet_id") @Qualifier("mom") PetLazyOwner pet1,
+            @FK @DbColumn("pet_id") @Qualifier("dad") PetLazyOwner pet2
     ) implements Entity<Integer> {
     }
 
     @Builder(toBuilder = true)
-    @DbName("pet")
+    @DbTable("pet")
     public record PetLazyOwner(
             @PK Integer id,
             @Nonnull String name,
-            @Nonnull @DbName("birth_date") @Persist(updatable = false) LocalDate birthDate,
-            @Nonnull @FK @DbName("type_id") @Persist(updatable = false) PetType petType,
-            @FK @DbName("owner_id") Lazy<Owner, Integer> owner
+            @Nonnull @Persist(updatable = false) LocalDate birthDate,
+            @Nonnull @FK @DbColumn("type_id") @Persist(updatable = false) PetType petType,
+            @FK @DbColumn("owner_id") Lazy<Owner, Integer> owner
     ) implements Entity<Integer> {}
 
     @Test
@@ -432,17 +432,17 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Builder(toBuilder = true)
-    @DbName("pet")
+    @DbTable("pet")
     public record PetOwnerRecursion(
             @PK Integer id,
             @Nonnull String name,
             @Nonnull LocalDate birthDate,
-            @Nonnull @FK PetType petType,
+            @Nonnull @FK @DbColumn("type_id") PetType petType,
             @FK OwnerRecursion owner
     ) implements Entity<Integer> {}
 
     @Builder(toBuilder = true)
-    @DbName("owner")
+    @DbTable("owner")
     public record OwnerRecursion(
             @PK Integer id,
             @Nonnull String firstName,
@@ -462,13 +462,13 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Builder(toBuilder = true)
-    @DbName("visit")
+    @DbTable("visit")
     public record VisitWithTwoPetsOneLazy(
             @PK Integer id,
-            @Nonnull @DbName("visit_date") LocalDate visitDate,
+            @Nonnull @DbColumn("visit_date") LocalDate visitDate,
             @Nullable String description,
-            @Nullable @FK @DbName("pet_id") PetLazyOwner pet1,
-            @Nullable @FK @DbName("pet_id") Lazy<PetLazyOwner, Integer> pet2
+            @Nullable @FK @DbColumn("pet_id") PetLazyOwner pet1,
+            @Nullable @FK @DbColumn("pet_id") Lazy<PetLazyOwner, Integer> pet2
     ) implements Entity<Integer> {
     }
 
@@ -588,13 +588,13 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Builder(toBuilder = true)
-    @DbName("visit")
+    @DbTable("visit")
     public record VisitWithTwoLazyPets(
             @PK Integer id,
-            @Nonnull @DbName("visit_date") LocalDate visitDate,
+            @Nonnull LocalDate visitDate,
             @Nullable String description,
-            @Nullable @FK @DbName("pet_id") Lazy<PetLazyOwner, Integer> pet1,
-            @Nullable @FK @DbName("pet_id") Lazy<PetLazyOwner, Integer> pet2
+            @Nullable @FK @DbColumn("pet_id") Lazy<PetLazyOwner, Integer> pet1,
+            @Nullable @FK @DbColumn("pet_id") Lazy<PetLazyOwner, Integer> pet2
     ) implements Entity<Integer> {
     }
 

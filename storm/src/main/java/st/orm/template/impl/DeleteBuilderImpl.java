@@ -19,6 +19,8 @@ import jakarta.annotation.Nonnull;
 import st.orm.PersistenceException;
 import st.orm.Query;
 import st.orm.repository.Column;
+import st.orm.spi.Providers;
+import st.orm.spi.SqlDialect;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryTemplate;
 import st.orm.template.impl.Elements.Where;
@@ -33,6 +35,8 @@ import static st.orm.Templates.subquery;
 
 public class DeleteBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl<T, R, ID> {
 
+    private final SqlDialect dialect;
+
     public DeleteBuilderImpl(@Nonnull QueryTemplate orm, @Nonnull Class<T> fromType) {
         this(orm, fromType, List.of(), List.of(), List.of());
     }
@@ -43,6 +47,7 @@ public class DeleteBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
                               @Nonnull List<Where> where,
                               @Nonnull List<StringTemplate> templates) {
         super(queryTemplate, fromType, join, where, templates);
+        this.dialect = Providers.getSqlDialect();
     }
 
     @Override
@@ -58,7 +63,8 @@ public class DeleteBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
      * Indicates whether the DELETE query supports joins.
      */
     protected boolean supportsJoin() {
-        return false;
+        // Only use joins if DELETE alias is supported by the SQL dialect.
+        return dialect.supportsDeleteAlias();
     }
 
     /**

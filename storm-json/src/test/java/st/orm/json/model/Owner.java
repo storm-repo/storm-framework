@@ -18,7 +18,6 @@ package st.orm.json.model;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
-import st.orm.DbName;
 import st.orm.PK;
 import st.orm.json.Json;
 import st.orm.repository.Entity;
@@ -28,11 +27,10 @@ import st.orm.repository.Entity;
  *
  */
 @Builder(toBuilder = true)
-@DbName("owner")
 public record Owner(
         @PK Integer id,
-        @Nonnull @DbName("first_name") String firstName,
-        @Nonnull @DbName("last_name") String lastName,
+        @Nonnull String firstName,
+        @Nonnull String lastName,
         @Nonnull @Json Address address,
         @Nullable String telephone
 ) implements Entity<Integer> {
