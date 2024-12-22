@@ -19,7 +19,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
 import st.orm.FK;
-import st.orm.DbName;
+import st.orm.DbColumn;
 import st.orm.PK;
 import st.orm.repository.Entity;
 
@@ -31,12 +31,11 @@ import java.time.LocalDate;
  * @author Leon van Zantvoort
  */
 @Builder(toBuilder = true)
-@DbName("visit")
 public record Visit(
         @PK Integer id,
-        @Nonnull @DbName("visit_date") LocalDate visitDate,
+        @Nonnull LocalDate visitDate,
         @Nullable String description,
-        @Nonnull @FK @DbName("pet_id") Pet pet
+        @Nonnull @FK @DbColumn("pet_id") Pet pet
 ) implements Entity<Integer> {
     public Visit(LocalDate visitDate, String description, Pet pet) {
         this(0, visitDate, description, pet);

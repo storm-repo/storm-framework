@@ -213,13 +213,13 @@ public class TemplatePreparedStatementIntegrationTest {
         }
     }
 
-    @DbName("pet")
+    @DbTable("pet")
     public record PetWithLazyNonNullViolation(
             @PK Integer id,
             @Nonnull String name,
-            @Nonnull @DbName("birth_date") @Persist(updatable = false) LocalDate birthDate,
-            @Nonnull @FK @DbName("type_id") @Persist(updatable = false) PetType petType,
-            @Nonnull @FK @DbName("owner_id") Lazy<Owner, Integer> owner
+            @Nonnull @Persist(updatable = false) LocalDate birthDate,
+            @Nonnull @FK @Persist(updatable = false) @DbColumn("type_id") PetType petType,
+            @Nonnull @FK Lazy<Owner, Integer> owner
     ) implements Entity<Integer> {}
 
     @Test
@@ -239,10 +239,10 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testVisitWithAlias() {
-        @DbName("visit")
+        @DbTable("visit")
         record Visit(
                 int id,
-                @DbName("visit_date") LocalDate visitDate,
+                LocalDate visitDate,
                 String description
         ) {}
         LocalDate localDate = LocalDate.of(2023, 1, 9);
@@ -259,10 +259,10 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testVisitsByDate() {
-        @DbName("visit")
+        @DbTable("visit")
         record Visit(
                 int id,
-                @DbName("visit_date") LocalDate visitDate,
+                LocalDate visitDate,
                 String description
         ) {}
         LocalDate localDate = LocalDate.of(2023, 1, 9);
@@ -279,10 +279,10 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testVisitsByCalendar() {
-        @DbName("visit")
+        @DbTable("visit")
         record CustomVisit(
                 int id,
-                @DbName("visit_date")LocalDate visitDate,
+                LocalDate visitDate,
                 String description
         ) {}
         Calendar calendar = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
@@ -548,8 +548,8 @@ public class TemplatePreparedStatementIntegrationTest {
     public void testWithoutInline() {
         record Owner(
                 Integer id,
-                @DbName("first_name") String firstName,
-                @DbName("last_name") String lastName,
+                String firstName,
+                String lastName,
                 Address address,
                 String telephone) {}
         record FilteredPet(int id, @FK Owner owner) {}
@@ -627,11 +627,11 @@ public class TemplatePreparedStatementIntegrationTest {
     }
 
     @Builder(toBuilder = true)
-    @DbName("vet_specialty")
+    @DbTable("vet_specialty")
     public record VetSpecialtyLazyPk(
             // PK does not reflect the database, but suffices for the test case.
-            @PK @FK @DbName("vet_id") Lazy<Vet, Integer> id,
-            @Nonnull @FK @DbName("specialty_id") Specialty specialty) implements Entity<Lazy<Vet, Integer>> {
+            @PK @FK @DbColumn("vet_id") Lazy<Vet, Integer> id,
+            @Nonnull @FK Specialty specialty) implements Entity<Lazy<Vet, Integer>> {
     }
 
     @Test
@@ -768,13 +768,13 @@ public class TemplatePreparedStatementIntegrationTest {
     }
 
     @Builder
-    @DbName("pet")
+    @DbTable("pet")
     public record PetWithUpdatable(
             @PK Integer id,
             @Nonnull String name,
-            @Nonnull @DbName("birth_date") @Persist(updatable = false) LocalDate birthDate,
-            @Nonnull @FK @DbName("type_id") @Persist(updatable = true) PetType petType,
-            @Nullable @FK @DbName("owner_id") Owner owner
+            @Nonnull @Persist(updatable = false) LocalDate birthDate,
+            @Nonnull @FK @Persist(updatable = true) @DbColumn("type_id") PetType petType,
+            @Nullable @FK Owner owner
     ) {}
 
     @Test
@@ -823,13 +823,13 @@ public class TemplatePreparedStatementIntegrationTest {
     }
 
     @Builder
-    @DbName("pet")
+    @DbTable("pet")
     public record PetWithoutPersist(
             @PK Integer id,
             @Nonnull String name,
-            @Nonnull @DbName("birth_date") @Persist(updatable = false) LocalDate birthDate,
-            @Nonnull @FK @DbName("type_id") PetType petType,
-            @Nullable @FK @DbName("owner_id") Owner owner
+            @Nonnull @Persist(updatable = false) LocalDate birthDate,
+            @Nonnull @FK @DbColumn("type_id") PetType petType,
+            @Nullable @FK Owner owner
     ) {}
 
     @Test

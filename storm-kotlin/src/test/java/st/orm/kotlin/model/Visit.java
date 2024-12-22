@@ -19,7 +19,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
 import st.orm.FK;
-import st.orm.DbName;
+import st.orm.DbColumn;
 import st.orm.PK;
 import st.orm.repository.Entity;
 
@@ -31,7 +31,6 @@ import java.time.LocalDate;
  * @author Leon van Zantvoort
  */
 @Builder(toBuilder = true)
-@DbName("visit")
 public record Visit(
         @PK Integer id,
         @Nonnull LocalDate visitDate,

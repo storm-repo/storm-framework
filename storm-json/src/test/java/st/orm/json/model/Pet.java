@@ -19,7 +19,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
 import st.orm.FK;
-import st.orm.DbName;
+import st.orm.DbColumn;
 import st.orm.PK;
 import st.orm.Persist;
 import st.orm.repository.Entity;
@@ -30,11 +30,10 @@ import java.time.LocalDate;
  * Simple business object representing a pet.
  */
 @Builder(toBuilder = true)
-@DbName("pet")
 public record Pet(
         @PK Integer id,
         @Nonnull String name,
-        @Nonnull @DbName("birth_date") @Persist(updatable = false) LocalDate birthDate,
-        @Nonnull @FK @DbName("type_id") @Persist(updatable = false) PetType petType,
-        @Nullable @FK @DbName("owner_id") Owner owner
+        @Nonnull @Persist(updatable = false) LocalDate birthDate,
+        @Nonnull @FK @Persist(updatable = false) @DbColumn("type_id") PetType petType,
+        @Nullable @FK Owner owner
 ) implements Entity<Integer> {}

@@ -23,35 +23,27 @@ import static java.lang.annotation.ElementType.RECORD_COMPONENT;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
- * Marks a field as a foreign key. You can specify the foreign key’s database column name using either:
- * <ul>
- *   <li>{@link #value()}</li>
- *   <li>{@link #name()}</li>
- * </ul>
- * Both attributes are aliases. If both are specified, they must have the same value.
- *
- * <p>Usage examples:
- * <ul>
- *   <li>{@code @FK("user_id")}</li>
- *   <li>{@code @FK(name="user_id")}</li>
- *   <li>{@code @FK @DbColumn("user_id")}</li>
- * </ul>
- * Each sets the foreign key’s database column name to {@code "user_id"}.
- *
- * <p>If no value is specified (i.e., both {@code value()} and {@code name()} are set to {@code ""}),
- * an automatic column name resolution strategy will be applied.
+ * Specifies the name for the column, table or view.
  */
 @Target({RECORD_COMPONENT, PARAMETER})
 @Retention(RUNTIME)
-public @interface FK {
+public @interface DbColumn {
 
     /**
-     * The database column name for the foreign key. Acts as an alias for {@link #name()}.
+     * The database column name.
+     * Acts as an alias for {@link #name()}.
      */
     String value() default "";
 
     /**
-     * The database column name for the foreign key. Acts as an alias for {@link #value()}.
+     * The database column name.
+     * Acts as an alias for {@link #value()}.
      */
     String name() default "";
+
+    /**
+     * Whether to escape the name.
+     */
+    boolean escape() default false;
 }
+

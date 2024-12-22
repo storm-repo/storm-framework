@@ -9,8 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.DbTable;
 import st.orm.Inline;
-import st.orm.DbName;
 import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.json.model.Address;
@@ -23,6 +23,7 @@ import st.orm.template.SqlTemplateException;
 
 import javax.sql.DataSource;
 import java.util.List;
+import java.util.Map;
 
 import static java.lang.StringTemplate.RAW;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -71,7 +72,7 @@ public class JsonIntegrationTest {
     public record Person(String firstName, String lastName) {}
 
     @Builder(toBuilder = true)
-    @DbName("owner")
+    @DbTable("owner")
     public record OwnerWithJsonPerson(
             @PK Integer id,
             @Nonnull @Json Person person,
@@ -89,12 +90,12 @@ public class JsonIntegrationTest {
     }
 
     @Builder(toBuilder = true)
-    @DbName("owner")
+    @DbTable("owner")
     public record OwnerWithJsonMapAddress(
             @PK Integer id,
-            @Nonnull @DbName("first_name") String firstName,
-            @Nonnull @DbName("last_name") String lastName,
-            @Nonnull @Json java.util.Map<String, String> address,
+            @Nonnull String firstName,
+            @Nonnull String lastName,
+            @Nonnull @Json Map<String, String> address,
             @Nullable String telephone
     ) implements Entity<Integer> {
     }
@@ -108,12 +109,12 @@ public class JsonIntegrationTest {
     }
 
     @Builder(toBuilder = true)
-    @DbName("owner")
+    @DbTable("owner")
     public record OwnerWithInlineJsonMapAddress(
             @PK Integer id,
-            @Nonnull @DbName("first_name") String firstName,
-            @Nonnull @DbName("last_name") String lastName,
-            @Nonnull @Inline @Json java.util.Map<String, String> address,
+            @Nonnull String firstName,
+            @Nonnull String lastName,
+            @Nonnull @Inline @Json Map<String, String> address,
             @Nullable String telephone
     ) implements Entity<Integer> {
     }

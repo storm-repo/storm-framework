@@ -160,13 +160,12 @@ public class PlainPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectPetWithoutOwner() {
-        @DbName("pet")
         record Pet(
             @PK Integer id,
             @Nonnull String name,
-            @Nonnull @DbName("birth_date") @Persist(updatable = false) LocalDate birthDate,
-            @Nonnull @FK @DbName("type_id") @Persist(updatable = false) PetType petType,
-            @Nonnull @FK @DbName("owner_id") Owner owner
+            @Nonnull @Persist(updatable = false) LocalDate birthDate,
+            @Nonnull @FK @Persist(updatable = false) PetType petType,
+            @Nonnull @FK Owner owner
         ) {}
         assertThrows(PersistenceException.class, () -> {
             try (var query = ORM(dataSource).query(RAW."""
