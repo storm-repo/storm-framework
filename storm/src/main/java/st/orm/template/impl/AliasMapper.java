@@ -42,6 +42,7 @@ import static st.orm.template.impl.RecordReflection.getTableName;
 import static st.orm.template.impl.SqlTemplateImpl.multiplePathsFoundException;
 
 final class AliasMapper {
+    private final TableUse tableUse;
     private final Map<Class<? extends Record>, SequencedCollection<TableAlias>> aliasMap;
     private final AliasMapper parent;
     private final TableAliasResolver tableAliasResolver;
@@ -49,9 +50,11 @@ final class AliasMapper {
 
     record TableAlias(Class<? extends Record> table, String path, String alias) {}
 
-    AliasMapper(@Nullable TableAliasResolver tableAliasResolver,
+    AliasMapper(@Nonnull TableUse tableUse,
+                @Nullable TableAliasResolver tableAliasResolver,
                 @Nullable TableNameResolver tableNameResolver,
                 @Nullable AliasMapper parent) {
+        this.tableUse = tableUse;
         this.tableAliasResolver = tableAliasResolver;
         this.tableNameResolver = tableNameResolver;
         this.parent = parent;
@@ -76,7 +79,14 @@ final class AliasMapper {
      *
      * @param table the table to retrieve the aliases for.
      */
-    private Stream<String> aliases(@Nonnull Class<? extends Record> table, @Nonnull ResolveScope scope) {
+    private Stream<String> aliases(@Nonnull Class<? extends Record> table,
+                                   @Nonnull ResolveScope scope,
+                                   @Nullable Class<? extends Record> autoJoinTable) {
+        if (autoJoinTable != null) {
+            tableUse.addAutoJoinTable(table, autoJoinTable);
+        } else {
+            tableUse.addReferencedTable(table);
+        }
         var local = switch (scope) {
             case INNER, CASCADE -> aliasMap.getOrDefault(table, List.of()).stream()
                     .map(TableAlias::alias);
@@ -85,7 +95,7 @@ final class AliasMapper {
         var global = switch (scope) {
             case INNER -> Stream.<String>of();
             case CASCADE, OUTER ->
-                    parent == null ? Stream.<String>of() : parent.aliases(table, CASCADE);   // Use STRICT to include parents recursively.
+                    parent == null ? Stream.<String>of() : parent.aliases(table, CASCADE, autoJoinTable);   // Use STRICT to include parents recursively.
         };
         return Stream.concat(local, global);
     }
@@ -100,7 +110,15 @@ final class AliasMapper {
      * @param scope CASCADE to include local and outer aliases, LOCAL to include local aliases only, and
      *              OUTER to include outer aliases only.
      */
-    private Stream<String> aliases(Class<? extends Record> table, @Nullable String path, @Nonnull ResolveScope scope) {
+    private Stream<String> aliases(@Nonnull Class<? extends Record> table,
+                                   @Nullable String path,
+                                   @Nonnull ResolveScope scope,
+                                   @Nullable Class<? extends Record> autoJoinTable) {
+        if (autoJoinTable != null) {
+            tableUse.addAutoJoinTable(table, autoJoinTable);
+        } else {
+            tableUse.addReferencedTable(table);
+        }
         var local = switch (scope) {
             case INNER, CASCADE -> aliasMap.getOrDefault(table, List.of()).stream()
                     .filter(a -> path == null || Objects.equals(path, a.path()))
@@ -110,12 +128,14 @@ final class AliasMapper {
         var global = switch (scope) {
             case INNER -> Stream.<String>of();
             case CASCADE, OUTER ->
-                    parent == null ? Stream.<String>of() : parent.aliases(table, path, CASCADE);   // Use STRICT to include parents recursively.
+                    parent == null ? Stream.<String>of() : parent.aliases(table, path, CASCADE, autoJoinTable);   // Use STRICT to include parents recursively.
         };
         return Stream.concat(local, global);
     }
 
-    private SqlTemplateException multipleFoundException(@Nonnull Class<? extends Record> table, @Nullable String path, @Nonnull ResolveScope resolveMode) {
+    private SqlTemplateException multipleFoundException(@Nonnull Class<? extends Record> table,
+                                                        @Nullable String path,
+                                                        @Nonnull ResolveScope resolveMode) {
         if (resolveMode != INNER) {
             return new SqlTemplateException(STR."Multiple aliases found for: \{table.getSimpleName()} at path: '\{path}'. Use INNER scope to limit alias resolution to the current scope.");
         }
@@ -125,7 +145,9 @@ final class AliasMapper {
         return multiplePathsFoundException(table, paths);
     }
 
-    public String useAlias(@Nonnull Class<? extends Record> table, @Nonnull String alias, @Nonnull ResolveScope scope) throws SqlTemplateException {
+    public String useAlias(@Nonnull Class<? extends Record> table,
+                           @Nonnull String alias,
+                           @Nonnull ResolveScope scope) throws SqlTemplateException {
         if (getAliases(table, scope).stream().noneMatch(a -> a.equals(alias))) {
             throw new SqlTemplateException(STR."Alias \{alias} for table \{table.getSimpleName()} not found.");
         }
@@ -133,7 +155,7 @@ final class AliasMapper {
     }
 
     public List<String> getAliases(@Nonnull Class<? extends Record> table, @Nonnull ResolveScope scope) {
-        return aliases(table, scope).toList();
+        return aliases(table, scope, null).toList();
     }
 
     public boolean exists(@Nonnull Class<? extends Record> table, @Nonnull ResolveScope scope) {
@@ -154,8 +176,17 @@ final class AliasMapper {
         return Optional.of(list.getFirst());
     }
 
-    public String getAlias(@Nonnull Class<? extends Record> table, @Nullable String path, @Nonnull ResolveScope scope) throws SqlTemplateException {
-        var result = findAlias(table, path, scope);
+    public String getAlias(@Nonnull Class<? extends Record> table,
+                           @Nullable String path,
+                           @Nonnull ResolveScope scope) throws SqlTemplateException {
+        return getAlias(table, path, scope, null);
+    }
+
+    public String getAlias(@Nonnull Class<? extends Record> table,
+                           @Nullable String path,
+                           @Nonnull ResolveScope scope,
+                           @Nullable Class<? extends Record> autoJoinTable) throws SqlTemplateException {
+        var result = findAlias(table, path, scope, autoJoinTable);
         if (result.isPresent()) {
             return result.get();
         }
@@ -169,10 +200,19 @@ final class AliasMapper {
         throw new SqlTemplateException(STR."Alias for \{table.getSimpleName()} not found.");
     }
 
-    public Optional<String> findAlias(@Nonnull Class<? extends Record> table, @Nullable String path, @Nonnull ResolveScope scope) throws SqlTemplateException {
-        var list = aliases(table, path, scope).toList();
+    public Optional<String> findAlias(@Nonnull Class<? extends Record> table,
+                                      @Nullable String path,
+                                      @Nonnull ResolveScope scope) throws SqlTemplateException {
+        return findAlias(table, path, scope, null);
+    }
+
+    private Optional<String> findAlias(@Nonnull Class<? extends Record> table,
+                                       @Nullable String path,
+                                       @Nonnull ResolveScope scope,
+                                       @Nullable Class<? extends Record> autoJoinTable) throws SqlTemplateException {
+        var list = aliases(table, path, scope, autoJoinTable).toList();
         if (list.isEmpty() && path != null) {
-            list = aliases(table, path, scope).toList();
+            list = aliases(table, path, scope, autoJoinTable).toList();
         }
         if (list.isEmpty()) {
             return Optional.empty();
@@ -188,6 +228,15 @@ final class AliasMapper {
     }
 
     public String generateAlias(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException {
+        return generateAlias(table, path, null);
+    }
+
+    public String generateAlias(@Nonnull Class<? extends Record> table, @Nullable String path, @Nullable Class<? extends Record> autoJoinTable) throws SqlTemplateException {
+        if (autoJoinTable != null) {
+            tableUse.addAutoJoinTable(table, autoJoinTable);
+        } else {
+            tableUse.addReferencedTable(table);
+        }
         String alias = generateAlias(table, tableAliasResolver,
                 proposedAlias -> aliases().noneMatch(proposedAlias::equals));    // Take all aliases into account to prevent unnecessary shadowing.
         if (alias.isEmpty()) {

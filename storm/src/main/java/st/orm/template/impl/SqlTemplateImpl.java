@@ -168,8 +168,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
         }
     }
 
-    record Join(@Nonnull Source source, @Nonnull String alias, @Nonnull Target target, @Nonnull JoinType type) implements Element {
-        public Join {
+    record Join(@Nonnull Source source, @Nonnull String alias, @Nonnull Target target, @Nonnull JoinType type, boolean autoJoin) implements Element {
+        Join {
             requireNonNull(source, "source");
             requireNonNull(alias, "alias");
             requireNonNull(target, "target");
@@ -558,12 +558,16 @@ public final class SqlTemplateImpl implements SqlTemplate {
         return new SqlTemplateException(STR."Multiple patths found for \{table.getSimpleName()} in table graph. Specify one of the following paths to uniquely identify the table: \{String.join(", ", paths)}.");
     }
 
-    private TableMapper getTableMapper() {
-        return new TableMapper();
+    private TableUse getTableUse() {
+        return new TableUse();
     }
 
-    private AliasMapper getAliasMapper() {
-        return new AliasMapper(tableAliasResolver, tableNameResolver, ElementProcessor.current()
+    private TableMapper getTableMapper(@Nonnull TableUse tableUse) {
+        return new TableMapper(tableUse);
+    }
+
+    private AliasMapper getAliasMapper(@Nonnull TableUse tableUse) {
+        return new AliasMapper(tableUse, tableAliasResolver, tableNameResolver, ElementProcessor.current()
                 .map(ElementProcessor::aliasMapper)
                 .orElse(null));
     }
@@ -749,7 +753,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             } else if (element instanceof Join j) {
                 String path = null; // Custom joins are not part of the primary table.
                 // Move custom join to list of (auto) joins to allow proper ordering of inner and outer joins.
-                if (j instanceof Join(TableSource ts, _, _, _)) {
+                if (j instanceof Join(TableSource ts, _, _, _, _)) {
                     String alias;
                     if (j.alias().isEmpty()) {
                         alias = aliasMapper.generateAlias(ts.table(), null);
@@ -761,8 +765,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     Source source = projectionQuery != null
                             ? new TemplateSource(StringTemplate.of(projectionQuery.value()))
                             : ts;
-                    customJoins.add(new Join(source, alias, j.target(), j.type()));
-                    tableMapper.mapPrimaryKey(ts.table(), alias, getPkComponents(ts.table()).toList(), path);
+                    customJoins.add(new Join(source, alias, j.target(), j.type(), false));
+                    tableMapper.mapPrimaryKey(fromTable, ts.table(), alias, getPkComponents(ts.table()).toList(), path);
                     // Make the FKs of the join also available for mapping.
                     mapForeignKeys(tableMapper, alias, ts.table(), path);
                 } else {
@@ -790,10 +794,10 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 replacementElements.addAll(joins);
             } else {
                 for (var join : joins) {
-                    if (join instanceof Join(TableSource(var joinTable), _, _, _) &&
+                    if (join instanceof Join(TableSource(var joinTable), _, _, _, var autoJoin) &&
                             joinTable == select.table() && join.type().isOuter()) {
                         // If join is part of the select table and is an outer join, replace it with an inner join.
-                        replacementElements.add(new Join(new TableSource(joinTable), join.alias(), join.target(), DefaultJoinType.INNER));
+                        replacementElements.add(new Join(new TableSource(joinTable), join.alias(), join.target(), DefaultJoinType.INNER, autoJoin));
                     } else {
                         replacementElements.add(join);
                     }
@@ -835,11 +839,11 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     // No join needed for lazy components, but we will map the table, so we can query the lazy component.
                     String fromAlias;
                     if (fkName == null) {
-                        fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER);    // Use local resolve mode to prevent shadowing.
+                        fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, null);    // Use local resolve mode to prevent shadowing.
                     } else {
                         fromAlias = fkName;
                     }
-                    tableMapper.mapForeignKey(getLazyRecordType(component), fromAlias, component, fkPath);
+                    tableMapper.mapForeignKey(recordType, getLazyRecordType(component), fromAlias, component, fkPath);
                     continue;
                 }
                 if (!component.getType().isRecord()) {
@@ -854,12 +858,12 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 // in a unified way (auto join vs manual join).
                 String fromAlias;
                 if (fkName == null) {
-                    fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER);    // Use local resolve mode to prevent shadowing.
+                    fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, componentType);    // Use local resolve mode to prevent shadowing.
                 } else {
                     fromAlias = fkName;
                 }
-                String alias = aliasMapper.generateAlias(componentType, pkPath);
-                tableMapper.mapForeignKey(componentType, fromAlias, component, fkPath);
+                String alias = aliasMapper.generateAlias(componentType, pkPath, recordType);
+                tableMapper.mapForeignKey(recordType, componentType, fromAlias, component, fkPath);
                 var pkComponent = getPkComponents(componentType).findFirst()    // We only support single primary keys for FK fields.
                         .orElseThrow(() -> new SqlTemplateException(STR."No primary key found for entity \{componentType.getSimpleName()}."));
                 String pkColumnName = getColumnName(pkComponent, columnNameResolver);
@@ -872,7 +876,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 Source source = query != null
                         ? new TemplateSource(StringTemplate.of(query.value()))
                         : new TableSource(componentType);
-                joins.add(new Join(source, alias, new TemplateTarget(StringTemplate.of(STR."\{fromAlias}.\{getForeignKey(component, foreignKeyResolver)} = \{alias}.\{pkColumnName}")), joinType));
+                joins.add(new Join(source, alias, new TemplateTarget(StringTemplate.of(STR."\{fromAlias}.\{getForeignKey(component, foreignKeyResolver)} = \{alias}.\{pkColumnName}")), joinType, true));
                 addAutoJoins(componentType, copy, aliasMapper, tableMapper, joins, alias, effectiveOuterJoin);
             } else if (component.getType().isRecord()) {
                 if (REFLECTION.isAnnotationPresent(component, PK.class) || getORMConverter(component).isPresent()) {
@@ -882,7 +886,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 Class<? extends Record> componentType = (Class<? extends Record>) component.getType();
                 String fromAlias;
                 if (fkName == null) {
-                    fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER);    // Use local resolve mode to prevent shadowing.
+                    fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, componentType);    // Use local resolve mode to prevent shadowing.
                 } else {
                     fromAlias = fkName;
                 }
@@ -985,8 +989,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
         if (!values.isEmpty()) {
             var sqlMode = getSqlMode(template);
             var elements = resolveElements(sqlMode, values, fragments);
-            var tableMapper = getTableMapper(); // No need to pass parent table mapper as only aliases are correlated.
-            var aliasMapper = getAliasMapper();
+            var tableUse = getTableUse();
+            var tableMapper = getTableMapper(tableUse); // No need to pass parent table mapper as only aliases are correlated.
+            var aliasMapper = getAliasMapper(tableUse);
             postProcessElements(sqlMode, elements, aliasMapper, tableMapper);
             var unwrappedElements = elements.stream()
                     .flatMap(e -> e instanceof Wrapped(var we) ? we.stream() : Stream.of(e))
@@ -1004,7 +1009,10 @@ public final class SqlTemplateImpl implements SqlTemplate {
             AtomicInteger parameterPosition = new AtomicInteger(1);
             AtomicInteger nameIndex = new AtomicInteger();
             StringBuilder rawSql = new StringBuilder();
-            List<String> args = new ArrayList<>();
+            interface DelayedResult {
+                void process() throws SqlTemplateException;
+            }
+            var results = new ArrayList<DelayedResult>();
             for (int i = 0; i < fragments.size(); i++) {
                 String fragment = fragments.get(i);
                 try {
@@ -1016,42 +1024,39 @@ public final class SqlTemplateImpl implements SqlTemplate {
                                 parameters,
                                 parameterPosition,
                                 nameIndex,
+                                tableUse,
                                 aliasMapper,
                                 tableMapper,
                                 bindVariables,
                                 generatedKeys,
                                 versionAware,
                                 primaryTable.orElse(null)
-                        ).process().orElse(null);
-                        if (result != null) {
-                            String sql = result.sql();
-                            if (!result.args().isEmpty()) {
-                                args.addAll(result.args());
+                        ).process();
+                        results.add(() -> {
+                            String sql = result.get();
+                            if (!sql.isEmpty()) {
+                                rawSql.append(fragment);
+                                rawSql.append(sql);
+                                if (e instanceof Param) {
+                                    parts.add(rawSql.toString());
+                                    rawSql.setLength(0);
+                                }
+                            } else {
+                                rawSql.append(fragment);
                             }
-                            if (!sql.isEmpty() && !args.isEmpty()) {
-                                sql = sql.formatted(args.toArray());
-                                args.clear();
-                            }
-                            rawSql.append(fragment);
-                            rawSql.append(sql);
-                            if (e instanceof Param) {
-                                parts.add(rawSql.toString());
-                                rawSql.setLength(0);
-                            }
-                        } else {
-                            rawSql.append(fragment);
-                        }
+                        });
                     } else {
-                        rawSql.append(fragment);
-                        if (!args.isEmpty()) {
-                            parts.add(rawSql.toString().formatted(args.toArray()));
-                        } else {
+                        results.add(() -> {
+                            rawSql.append(fragment);
                             parts.add(rawSql.toString());
-                        }
+                        });
                     }
                 } catch (MissingFormatArgumentException ex) {
                     throw new SqlTemplateException("Invalid number of argument placeholders found. Template appears to specify custom %s placeholders.", ex);
                 }
+            }
+            for (var result : results) {
+                result.process();
             }
             validateNamedParameters(parameters);
             String sql = String.join("", parts);

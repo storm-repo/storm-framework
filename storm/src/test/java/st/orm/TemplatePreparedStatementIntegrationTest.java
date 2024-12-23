@@ -328,12 +328,9 @@ public class TemplatePreparedStatementIntegrationTest {
         String expectedSql = """
                 DELETE x
                 FROM visit x
-                INNER JOIN pet _p ON x.pet_id = _p.id
-                INNER JOIN pet_type _pt ON _p.type_id = _pt.id
-                LEFT JOIN owner _o ON _p.owner_id = _o.id
                 WHERE x.id = ?""";
         try (var _ = intercept(sql -> assertEquals(expectedSql, sql.statement()));
-             var query = ORM(dataSource).query(RAW."""
+             var _ = ORM(dataSource).query(RAW."""
                 DELETE \{Visit.class}
                 FROM \{from(Visit.class, "x", true)}
                 WHERE \{where(Visit.builder().id(1).build())}""").prepare()) {
@@ -359,7 +356,7 @@ public class TemplatePreparedStatementIntegrationTest {
             FROM visit _v
             WHERE _v.id = ?""";
         try (var _ = intercept(sql -> assertEquals(expectedSql, sql.statement()));
-             var query = ORM(dataSource).query(RAW."""
+             var _ = ORM(dataSource).query(RAW."""
                 DELETE \{Visit.class}
                 FROM \{Visit.class}
                 WHERE \{where(Visit.builder().id(1).build())}""").prepare()) {
@@ -405,8 +402,6 @@ public class TemplatePreparedStatementIntegrationTest {
             DELETE _v
             FROM visit _v
             INNER JOIN pet _p ON _v.pet_id = _p.id
-            INNER JOIN pet_type _pt ON _p.type_id = _pt.id
-            LEFT JOIN owner _o ON _p.owner_id = _o.id
             WHERE _p.owner_id = ?""";
         try (var _ = intercept(sql -> assertEquals(expectedSql, sql.statement()));
              var _ = ORM(dataSource).query(RAW."""

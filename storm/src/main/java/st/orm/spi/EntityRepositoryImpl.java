@@ -292,7 +292,12 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
      */
     @Override
     public void delete(@Nonnull ID id) {
-        if (delete().where(id).executeUpdate() != 1) {
+        // Don't use query builder to prevent WHERE IN clause.
+        int result = orm.query(RAW."""
+                DELETE FROM \{model.type()}
+                WHERE \{id}""")
+            .executeUpdate();
+        if (result != 1) {
             throw new PersistenceException("Delete failed.");
         }
     }
@@ -311,7 +316,12 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
      */
     @Override
     public void delete(@Nonnull E entity) {
-        if (delete().where(entity).executeUpdate() != 1) {
+        // Don't use query builder to prevent WHERE IN clause.
+        int result = orm.query(RAW."""
+                DELETE FROM \{model.type()}
+                WHERE \{entity}""")
+            .executeUpdate();
+        if (result != 1) {
             throw new PersistenceException("Delete failed.");
         }
     }
@@ -328,7 +338,9 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
      */
     @Override
     public void deleteAll() {
-        delete().executeUpdate();
+        // Don't use query builder to prevent WHERE IN clause.
+        orm.query(RAW."DELETE FROM \{model.type()}")
+                .executeUpdate();
     }
 
     // List based methods.

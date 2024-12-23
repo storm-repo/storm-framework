@@ -153,7 +153,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder
         requireNonNull(type, "type");
         requireNonNull(type, "template");
         requireNonNull(alias, "alias");
-        return onTemplate -> join(new Join(new TemplateSource(template), alias, new TemplateTarget(onTemplate), type));
+        return onTemplate -> join(new Join(new TemplateSource(template), alias, new TemplateTarget(onTemplate), type, false));
     }
 
     /**
@@ -169,7 +169,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder
         requireNonNull(type, "type");
         requireNonNull(type, "subquery");
         requireNonNull(alias, "alias");
-        return onTemplate -> join(new Join(new TemplateSource(RAW."\{subquery}"), alias, new TemplateTarget(onTemplate), type));
+        return onTemplate -> join(new Join(new TemplateSource(RAW."\{subquery}"), alias, new TemplateTarget(onTemplate), type, false));
     }
 
     /**
@@ -238,12 +238,12 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder
         return new TypedJoinBuilder<>() {
             @Override
             public QueryBuilder<T, R, ID> on(@Nonnull Class<? extends Record> onRelation) {
-                return join(new Join(new TableSource(relation), alias, new TableTarget(onRelation), type));
+                return join(new Join(new TableSource(relation), alias, new TableTarget(onRelation), type, false));
             }
 
             @Override
             public QueryBuilder<T, R, ID> on(@Nonnull StringTemplate onTemplate) {
-                return join(new Join(new TableSource(relation), alias, new TemplateTarget(onTemplate), type));
+                return join(new Join(new TableSource(relation), alias, new TemplateTarget(onTemplate), type, false));
             }
         };
     }
