@@ -78,12 +78,15 @@ final class AliasMapper {
      * contain duplicates as parents may contain the same aliases.
      *
      * @param table the table to retrieve the aliases for.
+     * @param scope INNER to include local and outer aliases, OUTER to include outer aliases only and CASCADE to
+     *              include all aliases.
+     * @param precedingTable the table that precedes {@code table} in the join chain.
      */
     private Stream<String> aliases(@Nonnull Class<? extends Record> table,
                                    @Nonnull ResolveScope scope,
-                                   @Nullable Class<? extends Record> autoJoinTable) {
-        if (autoJoinTable != null) {
-            tableUse.addAutoJoinTable(table, autoJoinTable);
+                                   @Nullable Class<? extends Record> precedingTable) {
+        if (precedingTable != null) {
+            tableUse.addAutoJoinTable(table, precedingTable);
         } else {
             tableUse.addReferencedTable(table);
         }
@@ -95,7 +98,7 @@ final class AliasMapper {
         var global = switch (scope) {
             case INNER -> Stream.<String>of();
             case CASCADE, OUTER ->
-                    parent == null ? Stream.<String>of() : parent.aliases(table, CASCADE, autoJoinTable);   // Use STRICT to include parents recursively.
+                    parent == null ? Stream.<String>of() : parent.aliases(table, CASCADE, precedingTable);   // Use STRICT to include parents recursively.
         };
         return Stream.concat(local, global);
     }
@@ -115,7 +118,7 @@ final class AliasMapper {
                                    @Nonnull ResolveScope scope,
                                    @Nullable Class<? extends Record> autoJoinTable) {
         if (autoJoinTable != null) {
-            tableUse.addAutoJoinTable(table, autoJoinTable);
+            tableUse.addAutoJoinTable(autoJoinTable, table);
         } else {
             tableUse.addReferencedTable(table);
         }

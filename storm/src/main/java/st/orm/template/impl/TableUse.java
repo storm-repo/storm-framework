@@ -29,20 +29,20 @@ import java.util.Set;
  */
 class TableUse {
     private final Set<Class<? extends Record>> referencedTables;
-    private final Map<Class<? extends Record>, Set<Class<? extends Record>>> autoJoinTables;
+    private final Map<Class<? extends Record>, Set<Class<? extends Record>>> precedingTables;
 
     TableUse() {
         this.referencedTables = new HashSet<>();
-        this.autoJoinTables = new HashMap<>();
+        this.precedingTables = new HashMap<>();
     }
 
     public void addReferencedTable(@Nonnull Class<? extends Record> table) {
         referencedTables.add(table);
-        referencedTables.addAll(autoJoinTables.getOrDefault(table, Set.of()));
+        referencedTables.addAll(precedingTables.getOrDefault(table, Set.of()));
     }
 
-    public void addAutoJoinTable(@Nonnull Class<? extends Record> table, @Nonnull Class<? extends Record> joinTable) {
-        autoJoinTables.computeIfAbsent(table, _ -> new HashSet<>()).add(joinTable);
+    public void addAutoJoinTable(@Nonnull Class<? extends Record> joinTable, @Nonnull Class<? extends Record> precedingTable) {
+        precedingTables.computeIfAbsent(joinTable, _ -> new HashSet<>()).add(precedingTable);
     }
 
     public boolean isReferencedTable(@Nonnull Class<? extends Record> table) {
