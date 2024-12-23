@@ -37,6 +37,7 @@ import static st.orm.template.impl.SqlTemplateImpl.multiplePathsFoundException;
 
 final class TableMapper {
     record Mapping(
+            @Nonnull Class<? extends Record> source,
             @Nonnull String alias,
             @Nonnull List<RecordComponent> components,
             boolean primaryKey,
@@ -46,17 +47,20 @@ final class TableMapper {
         Mapping {
             components = copyOf(components); // Defensive copy.
         }
-        Mapping(@Nonnull String alias,
-                       @Nonnull List<RecordComponent> components,
-                       boolean primaryKey,
-                       @Nullable String path) {
-            this(alias, components, primaryKey, null, getPath(components, path));
+        Mapping(@Nonnull Class<? extends Record> source,
+                @Nonnull String alias,
+                @Nonnull List<RecordComponent> components,
+                boolean primaryKey,
+                @Nullable String path) {
+            this(source, alias, components, primaryKey, null, getPath(components, path));
         }
     }
 
+    private final TableUse tableUse;
     private final Map<Class<? extends Record>, List<Mapping>> mappings;
 
-    TableMapper() {
+    TableMapper(@Nonnull TableUse tableUse) {
+        this.tableUse = tableUse;
         this.mappings = new HashMap<>();
     }
 
@@ -68,7 +72,9 @@ final class TableMapper {
         var tableMappings = mappings.getOrDefault(table, List.of());
         var matches = findMappings(tableMappings, path);
         if (matches.size() == 1) {
-            return matches.getFirst();
+            var match = matches.getFirst();
+            tableUse.addReferencedTable(match.source());
+            return match;
         }
         var paths = tableMappings.stream()
                 .map(Mapping::pkPath)
@@ -82,20 +88,24 @@ final class TableMapper {
         }
     }
 
-    public void mapPrimaryKey(@Nonnull Class<? extends Record> table,
-                              @Nonnull String alias,
-                              @Nonnull List<RecordComponent> components,
-                              @Nullable String path) {
-        mappings.computeIfAbsent(table, _ -> new ArrayList<>())
-                .add(new Mapping(alias, components, true, path));
+    public void mapPrimaryKey(
+            @Nonnull Class<? extends Record> source,
+            @Nonnull Class<? extends Record> target,
+            @Nonnull String alias,
+            @Nonnull List<RecordComponent> components,
+            @Nullable String path) {
+        mappings.computeIfAbsent(target, _ -> new ArrayList<>())
+                .add(new Mapping(source, alias, components, true, path));
     }
 
-    public void mapForeignKey(@Nonnull Class<? extends Record> table,
-                              @Nonnull String alias,
-                              @Nonnull RecordComponent component,
-                              @Nullable String path) {
-        mappings.computeIfAbsent(table, _ -> new ArrayList<>())
-                .add(new Mapping(alias, List.of(component), false, path));
+    public void mapForeignKey(
+            @Nonnull Class<? extends Record> source,
+            @Nonnull Class<? extends Record> target,
+            @Nonnull String alias,
+            @Nonnull RecordComponent component,
+            @Nullable String path) {
+        mappings.computeIfAbsent(target, _ -> new ArrayList<>())
+                .add(new Mapping(source, alias, List.of(component), false, path));
     }
 
     /**

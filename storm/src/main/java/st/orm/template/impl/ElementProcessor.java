@@ -83,7 +83,6 @@ import java.util.stream.Stream;
 import static java.util.Arrays.asList;
 import static java.util.List.copyOf;
 import static java.util.Objects.requireNonNull;
-import static java.util.Optional.empty;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
 import static st.orm.spi.Providers.getORMConverter;
@@ -108,6 +107,7 @@ record ElementProcessor(
         @Nonnull List<Parameter> parameters,
         @Nonnull AtomicInteger parameterPosition,
         @Nonnull AtomicInteger nameIndex,
+        @Nonnull TableUse tableUse,
         @Nonnull AliasMapper aliasMapper,
         @Nonnull TableMapper tableMapper,
         @Nonnull AtomicReference<BindVariables> bindVariables,
@@ -117,13 +117,22 @@ record ElementProcessor(
 ) {
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
-    record ElementResult(@Nonnull String sql, @Nonnull List<String> args) {
-        public ElementResult {
+    @FunctionalInterface
+    private interface OptionalSql {
+        String get() throws SqlTemplateException;
+    }
+
+    record ElementResult(@Nonnull OptionalSql sql) implements OptionalSql {
+        ElementResult {
             requireNonNull(sql, "sql");
-            requireNonNull(args, "args");
         }
-        public ElementResult(@Nonnull String sql) {
-            this(sql, List.of());
+        ElementResult(@Nonnull String sql) {
+            this(() -> sql);
+        }
+
+        @Override
+        public String get() throws SqlTemplateException {
+            return sql.get();
         }
     }
 
@@ -133,12 +142,11 @@ record ElementProcessor(
         return ofNullable(CURRENT_PROCESSOR.orElse(null));
     }
 
-    Optional<ElementResult> process() throws SqlTemplateException {
+    ElementResult process() throws SqlTemplateException {
         Element fromResolved = element;
-        StringBuilder sql = new StringBuilder();
-        List<String> args = new ArrayList<>();
+        var results = new ArrayList<OptionalSql>();
         for (Element fromWrapped : fromResolved instanceof Wrapped(var elements) ? elements : List.of(fromResolved)) {
-            ElementResult result = switch (fromWrapped) {
+            results.add(switch (fromWrapped) {
                 case Wrapped _ -> {
                     assert false;
                     yield null;
@@ -157,14 +165,15 @@ record ElementProcessor(
                 case Param it -> param(it);
                 case Subquery it -> subquery(it);
                 case Unsafe it -> unsafe(it);
-            };
-            sql.append(result.sql());
-            args.addAll(result.args());
+            });
         }
-        if (!sql.isEmpty() || !args.isEmpty()) {
-            return Optional.of(new ElementResult(sql.toString(), args));
-        }
-        return empty();
+        return new ElementResult(() -> {
+            StringBuilder sql = new StringBuilder();
+            for (OptionalSql result : results) {
+                sql.append(result.get());
+            }
+            return sql.toString();
+        });
     }
 
     ElementResult select(Select select) throws SqlTemplateException {
@@ -190,18 +199,30 @@ record ElementProcessor(
     }
 
     ElementResult from(From it) throws SqlTemplateException {
-        return switch (it) {
-            case From(TableSource ts, _, _) -> new ElementResult(STR."\{getTableName(ts.table(), sqlTemplate.tableNameResolver())}\{it.alias().isEmpty() ? "" : STR." \{it.alias()}"}");
+        return new ElementResult(switch (it) {
+            case From(TableSource ts, _, _) -> STR."\{getTableName(ts.table(), sqlTemplate.tableNameResolver())}\{it.alias().isEmpty() ? "" : STR." \{it.alias()}"}";
             case From(TemplateSource ts, _, _) -> {
                 var from = parse(ts.template(), false);   // From-clause is not correlated.
-                yield new ElementResult(STR."(\{from})\{it.alias().isEmpty() ? "" : STR." \{it.alias()}"}");
+                yield STR."(\{from})\{it.alias().isEmpty() ? "" : STR." \{it.alias()}"}";
             }
-        };
+        });
     }
 
     ElementResult join(Join join) throws SqlTemplateException {
+        if (join.autoJoin() && join.source() instanceof TableSource(var table)) {
+            return new ElementResult(() -> {
+                if (!tableUse.isReferencedTable(table)) {
+                    return "";
+                }
+                return optionalJoin(join);
+            });
+        }
+        return new ElementResult(optionalJoin(join));
+    }
+
+    String optionalJoin(Join join) throws SqlTemplateException {
         if (join.type().hasOnClause()) {
-            ElementResult on = switch (join.target()) {
+            String on = switch (join.target()) {
                 case TableTarget(var toTable) when join.source() instanceof TableSource(var fromTable) -> {
                     var leftComponents = getFkComponents(fromTable).toList();
                     var rightComponents = getFkComponents(toTable).toList();
@@ -211,14 +232,14 @@ record ElementProcessor(
                         // Joins foreign key of left table to primary key of right table.
                         var fk = getForeignKey(leftComponent.get(), sqlTemplate.foreignKeyResolver());
                         var pk = getColumnName(getPkComponents(toTable).findFirst().orElseThrow(exception), sqlTemplate.columnNameResolver());
-                        yield new ElementResult(STR."\{aliasMapper.getAlias(fromTable, null, INNER)}.\{fk} = \{aliasMapper.getAlias(toTable, null, INNER)}.\{pk}");
+                        yield STR."\{aliasMapper.getAlias(fromTable, null, INNER)}.\{fk} = \{aliasMapper.getAlias(toTable, null, INNER)}.\{pk}";
                     } else {
                         var rightComponent = findComponent(rightComponents, fromTable);
                         if (rightComponent.isPresent()) {
                             // Joins foreign key of right table to primary key of left table.
                             var fk = getForeignKey(rightComponent.get(), sqlTemplate.foreignKeyResolver());
                             var pk = getColumnName(getPkComponents(fromTable).findFirst().orElseThrow(exception), sqlTemplate.columnNameResolver());
-                            yield new ElementResult(STR."\{aliasMapper.getAlias(fromTable, null, INNER)}.\{pk} = \{aliasMapper.getAlias(toTable, null, INNER)}.\{fk}");
+                            yield STR."\{aliasMapper.getAlias(fromTable, null, INNER)}.\{pk} = \{aliasMapper.getAlias(toTable, null, INNER)}.\{fk}";
                         } else {
                             // Joins foreign keys of two compound primary keys.
                             leftComponent = leftComponents.stream()
@@ -229,27 +250,28 @@ record ElementProcessor(
                                     .findFirst();
                             var fk = getForeignKey(leftComponent.orElseThrow(exception), sqlTemplate.foreignKeyResolver());
                             var pk = getForeignKey(rightComponent.orElseThrow(exception), sqlTemplate.foreignKeyResolver());
-                            yield new ElementResult(STR."\{aliasMapper.getAlias(fromTable, null, INNER)}.\{fk} = \{aliasMapper.getAlias(toTable, null, INNER)}.\{pk}");
+                            yield STR."\{aliasMapper.getAlias(fromTable, null, INNER)}.\{fk} = \{aliasMapper.getAlias(toTable, null, INNER)}.\{pk}";
                         }
                     }
                 }
                 case TableTarget _ -> throw new SqlTemplateException("Unsupported source type.");   // Should not happen. See Join validation logic.
-                case TemplateTarget ts -> new ElementResult(parse(ts.template(), true));   // On-clause is correlated.
+                case TemplateTarget ts -> parse(ts.template(), true);   // On-clause is correlated.
             };
             return switch (join) {
-                case Join(TableSource ts, var alias, _, _) ->
-                        new ElementResult(STR."\n\{join.type().sql()} \{getTableName(ts.table(), sqlTemplate.tableNameResolver())} \{aliasMapper.useAlias(ts.table(), alias, INNER)} ON \{on.sql()}", on.args());
-                case Join(TemplateSource ts, var alias, _, _) -> {
+                case Join(TableSource ts, var alias, _, _, _) ->
+                        STR."\n\{join.type().sql()} \{getTableName(ts.table(), sqlTemplate.tableNameResolver())} \{aliasMapper.useAlias(ts.table(), alias, INNER)} ON \{on}";
+                case Join(TemplateSource ts, var alias, _, _, _) -> {
                     var source = parse(ts.template(), false);   // Source is not correlated.
-                    yield new ElementResult(STR."\n\{join.type().sql()} (\{source}) \{alias} ON \{on.sql()}", on.args());
+                    yield STR."\n\{join.type().sql()} (\{source}) \{alias} ON \{on}";
                 }
             };
         }
         return switch (join) {
-            case Join(TableSource ts, var alias, _, _) -> new ElementResult(STR."\n\{join.type().sql()} \{getTableName(ts.table(), sqlTemplate.tableNameResolver())}\{alias.isEmpty() ? "" : STR." \{alias}"}");
-            case Join(TemplateSource ts, var alias, _, _) -> {
+            case Join(TableSource ts, var alias, _, _, _) ->
+                    STR."\n\{join.type().sql()} \{getTableName(ts.table(), sqlTemplate.tableNameResolver())}\{alias.isEmpty() ? "" : STR." \{alias}"}";
+            case Join(TemplateSource ts, var alias, _, _, _) -> {
                 var source = parse(ts.template(), false);   // Source is not correlated.
-                yield new ElementResult(STR."\n\{join.type().sql()} (\{source})\{alias.isEmpty() ? "" : STR." \{alias}"}");
+                yield STR."\n\{join.type().sql()} (\{source})\{alias.isEmpty() ? "" : STR." \{alias}"}";
             }
         };
     }
@@ -267,7 +289,7 @@ record ElementProcessor(
         return new ElementResult(aliasMapper.getAlias(it.table(), it.path(), it.scope()));
     }
 
-    ElementResult set(Set it) throws SqlTemplateException {
+    ElementResult set(Set it) throws SqlTemplateException{
         if (primaryTable == null) {
             throw new SqlTemplateException("Primary entity not found.");
         }
@@ -615,6 +637,10 @@ record ElementProcessor(
         return new ElementResult(parse(it.template(), it.correlate()));
     }
 
+    ElementResult unsafe(Unsafe it) {
+        return new ElementResult(it.sql());
+    }
+
     String parse(StringTemplate template, boolean correlate) throws SqlTemplateException{
         Callable<String> callable = () -> {
             Sql sql = sqlTemplate.process(template, true);
@@ -636,10 +662,6 @@ record ElementProcessor(
         } catch (Exception e) {
             throw new SqlTemplateException(e);
         }
-    }
-
-    ElementResult unsafe(Unsafe it) {
-        return new ElementResult(it.sql());
     }
 
     public static @Nullable List<RecordComponent> resolvePath(Class<? extends Record> root, Class<? extends Record> target) throws SqlTemplateException{

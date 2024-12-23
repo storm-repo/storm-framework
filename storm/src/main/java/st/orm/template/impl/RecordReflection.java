@@ -310,14 +310,14 @@ final class RecordReflection {
         for (var component : table.getRecordComponents()) {
             if (REFLECTION.isAnnotationPresent(component, FK.class)) {
                 if (Lazy.class.isAssignableFrom(component.getType())) {
-                    tableMapper.mapForeignKey(getLazyRecordType(component), alias, component, path);
+                    tableMapper.mapForeignKey(table, getLazyRecordType(component), alias, component, path);
                 } else {
                     if (!component.getType().isRecord()) {
                         throw new SqlTemplateException(STR."FK annotation is only allowed on record types: \{component.getType().getSimpleName()}.");
                     }
                     //noinspection unchecked
                     Class<? extends Record> componentType = (Class<? extends Record>) component.getType();
-                    tableMapper.mapForeignKey(componentType, alias, component, path);
+                    tableMapper.mapForeignKey(table, componentType, alias, component, path);
                 }
             }
         }
