@@ -488,6 +488,8 @@ record ElementProcessor(
                     : getValuesForCondition(null, table, primaryTable.alias(), sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver());
             if (valueMap.size() == 1) {
                 column = valueMap.sequencedKeySet().getFirst();
+            } else if (valueMap.isEmpty()) {
+                throw new SqlTemplateException(STR."Failed to find field on \{table.getSimpleName()} table at path '\{path}'.");
             }
         }
         // If column is still not resolved, we will let the operator take care it, and potentially raise an error.

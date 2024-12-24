@@ -210,6 +210,24 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
+    public void testSelectWithInvalidPath() {
+        var e = assertThrows(PersistenceException.class, () ->
+                ORM(dataSource).entity(Pet.class).select()
+                        .where("owner.city", EQUALS, "Sunnyvale")
+                        .getResultList());
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+    }
+
+    @Test
+    public void testSelectWithInvalidPathNoArg() {
+        var e = assertThrows(PersistenceException.class, () ->
+                ORM(dataSource).entity(Pet.class).select()
+                        .where("owner.city", IS_NULL)
+                        .getResultList());
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+    }
+
+    @Test
     void testInsertPetWithNull() {
         var e = assertThrows(PersistenceException.class, () -> {
             var repository = ORM(dataSource).entity(Visit.class);
