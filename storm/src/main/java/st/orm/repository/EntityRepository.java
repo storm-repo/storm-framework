@@ -29,6 +29,79 @@ import java.util.stream.Stream;
 
 /**
  * Provides a generic interface with CRUD operations for entities.
+ *
+ * <h2>Using Entity Repositories</h2>
+ *
+ * <p>Define the entity records to use them to in combination with repositories:</p>
+ *
+ * <pre>{@code
+ * record User(@PK int id, String email, LocalDate birthDate, @FK City city)
+ *         implements Entity<User, Integer> {};
+ * record City(@PK int id, String name, long population)
+ *         implements Entity<City, Integer> {};
+ * }</pre>
+ *
+ * <h3>Create</h3>
+ *
+ * <p>Insert a user into the database. The template engine also supports insertion of multiple entries by passing an
+ * array (or list) of entities or primary keys. Alternatively, insertion can also be executed in batch mode by using
+ * a stream of entities.</p>
+ * <pre>{@code
+ * User user = ...;
+ * ORM(dataSource).entity(User.class).insert(user);
+ * }</pre>
+ *
+ * <h3>Read</h3>
+ *
+ * <p>Select all users from the database that are linked to City with primary key 1. Alternatively,
+ * {@code getResultStream()} can be invoked to load the users lazily.</p>
+ * <pre>{@code
+ * City city = ORM(dataSource).entity(City.class).select(1);
+ * List<User> users = ORM(dataSource).entity(User.class)
+ *         .select()
+ *         .where(city)
+ *         .getResultList();
+ * }</pre>
+ *
+ * <p>The {@link QueryBuilder} also allows the previous statements to be combined into a single select query, utilizing
+ * the entity's object model:</p>
+ * <pre>{@code
+ * List<User> users = ORM(dataSource).entity(User.class)
+ *         .select()
+ *         .where("city.name", EQUALS, "Sunnyvale")
+ *         .getResultList();
+ * }</pre>
+ *
+ * <h3>Update</h3>
+ *
+ * <p>Update a user in the database. The repository also supports updates for multiple entries by passing an
+ * array or list of entities. Alternatively, updates can also be executed in batch mode by using a stream of
+ * entities.</p>
+ * <pre>{@code
+ * User user = ...;
+ * ORM(dataSource).entity(User.class).update(user);
+ * }</pre>
+ *
+ * <h3>Delete</h3>
+ *
+ * <p>Delete user in the database. The repository also supports updates for multiple entries by passing an
+ * array (or list) of entities or primary keys. Alternatively, deletion can be executed in batch mode by using a stream
+ * of entities.
+ * <pre>{@code
+ * User user = ...;
+ * ORM(dataSource).entity(User.class).delete(user);
+ * }</pre>
+ *
+ * <p>Also here, the {@link QueryBuilder} can be used to create a more specialized statement, for instance, to delete
+ * all users where the name field is NULL.</p>
+ * <pre>{@code
+ * ORM(dataSource).entity(User.class)
+ *         .delete()
+ *         .where("email", IS_NULL)
+ *         .executeUpdate();
+ * }</pre>
+ *
+ * @see QueryBuilder
  */
 public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Repository {
 

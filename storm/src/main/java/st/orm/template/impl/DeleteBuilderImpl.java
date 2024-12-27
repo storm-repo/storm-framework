@@ -33,7 +33,13 @@ import static java.lang.StringTemplate.RAW;
 import static st.orm.Templates.from;
 import static st.orm.Templates.subquery;
 
-public class DeleteBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl<T, R, ID> {
+/**
+ * A query builder for DELETE queries.
+ *
+ * @param <T> the type of the table being queried.
+ * @param <ID> the type of the primary key.
+ */
+public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T, Object, ID> {
 
     private final SqlDialect dialect;
 
@@ -50,12 +56,23 @@ public class DeleteBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
         this.dialect = Providers.getSqlDialect();
     }
 
+
+    /**
+     * Returns a new query builder instance with the specified parameters.
+     *
+     * @param queryTemplate the query template.
+     * @param fromType the type of the table being queried.
+     * @param join the list of joins.
+     * @param where the list of where clauses.
+     * @param templates the list of string templates.
+     * @return a new query builder.
+     */
     @Override
-    QueryBuilder<T, R, ID> copyWith(@Nonnull QueryTemplate queryTemplate,
-                                    @Nonnull Class<T> fromType,
-                                    @Nonnull List<Join> join,
-                                    @Nonnull List<Where> where,
-                                    @Nonnull List<StringTemplate> templates) {
+    QueryBuilder<T, Object, ID> copyWith(@Nonnull QueryTemplate queryTemplate,
+                                         @Nonnull Class<T> fromType,
+                                         @Nonnull List<Join> join,
+                                         @Nonnull List<Where> where,
+                                         @Nonnull List<StringTemplate> templates) {
         return new DeleteBuilderImpl<>(queryTemplate, fromType, join, where, templates);
     }
 
@@ -73,7 +90,7 @@ public class DeleteBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
      * @return the query builder.
      */
     @Override
-    public QueryBuilder<T, R, ID> distinct() {
+    public QueryBuilder<T, Object, ID> distinct() {
         throw new PersistenceException("Cannot use DISTINCT in a DELETE query.");
     }
 
@@ -157,7 +174,7 @@ public class DeleteBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
      *                              connectivity.
      */
     @Override
-    public Stream<R> getResultStream() {
+    public Stream<Object> getResultStream() {
         throw new PersistenceException("Cannot get a result stream from a DELETE query.");
     }
 }

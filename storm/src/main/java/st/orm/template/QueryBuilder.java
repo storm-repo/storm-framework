@@ -395,10 +395,10 @@ public interface QueryBuilder<T extends Record, R, ID> {
     QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<?, ?, ?>> predicate);
 
     /**
-     * Returns a processor that can be used to append the query with a string template.
+     * Append the query with a string template.
      *
      * @param template the string template to append.
-     * @return a processor that can be used to append the query with a string template.
+     * @return the query builder.
      */
     QueryBuilder<T, R, ID> append(@Nonnull StringTemplate template);
 
@@ -544,7 +544,9 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param <X> the type of elements in the stream.
      * @param <Y> the type of elements in the result stream.
      */
-    static <X, Y> Stream<Y> slice(@Nonnull Stream<X> stream, int batchSize, @Nonnull Function<List<X>, Stream<Y>> function) {
+    static <X, Y> Stream<Y> slice(@Nonnull Stream<X> stream,
+                                  int batchSize,
+                                  @Nonnull Function<List<X>, Stream<Y>> function) {
         return slice(stream, batchSize)
                 .flatMap(function); // Note that the flatMap operation closes the stream passed to it.
     }

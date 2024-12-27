@@ -29,6 +29,13 @@ import java.util.stream.Stream;
 import static java.lang.StringTemplate.RAW;
 import static st.orm.Templates.from;
 
+/**
+ * A query builder for SELECT queries.
+ *
+ * @param <T> the type of the table being queried.
+ * @param <R> the type of the result.
+ * @param <ID> the type of the primary key.
+ */
 public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl<T, R, ID> {
     private final StringTemplate selectTemplate;
     private final Class<R> selectType;
@@ -59,17 +66,32 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
         this.subquery = subquery;
     }
 
+    /**
+     * Returns a new query builder instance with the specified parameters.
+     *
+     * @param queryTemplate the query template.
+     * @param fromType the type of the table being queried.
+     * @param join the list of joins.
+     * @param where the list of where clauses.
+     * @param templates the list of string templates.
+     * @return a new query builder.
+     */
     @Override
-    QueryBuilder<T, R, ID> copyWith(@Nonnull QueryTemplate orm,
+    QueryBuilder<T, R, ID> copyWith(@Nonnull QueryTemplate queryTemplate,
                                     @Nonnull Class<T> fromType,
                                     @Nonnull List<Join> join,
                                     @Nonnull List<Where> where,
                                     @Nonnull List<StringTemplate> templates) {
-        return new SelectBuilderImpl<>(orm, fromType, selectType, distinct, join, where, selectTemplate, templates, subquery);
+        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, selectTemplate, templates, subquery);
     }
 
+    /**
+     * Returns true to indicate that the query supports joins, false otherwise.
+     *
+     * @return true if the query supports joins, false otherwise.
+     */
     @Override
-    boolean supportsJoin() {
+    protected boolean supportsJoin() {
         return true;
     }
 
