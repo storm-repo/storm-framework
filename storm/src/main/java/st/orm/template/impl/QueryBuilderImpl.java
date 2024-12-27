@@ -42,6 +42,13 @@ import static st.orm.template.JoinType.right;
 import static st.orm.template.Operator.EQUALS;
 import static st.orm.template.Operator.IN;
 
+/**
+ * Abstract query builder implementation.
+ *
+ * @param <T> the type of the table being queried.
+ * @param <R> the type of the result.
+ * @param <ID> the type of the primary key.
+ */
 abstract class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder<T, R, ID>, Subqueryable {
     protected final QueryTemplate queryTemplate;
     protected final Class<T> fromType;
@@ -61,30 +68,58 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder
         this.templates = List.copyOf(templates);
     }
 
-    abstract QueryBuilder<T, R, ID> copyWith(@Nonnull QueryTemplate orm,
+    /**
+     * Returns a new query builder instance with the specified parameters.
+     *
+     * @param queryTemplate the query template.
+     * @param fromType the type of the table being queried.
+     * @param join the list of joins.
+     * @param where the list of where clauses.
+     * @param templates the list of string templates.
+     * @return a new query builder.
+     */
+    abstract QueryBuilder<T, R, ID> copyWith(@Nonnull QueryTemplate queryTemplate,
                                              @Nonnull Class<T> fromType,
                                              @Nonnull List<Join> join,
                                              @Nonnull List<Where> where,
                                              @Nonnull List<StringTemplate> templates);
 
-    abstract boolean supportsJoin();
+    /**
+     * Returns true to indicate that the query supports joins, false otherwise.
+     *
+     * @return true if the query supports joins, false otherwise.
+     */
+    protected abstract boolean supportsJoin();
 
-    private QueryBuilder<T, R, ID> join(@Nonnull Join join) {
+    /**
+     * Returns a new query builder instance with the specified {@code join} added to the list of joins.
+     *
+     * @param join the join to add.
+     * @return a new query builder.
+     */
+    private QueryBuilder<T, R, ID> addJoin(@Nonnull Join join) {
         List<Join> copy = new ArrayList<>(this.join);
         copy.add(join);
         return copyWith(queryTemplate, fromType, copy, where, templates);
     }
 
-    private QueryBuilder<T, R, ID> where(@Nonnull Where where) {
+    /**
+     * Returns a new query builder instance with the specified {@code where} added to the list of where clauses.
+     *
+     * @param where the where clause to add.
+     * @return a new query builder.
+     */
+    private QueryBuilder<T, R, ID> addWhere(@Nonnull Where where) {
         List<Where> copy = new ArrayList<>(this.where);
         copy.add(where);
         return copyWith(queryTemplate, fromType, join, copy, templates);
     }
 
     /**
-     * Returns a processor that can be used to append the query with a string template.
+     * Append the query with a string template.
      *
-     * @return a processor that can be used to append the query with a string template.
+     * @param template the string template to append.
+     * @return the query builder.
      */
     @Override
     public QueryBuilder<T, R, ID> append(@Nonnull StringTemplate template) {
@@ -153,7 +188,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder
         requireNonNull(type, "type");
         requireNonNull(type, "template");
         requireNonNull(alias, "alias");
-        return onTemplate -> join(new Join(new TemplateSource(template), alias, new TemplateTarget(onTemplate), type, false));
+        return onTemplate -> addJoin(new Join(new TemplateSource(template), alias, new TemplateTarget(onTemplate), type, false));
     }
 
     /**
@@ -169,7 +204,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder
         requireNonNull(type, "type");
         requireNonNull(type, "subquery");
         requireNonNull(alias, "alias");
-        return onTemplate -> join(new Join(new TemplateSource(RAW."\{subquery}"), alias, new TemplateTarget(onTemplate), type, false));
+        return onTemplate -> addJoin(new Join(new TemplateSource(RAW."\{subquery}"), alias, new TemplateTarget(onTemplate), type, false));
     }
 
     /**
@@ -238,12 +273,12 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder
         return new TypedJoinBuilder<>() {
             @Override
             public QueryBuilder<T, R, ID> on(@Nonnull Class<? extends Record> onRelation) {
-                return join(new Join(new TableSource(relation), alias, new TableTarget(onRelation), type, false));
+                return addJoin(new Join(new TableSource(relation), alias, new TableTarget(onRelation), type, false));
             }
 
             @Override
             public QueryBuilder<T, R, ID> on(@Nonnull StringTemplate onTemplate) {
-                return join(new Join(new TableSource(relation), alias, new TemplateTarget(onTemplate), type, false));
+                return addJoin(new Join(new TableSource(relation), alias, new TemplateTarget(onTemplate), type, false));
             }
         };
     }
@@ -333,7 +368,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder
 
             private QueryBuilder<TX, RX, IDX> build(List<StringTemplate> templates) {
                 //noinspection unchecked
-                return (QueryBuilder<TX, RX, IDX>) where(new Where(new TemplateExpression(StringTemplate.combine(templates)), null));
+                return (QueryBuilder<TX, RX, IDX>) addWhere(new Where(new TemplateExpression(StringTemplate.combine(templates)), null));
             }
         }
         var whereBuilder = new WhereBuilderImpl<T, R, ID>();

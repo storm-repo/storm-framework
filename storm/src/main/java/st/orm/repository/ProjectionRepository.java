@@ -30,6 +30,7 @@ import java.util.stream.Stream;
  * Provides a generic interface with read operations for projections.
  * 
  * @since 1.1
+ * @see QueryBuilder
  */
 public interface ProjectionRepository<P extends Record & Projection<ID>, ID> extends Repository {
 
