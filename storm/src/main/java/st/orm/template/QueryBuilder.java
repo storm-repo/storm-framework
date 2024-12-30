@@ -1,3 +1,18 @@
+/*
+ * Copyright 2024 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package st.orm.template;
 
 import jakarta.annotation.Nonnull;
@@ -227,7 +242,8 @@ public interface QueryBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a condition to the WHERE clause that matches the specified object. The object can be the primary
-         * key of the table, or a record representing the table, or any of the related tables in the table graph.
+         * key of the table, or a record representing the table, or any of the related tables in the table graph or
+         * manually added joins.
          *
          * <p>If the object type cannot be unambiguously matched, the {@link #filter(String, Operator, Object...)}
          * method can be used to specify the path to the object in the table graph.</p>
@@ -239,7 +255,8 @@ public interface QueryBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects. The objects can be the primary key
-         * of the table, or a record representing the table, or any of the related tables in the table graph.
+         * of the table, or a record representing the table, or any of the related tables in the table graph or
+         * manually added joins.
          *
          * <p>If the object type cannot be unambiguously matched, the {@link #filter(String, Operator, Iterable)} method
          * can be used to specify the path to the object in the table graph.</p>
@@ -248,6 +265,28 @@ public interface QueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          */
         PredicateBuilder<T, R, ID> filter(@Nonnull Iterable<?> it);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
+         * graph. When the objects are records representing a table, the `path` acts as a search path to locate the
+         * table within the table graph - meaning it does not need to be an exact match. In other scenarios, where the
+         * objects represent fields (including primary keys), the `path` must be an exact match to the field's location
+         * in the table graph. The path is represented by a metamodel, which enforce type safety for the path and the
+         * objects.
+         *
+         * @param path the metamodel to use for the path.
+         * @param operator the operator to use for the comparison.
+         * @param it the objects to match, which can be primary keys, records representing the table, or fields in the
+         *           table graph.
+         * @return the predicate builder.
+         * @param <V> the type of the object that the metamodel represents.
+         * @since 1.2
+         */
+        default <V> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path,
+                                                      @Nonnull Operator operator,
+                                                      @Nonnull Iterable<V> it) {
+            return filter(path.path(), operator, it);
+        }
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
@@ -264,6 +303,30 @@ public interface QueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          */
         PredicateBuilder<T, R, ID> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
+         * graph. When the objects are records representing a table, the `path` acts as a search path to locate the
+         * table within the table graph - meaning it does not need to be an exact match. In other scenarios, where the
+         * objects represent fields (including primary keys), the `path` must be an exact match to the field's location
+         * in the table graph. The path is represented by a metamodel, which enforce type safety for the path and the
+         * objects.
+         *
+         * @param path the metamodel to use for the path.
+         * @param operator the operator to use for the comparison.
+         * @param o the objects to match, which can be primary keys, records representing the table, or fields in the
+         *           table graph.
+         * @return the predicate builder.
+         * @param <V> the type of the object that the metamodel represents.
+         * @since 1.2
+         */
+        @SuppressWarnings("unchecked")
+        default <V> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path,
+                                                      @Nonnull Operator operator,
+                                                      @Nonnull V... o) {
+            //noinspection ConfusingArgumentToVarargsMethod
+            return filter(path.path(), operator, o);
+        }
 
         /**
          * Adds a condition to the WHERE clause that matches the specified object(s) at the specified path in the table
@@ -319,12 +382,12 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * of the table, or a record representing the table, or any of the related tables in the table graph.
      *
      * <p>If the object type cannot be unambiguously matched, the {@link #where(String, Operator, Object...)} method
-     * can be used to specify the path to the object in the table graph.</p>
+     * can be used to specify the path to the object in the table graph or manually added joins.</p>
      *
      * @param o the object(s) to match.
      * @return the query builder.
      */
-    default QueryBuilder<T, R, ID> where(@Nonnull Object o) {
+    default QueryBuilder<T, R, ID> where(@Nonnull Object... o) {
         return where(predicate -> predicate.filter(o));
     }
 
@@ -333,13 +396,34 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * the table, or a record representing the table, or any of the related tables in the table graph.
      *
      * <p>If the object type cannot be unambiguously matched, the {@link #where(String, Operator, Iterable)} method
-     * can be used to specify the path to the object in the table graph.</p>
+     * can be used to specify the path to the object in the table graph or manually added joins.</p>
      *
      * @param it the objects to match.
      * @return the query builder.
      */
     default QueryBuilder<T, R, ID> where(@Nonnull Iterable<?> it) {
         return where(predicate -> predicate.filter(it));
+    }
+
+    /**
+     * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
+     * graph. When the objects are records representing a table, the `path` acts as a search path to locate the table
+     * within the table graph — meaning it does not need to be an exact match. In other scenarios, where the objects
+     * represent fields (including primary keys), the `path` must be an exact match to the field's location in the table
+     * graph. The path is represented by a metamodel, which enforce type safety for the path and the objects.
+     *
+     * @param path the metamodel to use for the path.
+     * @param operator the operator to use for the comparison.
+     * @param it the objects to match, which can be primary keys, records representing the table, or fields in the table
+     *           graph.
+     * @return the query builder.
+     * @param <V> the type of the object that the metamodel represents.
+     * @since 1.2
+     */
+    default <V> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
+                                             @Nonnull Operator operator,
+                                             @Nonnull Iterable<V> it) {
+        return where(path.path(), operator, it);
     }
 
     /**
@@ -358,6 +442,29 @@ public interface QueryBuilder<T extends Record, R, ID> {
      */
     default QueryBuilder<T, R, ID> where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
         return where(predicate -> predicate.filter(path, operator, it));
+    }
+
+    /**
+     * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
+     * graph. When the objects are records representing a table, the `path` acts as a search path to locate the table
+     * within the table graph — meaning it does not need to be an exact match. In other scenarios, where the objects
+     * represent fields (including primary keys), the `path` must be an exact match to the field's location in the table
+     * graph. The path is represented by a metamodel, which enforce type safety for the path and the objects.
+     *
+     * @param path the path to the object in the table graph. For record (table) based filters, this is a search path to
+     *             the table.
+     * @param operator the operator to use for the comparison.
+     * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the table graph.
+     * @return the query builder.
+     * @param <V> the type of the object that the metamodel represents.
+     * @since 1.2
+     */
+    @SuppressWarnings("unchecked")
+    default <V> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
+                                             @Nonnull Operator operator,
+                                             @Nonnull V... o) {
+        //noinspection ConfusingArgumentToVarargsMethod
+        return where(path.path(), operator, o);
     }
 
     /**

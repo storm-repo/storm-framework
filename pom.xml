@@ -10,10 +10,11 @@
     </parent>
     <groupId>st.orm</groupId>
     <artifactId>storm-framework</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <packaging>pom</packaging>
     <modules>
         <module>storm</module>
+        <module>storm-metamodel-processor</module>
         <module>storm-json</module>
         <module>storm-mysql</module>
         <module>storm-mariadb</module>
@@ -27,20 +28,6 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <kotlin.version>2.0.20</kotlin.version>
     </properties>
-    <dependencyManagement>
-        <dependencies>
-<!--            <dependency>-->
-<!--                <groupId>jakarta.persistence</groupId>-->
-<!--                <artifactId>jakarta.persistence-api</artifactId>-->
-<!--                <version>3.0.0</version>-->
-<!--            </dependency>-->
-<!--            <dependency>-->
-<!--                <groupId>jakarta.annotation</groupId>-->
-<!--                <artifactId>jakarta.annotation-api</artifactId>-->
-<!--                <version>3.0.0</version>-->
-<!--            </dependency>-->
-        </dependencies>
-    </dependencyManagement>
     <build>
         <pluginManagement>
                 <plugins>
@@ -51,7 +38,6 @@
                             <source>${java.version}</source>
                             <target>${java.version}</target>
                             <release>${java.version}</release>
-                            <compilerArgs>--enable-preview</compilerArgs>
                         </configuration>
                     </plugin>
                     <plugin>
