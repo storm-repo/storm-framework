@@ -19,6 +19,7 @@ import jakarta.annotation.Nonnull;
 import st.orm.PersistenceException;
 import st.orm.Query;
 import st.orm.repository.Column;
+import st.orm.repository.Model;
 import st.orm.spi.Providers;
 import st.orm.spi.SqlDialect;
 import st.orm.template.QueryBuilder;
@@ -27,6 +28,7 @@ import st.orm.template.impl.Elements.Where;
 import st.orm.template.impl.SqlTemplateImpl.Join;
 
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static java.lang.StringTemplate.RAW;
@@ -43,16 +45,17 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
 
     private final SqlDialect dialect;
 
-    public DeleteBuilderImpl(@Nonnull QueryTemplate orm, @Nonnull Class<T> fromType) {
-        this(orm, fromType, List.of(), List.of(), List.of());
+    public DeleteBuilderImpl(@Nonnull QueryTemplate orm, @Nonnull Class<T> fromType, @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+        this(orm, fromType, List.of(), List.of(), List.of(), modelSupplier);
     }
 
     private DeleteBuilderImpl(@Nonnull QueryTemplate queryTemplate,
                               @Nonnull Class<T> fromType,
                               @Nonnull List<Join> join,
                               @Nonnull List<Where> where,
-                              @Nonnull List<StringTemplate> templates) {
-        super(queryTemplate, fromType, join, where, templates);
+                              @Nonnull List<StringTemplate> templates,
+                              @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+        super(queryTemplate, fromType, join, where, templates, modelSupplier);
         this.dialect = Providers.getSqlDialect();
     }
 
@@ -73,7 +76,7 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
                                          @Nonnull List<Join> join,
                                          @Nonnull List<Where> where,
                                          @Nonnull List<StringTemplate> templates) {
-        return new DeleteBuilderImpl<>(queryTemplate, fromType, join, where, templates);
+        return new DeleteBuilderImpl<>(queryTemplate, fromType, join, where, templates, modelSupplier);
     }
 
     /**

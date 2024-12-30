@@ -37,6 +37,19 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
     }
 
     /**
+     * Returns a typed query builder for the specified primary key type.
+     *
+     * @param pkType the primary key type.
+     * @return the typed query builder.
+     * @param <X> the type of the primary key.
+     * @throws PersistenceException if the pk type is not valid.
+     */
+    @Override
+    public <X> KQueryBuilder<T, R, X> typedPk(@NotNull Class<X> pkType) {
+        return new KQueryBuilderImpl<>(builder.typedPk(pkType));
+    }
+
+    /**
      * Marks the current query as a distinct query.
      *
      * @return the query builder.
@@ -275,12 +288,22 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull Object o) {
+        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull IDX o) {
             return new KPredicateBuilderImpl<>(whereBuilder.filter(o));
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull Iterable<?> it) {
+        public KPredicateBuilder<TX, RX, IDX> filter(@NotNull Record record) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filter(record));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> filterIds(@Nonnull Iterable<? extends IDX> it) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filterIds(it));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull Iterable<? extends Record> it) {
             return new KPredicateBuilderImpl<>(whereBuilder.filter(it));
         }
 

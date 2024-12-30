@@ -136,6 +136,7 @@ public class BuilderPreparedStatementIntegrationTest {
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
             ORM(dataSource)
                     .selectFrom(Vet.class)
+                    .typedPk(Integer.class)
                     .where(1)
                     .where(2)
                     .getResultList();
@@ -147,6 +148,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithWhere() {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
+                .typedPk(Integer.class)
                 .where(it -> it.filter(1).or(it.filter(2)))
                 .getResultList();
         assertEquals(2, list.size());
@@ -205,6 +207,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithWhereTemplate() {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
+                .typedPk(Integer.class)
                 .where(it -> it.filter(1).or(it.expression(RAW."\{Vet.class}.id = 2")))
                 .getResultList();
         assertEquals(2, list.size());
@@ -223,6 +226,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithWhereTemplateFunctionAfterOr() {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
+                .typedPk(Integer.class)
                 .where(it -> it.filter(1).or(
                         it.expression(template(ctx -> STR."\{ctx.invoke(Vet.class)}.id = \{ctx.invoke(2)}"))))
                 .getResultList();

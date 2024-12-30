@@ -156,20 +156,20 @@ public final class Providers {
             @Nonnull Class<T> fromType,
             @Nonnull Class<R> selectType,
             @Nonnull StringTemplate template,
-            boolean subquery) {
-        //noinspection unchecked
-        return (QueryBuilder<T, R, ID>) Orderable.sort(QUERY_BUILDER_REPOSITORY_PROVIDERS.get().stream())
-                .map(provider -> provider.selectFrom(queryTemplate, fromType, selectType, template, subquery))
+            boolean subquery,
+            @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+        return Orderable.sort(QUERY_BUILDER_REPOSITORY_PROVIDERS.get().stream())
+                .map(provider -> provider.selectFrom(queryTemplate, fromType, selectType, template, subquery, modelSupplier))
                 .findFirst()
                 .orElseThrow();
     }
 
     public static <T extends Record, ID> QueryBuilder<T, ?, ID> deleteFrom(
             @Nonnull QueryTemplate queryTemplate,
-            @Nonnull Class<T> fromType) {
-        //noinspection unchecked
-        return (QueryBuilder<T, ?, ID>) Orderable.sort(QUERY_BUILDER_REPOSITORY_PROVIDERS.get().stream())
-                .map(provider -> provider.deleteFrom(queryTemplate, fromType))
+            @Nonnull Class<T> fromType,
+            @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+        return Orderable.sort(QUERY_BUILDER_REPOSITORY_PROVIDERS.get().stream())
+                .map(provider -> provider.deleteFrom(queryTemplate, fromType, modelSupplier))
                 .findFirst()
                 .orElseThrow();
     }

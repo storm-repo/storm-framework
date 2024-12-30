@@ -16,6 +16,8 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.PersistenceException;
+import st.orm.repository.Model;
 import st.orm.template.JoinType;
 import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
@@ -32,6 +34,7 @@ import st.orm.template.impl.SqlTemplateImpl.Join;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static java.lang.StringTemplate.RAW;
 import static java.util.Objects.requireNonNull;
@@ -55,17 +58,38 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder
     protected final List<Join> join;
     protected final List<Where> where;
     protected final List<StringTemplate> templates;
+    protected final Supplier<Model<T, ID>> modelSupplier;
 
     protected QueryBuilderImpl(@Nonnull QueryTemplate queryTemplate,
                                @Nonnull Class<T> fromType,
                                @Nonnull List<Join> join,
                                @Nonnull List<Where> where,
-                               @Nonnull List<StringTemplate> templates) {
+                               @Nonnull List<StringTemplate> templates,
+                               @Nonnull Supplier<Model<T, ID>> modelSupplier) {
         this.queryTemplate = queryTemplate;
         this.fromType = fromType;
         this.join = List.copyOf(join);
         this.where = List.copyOf(where);
         this.templates = List.copyOf(templates);
+        this.modelSupplier = requireNonNull(modelSupplier, "modelSupplier");
+    }
+
+    /**
+     * Returns a typed query builder for the specified primary key type.
+     *
+     * @param pkType the primary key type.
+     * @return the typed query builder.
+     * @param <X> the type of the primary key.
+     * @throws PersistenceException if the pk type is not valid.
+     */
+    @Override
+    public <X> QueryBuilder<T, R, X> typedPk(@Nonnull Class<X> pkType) {
+        Model<T, ID> model = modelSupplier.get();
+        if (model.primaryKeyType() != pkType) {
+            throw new PersistenceException(STR."Primary key type mismatch: expected \{model.primaryKeyType()}, got \{pkType}.");
+        }
+        //noinspection unchecked
+        return (QueryBuilder<T, R, X>) this;
     }
 
     /**
@@ -347,12 +371,22 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull Object o) {
-                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(o, EQUALS, null)}");
+            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull IDX id) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(id, EQUALS, null)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull Iterable<?> it) {
+            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull Record record) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(record, EQUALS, null)}");
+            }
+
+            @Override
+            public PredicateBuilder<TX, RX, IDX> filterIds(@Nonnull Iterable<? extends IDX> it) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(it, IN, null)}");
+            }
+
+            @Override
+            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull Iterable<? extends Record> it) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(it, IN, null)}");
             }
 

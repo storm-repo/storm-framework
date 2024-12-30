@@ -101,7 +101,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
      */
     @Override
     public QueryBuilder<E, ?, ID> delete() {
-        return deleteFrom(orm, model.type());
+        return deleteFrom(orm, model.type(), () -> model);
     }
 
     /**

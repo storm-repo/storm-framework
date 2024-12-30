@@ -16,11 +16,14 @@
 package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
+import st.orm.repository.Model;
 import st.orm.spi.Orderable.AfterAny;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryTemplate;
 import st.orm.template.impl.DeleteBuilderImpl;
 import st.orm.template.impl.SelectBuilderImpl;
+
+import java.util.function.Supplier;
 
 @AfterAny
 public class DefaultQueryBuilderProviderImpl implements QueryBuilderProvider {
@@ -30,13 +33,15 @@ public class DefaultQueryBuilderProviderImpl implements QueryBuilderProvider {
                                                                        @Nonnull Class<T> fromType,
                                                                        @Nonnull Class<R> selectType,
                                                                        @Nonnull StringTemplate template,
-                                                                       boolean subquery) {
-        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, template, subquery);
+                                                                       boolean subquery,
+                                                                       @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, template, subquery, modelSupplier);
     }
 
     @Override
     public <T extends Record, ID> QueryBuilder<T, ?, ID> deleteFrom(@Nonnull QueryTemplate queryTemplate,
-                                                                    @Nonnull Class<T> fromType) {
-        return new DeleteBuilderImpl<>(queryTemplate, fromType);
+                                                                    @Nonnull Class<T> fromType,
+                                                                    @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+        return new DeleteBuilderImpl<>(queryTemplate, fromType, modelSupplier);
     }
 }

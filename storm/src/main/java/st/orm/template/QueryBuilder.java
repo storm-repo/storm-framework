@@ -44,6 +44,16 @@ import static java.util.Spliterators.spliteratorUnknownSize;
 public interface QueryBuilder<T extends Record, R, ID> {
 
     /**
+     * Returns a typed query builder for the specified primary key type.
+     *
+     * @param pkType the primary key type.
+     * @return the typed query builder.
+     * @param <X> the type of the primary key.
+     * @throws PersistenceException if the pk type is not valid.
+     */
+    <X> QueryBuilder<T, R, X> typedPk(@Nonnull Class<X> pkType);
+
+    /**
      * Marks the current query as a distinct query.
      *
      * @return the query builder.
@@ -241,30 +251,44 @@ public interface QueryBuilder<T extends Record, R, ID> {
         PredicateBuilder<T, R, ID> notExists(@Nonnull QueryBuilder<?, ?, ?> subquery);
 
         /**
-         * Adds a condition to the WHERE clause that matches the specified object. The object can be the primary
-         * key of the table, or a record representing the table, or any of the related tables in the table graph or
-         * manually added joins.
+         * Adds a condition to the WHERE clause that matches the specified primary key of the table.
          *
-         * <p>If the object type cannot be unambiguously matched, the {@link #filter(String, Operator, Object...)}
-         * method can be used to specify the path to the object in the table graph.</p>
-         *
-         * @param o the object to match.
+         * @param id the id to match.
          * @return the predicate builder.
          */
-        PredicateBuilder<T, R, ID> filter(@Nonnull Object o);
+        PredicateBuilder<T, R, ID> filter(@Nonnull ID id);
 
         /**
-         * Adds a condition to the WHERE clause that matches the specified objects. The objects can be the primary key
-         * of the table, or a record representing the table, or any of the related tables in the table graph or
-         * manually added joins.
+         * Adds a condition to the WHERE clause that matches the specified record. The record can represent the table,
+         * or any of the related tables in the table graph or manually added joins.
          *
-         * <p>If the object type cannot be unambiguously matched, the {@link #filter(String, Operator, Iterable)} method
-         * can be used to specify the path to the object in the table graph.</p>
+         * <p>If the record type cannot be unambiguously matched, the {@link #filter(String, Operator, Object...)}
+         * method can be used to specify the path to the record in the table graph.</p>
          *
-         * @param it the objects to match.
+         * @param record the record to match.
          * @return the predicate builder.
          */
-        PredicateBuilder<T, R, ID> filter(@Nonnull Iterable<?> it);
+        PredicateBuilder<T, R, ID> filter(@Nonnull Record record);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified primary keys of the table.
+         *
+         * @param it the ids to match.
+         * @return the predicate builder.
+         */
+        PredicateBuilder<T, R, ID> filterIds(@Nonnull Iterable<? extends ID> it);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified records. The records can represent the table,
+         * or any of the related tables in the table graph or manually added joins.
+         *
+         * <p>If the record type cannot be unambiguously matched, the {@link #filter(String, Operator, Iterable)} method
+         * can be used to specify the path to the object in the table graph.</p>
+         *
+         * @param it the records to match.
+         * @return the predicate builder.
+         */
+        PredicateBuilder<T, R, ID> filter(@Nonnull Iterable<? extends Record> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
@@ -284,7 +308,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
          */
         default <V> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path,
                                                       @Nonnull Operator operator,
-                                                      @Nonnull Iterable<V> it) {
+                                                      @Nonnull Iterable<? extends V> it) {
             return filter(path.path(), operator, it);
         }
 
@@ -378,30 +402,50 @@ public interface QueryBuilder<T extends Record, R, ID> {
     }
 
     /**
-     * Adds a condition to the WHERE clause that matches the specified object(s). The object(s) can be the primary key
-     * of the table, or a record representing the table, or any of the related tables in the table graph.
+     * Adds a condition to the WHERE clause that matches the specified primary key(s) of the table.
      *
-     * <p>If the object type cannot be unambiguously matched, the {@link #where(String, Operator, Object...)} method
-     * can be used to specify the path to the object in the table graph or manually added joins.</p>
-     *
-     * @param o the object(s) to match.
+     * @param id the id(s) to match.
      * @return the query builder.
      */
-    default QueryBuilder<T, R, ID> where(@Nonnull Object... o) {
-        return where(predicate -> predicate.filter(o));
+    default QueryBuilder<T, R, ID> where(@Nonnull ID id) {
+        return where(predicate -> predicate.filter(id));
     }
 
     /**
-     * Adds a condition to the WHERE clause that matches the specified objects. The objects can be the primary key of
-     * the table, or a record representing the table, or any of the related tables in the table graph.
+     * Adds a condition to the WHERE clause that matches the specified record(s). The record can be representing the
+     * table, or any of the related tables in the table graph or manually added joins.
      *
-     * <p>If the object type cannot be unambiguously matched, the {@link #where(String, Operator, Iterable)} method
-     * can be used to specify the path to the object in the table graph or manually added joins.</p>
+     * <p>If the record type cannot be unambiguously matched, the {@link #where(String, Operator, Object...)} method
+     * can be used to specify the path to the record in the table graph or manually added joins.</p>
      *
-     * @param it the objects to match.
+     * @param record the record(s) to match.
      * @return the query builder.
      */
-    default QueryBuilder<T, R, ID> where(@Nonnull Iterable<?> it) {
+    default QueryBuilder<T, R, ID> where(@Nonnull Record record) {
+        return where(predicate -> predicate.filter(record));
+    }
+
+    /**
+     * Adds a condition to the WHERE clause that matches the specified primary keys of the table.
+     *
+     * @param it ids to match.
+     * @return the query builder.
+     */
+    default QueryBuilder<T, R, ID> whereIds(@Nonnull Iterable<? extends ID> it) {
+        return where(predicate -> predicate.filterIds(it));
+    }
+
+    /**
+     * Adds a condition to the WHERE clause that matches the specified records. The records can represent the table,
+     * or any of the related tables in the table graph or manually added joins.
+     *
+     * <p>If the record type cannot be unambiguously matched, the {@link #where(String, Operator, Iterable)} method
+     * can be used to specify the path to the object in the table graph.</p>
+     *
+     * @param it the objects to match.
+     * @return the predicate builder.
+     */
+    default QueryBuilder<T, R, ID> where(@Nonnull Iterable<? extends Record> it) {
         return where(predicate -> predicate.filter(it));
     }
 
@@ -422,7 +466,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      */
     default <V> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
                                              @Nonnull Operator operator,
-                                             @Nonnull Iterable<V> it) {
+                                             @Nonnull Iterable<? extends V> it) {
         return where(path.path(), operator, it);
     }
 
@@ -463,8 +507,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
     default <V> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
                                              @Nonnull Operator operator,
                                              @Nonnull V... o) {
-        //noinspection ConfusingArgumentToVarargsMethod
-        return where(path.path(), operator, o);
+        return where(path.path(), operator, (Object[]) o);
     }
 
     /**
