@@ -43,10 +43,12 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
      * @return the typed query builder.
      * @param <X> the type of the primary key.
      * @throws PersistenceException if the pk type is not valid.
+     * @since 1.2
      */
     @Override
-    public <X> KQueryBuilder<T, R, X> typedPk(@NotNull Class<X> pkType) {
-        return new KQueryBuilderImpl<>(builder.typedPk(pkType));
+    public <X> KQueryBuilder<T, R, X> typed(@NotNull KClass<X> pkType) {
+        //noinspection unchecked
+        return new KQueryBuilderImpl<>(builder.typed((Class<X>) REFLECTION.getType(pkType)));
     }
 
     /**

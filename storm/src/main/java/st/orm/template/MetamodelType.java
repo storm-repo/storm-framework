@@ -18,18 +18,23 @@ package st.orm.template;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
+import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
+import static java.lang.annotation.ElementType.PARAMETER;
+import static java.lang.annotation.ElementType.RECORD_COMPONENT;
 import static java.lang.annotation.ElementType.TYPE;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
- * Indicates that a metamodel class should be generated for the annotated record.
- *
- * <p>Note that this annotation is not required for records implementing {@code Entity} or {@code Projection}, as they
- * are automatically included when the annotation processor is enabled.</p>
+ * Marks an annotation type to represented as the specified type in the {@code Metamodel}.
  *
  * @since 1.2
  */
-@Target(TYPE)
+@Target({TYPE, ANNOTATION_TYPE, RECORD_COMPONENT, PARAMETER})
 @Retention(RUNTIME)
-public @interface GenerateMetamodel {
+public @interface MetamodelType {
+
+    /**
+     * Specifies how the type must be represented in the {@code Metamodel}.
+     */
+    Class<?> value();
 }

@@ -81,9 +81,10 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder
      * @return the typed query builder.
      * @param <X> the type of the primary key.
      * @throws PersistenceException if the pk type is not valid.
+     * @since 1.2
      */
     @Override
-    public <X> QueryBuilder<T, R, X> typedPk(@Nonnull Class<X> pkType) {
+    public <X> QueryBuilder<T, R, X> typed(@Nonnull Class<X> pkType) {
         Model<T, ID> model = modelSupplier.get();
         if (model.primaryKeyType() != pkType) {
             throw new PersistenceException(STR."Primary key type mismatch: expected \{model.primaryKeyType()}, got \{pkType}.");

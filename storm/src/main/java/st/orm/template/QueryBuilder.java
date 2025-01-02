@@ -50,8 +50,9 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @return the typed query builder.
      * @param <X> the type of the primary key.
      * @throws PersistenceException if the pk type is not valid.
+     * @since 1.2
      */
-    <X> QueryBuilder<T, R, X> typedPk(@Nonnull Class<X> pkType);
+    <X> QueryBuilder<T, R, X> typed(@Nonnull Class<X> pkType);
 
     /**
      * Marks the current query as a distinct query.
@@ -309,7 +310,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
         default <V> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path,
                                                       @Nonnull Operator operator,
                                                       @Nonnull Iterable<? extends V> it) {
-            return filter(path.path(), operator, it);
+            return filter(path.componentPath(), operator, it);
         }
 
         /**
@@ -349,7 +350,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
                                                       @Nonnull Operator operator,
                                                       @Nonnull V... o) {
             //noinspection ConfusingArgumentToVarargsMethod
-            return filter(path.path(), operator, o);
+            return filter(path.componentPath(), operator, o);
         }
 
         /**
@@ -467,7 +468,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
     default <V> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
                                              @Nonnull Operator operator,
                                              @Nonnull Iterable<? extends V> it) {
-        return where(path.path(), operator, it);
+        return where(path.componentPath(), operator, it);
     }
 
     /**
@@ -507,7 +508,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
     default <V> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
                                              @Nonnull Operator operator,
                                              @Nonnull V... o) {
-        return where(path.path(), operator, (Object[]) o);
+        return where(path.componentPath(), operator, (Object[]) o);
     }
 
     /**

@@ -28,12 +28,14 @@ import st.orm.spi.Providers;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
 import st.orm.template.JoinType;
+import st.orm.template.Metamodel;
 import st.orm.template.Sql;
 import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.TableAliasResolver;
 import st.orm.template.TableNameResolver;
 import st.orm.template.impl.Elements.Alias;
+import st.orm.template.impl.Elements.Column;
 import st.orm.template.impl.Elements.Delete;
 import st.orm.template.impl.Elements.Expression;
 import st.orm.template.impl.Elements.From;
@@ -518,8 +520,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 }
                 case Expression _ -> throw new SqlTemplateException("Expression element not allowed in this context.");
                 case BindVars b -> resolveBindVarsElement(sqlMode, p, b);
-                case Subqueryable t -> new Subquery(t.getStringTemplate(), true); // Correlate implicit subqueries.
-                case StringTemplate t -> new Subquery(t, true);                 // Correlate implicit subqueries.
+                case Subqueryable t -> new Subquery(t.getStringTemplate(), true);   // Correlate implicit subqueries.
+                case StringTemplate t -> new Subquery(t, true);                     // Correlate implicit subqueries.
+                case Metamodel<?, ?> m -> new Column(m, CASCADE);
                 case Object[] a -> resolveArrayElement(sqlMode, p, a);
                 case Iterable<?> l -> resolveIterableElement(sqlMode, p, l);
                 case Element e -> e;

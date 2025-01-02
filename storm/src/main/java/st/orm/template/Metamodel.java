@@ -16,18 +16,49 @@
 package st.orm.template;
 
 /**
- * The metamodel interface helps to define the path to the database field or table.
+ * The metamodel is used to map database columns to the object model in a type-safe way.
  *
- * @param <E> the record type.
- * @param <T> the type of the record component.
+ * @param <T> the primary table type.
+ * @param <E> the record component type of the designated element.
  * @since 1.2
  */
-public interface Metamodel<E extends Record, T> {
+public interface Metamodel<T extends Record, E> {
 
     /**
-     * Returns the path to the database field or table.
+     * Returns the record type of the designated element.
      *
-     * @return path to the database field or table.
+     * @return the record type of the designated element.
+     */
+    Class<? extends Record> table();
+
+    /**
+     * Returns the record component type of the designated element.
+     *
+     * @return the record component type of the designated element.
+     */
+    Class<E> componentType();
+
+    /**
+     * Returns the path to the database table.
+     *
+     * @return path to the database table.
      */
     String path();
+
+    /**
+     * Returns the component path.
+     *
+     * @return component path.
+     */
+    String component();
+
+    /**
+     * Returns the component path.
+     *
+     * @return component path.
+     */
+    default String componentPath() {
+        String path = path();
+        return path.isEmpty() ? component() : STR."\{path}.\{component()}";
+    }
 }

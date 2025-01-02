@@ -29,6 +29,7 @@ import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
+import st.orm.template.Metamodel;
 import st.orm.template.Operator;
 import st.orm.template.Sql;
 import st.orm.template.SqlTemplate.BindVariables;
@@ -37,6 +38,7 @@ import st.orm.template.SqlTemplate.Parameter;
 import st.orm.template.SqlTemplate.PositionalParameter;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.impl.Elements.Alias;
+import st.orm.template.impl.Elements.Column;
 import st.orm.template.impl.Elements.Delete;
 import st.orm.template.impl.Elements.Expression;
 import st.orm.template.impl.Elements.From;
@@ -159,6 +161,7 @@ record ElementProcessor(
                 case Join it -> join(it);
                 case Table it -> table(it);
                 case Alias it -> alias(it);
+                case Column it -> column(it);
                 case Set it -> set(it);
                 case Where it -> where(it);
                 case Values it -> values(it);
@@ -289,9 +292,21 @@ record ElementProcessor(
         return new ElementResult(aliasMapper.getAlias(it.table(), it.path(), it.scope()));
     }
 
+    ElementResult column(Column it) throws SqlTemplateException {
+        String alias = aliasMapper.getAlias(it.table(), it.path(), it.scope());
+        RecordComponent component = getRecordComponent(it.table(), it.component());
+        String columnName;
+        if (REFLECTION.isAnnotationPresent(component, FK.class)) {
+            columnName = getForeignKey(component, sqlTemplate.foreignKeyResolver());
+        } else {
+            columnName = getColumnName(component, sqlTemplate.columnNameResolver());
+        }
+        return new ElementResult(STR."\{alias}.\{columnName}");
+    }
+
     ElementResult set(Set it) throws SqlTemplateException{
         if (primaryTable == null) {
-            throw new SqlTemplateException("Primary entity not found.");
+            throw new SqlTemplateException("Primary table not found.");
         }
         if (it.record() != null) {
             if (!primaryTable.table().isInstance(it.record())) {
@@ -357,10 +372,11 @@ record ElementProcessor(
         throw new SqlTemplateException("No values found for Set.");
     }
 
-    private Object resolveSubqueries(@Nullable Object value) {
+    private Object resolveElements(@Nullable Object value) {
         return switch (value) {
             case Subqueryable t -> new Subquery(t.getStringTemplate(), true);
             case StringTemplate t -> new Subquery(t, true);
+            case Metamodel<?, ?> m -> new Column(m, CASCADE);
             case null, default -> value;
         };
     }
@@ -373,10 +389,11 @@ record ElementProcessor(
             String fragment = fragments.get(i);
             parts.add(fragment);
             if (i < values.size()) {
-                Object value = resolveSubqueries(values.get(i));
+                Object value = resolveElements(values.get(i));
                 switch (value) {
                     case Expression exp -> parts.add(getExpressionString(exp));
                     case Subquery s -> parts.add(parse(s.template(), s.correlate()));
+                    case Column c -> parts.add(column(c).get());
                     case Unsafe u -> parts.add(u.sql());
                     case Table t -> parts.add(STR."\{getTableName(t.table(), sqlTemplate.tableNameResolver())}\{t.alias().isEmpty() ? "" : STR." \{t.alias()}"}");
                     case Alias a -> parts.add(aliasMapper.getAlias(a.table(), a.path(), a.scope()));
@@ -666,7 +683,46 @@ record ElementProcessor(
         }
     }
 
-    public static @Nullable List<RecordComponent> resolvePath(Class<? extends Record> root, Class<? extends Record> target) throws SqlTemplateException{
+    /**
+     * Looks up the record component in the given table, taking the {@code component} path into account.
+     */
+    private static RecordComponent getRecordComponent(@Nonnull Class<? extends Record> table,
+                                                      @Nonnull String component) throws SqlTemplateException {
+        // Split on '.' to handle nested components (e.g., "x.y.z").
+        String[] parts = component.split("\\.");
+        Class<? extends Record> currentRecordClass = table;
+        RecordComponent foundComponent = null;
+        for (int i = 0; i < parts.length; i++) {
+            String part = parts[i];
+            // Get record components for the current record class.
+            RecordComponent[] components = currentRecordClass.getRecordComponents();
+            foundComponent = null;
+            for (RecordComponent c : components) {
+                if (c.getName().equals(part)) {
+                    foundComponent = c;
+                    break;
+                }
+            }
+            if (foundComponent == null) {
+                throw new SqlTemplateException(STR."No component named '\{part}' found in record \{currentRecordClass.getName()}.");
+            }
+            // If there's still a next part to search, update currentRecordClass if possible.
+            boolean hasNextPart = (i < parts.length - 1);
+            if (hasNextPart) {
+                // The type of the found component must be another record to continue drilling down.
+                if (Record.class.isAssignableFrom(foundComponent.getType())) {
+                    @SuppressWarnings("unchecked")
+                    Class<? extends Record> nextRecordClass = (Class<? extends Record>) foundComponent.getType();
+                    currentRecordClass = nextRecordClass;
+                } else {
+                    throw new SqlTemplateException(STR."Component '\{part}' in record \{currentRecordClass.getName()} is not a record, but further components were specified: '\{component}'.");
+                }
+            }
+        }
+        return foundComponent;
+    }
+
+    private static @Nullable List<RecordComponent> resolvePath(Class<? extends Record> root, Class<? extends Record> target) throws SqlTemplateException{
         List<RecordComponent> path = new ArrayList<>();
         List<RecordComponent> searchPath = new ArrayList<>(); // Temporary path for exploration.
         int pathsFound = resolvePath(root, target, searchPath, path, 0);

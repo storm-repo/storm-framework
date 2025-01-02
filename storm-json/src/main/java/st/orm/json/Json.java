@@ -15,6 +15,8 @@
  */
 package st.orm.json;
 
+import st.orm.template.MetamodelType;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
@@ -27,5 +29,6 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  */
 @Target({RECORD_COMPONENT, PARAMETER})
 @Retention(RUNTIME)
+@MetamodelType(String.class)
 public @interface Json {
 }

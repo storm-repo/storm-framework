@@ -18,6 +18,7 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.BindVars;
+import st.orm.template.Metamodel;
 import st.orm.template.Operator;
 import st.orm.template.ResolveScope;
 
@@ -115,10 +116,24 @@ public final class Elements {
     }
 
     public record Alias(@Nonnull Class<? extends Record> table, @Nullable String path, @Nonnull ResolveScope scope) implements Element {
-
         public Alias {
             requireNonNull(table, "table");
             requireNonNull(scope, "scope");
+        }
+        public Alias(@Nonnull Metamodel<?, ?> metamodel, @Nonnull ResolveScope scope) {
+            this(metamodel.table(), metamodel.path().isEmpty() ? null : metamodel.path(), scope);
+        }
+    }
+
+    public record Column(@Nonnull Class<? extends Record> table, @Nonnull String component, @Nullable String path, @Nonnull ResolveScope scope) implements Element {
+        public Column {
+            requireNonNull(table, "table");
+            requireNonNull(component, "component");
+            requireNonNull(scope, "scope");
+        }
+
+        public Column(@Nonnull Metamodel<?, ?> metamodel, @Nonnull ResolveScope scope) {
+            this(metamodel.table(), metamodel.component(), metamodel.path().isEmpty() ? null : metamodel.path(), scope);
         }
     }
 

@@ -15,17 +15,14 @@
  */
 package st.orm.metamodel;
 
-import jakarta.annotation.Nonnull;
-import st.orm.repository.Entity;
-import st.orm.repository.Projection;
-import st.orm.template.GenerateMetamodel;
-
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
@@ -36,6 +33,7 @@ import javax.lang.model.util.Types;
 import javax.tools.JavaFileObject;
 import java.io.Writer;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -44,9 +42,9 @@ import java.util.regex.Pattern;
 import static java.util.Optional.empty;
 import static java.util.Optional.ofNullable;
 import static javax.lang.model.element.ElementKind.CLASS;
-import static javax.lang.model.element.ElementKind.METHOD;
+import static javax.lang.model.element.ElementKind.CONSTRUCTOR;
+import static javax.lang.model.element.ElementKind.FIELD;
 import static javax.lang.model.element.ElementKind.RECORD;
-import static javax.lang.model.element.ElementKind.RECORD_COMPONENT;
 import static javax.tools.Diagnostic.Kind.ERROR;
 import static javax.tools.Diagnostic.Kind.NOTE;
 
@@ -56,6 +54,12 @@ import static javax.tools.Diagnostic.Kind.NOTE;
 @SupportedSourceVersion(SourceVersion.RELEASE_21)
 @SupportedAnnotationTypes("*")
 public final class MetamodelProcessor extends AbstractProcessor {
+
+    private static final String METAMODEL_TYPE = "st.orm.template.MetamodelType";
+    private static final String GENERATE_METAMODEL = "st.orm.template.GenerateMetamodel";
+    private static final String ENTITY = "st.orm.repository.Entity";
+    private static final String PROJECTION = "st.orm.repository.Projection";
+    private static final String FOREIGN_KEY = "st.orm.FK";
 
     private final Set<String> generatedFiles;
     private Elements elementUtils;
@@ -68,6 +72,22 @@ public final class MetamodelProcessor extends AbstractProcessor {
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
         this.elementUtils = processingEnv.getElementUtils();
+    }
+
+    private static boolean isNestedRecord(TypeMirror typeMirror) {
+        if (typeMirror instanceof DeclaredType declaredType) {
+            Element element = declaredType.asElement();
+            return isRecord(element) && element.getEnclosingElement().getKind() == CLASS;
+        }
+        return false;
+    }
+
+    private static boolean isRecord(TypeMirror typeMirror) {
+        if (typeMirror instanceof DeclaredType declaredType) {
+            Element element = declaredType.asElement();
+            return isRecord(element);
+        }
+        return false;
     }
 
     private static boolean isRecord(Element element) {
@@ -84,31 +104,10 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return false;
     }
 
-    private static Optional<TypeMirror> getRecordComponent(Element element) {
-        // Case 1: Element is a RECORD_COMPONENT (Java records).
-        if (element.getKind() == RECORD_COMPONENT) {
+    private static Optional<TypeMirror> getRecordComponentType(Element element) {
+        // Using FIELD here instead of RECORD_COMPONENT to support both Java and Kotlin classes.
+        if (element.getKind() == FIELD) {
             return ofNullable(element.asType());
-        }
-        // Case 2: Skip methods of RECORD elements.
-        if (element.getEnclosingElement() != null && element.getEnclosingElement().getKind() == RECORD) {
-            return empty();
-        }
-        // Case 3: Handle Kotlin methods (including @JvmRecord).
-        if (element.getKind() == METHOD && element instanceof ExecutableElement method) {
-            // Skip methods with parameters.
-            if (!method.getParameters().isEmpty()) {
-                return empty();
-            }
-            String methodName = method.getSimpleName().toString();
-            if (Set.of("hashCode", "toString", "equals").contains(methodName)) {
-                return empty();
-            }
-            // Exclude synthetic componentX methods unless they match a valid record field.
-            if (methodName.startsWith("component")) {
-                // PENDING: This may be improved in a later version.
-                return empty();
-            }
-            return ofNullable(method.getReturnType());
         }
         return empty();
     }
@@ -125,9 +124,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return input;
     }
 
-    private String getTypeName(Element element) {
-        TypeMirror typeMirror = element.asType();
-        String className = extractNameIfLazy(typeMirror.toString().substring(2));
+    private static String getTypeName(TypeMirror typeMirror) {
+        String className = extractNameIfLazy(typeMirror.toString());//.substring(2));
         return getBoxedTypeName(className);
     }
 
@@ -153,8 +151,10 @@ public final class MetamodelProcessor extends AbstractProcessor {
         };
     }
 
-    private boolean implementsInterface(TypeMirror typeMirror, String interfaceName, Types types) {
-        if (typeMirror == null) return false;
+    private static boolean implementsInterface(TypeMirror typeMirror, String interfaceName, Types types) {
+        if (typeMirror == null) {
+            return false;
+        }
         Element element = types.asElement(typeMirror);
         if (element instanceof TypeElement typeElement) {
             if (typeElement.getQualifiedName().toString().equals(interfaceName)) {
@@ -182,11 +182,12 @@ public final class MetamodelProcessor extends AbstractProcessor {
             if (element.getEnclosingElement().getKind() == CLASS) {
                 continue;
             }
-            // Check if it’s annotated with @GenerateMetamodel.
-            boolean hasGenerateMetamodel = element.getAnnotation(GenerateMetamodel.class) != null;
+            boolean hasGenerateMetamodel = element.getAnnotationMirrors().stream()
+                    .anyMatch(annotationMirror -> GENERATE_METAMODEL
+                            .equals(annotationMirror.getAnnotationType().toString()));
             // Check if it implements Entity or Projection.
-            boolean implementsEntity = implementsInterface(element.asType(), Entity.class.getName(), processingEnv.getTypeUtils());
-            boolean implementsProjection = implementsInterface(element.asType(), Projection.class.getName(), processingEnv.getTypeUtils());
+            boolean implementsEntity = implementsInterface(element.asType(), ENTITY, processingEnv.getTypeUtils());
+            boolean implementsProjection = implementsInterface(element.asType(), PROJECTION, processingEnv.getTypeUtils());
             // Only generate if it’s annotated OR implements one of those interfaces.
             if (hasGenerateMetamodel || implementsEntity || implementsProjection) {
                 generateMetamodelInterface(element);
@@ -195,51 +196,122 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return true;
     }
 
-    private static String toSnakeCase(String input) {
-        if (input == null || input.isEmpty()) {
-            return input;
-        }
-        StringBuilder result = new StringBuilder();
-        char[] chars = input.toCharArray();
-        for (int i = 0; i < chars.length; i++) {
-            char c = chars[i];
-            if (Character.isUpperCase(c)) {
-                if (i > 0 && Character.isLowerCase(chars[i - 1])) {
-                    result.append('_');
-                } else if (i > 0 && Character.isUpperCase(chars[i - 1])
-                        && i + 1 < chars.length && Character.isLowerCase(chars[i + 1])) {
-                    result.append('_');
+    private Optional<TypeMirror> getMetamodelType(Element element) {
+        // Inspect all annotations directly on the element.
+        for (AnnotationMirror annotationMirror : element.getAnnotationMirrors()) {
+            // Check if the annotation itself is @MetamodelType.
+            if (isMetamodelTypeAnnotation(annotationMirror)) {
+                TypeMirror annotationValue = getAnnotationValue(annotationMirror);
+                if (annotationValue != null) {
+                    return Optional.of(elementUtils.getTypeElement(annotationValue.toString()).asType());
+                }
+            } else {
+                // Otherwise, check if the annotation is itself annotated with @MetamodelType.
+                Element annotationElement = annotationMirror.getAnnotationType().asElement();
+                if (annotationElement instanceof TypeElement typeElement) {
+                    for (AnnotationMirror metaAnnotation : typeElement.getAnnotationMirrors()) {
+                        if (isMetamodelTypeAnnotation(metaAnnotation)) {
+                            TypeMirror annotationValue = getAnnotationValue(metaAnnotation);
+                            if (annotationValue != null) {
+                                return Optional.of(elementUtils.getTypeElement(annotationValue.toString()).asType());
+                            }
+                        }
+                    }
                 }
             }
-            result.append(Character.toUpperCase(c));
         }
-        return result.toString();
+        return Optional.empty();
     }
 
-    private String buildInterfaceFields(@Nonnull Element recordElement) {
+    private static boolean isMetamodelTypeAnnotation(AnnotationMirror annotationMirror) {
+        // Compare the annotation's canonical name to MetamodelType.
+        return METAMODEL_TYPE.equals(annotationMirror.getAnnotationType().toString());
+    }
+
+    private static TypeMirror getAnnotationValue(AnnotationMirror annotationMirror) {
+        // Retrieve the "value" element from the annotation.
+        for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry
+                : annotationMirror.getElementValues().entrySet()) {
+            if ("value".equals(entry.getKey().getSimpleName().toString())) {
+                return (TypeMirror) entry.getValue().getValue();
+            }
+        }
+        return null;
+    }
+
+    private TypeMirror getTypeElement(Element recordElement, String fieldName) {
+        // Also works for regular records. We may implement a more efficient way in the future for regular records.
+        var constructors = recordElement.getEnclosedElements()
+                .stream()
+                .filter(enclosed -> enclosed.getKind() == CONSTRUCTOR)
+                .toList();
+        for (var constructor : constructors) {
+            var parameters = ((ExecutableElement) constructor).getParameters();
+            for (var parameter : parameters) {
+                if (parameter.getSimpleName().toString().equals(fieldName)) {
+                    TypeMirror type = parameter.asType();
+                    return getMetamodelType(parameter).orElse(type);
+                }
+            }
+        }
+        return null;
+    }
+
+    private boolean isForeignKey(Element recordElement, String fieldName) {
+        // Also works for regular records. We may implement a more efficient way in the future for regular records.
+        var constructors = recordElement.getEnclosedElements()
+                .stream()
+                .filter(enclosed -> enclosed.getKind() == CONSTRUCTOR)
+                .toList();
+        for (var constructor : constructors) {
+            var parameters = ((ExecutableElement) constructor).getParameters();
+            for (var parameter : parameters) {
+                if (parameter.getSimpleName().toString().equals(fieldName)) {
+                    return parameter.getAnnotationMirrors().stream()
+                            .anyMatch(annotationMirror -> FOREIGN_KEY
+                                    .equals(annotationMirror.getAnnotationType().toString()));
+                }
+            }
+        }
+        return false;
+    }
+
+    private String buildInterfaceFields(Element recordElement) {
         StringBuilder builder = new StringBuilder();
         String recordName = recordElement.getSimpleName().toString();
         for (Element enclosed : recordElement.getEnclosedElements()) {
-            TypeMirror recordComponent = getRecordComponent(enclosed).orElse(null);
-            if (recordComponent != null) {
-                TypeElement type = asTypeElement(recordComponent);
-                if (type != null && isRecord(type)) {
-                    if (type.getEnclosingElement().getKind() == CLASS) {
+            TypeMirror recordComponentType = getRecordComponentType(enclosed).orElse(null);
+            if (recordComponentType != null) {
+                String fieldName = enclosed.getSimpleName().toString();
+                TypeMirror fieldType = getTypeElement(recordElement, fieldName);
+                if (fieldType == null) {
+                    continue;
+                }
+                String fieldTypeName = getTypeName(fieldType);
+                String recordType = recordName + ".class";
+                if (isRecord(fieldType)) {
+                    if (isNestedRecord(fieldType)) {
                         continue;   // Skip nested records.
                     }
                     // Ensure generation of interfaces that may lie in different packages that would not be
                     // picked up by the annotation processor.
-                    generateMetamodelInterface(type);
-                    String fieldName = enclosed.getSimpleName().toString();
-                    builder.append("    ").append(type.getQualifiedName()).append("Metamodel<").append(recordName).append("> ").append(fieldName)
-                            .append(" = new ").append(type.getQualifiedName()).append("Metamodel<>(").append("\"").append(fieldName).append("\"").append(");\n");
+                    generateMetamodelInterface(asTypeElement(fieldType));
+                    if (isForeignKey(recordElement, fieldName)) {
+                        builder.append("    ").append(fieldTypeName).append("Metamodel<").append(recordName).append("> ").append(fieldName)
+                                .append(" = new ").append(fieldTypeName).append("Metamodel<>(").append(recordType).append(", \"\", \"").append(fieldName).append("\");\n");
+                    } else {
+                        builder.append("    ").append(fieldTypeName).append("Metamodel<").append(recordName).append("> ").append(fieldName)
+                                .append(" = new ").append(fieldTypeName).append("Metamodel<>(").append(recordType).append(", \"\", \"").append(fieldName).append("\", true);\n");
+                    }
                 } else {
-                    String fieldName = enclosed.getSimpleName().toString();
-                    String fieldType = getTypeName(enclosed);
-                    builder.append("    Metamodel<").append(recordName).append(", ").append(fieldType).append("> ").append(fieldName).append(" = new ").append(recordName).append("Metamodel<")
-                            .append(recordName).append(">().").append(fieldName).append(";\n");
+                    builder.append("    Metamodel<").append(recordName).append(", ").append(fieldTypeName).append("> ").append(fieldName).append(" = new ").append(recordName).append("Metamodel<")
+                            .append(recordName).append(">(").append(recordType).append(").").append(fieldName).append(";\n");
                 }
             }
+        }
+        if (!builder.isEmpty()) {
+            // Remove trailing newline.
+            builder.setLength(builder.length() - 1);
         }
         return builder.toString();
     }
@@ -265,55 +337,65 @@ public final class MetamodelProcessor extends AbstractProcessor {
 
                     @Generated("%s")
                     public interface %s extends Metamodel<%s, %s> {
-                        %sMetamodel<%s> ROOT = new %sMetamodel<>();
-                    
                     %s
-                    }""", packageName, getClass().getName(), metaInterfaceName, recordName, recordElement, recordName, recordName, recordName, buildInterfaceFields(recordElement)));
+                    }""", packageName, getClass().getName(), metaInterfaceName, recordName, recordElement, buildInterfaceFields(recordElement)));
             }
         } catch (Exception e) {
-            processingEnv.getMessager()
-                    .printMessage(ERROR, "Failed to process " + metaInterfaceName + ". Error: " + e + ".");
+            processingEnv.getMessager().printMessage(ERROR, "Failed to process " + metaInterfaceName + ". Error: " + e + ".");
         }
     }
 
-    private String buildClassFields(@Nonnull Element recordElement) {
+    private String buildClassFields(Element recordElement) {
         StringBuilder builder = new StringBuilder();
         for (Element enclosed : recordElement.getEnclosedElements()) {
-            TypeMirror recordComponent = getRecordComponent(enclosed).orElse(null);
+            TypeMirror recordComponent = getRecordComponentType(enclosed).orElse(null);
             if (recordComponent != null) {
-                TypeElement type = asTypeElement(recordComponent);
-                if (type != null && isRecord(type)) {
-                    if (type.getEnclosingElement().getKind() == CLASS) {
+                String fieldName = enclosed.getSimpleName().toString();
+                TypeMirror fieldType = getTypeElement(recordElement, fieldName);
+                if (fieldType == null) {
+                    continue;
+                }
+                String fieldTypeName = getTypeName(fieldType);
+                if (isRecord(fieldType)) {
+                    if (isNestedRecord(fieldType)) {
                         continue;   // Skip nested records.
                     }
-                    String fieldName = enclosed.getSimpleName().toString();
-                    builder.append("    public final ").append(type.getQualifiedName()).append("Metamodel<E> ").append(fieldName).append(";\n");
+                    builder.append("    public final ").append(fieldTypeName).append("Metamodel<T> ").append(fieldName).append(";\n");
                 } else {
-                    String fieldName = enclosed.getSimpleName().toString();
-                    String fieldType = getTypeName(enclosed);
-                    builder.append("    public final Metamodel<E, ").append(fieldType).append("> ").append(fieldName).append(";\n");
+                    builder.append("    public final Metamodel<T, ").append(fieldTypeName).append("> ").append(fieldName).append(";\n");
                 }
             }
         }
         return builder.toString();
     }
 
-    private String initClassFields(@Nonnull Element recordElement) {
+    private String initClassFields(Element recordElement, String recordName) {
         StringBuilder builder = new StringBuilder();
         for (Element enclosed : recordElement.getEnclosedElements()) {
-            TypeMirror recordComponent = getRecordComponent(enclosed).orElse(null);
+            TypeMirror recordComponent = getRecordComponentType(enclosed).orElse(null);
             if (recordComponent != null) {
-                TypeElement type = asTypeElement(recordComponent);
-                if (type != null && isRecord(type)) {
-                    if (type.getEnclosingElement().getKind() == CLASS) {
+                String fieldName = enclosed.getSimpleName().toString();
+                TypeMirror fieldType = getTypeElement(recordElement, fieldName);
+                String recordType = recordName + ".class";
+                if (fieldType == null) {
+                    continue;
+                }
+                String fieldTypeName = getTypeName(fieldType);
+                String inlineAwareType = "inline ? recordType : " + recordType;
+                if (isRecord(fieldType)) {
+                    if (isNestedRecord(fieldType)) {
                         continue;   // Skip nested records.
                     }
-                    String fieldName = enclosed.getSimpleName().toString();
-                    builder.append("        this.").append(fieldName).append(" = new ").append(type.getQualifiedName()).append("Metamodel<>(")
-                            .append("path.isEmpty() ? \"").append(fieldName).append("\" : path + \".").append(fieldName).append("\");\n");
+                    if (isForeignKey(recordElement, fieldName)) {
+                        builder.append("        this.").append(fieldName).append(" = new ").append(fieldTypeName).append("Metamodel<>(")
+                                .append(inlineAwareType).append(", ").append("subPath").append(", componentBase + \"").append(fieldName).append("\");\n");
+                    } else {
+                        builder.append("        this.").append(fieldName).append(" = new ").append(fieldTypeName).append("Metamodel<>(")
+                                .append(inlineAwareType).append(", ").append("subPath").append(", componentBase + \"").append(fieldName).append("\", true);\n");
+                    }
                 } else {
-                    String fieldName = enclosed.getSimpleName().toString();
-                    builder.append("        this.").append(fieldName).append(" = () -> path.isEmpty() ? \"").append(fieldName).append("\" : path + \".").append(fieldName).append("\";\n");
+                    builder.append("        this.").append(fieldName).append(" = new MetamodelImpl(")
+                            .append(inlineAwareType).append(", ").append("subPath").append(", componentBase + \"").append(fieldName).append("\", ").append(fieldTypeName).append(".class);\n");
                 }
             }
         }
@@ -336,35 +418,31 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     package %s;
 
                     import st.orm.template.Metamodel;
+                    import st.orm.template.impl.MetamodelImpl;
                     import javax.annotation.processing.Generated;
 
                     @Generated("%s")
-                    public final class %s<E extends Record> implements Metamodel<E, %s> {
-                        public static final %s<%s> %s = new %s<>();
-                    
+                    public final class %s<T extends Record> extends MetamodelImpl<T, %s> {
                     %s
-                        private final String path;
-                    
-                        public %s() {
-                            this("");
+                        public %s(Class<? extends Record> recordType) {
+                            this(recordType, "", "");
                         }
                     
-                        public %s(String path) {
-                            this.path = path;
+                        public %s(Class<? extends Record> recordType, String path, String component) {
+                            this(recordType, path, component, false);
+                        }
+                    
+                        public %s(Class<? extends Record> recordType, String path, String component, boolean inline) {
+                            super(recordType, path, component, %s.class);
+                            String subPath = inline ? path : component.isEmpty() ? path : path.isEmpty() ? component : path + "." + component;
+                            String componentBase = inline ? component.isEmpty() ? "" : component + "." : "";
                     %s
                         }
-                    
-                        @Override
-                        public String path() {
-                            return path;
-                        }
-                    }""", packageName, getClass().getName(), metaClassName, recordName, metaClassName, recordElement,
-                        toSnakeCase(recordName), metaClassName, buildClassFields(recordElement), metaClassName,
-                        metaClassName, initClassFields(recordElement)));
+                    }""", packageName, getClass().getName(), metaClassName, recordName, buildClassFields(recordElement), metaClassName,
+                        metaClassName, metaClassName, recordName, initClassFields(recordElement, recordName)));
             }
         } catch (Exception e) {
-            processingEnv.getMessager()
-                    .printMessage(ERROR, "Failed to process " + metaClassName + ". Error: " + e);
+            processingEnv.getMessager().printMessage(ERROR, "Failed to process " + metaClassName + ". Error: " + e);
         }
     }
 }
