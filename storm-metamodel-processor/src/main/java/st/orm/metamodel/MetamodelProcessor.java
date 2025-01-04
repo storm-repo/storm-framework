@@ -16,6 +16,7 @@
 package st.orm.metamodel;
 
 import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Generated;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
@@ -124,9 +125,16 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return input;
     }
 
-    private static String getTypeName(TypeMirror typeMirror) {
-        String className = extractNameIfLazy(typeMirror.toString());//.substring(2));
-        return getBoxedTypeName(className);
+    private static String getTypeName(TypeMirror typeMirror, String packageName) {
+        String className = extractNameIfLazy(typeMirror.toString());
+        className = getBoxedTypeName(className);
+        if (className.startsWith(packageName)) {
+            String simpleName = className.substring(packageName.length() + 1);
+            if (!simpleName.contains(".")) {
+                return simpleName;
+            }
+        }
+        return className;
     }
 
     private static TypeElement asTypeElement(TypeMirror typeMirror) {
@@ -276,7 +284,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return false;
     }
 
-    private String buildInterfaceFields(Element recordElement) {
+    private String buildInterfaceFields(Element recordElement, String packageName) {
         StringBuilder builder = new StringBuilder();
         String recordName = recordElement.getSimpleName().toString();
         for (Element enclosed : recordElement.getEnclosedElements()) {
@@ -287,7 +295,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 if (fieldType == null) {
                     continue;
                 }
-                String fieldTypeName = getTypeName(fieldType);
+                String fieldTypeName = getTypeName(fieldType, packageName);
                 String recordType = recordName + ".class";
                 if (isRecord(fieldType)) {
                     if (isNestedRecord(fieldType)) {
@@ -297,13 +305,16 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     // picked up by the annotation processor.
                     generateMetamodelInterface(asTypeElement(fieldType));
                     if (isForeignKey(recordElement, fieldName)) {
+                        builder.append("    /** Represents the {@link ").append(recordName).append("#").append(fieldName).append("} foreign key. */\n");
                         builder.append("    ").append(fieldTypeName).append("Metamodel<").append(recordName).append("> ").append(fieldName)
-                                .append(" = new ").append(fieldTypeName).append("Metamodel<>(").append(recordType).append(", \"\", \"").append(fieldName).append("\");\n");
+                                .append(" = new ").append(fieldTypeName).append("Metamodel<>(").append(recordType).append(", \"").append(fieldName).append("\");\n");
                     } else {
+                        builder.append("    /** Represents the inline {@link ").append(recordName).append("#").append(fieldName).append("} record. */\n");
                         builder.append("    ").append(fieldTypeName).append("Metamodel<").append(recordName).append("> ").append(fieldName)
                                 .append(" = new ").append(fieldTypeName).append("Metamodel<>(").append(recordType).append(", \"\", \"").append(fieldName).append("\", true);\n");
                     }
                 } else {
+                    builder.append("    /** Represents the {@link ").append(recordName).append("#").append(fieldName).append("} field. */\n");
                     builder.append("    Metamodel<").append(recordName).append(", ").append(fieldTypeName).append("> ").append(fieldName).append(" = new ").append(recordName).append("Metamodel<")
                             .append(recordName).append(">(").append(recordType).append(").").append(fieldName).append(";\n");
                 }
@@ -335,17 +346,22 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     import st.orm.template.Metamodel;
                     import javax.annotation.processing.Generated;
 
+                    /**
+                     * Metamodel for %s.
+                     *
+                     * @param <T> the record type of the root table of the entity graph.
+                     */
                     @Generated("%s")
                     public interface %s extends Metamodel<%s, %s> {
                     %s
-                    }""", packageName, getClass().getName(), metaInterfaceName, recordName, recordElement, buildInterfaceFields(recordElement)));
+                    }""", packageName, recordName, getClass().getName(), metaInterfaceName, recordName, recordName, buildInterfaceFields(recordElement, packageName)));
             }
         } catch (Exception e) {
             processingEnv.getMessager().printMessage(ERROR, "Failed to process " + metaInterfaceName + ". Error: " + e + ".");
         }
     }
 
-    private String buildClassFields(Element recordElement) {
+    private String buildClassFields(Element recordElement, String packageName, String recordName) {
         StringBuilder builder = new StringBuilder();
         for (Element enclosed : recordElement.getEnclosedElements()) {
             TypeMirror recordComponent = getRecordComponentType(enclosed).orElse(null);
@@ -355,13 +371,18 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 if (fieldType == null) {
                     continue;
                 }
-                String fieldTypeName = getTypeName(fieldType);
+                String fieldTypeName = getTypeName(fieldType, packageName);
                 if (isRecord(fieldType)) {
                     if (isNestedRecord(fieldType)) {
                         continue;   // Skip nested records.
                     }
+                    boolean inline = !isForeignKey(recordElement, fieldName);
+                    builder.append("    /** Represents the ").append(inline ? "inline " : "").append("{@link ").append(recordName).append("#").append(fieldName).append("} ")
+                            .append(inline ? " record." : " foreign key.").append(" */\n");
                     builder.append("    public final ").append(fieldTypeName).append("Metamodel<T> ").append(fieldName).append(";\n");
                 } else {
+                    builder.append("    /** Represents the ").append("{@link ").append(recordName).append("#").append(fieldName).append("} ")
+                            .append("field. */\n");
                     builder.append("    public final Metamodel<T, ").append(fieldTypeName).append("> ").append(fieldName).append(";\n");
                 }
             }
@@ -369,7 +390,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return builder.toString();
     }
 
-    private String initClassFields(Element recordElement, String recordName) {
+    private String initClassFields(Element recordElement, String packageName, String recordName) {
         StringBuilder builder = new StringBuilder();
         for (Element enclosed : recordElement.getEnclosedElements()) {
             TypeMirror recordComponent = getRecordComponentType(enclosed).orElse(null);
@@ -380,7 +401,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 if (fieldType == null) {
                     continue;
                 }
-                String fieldTypeName = getTypeName(fieldType);
+                String fieldTypeName = getTypeName(fieldType, packageName);
                 String inlineAwareType = "inline ? recordType : " + recordType;
                 if (isRecord(fieldType)) {
                     if (isNestedRecord(fieldType)) {
@@ -421,11 +442,20 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     import st.orm.template.impl.MetamodelImpl;
                     import javax.annotation.processing.Generated;
 
+                    /**
+                     * Metamodel implementation for %s.
+                     *
+                     * @param <T> the record type of the root table of the entity graph.
+                     */
                     @Generated("%s")
                     public final class %s<T extends Record> extends MetamodelImpl<T, %s> {
                     %s
                         public %s(Class<? extends Record> recordType) {
-                            this(recordType, "", "");
+                            this(recordType, "");
+                        }
+                    
+                        public %s(Class<? extends Record> recordType, String component) {
+                            this(recordType, "", component);
                         }
                     
                         public %s(Class<? extends Record> recordType, String path, String component) {
@@ -438,8 +468,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
                             String componentBase = inline ? component.isEmpty() ? "" : component + "." : "";
                     %s
                         }
-                    }""", packageName, getClass().getName(), metaClassName, recordName, buildClassFields(recordElement), metaClassName,
-                        metaClassName, metaClassName, recordName, initClassFields(recordElement, recordName)));
+                    }""", packageName, recordName, getClass().getName(), metaClassName, recordName, buildClassFields(recordElement, packageName, recordName),
+                        metaClassName, metaClassName, metaClassName, metaClassName, recordName, initClassFields(recordElement, packageName, recordName)));
             }
         } catch (Exception e) {
             processingEnv.getMessager().printMessage(ERROR, "Failed to process " + metaClassName + ". Error: " + e);
