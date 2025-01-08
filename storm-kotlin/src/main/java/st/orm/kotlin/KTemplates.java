@@ -20,12 +20,15 @@ import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import kotlin.reflect.KClass;
 import st.orm.BindVars;
+import st.orm.Query;
 import st.orm.TemporalType;
 import st.orm.kotlin.template.KORMTemplate;
 import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.kotlin.template.KQueryTemplate;
 import st.orm.kotlin.template.impl.KORMTemplateImpl;
 import st.orm.kotlin.template.impl.KQueryTemplateImpl;
+import st.orm.repository.EntityRepository;
+import st.orm.repository.ProjectionRepository;
 import st.orm.template.Metamodel;
 import st.orm.template.ORMTemplate;
 import st.orm.template.Operator;
@@ -68,9 +71,9 @@ import static st.orm.template.impl.Elements.Values;
 import static st.orm.template.impl.Elements.Where;
 
 /**
- * The {@code Templates} interface provides a collection of static methods for constructing SQL query elements
- * and creating ORM repository templates. It serves as a central point for building SQL queries and interacting
- * with databases in a type-safe and fluent manner, supporting both JPA and JDBC.
+ * The {@code KTemplates} interface provides a collection of static methods for constructing SQL query elements
+ * and creating ORM repository templates. It serves as a central point for building SQL queries or getting access to
+ * repositories that can interact with databases in a type-safe and manner, supporting both JPA and JDBC.
  *
  * <p>This interface includes methods for generating SQL clauses such as {@code SELECT}, {@code FROM}, {@code WHERE},
  * {@code INSERT}, {@code UPDATE}, and {@code DELETE}, as well as utility methods for working with parameters,
@@ -78,71 +81,74 @@ import static st.orm.template.impl.Elements.Where;
  *
  * <p>Additionally, the {@code Templates} interface provides methods to create {@link KORMTemplate}
  * instances for use with different data sources like JPA's {@link EntityManager}, JDBC's {@link DataSource}, or
- * {@link Connection}. These repository templates facilitate database operations using the constructed SQL queries.
+ * {@link Connection}.
  *
- * <h2>Usage Examples</h2>
+ * <h2>Using Templates</h2>
  *
- * <h3>Using JPA</h3>
- *
- * <p>Example of querying a database using JPA:
+ * <p>Define the records to use them to construct the query using templates:</p>
  *
  * <pre>{@code
- * EntityManager entityManager = ...;
- * KORMRepositoryTemplate orm = KTemplates.ORM(entityManager);
- * List<OtherTable> otherTables = orm.query(RAW."""
- *         SELECT \{OtherTable.class}
- *         FROM \{OtherTable.class}
+ * record User(int id, String name, int age, LocalDate birthDate, int cityId) {};
+ * record City(int id, String name, long population) {};
+ * }</pre>
+ *
+ * <h3>Create</h3>
+ *
+ * <p>Insert a user into the database. The template engine also supports insertion of multiple entries by passing an
+ * array (or list) of objects or primary keys. Alternatively, insertion can also be executed in batch mode using
+ * {@link BindVars}.</p>
+ * <pre>{@code
+ * User user = ...;
+ * ORM(dataSource).query(RAW."""
+ *         INSERT INTO \{User.class}
+ *         VALUES \{user}""");
+ * }</pre>
+ *
+ * <h3>Read</h3>
+ *
+ * <p>Select all users from the database that are linked to City with primary key 1. The value is passed to the
+ * underling JDBC or JPA system as variable. The results can also be retrieved as a stream of objects by using
+ * {@link KQuery#getResultStream(KClass)}.</p>
+ * <pre>{@code
+ * List<User> users = ORM(dataSource).query(RAW."""
+ *         SELECT \{User.class}
+ *         FROM \{User.class}
  *         WHERE city_id = \{1}""")
- *     .getResultList(OtherTable.class);
+ *     .getResultList(User.class);
  * }</pre>
  *
- * <h3>Using JDBC</h3>
+ * <h3>Update</h3>
  *
- * <p>Example of querying a database using JDBC:
- *
+ * <p>Update a user in the database. The template engine also supports updates for multiple entries by passing an
+ * array or list of objects. Alternatively, updates can be executed in batch mode by using {@link BindVars}.</p>
  * <pre>{@code
- * DataSource dataSource = ...;
- * KORMRepositoryTemplate orm = KTemplates.ORM(dataSource);
- * List<OtherTable> otherTables = orm.query(RAW."""
- *         SELECT \{OtherTable.class}
- *         FROM \{OtherTable.class}
- *         WHERE city_id = \{1}""")
- *     .getResultList(OtherTable.class);
+ * User user = ...;
+ * ORM(dataSource).query(RAW."""
+ *         UPDATE \{User.class}
+ *         SET \{user}
+ *         WHERE \{user}""");
  * }</pre>
  *
- * <h3>Fluent API Usage</h3>
+ * <h3>Delete</h3>
  *
- * <p>The {@link KORMTemplate} also supports a fluent API that allows you to build queries in a more concise manner:
- *
+ * <p>Delete user in the database. The template engine also supports updates for multiple entries by passing an
+ * array (or list) of objects or primary keys. Alternatively, deletion can be executed in batch mode by using
+ * {@link BindVars}.</p>
  * <pre>{@code
- * DataSource dataSource = ...;
- * List<OtherTable> otherTables = KTemplates.ORM(dataSource).entity(OtherTable.class)
- *     .select()
- *     .where("city", Operator.EQUALS, "Sunnyvale")
- *     .getResultList();
+ * User user = ...;
+ * ORM(dataSource).query(RAW."""
+ *         DELETE FROM \{User.class}
+ *         WHERE \{user}""");
  * }</pre>
- *
- * <p>In this example, the query is constructed by chaining method calls, enhancing readability and reducing boilerplate code.
- * The {@code entity(Class<T> clazz)} method specifies the entity type for the query, and subsequent methods like {@code select()}
- * and {@code where()} build upon it.
- *
- * <h2>Key Features</h2>
- * <ul>
- *   <li><strong>Type Safety:</strong> Leverages Java generics and type inference to ensure that queries are type-safe.</li>
- *   <li><strong>Fluent API:</strong> Supports method chaining to build queries in a readable and concise manner.</li>
- *   <li><strong>Flexibility:</strong> Compatible with both JPA and JDBC, allowing you to choose the underlying technology.</li>
- *   <li><strong>SQL Templates:</strong> Integrates with SQL string templates for dynamic query construction.</li>
- *   <li><strong>Ease of Use:</strong> Reduces boilerplate code and simplifies common database operations.</li>
- * </ul>
- *
- * <h2>Creating KORMRepositoryTemplate Instances</h2>
+ **
+ * <h2>Howto start</h2>
  *
  * <p>The {@code KTemplates} interface provides static methods to create {@link KORMTemplate} instances based on your data source:
  *
  * <h3>Using EntityManager (JPA)</h3>
  * <pre>{@code
  * EntityManager entityManager = ...;
- * KORMRepositoryTemplate orm = Kemplates.ORM(entityManager);
+ * KORMRepositoryTemplate orm = KTemplates.ORM(entityManager);
  * }</pre>
  *
  * <h3>Using DataSource (JDBC)</h3>
@@ -157,48 +163,11 @@ import static st.orm.template.impl.Elements.Where;
  *
  * <pre>{@code
  * Connection connection = ...;
- * ORMRepositoryTemplate orm = KTemplates.KORM(connection);
+ * KORMRepositoryTemplate orm = KTemplates.ORM(connection);
  * }</pre>
  *
- * <h2>Example: Querying with Fluent API</h2>
- * <p>Here is a more detailed example demonstrating how to use the fluent API to perform a query:
- * <pre>{@code
- * DataSource dataSource = ...;
- * List<OtherTable> otherTables = ORM(dataSource).entity(OtherTable.class)
- *     .select()
- *     .where("city.name", Operator.EQUALS, "Sunnyvale")
- *     .getResultList();
- * }</pre>
- *
- * <p>In this example:
- * <ul>
- *   <li>{@code entity(OtherTable.class)} specifies the entity to query.</li>
- *   <li>{@code select()} constructs the SELECT clause.</li>
- *   <li>{@code where("city", Operator.EQUALS, "Sunnyvale")} adds a WHERE condition.</li>
- *   <li>{@code getResultList()} executes the query and returns the results as a list.</li>
- * </ul>
- *
- * <h2>Integration with SQL Templates</h2>
- * <p>You can seamlessly integrate the fluent API with SQL templates when needed. For instance, you can combine method chaining with template-based queries:
- *
- * <pre>{@code
- * City city = ORM(dataSource).entity(City.class)
- *     .select()
- *     .where(RAW."name = \{"Sunnyvale"}")
- *     .getSingleResult();
- * List<OtherTable> otherTables = ORM(dataSource).query(RAW."""
- *         SELECT \{OtherTable.class}
- *         FROM \{OtherTable.class}
- *         WHERE \{city)}""")
- *     .getResultList(OtherTable.class);
- * }</pre>
- *
- * <h2>Conclusion</h2>
- *
- * <p>The {@code KTemplates} interface streamlines the process of writing database queries by integrating
- * object-relational mapping with SQL string templates and a fluent API, ensuring type safety and reducing boilerplate code.
- * Whether you prefer constructing queries using SQL templates or method chaining, the {@code KTemplates} interface provides
- * flexible options to suit your development style.
+ * @see EntityRepository
+ * @see ProjectionRepository
  */
 public interface KTemplates {
 

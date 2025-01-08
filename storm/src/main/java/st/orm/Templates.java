@@ -76,57 +76,57 @@ import static st.orm.template.ResolveScope.CASCADE;
  * <p>Define the records to use them to construct the query using templates:</p>
  *
  * <pre>{@code
- * record OtherTable(int id, String name, int age, LocalDate birthDate, int cityId) {};
+ * record User(int id, String name, int age, LocalDate birthDate, int cityId) {};
  * record City(int id, String name, long population) {};
  * }</pre>
  *
  * <h3>Create</h3>
  *
- * <p>Insert a otherTable into the database. The template engine also supports insertion of multiple entries by passing an
+ * <p>Insert a user into the database. The template engine also supports insertion of multiple entries by passing an
  * array (or list) of objects or primary keys. Alternatively, insertion can also be executed in batch mode using
  * {@link BindVars}.</p>
  * <pre>{@code
- * OtherTable otherTable = ...;
+ * User user = ...;
  * ORM(dataSource).query(RAW."""
- *         INSERT INTO \{OtherTable.class}
- *         VALUES \{otherTable}""");
+ *         INSERT INTO \{User.class}
+ *         VALUES \{user}""");
  * }</pre>
  *
  * <h3>Read</h3>
  *
- * <p>Select all otherTables from the database that are linked to City with primary key 1. The value is passed to the
+ * <p>Select all users from the database that are linked to City with primary key 1. The value is passed to the
  * underling JDBC or JPA system as variable. The results can also be retrieved as a stream of objects by using
  * {@link Query#getResultStream(Class)}.</p>
  * <pre>{@code
- * List<OtherTable> otherTables = ORM(dataSource).query(RAW."""
- *         SELECT \{OtherTable.class}
- *         FROM \{OtherTable.class}
+ * List<User> users = ORM(dataSource).query(RAW."""
+ *         SELECT \{User.class}
+ *         FROM \{User.class}
  *         WHERE city_id = \{1}""")
- *     .getResultList(OtherTable.class);
+ *     .getResultList(User.class);
  * }</pre>
  *
  * <h3>Update</h3>
  *
- * <p>Update a otherTable in the database. The template engine also supports updates for multiple entries by passing an
+ * <p>Update a user in the database. The template engine also supports updates for multiple entries by passing an
  * array or list of objects. Alternatively, updates can be executed in batch mode by using {@link BindVars}.</p>
  * <pre>{@code
- * OtherTable otherTable = ...;
+ * User user = ...;
  * ORM(dataSource).query(RAW."""
- *         UPDATE \{OtherTable.class}
- *         SET \{otherTable}
- *         WHERE \{otherTable}""");
+ *         UPDATE \{User.class}
+ *         SET \{user}
+ *         WHERE \{user}""");
  * }</pre>
  *
  * <h3>Delete</h3>
  *
- * <p>Delete otherTable in the database. The template engine also supports updates for multiple entries by passing an
+ * <p>Delete user in the database. The template engine also supports updates for multiple entries by passing an
  * array (or list) of objects or primary keys. Alternatively, deletion can be executed in batch mode by using
  * {@link BindVars}.</p>
  * <pre>{@code
- * OtherTable otherTable = ...;
+ * User user = ...;
  * ORM(dataSource).query(RAW."""
- *         DELETE FROM \{OtherTable.class}
- *         WHERE \{otherTable}""");
+ *         DELETE FROM \{User.class}
+ *         WHERE \{user}""");
  * }</pre>
  **
  * <h2>Howto start</h2>
