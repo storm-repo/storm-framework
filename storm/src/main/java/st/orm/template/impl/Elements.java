@@ -59,9 +59,12 @@ public final class Elements {
     public record Set(@Nullable Record record, @Nullable BindVars bindVars) implements Element {}
 
     public sealed interface Expression {}
-    public record ObjectExpression(@Nonnull Object object, @Nonnull Operator operator, @Nullable String path) implements Expression {
+    public record ObjectExpression(@Nullable Metamodel<?, ?> metamodel, @Nonnull Operator operator, @Nonnull Object object) implements Expression {
+        public ObjectExpression(@Nonnull Operator operator, @Nonnull Object object) {
+            this(null, operator, object);
+        }
         public ObjectExpression(@Nonnull Object object) {
-            this(object, EQUALS, null);
+            this(null, EQUALS, object);
         }
         public ObjectExpression {
             requireNonNull(object, "object");
@@ -115,25 +118,20 @@ public final class Elements {
         }
     }
 
-    public record Alias(@Nonnull Class<? extends Record> table, @Nullable String path, @Nonnull ResolveScope scope) implements Element {
+    public record Alias(@Nonnull Metamodel<?, ?> metamodel, @Nonnull ResolveScope scope) implements Element {
         public Alias {
-            requireNonNull(table, "table");
+            requireNonNull(metamodel, "metamodel");
             requireNonNull(scope, "scope");
         }
-        public Alias(@Nonnull Metamodel<?, ?> metamodel, @Nonnull ResolveScope scope) {
-            this(metamodel.table(), metamodel.path().isEmpty() ? null : metamodel.path(), scope);
+        public Alias(@Nonnull Class<? extends  Record> table, @Nonnull ResolveScope scope) {
+            this(Metamodel.root(table), scope);
         }
     }
 
-    public record Column(@Nonnull Class<? extends Record> table, @Nonnull String component, @Nullable String path, @Nonnull ResolveScope scope) implements Element {
+    public record Column(@Nonnull Metamodel<?, ?> metamodel, @Nonnull ResolveScope scope) implements Element {
         public Column {
-            requireNonNull(table, "table");
-            requireNonNull(component, "component");
+            requireNonNull(metamodel, "metamodel");
             requireNonNull(scope, "scope");
-        }
-
-        public Column(@Nonnull Metamodel<?, ?> metamodel, @Nonnull ResolveScope scope) {
-            this(metamodel.table(), metamodel.component(), metamodel.path().isEmpty() ? null : metamodel.path(), scope);
         }
     }
 

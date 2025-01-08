@@ -19,6 +19,7 @@ import jakarta.annotation.Nonnull;
 import st.orm.PersistenceException;
 import st.orm.repository.Model;
 import st.orm.template.JoinType;
+import st.orm.template.Metamodel;
 import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryTemplate;
@@ -373,32 +374,54 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder
 
             @Override
             public PredicateBuilder<TX, RX, IDX> filter(@Nonnull IDX id) {
-                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(id, EQUALS, null)}");
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(EQUALS, id)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull Record record) {
-                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(record, EQUALS, null)}");
+            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull TX record) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(EQUALS, record)}");
+            }
+
+            @Override
+            public PredicateBuilder<TX, RX, IDX> filterAny(@Nonnull Record record) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(EQUALS, record)}");
             }
 
             @Override
             public PredicateBuilder<TX, RX, IDX> filterIds(@Nonnull Iterable<? extends IDX> it) {
-                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(it, IN, null)}");
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(IN, it)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull Iterable<? extends Record> it) {
-                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(it, IN, null)}");
+            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull Iterable<? extends TX> it) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(IN, it)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
-                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(it, operator, requireNonNull(path, "path"))}");
+            public PredicateBuilder<TX, RX, IDX> filterAny(@Nonnull Iterable<? extends Record> it) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(IN, it)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
-                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(o, operator, requireNonNull(path, "path"))}");
+            public <V> PredicateBuilder<TX, RX, IDX> filter(@Nonnull Metamodel<TX, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(path, operator, it)}");
+            }
+
+            @Override
+            public <V> PredicateBuilder<TX, RX, IDX> filterAny(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(path, operator, it)}");
+            }
+
+            @SafeVarargs
+            @Override
+            public final <V> PredicateBuilder<TX, RX, IDX> filter(@Nonnull Metamodel<TX, V> path, @Nonnull Operator operator, @Nonnull V... o) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(path, operator, o)}");
+            }
+
+            @SafeVarargs
+            @Override
+            public final <V> PredicateBuilder<TX, RX, IDX> filterAny(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull V... o) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(path, operator, o)}");
             }
 
             private QueryBuilder<TX, RX, IDX> build(List<StringTemplate> templates) {

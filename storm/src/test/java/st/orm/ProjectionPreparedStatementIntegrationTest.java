@@ -10,7 +10,7 @@ import st.orm.model.Owner;
 import st.orm.model.OwnerView;
 import st.orm.model.VetView;
 import st.orm.model.VisitView;
-
+import st.orm.model.VisitView_;
 import javax.sql.DataSource;
 import java.time.LocalDate;
 
@@ -50,22 +50,22 @@ public class ProjectionPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectByFkNested() {
-        assertEquals(2, ORM(dataSource).projection(VisitView.class).select().where(Owner.builder().id(1).build()).getResultCount());
+        assertEquals(2, ORM(dataSource).projection(VisitView.class).select().where(VisitView_.pet.owner, Owner.builder().id(1).build()).getResultCount());
     }
 
     @Test
     public void testSelectByColumn() {
-        assertEquals(1, ORM(dataSource).projection(VisitView.class).select().where("visitDate", EQUALS, LocalDate.of(2023, 1, 1)).getResultCount());
+        assertEquals(1, ORM(dataSource).projection(VisitView.class).select().where(VisitView_.visitDate, EQUALS, LocalDate.of(2023, 1, 1)).getResultCount());
     }
 
     @Test
     public void testSelectByColumnGreaterThan() {
-        assertEquals(13, ORM(dataSource).projection(VisitView.class).select().where("visitDate", GREATER_THAN, LocalDate.of(2023, 1, 1)).getResultCount());
+        assertEquals(13, ORM(dataSource).projection(VisitView.class).select().where(VisitView_.visitDate, GREATER_THAN, LocalDate.of(2023, 1, 1)).getResultCount());
     }
 
     @Test
     public void testSelectByColumnGreaterThanOrEqual() {
-        assertEquals(14, ORM(dataSource).projection(VisitView.class).select().where("visitDate", GREATER_THAN_OR_EQUAL, LocalDate.of(2023, 1, 1)).getResultCount());
+        assertEquals(14, ORM(dataSource).projection(VisitView.class).select().where(VisitView_.visitDate, GREATER_THAN_OR_EQUAL, LocalDate.of(2023, 1, 1)).getResultCount());
     }
 
     @Test

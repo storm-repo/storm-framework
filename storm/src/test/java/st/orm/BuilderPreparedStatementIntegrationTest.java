@@ -10,7 +10,9 @@ import st.orm.model.Pet;
 import st.orm.model.Specialty;
 import st.orm.model.Vet;
 import st.orm.model.VetSpecialty;
+import st.orm.model.Vet_;
 import st.orm.model.Visit;
+import st.orm.model.Visit_;
 import st.orm.template.SqlTemplateException;
 
 import javax.sql.DataSource;
@@ -77,11 +79,21 @@ public class BuilderPreparedStatementIntegrationTest {
     }
 
     @Test
+    public void testBuilderWithJoinTemplateFunctionParameterMetamodel() {
+        var list = ORM(dataSource)
+                .selectFrom(Pet.class)
+                .innerJoin(Visit.class).on(template(it -> STR."\{it.invoke(Pet.class)}.id = \{1}"))
+                .where(RAW."\{Visit_.visitDate} = \{LocalDate.of(2023, 1, 8)}")
+                .getResultList();
+         assertEquals(3, list.size());
+    }
+
+    @Test
     public void testBuilderWithAutoJoin() {
         var list = ORM(dataSource)
                 .selectFrom(Pet.class)
                 .innerJoin(Visit.class).on(Pet.class)
-                .where(Visit.builder().id(1).build())
+                .whereAny(Visit.builder().id(1).build())
                 .getResultList();
          assertEquals(1, list.size());
          assertEquals(7, list.getFirst().id());
@@ -93,7 +105,7 @@ public class BuilderPreparedStatementIntegrationTest {
             ORM(dataSource)
                     .selectFrom(Pet.class)
                     .innerJoin(Visit.class).on(Pet.class)
-                    .where(Vet.builder().id(1).build())
+                    .whereAny(Vet.builder().id(1).build())
                     .getResultStream()
                     .count();
         });
@@ -168,7 +180,7 @@ public class BuilderPreparedStatementIntegrationTest {
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
             ORM(dataSource)
                     .selectFrom(Vet.class)
-                    .where("id", EQUALS, List.of())
+                    .where(Vet_.id, EQUALS, List.of())
                     .getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
@@ -178,7 +190,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithWhereEmptyIn() {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
-                .where("id", IN, List.of())
+                .where(Vet_.id, IN, List.of())
                 .getResultList();
         assertEquals(0, list.size());
     }
@@ -188,7 +200,7 @@ public class BuilderPreparedStatementIntegrationTest {
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
             ORM(dataSource)
                     .selectFrom(Vet.class)
-                    .where("id", NOT_EQUALS, List.of())
+                    .where(Vet_.id, NOT_EQUALS, List.of())
                     .getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
@@ -198,7 +210,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithWhereEmptyNotIn() {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
-                .where("id", NOT_IN, List.of())
+                .where(Vet_.id, NOT_IN, List.of())
                 .getResultList();
         assertEquals(6, list.size());
     }

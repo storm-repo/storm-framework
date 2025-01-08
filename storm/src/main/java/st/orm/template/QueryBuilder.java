@@ -33,6 +33,8 @@ import java.util.stream.StreamSupport;
 import static java.lang.Integer.MAX_VALUE;
 import static java.lang.StringTemplate.RAW;
 import static java.util.Spliterators.spliteratorUnknownSize;
+import static st.orm.template.Operator.EQUALS;
+import static st.orm.template.Operator.IN;
 
 /**
  * A query builder that constructs a query from a template.
@@ -260,114 +262,160 @@ public interface QueryBuilder<T extends Record, R, ID> {
         PredicateBuilder<T, R, ID> filter(@Nonnull ID id);
 
         /**
-         * Adds a condition to the WHERE clause that matches the specified record. The record can represent the table,
-         * or any of the related tables in the table graph or manually added joins.
-         *
-         * <p>If the record type cannot be unambiguously matched, the {@link #filter(String, Operator, Object...)}
-         * method can be used to specify the path to the record in the table graph.</p>
+         * Adds a condition to the WHERE clause that matches the specified record.
          *
          * @param record the record to match.
          * @return the predicate builder.
          */
-        PredicateBuilder<T, R, ID> filter(@Nonnull Record record);
+        PredicateBuilder<T, R, ID> filter(@Nonnull T record);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of the
+         * related tables in the table graph or manually added joins.
+         *
+         * @param record the record to match.
+         * @return the predicate builder.
+         * @since 1.2
+         */
+        PredicateBuilder<T, R, ID> filterAny(@Nonnull Record record);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified primary keys of the table.
          *
          * @param it the ids to match.
          * @return the predicate builder.
+         * @since 1.2
          */
         PredicateBuilder<T, R, ID> filterIds(@Nonnull Iterable<? extends ID> it);
 
         /**
-         * Adds a condition to the WHERE clause that matches the specified records. The records can represent the table,
-         * or any of the related tables in the table graph or manually added joins.
-         *
-         * <p>If the record type cannot be unambiguously matched, the {@link #filter(String, Operator, Iterable)} method
-         * can be used to specify the path to the object in the table graph.</p>
+         * Adds a condition to the WHERE clause that matches the specified records.
          *
          * @param it the records to match.
          * @return the predicate builder.
          */
-        PredicateBuilder<T, R, ID> filter(@Nonnull Iterable<? extends Record> it);
+        PredicateBuilder<T, R, ID> filter(@Nonnull Iterable<? extends T> it);
 
         /**
-         * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph. When the objects are records representing a table, the `path` acts as a search path to locate the
-         * table within the table graph - meaning it does not need to be an exact match. In other scenarios, where the
-         * objects represent fields (including primary keys), the `path` must be an exact match to the field's location
-         * in the table graph. The path is represented by a metamodel, which enforce type safety for the path and the
-         * objects.
+         * Adds a condition to the WHERE clause that matches the specified records. The record can represent any of the
+         * related tables in the table graph or manually added joins.
          *
-         * @param path the metamodel to use for the path.
-         * @param operator the operator to use for the comparison.
-         * @param it the objects to match, which can be primary keys, records representing the table, or fields in the
-         *           table graph.
-         * @return the predicate builder.
-         * @param <V> the type of the object that the metamodel represents.
-         * @since 1.2
+         * @param it the records to match.
+         * @return the query builder.
          */
-        default <V> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path,
-                                                      @Nonnull Operator operator,
-                                                      @Nonnull Iterable<? extends V> it) {
-            return filter(path.componentPath(), operator, it);
+        PredicateBuilder<T, R, ID> filterAny(@Nonnull Iterable<? extends Record> it);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
+         * the related tables in the table graph or manually added joins.
+         *
+         * @param record the records to match.
+         * @return the predicate builder.
+         */
+        default <V extends Record> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, V record) {
+            //noinspection unchecked
+            return filter(path, EQUALS, record);
+        }
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
+         * the related tables in the table graph or manually added joins.
+         *
+         * @param record the records to match.
+         * @return the predicate builder.
+         */
+        default <V extends Record> PredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, V record) {
+            //noinspection unchecked
+            return filterAny(path, EQUALS, record);
+        }
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified records. The records can represent any of
+         * the related tables in the table graph.
+         *
+         * @param it the records to match.
+         * @return the predicate builder.
+         */
+        default <V extends Record> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, Iterable<V> it) {
+            return filter(path, IN, it);
+        }
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified records. The records can represent any of
+         * the related tables in the table graph or manually added joins.
+         *
+         * @param it the records to match.
+         * @return the predicate builder.
+         */
+        default <V extends Record> PredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, Iterable<V> it) {
+            return filterAny(path, IN, it);
         }
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph. When the objects are records representing a table, the `path` acts as a search path to locate the
-         * table within the table graph - meaning it does not need to be an exact match. In other scenarios, where the
-         * objects represent fields (including primary keys), the `path` must be an exact match to the field's location
-         * in the table graph.
+         * graph.
          *
-         * @param path the path to the object in the table graph. For record (table) based filters, this is a search
-         *             path to the table.
+         * @param path the path to the object in the table graph.
          * @param operator the operator to use for the comparison.
          * @param it the objects to match, which can be primary keys, records representing the table, or fields in the
-         *           table graph.
-         * @return the predicate builder.
+         *          table graph.
+         * @return the query builder.
+         * @param <V> the type of the object that the metamodel represents.
+         * @since 1.2
          */
-        PredicateBuilder<T, R, ID> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it);
+        <V> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path,
+                                              @Nonnull Operator operator,
+                                              @Nonnull Iterable<? extends V> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph. When the objects are records representing a table, the `path` acts as a search path to locate the
-         * table within the table graph - meaning it does not need to be an exact match. In other scenarios, where the
-         * objects represent fields (including primary keys), the `path` must be an exact match to the field's location
-         * in the table graph. The path is represented by a metamodel, which enforce type safety for the path and the
-         * objects.
+         * graph.
          *
-         * @param path the metamodel to use for the path.
+         * @param path the path to the object in the table graph.
          * @param operator the operator to use for the comparison.
-         * @param o the objects to match, which can be primary keys, records representing the table, or fields in the
-         *           table graph.
-         * @return the predicate builder.
+         * @param it the objects to match, which can be primary keys, records representing the table, or fields in the
+         *          table graph.
+         * @return the query builder.
+         * @param <V> the type of the object that the metamodel represents.
+         * @since 1.2
+         */
+        <V> PredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path,
+                                                 @Nonnull Operator operator,
+                                                 @Nonnull Iterable<? extends V> it);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
+         * graph.
+         *
+         * @param path the path to the object in the table graph.
+         * @param operator the operator to use for the comparison.
+         * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
+         *          table graph.
+         * @return the query builder.
          * @param <V> the type of the object that the metamodel represents.
          * @since 1.2
          */
         @SuppressWarnings("unchecked")
-        default <V> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path,
-                                                      @Nonnull Operator operator,
-                                                      @Nonnull V... o) {
-            //noinspection ConfusingArgumentToVarargsMethod
-            return filter(path.componentPath(), operator, o);
-        }
+        <V> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path,
+                                              @Nonnull Operator operator,
+                                              @Nonnull V... o);
 
         /**
-         * Adds a condition to the WHERE clause that matches the specified object(s) at the specified path in the table
-         * graph. When the object(s) are records representing a table, the `path` acts as a search path to locate the
-         * table within the table graph — meaning it does not need to be an exact match. In other scenarios, where the
-         * object(s) represent fields (including primary keys), the `path` must be an exact match to the field's
-         * location in the table graph.
+         * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
+         * graph.
          *
-         * @param path the path to the object in the table graph. For record (table) based filters, this is a search
-         *             path to the table.
+         * @param path the path to the object in the table graph.
          * @param operator the operator to use for the comparison.
          * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
          *          table graph.
-         * @return the predicate builder.
+         * @return the query builder.
+         * @param <V> the type of the object that the metamodel represents.
+         * @since 1.2
          */
-        PredicateBuilder<T, R, ID> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o);
+        @SuppressWarnings("unchecked")
+        <V> PredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path,
+                                                 @Nonnull Operator operator,
+                                                 @Nonnull V... o);
     }
 
     /**
@@ -403,9 +451,9 @@ public interface QueryBuilder<T extends Record, R, ID> {
     }
 
     /**
-     * Adds a condition to the WHERE clause that matches the specified primary key(s) of the table.
+     * Adds a WHERE clause that matches the specified primary key of the table.
      *
-     * @param id the id(s) to match.
+     * @param id the id to match.
      * @return the query builder.
      */
     default QueryBuilder<T, R, ID> where(@Nonnull ID id) {
@@ -413,51 +461,110 @@ public interface QueryBuilder<T extends Record, R, ID> {
     }
 
     /**
-     * Adds a condition to the WHERE clause that matches the specified record(s). The record can be representing the
-     * table, or any of the related tables in the table graph or manually added joins.
+     * Adds a WHERE clause that matches the specified record.
      *
-     * <p>If the record type cannot be unambiguously matched, the {@link #where(String, Operator, Object...)} method
-     * can be used to specify the path to the record in the table graph or manually added joins.</p>
-     *
-     * @param record the record(s) to match.
+     * @param record the record to match.
      * @return the query builder.
      */
-    default QueryBuilder<T, R, ID> where(@Nonnull Record record) {
+    default QueryBuilder<T, R, ID> where(@Nonnull T record) {
         return where(predicate -> predicate.filter(record));
     }
 
     /**
-     * Adds a condition to the WHERE clause that matches the specified primary keys of the table.
+     * Adds a WHERE clause that matches the specified record. The record can represent any of the related tables in the
+     * table graph or manually added joins.
+     *
+     * @param record the record to match.
+     * @return the query builder.
+     * @since 1.2
+     */
+    default QueryBuilder<T, R, ID> whereAny(@Nonnull Record record) {
+        return where(predicate -> predicate.filterAny(record));
+    }
+
+    /**
+     * Adds a WHERE clause that matches the specified primary keys of the table.
      *
      * @param it ids to match.
      * @return the query builder.
+     * @since 1.2
      */
     default QueryBuilder<T, R, ID> whereIds(@Nonnull Iterable<? extends ID> it) {
         return where(predicate -> predicate.filterIds(it));
     }
 
     /**
-     * Adds a condition to the WHERE clause that matches the specified records. The records can represent the table,
-     * or any of the related tables in the table graph or manually added joins.
+     * Adds WHERE clause that matches the specified record. The record can represent any of the related tables in the
+     * table graph.
      *
-     * <p>If the record type cannot be unambiguously matched, the {@link #where(String, Operator, Iterable)} method
-     * can be used to specify the path to the object in the table graph.</p>
-     *
-     * @param it the objects to match.
+     * @param record the records to match.
      * @return the predicate builder.
      */
-    default QueryBuilder<T, R, ID> where(@Nonnull Iterable<? extends Record> it) {
+    default <V extends Record> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, V record) {
+        //noinspection unchecked
+        return where(path, EQUALS, record);
+    }
+
+    /**
+     * Adds WHERE clause that matches the specified record. The record can represent any of the related tables in the
+     * table graph or manually added joins.
+     *
+     * @param record the records to match.
+     * @return the predicate builder.
+     */
+    default <V extends Record> QueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, V record) {
+        //noinspection unchecked
+        return whereAny(path, EQUALS, record);
+    }
+
+    /**
+     * Adds a WHERE clause that matches the specified records. The records can represent any of the related tables in
+     * the table graph.
+     *
+     * @param it the records to match.
+     * @return the predicate builder.
+     */
+    default <V extends Record> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, Iterable<V> it) {
+        return where(path, IN, it);
+    }
+
+    /**
+     * Adds a WHERE clause that matches the specified records. The records can represent any of the related tables in
+     * the table graph or manually added joins.
+     *
+     * @param it the records to match.
+     * @return the predicate builder.
+     */
+    default <V extends Record> QueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, Iterable<V> it) {
+        return whereAny(path, IN, it);
+    }
+
+    /**
+     * Adds a WHERE clause that matches the specified records.
+     *
+     * @param it the records to match.
+     * @return the query builder.
+     */
+    default QueryBuilder<T, R, ID> where(@Nonnull Iterable<? extends T> it) {
         return where(predicate -> predicate.filter(it));
     }
 
     /**
-     * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-     * graph. When the objects are records representing a table, the `path` acts as a search path to locate the table
-     * within the table graph — meaning it does not need to be an exact match. In other scenarios, where the objects
-     * represent fields (including primary keys), the `path` must be an exact match to the field's location in the table
-     * graph. The path is represented by a metamodel, which enforce type safety for the path and the objects.
+     * Adds a WHERE clause that matches the specified records. The record can represent any of the related tables in the
+     * table graph or manually added joins.
      *
-     * @param path the metamodel to use for the path.
+     * @param it the records to match.
+     * @return the query builder.
+     * @since 1.2
+     */
+    default QueryBuilder<T, R, ID> whereAny(@Nonnull Iterable<? extends Record> it) {
+        return where(predicate -> predicate.filterAny(it));
+    }
+
+    /**
+     * Adds a WHERE clause that matches the specified objects at the specified path in the table graph.
+     *
+     * @param path the path to the object in the table graph.
      * @param operator the operator to use for the comparison.
      * @param it the objects to match, which can be primary keys, records representing the table, or fields in the table
      *           graph.
@@ -468,38 +575,33 @@ public interface QueryBuilder<T extends Record, R, ID> {
     default <V> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
                                              @Nonnull Operator operator,
                                              @Nonnull Iterable<? extends V> it) {
-        return where(path.componentPath(), operator, it);
-    }
-
-    /**
-     * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-     * graph. When the objects are records representing a table, the `path` acts as a search path to locate the table
-     * within the table graph — meaning it does not need to be an exact match. In other scenarios, where the objects
-     * represent fields (including primary keys), the `path` must be an exact match to the field's location in the table
-     * graph.
-     *
-     * @param path the path to the object in the table graph. For record (table) based filters, this is a search path to
-     *             the table.
-     * @param operator the operator to use for the comparison.
-     * @param it the objects to match, which can be primary keys, records representing the table, or fields in the table
-     *           graph.
-     * @return the query builder.
-     */
-    default QueryBuilder<T, R, ID> where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
         return where(predicate -> predicate.filter(path, operator, it));
     }
 
     /**
-     * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-     * graph. When the objects are records representing a table, the `path` acts as a search path to locate the table
-     * within the table graph — meaning it does not need to be an exact match. In other scenarios, where the objects
-     * represent fields (including primary keys), the `path` must be an exact match to the field's location in the table
-     * graph. The path is represented by a metamodel, which enforce type safety for the path and the objects.
+     * Adds a WHERE clause that matches the specified objects at the specified path in the table graph.
      *
-     * @param path the path to the object in the table graph. For record (table) based filters, this is a search path to
-     *             the table.
+     * @param path the path to the object in the table graph.
      * @param operator the operator to use for the comparison.
-     * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the table graph.
+     * @param it the objects to match, which can be primary keys, records representing the table, or fields in the
+     *          table graph.
+     * @return the query builder.
+     * @param <V> the type of the object that the metamodel represents.
+     * @since 1.2
+     */
+    default <V> QueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path,
+                                                @Nonnull Operator operator,
+                                                @Nonnull Iterable<? extends V> it) {
+        return where(predicate -> predicate.filterAny(path , operator, it));
+    }
+
+    /**
+     * Adds a WHERE clause that matches the specified objects at the specified path in the table graph.
+     *
+     * @param path the path to the object in the table graph.
+     * @param operator the operator to use for the comparison.
+     * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
+     *          table graph.
      * @return the query builder.
      * @param <V> the type of the object that the metamodel represents.
      * @since 1.2
@@ -508,23 +610,26 @@ public interface QueryBuilder<T extends Record, R, ID> {
     default <V> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
                                              @Nonnull Operator operator,
                                              @Nonnull V... o) {
-        return where(path.componentPath(), operator, (Object[]) o);
+        return where(predicate -> predicate.filter(path, operator, o));
     }
 
     /**
-     * Adds a condition to the WHERE clause that matches the specified object(s) at the specified path in the table
-     * graph. When the object(s) are records representing a table, the `path` acts as a search path to locate the table
-     * within the table graph — meaning it does not need to be an exact match. In other scenarios, where the object(s)
-     * represent fields (including primary keys), the `path` must be an exact match to the field's location in the table
-     * graph.
+     * Adds a WHERE clause that matches the specified objects at the specified path in the table graph. The metamodel
+     * can refer to manually added joins.
      *
-     * @param path the path to the object in the table graph. For record (table) based filters, this is a search path to the table.
+     * @param path the path to the object in the table graph.
      * @param operator the operator to use for the comparison.
-     * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the table graph.
+     * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
+     *          table graph.
      * @return the query builder.
+     * @param <V> the type of the object that the metamodel represents.
+     * @since 1.2
      */
-    default QueryBuilder<T, R, ID> where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
-        return where(predicate -> predicate.filter(path, operator, o));
+    @SuppressWarnings("unchecked")
+    default <V> QueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path,
+                                                @Nonnull Operator operator,
+                                                V... o) {
+        return where(predicate -> predicate.filterAny(path, operator, o));
     }
 
     /**

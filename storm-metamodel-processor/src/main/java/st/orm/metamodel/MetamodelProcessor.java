@@ -16,7 +16,6 @@
 package st.orm.metamodel;
 
 import javax.annotation.processing.AbstractProcessor;
-import javax.annotation.processing.Generated;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
@@ -26,7 +25,9 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
@@ -34,6 +35,7 @@ import javax.lang.model.util.Types;
 import javax.tools.JavaFileObject;
 import java.io.Writer;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -48,6 +50,7 @@ import static javax.lang.model.element.ElementKind.FIELD;
 import static javax.lang.model.element.ElementKind.RECORD;
 import static javax.tools.Diagnostic.Kind.ERROR;
 import static javax.tools.Diagnostic.Kind.NOTE;
+import static javax.tools.Diagnostic.Kind.WARNING;
 
 /**
  * @since 1.2
@@ -186,10 +189,6 @@ public final class MetamodelProcessor extends AbstractProcessor {
             if (!isRecord(element)) {
                 continue;
             }
-            // Skip nested records.
-            if (element.getEnclosingElement().getKind() == CLASS) {
-                continue;
-            }
             boolean hasGenerateMetamodel = element.getAnnotationMirrors().stream()
                     .anyMatch(annotationMirror -> GENERATE_METAMODEL
                             .equals(annotationMirror.getAnnotationType().toString()));
@@ -266,7 +265,21 @@ public final class MetamodelProcessor extends AbstractProcessor {
     }
 
     private boolean isForeignKey(Element recordElement, String fieldName) {
-        // Also works for regular records. We may implement a more efficient way in the future for regular records.
+        // If it's a real Java record, attempt to find its canonical constructor.
+        if (recordElement.getKind() == RECORD) {
+            var canonicalConstructor = findCanonicalConstructor(recordElement);
+            if (canonicalConstructor != null) {
+                // Check the canonical constructor’s parameters for the foreign key annotation on fieldName
+                for (var param : canonicalConstructor.getParameters()) {
+                    if (param.getSimpleName().toString().equals(fieldName)) {
+                        return hasForeignKeyAnnotation(param);
+                    }
+                }
+                // If we’re here, the fieldName isn’t found in canonical constructor => not a foreign key.
+                return false;
+            }
+        }
+        // Fallback for Kotlin “records” or if we couldn’t find a canonical constructor.
         var constructors = recordElement.getEnclosedElements()
                 .stream()
                 .filter(enclosed -> enclosed.getKind() == CONSTRUCTOR)
@@ -275,13 +288,60 @@ public final class MetamodelProcessor extends AbstractProcessor {
             var parameters = ((ExecutableElement) constructor).getParameters();
             for (var parameter : parameters) {
                 if (parameter.getSimpleName().toString().equals(fieldName)) {
-                    return parameter.getAnnotationMirrors().stream()
-                            .anyMatch(annotationMirror -> FOREIGN_KEY
-                                    .equals(annotationMirror.getAnnotationType().toString()));
+                    return hasForeignKeyAnnotation(parameter);
                 }
             }
         }
         return false;
+    }
+
+    /**
+     * Attempts to find the canonical constructor for a genuine Java record, matching parameter count + types against
+     * the record components. Returns null if it can’t find a match (or if not supported).
+     */
+    private ExecutableElement findCanonicalConstructor(Element recordElement) {
+        // Sanity check
+        if (recordElement.getKind() != RECORD) {
+            return null;
+        }
+        List<? extends RecordComponentElement> recordComponents =
+                ((TypeElement) recordElement).getRecordComponents();
+        var constructors = recordElement.getEnclosedElements()
+                .stream()
+                .filter(enclosed -> enclosed.getKind() == CONSTRUCTOR)
+                .map(e -> (ExecutableElement) e)
+                .toList();
+        // Attempt to match each constructor to the record components in order:
+        for (var constructor : constructors) {
+            var parameters = constructor.getParameters();
+            if (parameters.size() != recordComponents.size()) {
+                continue; // Not matching in parameter count.
+            }
+            boolean matches = true;
+            for (int i = 0; i < parameters.size(); i++) {
+                var paramType = parameters.get(i).asType().toString();
+                var recordType = recordComponents.get(i).asType().toString();
+                // Compare type signatures; we may want a better check than string comparison.
+                if (!paramType.equals(recordType)) {
+                    matches = false;
+                    break;
+                }
+            }
+            if (matches) {
+                return constructor;
+            }
+        }
+        return null; // No canonical constructor found.
+    }
+
+    /**
+     * Checks if the given parameter has the FOREIGN_KEY annotation.
+     */
+    private boolean hasForeignKeyAnnotation(VariableElement parameter) {
+        return parameter.getAnnotationMirrors()
+                .stream()
+                .anyMatch(annotationMirror ->
+                        FOREIGN_KEY.equals(annotationMirror.getAnnotationType().toString()));
     }
 
     private String buildInterfaceFields(Element recordElement, String packageName) {
@@ -307,16 +367,16 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     if (isForeignKey(recordElement, fieldName)) {
                         builder.append("    /** Represents the {@link ").append(recordName).append("#").append(fieldName).append("} foreign key. */\n");
                         builder.append("    ").append(fieldTypeName).append("Metamodel<").append(recordName).append("> ").append(fieldName)
-                                .append(" = new ").append(fieldTypeName).append("Metamodel<>(").append(recordType).append(", \"").append(fieldName).append("\");\n");
+                                .append(" = new ").append(fieldTypeName).append("Metamodel<>(\"").append(fieldName).append("\", Metamodel.root(").append(recordName).append(".class));\n");
                     } else {
                         builder.append("    /** Represents the inline {@link ").append(recordName).append("#").append(fieldName).append("} record. */\n");
                         builder.append("    ").append(fieldTypeName).append("Metamodel<").append(recordName).append("> ").append(fieldName)
-                                .append(" = new ").append(fieldTypeName).append("Metamodel<>(").append(recordType).append(", \"\", \"").append(fieldName).append("\", true);\n");
+                                .append(" = new ").append(fieldTypeName).append("Metamodel<>(").append("\"\", \"").append(fieldName).append("\", true, Metamodel.root(").append(recordName).append(".class));\n");
                     }
                 } else {
                     builder.append("    /** Represents the {@link ").append(recordName).append("#").append(fieldName).append("} field. */\n");
                     builder.append("    Metamodel<").append(recordName).append(", ").append(fieldTypeName).append("> ").append(fieldName).append(" = new ").append(recordName).append("Metamodel<")
-                            .append(recordName).append(">(").append(recordType).append(").").append(fieldName).append(";\n");
+                            .append(recordName).append(">().").append(fieldName).append(";\n");
                 }
             }
         }
@@ -378,7 +438,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     }
                     boolean inline = !isForeignKey(recordElement, fieldName);
                     builder.append("    /** Represents the ").append(inline ? "inline " : "").append("{@link ").append(recordName).append("#").append(fieldName).append("} ")
-                            .append(inline ? " record." : " foreign key.").append(" */\n");
+                            .append(inline ? "record." : "foreign key.").append(" */\n");
                     builder.append("    public final ").append(fieldTypeName).append("Metamodel<T> ").append(fieldName).append(";\n");
                 } else {
                     builder.append("    /** Represents the ").append("{@link ").append(recordName).append("#").append(fieldName).append("} ")
@@ -397,26 +457,24 @@ public final class MetamodelProcessor extends AbstractProcessor {
             if (recordComponent != null) {
                 String fieldName = enclosed.getSimpleName().toString();
                 TypeMirror fieldType = getTypeElement(recordElement, fieldName);
-                String recordType = recordName + ".class";
                 if (fieldType == null) {
                     continue;
                 }
                 String fieldTypeName = getTypeName(fieldType, packageName);
-                String inlineAwareType = "inline ? recordType : " + recordType;
                 if (isRecord(fieldType)) {
                     if (isNestedRecord(fieldType)) {
                         continue;   // Skip nested records.
                     }
                     if (isForeignKey(recordElement, fieldName)) {
                         builder.append("        this.").append(fieldName).append(" = new ").append(fieldTypeName).append("Metamodel<>(")
-                                .append(inlineAwareType).append(", ").append("subPath").append(", componentBase + \"").append(fieldName).append("\");\n");
+                                .append("subPath, componentBase + \"").append(fieldName).append("\", this);\n");
                     } else {
                         builder.append("        this.").append(fieldName).append(" = new ").append(fieldTypeName).append("Metamodel<>(")
-                                .append(inlineAwareType).append(", ").append("subPath").append(", componentBase + \"").append(fieldName).append("\", true);\n");
+                                .append("subPath").append(", componentBase + \"").append(fieldName).append("\", true, this);\n");
                     }
                 } else {
                     builder.append("        this.").append(fieldName).append(" = new MetamodelImpl(")
-                            .append(inlineAwareType).append(", ").append("subPath").append(", componentBase + \"").append(fieldName).append("\", ").append(fieldTypeName).append(".class);\n");
+                            .append(fieldTypeName).append(".class, ").append("subPath").append(", componentBase + \"").append(fieldName).append("\", false, this);\n");
                 }
             }
         }
@@ -450,26 +508,26 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     @Generated("%s")
                     public final class %s<T extends Record> extends MetamodelImpl<T, %s> {
                     %s
-                        public %s(Class<? extends Record> recordType) {
-                            this(recordType, "");
+                        public %s() {
+                            this("", (Metamodel<T, ?>) Metamodel.root(%s.class));
                         }
                     
-                        public %s(Class<? extends Record> recordType, String component) {
-                            this(recordType, "", component);
+                        public %s(String component, Metamodel<T, ?> parent) {
+                            this("", component, parent);
                         }
                     
-                        public %s(Class<? extends Record> recordType, String path, String component) {
-                            this(recordType, path, component, false);
+                        public %s(String path, String component, Metamodel<T, ?> parent) {
+                            this(path, component, false, parent);
                         }
                     
-                        public %s(Class<? extends Record> recordType, String path, String component, boolean inline) {
-                            super(recordType, path, component, %s.class);
+                        public %s(String path, String component, boolean inline, Metamodel<T, ?> parent) {
+                            super(%s.class, path, component, inline, parent);
                             String subPath = inline ? path : component.isEmpty() ? path : path.isEmpty() ? component : path + "." + component;
                             String componentBase = inline ? component.isEmpty() ? "" : component + "." : "";
                     %s
                         }
                     }""", packageName, recordName, getClass().getName(), metaClassName, recordName, buildClassFields(recordElement, packageName, recordName),
-                        metaClassName, metaClassName, metaClassName, metaClassName, recordName, initClassFields(recordElement, packageName, recordName)));
+                        metaClassName, recordName, metaClassName, metaClassName, metaClassName, recordName, initClassFields(recordElement, packageName, recordName)));
             }
         } catch (Exception e) {
             processingEnv.getMessager().printMessage(ERROR, "Failed to process " + metaClassName + ". Error: " + e);

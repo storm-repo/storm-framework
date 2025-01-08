@@ -17,6 +17,7 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.template.Metamodel;
 import st.orm.template.ResolveScope;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.TableAliasResolver;
@@ -140,7 +141,10 @@ final class AliasMapper {
                                                         @Nullable String path,
                                                         @Nonnull ResolveScope resolveMode) {
         if (resolveMode != INNER) {
-            return new SqlTemplateException(STR."Multiple aliases found for: \{table.getSimpleName()} at path: '\{path}'. Use INNER scope to limit alias resolution to the current scope.");
+            if (path != null) {
+                return new SqlTemplateException(STR."Multiple aliases found for: \{table.getSimpleName()} at path: '\{path}'. Use INNER scope to limit alias resolution to the current scope.");
+            }
+            return new SqlTemplateException(STR."Multiple aliases found for: \{table.getSimpleName()}.");
         }
         var paths = aliasMap.get(table).stream()
                 .map(TableAlias::path)
@@ -177,6 +181,13 @@ final class AliasMapper {
             return empty();
         }
         return Optional.of(list.getFirst());
+    }
+
+    public String getAlias(@Nonnull Metamodel<?, ?> metamodel,
+                           @Nonnull ResolveScope scope) throws SqlTemplateException {
+        var table = metamodel.table();
+        String path = table.componentPath();
+        return getAlias(table.componentType(), path.isEmpty() ? null : path, scope, null);
     }
 
     public String getAlias(@Nonnull Class<? extends Record> table,

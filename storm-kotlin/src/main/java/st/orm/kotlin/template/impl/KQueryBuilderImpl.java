@@ -9,6 +9,7 @@ import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.JoinType;
+import st.orm.template.Metamodel;
 import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryBuilder.JoinBuilder;
@@ -295,8 +296,13 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> filter(@NotNull Record record) {
+        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull TX record) {
             return new KPredicateBuilderImpl<>(whereBuilder.filter(record));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> filterAny(@NotNull Record record) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filterAny(record));
         }
 
         @Override
@@ -305,18 +311,35 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull Iterable<? extends Record> it) {
+        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull Iterable<? extends TX> it) {
             return new KPredicateBuilderImpl<>(whereBuilder.filter(it));
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
+        public KPredicateBuilder<TX, RX, IDX> filterAny(@NotNull Iterable<? extends Record> it) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filterAny(it));
+        }
+
+        @Override
+        public <V> KPredicateBuilder<TX, RX, IDX> filter(@NotNull Metamodel<TX, V> path, @NotNull Operator operator, @NotNull Iterable<? extends V> it) {
             return new KPredicateBuilderImpl<>(whereBuilder.filter(path, operator, it));
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
+        public <V> KPredicateBuilder<TX, RX, IDX> filterAny(@NotNull Metamodel<?, V> path, @NotNull Operator operator, @NotNull Iterable<? extends V> it) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filterAny(path, operator, it));
+        }
+
+        @SafeVarargs
+        @Override
+        public final <V> KPredicateBuilder<TX, RX, IDX> filter(@NotNull Metamodel<TX, V> path, @NotNull Operator operator, @NotNull V... o) {
             return new KPredicateBuilderImpl<>(whereBuilder.filter(path, operator, o));
+        }
+
+        @SafeVarargs
+        @Override
+        public final <V> KPredicateBuilder<TX, RX, IDX> filterAny(@NotNull Metamodel<?, V> path, @NotNull Operator operator, @NotNull V... o) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filterAny(path, operator, o));
         }
     }
 

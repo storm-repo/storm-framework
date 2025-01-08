@@ -56,6 +56,49 @@ final class RecordReflection {
     private RecordReflection() {
     }
 
+
+    /**
+     * Looks up the record component in the given table, taking the {@code component} path into account.
+     */
+    public static RecordComponent getRecordComponent(@Nonnull Class<? extends Record> table,
+                                                     @Nonnull String path) throws SqlTemplateException {
+        if (path.isEmpty()) {
+            throw new SqlTemplateException("Empty component path specified.");
+        }
+        // Split on '.' to handle nested components (e.g., "x.y.z").
+        String[] parts = path.split("\\.");
+        Class<? extends Record> currentRecordClass = table;
+        RecordComponent foundComponent = null;
+        for (int i = 0; i < parts.length; i++) {
+            String part = parts[i];
+            // Get record components for the current record class.
+            RecordComponent[] components = currentRecordClass.getRecordComponents();
+            foundComponent = null;
+            for (RecordComponent c : components) {
+                if (c.getName().equals(part)) {
+                    foundComponent = c;
+                    break;
+                }
+            }
+            if (foundComponent == null) {
+                throw new SqlTemplateException(STR."No component named '\{part}' found in record \{currentRecordClass.getName()}.");
+            }
+            // If there's still a next part to search, update currentRecordClass if possible.
+            boolean hasNextPart = (i < parts.length - 1);
+            if (hasNextPart) {
+                // The type of the found component must be another record to continue drilling down.
+                if (Record.class.isAssignableFrom(foundComponent.getType())) {
+                    @SuppressWarnings("unchecked")
+                    Class<? extends Record> nextRecordClass = (Class<? extends Record>) foundComponent.getType();
+                    currentRecordClass = nextRecordClass;
+                } else {
+                    throw new SqlTemplateException(STR."Component '\{part}' in record \{currentRecordClass.getName()} is not a record, but further components were specified: '\{path}'.");
+                }
+            }
+        }
+        return foundComponent;
+    }
+
     @SuppressWarnings("unchecked")
     static Stream<RecordComponent> getPkComponents(@Nonnull Class<? extends Record> componentType) {
         return Stream.of(componentType.getRecordComponents())
@@ -305,19 +348,19 @@ final class RecordReflection {
         throw new SqlTemplateException(STR."Cannot infer foreign key column name for entity \{component.getDeclaringRecord().getSimpleName()}. Specify a @DbName annotation or provide a foreign key resolver.");
     }
 
-    static void mapForeignKeys(@Nonnull TableMapper tableMapper, @Nonnull String alias, @Nonnull Class<? extends Record> table, @Nullable String path)
+    static void mapForeignKeys(@Nonnull TableMapper tableMapper, @Nonnull String alias, @Nonnull Class<? extends Record> rootTable, @Nonnull Class<? extends Record> table, @Nullable String path)
             throws SqlTemplateException {
         for (var component : table.getRecordComponents()) {
             if (REFLECTION.isAnnotationPresent(component, FK.class)) {
                 if (Lazy.class.isAssignableFrom(component.getType())) {
-                    tableMapper.mapForeignKey(table, getLazyRecordType(component), alias, component, path);
+                    tableMapper.mapForeignKey(table, getLazyRecordType(component), alias, component, rootTable, path);
                 } else {
                     if (!component.getType().isRecord()) {
                         throw new SqlTemplateException(STR."FK annotation is only allowed on record types: \{component.getType().getSimpleName()}.");
                     }
                     //noinspection unchecked
                     Class<? extends Record> componentType = (Class<? extends Record>) component.getType();
-                    tableMapper.mapForeignKey(table, componentType, alias, component, path);
+                    tableMapper.mapForeignKey(table, componentType, alias, component, rootTable, path);
                 }
             }
         }

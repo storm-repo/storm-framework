@@ -29,7 +29,7 @@ import java.time.LocalDate;
  * Simple business object representing a pet.
  */
 @Builder(toBuilder = true)
-public record Pet(
+public record  Pet(
         @PK Integer id,
         @Nonnull String name,
         @Nonnull @Persist(updatable = false) LocalDate birthDate,

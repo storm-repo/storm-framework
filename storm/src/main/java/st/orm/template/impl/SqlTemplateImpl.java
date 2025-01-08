@@ -433,7 +433,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                                        @Nonnull String nextFragment,
                                        @Nonnull Class<? extends Record> recordType) throws SqlTemplateException {
         if (nextFragment.startsWith(".")) {
-            return new Alias(recordType, null, CASCADE);
+            return new Alias(recordType, CASCADE);
         }
         String next = removeComments(nextFragment).stripLeading().toUpperCase();
         String previous = removeComments(previousFragment).stripTrailing().toUpperCase();
@@ -646,7 +646,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             // because the entities can already be resolved by their foreign keys.
             //  tableMapper.mapPrimaryKey(table, alias, getPkComponents(update.table()).toList(), path);
             // Make the FKs of the entity also available for mapping.
-            mapForeignKeys(tableMapper, alias, table, path);
+            mapForeignKeys(tableMapper, alias, table, table, path);
         }
         addTableAliases(elements, aliasMapper);
         validateWhere(elements);
@@ -754,7 +754,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             if (element instanceof Table(var table, var alias)) {
                 aliasMapper.setAlias(table, alias, null);
             } else if (element instanceof Join j) {
-                String path = null; // Custom joins are not part of the primary table.
+                String path = ""; // Use "" for custom join, as they for their own root.
                 // Move custom join to list of (auto) joins to allow proper ordering of inner and outer joins.
                 if (j instanceof Join(TableSource ts, _, _, _, _)) {
                     String alias;
@@ -769,9 +769,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
                             ? new TemplateSource(StringTemplate.of(projectionQuery.value()))
                             : ts;
                     customJoins.add(new Join(source, alias, j.target(), j.type(), false));
-                    tableMapper.mapPrimaryKey(fromTable, ts.table(), alias, getPkComponents(ts.table()).toList(), path);
+                    tableMapper.mapPrimaryKey(fromTable, ts.table(), alias, getPkComponents(ts.table()).toList(), ts.table(), path);
                     // Make the FKs of the join also available for mapping.
-                    mapForeignKeys(tableMapper, alias, ts.table(), path);
+                    mapForeignKeys(tableMapper, alias, ts.table(), ts.table(), path);
                 } else {
                     customJoins.add(j);
                 }
@@ -781,7 +781,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         List<Join> joins;
         if (from.autoJoin()) {
             joins = new ArrayList<>();
-            addAutoJoins(fromTable, customJoins, aliasMapper, tableMapper, joins);
+            addAutoJoins(fromTable, fromTable, customJoins, aliasMapper, tableMapper, joins);
         } else {
             joins = customJoins;
         }
@@ -813,11 +813,12 @@ public final class SqlTemplateImpl implements SqlTemplate {
     }
 
     private void addAutoJoins(@Nonnull Class<? extends Record> recordType,
+                              @Nonnull Class<? extends Record> rootTable,
                               @Nonnull List<Join> customJoins,
                               @Nonnull AliasMapper aliasMapper,
                               @Nonnull TableMapper tableMapper,
                               @Nonnull List<Join> joins) throws SqlTemplateException {
-        addAutoJoins(recordType, List.of(), aliasMapper, tableMapper, joins, null, false);
+        addAutoJoins(recordType, rootTable, List.of(), aliasMapper, tableMapper, joins, null, false);
         joins.addAll(customJoins);
         // Move outer joins to the end of the list to ensure proper filtering across multiple databases.
         joins.sort(comparing(join -> join.type().isOuter()));
@@ -825,6 +826,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
 
     @SuppressWarnings("unchecked")
     private void addAutoJoins(@Nonnull Class<? extends Record> recordType,
+                              @Nonnull Class<? extends Record> rootTable,
                               @Nonnull List<RecordComponent> path,
                               @Nonnull AliasMapper aliasMapper,
                               @Nonnull TableMapper tableMapper,
@@ -846,7 +848,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     } else {
                         fromAlias = fkName;
                     }
-                    tableMapper.mapForeignKey(recordType, getLazyRecordType(component), fromAlias, component, fkPath);
+                    tableMapper.mapForeignKey(recordType, getLazyRecordType(component), fromAlias, component, rootTable, fkPath);
                     continue;
                 }
                 if (!component.getType().isRecord()) {
@@ -866,7 +868,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     fromAlias = fkName;
                 }
                 String alias = aliasMapper.generateAlias(componentType, pkPath, recordType);
-                tableMapper.mapForeignKey(recordType, componentType, fromAlias, component, fkPath);
+                tableMapper.mapForeignKey(recordType, componentType, fromAlias, component, rootTable, fkPath);
                 var pkComponent = getPkComponents(componentType).findFirst()    // We only support single primary keys for FK fields.
                         .orElseThrow(() -> new SqlTemplateException(STR."No primary key found for entity \{componentType.getSimpleName()}."));
                 String pkColumnName = getColumnName(pkComponent, columnNameResolver);
@@ -880,7 +882,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                         ? new TemplateSource(StringTemplate.of(query.value()))
                         : new TableSource(componentType);
                 joins.add(new Join(source, alias, new TemplateTarget(StringTemplate.of(STR."\{fromAlias}.\{getForeignKey(component, foreignKeyResolver)} = \{alias}.\{pkColumnName}")), joinType, true));
-                addAutoJoins(componentType, copy, aliasMapper, tableMapper, joins, alias, effectiveOuterJoin);
+                addAutoJoins(componentType, rootTable, copy, aliasMapper, tableMapper, joins, alias, effectiveOuterJoin);
             } else if (component.getType().isRecord()) {
                 if (REFLECTION.isAnnotationPresent(component, PK.class) || getORMConverter(component).isPresent()) {
                     continue;
@@ -893,7 +895,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 } else {
                     fromAlias = fkName;
                 }
-                addAutoJoins(componentType, copy, aliasMapper, tableMapper, joins, fromAlias, outerJoin);
+                addAutoJoins(componentType, rootTable, copy, aliasMapper, tableMapper, joins, fromAlias, outerJoin);
             }
         }
     }

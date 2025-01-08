@@ -1,4 +1,4 @@
-package st.orm.test
+package st.orm.kotlin;
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.junit.jupiter.SpringExtension
-import st.orm.kotlin.IntegrationConfig
 import st.orm.kotlin.KTemplates.ORM
 import st.orm.kotlin.KTemplates.alias
 import st.orm.kotlin.model.KotlinPet
@@ -52,7 +51,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
         val list = ORM(dataSource).entity(Pet::class)
             .select()
             .innerJoin(Visit::class).on(Pet::class)
-            .where(Visit(1, null, null, null))
+            .whereAny(Visit(1, null, null, null))
             .resultList
         assertEquals(1, list.size)
         assertEquals(7, list[0].id)

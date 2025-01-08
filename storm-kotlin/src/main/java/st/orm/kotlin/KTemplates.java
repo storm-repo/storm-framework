@@ -753,7 +753,7 @@ public interface KTemplates {
      * @return an {@link Element} representing the WHERE clause.
      */
     static Element where(@Nonnull Iterable<?> it) {
-        return new Where(new ObjectExpression(it, IN, null), null);
+        return new Where(new ObjectExpression(IN, it), null);
     }
 
     /**
@@ -793,7 +793,7 @@ public interface KTemplates {
      * @return an {@link Element} representing the WHERE clause.
      */
     static Element where(@Nonnull Object... o) {
-        return new Where(new ObjectExpression(o, IN, null), null);
+        return new Where(new ObjectExpression(IN, o), null);
     }
 
     /**
@@ -897,8 +897,8 @@ public interface KTemplates {
      * @param it an {@link Iterable} of values or records for the condition.
      * @return an {@link Element} representing the WHERE clause.
      */
-    static Element where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
-        return new Where(new ObjectExpression(it, operator, path), null);
+    static <V> Element where(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
+        return new Where(new ObjectExpression(path, operator, it), null);
     }
 
     /**
@@ -941,8 +941,9 @@ public interface KTemplates {
      * @param o the values or records for the condition.
      * @return an {@link Element} representing the WHERE clause.
      */
-    static Element where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
-        return new Where(new ObjectExpression(o, operator, path), null);
+    @SafeVarargs
+    static <V> Element where(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull V... o) {
+        return new Where(new ObjectExpression(path, operator, o), null);
     }
 
     /**
@@ -1144,42 +1145,8 @@ public interface KTemplates {
      * @param table the {@link Class} object representing the table record.
      * @return an {@link Element} representing the table's alias.
      */
-    static Element alias(@Nonnull KClass<? extends Record> table) {
-        return new Alias(getORMReflection().getRecordType(table), null, CASCADE);
-    }
-
-    /**
-     * Generates an alias element for a table found at a specific {@code path} within the table's hierarchy as used in
-     * the query.
-     *
-     * <p>This method is particularly useful when the same table class appears multiple times in a query through
-     * different paths, and you need to specify which instance you're referring to. The {@code path} parameter uniquely
-     * identifies the table by specifying the sequence of field names from the root table to the target table. This
-     * helps avoid ambiguity when generating SQL queries that involve multiple relationships to the same table class.
-     * </p>
-     *
-     * <p>The path is constructed by concatenating the names of the fields that lead to the target table from the root
-     * table.</p>
-     *
-     * <p>Example usage in a string template where {@code User} is referenced twice:
-     * <pre>{@code
-     * // Define a record with two references to User
-     * record Table(int id, User child, User parent) {}
-     *
-     * // In the SQL template
-     * SELECT \{alias(User.class, "child")}.column_name FROM \{Table.class}
-     * }</pre>
-     *
-     * <p>In this example, the path "child" specifies that we are referring to the {@code child} field of the
-     * {@code Table} record, which is of type {@code User}. This distinguishes it from the {@code parent} field, which
-     * is also of type {@code User}.</p>
-     *
-     * @param table the {@link Class} object representing the table record.
-     * @param path an optional path within the table's hierarchy to uniquely identify the table.
-     * @return an {@link Element} representing the table's alias with the specified path.
-     */
-    static Element alias(@Nonnull KClass<? extends Record> table, @Nullable String path) {
-        return new Alias(getORMReflection().getRecordType(table), requireNonNull(path, "path"), CASCADE);
+    static Element alias(@Nonnull Class<? extends Record> table) {
+        return new Alias(table, CASCADE);
     }
 
     /**
@@ -1210,48 +1177,12 @@ public interface KTemplates {
      * </ul>
      *
      * @param table the {@link Class} object representing the table record.
-     * @param scope the {@link ResolveScope} to use when resolving the alias. Use CASCADE to include local and outer
-     *                   scopes, INNER to include local aliases only, and OUTER to include outer aliases only.
+     * @param scope the {@link ResolveScope} to use when resolving the alias. Use STRICT to include local and outer
+     *        aliases, LOCAL to include local aliases only, and OUTER to include outer aliases only.
      * @return an {@link Element} representing the table's alias.
      */
     static Element alias(@Nonnull KClass<? extends Record> table, @Nonnull ResolveScope scope) {
-        return new Alias(getORMReflection().getRecordType(table), null, scope);
-    }
-
-    /**
-     * Generates an alias element for a table found at a specific {@code path} within the table's hierarchy as used in
-     * the query.
-     *
-     * <p>This method is particularly useful when the same table class appears multiple times in a query through
-     * different paths, and you need to specify which instance you're referring to. The {@code path} parameter uniquely
-     * identifies the table by specifying the sequence of field names from the root table to the target table. This
-     * helps avoid ambiguity when generating SQL queries that involve multiple relationships to the same table class.
-     * </p>
-     *
-     * <p>The path is constructed by concatenating the names of the fields that lead to the target table from the root
-     * table.</p>
-     *
-     * <p>Example usage in a string template where {@code User} is referenced twice:
-     * <pre>{@code
-     * // Define a record with two references to User
-     * record Table(int id, User child, User parent) {}
-     *
-     * // In the SQL template
-     * SELECT \{alias(User.class, "child")}.column_name FROM \{Table.class}
-     * }</pre>
-     *
-     * <p>In this example, the path "child" specifies that we are referring to the {@code child} field of the
-     * {@code Table} record, which is of type {@code User}. This distinguishes it from the {@code parent} field, which
-     * is also of type {@code User}.</p>
-     *
-     * @param table the {@link Class} object representing the table record.
-     * @param path an optional path within the table's hierarchy to uniquely identify the table.
-     * @param scope the {@link ResolveScope} to use when resolving the alias. Use CASCADE to include local and outer
-     *                   scopes, INNER to include local aliases only, and OUTER to include outer aliases only.
-     * @return an {@link Element} representing the table's alias with the specified path.
-     */
-    static Element alias(@Nonnull KClass<? extends Record> table, @Nonnull String path, @Nonnull ResolveScope scope) {
-        return new Alias(getORMReflection().getRecordType(table), requireNonNull(path, "path"), scope);
+        return new Alias(getORMReflection().getRecordType(table), scope);
     }
 
     /**
@@ -1269,12 +1200,12 @@ public interface KTemplates {
      * <p>In this example, {@code Table_.child} specifies that we are referring to the {@code child} field of the {@code Table} record,
      * which is of type {@code User}. This distinguishes it from the {@code parent} field, which is also of type {@code User}.
      *
-     * @param metamodel specifies the table for which the alias is to be generated.
+     * @param path specifies the table for which the alias is to be generated.
      * @return an {@link Element} representing the table's alias with the specified path.
      * @since 1.2
      */
-    static Element alias(@Nonnull Metamodel<?, ? extends Record> metamodel) {
-        return new Alias(metamodel, CASCADE);
+    static Element alias(@Nonnull Metamodel<?, ? extends Record> path) {
+        return new Alias(path, CASCADE);
     }
 
     /**
@@ -1292,30 +1223,74 @@ public interface KTemplates {
      * <p>In this example, {@code Table_.child} specifies that we are referring to the {@code child} field of the {@code Table} record,
      * which is of type {@code User}. This distinguishes it from the {@code parent} field, which is also of type {@code User}.
      *
-     * @param metamodel specifies the table for which the alias is to be generated.
+     * @param path specifies the table for which the alias is to be generated.
      * @param scope the {@link ResolveScope} to use when resolving the alias. Use STRICT to include local and outer
      *              aliases, LOCAL to include local aliases only, and OUTER to include outer aliases only.
      * @return an {@link Element} representing the table's alias with the specified path.
      * @since 1.2
      */
-    static Element alias(@Nonnull Metamodel<?, ? extends Record> metamodel, @Nonnull ResolveScope scope) {
-        return new Alias(metamodel, scope);
+    static Element alias(@Nonnull Metamodel<?, ? extends Record> path, @Nonnull ResolveScope scope) {
+        return new Alias(path, scope);
     }
 
-    static Element column(@Nonnull KClass<? extends Record> table, @Nonnull String componentName, @Nullable String path) {
-        return new Column(getORMReflection().getRecordType(table), componentName, path, CASCADE);
+    /**
+     * Generates a column element for a column specified by the given {@code metamodel} in a type safe manner.
+     *
+     * <p>The path is constructed by concatenating the names of the fields that lead to the target table from the root
+     * table. The componentName is the name of the record component that is mapped to the database column. If a record
+     * uses inline records, the componentName is also constructed by concatenating the fields leading to the record
+     * component.</p>
+     *
+     * <p>Example usage in a string template where {@code User} is referenced twice:
+     * <pre>{@code
+     * // Define a record with two references to User
+     * record Table(int id, User child, User parent) {}
+     *
+     * // In the SQL template
+     * SELECT \{column(Table_.child.name)} FROM \{Table.class}
+     * }</pre>
+     *
+     * <p>In this example, the path "child" specifies that we are referring to the {@code child} field of the
+     * {@code Table} record, which is of type {@code User}. This distinguishes it from the {@code parent} field, which
+     * is also of type {@code User}. The "name" componentName refers to the name record component of {@code User}.</p>
+     *
+     * @param path specifies the database column for which the column is to be generated.
+     * @return an {@link Element} representing the table's column with the specified path.
+     * @since 1.2
+     */
+    static Element column(@Nonnull Metamodel<?, ?> path) {
+        return new Column(path, CASCADE);
     }
 
-    static Element column(@Nonnull KClass<? extends Record> table, @Nonnull String componentName, @Nullable String path, @Nonnull ResolveScope scope) {
-        return new Column(getORMReflection().getRecordType(table), componentName, path, scope);
-    }
-
-    static Element column(@Nonnull Metamodel<?, ?> metamodel) {
-        return new Column(metamodel, CASCADE);
-    }
-
-    static Element column(@Nonnull Metamodel<?, ?> metamodel, @Nonnull ResolveScope scope) {
-        return new Column(metamodel, scope);
+    /**
+     * Generates a column element for a column specified by the given {@code metamodel} in a type safe manner.
+     *
+     * <p>The path is constructed by concatenating the names of the fields that lead to the target table from the root
+     * table. The componentName is the name of the record component that is mapped to the database column. If a record
+     * uses inline records, the componentName is also constructed by concatenating the fields leading to the record
+     * component.</p>
+     *
+     * <p>Example usage in a string template where {@code User} is referenced twice:
+     * <pre>{@code
+     * // Define a record with two references to User
+     * record Table(int id, User child, User parent) {}
+     *
+     * // In the SQL template
+     * SELECT \{column(Table_.child.name)} FROM \{Table.class}
+     * }</pre>
+     *
+     * <p>In this example, the path "child" specifies that we are referring to the {@code child} field of the
+     * {@code Table} record, which is of type {@code User}. This distinguishes it from the {@code parent} field, which
+     * is also of type {@code User}. The "name" componentName refers to the name record component of {@code User}.</p>
+     *
+     * @param path specifies the database column for which the column is to be generated.
+     * @param scope the {@link ResolveScope} to use when resolving the alias. Use STRICT to include local and outer
+     *              aliases, LOCAL to include local aliases only, and OUTER to include outer aliases only.
+     * @return an {@link Element} representing the table's column with the specified path.
+     * @since 1.2
+     */
+    static Element column(@Nonnull Metamodel<?, ?> path, @Nonnull ResolveScope scope) {
+        return new Column(path, scope);
     }
 
     /**

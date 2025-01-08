@@ -6,25 +6,37 @@ import lombok.Builder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-import st.orm.model.Address;
 import st.orm.model.Owner;
+import st.orm.model.Owner_;
 import st.orm.model.Pet;
-import st.orm.model.PetType;
+import st.orm.model.PetLazyOwner;
+import st.orm.model.PetLazyOwner_;
+import st.orm.model.PetOwnerRecursion;
+import st.orm.model.PetWithLazyNullableOwner;
+import st.orm.model.PetWithLazyNullableOwner_;
+import st.orm.model.Pet_;
 import st.orm.model.Vet;
 import st.orm.model.VetSpecialty;
 import st.orm.model.VetSpecialtyPK;
 import st.orm.model.Visit;
+import st.orm.model.VisitWithTwoLazyPets;
+import st.orm.model.VisitWithTwoPets;
+import st.orm.model.VisitWithTwoPetsOneLazy;
+import st.orm.model.VisitWithTwoPetsOneLazy_;
+import st.orm.model.VisitWithTwoPets_;
+import st.orm.model.Visit_;
 import st.orm.repository.Entity;
 import st.orm.repository.PetRepository;
+import st.orm.template.Metamodel;
 import st.orm.template.ResolveScope;
 import st.orm.template.Sql;
 import st.orm.template.SqlInterceptor;
 import st.orm.template.SqlTemplate.PositionalParameter;
 import st.orm.template.SqlTemplateException;
+import st.orm.template.impl.MetamodelImpl;
 
 import javax.sql.DataSource;
 import java.sql.SQLIntegrityConstraintViolationException;
@@ -44,6 +56,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.Templates.ORM;
 import static st.orm.Templates.alias;
 import static st.orm.Templates.table;
+import static st.orm.Templates.where;
 import static st.orm.template.Operator.BETWEEN;
 import static st.orm.template.Operator.EQUALS;
 import static st.orm.template.Operator.GREATER_THAN;
@@ -80,59 +93,87 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectByFk() {
-        assertEquals(1, ORM(dataSource).entity(Pet.class).select().where(Owner.builder().id(1).build()).getResultCount());
+        assertEquals(1, ORM(dataSource).entity(Pet.class).select().where(Pet_.owner, Owner.builder().id(1).build()).getResultCount());
     }
 
     @Test
     public void testSelectByFkNested() {
-        assertEquals(2, ORM(dataSource).entity(Visit.class).select().where(Owner.builder().id(1).build()).getResultCount());
+        assertEquals(2, ORM(dataSource).entity(Visit.class).select().where(Visit_.pet.owner, Owner.builder().id(1).build()).getResultCount());
     }
 
     @Test
     public void testSelectByColumn() {
-        assertEquals(1, ORM(dataSource).entity(Visit.class).select().where("visitDate", EQUALS, LocalDate.of(2023, 1, 1)).getResultCount());
+        assertEquals(1, ORM(dataSource).entity(Visit.class).select().where(Visit_.visitDate, EQUALS, LocalDate.of(2023, 1, 1)).getResultCount());
     }
 
     @Test
     public void testSelectByColumnGreaterThan() {
-        assertEquals(13, ORM(dataSource).entity(Visit.class).select().where("visitDate", GREATER_THAN, LocalDate.of(2023, 1, 1)).getResultCount());
+        assertEquals(13, ORM(dataSource).entity(Visit.class).select().where(Visit_.visitDate, GREATER_THAN, LocalDate.of(2023, 1, 1)).getResultCount());
     }
 
     @Test
     public void testSelectByColumnGreaterThanOrEqual() {
-        assertEquals(14, ORM(dataSource).entity(Visit.class).select().where("visitDate", GREATER_THAN_OR_EQUAL, LocalDate.of(2023, 1, 1)).getResultCount());
+        assertEquals(14, ORM(dataSource).entity(Visit.class).select().where(Visit_.visitDate, GREATER_THAN_OR_EQUAL, LocalDate.of(2023, 1, 1)).getResultCount());
     }
 
     @Test
     public void testSelectByColumnBetween() {
-        assertEquals(10, ORM(dataSource).entity(Visit.class).select().where("visitDate", BETWEEN, LocalDate.of(2023, 1, 1), LocalDate.of(2023, 1, 9)).getResultCount());
+        assertEquals(10, ORM(dataSource).entity(Visit.class).select().where(Visit_.visitDate, BETWEEN, LocalDate.of(2023, 1, 1), LocalDate.of(2023, 1, 9)).getResultCount());
     }
 
     @Test
     public void testSelectByColumnIsNull() {
-        assertEquals(1, ORM(dataSource).entity(Pet.class).select().where("owner", IS_NULL).getResultCount());
+        assertEquals(1, ORM(dataSource).entity(Pet.class).select().where(Pet_.owner, IS_NULL).getResultCount());
     }
 
     @Test
     public void testSelectByColumnEqualsNull() {
         // Note that id = NULL results in false.
-        assertEquals(0, ORM(dataSource).entity(Pet.class).select().where("owner", EQUALS, (Object) null).getResultCount());
+        assertEquals(0, ORM(dataSource).entity(Pet.class).select().where(Pet_.owner, EQUALS, (Owner) null).getResultCount());
     }
 
     @Test
     public void testSelectByNestedColumn() {
-        assertEquals(2, ORM(dataSource).entity(Visit.class).select().where("pet.name", EQUALS, "Leo").getResultCount());
+        assertEquals(2, ORM(dataSource).entity(Visit.class).select().where(Visit_.pet.name, EQUALS, "Leo").getResultCount());
     }
 
     @Test
     public void testSelectByDeeperNestedColumn() {
-        assertEquals(2, ORM(dataSource).entity(Visit.class).select().where("pet.owner.firstName", EQUALS, "Betty").getResultCount());
+        assertEquals(2, ORM(dataSource).entity(Visit.class).select().where(Visit_.pet.owner.firstName, EQUALS, "Betty").getResultCount());
     }
 
     @Test
-    public void testSelectByUnknownColumn() {
+    public void testSelectByUnknownColumn() throws SqlTemplateException{
         var e = assertThrows(PersistenceException.class, () -> {
-            ORM(dataSource).entity(Visit.class).select().where("pet.names", EQUALS,"Leo").getResultCount();
+            var model = Visit_.pet.name;
+            // We don't want to use Metamodel.of as it would already throw an exception.
+            Metamodel<Visit, String> invalidModel = new Metamodel<Visit, String>() {
+                @Override
+                public Class<Visit> root() {
+                    return model.root();
+                }
+
+                @Override
+                public Metamodel<Visit, ? extends Record> table() {
+                    return model.table();
+                }
+
+                @Override
+                public String path() {
+                    return model.path();
+                }
+
+                @Override
+                public Class<String> componentType() {
+                    return model.componentType();
+                }
+
+                @Override
+                public String component() {
+                    return "names"; // Invalid name.
+                }
+            };
+            ORM(dataSource).entity(Visit.class).select().where(RAW."\{where(invalidModel, EQUALS, "Leo")}").getResultCount();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
@@ -203,8 +244,10 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testSelectLazy() {
         var visit = ORM(dataSource).entity(VisitWithLazyNullablePet.class).select(1);
+        //noinspection DataFlowIssue
         var pet = visit.pet().fetch();
         assertFalse(visit.pet().isNull());
+        //noinspection DataFlowIssue
         assertEquals("Jean", pet.owner().firstName());
         assertSame(pet, visit.pet().fetch());
     }
@@ -213,7 +256,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithInvalidPath() {
         var e = assertThrows(PersistenceException.class, () ->
                 ORM(dataSource).entity(Pet.class).select()
-                        .where("owner.city", EQUALS, "Sunnyvale")
+                        .where(RAW."\{where(Metamodel.of(Pet.class, "owner.city"), EQUALS, "Sunnyvale")}")
                         .getResultList());
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
@@ -222,7 +265,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithInvalidPathNoArg() {
         var e = assertThrows(PersistenceException.class, () ->
                 ORM(dataSource).entity(Pet.class).select()
-                        .where("owner.city", IS_NULL)
+                        .where(RAW."\{where(Metamodel.of(Pet.class, "owner.city"), IS_NULL)}")
                         .getResultList());
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
@@ -231,6 +274,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     void testInsertPetWithNull() {
         var e = assertThrows(PersistenceException.class, () -> {
             var repository = ORM(dataSource).entity(Visit.class);
+            //noinspection DataFlowIssue
             Visit visit = new Visit(1, LocalDate.now(), "test", null, Instant.now());
             repository.insert(visit);
         });
@@ -242,6 +286,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var e = assertThrows(PersistenceException.class, () -> {
             var repository = ORM(dataSource).entity(Visit.class);
             var visit = repository.select(1);
+            //noinspection DataFlowIssue
             repository.update(new Visit(visit.id(), visit.visitDate(), visit.description(), null, Instant.now()));
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
@@ -272,6 +317,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var e = assertThrows(PersistenceException.class, () -> {
             var repository = ORM(dataSource).entity(VisitWithLazyNonnullPet.class);
             var visit = repository.select(1);
+            //noinspection DataFlowIssue
             repository.update(new VisitWithLazyNonnullPet(visit.id(), visit.visitDate(), visit.description(), null));
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
@@ -315,18 +361,10 @@ public class RepositoryPreparedStatementIntegrationTest {
         var id = repository.insertAndFetchId(visit);
         var visitFromDb = repository.select(id);
         assertEquals(id, visitFromDb.id());
+        //noinspection DataFlowIssue
         assertFalse(visitFromDb.pet().isNull());
         assertEquals(1, visitFromDb.pet().fetch().id());
     }
-
-    @DbTable("pet")
-    public record PetWithLazyNullableOwner(
-            @PK Integer id,
-            @Nonnull String name,
-            @Nonnull @Persist(updatable = false) LocalDate birthDate,
-            @Nonnull @FK @Persist(updatable = false) @DbColumn("type_id") PetType petType,
-            @FK Lazy<Owner, Integer> owner
-    ) implements Entity<Integer> {}
 
     @Test
     public void testSelectLazyNullOwner() {
@@ -356,32 +394,11 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertEquals(13, pets.size());
     }
 
-    @Builder(toBuilder = true)
-    @DbTable("visit")
-    public record VisitWithTwoPets(
-            @PK Integer id,
-            @Nonnull @DbColumn("visit_date") LocalDate visitDate,
-            @Nullable String description,
-            @FK @DbColumn("pet_id") @Qualifier("mom") PetLazyOwner pet1,
-            @FK @DbColumn("pet_id") @Qualifier("dad") PetLazyOwner pet2
-    ) implements Entity<Integer> {
-    }
-
-    @Builder(toBuilder = true)
-    @DbTable("pet")
-    public record PetLazyOwner(
-            @PK Integer id,
-            @Nonnull String name,
-            @Nonnull @Persist(updatable = false) LocalDate birthDate,
-            @Nonnull @FK @DbColumn("type_id") @Persist(updatable = false) PetType petType,
-            @FK @DbColumn("owner_id") Lazy<Owner, Integer> owner
-    ) implements Entity<Integer> {}
-
     @Test
     public void testSelectWithTwoPetsWithoutPath() {
         var e = assertThrows(PersistenceException.class, () -> {
             var owner = ORM(dataSource).selectFrom(Owner.class).getResultList().getFirst();
-            ORM(dataSource).entity(VisitWithTwoPets.class).select().where(owner).getResultList();
+            ORM(dataSource).entity(VisitWithTwoPets.class).select().whereAny(owner).getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
@@ -398,6 +415,17 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
+    public void testSelectWithTwoPetsWithExpressionMetamodel() {
+        var e = assertThrows(PersistenceException.class, () -> {
+            var owner = ORM(dataSource).entity(Owner.class).select().getResultList().getFirst();
+            ORM(dataSource).entity(VisitWithTwoPets.class)
+                    .select()
+                    .where(it -> it.expression(RAW."\{PetLazyOwner_.owner} = \{owner.id()}")).getResultList();
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+    }
+
+    @Test
     public void testSelectWithTwoPetsWithWhere() {
         var e = assertThrows(PersistenceException.class, () -> {
             var owner = ORM(dataSource).entity(Owner.class).select().getResultList().getFirst();
@@ -409,9 +437,20 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testSelectWithTwoPetsWithPath() {
+    public void testSelectWithTwoPetsWithWhereMetamodel() {
+        var e = assertThrows(PersistenceException.class, () -> {
+            var owner = ORM(dataSource).entity(Owner.class).select().getResultList().getFirst();
+            ORM(dataSource).entity(VisitWithTwoPets.class)
+                    .select()
+                    .where(RAW."\{PetLazyOwner_.owner} = \{owner.id()}").getResultList();
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+    }
+
+    @Test
+    public void testSelectWithTwoPetsWithPathRaw() {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
-        var list = ORM(dataSource).entity(VisitWithTwoPets.class).select().where("pet1.owner", EQUALS, owner).getResultList();
+        var list = ORM(dataSource).entity(VisitWithTwoPets.class).select().append(RAW."WHERE \{where(VisitWithTwoPets_.pet1.owner, EQUALS, owner)}").getResultList();
         assertEquals(2, list.size());
     }
 
@@ -420,55 +459,36 @@ public class RepositoryPreparedStatementIntegrationTest {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         var visits = ORM(dataSource).entity(VisitWithTwoPets.class)
                 .select()
-                .where(it -> it.expression(RAW."\{alias(PetLazyOwner.class, "pet1")}.owner_id = \{owner.id()}")).getResultList();
+                .where(it -> it.expression(RAW."\{VisitWithTwoPets_.pet1.owner} = \{owner.id()}")).getResultList();
         assertEquals(2, visits.size());
     }
 
     @Test
-    public void testSelectWithTwoPetsWithMultipleParameters() throws Exception {
+    public void testSelectWithTwoPetsWithMultipleParameters() {
         var orm = ORM(dataSource);
         var owner = orm.entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         try (var _ = intercept(sql::setPlain)) {
-            var visits = orm.entity(VisitWithTwoPets.class).select().where(it -> it.filter("pet1.owner", EQUALS, owner).or(it.filter("pet2.owner", EQUALS, owner))).getResultList();
+            var visits = orm.entity(VisitWithTwoPets.class)
+                    .select()
+                    .where(it -> it.filter(VisitWithTwoPets_.pet1.owner, EQUALS, owner)
+                            .or(it.filter(VisitWithTwoPets_.pet2.owner, EQUALS, owner))).getResultList();
             assertEquals(2, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
         }
     }
 
     @Test
-    public void testSelectWithTwoPetsWithMultipleParametersTemplate() throws Exception {
+    public void testSelectWithTwoPetsWithMultipleParametersTemplate() {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         try (var _ = intercept(sql::setPlain)) {
             var visits = ORM(dataSource).entity(VisitWithTwoPets.class)
                     .select()
-                    .where(it -> it.expression(RAW."\{alias(PetLazyOwner.class, "pet1")}.owner_id = \{owner.id()} OR \{alias(PetLazyOwner.class, "pet2")}.owner_id = \{owner.id()}")).getResultList();
+                    .where(it -> it.expression(RAW."\{VisitWithTwoPets_.pet1.owner} = \{owner.id()} OR \{VisitWithTwoPets_.pet2.owner} = \{owner.id()}")).getResultList();
             assertEquals(2, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
         }
-    }
-
-    @Builder(toBuilder = true)
-    @DbTable("pet")
-    public record PetOwnerRecursion(
-            @PK Integer id,
-            @Nonnull String name,
-            @Nonnull LocalDate birthDate,
-            @Nonnull @FK @DbColumn("type_id") PetType petType,
-            @FK OwnerRecursion owner
-    ) implements Entity<Integer> {}
-
-    @Builder(toBuilder = true)
-    @DbTable("owner")
-    public record OwnerRecursion(
-            @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
-            @Nonnull Address address,
-            @Nullable String telephone,
-            @FK PetOwnerRecursion pet   // Recursive reference; We can test this even though the column does not exist.
-    ) implements Entity<Integer> {
     }
 
     @Test
@@ -479,30 +499,19 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
 
-    @Builder(toBuilder = true)
-    @DbTable("visit")
-    public record VisitWithTwoPetsOneLazy(
-            @PK Integer id,
-            @Nonnull @DbColumn("visit_date") LocalDate visitDate,
-            @Nullable String description,
-            @Nullable @FK @DbColumn("pet_id") PetLazyOwner pet1,
-            @Nullable @FK @DbColumn("pet_id") Lazy<PetLazyOwner, Integer> pet2
-    ) implements Entity<Integer> {
-    }
-
     @Test
     public void testSelectWithTwoPetsOneLazyWithoutPath() throws Exception {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         try (var _ = intercept(sql::setPlain)) {
-            var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().where(owner).getResultList();
+            var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().whereAny(owner).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
         }
     }
 
     @Test
-    public void testSelectWithTwoPetsOneLazyWithoutPathTemplate() throws Exception {
+    public void testSelectWithTwoPetsOneLazyWithoutPathTemplate() {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         try (var _ = intercept(sql::setPlain)) {
@@ -515,24 +524,66 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testSelectWithTwoPetsOneLazyWithPath() throws Exception {
+    public void testSelectWithTwoPetsOneLazyWithInvalidPathTemplateMetamodel() {
+        var e = assertThrows(PersistenceException.class, () -> {
+            var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
+            AtomicReference<Sql> sql = new AtomicReference<>();
+            try (var _ = intercept(sql::setPlain)) {
+                ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
+                        .select()
+                        .where(it -> it.expression(RAW."\{PetLazyOwner_.owner} = \{owner.id()}")).getResultList();
+            }
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+    }
+
+    @Test
+    public void testSelectWithTwoPetsOneLazyWithInvalidPathMetamodel() {
+        var e = assertThrows(PersistenceException.class, () -> {
+            var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
+            AtomicReference<Sql> sql = new AtomicReference<>();
+            try (var _ = intercept(sql::setPlain)) {
+                ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
+                        .select()
+                        .whereAny(PetLazyOwner_.owner, owner).getResultList();
+            }
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+    }
+
+    @Test
+    public void testSelectWithTwoPetsOneLazyWithInvalidPathMetamodelTemplate() {
+        var e = assertThrows(PersistenceException.class, () -> {
+            var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
+            AtomicReference<Sql> sql = new AtomicReference<>();
+            try (var _ = intercept(sql::setPlain)) {
+                ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
+                        .select()
+                        .where(RAW."\{PetLazyOwner_.owner}.id = \{owner.id()}").getResultList();
+            }
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+    }
+
+    @Test
+    public void testSelectWithTwoPetsOneLazyWithPath() {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         try (var _ = intercept(sql::setPlain)) {
-            var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().where("pet1.owner", EQUALS, owner).getResultList();
+            var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().where(VisitWithTwoPetsOneLazy_.pet1.owner, EQUALS, owner).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
         }
     }
 
     @Test
-    public void testSelectWithTwoPetsOneLazyWithPathTemplate() throws Exception {
+    public void testSelectWithTwoPetsOneLazyWithPathTemplate() {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         try (var _ = intercept(sql::setPlain)) {
             var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
                     .select()
-                    .where(it -> it.expression(RAW."\{alias(PetLazyOwner.class, "pet1")}.owner_id = \{owner.id()}")).getResultList();
+                    .where(it -> it.expression(RAW."\{VisitWithTwoPetsOneLazy_.pet1.owner} = \{owner.id()}")).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
         }
@@ -542,7 +593,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetsOneLazyPetWithoutPath() {
         var e = assertThrows(PersistenceException.class, () -> {
             var pet = ORM(dataSource).entity(PetLazyOwner.class).select().append(RAW."LIMIT 1").getSingleResult();
-            ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().where(pet).getResultList();
+            ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().whereAny(pet).getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
@@ -558,69 +609,58 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testSelectWithTwoPetsOneLazyPetWithPath() throws Exception {
+    public void testSelectWithTwoPetsOneLazyPetWithPath() {
         var pet = ORM(dataSource).entity(PetLazyOwner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         try (var _ = intercept(sql::setPlain)) {
-            var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().where("pet1", EQUALS, pet).getResultList();
+            var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().where(VisitWithTwoPetsOneLazy_.pet1, EQUALS, pet).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
         }
     }
 
     @Test
-    public void testSelectWithTwoPetsOneLazyPetWithPathTemplate() throws Exception {
+    public void testSelectWithTwoPetsOneLazyPetWithPathTemplateMetamodel() throws Exception {
         var ORM = ORM(dataSource);
         var pet = ORM.entity(PetLazyOwner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         try (var _ = intercept(sql::setPlain)) {
             var visits = ORM.entity(VisitWithTwoPetsOneLazy.class)
                     .select()
-                    .where(it -> it.expression(RAW."\{alias(PetLazyOwner.class, "pet1")}.id = \{pet.id()}")).getResultList();
+                    .where(it -> it.expression(RAW."\{VisitWithTwoPetsOneLazy_.pet1} = \{pet.id()}")).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
         }
     }
 
     @Test
-    public void testSelectWithTwoPetsOneLazyOtherPetWithPath() throws Exception {
-        var pet = ORM(dataSource).entity(PetLazyOwner.class).select().append(RAW."LIMIT 1").getSingleResult();
+    public void testSelectWithTwoPetsOneLazyOtherPetWithPath() {
+        var pet = ORM(dataSource).entity(PetLazyOwner.class).select(1);
         AtomicReference<Sql> sql = new AtomicReference<>();
         try (var _ = intercept(sql::setPlain)) {
-            var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().where("pet2", EQUALS, pet).getResultList();
+            var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().where(VisitWithTwoPetsOneLazy_.pet2, EQUALS, pet).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
         }
     }
 
     @Test
-    public void testSelectWithTwoPetsOneLazyOtherPetWithPathTemplate() {
-        // Note that this test is not comparable to the previous test because no join should exist for pet2 as it's
-        // lazy, and therefore pet.id will be used.
-        var e = assertThrows(PersistenceException.class, () -> {
-            ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
+    public void testSelectWithTwoPetsOneLazyOtherPetWithPathTemplateMetamodel() {
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        try (var _ = intercept(sql::setPlain)) {
+            var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
                     .select()
-                    .where(it -> it.expression(RAW."\{alias(PetLazyOwner.class, "pet2")}.id = \{1}")).getResultList();
-        });
-        assertInstanceOf(SqlTemplateException.class, e.getCause());
-    }
-
-    @Builder(toBuilder = true)
-    @DbTable("visit")
-    public record VisitWithTwoLazyPets(
-            @PK Integer id,
-            @Nonnull LocalDate visitDate,
-            @Nullable String description,
-            @Nullable @FK @DbColumn("pet_id") Lazy<PetLazyOwner, Integer> pet1,
-            @Nullable @FK @DbColumn("pet_id") Lazy<PetLazyOwner, Integer> pet2
-    ) implements Entity<Integer> {
+                    .where(it -> it.expression(RAW."\{VisitWithTwoPetsOneLazy_.pet2} = \{1}")).getResultList();
+            assertEquals(1, sql.getPlain().parameters().size());
+            assertEquals(2, visits.size());
+        }
     }
 
     @Test
     public void testSelectWithTwoLazyPetsWithoutPath() {
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
             var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
-            ORM(dataSource).entity(VisitWithTwoLazyPets.class).select().where(owner).getResultList();
+            ORM(dataSource).entity(VisitWithTwoLazyPets.class).select().whereAny(owner).getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
@@ -638,31 +678,22 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testSelectWithTwoLazyPetsWithPath() {
-        PersistenceException e = assertThrows(PersistenceException.class, () -> {
-            var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
-            ORM(dataSource).entity(VisitWithTwoLazyPets.class).select().where("pet1.owner", EQUALS, owner).getResultList();
-        });
-        assertInstanceOf(SqlTemplateException.class, e.getCause());
-    }
-
-    @Test
     public void testSelectWithInlinePath() {
-        var list = ORM(dataSource).entity(Owner.class).select().where("address.city", EQUALS, "Madison").getResultList();
+        var list = ORM(dataSource).entity(Owner.class).select().where(Owner_.address.city, EQUALS, "Madison").getResultList();
         assertEquals(4, list.size());
     }
 
     @Test
     public void testSelectWithInlinePathEqualsMultiArgument() {
         var e = assertThrows(PersistenceException.class, () -> {
-            ORM(dataSource).entity(Owner.class).select().where("address.city", EQUALS, "Madison", "Monona").getResultList();
+            ORM(dataSource).entity(Owner.class).select().where(Owner_.address.city, EQUALS, "Madison", "Monona").getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
 
     @Test
     public void testSelectWithInlinePathInMultiArgument() {
-        var list = ORM(dataSource).entity(Owner.class).select().where("address.city", IN, "Madison", "Monona").getResultList();
+        var list = ORM(dataSource).entity(Owner.class).select().where(Owner_.address.city, IN, "Madison", "Monona").getResultList();
         assertEquals(6, list.size());
     }
 
@@ -671,7 +702,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         Owner owner = Owner.builder().id(1).build();
         var pets = ORM(dataSource).entity(Pet.class)
                 .select()
-                .where(owner)
+                .whereAny(owner)
                 .getResultList();
         assertEquals(1, pets.size());
     }
@@ -681,7 +712,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         Owner owner = Owner.builder().id(1).build();
         var pets = ORM(dataSource).entity(PetWithLazyNullableOwner.class)
                 .select()
-                .where(owner)
+                .whereAny(owner)
                 .getResultList();
         assertEquals(1, pets.size());
     }
@@ -693,7 +724,7 @@ public class RepositoryPreparedStatementIntegrationTest {
             ORM(dataSource).entity(PetWithLazyNullableOwner.class)
                     .select()
                     .innerJoin(Owner.class).on(PetWithLazyNullableOwner.class)
-                    .where(owner)
+                    .whereAny(owner)
                     .getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
@@ -705,7 +736,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var pets = ORM(dataSource).entity(PetWithLazyNullableOwner.class)
                 .select()
                 .innerJoin(Owner.class).on(PetWithLazyNullableOwner.class)
-                .where("owner", EQUALS, owner)
+                .where(PetWithLazyNullableOwner_.owner, EQUALS, owner)
                 .getResultList();
         assertEquals(1, pets.size());
     }
@@ -768,14 +799,14 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void deleteByPet() {
         var repo = ORM(dataSource).entity(Visit.class);
-        repo.delete().where(Pet.builder().id(1).build()).executeUpdate();
+        repo.delete().whereAny(Pet.builder().id(1).build()).executeUpdate();
         assertEquals(12, repo.select().getResultCount());
     }
 
     @Test
     public void deleteByOwner() {
         var repo = ORM(dataSource).entity(Visit.class);
-        repo.delete().where(Owner.builder().id(1).build()).executeUpdate();
+        repo.delete().whereAny(Owner.builder().id(1).build()).executeUpdate();
         assertEquals(12, repo.select().getResultCount());
     }
 
@@ -821,7 +852,7 @@ public class RepositoryPreparedStatementIntegrationTest {
                 .entity(Pet.class)
                 .select()
                 .innerJoin(Visit.class).on(Pet.class)
-                .where(Visit.builder().id(1).build())
+                .whereAny(Visit.builder().id(1).build())
                 .getResultList();
         assertEquals(1, list.size());
         assertEquals(7, list.getFirst().id());
@@ -834,7 +865,7 @@ public class RepositoryPreparedStatementIntegrationTest {
                 .select()
                 .innerJoin(Visit.class).on(Pet.class)
                 .innerJoin(RAW."SELECT * FROM \{Pet.class}", "x").on(RAW."\{Pet.class}.id = x.id")    // Join just for the sake of testing multiple joins.
-                .where(Visit.builder().id(1).build())
+                .whereAny(Visit.builder().id(1).build())
                 .getResultList();
         assertEquals(1, list.size());
         assertEquals(7, list.getFirst().id());
@@ -847,7 +878,7 @@ public class RepositoryPreparedStatementIntegrationTest {
                     .entity(Pet.class)
                     .select()
                     .innerJoin(Visit.class).on(Pet.class)
-                    .where(Vet.builder().id(1).build())
+                    .whereAny(Vet.builder().id(1).build())
                     .getResultCount();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
@@ -956,7 +987,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testWhereExists() {
         var list = ORM(dataSource).entity(Owner.class)
                 .select()
-                .where(it -> it.exists(it.subquery(Visit.class).where(RAW."\{alias(Owner.class, "")}.id = \{alias(Owner.class, "pet.owner")}.id")))
+                .where(it -> it.exists(it.subquery(Visit.class).where(RAW."\{alias(Owner.class, OUTER)}.id = \{alias(Visit_.pet.owner)}.id")))
                 .getResultList();
         assertEquals(6, list.size());
     }
@@ -1004,7 +1035,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var list = ORM(dataSource).entity(Owner.class)
                 .select()
                 .append(RAW."WHERE EXISTS (\{
-                        orm.subquery(Visit.class).where(RAW."\{alias(Owner.class, "")}.id = \{alias(Owner.class, "pet.owner")}.id")
+                        orm.subquery(Visit.class).where(RAW."\{alias(Owner.class, OUTER)}.id = \{alias(Visit_.pet.owner)}.id")
                 })")
                 .getResultList();
         assertEquals(6, list.size());

@@ -13,8 +13,8 @@
     <version>1.2.0</version>
     <packaging>pom</packaging>
     <modules>
-        <module>storm</module>
         <module>storm-metamodel-processor</module>
+        <module>storm</module>
         <module>storm-json</module>
         <module>storm-mysql</module>
         <module>storm-mariadb</module>
