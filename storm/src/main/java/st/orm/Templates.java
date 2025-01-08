@@ -76,57 +76,57 @@ import static st.orm.template.ResolveScope.CASCADE;
  * <p>Define the records to use them to construct the query using templates:</p>
  *
  * <pre>{@code
- * record User(int id, String name, int age, LocalDate birthDate, int cityId) {};
+ * record OtherTable(int id, String name, int age, LocalDate birthDate, int cityId) {};
  * record City(int id, String name, long population) {};
  * }</pre>
  *
  * <h3>Create</h3>
  *
- * <p>Insert a user into the database. The template engine also supports insertion of multiple entries by passing an
+ * <p>Insert a otherTable into the database. The template engine also supports insertion of multiple entries by passing an
  * array (or list) of objects or primary keys. Alternatively, insertion can also be executed in batch mode using
  * {@link BindVars}.</p>
  * <pre>{@code
- * User user = ...;
+ * OtherTable otherTable = ...;
  * ORM(dataSource).query(RAW."""
- *         INSERT INTO \{User.class}
- *         VALUES \{user}""");
+ *         INSERT INTO \{OtherTable.class}
+ *         VALUES \{otherTable}""");
  * }</pre>
  *
  * <h3>Read</h3>
  *
- * <p>Select all users from the database that are linked to City with primary key 1. The value is passed to the
+ * <p>Select all otherTables from the database that are linked to City with primary key 1. The value is passed to the
  * underling JDBC or JPA system as variable. The results can also be retrieved as a stream of objects by using
  * {@link Query#getResultStream(Class)}.</p>
  * <pre>{@code
- * List<User> users = ORM(dataSource).query(RAW."""
- *         SELECT \{User.class}
- *         FROM \{User.class}
+ * List<OtherTable> otherTables = ORM(dataSource).query(RAW."""
+ *         SELECT \{OtherTable.class}
+ *         FROM \{OtherTable.class}
  *         WHERE city_id = \{1}""")
- *     .getResultList(User.class);
+ *     .getResultList(OtherTable.class);
  * }</pre>
  *
  * <h3>Update</h3>
  *
- * <p>Update a user in the database. The template engine also supports updates for multiple entries by passing an
+ * <p>Update a otherTable in the database. The template engine also supports updates for multiple entries by passing an
  * array or list of objects. Alternatively, updates can be executed in batch mode by using {@link BindVars}.</p>
  * <pre>{@code
- * User user = ...;
+ * OtherTable otherTable = ...;
  * ORM(dataSource).query(RAW."""
- *         UPDATE \{User.class}
- *         SET \{user}
- *         WHERE \{user}""");
+ *         UPDATE \{OtherTable.class}
+ *         SET \{otherTable}
+ *         WHERE \{otherTable}""");
  * }</pre>
  *
  * <h3>Delete</h3>
  *
- * <p>Delete user in the database. The template engine also supports updates for multiple entries by passing an
+ * <p>Delete otherTable in the database. The template engine also supports updates for multiple entries by passing an
  * array (or list) of objects or primary keys. Alternatively, deletion can be executed in batch mode by using
  * {@link BindVars}.</p>
  * <pre>{@code
- * User user = ...;
+ * OtherTable otherTable = ...;
  * ORM(dataSource).query(RAW."""
- *         DELETE FROM \{User.class}
- *         WHERE \{user}""");
+ *         DELETE FROM \{OtherTable.class}
+ *         WHERE \{otherTable}""");
  * }</pre>
  **
  * <h2>Howto start</h2>
@@ -163,17 +163,17 @@ public interface Templates {
      * Returns an {@link ORMTemplate} for use with JPA.
      *
      * <p>This method creates an ORM repository template using the provided {@link EntityManager}.
-     * It allows you to perform database operations using JPA.
+     * It allows you to perform database operations using JPA in a type-safe manner.
      *
      * <p>Example usage:
      * <pre>{@code
      * EntityManager entityManager = ...;
      * ORMRepositoryTemplate orm = Templates.ORM(entityManager);
-     * List<User> users = orm.query(RAW."""
-     *         SELECT \{User.class}
-     *         FROM \{User.class}
-     *         WHERE city_id = \{1}""")
-     *     .getResultList(User.class);
+     * List<OtherTable> otherTables = orm.query(RAW."""
+     *         SELECT \{OtherTable.class}
+     *         FROM \{OtherTable.class}
+     *         WHERE \{OtherTable_.city.name} = \{"Sunnyvale"}""")
+     *     .getResultList(OtherTable.class);
      * }</pre>
      *
      * @param entityManager the {@link EntityManager} to use for database operations; must not be {@code null}.
@@ -187,17 +187,17 @@ public interface Templates {
      * Returns an {@link ORMTemplate} for use with JDBC.
      *
      * <p>This method creates an ORM repository template using the provided {@link DataSource}.
-     * It allows you to perform database operations using JDBC.
+     * It allows you to perform database operations using JDBC in a type-safe manner.
      *
      * <p>Example usage:
      * <pre>{@code
      * DataSource dataSource = ...;
      * ORMRepositoryTemplate orm = Templates.ORM(dataSource);
-     * List<User> users = orm.query(RAW."""
-     *         SELECT \{User.class}
-     *         FROM \{User.class}
-     *         WHERE city_id = \{1}""")
-     *     .getResultList(User.class);
+     * List<OtherTable> otherTables = orm.query(RAW."""
+     *         SELECT \{OtherTable.class}
+     *         FROM \{OtherTable.class}
+     *         WHERE \{OtherTable_.city.name} = \{"Sunnyvale"}""")
+     *     .getResultList(OtherTable.class);
      * }</pre>
      *
      * @param dataSource the {@link DataSource} to use for database operations; must not be {@code null}.
@@ -211,18 +211,18 @@ public interface Templates {
      * Returns an {@link ORMTemplate} for use with JDBC.
      *
      * <p>This method creates an ORM repository template using the provided {@link Connection}.
-     * It allows you to perform database operations using JDBC.
+     * It allows you to perform database operations using JDBC in a type-safe manner.
      * <strong>Note:</strong> The caller is responsible for closing the connection after usage.
      *
      * <p>Example usage:
      * <pre>{@code
      * try (Connection connection = ...) {
      *     ORMRepositoryTemplate orm = Templates.ORM(connection);
-     *     List<User> users = orm.query(RAW."""
-     *             SELECT \{User.class}
-     *             FROM \{User.class}
-     *             WHERE city_id = \{1}""")
-     *         .getResultList(User.class)
+     *     List<OtherTable> otherTables = orm.query(RAW."""
+     *             SELECT \{OtherTable.class}
+     *             FROM \{OtherTable.class}
+     *             WHERE \{OtherTable_.city.name} = \{"Sunnyvale"}""")
+     *         .getResultList(OtherTable.class)
      * }
      * }</pre>
      *
@@ -635,32 +635,32 @@ public interface Templates {
      *
      * <p>Example usage with records:
      * <pre>{@code
-     * List<User> users = List.of(user1, user2);
+     * List<Table> entities = List.of(entity1, entity2);
      * SELECT \{Table.class}
      * FROM \{Table.class}
-     * WHERE \{where(users)}
+     * WHERE \{where(entities)}
      * }</pre>
      *
-     * <p>In this example, the query selects all entries in {@code Table} that are linked to any of the users in the
+     * <p>In this example, the query selects all entries in {@code Table} that are linked to any of the otherTables in the
      * list.
      *
      *
      * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically detects that
      * a WHERE element is required based on its placement in the query:
      * <pre>{@code
-     * List<User> users = List.of(user1, user2);
+     * List<Table> entities = List.of(entity1, entity2);
      * SELECT \{Table.class}
      * FROM \{Table.class}
-     * WHERE \{users}
+     * WHERE \{entities}
      * }</pre>
      *
      * <p>As per the resolution rules:
      * <ul>
-     *   <li>If {@code \{users}}, or any other primitive or object, is placed after WHERE the SQL template engine
+     *   <li>If {@code \{entities}}, or any other primitive or object, is placed after WHERE the SQL template engine
      *   resolves it into a WHERE element.</li>
-     *   <li>If {@code \{users}}, or any other primitive or object, is placed after keywords like VALUES, SET, the SQL
+     *   <li>If {@code \{entities}}, or any other primitive or object, is placed after keywords like VALUES, SET, the SQL
      *   template engine resolves it into the appropriate element (e.g., VALUES element, SET element).</li>
-     *   <li>If {@code \{users}} is not in such a placement, it is resolved into a param element.</li>
+     *   <li>If {@code \{entities}} is not in such a placement, it is resolved into a param element.</li>
      * </ul>
      *
      * @param it an {@link Iterable} of values or records to match against the primary key(s) or foreign keys.
@@ -695,30 +695,30 @@ public interface Templates {
      *
      * <p>Example usage with a record:
      * <pre>{@code
-     * User user = ...;
+     * Table entity = ...;
      * SELECT \{Table.class}
      * FROM \{Table.class}
-     * WHERE \{where(user)}
+     * WHERE \{where(otherTable)}
      * }</pre>
      *
-     * <p>In this example, the query selects all entries in {@code Table} that are linked to the specified {@code user}.
+     * <p>In this example, the query selects all entries in {@code Table} that are linked to the specified {@code otherTable}.
      *
      * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically detects that
      * a WHERE element is required based on its placement in the query:
      * <pre>{@code
-     * User user = ...;
+     * Table entity = ...;
      * SELECT \{Table.class}
      * FROM \{Table.class}
-     * WHERE \{user}
+     * WHERE \{entity}
      * }</pre>
      *
      * <p>As per the resolution rules:
      * <ul>
-     *   <li>If {@code \{user}}, or any other primitive or object, is placed after WHERE the SQL template engine
+     *   <li>If {@code \{entity}}, or any other primitive or object, is placed after WHERE the SQL template engine
      *   resolves it into a WHERE element.</li>
-     *   <li>If {@code \{user}}, or any other primitive or object, is placed after keywords like VALUES, SET, the SQL
+     *   <li>If {@code \{entity}}, or any other primitive or object, is placed after keywords like VALUES, SET, the SQL
      *   template engine resolves it into the appropriate element (e.g., VALUES element, SET element).</li>
-     *   <li>If {@code \{user}} is not in such a placement, it is resolved into a param element.</li>
+     *   <li>If {@code \{entity}} is not in such a placement, it is resolved into a param element.</li>
      * </ul>
      *
      * @param o the value or record to match against the primary key or foreign key.
@@ -742,29 +742,22 @@ public interface Templates {
      * <pre>{@code
      * SELECT \{Table.class}
      * FROM \{Table.class}
-     * WHERE \{where("user", Operator.IN, listOfUserIds)}
+     * WHERE \{where(Table_.otherTable.id, Operator.IN, listOfIds)}
      * }</pre>
      *
-     * or:
-     * <pre>{@code
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
-     * WHERE \{where("user.id", Operator.IN, listOfUserIds)}
-     * }</pre>
-     *
-     * <p>In this example, {@code listOfUserIds} contains the primary key values of the {@code user} records,
-     * and the query selects all entries in {@code Table} linked to those users.</p>
+     * <p>In this example, {@code listOfIds} contains the primary key values of the {@code OtherTable} records,
+     * and the query selects all entries in {@code Table} linked to that OtherTable.</p>
      *
      * <p>Example usage with records:
      * <pre>{@code
-     * List<User> users = ...;
+     * List<OtherTable> entities = ...;
      * SELECT \{Table.class}
      * FROM \{Table.class}
-     * WHERE \{where("user", Operator.IN, users)}
+     * WHERE \{where(Table_.otherTable, Operator.IN, entities)}
      * }</pre>
      *
-     * <p>In this example, {@code users} is a list of {@code User} records. The query matches entries in
-     * {@code Table} linked to any of the users in the list via their foreign keys.</p>
+     * <p>In this example, {@code entities} is a list of {@code OtherTable} records. The query matches entries in
+     * {@code Table} linked to any of the records in the list via their foreign keys.</p>
      *
      * @param path the path or column name to apply the condition on.
      * @param operator the {@link Operator} to use in the condition.
@@ -789,26 +782,11 @@ public interface Templates {
      * <pre>{@code
      * SELECT \{Table.class}
      * FROM \{Table.class}
-     * WHERE \{where("user", Operator.BETWEEN, 1, 10)}
+     * WHERE \{where(Table_.otherTable.id, Operator.BETWEEN, 1, 10)}
      * }</pre>
      *
-     * or:
-     * <pre>{@code
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
-     * WHERE \{where("user.id", Operator.BETWEEN, 1, 10)}
-     * }</pre>
-     *
-     * <p>Example usage with records:
-     * <pre>{@code
-     * User user1 = ...;
-     * User user2 = ...;
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
-     * WHERE \{where("user", Operator.BETWEEN, user1, user2)}
-     * }</pre>
-     *
-     * <p>In this example, the query selects all entries in {@code Table} where the associated {@code user} falls between {@code user1} and {@code user2} based on the defined ordering.
+     * <p>In this example, the query selects all entries in {@code Table} where the associated {@code OtherTable} 
+     * records have primary keys between {@code 1} and {@code 10}.
      *
      * @param path the path or column name to apply the condition on.
      * @param operator the {@link Operator} to use in the condition.
@@ -1062,17 +1040,17 @@ public interface Templates {
     /**
      * Generates an alias element for a table specified by the given {@code metamodel} in a type safe manner.
      *
-     * <p>Example usage in a string template where {@code User} is referenced twice:
+     * <p>Example usage in a string template where {@code OtherTable} is referenced twice:
      * <pre>{@code
-     * // Define a record with two references to User
-     * record Table(int id, User child, User parent) {}
+     * // Define a record with two references to OtherTable
+     * record Table(int id, OtherTable child, OtherTable parent) {}
      *
      * // In the SQL template
      * SELECT \{alias(Table_.child}.column_name FROM \{Table.class}
      * }</pre>
      *
      * <p>In this example, {@code Table_.child} specifies that we are referring to the {@code child} field of the {@code Table} record,
-     * which is of type {@code User}. This distinguishes it from the {@code parent} field, which is also of type {@code User}.
+     * which is of type {@code OtherTable}. This distinguishes it from the {@code parent} field, which is also of type {@code OtherTable}.
      *
      * @param path specifies the table for which the alias is to be generated.
      * @return an {@link Element} representing the table's alias with the specified path.
@@ -1085,17 +1063,17 @@ public interface Templates {
     /**
      * Generates an alias element for a table specified by the given {@code metamodel} in a type safe manner.
      *
-     * <p>Example usage in a string template where {@code User} is referenced twice:
+     * <p>Example usage in a string template where {@code OtherTable} is referenced twice:
      * <pre>{@code
-     * // Define a record with two references to User
-     * record Table(int id, User child, User parent) {}
+     * // Define a record with two references to OtherTable
+     * record Table(int id, OtherTable child, OtherTable parent) {}
      *
      * // In the SQL template
      * SELECT \{alias(Table_.child}.column_name FROM \{Table.class}
      * }</pre>
      *
      * <p>In this example, {@code Table_.child} specifies that we are referring to the {@code child} field of the {@code Table} record,
-     * which is of type {@code User}. This distinguishes it from the {@code parent} field, which is also of type {@code User}.
+     * which is of type {@code OtherTable}. This distinguishes it from the {@code parent} field, which is also of type {@code OtherTable}.
      *
      * @param path specifies the table for which the alias is to be generated.
      * @param scope the {@link ResolveScope} to use when resolving the alias. Use STRICT to include local and outer
@@ -1115,18 +1093,18 @@ public interface Templates {
      * uses inline records, the componentName is also constructed by concatenating the fields leading to the record
      * component.</p>
      *
-     * <p>Example usage in a string template where {@code User} is referenced twice:
+     * <p>Example usage in a string template where {@code OtherTable} is referenced twice:
      * <pre>{@code
-     * // Define a record with two references to User
-     * record Table(int id, User child, User parent) {}
+     * // Define a record with two references to OtherTable
+     * record Table(int id, OtherTable child, OtherTable parent) {}
      *
      * // In the SQL template
      * SELECT \{column(Table_.child.name)} FROM \{Table.class}
      * }</pre>
      *
      * <p>In this example, the path "child" specifies that we are referring to the {@code child} field of the
-     * {@code Table} record, which is of type {@code User}. This distinguishes it from the {@code parent} field, which
-     * is also of type {@code User}. The "name" componentName refers to the name record component of {@code User}.</p>
+     * {@code Table} record, which is of type {@code OtherTable}. This distinguishes it from the {@code parent} field, which
+     * is also of type {@code OtherTable}. The "name" componentName refers to the name record component of {@code OtherTable}.</p>
      *
      * @param path specifies the database column for which the column is to be generated.
      * @return an {@link Element} representing the table's column with the specified path.
@@ -1144,18 +1122,18 @@ public interface Templates {
      * uses inline records, the componentName is also constructed by concatenating the fields leading to the record
      * component.</p>
      *
-     * <p>Example usage in a string template where {@code User} is referenced twice:
+     * <p>Example usage in a string template where {@code OtherTable} is referenced twice:
      * <pre>{@code
-     * // Define a record with two references to User
-     * record Table(int id, User child, User parent) {}
+     * // Define a record with two references to OtherTable
+     * record Table(int id, OtherTable child, OtherTable parent) {}
      *
      * // In the SQL template
      * SELECT \{column(Table_.child.name)} FROM \{Table.class}
      * }</pre>
      *
      * <p>In this example, the path "child" specifies that we are referring to the {@code child} field of the
-     * {@code Table} record, which is of type {@code User}. This distinguishes it from the {@code parent} field, which
-     * is also of type {@code User}. The "name" componentName refers to the name record component of {@code User}.</p>
+     * {@code Table} record, which is of type {@code OtherTable}. This distinguishes it from the {@code parent} field, which
+     * is also of type {@code OtherTable}. The "name" componentName refers to the name record component of {@code OtherTable}.</p>
      *
      * @param path specifies the database column for which the column is to be generated.
      * @param scope the {@link ResolveScope} to use when resolving the alias. Use STRICT to include local and outer
@@ -1420,7 +1398,7 @@ public interface Templates {
      * potentially unsafe and may expose your application to SQL injection attacks if not used carefully.
      *
      * <p><strong>Warning:</strong> Use this method only when you are certain that the SQL string being injected
-     * is safe and originates from a trusted source. Avoid using user-supplied input with this method.
+     * is safe and originates from a trusted source. Avoid using otherTable-supplied input with this method.
      *
      * <p>Example usage in a string template:
      * <pre>{@code
