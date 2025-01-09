@@ -22,12 +22,9 @@ import st.orm.template.SqlTemplateException;
 import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.SequencedSet;
-import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static java.util.Comparator.comparingInt;
@@ -35,6 +32,9 @@ import static java.util.List.copyOf;
 import static java.util.stream.Collectors.groupingBy;
 import static st.orm.template.impl.SqlTemplateImpl.multiplePathsFoundException;
 
+/**
+ * The table mapper keeps track of all tables in the table graph and manually added joins.
+ */
 final class TableMapper {
     record Mapping(
             @Nonnull Class<? extends Record> source,
@@ -103,33 +103,17 @@ final class TableMapper {
                 .add(new Mapping(source, alias, List.of(component), false, rootTable, getPath(List.of(component), path)));
     }
 
-    /**
-     * Returns only the shortest unique paths from a stream of dot-separated paths. A path is considered "shortest" if
-     * it is not a prefix (with a dot separator) of any other path in the stream.
-     *
-     * @param paths the stream of dot-separated paths to process.
-     * @return a sequenced set of shortest unique paths.
-     */
-    private static SequencedSet<String> getShortestPaths(@Nonnull Stream<String> paths, @Nullable String path) {
-        var shortestPaths = new LinkedHashSet<String>();
-        Predicate<String> filter = pkPath -> {
-            assert pkPath != null;
-            if (path == null) {
-                return true;
-            }
-            return pkPath.startsWith(path) &&   // Include exact matches.
-                    (path.isEmpty() || pkPath.length() == path.length() || pkPath.charAt(path.length()) == '.');  // And exact sub-paths.
-        };
-        paths
-                .filter(filter)
-                .sorted(comparingInt(TableMapper::countLevels))  // Sort by number of levels (dots).
-                .forEach(p -> {
-                    boolean isSubPath = shortestPaths.stream().anyMatch(existing -> p.startsWith(existing + "."));
-                    if (!isSubPath) {
-                        shortestPaths.add(p);
-                    }
-                });
-        return shortestPaths;
+    private static String getPath(@Nonnull List<RecordComponent> components, @Nullable String path) {
+        if (path == null) {
+            return null;
+        }
+        if (components.size() != 1) {
+            return null;
+        }
+        if (path.isEmpty()) {
+            return components.getFirst().getName();
+        }
+        return STR."\{path}.\{components.getFirst().getName()}";
     }
 
     /**
@@ -148,38 +132,17 @@ final class TableMapper {
         return count;
     }
 
-    private static String getPath(@Nonnull List<RecordComponent> components, @Nullable String path) {
-        if (path == null) {
-            return null;
-        }
-        if (components.size() != 1) {
-            return null;
-        }
-        if (path.isEmpty()) {
-            return components.getFirst().getName();
-        }
-        return STR."\{path}.\{components.getFirst().getName()}";
-    }
-
     private static List<Mapping> findMappings(@Nonnull List<Mapping> mappings, @Nullable Class<? extends Record> rootTable, @Nullable String path) {
         var mapped = mappings.stream()
                 .filter(m -> m.pkPath() != null)    // Only include singular pk mappings.
-                .filter(m -> rootTable == null || rootTable == m.rootTable())  // Only include mappings if they originate from the same root table to properly use custom join tables.
+                .filter(m -> rootTable == null || rootTable == m.rootTable())  // Only include mappings if they originate from the same root table to properly use manually added join tables.
                 .collect(groupingBy(Mapping::pkPath));
-        var shortestPath = getShortestPaths(mapped.keySet().stream(), path);
         if (path != null) {
-            // Return all mappings that match the specified path.
-            // Example: with mappings "a.b", "a.b.c", "a.c", "b" and path "a", the result would be "a.b" and "a.c".
-            return shortestPath.stream()
-                    .flatMap(p -> mapped.get(p).stream())
-                    .toList();
+            return mapped.getOrDefault(path, List.of());
         }
-        // Return all mappings for which the path is unknown, but hides the mappings that are more specific.
-        // Example: with mappings null, null, "a.b", "a.b.c", "a.c", "b" and no path, the result would be
-        // null, null, "a.b", "a.c" and "b".
         return Stream.concat(
                 mappings.stream().filter(m -> m.pkPath() == null),
-                shortestPath.stream().flatMap(p -> mapped.get(p).stream())
+                mapped.values().stream().flatMap(List::stream)
         ).toList();
     }
 
