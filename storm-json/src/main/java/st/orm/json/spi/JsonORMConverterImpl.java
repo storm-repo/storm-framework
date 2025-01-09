@@ -17,9 +17,11 @@ package st.orm.json.spi;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.json.Json;
 import st.orm.spi.ORMConverter;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
@@ -29,6 +31,9 @@ import st.orm.template.SqlTemplateException;
 import java.lang.reflect.RecordComponent;
 import java.util.List;
 
+import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES;
+import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
+
 public class JsonORMConverterImpl implements ORMConverter {
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
@@ -36,9 +41,12 @@ public class JsonORMConverterImpl implements ORMConverter {
 
     private final RecordComponent component;
     private final TypeReference<?> typeReference;
-    public JsonORMConverterImpl(@Nonnull RecordComponent component, @Nonnull TypeReference<?> typeReference) {
+    private final Json json;
+
+    public JsonORMConverterImpl(@Nonnull RecordComponent component, @Nonnull TypeReference<?> typeReference, @Nonnull Json json) {
         this.component = component;
         this.typeReference = typeReference;
+        this.json = json;
     }
 
     @Override
@@ -49,8 +57,15 @@ public class JsonORMConverterImpl implements ORMConverter {
     @Override
     public Object convert(@Nonnull Object[] args) throws SqlTemplateException {
         try {
+            var reader = OBJECT_MAPPER.reader();
+            if (!json.failOnUnknown()) {
+                reader = reader.without(FAIL_ON_UNKNOWN_PROPERTIES);
+            }
+            if (!json.failOnMissing()) {
+                reader = reader.without(FAIL_ON_MISSING_CREATOR_PROPERTIES);
+            }
             Object arg = args[0];
-            return arg == null ? null : OBJECT_MAPPER.readValue((String) args[0], typeReference);
+            return arg == null ? null : reader.forType(typeReference).readValue((String) args[0]);
         } catch (JsonProcessingException e) {
             throw new SqlTemplateException(e);
         }

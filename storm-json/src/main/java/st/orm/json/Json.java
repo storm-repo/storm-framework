@@ -31,4 +31,14 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 @Retention(RUNTIME)
 @MetamodelType(String.class)
 public @interface Json {
+
+    /**
+     * True if the deserializer should fail if unknown properties are encountered. Default is false.
+     */
+    boolean failOnUnknown() default false;
+
+    /**
+     * True if the deserializer should fail if a required creator property is missing. Default is false.
+     */
+    boolean failOnMissing() default false;
 }

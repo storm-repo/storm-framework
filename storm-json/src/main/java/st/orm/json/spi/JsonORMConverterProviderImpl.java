@@ -33,7 +33,8 @@ public class JsonORMConverterProviderImpl implements ORMConverterProvider {
 
     @Override
     public Optional<ORMConverter> getConverter(@Nonnull RecordComponent component) {
-        if (!REFLECTION.isAnnotationPresent(component, Json.class)) {
+        Json json = REFLECTION.getAnnotation(component, Json.class);
+        if (json == null) {
             return empty();
         }
         TypeReference<?> typeRef = new TypeReference<>() {
@@ -41,6 +42,6 @@ public class JsonORMConverterProviderImpl implements ORMConverterProvider {
                 return component.getGenericType();
             }
         };
-        return Optional.of(new JsonORMConverterImpl(component, typeRef));
+        return Optional.of(new JsonORMConverterImpl(component, typeRef, json));
     }
 }
