@@ -15,6 +15,8 @@ import st.orm.template.Metamodel;
 import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
 import st.orm.template.TemplateFunction;
+import st.orm.template.impl.Elements;
+import st.orm.template.impl.Elements.ObjectExpression;
 
 import java.util.List;
 import java.util.Optional;
@@ -737,6 +739,153 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     KQueryBuilder<T, R, ID> where(@Nonnull Function<KWhereBuilder<T, R, ID>, KPredicateBuilder<?, ?, ?>> predicate);
+
+    /**
+     * Adds a GROUP BY clause to the query for field at the specified path in the table graph.
+     *
+     * @param path the path to group by.
+     * @return the query builder.
+     */
+    default KQueryBuilder<T, R, ID> groupBy(@Nonnull Metamodel<T, ?> path) {
+        return groupBy(RAW."\{path}");
+    }
+
+    /**
+     * Adds a GROUP BY clause to the query for field at the specified path in the table graph. The metamodel can refer
+     * to manually added joins.
+     *
+     * @param path the path to group by.
+     * @return the query builder.
+     */
+    default KQueryBuilder<T, R, ID> groupBy(@Nonnull Metamodel<?, ?>... path) {
+        if (path.length == 0) {
+            throw new PersistenceException("At least one path must be provided for GROUP BY clause.");
+        }
+        List<StringTemplate> templates = Stream.of(path)
+                .flatMap(metamodel -> Stream.of(RAW."\{metamodel}", RAW.", "))
+                .toList();
+        return groupBy(StringTemplate.combine(templates.subList(0, templates.size() - 1).toArray(new StringTemplate[0])));
+    }
+
+    /**
+     * Adds a GROUP BY clause to the query using a string template.
+     *
+     * @param template the template to group by.
+     * @return the query builder.
+     */
+    default KQueryBuilder<T, R, ID> groupBy(@Nonnull StringTemplate template) {
+        return append(StringTemplate.combine(RAW."GROUP BY ", template));
+    }
+
+    /**
+     * Adds a GROUP BY clause to the query using a string template.
+     *
+     * @param function used to define the template to group by.
+     * @return the query builder.
+     */
+    default KQueryBuilder<T, R, ID> groupBy(@Nonnull TemplateFunction function) {
+        return groupBy(TemplateFunction.template(function));
+    }
+
+    /**
+     * Adds a HAVING clause to the query using the specified expression.
+     *
+     * @param path the path to the object in the table graph.
+     * @param operator the operator to use for the comparison.
+     * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
+     *          table graph.
+     * @return the query builder.
+     */
+    @SuppressWarnings("unchecked")
+    default <V> KQueryBuilder<T, R, ID> having(@Nonnull Metamodel<T, V> path,
+                                               @Nonnull Operator operator,
+                                               V... o) {
+        return havingAny(path, operator, o);
+    }
+
+    /**
+     * Adds a HAVING clause to the query using the specified expression.
+     *
+     * @param path the path to the object in the table graph.
+     * @param operator the operator to use for the comparison.
+     * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
+     *          table graph or manually added joins.
+     * @return the query builder.
+     */
+    @SuppressWarnings("unchecked")
+    default <V> KQueryBuilder<T, R, ID> havingAny(@Nonnull Metamodel<?, V> path,
+                                                 @Nonnull Operator operator,
+                                                 V... o) {
+        return having(RAW."\{new ObjectExpression(path, operator, o)}");
+    }
+
+    /**
+     * Adds a HAVING clause to the query using the specified expression.
+     *
+     * @param template the expression to add.
+     * @return the query builder.
+     */
+    default <V> KQueryBuilder<T, R, ID> having(@Nonnull StringTemplate template) {
+        return append(StringTemplate.combine(RAW."HAVING ", template));
+    }
+
+    /**
+     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
+     *
+     * @param path the path to order by.
+     * @return the query builder.
+     */
+    default KQueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?> path) {
+        return orderBy(RAW."\{path}");
+    }
+
+    /**
+     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
+     *
+     * @param path the path to order by.
+     * @param ascending whether to order in ascending order.
+     * @return the query builder.
+     */
+    default KQueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?> path, boolean ascending) {
+        return orderBy(RAW."\{path} \{ascending ? "ASC" : "DESC"}");
+    }
+
+    /**
+     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph or manually added
+     * joins.
+     *
+     * @param path the path to order by.
+     * @return the query builder.
+     */
+    default KQueryBuilder<T, R, ID> orderByAny(@Nonnull Metamodel<?, ?>... path) {
+        if (path.length == 0) {
+            throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
+        }
+        List<StringTemplate> templates = Stream.of(path)
+                .flatMap(metamodel -> Stream.of(RAW."\{metamodel}", RAW.", "))
+                .toList();
+        return orderBy(StringTemplate.combine(templates.subList(0, templates.size() - 1).toArray(new StringTemplate[0])));
+    }
+
+    /**
+     * Adds an ORDER BY clause to the query using a string template.
+     *
+     * @param template the template to order by.
+     * @return the query builder.
+     */
+    default KQueryBuilder<T, R, ID> orderBy(@Nonnull StringTemplate template) {
+        return append(StringTemplate.combine(RAW."ORDER BY ", template));
+    }
+
+    /**
+     * Adds an ORDER BY clause to the query using a string template.
+     *
+     * @param function used to define the template to order by.
+     * @return the query builder.
+     */
+    default KQueryBuilder<T, R, ID> orderBy(@Nonnull TemplateFunction function) {
+        return groupBy(TemplateFunction.template(function));
+    }
 
     /**
      * Returns a processor that can be used to append the query with a string template.

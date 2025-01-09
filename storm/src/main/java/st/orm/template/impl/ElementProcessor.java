@@ -333,13 +333,14 @@ record ElementProcessor(
                 for (RecordComponent component : it.record().getClass().getRecordComponents()) {
                     if (component.isAnnotationPresent(Version.class)) {
                         String columnName = getColumnName(component, sqlTemplate.columnNameResolver());
-                        String updateExpression = switch (component.getType()) {
-                            case Class<?> c when Integer.TYPE.isAssignableFrom(c)
+                        String updateExpression = switch (component.getType()) {case Class<?> c when
+                                    Integer.TYPE.isAssignableFrom(c)
                                     || Long.TYPE.isAssignableFrom(c)
                                     || Integer.class.isAssignableFrom(c)
                                     || Long.class.isAssignableFrom(c)
                                     || BigInteger.class.isAssignableFrom(c) -> STR."\{columnName} + 1";
-                            case Class<?> c when Instant.class.isAssignableFrom(c)
+                            case Class<?> c when
+                                    Instant.class.isAssignableFrom(c)
                                     || Date.class.isAssignableFrom(c)
                                     || Calendar.class.isAssignableFrom(c)
                                     || Timestamp.class.isAssignableFrom(c) -> "CURRENT_TIMESTAMP";

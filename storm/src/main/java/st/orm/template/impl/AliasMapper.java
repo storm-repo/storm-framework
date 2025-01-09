@@ -99,7 +99,7 @@ final class AliasMapper {
         var global = switch (scope) {
             case INNER -> Stream.<String>of();
             case CASCADE, OUTER ->
-                    parent == null ? Stream.<String>of() : parent.aliases(table, CASCADE, precedingTable);   // Use STRICT to include parents recursively.
+                    parent == null ? Stream.<String>of() : parent.aliases(table, CASCADE, precedingTable);   // Use CASCADE to include parents recursively.
         };
         return Stream.concat(local, global);
     }
@@ -132,7 +132,7 @@ final class AliasMapper {
         var global = switch (scope) {
             case INNER -> Stream.<String>of();
             case CASCADE, OUTER ->
-                    parent == null ? Stream.<String>of() : parent.aliases(table, path, CASCADE, autoJoinTable);   // Use STRICT to include parents recursively.
+                    parent == null ? Stream.<String>of() : parent.aliases(table, path, CASCADE, autoJoinTable);   // Use CASCADE to include parents recursively.
         };
         return Stream.concat(local, global);
     }

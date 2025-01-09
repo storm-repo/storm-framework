@@ -7,6 +7,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.model.Pet;
+import st.orm.model.Pet_;
 import st.orm.model.Specialty;
 import st.orm.model.Vet;
 import st.orm.model.VetSpecialty;
@@ -118,7 +119,7 @@ public class BuilderPreparedStatementIntegrationTest {
         var list = ORM(dataSource)
                 .selectFrom(Pet.class, Result.class, RAW."\{Pet.class}, COUNT(*)")
                 .innerJoin(Visit.class).on(Pet.class)
-                .append(RAW."GROUP BY \{Pet.class}.id")
+                .groupBy(Pet_.id)
                 .getResultList();
         assertEquals(8, list.size());
         assertEquals(14, list.stream().mapToInt(Result::visitCount).sum());

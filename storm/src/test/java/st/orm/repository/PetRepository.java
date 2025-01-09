@@ -4,6 +4,7 @@ import st.orm.Templates;
 import st.orm.model.Owner;
 import st.orm.model.Pet;
 import st.orm.model.PetType;
+import st.orm.model.Pet_;
 import st.orm.model.Visit;
 
 import java.util.List;
@@ -64,7 +65,7 @@ public interface PetRepository extends EntityRepository<Pet, Integer> {
         return orm()
                 .selectFrom(Pet.class, PetVisitCount.class, RAW."\{Pet.class}, COUNT(*)")
                 .innerJoin(Visit.class).on(Pet.class)
-                .append(RAW."GROUP BY \{alias(Pet.class)}.id")
+                .groupBy(Pet_.id)
                 .getResultList();
     }
 }

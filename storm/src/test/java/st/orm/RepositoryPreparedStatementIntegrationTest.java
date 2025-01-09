@@ -57,6 +57,7 @@ import static st.orm.Templates.ORM;
 import static st.orm.Templates.alias;
 import static st.orm.Templates.table;
 import static st.orm.Templates.where;
+import static st.orm.template.Metamodel.root;
 import static st.orm.template.Operator.BETWEEN;
 import static st.orm.template.Operator.EQUALS;
 import static st.orm.template.Operator.GREATER_THAN;
@@ -181,7 +182,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testSelectCountCustomClass() {
         record Count(Owner owner, int value) {}
-        var query = ORM(dataSource).query(RAW."SELECT \{Owner.class}, COUNT(*) FROM \{Pet.class} GROUP BY \{Owner.class}.id");
+        var query = ORM(dataSource).query(RAW."SELECT \{Owner.class}, COUNT(*) FROM \{Pet.class} GROUP BY \{Owner_.id}");
         var result = query.getResultList(Count.class);
         assertEquals(10, result.size());
         assertEquals(12, result.stream().mapToInt(Count::value).sum());
@@ -888,9 +889,9 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testBuilderWithSelectTemplate() {
         record Result(int petId, int visitCount) {}
         var list = ORM(dataSource)
-                .selectFrom(Pet.class, Result.class, RAW."\{alias(Pet.class)}.id, COUNT(*)")
+                .selectFrom(Pet.class, Result.class, RAW."\{Pet_.id}, COUNT(*)")
                 .innerJoin(Visit.class).on(Pet.class)
-                .append(RAW."GROUP BY \{alias(Pet.class)}.id")
+                .groupBy(Pet_.id)
                 .getResultList();
         assertEquals(8, list.size());
         assertEquals(14, list.stream().mapToInt(Result::visitCount).sum());
@@ -909,9 +910,9 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testBuilderWithCustomJoin() {
         record Result(int petId, int visitCount) {}
         var list = ORM(dataSource)
-                .selectFrom(Pet.class, Result.class, RAW."\{alias(Pet.class)}.id, COUNT(*)")
+                .selectFrom(Pet.class, Result.class, RAW."\{Pet_.id}, COUNT(*)")
                 .join(INNER, RAW."SELECT * FROM \{table(Visit.class, "a")} WHERE \{alias(Visit.class)}.id > \{-1}", "x").on(RAW."\{Pet.class}.id = x.pet_id")
-                .append(RAW."GROUP BY \{alias(Pet.class)}.id")
+                .groupBy(Pet_.id)
                 .getResultList();
         assertEquals(8, list.size());
         assertEquals(14, list.stream().mapToInt(Result::visitCount).sum());
@@ -922,9 +923,9 @@ public class RepositoryPreparedStatementIntegrationTest {
         record Result(int petId, int visitCount) {}
         var orm = ORM(dataSource);
         var list = orm
-                .selectFrom(Pet.class, Result.class, RAW."\{alias(Pet.class)}.id, COUNT(*)")
-                .join(INNER, orm.subquery(Visit.class), "x").on(RAW."\{Pet.class}.id = x.pet_id")
-                .append(RAW."GROUP BY \{alias(Pet.class)}.id")
+                .selectFrom(Pet.class, Result.class, RAW."\{Pet_.id}, COUNT(*)")
+                .join(INNER, orm.subquery(Visit.class), "x").on(RAW."\{Pet_.id} = x.pet_id")
+                .groupBy(Pet_.id)
                 .getResultList();
         assertEquals(8, list.size());
         assertEquals(14, list.stream().mapToInt(Result::visitCount).sum());
