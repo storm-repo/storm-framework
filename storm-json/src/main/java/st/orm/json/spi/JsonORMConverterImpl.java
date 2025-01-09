@@ -17,9 +17,7 @@ package st.orm.json.spi;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectReader;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.json.Json;
@@ -39,7 +37,6 @@ import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKN
 
 public class JsonORMConverterImpl implements ORMConverter {
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
-
     private static final Map<Json, ObjectMapper> OBJECT_MAPPER = new ConcurrentHashMap<>();
 
     private final RecordComponent component;
