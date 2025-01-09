@@ -94,7 +94,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
      */
     @SuppressWarnings("unchecked")
     @Override
-    public <R extends Repository> R proxy(@Nonnull Class<R> type) {
+    public <R extends Repository> R repository(@Nonnull Class<R> type) {
         EntityRepository<?, ?> entityRepository = createEntityRepository(type).orElse(null);
         ProjectionRepository<?, ?> projectionRepository = createProjectionRepository(type).orElse(null);
         Repository repository = createRepository();

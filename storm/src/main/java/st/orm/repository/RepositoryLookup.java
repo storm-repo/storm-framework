@@ -28,13 +28,13 @@ import jakarta.annotation.Nonnull;
  * interface UserRepository extends EntityRepository<User, Integer> {
  *     default Optional<User> findByName(String name) {
  *         return select().
- *             .where("name", EQUALS, name)
+ *             .where(User_.name, EQUALS, name)
  *             .getOptionalResult();
  *     }
  *
  *     default List<User> findByCity(City city) {
  *         return select().
- *             .where(city)
+ *             .where(User_city, city)
  *             .getResultList();
  *     }
  * }}</pre>
@@ -71,5 +71,5 @@ public interface RepositoryLookup {
      * @param <R> the repository type.
      * @return a proxy for the repository of the given type.
      */
-    <R extends Repository> R proxy(@Nonnull Class<R> type);
+    <R extends Repository> R repository(@Nonnull Class<R> type);
 }

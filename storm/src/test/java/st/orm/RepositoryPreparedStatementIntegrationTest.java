@@ -36,7 +36,6 @@ import st.orm.template.Sql;
 import st.orm.template.SqlInterceptor;
 import st.orm.template.SqlTemplate.PositionalParameter;
 import st.orm.template.SqlTemplateException;
-import st.orm.template.impl.MetamodelImpl;
 
 import javax.sql.DataSource;
 import java.sql.SQLIntegrityConstraintViolationException;
@@ -57,7 +56,6 @@ import static st.orm.Templates.ORM;
 import static st.orm.Templates.alias;
 import static st.orm.Templates.table;
 import static st.orm.Templates.where;
-import static st.orm.template.Metamodel.root;
 import static st.orm.template.Operator.BETWEEN;
 import static st.orm.template.Operator.EQUALS;
 import static st.orm.template.Operator.GREATER_THAN;
@@ -753,40 +751,40 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testCustomRepo1() {
-        var repo = ORM(dataSource).proxy(PetRepository.class);
+        var repo = ORM(dataSource).repository(PetRepository.class);
         var pet = repo.select(1);
         assertEquals(pet, repo.findById1(1));
     }
 
     @Test
     public void testCustomRepo2() {
-        var repo = ORM(dataSource).proxy(PetRepository.class);
+        var repo = ORM(dataSource).repository(PetRepository.class);
         var pet = repo.select(1);
         assertEquals(pet, repo.findById2(1));
     }
 
     @Test
     public void testCustomRepo3() {
-        var repo = ORM(dataSource).proxy(PetRepository.class);
+        var repo = ORM(dataSource).repository(PetRepository.class);
         var pet = repo.select(1);
         assertEquals(pet, repo.findById3(1));
     }
 
     @Test
     public void testCustomRepo4() {
-        var repo = ORM(dataSource).proxy(PetRepository.class);
+        var repo = ORM(dataSource).repository(PetRepository.class);
         assertEquals(1, repo.findByOwnerFirstName("Betty").size());
     }
 
     @Test
     public void testCustomRepo5() {
-        var repo = ORM(dataSource).proxy(PetRepository.class);
+        var repo = ORM(dataSource).repository(PetRepository.class);
         assertEquals(4, repo.findByOwnerCity("Madison").size());
     }
 
     @Test
     public void testPetVisitCount() {
-        var repo = ORM(dataSource).proxy(PetRepository.class);
+        var repo = ORM(dataSource).repository(PetRepository.class);
         assertEquals(8, repo.petVisitCount().size());
     }
 
