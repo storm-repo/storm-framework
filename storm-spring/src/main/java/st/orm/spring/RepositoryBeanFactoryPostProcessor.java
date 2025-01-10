@@ -91,7 +91,7 @@ public class RepositoryBeanFactoryPostProcessor implements BeanFactoryPostProces
             //noinspection unchecked
             Class<KRepository> repositoryType = (Class<KRepository>) type;
             AbstractBeanDefinition proxyBeanDefinition = BeanDefinitionBuilder
-                    .genericBeanDefinition(repositoryType, () -> getBeanKORMTemplate(beanFactory).proxy(repositoryType))
+                    .genericBeanDefinition(repositoryType, () -> getBeanKORMTemplate(beanFactory).repository(repositoryType))
                     .getBeanDefinition();
             proxyBeanDefinition.setAttribute("qualifier", getRepositoryPrefix());
             String name = getRepositoryPrefix() + type.getSimpleName();

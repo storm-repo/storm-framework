@@ -53,7 +53,7 @@ import static st.orm.template.Operator.IN;
  * @param <R> the type of the result.
  * @param <ID> the type of the primary key.
  */
-abstract class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder<T, R, ID>, Subqueryable {
+abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T, R, ID> implements Subqueryable {
     protected final QueryTemplate queryTemplate;
     protected final Class<T> fromType;
     protected final List<Join> join;
@@ -350,7 +350,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder
                 return templates;
             }
         }
-        class WhereBuilderImpl<TX extends Record, RX, IDX> implements WhereBuilder<TX, RX, IDX> {
+        class WhereBuilderImpl<TX extends Record, RX, IDX> extends WhereBuilder<TX, RX, IDX> {
 
             @Override
             public <F extends Record, S> QueryBuilder<F, S, ?> subquery(@Nonnull Class<F> fromType, @Nonnull Class<S> selectType, @Nonnull StringTemplate template) {
@@ -412,15 +412,8 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> implements QueryBuilder
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(path, operator, it)}");
             }
 
-            @SafeVarargs
             @Override
-            public final <V> PredicateBuilder<TX, RX, IDX> filter(@Nonnull Metamodel<TX, V> path, @Nonnull Operator operator, @Nonnull V... o) {
-                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(path, operator, o)}");
-            }
-
-            @SafeVarargs
-            @Override
-            public final <V> PredicateBuilder<TX, RX, IDX> filterAny(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull V... o) {
+            protected <V> PredicateBuilder<TX, RX, IDX> filterImpl(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull V[] o) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(path, operator, o)}");
             }
 

@@ -27,7 +27,7 @@ import static java.lang.StringTemplate.RAW;
 import static st.orm.template.Operator.EQUALS;
 import static st.orm.template.Operator.IN;
 
-public interface KQueryBuilder<T extends Record, R, ID> {
+public abstract class KQueryBuilder<T extends Record, R, ID> {
 
     /**
      * Returns a typed query builder for the specified primary key type.
@@ -38,14 +38,14 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @throws PersistenceException if the pk type is not valid.
      * @since 1.2
      */
-    <X> KQueryBuilder<T, R, X> typed(@Nonnull KClass<X> pkType);
+    public abstract <X> KQueryBuilder<T, R, X> typed(@Nonnull KClass<X> pkType);
 
     /**
      * Marks the current query as a distinct query.
      *
      * @return the query builder.
      */
-    KQueryBuilder<T, R, ID> distinct();
+    public abstract KQueryBuilder<T, R, ID> distinct();
 
     /**
      * A builder for constructing join clause of the query.
@@ -54,7 +54,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param <R> the type of the result.
      * @param <ID> the type of the primary key.
      */
-    interface KTypedJoinBuilder<T extends Record, R, ID> extends KJoinBuilder<T, R, ID> {
+    public interface KTypedJoinBuilder<T extends Record, R, ID> extends KJoinBuilder<T, R, ID> {
 
         /**
          * Specifies the relation to join on.
@@ -72,7 +72,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param <R> the type of the result.
      * @param <ID> the type of the primary key.
      */
-    interface KJoinBuilder<T extends Record, R, ID> {
+    public interface KJoinBuilder<T extends Record, R, ID> {
 
         /**
          * Specifies the join condition using a custom expression.
@@ -99,7 +99,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    KQueryBuilder<T, R, ID> crossJoin(@Nonnull KClass<? extends Record> relation);
+    public abstract KQueryBuilder<T, R, ID> crossJoin(@Nonnull KClass<? extends Record> relation);
 
     /**
      * Adds an inner join to the query.
@@ -107,7 +107,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    KTypedJoinBuilder<T, R, ID> innerJoin(@Nonnull KClass<? extends Record> relation);
+    public abstract KTypedJoinBuilder<T, R, ID> innerJoin(@Nonnull KClass<? extends Record> relation);
 
     /**
      * Adds a left join to the query.
@@ -115,7 +115,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    KTypedJoinBuilder<T, R, ID> leftJoin(@Nonnull KClass<? extends Record> relation);
+    public abstract KTypedJoinBuilder<T, R, ID> leftJoin(@Nonnull KClass<? extends Record> relation);
 
     /**
      * Adds a right join to the query.
@@ -123,7 +123,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    KTypedJoinBuilder<T, R, ID> rightJoin(@Nonnull KClass<? extends Record> relation);
+    public abstract KTypedJoinBuilder<T, R, ID> rightJoin(@Nonnull KClass<? extends Record> relation);
 
     /**
      * Adds a join of the specified type to the query.
@@ -133,7 +133,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    KTypedJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull KClass<? extends Record> relation, @Nonnull String alias);
+    public abstract KTypedJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull KClass<? extends Record> relation, @Nonnull String alias);
 
     /**
      * Adds a cross join to the query.
@@ -141,7 +141,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param template the condition to join.
      * @return the query builder.
      */
-    KQueryBuilder<T, R, ID> crossJoin(@Nonnull StringTemplate template);
+    public abstract KQueryBuilder<T, R, ID> crossJoin(@Nonnull StringTemplate template);
 
     /**
      * Adds a cross join to the query.
@@ -149,7 +149,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param function used to define the condition to join.
      * @return the query builder.
      */
-    default KQueryBuilder<T, R, ID> crossJoin(@Nonnull TemplateFunction function) {
+    public final KQueryBuilder<T, R, ID> crossJoin(@Nonnull TemplateFunction function) {
         return crossJoin(TemplateFunction.template(function));
     }
 
@@ -160,7 +160,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    KJoinBuilder<T, R, ID> innerJoin(@Nonnull StringTemplate template, @Nonnull String alias);
+    public abstract KJoinBuilder<T, R, ID> innerJoin(@Nonnull StringTemplate template, @Nonnull String alias);
 
     /**
      * Adds an inner join to the query.
@@ -169,7 +169,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    default KJoinBuilder<T, R, ID> innerJoin(@Nonnull TemplateFunction function, @Nonnull String alias) {
+    public final KJoinBuilder<T, R, ID> innerJoin(@Nonnull TemplateFunction function, @Nonnull String alias) {
         return innerJoin(TemplateFunction.template(function), alias);
     }
 
@@ -180,7 +180,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    KJoinBuilder<T, R, ID> leftJoin(@Nonnull StringTemplate template, @Nonnull String alias);
+    public abstract KJoinBuilder<T, R, ID> leftJoin(@Nonnull StringTemplate template, @Nonnull String alias);
 
     /**
      * Adds a left join to the query.
@@ -189,7 +189,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    default KJoinBuilder<T, R, ID> leftJoin(@Nonnull TemplateFunction function, @Nonnull String alias) {
+    public final KJoinBuilder<T, R, ID> leftJoin(@Nonnull TemplateFunction function, @Nonnull String alias) {
         return leftJoin(TemplateFunction.template(function), alias);
     }
 
@@ -200,7 +200,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    KJoinBuilder<T, R, ID> rightJoin(@Nonnull StringTemplate template, @Nonnull String alias);
+    public abstract KJoinBuilder<T, R, ID> rightJoin(@Nonnull StringTemplate template, @Nonnull String alias);
 
     /**
      * Adds a right join to the query.
@@ -209,7 +209,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    default KJoinBuilder<T, R, ID> rightJoin(@Nonnull TemplateFunction function, @Nonnull String alias) {
+    public final KJoinBuilder<T, R, ID> rightJoin(@Nonnull TemplateFunction function, @Nonnull String alias) {
         return rightJoin(TemplateFunction.template(function), alias);
     }
 
@@ -221,7 +221,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull StringTemplate template, @Nonnull String alias);
+    public abstract KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull StringTemplate template, @Nonnull String alias);
 
     /**
      * Adds a join of the specified type to the query using a subquery.
@@ -231,7 +231,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull KQueryBuilder<?, ?, ?> subquery, @Nonnull String alias);
+    public abstract KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull KQueryBuilder<?, ?, ?> subquery, @Nonnull String alias);
 
     /**
      * Adds a join of the specified type to the query.
@@ -241,7 +241,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */  
-    default KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull TemplateFunction function, @Nonnull String alias) {
+    public final KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull TemplateFunction function, @Nonnull String alias) {
         return join(type, TemplateFunction.template(function), alias);
     }
 
@@ -252,19 +252,19 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param <R> the type of the result.
      * @param <ID> the type of the primary key.
      */
-    interface KWhereBuilder<T extends Record, R, ID> extends KSubqueryTemplate {
+    public static abstract class KWhereBuilder<T extends Record, R, ID> implements KSubqueryTemplate {
 
         /**
          * A predicate that always evaluates to true.
          */
-        default KPredicateBuilder<T, R, ID> TRUE() {
+        public final KPredicateBuilder<T, R, ID> TRUE() {
             return expression(RAW."TRUE");
         }
 
         /**
          * A predicate that always evaluates to false.
          */
-        default KPredicateBuilder<T, R, ID> FALSE() {
+        public final KPredicateBuilder<T, R, ID> FALSE() {
             return expression(RAW."FALSE");
         }
 
@@ -274,7 +274,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
          * @param template the expression to add.
          * @return the predicate builder.
          */
-        KPredicateBuilder<T, R, ID> expression(@Nonnull StringTemplate template);
+        public abstract KPredicateBuilder<T, R, ID> expression(@Nonnull StringTemplate template);
 
         /**
          * Adds a custom expression to the WHERE clause.
@@ -282,7 +282,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
          * @param function used to define the expression to add.
          * @return the predicate builder.
          */
-        default KPredicateBuilder<T, R, ID> expression(@Nonnull TemplateFunction function) {
+        public final KPredicateBuilder<T, R, ID> expression(@Nonnull TemplateFunction function) {
             return expression(TemplateFunction.template(function));
         }
 
@@ -297,7 +297,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
          * @param subquery the subquery to check for existence.
          * @return the updated {@link QueryBuilder.PredicateBuilder} with the EXISTS condition applied.
          */
-        KPredicateBuilder<T, R, ID> exists(@Nonnull KQueryBuilder<?, ?, ?> subquery);
+        public abstract KPredicateBuilder<T, R, ID> exists(@Nonnull KQueryBuilder<?, ?, ?> subquery);
 
         /**
          * Adds an <code>NOT EXISTS</code> condition to the WHERE clause using the specified subquery.
@@ -310,7 +310,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
          * @param subquery the subquery to check for existence.
          * @return the updated {@link QueryBuilder.PredicateBuilder} with the NOT EXISTS condition applied.
          */
-        KPredicateBuilder<T, R, ID> notExists(@Nonnull KQueryBuilder<?, ?, ?> subquery);
+        public abstract KPredicateBuilder<T, R, ID> notExists(@Nonnull KQueryBuilder<?, ?, ?> subquery);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified primary key of the table.
@@ -318,7 +318,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
          * @param id the id to match.
          * @return the predicate builder.
          */
-        KPredicateBuilder<T, R, ID> filter(@Nonnull ID id);
+        public abstract KPredicateBuilder<T, R, ID> filter(@Nonnull ID id);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified record.
@@ -326,7 +326,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
          * @param record the record to match.
          * @return the predicate builder.
          */
-        KPredicateBuilder<T, R, ID> filter(@Nonnull T record);
+        public abstract KPredicateBuilder<T, R, ID> filter(@Nonnull T record);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of the
@@ -336,7 +336,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          * @since 1.2
          */
-        KPredicateBuilder<T, R, ID> filterAny(@Nonnull Record record);
+        public abstract KPredicateBuilder<T, R, ID> filterAny(@Nonnull Record record);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified primary keys of the table.
@@ -345,7 +345,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          * @since 1.2
          */
-        KPredicateBuilder<T, R, ID> filterIds(@Nonnull Iterable<? extends ID> it);
+        public abstract KPredicateBuilder<T, R, ID> filterIds(@Nonnull Iterable<? extends ID> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified records.
@@ -353,7 +353,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
          * @param it the records to match.
          * @return the predicate builder.
          */
-        KPredicateBuilder<T, R, ID> filter(@Nonnull Iterable<? extends T> it);
+        public abstract KPredicateBuilder<T, R, ID> filter(@Nonnull Iterable<? extends T> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified records. The record can represent any of the
@@ -363,7 +363,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
          * @return the query builder.
          * @since 1.2
          */
-        KPredicateBuilder<T, R, ID> filterAny(@Nonnull Iterable<? extends Record> it);
+        public abstract KPredicateBuilder<T, R, ID> filterAny(@Nonnull Iterable<? extends Record> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
@@ -372,8 +372,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
          * @param record the records to match.
          * @return the predicate builder.
          */
-        default <V extends Record> KPredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, V record) {
-            //noinspection unchecked
+        public final <V extends Record> KPredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, V record) {
             return filter(path, EQUALS, record);
         }
 
@@ -384,8 +383,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
          * @param record the records to match.
          * @return the predicate builder.
          */
-        default <V extends Record> KPredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, V record) {
-            //noinspection unchecked
+        public final <V extends Record> KPredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, V record) {
             return filterAny(path, EQUALS, record);
         }
 
@@ -396,7 +394,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
          * @param it the records to match.
          * @return the predicate builder.
          */
-        default <V extends Record> KPredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, Iterable<V> it) {
+        public final <V extends Record> KPredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, Iterable<V> it) {
             return filter(path, IN, it);
         }
 
@@ -407,7 +405,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
          * @param it the records to match.
          * @return the predicate builder.
          */
-        default <V extends Record> KPredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, Iterable<V> it) {
+        public final <V extends Record> KPredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, Iterable<V> it) {
             return filterAny(path, IN, it);
         }
 
@@ -423,9 +421,9 @@ public interface KQueryBuilder<T extends Record, R, ID> {
          * @param <V> the type of the object that the metamodel represents.
          * @since 1.2
          */
-        <V> KPredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path,
-                                                           @Nonnull Operator operator,
-                                                           @Nonnull Iterable<? extends V> it);
+        public abstract <V> KPredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path,
+                                                               @Nonnull Operator operator,
+                                                               @Nonnull Iterable<? extends V> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
@@ -439,9 +437,9 @@ public interface KQueryBuilder<T extends Record, R, ID> {
          * @param <V> the type of the object that the metamodel represents.
          * @since 1.2
          */
-        <V> KPredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path,
-                                                  @Nonnull Operator operator,
-                                                  @Nonnull Iterable<? extends V> it);
+        public abstract <V> KPredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path,
+                                                                  @Nonnull Operator operator,
+                                                                  @Nonnull Iterable<? extends V> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
@@ -455,10 +453,12 @@ public interface KQueryBuilder<T extends Record, R, ID> {
          * @param <V> the type of the object that the metamodel represents.
          * @since 1.2
          */
-        @SuppressWarnings("unchecked")
-        <V> KPredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path,
-                                               @Nonnull Operator operator,
-                                               @Nonnull V... o);
+        @SafeVarargs
+        public final <V> KPredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path,
+                                                            @Nonnull Operator operator,
+                                                            @Nonnull V... o) {
+            return filterImpl(path, operator, o);
+        }
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
@@ -472,11 +472,29 @@ public interface KQueryBuilder<T extends Record, R, ID> {
          * @param <V> the type of the object that the metamodel represents.
          * @since 1.2
          */
-        @SuppressWarnings("unchecked")
-        <V> KPredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path,
-                                                  @Nonnull Operator operator,
-                                                  @Nonnull V... o);
-        
+        @SafeVarargs
+        public final <V> KPredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path,
+                                                               @Nonnull Operator operator,
+                                                               @Nonnull V... o) {
+            return filterImpl(path, operator, o);
+        }
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
+         * graph.
+         *
+         * @param path the path to the object in the table graph.
+         * @param operator the operator to use for the comparison.
+         * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
+         *          table graph.
+         * @return the query builder.
+         * @param <V> the type of the object that the metamodel represents.
+         * @since 1.2
+         */
+        protected abstract <V> KPredicateBuilder<T, R, ID> filterImpl(@Nonnull Metamodel<?, V> path,
+                                                                      @Nonnull Operator operator,
+                                                                      @Nonnull V[] o);
+
         /**
          * Adds a custom expression to the WHERE clause.
          *
@@ -485,7 +503,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
          * @param function used to define the expression to add.
          * @return the predicate builder.
          */
-        default KPredicateBuilder<T, R, ID> invoke(@Nonnull TemplateFunction function) {
+        public final KPredicateBuilder<T, R, ID> invoke(@Nonnull TemplateFunction function) {
             return expression(function);
         }
     }
@@ -497,7 +515,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param <R> the type of the result.
      * @param <ID> the type of the primary key.
      */
-    interface KPredicateBuilder<T extends Record, R, ID> {
+    public interface KPredicateBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a predicate to the WHERE clause using an AND condition.
@@ -528,7 +546,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param id the id to match.
      * @return the query builder.
      */
-    default KQueryBuilder<T, R, ID> where(@Nonnull ID id) {
+    public final KQueryBuilder<T, R, ID> where(@Nonnull ID id) {
         return where(predicate -> predicate.filter(id));
     }
 
@@ -538,7 +556,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param record the record to match.
      * @return the query builder.
      */
-    default KQueryBuilder<T, R, ID> where(@Nonnull T record) {
+    public final KQueryBuilder<T, R, ID> where(@Nonnull T record) {
         return where(predicate -> predicate.filter(record));
     }
 
@@ -550,7 +568,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    default KQueryBuilder<T, R, ID> whereAny(@Nonnull Record record) {
+    public final KQueryBuilder<T, R, ID> whereAny(@Nonnull Record record) {
         return where(predicate -> predicate.filterAny(record));
     }
 
@@ -561,7 +579,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    default KQueryBuilder<T, R, ID> whereIds(@Nonnull Iterable<? extends ID> it) {
+    public final KQueryBuilder<T, R, ID> whereIds(@Nonnull Iterable<? extends ID> it) {
         return where(predicate -> predicate.filterIds(it));
     }
 
@@ -572,8 +590,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    default <V extends Record> KQueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, V record) {
-        //noinspection unchecked
+    public final <V extends Record> KQueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, V record) {
         return where(path, EQUALS, record);
     }
 
@@ -584,8 +601,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    default <V extends Record> KQueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, V record) {
-        //noinspection unchecked
+    public final <V extends Record> KQueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, V record) {
         return whereAny(path, EQUALS, record);
     }
 
@@ -596,7 +612,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    default <V extends Record> KQueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, Iterable<V> it) {
+    public final <V extends Record> KQueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, Iterable<V> it) {
         return where(path, IN, it);
     }
 
@@ -607,7 +623,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    default <V extends Record> KQueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, Iterable<V> it) {
+    public final <V extends Record> KQueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, Iterable<V> it) {
         return whereAny(path, IN, it);
     }
 
@@ -617,7 +633,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param it the records to match.
      * @return the query builder.
      */
-    default KQueryBuilder<T, R, ID> where(@Nonnull Iterable<? extends T> it) {
+    public final KQueryBuilder<T, R, ID> where(@Nonnull Iterable<? extends T> it) {
         return where(predicate -> predicate.filter(it));
     }
 
@@ -629,7 +645,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    default KQueryBuilder<T, R, ID> whereAny(@Nonnull Iterable<? extends Record> it) {
+    public final KQueryBuilder<T, R, ID> whereAny(@Nonnull Iterable<? extends Record> it) {
         return where(predicate -> predicate.filterAny(it));
     }
 
@@ -644,9 +660,9 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param <V> the type of the object that the metamodel represents.
      * @since 1.2
      */
-    default <V> KQueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
-                                              @Nonnull Operator operator,
-                                              @Nonnull Iterable<? extends V> it) {
+    public final <V> KQueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
+                                                   @Nonnull Operator operator,
+                                                   @Nonnull Iterable<? extends V> it) {
         return where(predicate -> predicate.filter(path , operator, it));
     }
 
@@ -661,9 +677,9 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param <V> the type of the object that the metamodel represents.
      * @since 1.2
      */
-    default <V> KQueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path,
-                                                 @Nonnull Operator operator,
-                                                 @Nonnull Iterable<? extends V> it) {
+    public final <V> KQueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path,
+                                                      @Nonnull Operator operator,
+                                                      @Nonnull Iterable<? extends V> it) {
         return where(predicate -> predicate.filterAny(path , operator, it));
     }
 
@@ -678,10 +694,10 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param <V> the type of the object that the metamodel represents.
      * @since 1.2
      */
-    @SuppressWarnings("unchecked")
-    default <V> KQueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
-                                              @Nonnull Operator operator,
-                                              @Nonnull V... o) {
+    @SafeVarargs
+    public final <V> KQueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
+                                                   @Nonnull Operator operator,
+                                                   @Nonnull V... o) {
         return where(predicate -> predicate.filter(path, operator, o));
     }
 
@@ -697,10 +713,10 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param <V> the type of the object that the metamodel represents.
      * @since 1.2
      */
-    @SuppressWarnings("unchecked")
-    default <V> KQueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path,
-                                                 @Nonnull Operator operator,
-                                                 V... o) {
+    @SafeVarargs
+    public final <V> KQueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path,
+                                                      @Nonnull Operator operator,
+                                                      V... o) {
         return where(predicate -> predicate.filterAny(path, operator, o));
     }
 
@@ -710,7 +726,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param template the expression.
      * @return the query builder.
      */
-    default KQueryBuilder<T, R, ID> where(@Nonnull StringTemplate template) {
+    public final KQueryBuilder<T, R, ID> where(@Nonnull StringTemplate template) {
         return where(it -> it.expression(template));
     }
 
@@ -738,7 +754,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param predicate the predicate to add.
      * @return the query builder.
      */
-    KQueryBuilder<T, R, ID> where(@Nonnull Function<KWhereBuilder<T, R, ID>, KPredicateBuilder<?, ?, ?>> predicate);
+    public abstract KQueryBuilder<T, R, ID> where(@Nonnull Function<KWhereBuilder<T, R, ID>, KPredicateBuilder<?, ?, ?>> predicate);
 
     /**
      * Adds a GROUP BY clause to the query for field at the specified path in the table graph.
@@ -746,7 +762,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param path the path to group by.
      * @return the query builder.
      */
-    default KQueryBuilder<T, R, ID> groupBy(@Nonnull Metamodel<T, ?> path) {
+    public final KQueryBuilder<T, R, ID> groupBy(@Nonnull Metamodel<T, ?> path) {
         return groupBy(RAW."\{path}");
     }
 
@@ -757,7 +773,22 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param path the path to group by.
      * @return the query builder.
      */
-    default KQueryBuilder<T, R, ID> groupBy(@Nonnull Metamodel<?, ?>... path) {
+    @SafeVarargs
+    public final KQueryBuilder<T, R, ID> groupBy(@Nonnull Metamodel<?, ?>... path) {
+        // We can safely invoke groupByAny as the underlying logic is identical. The main purpose of having these
+        // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
+        // the table graph.
+        return groupBy(path);
+    }
+
+    /**
+     * Adds a GROUP BY clause to the query for field at the specified path in the table graph. The metamodel can refer
+     * to manually added joins.
+     *
+     * @param path the path to group by.
+     * @return the query builder.
+     */
+    public final KQueryBuilder<T, R, ID> groupByAny(@Nonnull Metamodel<?, ?>... path) {
         if (path.length == 0) {
             throw new PersistenceException("At least one path must be provided for GROUP BY clause.");
         }
@@ -773,7 +804,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param template the template to group by.
      * @return the query builder.
      */
-    default KQueryBuilder<T, R, ID> groupBy(@Nonnull StringTemplate template) {
+    public final KQueryBuilder<T, R, ID> groupBy(@Nonnull StringTemplate template) {
         return append(StringTemplate.combine(RAW."GROUP BY ", template));
     }
 
@@ -783,7 +814,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param function used to define the template to group by.
      * @return the query builder.
      */
-    default KQueryBuilder<T, R, ID> groupBy(@Nonnull TemplateFunction function) {
+    public final KQueryBuilder<T, R, ID> groupBy(@Nonnull TemplateFunction function) {
         return groupBy(TemplateFunction.template(function));
     }
 
@@ -796,10 +827,10 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      *          table graph.
      * @return the query builder.
      */
-    @SuppressWarnings("unchecked")
-    default <V> KQueryBuilder<T, R, ID> having(@Nonnull Metamodel<T, V> path,
-                                               @Nonnull Operator operator,
-                                               V... o) {
+    @SafeVarargs
+    public final <V> KQueryBuilder<T, R, ID> having(@Nonnull Metamodel<T, V> path,
+                                                    @Nonnull Operator operator,
+                                                    V... o) {
         return havingAny(path, operator, o);
     }
 
@@ -812,10 +843,10 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      *          table graph or manually added joins.
      * @return the query builder.
      */
-    @SuppressWarnings("unchecked")
-    default <V> KQueryBuilder<T, R, ID> havingAny(@Nonnull Metamodel<?, V> path,
-                                                 @Nonnull Operator operator,
-                                                 V... o) {
+    @SafeVarargs
+    public final <V> KQueryBuilder<T, R, ID> havingAny(@Nonnull Metamodel<?, V> path,
+                                                       @Nonnull Operator operator,
+                                                       V... o) {
         return having(RAW."\{new ObjectExpression(path, operator, o)}");
     }
 
@@ -825,7 +856,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param template the expression to add.
      * @return the query builder.
      */
-    default <V> KQueryBuilder<T, R, ID> having(@Nonnull StringTemplate template) {
+    public final <V> KQueryBuilder<T, R, ID> having(@Nonnull StringTemplate template) {
         return append(StringTemplate.combine(RAW."HAVING ", template));
     }
 
@@ -835,7 +866,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param path the path to order by.
      * @return the query builder.
      */
-    default KQueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?> path) {
+    public final KQueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?> path) {
         return orderBy(RAW."\{path}");
     }
 
@@ -846,7 +877,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param ascending whether to order in ascending order.
      * @return the query builder.
      */
-    default KQueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?> path, boolean ascending) {
+    public final KQueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?> path, boolean ascending) {
         return orderBy(RAW."\{path} \{ascending ? "ASC" : "DESC"}");
     }
 
@@ -857,7 +888,22 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param path the path to order by.
      * @return the query builder.
      */
-    default KQueryBuilder<T, R, ID> orderByAny(@Nonnull Metamodel<?, ?>... path) {
+    @SafeVarargs
+    public final KQueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?>... path) {
+        // We can safely invoke orderByAny as the underlying logic is identical. The main purpose of having these
+        // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
+        // the table graph.
+        return orderByAny(path);
+    }
+
+    /**
+     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph or manually added
+     * joins.
+     *
+     * @param path the path to order by.
+     * @return the query builder.
+     */
+    public final KQueryBuilder<T, R, ID> orderByAny(@Nonnull Metamodel<?, ?>... path) {
         if (path.length == 0) {
             throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
         }
@@ -873,7 +919,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param template the template to order by.
      * @return the query builder.
      */
-    default KQueryBuilder<T, R, ID> orderBy(@Nonnull StringTemplate template) {
+    public final KQueryBuilder<T, R, ID> orderBy(@Nonnull StringTemplate template) {
         return append(StringTemplate.combine(RAW."ORDER BY ", template));
     }
 
@@ -883,7 +929,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param function used to define the template to order by.
      * @return the query builder.
      */
-    default KQueryBuilder<T, R, ID> orderBy(@Nonnull TemplateFunction function) {
+    public final KQueryBuilder<T, R, ID> orderBy(@Nonnull TemplateFunction function) {
         return groupBy(TemplateFunction.template(function));
     }
 
@@ -893,7 +939,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param template the string template to append.
      * @return a processor that can be used to append the query with a string template.
      */
-    KQueryBuilder<T, R, ID> append(@Nonnull StringTemplate template);
+    public abstract KQueryBuilder<T, R, ID> append(@Nonnull StringTemplate template);
 
     /**
      * Returns a processor that can be used to append the query with a string template.
@@ -901,7 +947,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param function used to define the string template to append.
      * @return a processor that can be used to append the query with a string template.
      */
-    default KQueryBuilder<T, R, ID> append(@Nonnull TemplateFunction function) {
+    public final KQueryBuilder<T, R, ID> append(@Nonnull TemplateFunction function) {
         return append(TemplateFunction.template(function));
     }
 
@@ -910,7 +956,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      *
      * @return the constructed query.
      */
-    KQuery build();
+    public abstract KQuery build();
 
     /**
      * Prepares the query for execution.
@@ -923,7 +969,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @return the prepared query.
      * @throws PersistenceException if the query preparation fails.
      */
-    default KPreparedQuery prepare() {
+    public final KPreparedQuery prepare() {
         return build().prepare();
     }
 
@@ -942,7 +988,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<R> getResultStream();
+    public abstract Stream<R> getResultStream();
 
     /**
      * Executes the query and returns a stream of using the specified callback. This method retrieves the records and
@@ -958,7 +1004,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
      * connectivity.
      */
-    default <X> X getResult(@Nonnull KResultCallback<R, X> callback) {
+    public final <X> X getResult(@Nonnull KResultCallback<R, X> callback) {
         try (Stream<R> stream = getResultStream()) {
             return callback.process(toSequence(stream));
         }
@@ -971,7 +1017,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    default long getResultCount() {
+    public final long getResultCount() {
         try (var stream = getResultStream()) {
             return stream.count();
         }
@@ -983,7 +1029,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @return the list of results.
      * @throws PersistenceException if the query fails.
      */
-    default List<R> getResultList() {
+    public final List<R> getResultList() {
         try (var stream = getResultStream()) {
             return stream.toList();
         }
@@ -997,7 +1043,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the query fails.
      */
-    default R getSingleResult() {
+    public final R getSingleResult() {
         return getResultStream()
                 .reduce((_, _) -> {
                     throw new NonUniqueResultException("Expected single result, but found more than one.");
@@ -1011,7 +1057,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the query fails.
      */
-    default Optional<R> getOptionalResult() {
+    public final Optional<R> getOptionalResult() {
         return getResultStream()
                 .reduce((_, _) -> {
                     throw new NonUniqueResultException("Expected single result, but found more than one.");
@@ -1028,7 +1074,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * @param <X> the type of elements in the stream.
      * @param <Y> the type of elements in the result stream.
      */
-    static <X, Y> Stream<Y> slice(@Nonnull Stream<X> stream, int batchSize, @Nonnull Function<List<X>, Stream<Y>> function) {
+    public static <X, Y> Stream<Y> slice(@Nonnull Stream<X> stream, int batchSize, @Nonnull Function<List<X>, Stream<Y>> function) {
         return QueryBuilder.slice(stream, batchSize, function);
     }
 
@@ -1050,7 +1096,7 @@ public interface KQueryBuilder<T extends Record, R, ID> {
      * {@code Integer.MAX_VALUE}, only one slice will be returned.
      * @return a stream of slices, where each slice contains up to {@code batchSize} elements from the original stream.
      */
-    static <X> Stream<List<X>> slice(@Nonnull Stream<X> stream, int size) {
+    public static <X> Stream<List<X>> slice(@Nonnull Stream<X> stream, int size) {
         return QueryBuilder.slice(stream, size);
     }
 
