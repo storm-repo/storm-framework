@@ -5,10 +5,11 @@
 *Key benefits of Storm:*
 
 * *Easy to learn*: With a programming model similar to the Java Persistence API (JPA), developers familiar with JPA can quickly and easily adapt to using Storm.
-* *Modern Syntax and Readability*: Storm allows for clean and succinct code, making it easy to write and understand entities and queries.
+* *Modern Syntax*: Storm allows for clean and concise code, making it effortless to write entities and queries.
+* *Type safe* The best DSL is no DSL. Storm’s query builder mirrors SQL itself, providing a type-safe, intuitive experience that makes queries easy to write and read while reducing the risk of runtime errors.
 * *Direct Database Interaction*: Method calls in Storm are directly translated into database operations, providing a transparent and immediate programming experience without unnecessary abstractions.
-* *Simplicity and Transparency*: Avoids hidden complexities and “magic,” by using stateless, record-based, entities.
-* *Optimized Performance*: Built with efficiency in mind, Storm supports batch processing, lazy streams, and upsert functionality to enhance performance during database interactions.
+* *Stateless*: Avoids hidden complexities and “magic” by leveraging stateless, record-based entities, ensuring simplicity and transparency in database interactions.
+* *Performance*: Built with efficiency in mind, Storm supports batch processing, lazy streams, and upsert functionality to enhance performance during database interactions.
 * *Universal Database Compatibility*: Fully compatible with all SQL databases, it offers flexibility and broad applicability across various database systems.
 
 In summary, Storm delivers a modern, efficient, and straightforward ORM solution that prioritizes direct ease of use, database interaction, and wide compatibility. It’s an excellent choice for Java and Kotlin developers seeking simplicity, performance, and enhanced readability in their database operations.
@@ -181,18 +182,18 @@ public class ORMRepositoryExample {
 
     public List<Pet> findByFirstName(String firstName) {
         // Select all pets that belong to an owner with the specified first name. Uses the
-        // auto alias feature and parameter binding.
+        // metamodel for column name resolution and parameter binding.
         return ORM(dataSource).entity(Pet.class)
             .select()
-            .where(RAW."\{Owner.class}.first_name = \{firstName}")
+            .where(RAW."\{Owner_.firstName} = \{firstName}")
             .getResultList();
     }
 
     public List<Pet> findByLastName(String lastName) {
-        // Use component path to identify column.
+        // Use metamodel to identify column.
         return ORM(dataSource).entity(Pet.class)
             .select()
-            .where("owner.lastName", EQUALS, lastName)
+            .where(Owner_.lastName, EQUALS, lastName)
             .getResultList();
     }
 
@@ -200,8 +201,8 @@ public class ORMRepositoryExample {
         // Build where using mixed styles.
         return ORM(dataSource).entity(Pet.class)
             .select()
-            .wherePredicate(it -> it.filter("owner.firstName", EQUALS, firstName)
-                       .and(it.expression(RAW."\{Owner.class}.last_name = \{lastName}")))
+            .where(it -> it.filter(Owner_.firstName, EQUALS, firstName) // Type-safe!
+                       .and(it.expression(RAW."\{Owner_.lastName} = \{lastName}"))) // Column name resolution.
             .getResultList();
     }
 
@@ -254,7 +255,7 @@ public interface PetRepository extends EntityRepository<Pet> {
     default Stream<Pet> findByCity(String city) {
         // Select a lazy loaded stream pets that belong to an owner in the specified city.
         return select()
-            .where("owner.city", EQUALS, city)
+            .where(Owner_.city, EQUALS, city)
             .getResultStream();
     }
 
@@ -281,10 +282,10 @@ public interface VetRepository extends EntityRepository<Vet> {
     default List<SpecialtiesByVet> getSpecialties() {
         // Uses VET as the root entity and aggregates the specialties into a JSON object.
         // The result is a list of SpecialtiesByVet records.
-        return select(SpecialtiesByVet.class, RAW."\{Vet.class}, JSON_OBJECTAGG(\{Specialty.class}.id, \{Specialty.class}.name)")
+        return select(SpecialtiesByVet.class, RAW."\{Vet.class}, JSON_OBJECTAGG(\{Specialty.class}.id, \{Specialty_.name})")
             .innerJoin(VetSpecialty.class).on(Vet.class)
             .innerJoin(Specialty.class).on(VetSpecialty.class)
-            .append(RAW."GROUP BY \{Vet.class}.id")
+            .groupBy(Vet_.id)
             .getResultList();
     }
 }
@@ -362,7 +363,7 @@ public interface PetRepository extends EntityRepository<Pet> {
         // QueryBuilder example with method based String Templates resulting in a much cleaner syntax.
         return select(CountByPet.class, "\{Pet.class}, COUNT(*)")
                 .innerJoin(Visit.class).on(Pet.class)
-                .append("GROUP BY \{Vet.class}.id")
+                .groupBy(Vet_.id)
                 .getResultList();
     }
 

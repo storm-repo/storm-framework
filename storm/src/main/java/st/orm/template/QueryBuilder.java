@@ -34,6 +34,7 @@ import java.util.stream.StreamSupport;
 import static java.lang.Integer.MAX_VALUE;
 import static java.lang.StringTemplate.RAW;
 import static java.util.Spliterators.spliteratorUnknownSize;
+import static st.orm.spi.Providers.getSqlDialect;
 import static st.orm.template.Operator.EQUALS;
 import static st.orm.template.Operator.IN;
 
@@ -783,7 +784,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     public final QueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?> path, boolean ascending) {
-        return orderBy(RAW."\{path} \{ascending ? "ASC" : "DESC"}");
+        return orderBy(StringTemplate.combine(RAW."\{path}", StringTemplate.of(STR." \{ascending ? "ASC" : "DESC"}")));
     }
 
     /**
@@ -826,6 +827,26 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      */
     public final QueryBuilder<T, R, ID> orderBy(@Nonnull StringTemplate template) {
         return append(StringTemplate.combine(RAW."ORDER BY ", template));
+    }
+
+    /**
+     * Adds a LIMIT clause to the query.
+     *
+     * @param limit the maximum number of records to return.
+     * @return the query builder.
+     */
+    public QueryBuilder<T, R, ID> limit(int limit) {
+        return append(getSqlDialect().limit(limit));
+    }
+
+    /**
+     * Adds a LIMIT clause to the query.
+     * @param offset the offset.
+     * @param limit the maximum number of records to return.
+     * @return the query builder.
+     */
+    public QueryBuilder<T, R, ID> limit(int offset, int limit) {
+        return append(getSqlDialect().limit(offset, limit));
     }
 
     /**

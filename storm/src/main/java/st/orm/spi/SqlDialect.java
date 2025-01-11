@@ -26,9 +26,9 @@ public interface SqlDialect {
 
     /**
      * Indicates whether the SQL dialect supports delete aliases.
-     * <p>
-     * Delete aliases allow delete statements to use table aliases in joins,  making it easier to filter rows based on
-     * related data.
+     *
+     * <p>Delete aliases allow delete statements to use table aliases in joins,  making it easier to filter rows based
+     * on related data.</p>
      *
      * @return {@code true} if delete aliases are supported, {@code false} otherwise.
      */
@@ -41,4 +41,23 @@ public interface SqlDialect {
      * @return the escaped identifier
      */
     String escape(@Nonnull String name);
+
+    /**
+     * Returns a string template for the given limit.
+     *
+     * @param limit the maximum number of records to return.
+     * @return a string template for the given limit.
+     * @since 1.2
+     */
+    StringTemplate limit(int limit);
+
+    /**
+     * Returns a string template for the given limit and offset.
+     *
+     * @param offset the offset.
+     * @param limit the maximum number of records to return.
+     * @return a string template for the given limit and offset.
+     * @since 1.2
+     */
+    StringTemplate limit(int limit, int offset);
 }
