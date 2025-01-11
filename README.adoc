@@ -14,7 +14,12 @@
 
 In summary, Storm delivers a modern, efficient, and straightforward ORM solution that prioritizes direct ease of use, database interaction, and wide compatibility. It’s an excellent choice for Java and Kotlin developers seeking simplicity, performance, and enhanced readability in their database operations.
 
-== Level 0 - Parameter Binding
+== Getting Started
+
+Storm offers a flexible and layered approach to database interaction, catering to developers with varying needs and preferences. Whether you’re looking for minimal enhancements or a complete abstraction, Storm has you covered. The following paragraphs outline the three levels at which Storm can be used, showcasing its capabilities and how it simplifies database access at each level.
+
+=== Level 0 - Parameter Binding
+Enhance your existing workflows using technologies like JDBC or JPA, while leveraging Storm for safe and efficient parameter binding. This level is ideal for developers who want to retain control over SQL execution but benefit from Storm’s binding capabilities.
 
 [source,java,indent=0]
 ----
@@ -57,7 +62,9 @@ public class PreparedStatementExample {
 ----
 
 
-== Level 1 - Sql Template / Object-Relational Mapping
+=== Level 1 - Sql Template / Object-Relational Mapping
+Take advantage of Storm’s ORM while writing queries using plain, text-based SQL. Storm enhances this approach with automatic joins, table and column resolution, reducing boilerplate and increasing productivity, while producing rich ORM records for seamless interaction with your data.
+
 
 [source,java,indent=0]
 ----
@@ -154,7 +161,8 @@ public class ORMTemplateExample {
 }
 ----
 
-== Level 2 - Repository
+=== Level 2 - Repository
+Maximize abstraction by using Storm’s repositories, which provide CRUD logic out of the box. By utilizing a static metamodel, Level 2 can be used in a 100% type-safe manner, ensuring a robust and error-free development experience. This is the recommended level for most use cases. For scenarios requiring a higher level of specialized SQL, Level 2 can be seamlessly combined with Level 1 to leverage text-based SQL when needed, offering the perfect balance between simplicity and advanced query customization.
 
 [source,java,indent=0]
 ----
@@ -177,12 +185,12 @@ public class ORMRepositoryExample {
         // Selects all pets.
         return ORM(dataSource).entity(Pet.class)
             .select()
-            .getResultList();   // Use getResultStream() for a lazy loaded stream instead.
+            .getResultList();   // Use getResultStream() for a lazily loaded stream instead.
     }
 
     public List<Pet> findByFirstName(String firstName) {
         // Select all pets that belong to an owner with the specified first name. Uses the
-        // metamodel for column name resolution and parameter binding.
+        // metamodel for column name resolution and utilizes parameter binding.
         return ORM(dataSource).entity(Pet.class)
             .select()
             .where(RAW."\{Owner_.firstName} = \{firstName}")
@@ -202,7 +210,7 @@ public class ORMRepositoryExample {
         return ORM(dataSource).entity(Pet.class)
             .select()
             .where(it -> it.filter(Owner_.firstName, EQUALS, firstName) // Type-safe!
-                       .and(it.expression(RAW."\{Owner_.lastName} = \{lastName}"))) // Column name resolution.
+              .and(it.expression(RAW."\{Owner_.lastName} = \{lastName}"))) // Name resolution / binding.
             .getResultList();
     }
 
@@ -282,7 +290,7 @@ public interface VetRepository extends EntityRepository<Vet> {
     default List<SpecialtiesByVet> getSpecialties() {
         // Uses VET as the root entity and aggregates the specialties into a JSON object.
         // The result is a list of SpecialtiesByVet records.
-        return select(SpecialtiesByVet.class, RAW."\{Vet.class}, JSON_OBJECTAGG(\{Specialty.class}.id, \{Specialty_.name})")
+        return select(SpecialtiesByVet.class, RAW."\{Vet.class}, JSON_OBJECTAGG(\{Specialty_.id}, \{Specialty_.name})")
             .innerJoin(VetSpecialty.class).on(Vet.class)
             .innerJoin(Specialty.class).on(VetSpecialty.class)
             .groupBy(Vet_.id)
