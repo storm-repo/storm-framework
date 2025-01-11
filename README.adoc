@@ -6,9 +6,9 @@
 
 * *Easy to learn*: With a programming model similar to the Java Persistence API (JPA), developers familiar with JPA can quickly and easily adapt to using Storm.
 * *Modern Syntax*: Storm allows for clean and concise code, making it effortless to write entities and queries.
-* *Type safe* The best DSL is no DSL. Storm’s query builder mirrors SQL itself, providing a type-safe, intuitive experience that makes queries easy to write and read while reducing the risk of runtime errors.
-* *Direct Database Interaction*: Method calls in Storm are directly translated into database operations, providing a transparent and immediate programming experience without unnecessary abstractions.
-* *Stateless*: Avoids hidden complexities and “magic” by leveraging stateless, record-based entities, ensuring simplicity and transparency in database interactions.
+* *Type-safe* The best DSL is no DSL. Storm’s query builder mirrors SQL, providing a type-safe, intuitive experience that makes queries easy to write and read while reducing the risk of runtime errors.
+* *Direct Database Interaction*: Storm translates method calls directly into database operations, offering a transparent and straightforward experience. It eliminates inefficiencies like the N+1 query problem for predictable and efficient interactions.
+* *Stateless*: Avoids hidden complexities and “magic” with stateless, record-based entities, ensuring simplicity and eliminating lazy initialization and transaction issues downstream.
 * *Performance*: Built with efficiency in mind, Storm supports batch processing, lazy streams, and upsert functionality to enhance performance during database interactions.
 * *Universal Database Compatibility*: Fully compatible with all SQL databases, it offers flexibility and broad applicability across various database systems.
 
@@ -214,11 +214,12 @@ public class ORMRepositoryExample {
             .getResultList();
     }
 
-    public List<Pet> findByOwner(Owner owner) {
-        // Select all pets that belong to the owner. Uses the auto join feature based on @FK relationships.
+    public List<Pet> findByOwners(List<Owner> owner) {
+        // Select all pets that belong to the specified owners.
+        // Uses the auto join feature based on @FK relationships.
         return ORM(dataSource).entity(Pet.class)
             .select()
-            .where(owner)
+            .where(Pet_.owner, owners)   // Type-safe!
             .getResultList();
     }
 
@@ -256,14 +257,14 @@ public interface PetRepository extends EntityRepository<Pet> {
     default List<Pet> findByOwner(Owner owner) {
         // Use select() to query the Pet table.
         return select()
-            .where(owner)
+            .where(Pet_.owner, owner)
             .getResultList();
     }
 
     default Stream<Pet> findByCity(String city) {
         // Select a lazy loaded stream pets that belong to an owner in the specified city.
         return select()
-            .where(Owner_.city, EQUALS, city)
+            .where(Pet_.owner.city, EQUALS, city)
             .getResultStream();
     }
 
@@ -327,16 +328,16 @@ Spring Framework integration is straightforward. The following example demonstra
 [source,java,indent=0]
 ----
 @Configuration
-public class DataTemplateConfiguration {
+public class ORMTemplateConfiguration {
 
     private final DataSource dataSource;
 
-    public DataTemplateConfiguration(DataSource dataSource) {
+    public ORMTemplateConfiguration(DataSource dataSource) {
         this.dataSource = dataSource;
     }
 
     @Bean
-    public ORMRepositoryTemplate ormTemplate() {
+    public ORMTemplate ormTemplate() {
         return PreparedStatementTemplate.of(dataSource).toORM();
     }
 }
