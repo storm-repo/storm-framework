@@ -6,7 +6,7 @@
     <parent>
         <groupId>st.orm</groupId>
         <artifactId>storm-framework</artifactId>
-        <version>1.1.0</version>
+        <version>1.2.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>storm</artifactId>
@@ -64,6 +64,22 @@
                         <goals>
                             <goal>testCompile</goal>
                         </goals>
+                        <configuration>
+                            <annotationProcessorPaths>
+                                <!-- Lombok needs to be included explicitly as the addition of the
+                                storm-metamodel-processor prevents the default lombok processor from being included. -->
+                                <path>
+                                    <groupId>org.projectlombok</groupId>
+                                    <artifactId>lombok</artifactId>
+                                    <version>1.18.30</version>
+                                </path>
+                                <path>
+                                    <groupId>st.orm</groupId>
+                                    <artifactId>storm-metamodel-processor</artifactId>
+                                    <version>${project.version}</version>
+                                </path>
+                            </annotationProcessorPaths>
+                        </configuration>
                     </execution>
                 </executions>
                 <configuration>

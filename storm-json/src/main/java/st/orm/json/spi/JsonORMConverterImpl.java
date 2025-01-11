@@ -20,6 +20,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.json.Json;
 import st.orm.spi.ORMConverter;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
@@ -28,17 +29,33 @@ import st.orm.template.SqlTemplateException;
 
 import java.lang.reflect.RecordComponent;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES;
+import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 
 public class JsonORMConverterImpl implements ORMConverter {
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
-
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final Map<Json, ObjectMapper> OBJECT_MAPPER = new ConcurrentHashMap<>();
 
     private final RecordComponent component;
     private final TypeReference<?> typeReference;
-    public JsonORMConverterImpl(@Nonnull RecordComponent component, @Nonnull TypeReference<?> typeReference) {
+    private final ObjectMapper mapper;
+
+    public JsonORMConverterImpl(@Nonnull RecordComponent component, @Nonnull TypeReference<?> typeReference, @Nonnull Json json) {
         this.component = component;
         this.typeReference = typeReference;
+        this.mapper = OBJECT_MAPPER.computeIfAbsent(json, _ -> {
+            var mapper = new ObjectMapper();
+            if (!json.failOnUnknown()) {
+                mapper.disable(FAIL_ON_UNKNOWN_PROPERTIES);
+            }
+            if (!json.failOnMissing()) {
+                mapper.disable(FAIL_ON_MISSING_CREATOR_PROPERTIES);
+            }
+            return mapper;
+        });
     }
 
     @Override
@@ -50,7 +67,7 @@ public class JsonORMConverterImpl implements ORMConverter {
     public Object convert(@Nonnull Object[] args) throws SqlTemplateException {
         try {
             Object arg = args[0];
-            return arg == null ? null : OBJECT_MAPPER.readValue((String) args[0], typeReference);
+            return arg == null ? null : mapper.readValue((String) args[0], typeReference);
         } catch (JsonProcessingException e) {
             throw new SqlTemplateException(e);
         }
@@ -64,7 +81,7 @@ public class JsonORMConverterImpl implements ORMConverter {
     @Override
     public List<Object> getValues(@Nullable Record record) throws SqlTemplateException {
         try {
-            return List.of(OBJECT_MAPPER.writeValueAsString(record == null ? null : REFLECTION.invokeComponent(component, record)));
+            return List.of(mapper.writeValueAsString(record == null ? null : REFLECTION.invokeComponent(component, record)));
         } catch (Throwable e) {
             throw new SqlTemplateException(e);
         }

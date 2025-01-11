@@ -5,15 +5,21 @@
 *Key benefits of Storm:*
 
 * *Easy to learn*: With a programming model similar to the Java Persistence API (JPA), developers familiar with JPA can quickly and easily adapt to using Storm.
-* *Modern Syntax and Readability*: Storm allows for clean and succinct code, making it easy to write and understand entities and queries.
-* *Direct Database Interaction*: Method calls in Storm are directly translated into database operations, providing a transparent and immediate programming experience without unnecessary abstractions.
-* *Simplicity and Transparency*: Avoids hidden complexities and “magic,” by using stateless, record-based, entities.
-* *Optimized Performance*: Built with efficiency in mind, Storm supports batch processing, lazy streams, and upsert functionality to enhance performance during database interactions.
+* *Modern Syntax*: Storm allows for clean and concise code, making it effortless to write entities and queries.
+* *Type-safe* The best DSL is no DSL. Storm’s query builder mirrors SQL, providing a type-safe, intuitive experience that makes queries easy to write and read while reducing the risk of runtime errors.
+* *Direct Database Interaction*: Storm translates method calls directly into database operations, offering a transparent and straightforward experience. It eliminates inefficiencies like the N+1 query problem for predictable and efficient interactions.
+* *Stateless*: Avoids hidden complexities and “magic” with stateless, record-based entities, ensuring simplicity and eliminating lazy initialization and transaction issues downstream.
+* *Performance*: Built with efficiency in mind, Storm supports batch processing, lazy streams, and upsert functionality to enhance performance during database interactions.
 * *Universal Database Compatibility*: Fully compatible with all SQL databases, it offers flexibility and broad applicability across various database systems.
 
 In summary, Storm delivers a modern, efficient, and straightforward ORM solution that prioritizes direct ease of use, database interaction, and wide compatibility. It’s an excellent choice for Java and Kotlin developers seeking simplicity, performance, and enhanced readability in their database operations.
 
-== Level 0 - Parameter Binding
+== Getting Started
+
+Storm offers a flexible and layered approach to database interaction, catering to developers with varying needs and preferences. Whether you’re looking for minimal enhancements or a complete abstraction, Storm has you covered. The following paragraphs outline the three levels at which Storm can be used, showcasing its capabilities and how it simplifies database access at each level.
+
+=== Level 0 - Parameter Binding
+Enhance your existing workflows using technologies like JDBC or JPA, while leveraging Storm for safe and efficient parameter binding. This level is ideal for developers who want to retain control over SQL execution but benefit from Storm’s binding capabilities.
 
 [source,java,indent=0]
 ----
@@ -56,7 +62,9 @@ public class PreparedStatementExample {
 ----
 
 
-== Level 1 - Sql Template / Object-Relational Mapping
+=== Level 1 - Sql Template / Object-Relational Mapping
+Take advantage of Storm’s ORM while writing queries using plain, text-based SQL. Storm enhances this approach with automatic joins, table and column resolution, reducing boilerplate and increasing productivity, while producing rich ORM records for seamless interaction with your data.
+
 
 [source,java,indent=0]
 ----
@@ -153,7 +161,8 @@ public class ORMTemplateExample {
 }
 ----
 
-== Level 2 - Repository
+=== Level 2 - Repository
+Maximize abstraction by using Storm’s repositories, which provide CRUD logic out of the box. By utilizing a static metamodel, Level 2 can be used in a 100% type-safe manner, ensuring a robust and error-free development experience. This is the recommended level for most use cases. For scenarios requiring a higher level of specialized SQL, Level 2 can be seamlessly combined with Level 1 to leverage text-based SQL when needed, offering the perfect balance between simplicity and advanced query customization.
 
 [source,java,indent=0]
 ----
@@ -176,23 +185,23 @@ public class ORMRepositoryExample {
         // Selects all pets.
         return ORM(dataSource).entity(Pet.class)
             .select()
-            .getResultList();   // Use getResultStream() for a lazy loaded stream instead.
+            .getResultList();   // Use getResultStream() for a lazily loaded stream instead.
     }
 
     public List<Pet> findByFirstName(String firstName) {
         // Select all pets that belong to an owner with the specified first name. Uses the
-        // auto alias feature and parameter binding.
+        // metamodel for column name resolution and utilizes parameter binding.
         return ORM(dataSource).entity(Pet.class)
             .select()
-            .where(RAW."\{Owner.class}.first_name = \{firstName}")
+            .where(RAW."\{Owner_.firstName} = \{firstName}")
             .getResultList();
     }
 
     public List<Pet> findByLastName(String lastName) {
-        // Use component path to identify column.
+        // Use metamodel to identify column.
         return ORM(dataSource).entity(Pet.class)
             .select()
-            .where("owner.lastName", EQUALS, lastName)
+            .where(Owner_.lastName, EQUALS, lastName)
             .getResultList();
     }
 
@@ -200,16 +209,17 @@ public class ORMRepositoryExample {
         // Build where using mixed styles.
         return ORM(dataSource).entity(Pet.class)
             .select()
-            .wherePredicate(it -> it.filter("owner.firstName", EQUALS, firstName)
-                       .and(it.expression(RAW."\{Owner.class}.last_name = \{lastName}")))
+            .where(it -> it.filter(Owner_.firstName, EQUALS, firstName) // Type-safe!
+              .and(it.expression(RAW."\{Owner_.lastName} = \{lastName}"))) // Name resolution / binding.
             .getResultList();
     }
 
-    public List<Pet> findByOwner(Owner owner) {
-        // Select all pets that belong to the owner. Uses the auto join feature based on @FK relationships.
+    public List<Pet> findByOwners(List<Owner> owner) {
+        // Select all pets that belong to the specified owners.
+        // Uses the auto join feature based on @FK relationships.
         return ORM(dataSource).entity(Pet.class)
             .select()
-            .where(owner)
+            .where(Pet_.owner, owners)   // Type-safe!
             .getResultList();
     }
 
@@ -247,14 +257,14 @@ public interface PetRepository extends EntityRepository<Pet> {
     default List<Pet> findByOwner(Owner owner) {
         // Use select() to query the Pet table.
         return select()
-            .where(owner)
+            .where(Pet_.owner, owner)
             .getResultList();
     }
 
     default Stream<Pet> findByCity(String city) {
         // Select a lazy loaded stream pets that belong to an owner in the specified city.
         return select()
-            .where("owner.city", EQUALS, city)
+            .where(Pet_.owner.city, EQUALS, city)
             .getResultStream();
     }
 
@@ -281,10 +291,10 @@ public interface VetRepository extends EntityRepository<Vet> {
     default List<SpecialtiesByVet> getSpecialties() {
         // Uses VET as the root entity and aggregates the specialties into a JSON object.
         // The result is a list of SpecialtiesByVet records.
-        return select(SpecialtiesByVet.class, RAW."\{Vet.class}, JSON_OBJECTAGG(\{Specialty.class}.id, \{Specialty.class}.name)")
+        return select(SpecialtiesByVet.class, RAW."\{Vet.class}, JSON_OBJECTAGG(\{Specialty_.id}, \{Specialty_.name})")
             .innerJoin(VetSpecialty.class).on(Vet.class)
             .innerJoin(Specialty.class).on(VetSpecialty.class)
-            .append(RAW."GROUP BY \{Vet.class}.id")
+            .groupBy(Vet_.id)
             .getResultList();
     }
 }
@@ -318,16 +328,16 @@ Spring Framework integration is straightforward. The following example demonstra
 [source,java,indent=0]
 ----
 @Configuration
-public class DataTemplateConfiguration {
+public class ORMTemplateConfiguration {
 
     private final DataSource dataSource;
 
-    public DataTemplateConfiguration(DataSource dataSource) {
+    public ORMTemplateConfiguration(DataSource dataSource) {
         this.dataSource = dataSource;
     }
 
     @Bean
-    public ORMRepositoryTemplate ormTemplate() {
+    public ORMTemplate ormTemplate() {
         return PreparedStatementTemplate.of(dataSource).toORM();
     }
 }
@@ -362,7 +372,7 @@ public interface PetRepository extends EntityRepository<Pet> {
         // QueryBuilder example with method based String Templates resulting in a much cleaner syntax.
         return select(CountByPet.class, "\{Pet.class}, COUNT(*)")
                 .innerJoin(Visit.class).on(Pet.class)
-                .append("GROUP BY \{Vet.class}.id")
+                .groupBy(Vet_.id)
                 .getResultList();
     }
 

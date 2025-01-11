@@ -21,20 +21,20 @@ import jakarta.annotation.Nonnull;
  * Provides access to repositories.
  *
  * <p>Entity repositories provide basic CRUD operations for database tables. Projection repositories provide read
- * operations for database views and projection queries. The repositories returned by the {@code proxy} method allow
- * to implement custom repository logic.</p>
+ * operations for database views and projection queries. The repositories returned by the {@code repository} method
+ * allow to implement custom repository logic.</p>
  *
  * <pre>{@code
  * interface UserRepository extends EntityRepository<User, Integer> {
  *     default Optional<User> findByName(String name) {
  *         return select().
- *             .where("name", EQUALS, name)
+ *             .where(User_.name, EQUALS, name)
  *             .getOptionalResult();
  *     }
  *
  *     default List<User> findByCity(City city) {
  *         return select().
- *             .where(city)
+ *             .where(User_city, city)
  *             .getResultList();
  *     }
  * }}</pre>
@@ -71,5 +71,5 @@ public interface RepositoryLookup {
      * @param <R> the repository type.
      * @return a proxy for the repository of the given type.
      */
-    <R extends Repository> R proxy(@Nonnull Class<R> type);
+    <R extends Repository> R repository(@Nonnull Class<R> type);
 }

@@ -93,17 +93,17 @@ class QueryTemplateImpl implements QueryTemplate {
 
     @Override
     public <T extends Record, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType, @Nonnull Class<R> selectType, @Nonnull StringTemplate template) {
-        return Providers.selectFrom(this, fromType, selectType, template, false);
+        return Providers.selectFrom(this, fromType, selectType, template, false, () -> createModel(fromType, true));
     }
 
     @Override
     public <T extends Record> QueryBuilder<T, ?, ?> deleteFrom(@Nonnull Class<T> fromType) {
-        return Providers.deleteFrom(this, fromType);
+        return Providers.deleteFrom(this, fromType, () -> createModel(fromType, true));
     }
 
     @Override
     public <T extends Record, R> QueryBuilder<T, R, ?> subquery(@Nonnull Class<T> fromType, @Nonnull Class<R> selectType, @Nonnull StringTemplate template) {
-        return Providers.selectFrom(this, fromType, selectType, template, true);
+        return Providers.selectFrom(this, fromType, selectType, template, true, () -> createModel(fromType, true));
     }
 
     @Override

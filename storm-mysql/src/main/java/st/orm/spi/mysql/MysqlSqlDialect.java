@@ -20,13 +20,56 @@ import st.orm.spi.SqlDialect;
 
 public class MysqlSqlDialect implements SqlDialect {
 
+    /**
+     * Indicates whether the SQL dialect supports delete aliases.
+     *
+     * <p>Delete aliases allow delete statements to use table aliases in joins,  making it easier to filter rows based
+     * on related data.</p>
+     *
+     * @return {@code true} if delete aliases are supported, {@code false} otherwise.
+     */
     @Override
     public boolean supportsDeleteAlias() {
         return true;
     }
 
+    /**
+     * Escapes the given database identifier (e.g., table or column name) according to this SQL dialect.
+     *
+     * @param name the identifier to escape (must not be {@code null})
+     * @return the escaped identifier
+     */
     @Override
     public String escape(@Nonnull String name) {
         return STR."`\{name}`";
+    }
+
+    /**
+     * Returns a string template for the given limit.
+     *
+     * @param limit the maximum number of records to return.
+     * @return a string template for the given limit.
+     * @since 1.2
+     */
+    @Override
+    public StringTemplate limit(int limit) {
+        // Taking the most basic approach that is supported by most database in test (containers).
+        // For production use, ensure the right dialect is used.
+        return StringTemplate.of(STR."LIMIT \{limit}");
+    }
+
+    /**
+     * Returns a string template for the given limit and offset.
+     *
+     * @param offset the offset.
+     * @param limit the maximum number of records to return.
+     * @return a string template for the given limit and offset.
+     * @since 1.2
+     */
+    @Override
+    public StringTemplate limit(int limit, int offset) {
+        // Taking the most basic approach that is supported by most database in test (containers).
+        // For production use, ensure the right dialect is used.
+        return StringTemplate.of(STR."LIMIT \{limit} OFFSET \{offset}");
     }
 }

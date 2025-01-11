@@ -21,9 +21,9 @@ import st.orm.Lazy;
 import st.orm.spi.Provider;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
+import st.orm.template.QueryBuilder;
 import st.orm.template.TableNameResolver;
 
-import java.util.Objects;
 import java.util.function.Predicate;
 
 import static java.util.Objects.requireNonNull;
@@ -62,7 +62,8 @@ public final class LazyFactoryImpl implements LazyFactory {
      */
     @Override
     public <T extends Record, ID> Lazy<T, ID> create(@Nonnull Class<T> type, @Nullable ID pk) {
-        var queryBuilder = new ORMTemplateImpl(
+        //noinspection unchecked
+        QueryBuilder<T, T, ID> queryBuilder = (QueryBuilder<T, T, ID>) new ORMTemplateImpl(
                 factory,
                 tableNameResolver,
                 columnNameResolver,

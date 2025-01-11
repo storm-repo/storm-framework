@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static java.lang.System.identityHashCode;
+import static java.lang.reflect.Proxy.newProxyInstance;
 import static java.util.Optional.empty;
 
 public final class KORMTemplateImpl extends KQueryTemplateImpl implements KORMTemplate {
@@ -39,11 +40,6 @@ public final class KORMTemplateImpl extends KQueryTemplateImpl implements KORMTe
     public KORMTemplateImpl(ORMTemplate orm) {
         super(orm);
         this.orm = orm;
-    }
-
-    @Override
-    public ORMTemplate bridge() {
-        return orm;
     }
 
     @Override
@@ -69,12 +65,12 @@ public final class KORMTemplateImpl extends KQueryTemplateImpl implements KORMTe
     }
 
     @Override
-    public <R extends KRepository> R proxy(@Nonnull Class<R> type) {
+    public <R extends KRepository> R repository(@Nonnull Class<R> type) {
         KEntityRepository<?, ?> entityRepository = createEntityRepository(type)
                 .orElse(null);
         KRepository repository = createRepository();
         //noinspection unchecked
-        return wrapRepository((R) Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {
+        return wrapRepository((R) newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {
             try {
                 if (method.getName().equals("hashCode") && method.getParameterCount() == 0) {
                     return identityHashCode(proxy);
@@ -108,9 +104,9 @@ public final class KORMTemplateImpl extends KQueryTemplateImpl implements KORMTe
     }
 
     @Override
-    public <R extends KRepository> R proxy(@Nonnull KClass<R> type) {
+    public <R extends KRepository> R repository(@Nonnull KClass<R> type) {
         //noinspection unchecked
-        return proxy((Class<R>) REFLECTION.getType(type));
+        return repository((Class<R>) REFLECTION.getType(type));
     }
 
     @SuppressWarnings("unchecked")
@@ -171,7 +167,7 @@ public final class KORMTemplateImpl extends KQueryTemplateImpl implements KORMTe
 
     @SuppressWarnings("unchecked")
     private  <T extends KRepository> T wrapRepository(@Nonnull T repository) {
-        return (T) Proxy.newProxyInstance(repository.getClass().getClassLoader(), getAllInterfaces(repository.getClass()).toArray(new Class[0]), (_, method, args) -> {
+        return (T) newProxyInstance(repository.getClass().getClassLoader(), getAllInterfaces(repository.getClass()).toArray(new Class[0]), (_, method, args) -> {
             var lastSql = new AtomicReference<Sql>();
             try (var _ = SqlInterceptor.intercept(lastSql::setPlain)) {
                 try {

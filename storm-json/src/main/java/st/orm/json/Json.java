@@ -15,6 +15,8 @@
  */
 package st.orm.json;
 
+import st.orm.template.MetamodelType;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
@@ -27,5 +29,16 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  */
 @Target({RECORD_COMPONENT, PARAMETER})
 @Retention(RUNTIME)
+@MetamodelType(String.class)
 public @interface Json {
+
+    /**
+     * True if the deserializer should fail if unknown properties are encountered. Default is false.
+     */
+    boolean failOnUnknown() default false;
+
+    /**
+     * True if the deserializer should fail if a required creator property is missing. Default is false.
+     */
+    boolean failOnMissing() default false;
 }

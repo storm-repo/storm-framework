@@ -2,13 +2,13 @@ package st.orm.kotlin.template.impl;
 
 import jakarta.annotation.Nonnull;
 import kotlin.reflect.KClass;
-import org.jetbrains.annotations.NotNull;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KQuery;
 import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.JoinType;
+import st.orm.template.Metamodel;
 import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryBuilder.JoinBuilder;
@@ -27,13 +27,28 @@ import static st.orm.template.JoinType.inner;
 import static st.orm.template.JoinType.left;
 import static st.orm.template.JoinType.right;
 
-public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryBuilder<T, R, ID>, Subqueryable {
+public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuilder<T, R, ID> implements Subqueryable {
     private final static ORMReflection REFLECTION = Providers.getORMReflection();
 
     private final QueryBuilder<T, R, ID> builder;
 
     public KQueryBuilderImpl(@Nonnull QueryBuilder<T, R, ID> builder) {
         this.builder = requireNonNull(builder, "builder");
+    }
+
+    /**
+     * Returns a typed query builder for the specified primary key type.
+     *
+     * @param pkType the primary key type.
+     * @return the typed query builder.
+     * @param <X> the type of the primary key.
+     * @throws PersistenceException if the pk type is not valid.
+     * @since 1.2
+     */
+    @Override
+    public <X> KQueryBuilder<T, R, X> typed(@Nonnull KClass<X> pkType) {
+        //noinspection unchecked
+        return new KQueryBuilderImpl<>(builder.typed((Class<X>) REFLECTION.getType(pkType)));
     }
 
     /**
@@ -230,8 +245,9 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
         return onTemplate -> new KQueryBuilderImpl<>(joinBuilder.on(onTemplate));
     }
 
-    private record KPredicateBuilderImpl<TX extends Record, RX, IDX>(PredicateBuilder<TX, RX, IDX> predicateBuilder)
-            implements KPredicateBuilder<TX, RX, IDX> {
+    static class KPredicateBuilderImpl<TX extends Record, RX, IDX> implements KPredicateBuilder<TX, RX, IDX> {
+        private final PredicateBuilder<TX, RX, IDX> predicateBuilder;
+
         private KPredicateBuilderImpl(@Nonnull PredicateBuilder<TX, RX, IDX> predicateBuilder) {
             this.predicateBuilder = predicateBuilder;
         }
@@ -247,14 +263,15 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
         }
     }
 
-    private record KWhereBuilderImpl<TX extends Record, RX, IDX>(WhereBuilder<TX, RX, IDX> whereBuilder)
-            implements KWhereBuilder<TX, RX, IDX> {
+    static class KWhereBuilderImpl<TX extends Record, RX, IDX> extends KWhereBuilder<TX, RX, IDX> {
+        private final WhereBuilder<TX, RX, IDX> whereBuilder;
+
         private KWhereBuilderImpl(@Nonnull WhereBuilder<TX, RX, IDX> whereBuilder) {
             this.whereBuilder = whereBuilder;
         }
 
         @Override
-        public <T extends Record, R> KQueryBuilder<T, R, ?> subquery(@NotNull KClass<T> fromType, @NotNull KClass<R> selectType, @NotNull StringTemplate template) {
+        public <T extends Record, R> KQueryBuilder<T, R, ?> subquery(@Nonnull KClass<T> fromType, @Nonnull KClass<R> selectType, @Nonnull StringTemplate template) {
             //noinspection unchecked
             return new KQueryBuilderImpl<>(whereBuilder.subquery((Class<T>) REFLECTION.getRecordType(fromType), (Class<R>) REFLECTION.getType(selectType), template));
         }
@@ -265,33 +282,58 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> implements KQueryB
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> exists(@NotNull KQueryBuilder<?, ?, ?> subquery) {
+        public KPredicateBuilder<TX, RX, IDX> exists(@Nonnull KQueryBuilder<?, ?, ?> subquery) {
             return new KPredicateBuilderImpl<>(whereBuilder.exists(((KQueryBuilderImpl<?, ?, ?>) subquery).builder));
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> notExists(@NotNull KQueryBuilder<?, ?, ?> subquery) {
+        public KPredicateBuilder<TX, RX, IDX> notExists(@Nonnull KQueryBuilder<?, ?, ?> subquery) {
             return new KPredicateBuilderImpl<>(whereBuilder.notExists(((KQueryBuilderImpl<?, ?, ?>) subquery).builder));
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull Object o) {
+        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull IDX o) {
             return new KPredicateBuilderImpl<>(whereBuilder.filter(o));
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull Iterable<?> it) {
+        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull TX record) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filter(record));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> filterAny(@Nonnull Record record) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filterAny(record));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> filterIds(@Nonnull Iterable<? extends IDX> it) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filterIds(it));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull Iterable<? extends TX> it) {
             return new KPredicateBuilderImpl<>(whereBuilder.filter(it));
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
+        public KPredicateBuilder<TX, RX, IDX> filterAny(@Nonnull Iterable<? extends Record> it) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filterAny(it));
+        }
+
+        @Override
+        public <V> KPredicateBuilder<TX, RX, IDX> filter(@Nonnull Metamodel<TX, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
             return new KPredicateBuilderImpl<>(whereBuilder.filter(path, operator, it));
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
-            return new KPredicateBuilderImpl<>(whereBuilder.filter(path, operator, o));
+        public <V> KPredicateBuilder<TX, RX, IDX> filterAny(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filterAny(path, operator, it));
+        }
+
+        @Override
+        protected <V> KPredicateBuilder<TX, RX, IDX> filterImpl(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull V[] o) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filterAny(path, operator, o));
         }
     }
 

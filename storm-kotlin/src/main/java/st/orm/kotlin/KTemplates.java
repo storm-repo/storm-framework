@@ -20,12 +20,16 @@ import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import kotlin.reflect.KClass;
 import st.orm.BindVars;
+import st.orm.Query;
 import st.orm.TemporalType;
 import st.orm.kotlin.template.KORMTemplate;
 import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.kotlin.template.KQueryTemplate;
 import st.orm.kotlin.template.impl.KORMTemplateImpl;
 import st.orm.kotlin.template.impl.KQueryTemplateImpl;
+import st.orm.repository.EntityRepository;
+import st.orm.repository.ProjectionRepository;
+import st.orm.template.Metamodel;
 import st.orm.template.ORMTemplate;
 import st.orm.template.Operator;
 import st.orm.template.QueryTemplate;
@@ -33,6 +37,7 @@ import st.orm.template.ResolveScope;
 import st.orm.template.TemplateFunction;
 import st.orm.template.impl.Element;
 import st.orm.template.impl.Elements;
+import st.orm.template.impl.Elements.Column;
 import st.orm.template.impl.Elements.ObjectExpression;
 import st.orm.template.impl.Elements.Subquery;
 import st.orm.template.impl.Elements.TableSource;
@@ -66,9 +71,9 @@ import static st.orm.template.impl.Elements.Values;
 import static st.orm.template.impl.Elements.Where;
 
 /**
- * The {@code Templates} interface provides a collection of static methods for constructing SQL query elements
- * and creating ORM repository templates. It serves as a central point for building SQL queries and interacting
- * with databases in a type-safe and fluent manner, supporting both JPA and JDBC.
+ * The {@code KTemplates} interface provides a collection of static methods for constructing SQL query elements
+ * and creating ORM repository templates. It serves as a central point for building SQL queries or getting access to
+ * repositories that can interact with databases in a type-safe and manner, supporting both JPA and JDBC.
  *
  * <p>This interface includes methods for generating SQL clauses such as {@code SELECT}, {@code FROM}, {@code WHERE},
  * {@code INSERT}, {@code UPDATE}, and {@code DELETE}, as well as utility methods for working with parameters,
@@ -76,71 +81,74 @@ import static st.orm.template.impl.Elements.Where;
  *
  * <p>Additionally, the {@code Templates} interface provides methods to create {@link KORMTemplate}
  * instances for use with different data sources like JPA's {@link EntityManager}, JDBC's {@link DataSource}, or
- * {@link Connection}. These repository templates facilitate database operations using the constructed SQL queries.
+ * {@link Connection}.
  *
- * <h2>Usage Examples</h2>
+ * <h2>Using Templates</h2>
  *
- * <h3>Using JPA</h3>
- *
- * <p>Example of querying a database using JPA:
+ * <p>Define the records to use them to construct the query using templates:</p>
  *
  * <pre>{@code
- * EntityManager entityManager = ...;
- * KORMRepositoryTemplate orm = KTemplates.ORM(entityManager);
- * List<User> users = orm.query(RAW."""
+ * record User(int id, String name, int age, LocalDate birthDate, int cityId) {};
+ * record City(int id, String name, long population) {};
+ * }</pre>
+ *
+ * <h3>Create</h3>
+ *
+ * <p>Insert a user into the database. The template engine also supports insertion of multiple entries by passing an
+ * array (or list) of objects or primary keys. Alternatively, insertion can also be executed in batch mode using
+ * {@link BindVars}.</p>
+ * <pre>{@code
+ * User user = ...;
+ * ORM(dataSource).query(RAW."""
+ *         INSERT INTO \{User.class}
+ *         VALUES \{user}""");
+ * }</pre>
+ *
+ * <h3>Read</h3>
+ *
+ * <p>Select all users from the database that are linked to City with primary key 1. The value is passed to the
+ * underling JDBC or JPA system as variable. The results can also be retrieved as a stream of objects by using
+ * {@link KQuery#getResultStream(KClass)}.</p>
+ * <pre>{@code
+ * List<User> users = ORM(dataSource).query(RAW."""
  *         SELECT \{User.class}
  *         FROM \{User.class}
  *         WHERE city_id = \{1}""")
  *     .getResultList(User.class);
  * }</pre>
  *
- * <h3>Using JDBC</h3>
+ * <h3>Update</h3>
  *
- * <p>Example of querying a database using JDBC:
- *
+ * <p>Update a user in the database. The template engine also supports updates for multiple entries by passing an
+ * array or list of objects. Alternatively, updates can be executed in batch mode by using {@link BindVars}.</p>
  * <pre>{@code
- * DataSource dataSource = ...;
- * KORMRepositoryTemplate orm = KTemplates.ORM(dataSource);
- * List<User> users = orm.query(RAW."""
- *         SELECT \{User.class}
- *         FROM \{User.class}
- *         WHERE city_id = \{1}""")
- *     .getResultList(User.class);
+ * User user = ...;
+ * ORM(dataSource).query(RAW."""
+ *         UPDATE \{User.class}
+ *         SET \{user}
+ *         WHERE \{user}""");
  * }</pre>
  *
- * <h3>Fluent API Usage</h3>
+ * <h3>Delete</h3>
  *
- * <p>The {@link KORMTemplate} also supports a fluent API that allows you to build queries in a more concise manner:
- *
+ * <p>Delete user in the database. The template engine also supports updates for multiple entries by passing an
+ * array (or list) of objects or primary keys. Alternatively, deletion can be executed in batch mode by using
+ * {@link BindVars}.</p>
  * <pre>{@code
- * DataSource dataSource = ...;
- * List<User> users = KTemplates.ORM(dataSource).entity(User.class)
- *     .select()
- *     .where("city", Operator.EQUALS, "Sunnyvale")
- *     .getResultList();
+ * User user = ...;
+ * ORM(dataSource).query(RAW."""
+ *         DELETE FROM \{User.class}
+ *         WHERE \{user}""");
  * }</pre>
- *
- * <p>In this example, the query is constructed by chaining method calls, enhancing readability and reducing boilerplate code.
- * The {@code entity(Class<T> clazz)} method specifies the entity type for the query, and subsequent methods like {@code select()}
- * and {@code where()} build upon it.
- *
- * <h2>Key Features</h2>
- * <ul>
- *   <li><strong>Type Safety:</strong> Leverages Java generics and type inference to ensure that queries are type-safe.</li>
- *   <li><strong>Fluent API:</strong> Supports method chaining to build queries in a readable and concise manner.</li>
- *   <li><strong>Flexibility:</strong> Compatible with both JPA and JDBC, allowing you to choose the underlying technology.</li>
- *   <li><strong>SQL Templates:</strong> Integrates with SQL string templates for dynamic query construction.</li>
- *   <li><strong>Ease of Use:</strong> Reduces boilerplate code and simplifies common database operations.</li>
- * </ul>
- *
- * <h2>Creating KORMRepositoryTemplate Instances</h2>
+ **
+ * <h2>Howto start</h2>
  *
  * <p>The {@code KTemplates} interface provides static methods to create {@link KORMTemplate} instances based on your data source:
  *
  * <h3>Using EntityManager (JPA)</h3>
  * <pre>{@code
  * EntityManager entityManager = ...;
- * KORMRepositoryTemplate orm = Kemplates.ORM(entityManager);
+ * KORMRepositoryTemplate orm = KTemplates.ORM(entityManager);
  * }</pre>
  *
  * <h3>Using DataSource (JDBC)</h3>
@@ -155,48 +163,11 @@ import static st.orm.template.impl.Elements.Where;
  *
  * <pre>{@code
  * Connection connection = ...;
- * ORMRepositoryTemplate orm = KTemplates.KORM(connection);
+ * KORMRepositoryTemplate orm = KTemplates.ORM(connection);
  * }</pre>
  *
- * <h2>Example: Querying with Fluent API</h2>
- * <p>Here is a more detailed example demonstrating how to use the fluent API to perform a query:
- * <pre>{@code
- * DataSource dataSource = ...;
- * List<User> users = ORM(dataSource).entity(User.class)
- *     .select()
- *     .where("city.name", Operator.EQUALS, "Sunnyvale")
- *     .getResultList();
- * }</pre>
- *
- * <p>In this example:
- * <ul>
- *   <li>{@code entity(User.class)} specifies the entity to query.</li>
- *   <li>{@code select()} constructs the SELECT clause.</li>
- *   <li>{@code where("city", Operator.EQUALS, "Sunnyvale")} adds a WHERE condition.</li>
- *   <li>{@code getResultList()} executes the query and returns the results as a list.</li>
- * </ul>
- *
- * <h2>Integration with SQL Templates</h2>
- * <p>You can seamlessly integrate the fluent API with SQL templates when needed. For instance, you can combine method chaining with template-based queries:
- *
- * <pre>{@code
- * City city = ORM(dataSource).entity(City.class)
- *     .select()
- *     .where(RAW."name = \{"Sunnyvale"}")
- *     .getSingleResult();
- * List<User> users = ORM(dataSource).query(RAW."""
- *         SELECT \{User.class}
- *         FROM \{User.class}
- *         WHERE \{city)}""")
- *     .getResultList(User.class);
- * }</pre>
- *
- * <h2>Conclusion</h2>
- *
- * <p>The {@code KTemplates} interface streamlines the process of writing database queries by integrating
- * object-relational mapping with SQL string templates and a fluent API, ensuring type safety and reducing boilerplate code.
- * Whether you prefer constructing queries using SQL templates or method chaining, the {@code KTemplates} interface provides
- * flexible options to suit your development style.
+ * @see EntityRepository
+ * @see ProjectionRepository
  */
 public interface KTemplates {
 
@@ -224,17 +195,17 @@ public interface KTemplates {
      * Returns an {@link KORMTemplate} for use with JPA.
      *
      * <p>This method creates an ORM repository template using the provided {@link EntityManager}.
-     * It allows you to perform database operations using JPA in a fluent and type-safe manner.
+     * It allows you to perform database operations using JPA in a type-safe manner.
      *
      * <p>Example usage:
      * <pre>{@code
      * EntityManager entityManager = ...;
      * KORMRepositoryTemplate orm = KTemplates.ORM(entityManager);
-     * List<User> users = orm.query(RAW."""
-     *         SELECT \{User.class}
-     *         FROM \{User.class}
-     *         WHERE city = \{"Sunnyvale"}""")
-     *     .getResultList(User.class);
+     * List<OtherTable> otherTables = orm.query(RAW."""
+     *         SELECT \{OtherTable.class}
+     *         FROM \{OtherTable.class}
+     *         WHERE \{OtherTable_.city.name} = \{"Sunnyvale"}""")
+     *     .getResultList(OtherTable.class);
      * }</pre>
      *
      * @param entityManager the {@link EntityManager} to use for database operations; must not be {@code null}.
@@ -248,17 +219,17 @@ public interface KTemplates {
      * Returns an {@link KORMTemplate} for use with JDBC.
      *
      * <p>This method creates an ORM repository template using the provided {@link DataSource}.
-     * It allows you to perform database operations using JDBC in a fluent and type-safe manner.
+     * It allows you to perform database operations using JDBC in a type-safe manner.
      *
      * <p>Example usage:
      * <pre>{@code
      * DataSource dataSource = ...;
      * KORMRepositoryTemplate orm = KTemplates.ORM(dataSource);
-     * List<User> users = orm.query(RAW."""
-     *         SELECT \{User.class}
-     *         FROM \{User.class}
-     *         WHERE city = \{"Sunnyvale"}""")
-     *     .getResultList(User.class);
+     * List<OtherTable> otherTables = orm.query(RAW."""
+     *         SELECT \{OtherTable.class}
+     *         FROM \{OtherTable.class}
+     *         WHERE \{OtherTable_.city.name} = \{"Sunnyvale"}""")
+     *     .getResultList(OtherTable.class);
      * }</pre>
      *
      * @param dataSource the {@link DataSource} to use for database operations; must not be {@code null}.
@@ -279,11 +250,11 @@ public interface KTemplates {
      * <pre>{@code
      * try (Connection connection = ...) {
      *     KORMRepositoryTemplate orm = KTemplates.ORM(connection);
-     *     List<User> users = orm.query(RAW."""
-     *             SELECT \{User.class}
-     *             FROM \{User.class}
-     *             WHERE city = \{"Sunnyvale"}""")
-     *         .getResultList(User.class)
+     *     List<OtherTable> otherTables = orm.query(RAW."""
+     *             SELECT \{OtherTable.class}
+     *             FROM \{OtherTable.class}
+     *             WHERE \{OtherTable_.city.name} = \{"Sunnyvale"}""")
+     *         .getResultList(OtherTable.class)
      * }
      * }</pre>
      *
@@ -719,79 +690,39 @@ public interface KTemplates {
      *
      * <p>Example usage with records:
      * <pre>{@code
-     * List<User> users = List.of(user1, user2);
+     * List<Table> entities = List.of(entity1, entity2);
      * SELECT \{Table.class}
      * FROM \{Table.class}
-     * WHERE \{where(users)}
+     * WHERE \{where(entities)}
      * }</pre>
      *
-     * <p>In this example, the query selects all entries in {@code Table} that are linked to any of the users in the
+     * <p>In this example, the query selects all entries in {@code Table} that are linked to any of the otherTables in the
      * list.
      *
      *
      * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically detects that
      * a WHERE element is required based on its placement in the query:
      * <pre>{@code
-     * List<User> users = List.of(user1, user2);
+     * List<Table> entities = List.of(entity1, entity2);
      * SELECT \{Table.class}
      * FROM \{Table.class}
-     * WHERE \{users}
+     * WHERE \{entities}
      * }</pre>
      *
      * <p>As per the resolution rules:
      * <ul>
-     *   <li>If {@code \{users}}, or any other primitive or object, is placed after WHERE the SQL template engine
+     *   <li>If {@code \{entities}}, or any other primitive or object, is placed after WHERE the SQL template engine
      *   resolves it into a WHERE element.</li>
-     *   <li>If {@code \{users}}, or any other primitive or object, is placed after keywords like VALUES, SET, the SQL
+     *   <li>If {@code \{entities}}, or any other primitive or object, is placed after keywords like VALUES, SET, the SQL
      *   template engine resolves it into the appropriate element (e.g., VALUES element, SET element).</li>
-     *   <li>If {@code \{users}} is not in such a placement, it is resolved into a param element.</li>
+     *   <li>If {@code \{entities}} is not in such a placement, it is resolved into a param element.</li>
      * </ul>
      *
      * @param it an {@link Iterable} of values or records to match against the primary key(s) or foreign keys.
      * @return an {@link Element} representing the WHERE clause.
      */
     static Element where(@Nonnull Iterable<?> it) {
-        return new Where(new ObjectExpression(it, IN, null), null);
-    }
-
-    /**
-     * Generates a WHERE clause based on the provided array of values or records.
-     *
-     * <p>This method creates a {@code WHERE} clause that matches the primary key(s) of the root table,
-     * a record instance of the root table, or foreign key(s) in the hierarchy against the provided records
-     * using the {@code IN} operator. It is useful when you want to select records where the primary key,
-     * a specific record, or related foreign keys match any of the values in the array.
-     *
-     * <p>The objects can be:
-     * <ul>
-     *   <li>Primitive values matching the primary key of the root table.</li>
-     *   <li>Instances of {@link Record} matching the compound primary key of the root table.</li>
-     *   <li>Instances of {@link Record} representing records of related (foreign key) tables in the hierarchy of the
-     *   root table.</li>
-     * </ul>
-     *
-     * <p>Example usage with primary key values:
-     * <pre>{@code
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
-     * WHERE \{where(id1, id2, id3)}
-     * }</pre>
-     *
-     * <p>Example usage with records:
-     * <pre>{@code
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
-     * WHERE \{where(user1, user2)}
-     * }</pre>
-     *
-     * <p>In this example, the query selects all entries in {@code Table} that are linked to {@code user1} or
-     * {@code user2}.
-     *
-     * @param o an array of values or records to match against the primary key(s) or foreign keys.
-     * @return an {@link Element} representing the WHERE clause.
-     */
-    static Element where(@Nonnull Object... o) {
-        return new Where(new ObjectExpression(o, IN, null), null);
+        return new Where(new ObjectExpression(IN, it), null);
     }
 
     /**
@@ -819,30 +750,30 @@ public interface KTemplates {
      *
      * <p>Example usage with a record:
      * <pre>{@code
-     * User user = ...;
+     * Table entity = ...;
      * SELECT \{Table.class}
      * FROM \{Table.class}
-     * WHERE \{where(user)}
+     * WHERE \{where(otherTable)}
      * }</pre>
      *
-     * <p>In this example, the query selects all entries in {@code Table} that are linked to the specified {@code user}.
+     * <p>In this example, the query selects all entries in {@code Table} that are linked to the specified {@code otherTable}.
      *
      * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically detects that
      * a WHERE element is required based on its placement in the query:
      * <pre>{@code
-     * User user = ...;
+     * Table entity = ...;
      * SELECT \{Table.class}
      * FROM \{Table.class}
-     * WHERE \{user}
+     * WHERE \{entity}
      * }</pre>
      *
      * <p>As per the resolution rules:
      * <ul>
-     *   <li>If {@code \{user}}, or any other primitive or object, is placed after WHERE the SQL template engine
+     *   <li>If {@code \{entity}}, or any other primitive or object, is placed after WHERE the SQL template engine
      *   resolves it into a WHERE element.</li>
-     *   <li>If {@code \{user}}, or any other primitive or object, is placed after keywords like VALUES, SET, the SQL
+     *   <li>If {@code \{entity}}, or any other primitive or object, is placed after keywords like VALUES, SET, the SQL
      *   template engine resolves it into the appropriate element (e.g., VALUES element, SET element).</li>
-     *   <li>If {@code \{user}} is not in such a placement, it is resolved into a param element.</li>
+     *   <li>If {@code \{entity}} is not in such a placement, it is resolved into a param element.</li>
      * </ul>
      *
      * @param o the value or record to match against the primary key or foreign key.
@@ -866,37 +797,30 @@ public interface KTemplates {
      * <pre>{@code
      * SELECT \{Table.class}
      * FROM \{Table.class}
-     * WHERE \{where("user", Operator.IN, listOfUserIds)}
+     * WHERE \{where(Table_.otherTable.id, Operator.IN, listOfIds)}
      * }</pre>
      *
-     * or:
-     * <pre>{@code
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
-     * WHERE \{where("user.id", Operator.IN, listOfUserIds)}
-     * }</pre>
-     *
-     * <p>In this example, {@code listOfUserIds} contains the primary key values of the {@code user} records,
-     * and the query selects all entries in {@code Table} linked to those users.</p>
+     * <p>In this example, {@code listOfIds} contains the primary key values of the {@code OtherTable} records,
+     * and the query selects all entries in {@code Table} linked to that OtherTable.</p>
      *
      * <p>Example usage with records:
      * <pre>{@code
-     * List<User> users = ...;
+     * List<OtherTable> entities = ...;
      * SELECT \{Table.class}
      * FROM \{Table.class}
-     * WHERE \{where("user", Operator.IN, users)}
+     * WHERE \{where(Table_.otherTable, Operator.IN, entities)}
      * }</pre>
      *
-     * <p>In this example, {@code users} is a list of {@code User} records. The query matches entries in
-     * {@code Table} linked to any of the users in the list via their foreign keys.</p>
+     * <p>In this example, {@code entities} is a list of {@code OtherTable} records. The query matches entries in
+     * {@code Table} linked to any of the records in the list via their foreign keys.</p>
      *
      * @param path the path or column name to apply the condition on.
      * @param operator the {@link Operator} to use in the condition.
      * @param it an {@link Iterable} of values or records for the condition.
      * @return an {@link Element} representing the WHERE clause.
      */
-    static Element where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
-        return new Where(new ObjectExpression(it, operator, path), null);
+    static <V> Element where(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
+        return new Where(new ObjectExpression(path, operator, it), null);
     }
 
     /**
@@ -913,34 +837,20 @@ public interface KTemplates {
      * <pre>{@code
      * SELECT \{Table.class}
      * FROM \{Table.class}
-     * WHERE \{where("user", Operator.BETWEEN, 1, 10)}
+     * WHERE \{where(Table_.otherTable.id, Operator.BETWEEN, 1, 10)}
      * }</pre>
      *
-     * or:
-     * <pre>{@code
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
-     * WHERE \{where("user.id", Operator.BETWEEN, 1, 10)}
-     * }</pre>
-     *
-     * <p>Example usage with records:
-     * <pre>{@code
-     * User user1 = ...;
-     * User user2 = ...;
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
-     * WHERE \{where("user", Operator.BETWEEN, user1, user2)}
-     * }</pre>
-     *
-     * <p>In this example, the query selects all entries in {@code Table} where the associated {@code user} falls between {@code user1} and {@code user2} based on the defined ordering.
+     * <p>In this example, the query selects all entries in {@code Table} where the associated {@code OtherTable}
+     * records have primary keys between {@code 1} and {@code 10}.
      *
      * @param path the path or column name to apply the condition on.
      * @param operator the {@link Operator} to use in the condition.
      * @param o the values or records for the condition.
      * @return an {@link Element} representing the WHERE clause.
      */
-    static Element where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
-        return new Where(new ObjectExpression(o, operator, path), null);
+    @SafeVarargs
+    static <V> Element where(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull V... o) {
+        return new Where(new ObjectExpression(path, operator, o), null);
     }
 
     /**
@@ -1142,38 +1052,8 @@ public interface KTemplates {
      * @param table the {@link Class} object representing the table record.
      * @return an {@link Element} representing the table's alias.
      */
-    static Element alias(@Nonnull KClass<? extends Record> table) {
-        return new Alias(getORMReflection().getRecordType(table), null, CASCADE);
-    }
-
-    /**
-     * Generates an alias element for a table found at a specific path within the table's hierarchy as used in the query.
-     *
-     * <p>This method is particularly useful when the same table class appears multiple times in a query through different paths,
-     * and you need to specify which instance you're referring to. The {@code path} parameter uniquely identifies the table by
-     * specifying the sequence of field names from the root table to the target table. This helps avoid ambiguity when generating
-     * SQL queries that involve multiple relationships to the same table class.
-     *
-     * <p>The path is constructed by concatenating the names of the fields that lead to the target table from the root table.
-     *
-     * <p>Example usage in a string template where {@code User} is referenced twice:
-     * <pre>{@code
-     * // Define a record with two references to User
-     * record Table(int id, User child, User parent) {}
-     *
-     * // In the SQL template
-     * SELECT \{alias(User.class, "child")}.column_name FROM \{Table.class}
-     * }</pre>
-     *
-     * <p>In this example, the path "child" specifies that we are referring to the {@code child} field of the {@code Table} record,
-     * which is of type {@code User}. This distinguishes it from the {@code parent} field, which is also of type {@code User}.
-     *
-     * @param table the {@link Class} object representing the table record.
-     * @param path an optional path within the table's hierarchy to uniquely identify the table.
-     * @return an {@link Element} representing the table's alias with the specified path.
-     */
-    static Element alias(@Nonnull KClass<? extends Record> table, @Nullable String path) {
-        return new Alias(getORMReflection().getRecordType(table), requireNonNull(path, "path"), CASCADE);
+    static Element alias(@Nonnull Class<? extends Record> table) {
+        return new Alias(table, CASCADE);
     }
 
     /**
@@ -1204,44 +1084,120 @@ public interface KTemplates {
      * </ul>
      *
      * @param table the {@link Class} object representing the table record.
-     * @param scope the {@link ResolveScope} to use when resolving the alias. Use CASCADE to include local and outer
-     *                   scopes, INNER to include local aliases only, and OUTER to include outer aliases only.
+     * @param scope the {@link ResolveScope} to use when resolving the alias. Use STRICT to include local and outer
+     *        aliases, LOCAL to include local aliases only, and OUTER to include outer aliases only.
      * @return an {@link Element} representing the table's alias.
      */
     static Element alias(@Nonnull KClass<? extends Record> table, @Nonnull ResolveScope scope) {
-        return new Alias(getORMReflection().getRecordType(table), null, scope);
+        return new Alias(getORMReflection().getRecordType(table), scope);
     }
 
     /**
-     * Generates an alias element for a table found at a specific path within the table's hierarchy as used in the query.
+     * Generates an alias element for a table specified by the given {@code metamodel} in a type safe manner.
      *
-     * <p>This method is particularly useful when the same table class appears multiple times in a query through different paths,
-     * and you need to specify which instance you're referring to. The {@code path} parameter uniquely identifies the table by
-     * specifying the sequence of field names from the root table to the target table. This helps avoid ambiguity when generating
-     * SQL queries that involve multiple relationships to the same table class.
-     *
-     * <p>The path is constructed by concatenating the names of the fields that lead to the target table from the root table.
-     *
-     * <p>Example usage in a string template where {@code User} is referenced twice:
+     * <p>Example usage in a string template where {@code OtherTable} is referenced twice:
      * <pre>{@code
-     * // Define a record with two references to User
-     * record Table(int id, User child, User parent) {}
+     * // Define a record with two references to OtherTable
+     * record Table(int id, OtherTable child, OtherTable parent) {}
      *
      * // In the SQL template
-     * SELECT \{alias(User.class, "child")}.column_name FROM \{Table.class}
+     * SELECT \{alias(Table_.child}.column_name FROM \{Table.class}
      * }</pre>
      *
-     * <p>In this example, the path "child" specifies that we are referring to the {@code child} field of the {@code Table} record,
-     * which is of type {@code User}. This distinguishes it from the {@code parent} field, which is also of type {@code User}.
+     * <p>In this example, {@code Table_.child} specifies that we are referring to the {@code child} field of the {@code Table} record,
+     * which is of type {@code OtherTable}. This distinguishes it from the {@code parent} field, which is also of type {@code OtherTable}.
      *
-     * @param table the {@link Class} object representing the table record.
-     * @param path an optional path within the table's hierarchy to uniquely identify the table.
-     * @param scope the {@link ResolveScope} to use when resolving the alias. Use CASCADE to include local and outer
-     *                   scopes, INNER to include local aliases only, and OUTER to include outer aliases only.
+     * @param path specifies the table for which the alias is to be generated.
      * @return an {@link Element} representing the table's alias with the specified path.
+     * @since 1.2
      */
-    static Element alias(@Nonnull KClass<? extends Record> table, @Nonnull String path, @Nonnull ResolveScope scope) {
-        return new Alias(getORMReflection().getRecordType(table), requireNonNull(path, "path"), scope);
+    static Element alias(@Nonnull Metamodel<?, ? extends Record> path) {
+        return new Alias(path, CASCADE);
+    }
+
+    /**
+     * Generates an alias element for a table specified by the given {@code metamodel} in a type safe manner.
+     *
+     * <p>Example usage in a string template where {@code OtherTable} is referenced twice:
+     * <pre>{@code
+     * // Define a record with two references to OtherTable
+     * record Table(int id, OtherTable child, OtherTable parent) {}
+     *
+     * // In the SQL template
+     * SELECT \{alias(Table_.child}.column_name FROM \{Table.class}
+     * }</pre>
+     *
+     * <p>In this example, {@code Table_.child} specifies that we are referring to the {@code child} field of the {@code Table} record,
+     * which is of type {@code OtherTable}. This distinguishes it from the {@code parent} field, which is also of type {@code OtherTable}.
+     *
+     * @param path specifies the table for which the alias is to be generated.
+     * @param scope the {@link ResolveScope} to use when resolving the alias. Use STRICT to include local and outer
+     *              aliases, LOCAL to include local aliases only, and OUTER to include outer aliases only.
+     * @return an {@link Element} representing the table's alias with the specified path.
+     * @since 1.2
+     */
+    static Element alias(@Nonnull Metamodel<?, ? extends Record> path, @Nonnull ResolveScope scope) {
+        return new Alias(path, scope);
+    }
+
+    /**
+     * Generates a column element for a column specified by the given {@code metamodel} in a type safe manner.
+     *
+     * <p>The path is constructed by concatenating the names of the fields that lead to the target table from the root
+     * table. The componentName is the name of the record component that is mapped to the database column. If a record
+     * uses inline records, the componentName is also constructed by concatenating the fields leading to the record
+     * component.</p>
+     *
+     * <p>Example usage in a string template where {@code OtherTable} is referenced twice:
+     * <pre>{@code
+     * // Define a record with two references to OtherTable
+     * record Table(int id, OtherTable child, OtherTable parent) {}
+     *
+     * // In the SQL template
+     * SELECT \{column(Table_.child.name)} FROM \{Table.class}
+     * }</pre>
+     *
+     * <p>In this example, the path "child" specifies that we are referring to the {@code child} field of the
+     * {@code Table} record, which is of type {@code OtherTable}. This distinguishes it from the {@code parent} field, which
+     * is also of type {@code OtherTable}. The "name" componentName refers to the name record component of {@code OtherTable}.</p>
+     *
+     * @param path specifies the database column for which the column is to be generated.
+     * @return an {@link Element} representing the table's column with the specified path.
+     * @since 1.2
+     */
+    static Element column(@Nonnull Metamodel<?, ?> path) {
+        return new Column(path, CASCADE);
+    }
+
+    /**
+     * Generates a column element for a column specified by the given {@code metamodel} in a type safe manner.
+     *
+     * <p>The path is constructed by concatenating the names of the fields that lead to the target table from the root
+     * table. The componentName is the name of the record component that is mapped to the database column. If a record
+     * uses inline records, the componentName is also constructed by concatenating the fields leading to the record
+     * component.</p>
+     *
+     * <p>Example usage in a string template where {@code OtherTable} is referenced twice:
+     * <pre>{@code
+     * // Define a record with two references to OtherTable
+     * record Table(int id, OtherTable child, OtherTable parent) {}
+     *
+     * // In the SQL template
+     * SELECT \{column(Table_.child.name)} FROM \{Table.class}
+     * }</pre>
+     *
+     * <p>In this example, the path "child" specifies that we are referring to the {@code child} field of the
+     * {@code Table} record, which is of type {@code OtherTable}. This distinguishes it from the {@code parent} field, which
+     * is also of type {@code OtherTable}. The "name" componentName refers to the name record component of {@code OtherTable}.</p>
+     *
+     * @param path specifies the database column for which the column is to be generated.
+     * @param scope the {@link ResolveScope} to use when resolving the alias. Use STRICT to include local and outer
+     *              aliases, LOCAL to include local aliases only, and OUTER to include outer aliases only.
+     * @return an {@link Element} representing the table's column with the specified path.
+     * @since 1.2
+     */
+    static Element column(@Nonnull Metamodel<?, ?> path, @Nonnull ResolveScope scope) {
+        return new Column(path, scope);
     }
 
     /**
@@ -1499,7 +1455,7 @@ public interface KTemplates {
      * potentially unsafe and may expose your application to SQL injection attacks if not used carefully.
      *
      * <p><strong>Warning:</strong> Use this method only when you are certain that the SQL string being injected
-     * is safe and originates from a trusted source. Avoid using user-supplied input with this method.
+     * is safe and originates from a trusted source. Avoid using otherTable-supplied input with this method.
      *
      * <p>Example usage in a string template:
      * <pre>{@code

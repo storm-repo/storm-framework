@@ -14,6 +14,7 @@ import st.orm.model.Address;
 import st.orm.model.Owner;
 import st.orm.model.Pet;
 import st.orm.model.PetType;
+import st.orm.model.Pet_;
 import st.orm.model.Specialty;
 import st.orm.model.Vet;
 import st.orm.model.VetSpecialty;
@@ -21,7 +22,6 @@ import st.orm.model.VetSpecialtyPK;
 import st.orm.model.Visit;
 import st.orm.repository.Entity;
 import st.orm.repository.spring.PetRepository;
-import st.orm.template.Operator;
 import st.orm.template.SqlTemplateException;
 
 import javax.sql.DataSource;
@@ -54,6 +54,8 @@ import static st.orm.Templates.table;
 import static st.orm.Templates.update;
 import static st.orm.Templates.values;
 import static st.orm.Templates.where;
+import static st.orm.template.Operator.BETWEEN;
+import static st.orm.template.Operator.EQUALS;
 import static st.orm.template.ResolveScope.INNER;
 import static st.orm.template.ResolveScope.OUTER;
 import static st.orm.template.SqlInterceptor.intercept;
@@ -599,8 +601,8 @@ public class TemplatePreparedStatementIntegrationTest {
         try (var query = ORM(dataSource).query(RAW."""
                 SELECT \{VetSpecialty.class}
                 FROM \{VetSpecialty.class}
-                WHERE \{where(VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(2).specialtyId(1).build()).build(),
-                        VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(3).specialtyId(2).build()).build()
+                WHERE \{where(List.of(VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(2).specialtyId(1).build()).build(),
+                        VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(3).specialtyId(2).build()).build())
                 )}""").prepare();
              var stream = query.getResultStream(VetSpecialty.class)) {
             assertEquals(2, stream.count());
@@ -612,9 +614,9 @@ public class TemplatePreparedStatementIntegrationTest {
         try (var query = ORM(dataSource).query(RAW."""
                 SELECT \{VetSpecialty.class}
                 FROM \{VetSpecialty.class}
-                WHERE \{where(
+                WHERE \{where(List.of(
                         VetSpecialtyPK.builder().vetId(2).specialtyId(1).build(),
-                        VetSpecialtyPK.builder().vetId(3).specialtyId(2).build()
+                        VetSpecialtyPK.builder().vetId(3).specialtyId(2).build())
                 )}""").prepare();
              var stream = query.getResultStream(VetSpecialty.class)) {
             assertEquals(2, stream.count());
@@ -643,11 +645,10 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWherePathPk() {
-        var owner = ORM(dataSource).entity(Owner.class).select(3);
         var pets = ORM(dataSource).query(RAW."""
                 SELECT \{Pet.class}
                 FROM \{Pet.class}
-                WHERE \{where("owner", Operator.BETWEEN, 1, 3)}""")
+                WHERE \{where(Pet_.owner.id, BETWEEN, 1, 3)}""")
             .getResultList(Pet.class);
         assertEquals(4, pets.size());
         assertEquals(3, pets.stream().map(Pet::owner).filter(Objects::nonNull).map(Owner::id).distinct().count());
@@ -659,7 +660,7 @@ public class TemplatePreparedStatementIntegrationTest {
         var pets = ORM(dataSource).query(RAW."""
                 SELECT \{Pet.class}
                 FROM \{Pet.class}
-                WHERE \{where("owner", Operator.EQUALS, owner)}""")
+                WHERE \{where(Pet_.owner, EQUALS, owner)}""")
             .getResultList(Pet.class);
         assertEquals(2, pets.size());
         assertEquals(Set.of(owner), pets.stream().map(Pet::owner).collect(toSet()));
@@ -671,7 +672,7 @@ public class TemplatePreparedStatementIntegrationTest {
         var pets = ORM(dataSource).query(RAW."""
                 SELECT \{Pet.class}
                 FROM \{Pet.class}
-                WHERE \{where("owner.id", Operator.EQUALS, owner.id())}""")
+                WHERE \{where(Pet_.owner.id, EQUALS, owner.id())}""")
             .getResultList(Pet.class);
         assertEquals(2, pets.size());
         assertEquals(Set.of(owner), pets.stream().map(Pet::owner).collect(toSet()));

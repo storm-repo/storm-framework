@@ -16,8 +16,11 @@
 package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
+import st.orm.repository.Model;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryTemplate;
+
+import java.util.function.Supplier;
 
 /**
  * @since 1.1
@@ -38,7 +41,8 @@ public interface QueryBuilderProvider extends Provider {
                                                                 @Nonnull Class<T> fromType,
                                                                 @Nonnull Class<R> selectType,
                                                                 @Nonnull StringTemplate template,
-                                                                boolean subquery);
+                                                                boolean subquery,
+                                                                @Nonnull Supplier<Model<T, ID>> modelSupplier);
 
     /**
      * Creates a query builder for the specified table to delete from.
@@ -48,5 +52,6 @@ public interface QueryBuilderProvider extends Provider {
      * @param <T> the table type to delete from.
      */
     <T extends Record, ID> QueryBuilder<T, ?, ID> deleteFrom(@Nonnull QueryTemplate queryTemplate,
-                                                             @Nonnull Class<T> fromType);
+                                                             @Nonnull Class<T> fromType,
+                                                             @Nonnull Supplier<Model<T, ID>> modelSupplier);
 }

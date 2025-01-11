@@ -1,3 +1,18 @@
+/*
+ * Copyright 2024 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package st.orm.template;
 
 import jakarta.annotation.Nonnull;
@@ -7,6 +22,7 @@ import st.orm.PersistenceException;
 import st.orm.PreparedQuery;
 import st.orm.Query;
 import st.orm.ResultCallback;
+import st.orm.template.impl.Elements.ObjectExpression;
 
 import java.util.Iterator;
 import java.util.List;
@@ -18,6 +34,9 @@ import java.util.stream.StreamSupport;
 import static java.lang.Integer.MAX_VALUE;
 import static java.lang.StringTemplate.RAW;
 import static java.util.Spliterators.spliteratorUnknownSize;
+import static st.orm.spi.Providers.getSqlDialect;
+import static st.orm.template.Operator.EQUALS;
+import static st.orm.template.Operator.IN;
 
 /**
  * A query builder that constructs a query from a template.
@@ -26,14 +45,25 @@ import static java.util.Spliterators.spliteratorUnknownSize;
  * @param <R> the type of the result.
  * @param <ID> the type of the primary key.
  */
-public interface QueryBuilder<T extends Record, R, ID> {
+public abstract class QueryBuilder<T extends Record, R, ID> {
+
+    /**
+     * Returns a typed query builder for the specified primary key type.
+     *
+     * @param pkType the primary key type.
+     * @return the typed query builder.
+     * @param <X> the type of the primary key.
+     * @throws PersistenceException if the pk type is not valid.
+     * @since 1.2
+     */
+    public abstract <X> QueryBuilder<T, R, X> typed(@Nonnull Class<X> pkType);
 
     /**
      * Marks the current query as a distinct query.
      *
      * @return the query builder.
      */
-    QueryBuilder<T, R, ID> distinct();
+    public abstract QueryBuilder<T, R, ID> distinct();
 
     /**
      * A builder for constructing join clause of the query.
@@ -42,7 +72,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param <R> the type of the result.
      * @param <ID> the type of the primary key.
      */
-    interface TypedJoinBuilder<T extends Record, R, ID> extends JoinBuilder<T, R, ID> {
+    public interface TypedJoinBuilder<T extends Record, R, ID> extends JoinBuilder<T, R, ID> {
 
         /**
          * Specifies the relation to join on.
@@ -60,7 +90,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param <R> the type of the result.
      * @param <ID> the type of the primary key.
      */
-    interface JoinBuilder<T extends Record, R, ID> {
+    public interface JoinBuilder<T extends Record, R, ID> {
 
         /**
          * Specifies the join condition using a custom expression.
@@ -77,7 +107,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    QueryBuilder<T, R, ID> crossJoin(@Nonnull Class<? extends Record> relation);
+    public abstract QueryBuilder<T, R, ID> crossJoin(@Nonnull Class<? extends Record> relation);
 
     /**
      * Adds an inner join to the query.
@@ -85,7 +115,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    TypedJoinBuilder<T, R, ID> innerJoin(@Nonnull Class<? extends Record> relation);
+    public abstract TypedJoinBuilder<T, R, ID> innerJoin(@Nonnull Class<? extends Record> relation);
 
     /**
      * Adds a left join to the query.
@@ -93,7 +123,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    TypedJoinBuilder<T, R, ID> leftJoin(@Nonnull Class<? extends Record> relation);
+    public abstract TypedJoinBuilder<T, R, ID> leftJoin(@Nonnull Class<? extends Record> relation);
 
     /**
      * Adds a right join to the query.
@@ -101,7 +131,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    TypedJoinBuilder<T, R, ID> rightJoin(@Nonnull Class<? extends Record> relation);
+    public abstract TypedJoinBuilder<T, R, ID> rightJoin(@Nonnull Class<? extends Record> relation);
 
     /**
      * Adds a join of the specified type to the query.
@@ -111,7 +141,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    TypedJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull Class<? extends Record> relation, @Nonnull String alias);
+    public abstract TypedJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull Class<? extends Record> relation, @Nonnull String alias);
 
     /**
      * Adds a cross join to the query.
@@ -119,7 +149,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param template the condition to join.
      * @return the query builder.
      */
-    QueryBuilder<T, R, ID> crossJoin(@Nonnull StringTemplate template);
+    public abstract QueryBuilder<T, R, ID> crossJoin(@Nonnull StringTemplate template);
 
     /**
      * Adds an inner join to the query.
@@ -128,7 +158,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    JoinBuilder<T, R, ID> innerJoin(@Nonnull StringTemplate template, @Nonnull String alias);
+    public abstract JoinBuilder<T, R, ID> innerJoin(@Nonnull StringTemplate template, @Nonnull String alias);
 
     /**
      * Adds a left join to the query.
@@ -137,7 +167,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    JoinBuilder<T, R, ID> leftJoin(@Nonnull StringTemplate template, @Nonnull String alias);
+    public abstract JoinBuilder<T, R, ID> leftJoin(@Nonnull StringTemplate template, @Nonnull String alias);
 
     /**
      * Adds a right join to the query.
@@ -146,7 +176,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    JoinBuilder<T, R, ID> rightJoin(@Nonnull StringTemplate template, @Nonnull String alias);
+    public abstract JoinBuilder<T, R, ID> rightJoin(@Nonnull StringTemplate template, @Nonnull String alias);
 
     /**
      * Adds a join of the specified type to the query using a template.
@@ -156,7 +186,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull StringTemplate template, @Nonnull String alias);
+    public abstract JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull StringTemplate template, @Nonnull String alias);
 
     /**
      * Adds a join of the specified type to the query using a subquery.
@@ -166,7 +196,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull QueryBuilder<?, ?, ?> subquery, @Nonnull String alias);
+    public abstract JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull QueryBuilder<?, ?, ?> subquery, @Nonnull String alias);
 
     /**
      * A builder for constructing the WHERE clause of the query.
@@ -175,19 +205,19 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param <R> the type of the result.
      * @param <ID> the type of the primary key.
      */
-    interface WhereBuilder<T extends Record, R, ID> extends SubqueryTemplate {
+    public static abstract class WhereBuilder<T extends Record, R, ID> implements SubqueryTemplate {
 
         /**
          * A predicate that always evaluates to true.
          */
-        default PredicateBuilder<T, R, ID> TRUE() {
+        public final PredicateBuilder<T, R, ID> TRUE() {
             return expression(RAW."TRUE");
         }
 
         /**
          * A predicate that always evaluates to false.
          */
-        default PredicateBuilder<T, R, ID> FALSE() {
+        public final PredicateBuilder<T, R, ID> FALSE() {
             return expression(RAW."FALSE");
         }
 
@@ -197,7 +227,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
          * @param template the expression to add.
          * @return the predicate builder.
          */
-        PredicateBuilder<T, R, ID> expression(@Nonnull StringTemplate template);
+        public abstract PredicateBuilder<T, R, ID> expression(@Nonnull StringTemplate template);
 
         /**
          * Adds an <code>EXISTS</code> condition to the WHERE clause using the specified subquery.
@@ -210,7 +240,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
          * @param subquery the subquery to check for existence.
          * @return the updated {@link PredicateBuilder} with the EXISTS condition applied.
          */
-        PredicateBuilder<T, R, ID> exists(@Nonnull QueryBuilder<?, ?, ?> subquery);
+        public abstract PredicateBuilder<T, R, ID> exists(@Nonnull QueryBuilder<?, ?, ?> subquery);
 
         /**
          * Adds an <code>NOT EXISTS</code> condition to the WHERE clause using the specified subquery.
@@ -223,63 +253,189 @@ public interface QueryBuilder<T extends Record, R, ID> {
          * @param subquery the subquery to check for existence.
          * @return the updated {@link PredicateBuilder} with the NOT EXISTS condition applied.
          */
-        PredicateBuilder<T, R, ID> notExists(@Nonnull QueryBuilder<?, ?, ?> subquery);
+        public abstract PredicateBuilder<T, R, ID> notExists(@Nonnull QueryBuilder<?, ?, ?> subquery);
 
         /**
-         * Adds a condition to the WHERE clause that matches the specified object. The object can be the primary
-         * key of the table, or a record representing the table, or any of the related tables in the table graph.
+         * Adds a condition to the WHERE clause that matches the specified primary key of the table.
          *
-         * <p>If the object type cannot be unambiguously matched, the {@link #filter(String, Operator, Object...)}
-         * method can be used to specify the path to the object in the table graph.</p>
-         *
-         * @param o the object to match.
+         * @param id the id to match.
          * @return the predicate builder.
          */
-        PredicateBuilder<T, R, ID> filter(@Nonnull Object o);
+        public abstract PredicateBuilder<T, R, ID> filter(@Nonnull ID id);
 
         /**
-         * Adds a condition to the WHERE clause that matches the specified objects. The objects can be the primary key
-         * of the table, or a record representing the table, or any of the related tables in the table graph.
+         * Adds a condition to the WHERE clause that matches the specified record.
          *
-         * <p>If the object type cannot be unambiguously matched, the {@link #filter(String, Operator, Iterable)} method
-         * can be used to specify the path to the object in the table graph.</p>
-         *
-         * @param it the objects to match.
+         * @param record the record to match.
          * @return the predicate builder.
          */
-        PredicateBuilder<T, R, ID> filter(@Nonnull Iterable<?> it);
+        public abstract PredicateBuilder<T, R, ID> filter(@Nonnull T record);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of the
+         * related tables in the table graph or manually added joins.
+         *
+         * @param record the record to match.
+         * @return the predicate builder.
+         * @since 1.2
+         */
+        public abstract PredicateBuilder<T, R, ID> filterAny(@Nonnull Record record);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified primary keys of the table.
+         *
+         * @param it the ids to match.
+         * @return the predicate builder.
+         * @since 1.2
+         */
+        public abstract PredicateBuilder<T, R, ID> filterIds(@Nonnull Iterable<? extends ID> it);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified records.
+         *
+         * @param it the records to match.
+         * @return the predicate builder.
+         */
+        public abstract PredicateBuilder<T, R, ID> filter(@Nonnull Iterable<? extends T> it);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified records. The record can represent any of the
+         * related tables in the table graph or manually added joins.
+         *
+         * @param it the records to match.
+         * @return the query builder.
+         */
+        public abstract PredicateBuilder<T, R, ID> filterAny(@Nonnull Iterable<? extends Record> it);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
+         * the related tables in the table graph or manually added joins.
+         *
+         * @param record the records to match.
+         * @return the predicate builder.
+         */
+        public final <V extends Record> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, V record) {
+            return filter(path, EQUALS, record);
+        }
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
+         * the related tables in the table graph or manually added joins.
+         *
+         * @param record the records to match.
+         * @return the predicate builder.
+         */
+        public final <V extends Record> PredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, V record) {
+            return filterAny(path, EQUALS, record);
+        }
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified records. The records can represent any of
+         * the related tables in the table graph.
+         *
+         * @param it the records to match.
+         * @return the predicate builder.
+         */
+        public final <V extends Record> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, Iterable<V> it) {
+            return filter(path, IN, it);
+        }
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified records. The records can represent any of
+         * the related tables in the table graph or manually added joins.
+         *
+         * @param it the records to match.
+         * @return the predicate builder.
+         */
+        public final <V extends Record> PredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, Iterable<V> it) {
+            return filterAny(path, IN, it);
+        }
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph. When the objects are records representing a table, the `path` acts as a search path to locate the
-         * table within the table graph - meaning it does not need to be an exact match. In other scenarios, where the
-         * objects represent fields (including primary keys), the `path` must be an exact match to the field's location
-         * in the table graph.
+         * graph.
          *
-         * @param path the path to the object in the table graph. For record (table) based filters, this is a search
-         *             path to the table.
+         * @param path the path to the object in the table graph.
          * @param operator the operator to use for the comparison.
          * @param it the objects to match, which can be primary keys, records representing the table, or fields in the
-         *           table graph.
-         * @return the predicate builder.
+         *          table graph.
+         * @return the query builder.
+         * @param <V> the type of the object that the metamodel represents.
+         * @since 1.2
          */
-        PredicateBuilder<T, R, ID> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it);
+        public abstract <V> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path,
+                                                              @Nonnull Operator operator,
+                                                              @Nonnull Iterable<? extends V> it);
 
         /**
-         * Adds a condition to the WHERE clause that matches the specified object(s) at the specified path in the table
-         * graph. When the object(s) are records representing a table, the `path` acts as a search path to locate the
-         * table within the table graph — meaning it does not need to be an exact match. In other scenarios, where the
-         * object(s) represent fields (including primary keys), the `path` must be an exact match to the field's
-         * location in the table graph.
+         * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
+         * graph.
          *
-         * @param path the path to the object in the table graph. For record (table) based filters, this is a search
-         *             path to the table.
+         * @param path the path to the object in the table graph.
+         * @param operator the operator to use for the comparison.
+         * @param it the objects to match, which can be primary keys, records representing the table, or fields in the
+         *          table graph.
+         * @return the query builder.
+         * @param <V> the type of the object that the metamodel represents.
+         * @since 1.2
+         */
+        public abstract <V> PredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path,
+                                                                 @Nonnull Operator operator,
+                                                                 @Nonnull Iterable<? extends V> it);
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
+         * graph.
+         *
+         * @param path the path to the object in the table graph.
          * @param operator the operator to use for the comparison.
          * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
          *          table graph.
-         * @return the predicate builder.
+         * @return the query builder.
+         * @param <V> the type of the object that the metamodel represents.
+         * @since 1.2
          */
-        PredicateBuilder<T, R, ID> filter(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o);
+        @SafeVarargs
+        public final <V> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path,
+                                                           @Nonnull Operator operator,
+                                                           @Nonnull V... o) {
+            return filterImpl(path, operator, o);
+        }
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
+         * graph.
+         *
+         * @param path the path to the object in the table graph.
+         * @param operator the operator to use for the comparison.
+         * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
+         *          table graph.
+         * @return the query builder.
+         * @param <V> the type of the object that the metamodel represents.
+         * @since 1.2
+         */
+        @SafeVarargs
+        public final <V> PredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path,
+                                                              @Nonnull Operator operator,
+                                                              @Nonnull V... o) {
+            return filterImpl(path, operator, o);
+        }
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
+         * graph.
+         *
+         * @param path the path to the object in the table graph.
+         * @param operator the operator to use for the comparison.
+         * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
+         *          table graph.
+         * @return the query builder.
+         * @param <V> the type of the object that the metamodel represents.
+         * @since 1.2
+         */
+        protected abstract <V> PredicateBuilder<T, R, ID> filterImpl(@Nonnull Metamodel<?, V> path,
+                                                                     @Nonnull Operator operator,
+                                                                     @Nonnull V[] o);
     }
 
     /**
@@ -289,7 +445,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param <R> the type of the result.
      * @param <ID> the type of the primary key.
      */
-    interface PredicateBuilder<T extends Record, R, ID> {
+    public interface PredicateBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a predicate to the WHERE clause using an AND condition.
@@ -315,65 +471,187 @@ public interface QueryBuilder<T extends Record, R, ID> {
     }
 
     /**
-     * Adds a condition to the WHERE clause that matches the specified object(s). The object(s) can be the primary key
-     * of the table, or a record representing the table, or any of the related tables in the table graph.
+     * Adds a WHERE clause that matches the specified primary key of the table.
      *
-     * <p>If the object type cannot be unambiguously matched, the {@link #where(String, Operator, Object...)} method
-     * can be used to specify the path to the object in the table graph.</p>
-     *
-     * @param o the object(s) to match.
+     * @param id the id to match.
      * @return the query builder.
      */
-    default QueryBuilder<T, R, ID> where(@Nonnull Object o) {
-        return where(predicate -> predicate.filter(o));
+    public final QueryBuilder<T, R, ID> where(@Nonnull ID id) {
+        return where(predicate -> predicate.filter(id));
     }
 
     /**
-     * Adds a condition to the WHERE clause that matches the specified objects. The objects can be the primary key of
-     * the table, or a record representing the table, or any of the related tables in the table graph.
+     * Adds a WHERE clause that matches the specified record.
      *
-     * <p>If the object type cannot be unambiguously matched, the {@link #where(String, Operator, Iterable)} method
-     * can be used to specify the path to the object in the table graph.</p>
-     *
-     * @param it the objects to match.
+     * @param record the record to match.
      * @return the query builder.
      */
-    default QueryBuilder<T, R, ID> where(@Nonnull Iterable<?> it) {
+    public final QueryBuilder<T, R, ID> where(@Nonnull T record) {
+        return where(predicate -> predicate.filter(record));
+    }
+
+    /**
+     * Adds a WHERE clause that matches the specified record. The record can represent any of the related tables in the
+     * table graph or manually added joins.
+     *
+     * @param record the record to match.
+     * @return the query builder.
+     * @since 1.2
+     */
+    public final QueryBuilder<T, R, ID> whereAny(@Nonnull Record record) {
+        return where(predicate -> predicate.filterAny(record));
+    }
+
+    /**
+     * Adds a WHERE clause that matches the specified primary keys of the table.
+     *
+     * @param it ids to match.
+     * @return the query builder.
+     * @since 1.2
+     */
+    public final QueryBuilder<T, R, ID> whereIds(@Nonnull Iterable<? extends ID> it) {
+        return where(predicate -> predicate.filterIds(it));
+    }
+
+    /**
+     * Adds WHERE clause that matches the specified record. The record can represent any of the related tables in the
+     * table graph.
+     *
+     * @param path the path to the object in the table graph.
+     * @param record the records to match.
+     * @return the predicate builder.
+     */
+    public final <V extends Record> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, V record) {
+        return where(path, EQUALS, record);
+    }
+
+    /**
+     * Adds WHERE clause that matches the specified record. The record can represent any of the related tables in the
+     * table graph or manually added joins.
+     *
+     * @param path the path to the object in the table graph.
+     * @param record the records to match.
+     * @return the predicate builder.
+     */
+    public final <V extends Record> QueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, V record) {
+        return whereAny(path, EQUALS, record);
+    }
+
+    /**
+     * Adds a WHERE clause that matches the specified records. The records can represent any of the related tables in
+     * the table graph.
+     *
+     * @param path the path to the object in the table graph.
+     * @param it the records to match.
+     * @return the predicate builder.
+     */
+    public final <V extends Record> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, Iterable<V> it) {
+        return where(path, IN, it);
+    }
+
+    /**
+     * Adds a WHERE clause that matches the specified records. The records can represent any of the related tables in
+     * the table graph or manually added joins.
+     *
+     * @param path the path to the object in the table graph.
+     * @param it the records to match.
+     * @return the predicate builder.
+     */
+    public final <V extends Record> QueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, Iterable<V> it) {
+        return whereAny(path, IN, it);
+    }
+
+    /**
+     * Adds a WHERE clause that matches the specified records.
+     *
+     * @param it the records to match.
+     * @return the query builder.
+     */
+    public final QueryBuilder<T, R, ID> where(@Nonnull Iterable<? extends T> it) {
         return where(predicate -> predicate.filter(it));
     }
 
     /**
-     * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-     * graph. When the objects are records representing a table, the `path` acts as a search path to locate the table
-     * within the table graph — meaning it does not need to be an exact match. In other scenarios, where the objects
-     * represent fields (including primary keys), the `path` must be an exact match to the field's location in the table
-     * graph.
+     * Adds a WHERE clause that matches the specified records. The record can represent any of the related tables in the
+     * table graph or manually added joins.
      *
-     * @param path the path to the object in the table graph. For record (table) based filters, this is a search path to
-     *             the table.
+     * @param it the records to match.
+     * @return the query builder.
+     * @since 1.2
+     */
+    public final QueryBuilder<T, R, ID> whereAny(@Nonnull Iterable<? extends Record> it) {
+        return where(predicate -> predicate.filterAny(it));
+    }
+
+    /**
+     * Adds a WHERE clause that matches the specified objects at the specified path in the table graph.
+     *
+     * @param path the path to the object in the table graph.
      * @param operator the operator to use for the comparison.
      * @param it the objects to match, which can be primary keys, records representing the table, or fields in the table
      *           graph.
      * @return the query builder.
+     * @param <V> the type of the object that the metamodel represents.
+     * @since 1.2
      */
-    default QueryBuilder<T, R, ID> where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Iterable<?> it) {
+    public final <V> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
+                                                  @Nonnull Operator operator,
+                                                  @Nonnull Iterable<? extends V> it) {
         return where(predicate -> predicate.filter(path, operator, it));
     }
 
     /**
-     * Adds a condition to the WHERE clause that matches the specified object(s) at the specified path in the table
-     * graph. When the object(s) are records representing a table, the `path` acts as a search path to locate the table
-     * within the table graph — meaning it does not need to be an exact match. In other scenarios, where the object(s)
-     * represent fields (including primary keys), the `path` must be an exact match to the field's location in the table
-     * graph.
+     * Adds a WHERE clause that matches the specified objects at the specified path in the table graph.
      *
-     * @param path the path to the object in the table graph. For record (table) based filters, this is a search path to the table.
+     * @param path the path to the object in the table graph.
      * @param operator the operator to use for the comparison.
-     * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the table graph.
+     * @param it the objects to match, which can be primary keys, records representing the table, or fields in the
+     *          table graph.
      * @return the query builder.
+     * @param <V> the type of the object that the metamodel represents.
+     * @since 1.2
      */
-    default QueryBuilder<T, R, ID> where(@Nonnull String path, @Nonnull Operator operator, @Nonnull Object... o) {
+    public final <V> QueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path,
+                                                     @Nonnull Operator operator,
+                                                     @Nonnull Iterable<? extends V> it) {
+        return where(predicate -> predicate.filterAny(path , operator, it));
+    }
+
+    /**
+     * Adds a WHERE clause that matches the specified objects at the specified path in the table graph.
+     *
+     * @param path the path to the object in the table graph.
+     * @param operator the operator to use for the comparison.
+     * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
+     *          table graph.
+     * @return the query builder.
+     * @param <V> the type of the object that the metamodel represents.
+     * @since 1.2
+     */
+    @SafeVarargs
+    public final <V> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
+                                                  @Nonnull Operator operator,
+                                                  @Nonnull V... o) {
         return where(predicate -> predicate.filter(path, operator, o));
+    }
+
+    /**
+     * Adds a WHERE clause that matches the specified objects at the specified path in the table graph. The metamodel
+     * can refer to manually added joins.
+     *
+     * @param path the path to the object in the table graph.
+     * @param operator the operator to use for the comparison.
+     * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
+     *          table graph.
+     * @return the query builder.
+     * @param <V> the type of the object that the metamodel represents.
+     * @since 1.2
+     */
+    @SafeVarargs
+    public final <V> QueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path,
+                                                     @Nonnull Operator operator,
+                                                     V... o) {
+        return where(predicate -> predicate.filterAny(path, operator, o));
     }
 
     /**
@@ -382,7 +660,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param template the expression.
      * @return the query builder.
      */
-    default QueryBuilder<T, R, ID> where(@Nonnull StringTemplate template) {
+    public final QueryBuilder<T, R, ID> where(@Nonnull StringTemplate template) {
         return where(it -> it.expression(template));
     }
 
@@ -392,7 +670,184 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param predicate the predicate to add.
      * @return the query builder.
      */
-    QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<?, ?, ?>> predicate);
+    public abstract QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<?, ?, ?>> predicate);
+
+    /**
+     * Adds a GROUP BY clause to the query for field at the specified path in the table graph.
+     *
+     * @param path the path to group by.
+     * @return the query builder.
+     */
+    public final QueryBuilder<T, R, ID> groupBy(@Nonnull Metamodel<T, ?> path) {
+        return groupBy(RAW."\{path}");
+    }
+
+    /**
+     * Adds a GROUP BY clause to the query for field at the specified path in the table graph. The metamodel can refer
+     * to manually added joins.
+     *
+     * @param path the path to group by.
+     * @return the query builder.
+     */
+    @SafeVarargs
+    public final QueryBuilder<T, R, ID> groupBy(@Nonnull Metamodel<T, ?>... path) {
+        // We can safely invoke groupByAny as the underlying logic is identical. The main purpose of having these
+        // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
+        // the table graph.
+        return groupByAny(path);
+    }
+
+    /**
+     * Adds a GROUP BY clause to the query for field at the specified path in the table graph. The metamodel can refer
+     * to manually added joins.
+     *
+     * @param path the path to group by.
+     * @return the query builder.
+     */
+    public final QueryBuilder<T, R, ID> groupByAny(@Nonnull Metamodel<?, ?>... path) {
+        if (path.length == 0) {
+            throw new PersistenceException("At least one path must be provided for GROUP BY clause.");
+        }
+        List<StringTemplate> templates = Stream.of(path)
+                .flatMap(metamodel -> Stream.of(RAW."\{metamodel}", RAW.", "))
+                .toList();
+        return groupBy(StringTemplate.combine(templates.subList(0, templates.size() - 1).toArray(new StringTemplate[0])));
+    }
+
+    /**
+     * Adds a GROUP BY clause to the query using a string template.
+     *
+     * @param template the template to group by.
+     * @return the query builder.
+     */
+    public final QueryBuilder<T, R, ID> groupBy(@Nonnull StringTemplate template) {
+        return append(StringTemplate.combine(RAW."GROUP BY ", template));
+    }
+
+    /**
+     * Adds a HAVING clause to the query using the specified expression.
+     *
+     * @param path the path to the object in the table graph.
+     * @param operator the operator to use for the comparison.
+     * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
+     *          table graph.
+     * @return the query builder.
+     */
+    @SafeVarargs
+    public final <V> QueryBuilder<T, R, ID> having(@Nonnull Metamodel<T, V> path,
+                                                   @Nonnull Operator operator,
+                                                   V... o) {
+        return havingAny(path, operator, o);
+    }
+
+    /**
+     * Adds a HAVING clause to the query using the specified expression.
+     *
+     * @param path the path to the object in the table graph.
+     * @param operator the operator to use for the comparison.
+     * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
+     *          table graph or manually added joins.
+     * @return the query builder.
+     */
+    @SafeVarargs
+    public final <V> QueryBuilder<T, R, ID> havingAny(@Nonnull Metamodel<?, V> path,
+                                                      @Nonnull Operator operator,
+                                                      V... o) {
+        return having(RAW."\{new ObjectExpression(path, operator, o)}");
+    }
+
+    /**
+     * Adds a HAVING clause to the query using the specified expression.
+     *
+     * @param template the expression to add.
+     * @return the query builder.
+     */
+    public final <V> QueryBuilder<T, R, ID> having(@Nonnull StringTemplate template) {
+        return append(StringTemplate.combine(RAW."HAVING ", template));
+    }
+
+    /**
+     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
+     *
+     * @param path the path to order by.
+     * @return the query builder.
+     */
+    public final QueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?> path) {
+        return orderBy(RAW."\{path}");
+    }
+
+    /**
+     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
+     *
+     * @param path the path to order by.
+     * @param ascending whether to order in ascending order.
+     * @return the query builder.
+     */
+    public final QueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?> path, boolean ascending) {
+        return orderBy(StringTemplate.combine(RAW."\{path}", StringTemplate.of(STR." \{ascending ? "ASC" : "DESC"}")));
+    }
+
+    /**
+     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph or manually added
+     * joins.
+     *
+     * @param path the path to order by.
+     * @return the query builder.
+     */
+    @SafeVarargs
+    public final QueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?>... path) {
+        // We can safely invoke orderByAny as the underlying logic is identical. The main purpose of having these
+        // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
+        // the table graph.
+        return orderByAny(path);
+    }
+
+    /**
+     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph or manually added
+     * joins.
+     *
+     * @param path the path to order by.
+     * @return the query builder.
+     */
+    public final QueryBuilder<T, R, ID> orderByAny(@Nonnull Metamodel<?, ?>... path) {
+        if (path.length == 0) {
+            throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
+        }
+        List<StringTemplate> templates = Stream.of(path)
+                .flatMap(metamodel -> Stream.of(RAW."\{metamodel}", RAW.", "))
+                .toList();
+        return orderBy(StringTemplate.combine(templates.subList(0, templates.size() - 1).toArray(new StringTemplate[0])));
+    }
+
+    /**
+     * Adds an ORDER BY clause to the query using a string template.
+     *
+     * @param template the template to order by.
+     * @return the query builder.
+     */
+    public final QueryBuilder<T, R, ID> orderBy(@Nonnull StringTemplate template) {
+        return append(StringTemplate.combine(RAW."ORDER BY ", template));
+    }
+
+    /**
+     * Adds a LIMIT clause to the query.
+     *
+     * @param limit the maximum number of records to return.
+     * @return the query builder.
+     */
+    public QueryBuilder<T, R, ID> limit(int limit) {
+        return append(getSqlDialect().limit(limit));
+    }
+
+    /**
+     * Adds a LIMIT clause to the query.
+     * @param offset the offset.
+     * @param limit the maximum number of records to return.
+     * @return the query builder.
+     */
+    public QueryBuilder<T, R, ID> limit(int offset, int limit) {
+        return append(getSqlDialect().limit(offset, limit));
+    }
 
     /**
      * Append the query with a string template.
@@ -400,14 +855,14 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param template the string template to append.
      * @return the query builder.
      */
-    QueryBuilder<T, R, ID> append(@Nonnull StringTemplate template);
+    public abstract QueryBuilder<T, R, ID> append(@Nonnull StringTemplate template);
 
     /**
      * Builds the query based on the current state of the query builder.
      *
      * @return the constructed query.
      */
-    Query build();
+    public abstract Query build();
 
     /**
      * Prepares the query for execution.
@@ -421,7 +876,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @return the prepared query.
      * @throws PersistenceException if the query preparation fails.
      */
-    default PreparedQuery prepare() {
+    public final PreparedQuery prepare() {
         return build().prepare();
     }
 
@@ -445,7 +900,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<R> getResultStream();
+    public abstract Stream<R> getResultStream();
 
     /**
      * Executes the query and returns a stream of using the specified callback. This method retrieves the records and
@@ -461,7 +916,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
      * connectivity.
      */
-    default <X> X getResult(@Nonnull ResultCallback<R, X> callback) {
+    public final <X> X getResult(@Nonnull ResultCallback<R, X> callback) {
         try (Stream<R> stream = getResultStream()) {
             return callback.process(stream);
         }
@@ -474,7 +929,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    default long getResultCount() {
+    public final long getResultCount() {
         try (var stream = getResultStream()) {
             return stream.count();
         }
@@ -486,7 +941,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @return the list of results.
      * @throws PersistenceException if the query fails.
      */
-    default List<R> getResultList() {
+    public final List<R> getResultList() {
         try (var stream = getResultStream()) {
             return stream.toList();
         }
@@ -500,7 +955,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the query fails.
      */
-    default R getSingleResult() {
+    public final R getSingleResult() {
         try (var stream = getResultStream()) {
             return stream
                     .reduce((_, _) -> {
@@ -516,7 +971,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the query fails.
      */
-    default Optional<R> getOptionalResult() {
+    public final Optional<R> getOptionalResult() {
         try (var stream = getResultStream()) {
             return stream.reduce((_, _) -> {
                 throw new NonUniqueResultException("Expected single result, but found more than one.");
@@ -530,7 +985,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @return the number of rows impacted as result of the statement.
      * @throws PersistenceException if the statement fails.
      */
-    default int executeUpdate() {
+    public final int executeUpdate() {
         return build().executeUpdate();
     }
 
@@ -544,9 +999,9 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * @param <X> the type of elements in the stream.
      * @param <Y> the type of elements in the result stream.
      */
-    static <X, Y> Stream<Y> slice(@Nonnull Stream<X> stream,
-                                  int batchSize,
-                                  @Nonnull Function<List<X>, Stream<Y>> function) {
+    public static <X, Y> Stream<Y> slice(@Nonnull Stream<X> stream,
+                                         int batchSize,
+                                         @Nonnull Function<List<X>, Stream<Y>> function) {
         return slice(stream, batchSize)
                 .flatMap(function); // Note that the flatMap operation closes the stream passed to it.
     }
@@ -566,7 +1021,7 @@ public interface QueryBuilder<T extends Record, R, ID> {
      * {@code Integer.MAX_VALUE}, only one slice will be returned.
      * @return a stream of slices, where each slice contains up to {@code size} elements from the original stream.
      */
-    static <X> Stream<List<X>> slice(@Nonnull Stream<X> stream, int size) {
+    public static <X> Stream<List<X>> slice(@Nonnull Stream<X> stream, int size) {
         if (size == MAX_VALUE) {
             return Stream.of(stream.toList());
         }

@@ -101,7 +101,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @return a new query builder for the entity type.
      */
     public QueryBuilder<E, Long, ID> selectCount() {
-        return selectFrom(orm, model.type(), Long.class, RAW."COUNT(*)", false);
+        return selectFrom(orm, model.type(), Long.class, RAW."COUNT(*)", false, () -> model);
     }
 
     /**
@@ -124,7 +124,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @param <R> the result type of the query.
      */
     public <R> QueryBuilder<E, R, ID> select(@Nonnull Class<R> selectType, @Nonnull StringTemplate template) {
-        return selectFrom(orm, model().type(), selectType, template, false);
+        return selectFrom(orm, model().type(), selectType, template, false, () -> model);
     }
 
     /**
@@ -274,7 +274,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      *                              connectivity.
      */
     public Stream<E> select(@Nonnull Stream<ID> ids, int batchSize) {
-        return slice(ids, batchSize, batch -> select().where(batch).getResultStream()); // Stream returned by getResultStream is closed by the batch operation.
+        return slice(ids, batchSize, batch -> select().whereIds(batch).getResultStream()); // Stream returned by getResultStream is closed by the batch operation.
     }
 
     /**
@@ -308,8 +308,8 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      */
     public long count(@Nonnull Stream<ID> ids, int batchSize) {
         return slice(ids, batchSize)
-                .mapToLong(slice -> orm().selectFrom(model.type(), Long.class, RAW."COUNT(*)")
-                        .where(slice)
+                .mapToLong(slice -> select(Long.class, RAW."COUNT(*)")
+                        .whereIds(slice)
                         .getSingleResult())
                 .sum();
     }

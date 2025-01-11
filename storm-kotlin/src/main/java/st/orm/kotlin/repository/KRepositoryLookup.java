@@ -19,24 +19,89 @@ import jakarta.annotation.Nonnull;
 import kotlin.reflect.KClass;
 import st.orm.repository.Entity;
 import st.orm.repository.Projection;
-import st.orm.repository.RepositoryLookup;
 
 /**
- * Base interface for all repositories.
+ * Provides access to repositories.
+ *
+ * <p>Entity repositories provide basic CRUD operations for database tables. Projection repositories provide read
+ * operations for database views and projection queries. The repositories returned by the {@code repository} method
+ * allow to implement custom repository logic.</p>
+ *
+ * <pre>{@code
+ * interface UserRepository extends KEntityRepository<User, Integer> {
+ *     default Optional<User> findByName(String name) {
+ *         return select().
+ *             .where(User_.name, EQUALS, name)
+ *             .getOptionalResult();
+ *     }
+ *
+ *     default List<User> findByCity(City city) {
+ *         return select().
+ *             .where(User_city, city)
+ *             .getResultList();
+ *     }
+ * }}</pre>
+ *
+ * @see KEntityRepository
+ * @see KProjectionRepository
  */
 public interface KRepositoryLookup {
 
-    RepositoryLookup bridge();
-
+    /**
+     * Returns the repository for the given entity type.
+     *
+     * @param type the entity type.
+     * @param <T> the entity type.
+     * @param <ID> the type of the entity's primary key.
+     * @return the repository for the given entity type.
+     */
     <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> entity(@Nonnull KClass<T> type);
 
+    /**
+     * Returns the repository for the given projection type.
+     *
+     * @param type the projection type.
+     * @param <T> the projection type.
+     * @param <ID> the type of the projection's primary key, or Void if the projection specifies no primary key.
+     * @return the repository for the given projection type.
+     */
     <T extends Record & Projection<ID>, ID> KProjectionRepository<T, ID> projection(@Nonnull KClass<T> type);
 
-    <R extends KRepository> R proxy(@Nonnull KClass<R> type);
+    /**
+     * Returns a proxy for the repository of the given type.
+     *
+     * @param type the repository type.
+     * @param <R> the repository type.
+     * @return a proxy for the repository of the given type.
+     */
+    <R extends KRepository> R repository(@Nonnull KClass<R> type);
 
+    /**
+     * Returns the repository for the given entity type.
+     *
+     * @param type the entity type.
+     * @param <T> the entity type.
+     * @param <ID> the type of the entity's primary key.
+     * @return the repository for the given entity type.
+     */
     <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> entity(@Nonnull Class<T> type);
 
+    /**
+     * Returns the repository for the given projection type.
+     *
+     * @param type the projection type.
+     * @param <T> the projection type.
+     * @param <ID> the type of the projection's primary key, or Void if the projection specifies no primary key.
+     * @return the repository for the given projection type.
+     */
     <T extends Record & Projection<ID>, ID> KProjectionRepository<T, ID> projection(@Nonnull Class<T> type);
 
-    <R extends KRepository> R proxy(@Nonnull Class<R> type);
+    /**
+     * Returns a proxy for the repository of the given type.
+     *
+     * @param type the repository type.
+     * @param <R> the repository type.
+     * @return a proxy for the repository of the given type.
+     */
+    <R extends KRepository> R repository(@Nonnull Class<R> type);
 }

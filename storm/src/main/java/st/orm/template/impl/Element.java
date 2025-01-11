@@ -16,6 +16,7 @@
 package st.orm.template.impl;
 
 import st.orm.template.impl.Elements.Alias;
+import st.orm.template.impl.Elements.Column;
 import st.orm.template.impl.Elements.Delete;
 import st.orm.template.impl.Elements.From;
 import st.orm.template.impl.Elements.Insert;
@@ -35,6 +36,6 @@ import st.orm.template.impl.SqlTemplateImpl.Wrapped;
  *
  */
 public sealed interface Element
-        permits Alias, Delete, From, Insert, Param, Select, Set, Table, Update, Values, Where, Join, Subquery, Unsafe, Wrapped {
+        permits Alias, Column, Delete, From, Insert, Param, Select, Set, Table, Update, Values, Where, Join, Subquery, Unsafe, Wrapped {
 
 }

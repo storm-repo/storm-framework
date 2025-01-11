@@ -46,6 +46,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 import static java.lang.System.identityHashCode;
+import static java.lang.reflect.Proxy.newProxyInstance;
+import static st.orm.spi.Providers.getEntityRepository;
+import static st.orm.spi.Providers.getProjectionRepository;
 
 public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTemplate {
 
@@ -69,7 +72,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
      */
     @Override
     public <T extends Record & Entity<ID>, ID> EntityRepository<T, ID> entity(@Nonnull Class<T> type) {
-        return wrapRepository(Providers.getEntityRepository(this, createModel(type, true), providerFilter == null ? _ -> true : providerFilter));
+        return wrapRepository(getEntityRepository(this, createModel(type, true), providerFilter == null ? _ -> true : providerFilter));
     }
 
     /**
@@ -82,7 +85,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
      */
     @Override
     public <T extends Record & Projection<ID>, ID> ProjectionRepository<T, ID> projection(@Nonnull Class<T> type) {
-        return wrapRepository(Providers.getProjectionRepository(this, createModel(type, false), providerFilter == null ? _ -> true : providerFilter));
+        return wrapRepository(getProjectionRepository(this, createModel(type, false), providerFilter == null ? _ -> true : providerFilter));
     }
 
     /**
@@ -94,11 +97,11 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
      */
     @SuppressWarnings("unchecked")
     @Override
-    public <R extends Repository> R proxy(@Nonnull Class<R> type) {
+    public <R extends Repository> R repository(@Nonnull Class<R> type) {
         EntityRepository<?, ?> entityRepository = createEntityRepository(type).orElse(null);
         ProjectionRepository<?, ?> projectionRepository = createProjectionRepository(type).orElse(null);
         Repository repository = createRepository();
-        return wrapRepository((R) Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {
+        return wrapRepository((R) newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {
             try {
                 if (method.getName().equals("hashCode") && method.getParameterCount() == 0) {
                     return identityHashCode(proxy);
@@ -107,7 +110,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
                     return proxy == args[0];
                 }
                 if (method.getName().equals("toString") && method.getParameterCount() == 0) {
-                    return STR."RepositoryProxy(\{type.getSimpleName()})";
+                    return STR."\{type.getName()}@proxy";
                 }
                 if (method.getDeclaringClass().isAssignableFrom(Repository.class)) {
                     // Handle Repository interface methods by delegating to the 'repository' instance.
@@ -226,7 +229,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
 
     @SuppressWarnings("unchecked")
     private  <T extends Repository> T wrapRepository(@Nonnull T repository) {
-        return (T) Proxy.newProxyInstance(repository.getClass().getClassLoader(), getAllInterfaces(repository.getClass()).toArray(new Class[0]), (_, method, args) -> {
+        return (T) newProxyInstance(repository.getClass().getClassLoader(), getAllInterfaces(repository.getClass()).toArray(new Class[0]), (_, method, args) -> {
             var lastSql = new AtomicReference<Sql>();
             try (var _ = SqlInterceptor.intercept(lastSql::setPlain)) {
                 try {

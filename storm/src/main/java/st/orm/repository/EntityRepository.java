@@ -68,7 +68,7 @@ import java.util.stream.Stream;
  * <pre>{@code
  * List<User> users = ORM(dataSource).entity(User.class)
  *         .select()
- *         .where("city.name", EQUALS, "Sunnyvale")
+ *         .where(User_.city.name, EQUALS, "Sunnyvale") // Type-safe metamodel.
  *         .getResultList();
  * }</pre>
  *
@@ -97,7 +97,7 @@ import java.util.stream.Stream;
  * <pre>{@code
  * ORM(dataSource).entity(User.class)
  *         .delete()
- *         .where("email", IS_NULL)
+ *         .where(User_.email, IS_NULL) // Type-safe metamodel.
  *         .executeUpdate();
  * }</pre>
  *

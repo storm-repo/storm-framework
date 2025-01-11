@@ -18,12 +18,14 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import st.orm.PersistenceException;
 import st.orm.Query;
+import st.orm.repository.Model;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryTemplate;
 import st.orm.template.impl.Elements.Where;
 import st.orm.template.impl.SqlTemplateImpl.Join;
 
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static java.lang.StringTemplate.RAW;
@@ -46,8 +48,9 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
                              @Nonnull Class<T> fromType,
                              @Nonnull Class<R> selectType,
                              @Nonnull StringTemplate selectTemplate,
-                             boolean subquery) {
-        this(queryTemplate, fromType, selectType, false, List.of(), List.of(), selectTemplate, List.of(), subquery);
+                             boolean subquery,
+                             @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+        this(queryTemplate, fromType, selectType, false, List.of(), List.of(), selectTemplate, List.of(), subquery, modelSupplier);
     }
 
     private SelectBuilderImpl(@Nonnull QueryTemplate queryTemplate,
@@ -58,8 +61,9 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
                               @Nonnull List<Where> where,
                               @Nonnull StringTemplate selectTemplate,
                               @Nonnull List<StringTemplate> templates,
-                              boolean subquery) {
-        super(queryTemplate, fromType, join, where, templates);
+                              boolean subquery,
+                              @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+        super(queryTemplate, fromType, join, where, templates, modelSupplier);
         this.selectType = selectType;
         this.distinct = distinct;
         this.selectTemplate = selectTemplate;
@@ -82,7 +86,7 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
                                     @Nonnull List<Join> join,
                                     @Nonnull List<Where> where,
                                     @Nonnull List<StringTemplate> templates) {
-        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, selectTemplate, templates, subquery);
+        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, selectTemplate, templates, subquery, modelSupplier);
     }
 
     /**
@@ -102,7 +106,7 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
      */
     @Override
     public QueryBuilder<T, R, ID> distinct() {
-        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, true, join, where, selectTemplate, templates, subquery);
+        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, true, join, where, selectTemplate, templates, subquery,  modelSupplier);
     }
 
     private StringTemplate toStringTemplate() {
