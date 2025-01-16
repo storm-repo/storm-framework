@@ -41,6 +41,8 @@ import static st.orm.template.QueryBuilder.slice;
  */
 abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
 
+    private static final SqlDialect SQL_DIALECT = Providers.getSqlDialect();
+
     protected final ORMTemplate orm;
     protected final Model<E, ID> model;
     protected final int defaultSliceSize;
@@ -48,9 +50,13 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
     public BaseRepositoryImpl(@Nonnull ORMTemplate orm, @Nonnull Model<E, ID> model) {
         this.orm = requireNonNull(orm);
         this.model = requireNonNull(model);
-        this.defaultSliceSize = model.columns().stream().filter(Column::primaryKey).count() > 1
-                ? 100   // Compound PKs can become quite large, so we default to a smaller batch size.
-                : 1000;
+        if (SQL_DIALECT.supportsMultiValueTuples()) {
+            this.defaultSliceSize = 1000;
+        } else {
+            this.defaultSliceSize = model.columns().stream().filter(Column::primaryKey).count() > 1
+                    ? 100   // Compound PKs can become quite large, so we default to a smaller batch size.
+                    : 1000;
+        }
     }
 
     protected static <X> Stream<X> toStream(@Nonnull Iterable<X> iterable) {

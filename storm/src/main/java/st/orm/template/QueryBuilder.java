@@ -22,6 +22,8 @@ import st.orm.PersistenceException;
 import st.orm.PreparedQuery;
 import st.orm.Query;
 import st.orm.ResultCallback;
+import st.orm.spi.Providers;
+import st.orm.spi.SqlDialect;
 import st.orm.template.impl.Elements.ObjectExpression;
 
 import java.util.Iterator;
@@ -34,7 +36,6 @@ import java.util.stream.StreamSupport;
 import static java.lang.Integer.MAX_VALUE;
 import static java.lang.StringTemplate.RAW;
 import static java.util.Spliterators.spliteratorUnknownSize;
-import static st.orm.spi.Providers.getSqlDialect;
 import static st.orm.template.Operator.EQUALS;
 import static st.orm.template.Operator.IN;
 
@@ -46,6 +47,8 @@ import static st.orm.template.Operator.IN;
  * @param <ID> the type of the primary key.
  */
 public abstract class QueryBuilder<T extends Record, R, ID> {
+
+    private static final SqlDialect SQL_DIALECT = Providers.getSqlDialect();
 
     /**
      * Returns a typed query builder for the specified primary key type.
@@ -836,7 +839,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     public QueryBuilder<T, R, ID> limit(int limit) {
-        return append(getSqlDialect().limit(limit));
+        return append(StringTemplate.of(SQL_DIALECT.limit(limit)));
     }
 
     /**
@@ -846,7 +849,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     public QueryBuilder<T, R, ID> limit(int offset, int limit) {
-        return append(getSqlDialect().limit(offset, limit));
+        return append(StringTemplate.of(SQL_DIALECT.limit(offset, limit)));
     }
 
     /**

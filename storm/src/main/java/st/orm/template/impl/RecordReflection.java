@@ -52,6 +52,7 @@ import static st.orm.spi.Providers.getORMConverter;
 final class RecordReflection {
 
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
+    private static final SqlDialect SQL_DIALECT = Providers.getSqlDialect();
 
     private RecordReflection() {
     }
@@ -254,12 +255,11 @@ final class RecordReflection {
             }
         }
         if (dbTable != null) {
-            SqlDialect dialect = Providers.getSqlDialect();
             String schemaPrefix = "";
             if (!dbTable.schema().isEmpty()) {
-                schemaPrefix = (dbTable.escape() ? dialect.escape(dbTable.schema()) : dbTable.schema()) + '.';
+                schemaPrefix = (dbTable.escape() ? SQL_DIALECT.escape(dbTable.schema()) : dbTable.schema()) + '.';
             }
-            tableName = schemaPrefix + (dbTable.escape() ? dialect.escape(tableName) : tableName);
+            tableName = schemaPrefix + (dbTable.escape() ? SQL_DIALECT.escape(tableName) : tableName);
         }
         return tableName;
     }
@@ -290,8 +290,7 @@ final class RecordReflection {
                 : component.getName());
         DbColumn dbColumn = REFLECTION.getAnnotation(component, DbColumn.class);
         if (dbColumn != null && dbColumn.escape()) {
-            SqlDialect dialect = Providers.getSqlDialect();
-            name = dialect.escape(name);
+            name = SQL_DIALECT.escape(name);
         }
         return name;
     }

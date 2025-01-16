@@ -16,9 +16,19 @@
 package st.orm.spi.mysql;
 
 import jakarta.annotation.Nonnull;
+import st.orm.spi.DefaultSqlDialect;
 import st.orm.spi.SqlDialect;
+import st.orm.template.SqlTemplateException;
 
-public class MysqlSqlDialect implements SqlDialect {
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
+
+import static java.util.stream.Collectors.joining;
+
+public class MysqlSqlDialect extends DefaultSqlDialect implements SqlDialect {
 
     /**
      * Indicates whether the SQL dialect supports delete aliases.
@@ -34,6 +44,18 @@ public class MysqlSqlDialect implements SqlDialect {
     }
 
     /**
+     * Indicates whether the SQL dialect supports multi-value tuples in the IN clause.
+     *
+     * @return {@code true} if multi-value tuples are supported, {@code false} otherwise.
+     * @since 1.2
+     */
+    @Override
+    public boolean supportsMultiValueTuples() {
+        // Note that tuple IN is only supported as of MySQL 8.0.19. We will account for this in the future.
+        return true;
+    }
+
+    /**
      * Escapes the given database identifier (e.g., table or column name) according to this SQL dialect.
      *
      * @param name the identifier to escape (must not be {@code null})
@@ -45,6 +67,46 @@ public class MysqlSqlDialect implements SqlDialect {
     }
 
     /**
+     * Returns a string for the given column name.
+     *
+     * @param values the (multi) values to use in the IN clause.
+     * @param parameterConsumer the consumer for the parameters.
+     * @return the string that represents the multi value IN clause.
+     * @throws SqlTemplateException if the values are incompatible.
+     * @since 1.2
+     */
+    @Override
+    public String multiValueIn(@Nonnull List<Map<String, Object>> values,
+                               @Nonnull Consumer<Object> parameterConsumer) throws SqlTemplateException {
+        if (values.isEmpty()) {
+            throw new SqlTemplateException("Multi-value IN clause requires at least one value.");
+        }
+        Set<String> columns = new LinkedHashSet<>(values.getFirst().keySet());
+        if (columns.size() == 1) {
+            throw new SqlTemplateException("Multi-value IN clause requires at least two columns.");
+        }
+        if (!supportsMultiValueTuples()) {
+            return super.multiValueIn(values, parameterConsumer);
+        }
+        StringBuilder in = new StringBuilder("(").append(String.join(", ", columns)).append(") IN ((");
+        for (var row : values) {
+            if (row.size() != columns.size()) {
+                throw new SqlTemplateException("Multi-value IN clause requires all entries to have the same number of columns.");
+            }
+            if (!columns.containsAll(row.keySet())) {
+                throw new SqlTemplateException("Multi-value IN clause requires all entries to have the same columns.");
+            }
+            in.append(columns.stream().map(row::get).map(value -> {
+                parameterConsumer.accept(value);
+                return "?";
+            }).collect(joining(", "))).append("), (");
+        }
+        in.setLength(in.length() - 3);  // Remove the last ", (".
+        in.append(")");
+        return in.toString();
+    }
+
+    /**
      * Returns a string template for the given limit.
      *
      * @param limit the maximum number of records to return.
@@ -52,10 +114,10 @@ public class MysqlSqlDialect implements SqlDialect {
      * @since 1.2
      */
     @Override
-    public StringTemplate limit(int limit) {
+    public String limit(int limit) {
         // Taking the most basic approach that is supported by most database in test (containers).
         // For production use, ensure the right dialect is used.
-        return StringTemplate.of(STR."LIMIT \{limit}");
+        return STR."LIMIT \{limit}";
     }
 
     /**
@@ -67,9 +129,9 @@ public class MysqlSqlDialect implements SqlDialect {
      * @since 1.2
      */
     @Override
-    public StringTemplate limit(int limit, int offset) {
+    public String limit(int limit, int offset) {
         // Taking the most basic approach that is supported by most database in test (containers).
         // For production use, ensure the right dialect is used.
-        return StringTemplate.of(STR."LIMIT \{limit} OFFSET \{offset}");
+        return STR."LIMIT \{limit} OFFSET \{offset}";
     }
 }

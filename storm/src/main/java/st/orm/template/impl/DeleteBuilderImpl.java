@@ -20,8 +20,6 @@ import st.orm.PersistenceException;
 import st.orm.Query;
 import st.orm.repository.Column;
 import st.orm.repository.Model;
-import st.orm.spi.Providers;
-import st.orm.spi.SqlDialect;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryTemplate;
 import st.orm.template.impl.Elements.Where;
@@ -43,8 +41,6 @@ import static st.orm.Templates.subquery;
  */
 public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T, Object, ID> {
 
-    private final SqlDialect dialect;
-
     public DeleteBuilderImpl(@Nonnull QueryTemplate orm, @Nonnull Class<T> fromType, @Nonnull Supplier<Model<T, ID>> modelSupplier) {
         this(orm, fromType, List.of(), List.of(), List.of(), modelSupplier);
     }
@@ -56,7 +52,6 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
                               @Nonnull List<StringTemplate> templates,
                               @Nonnull Supplier<Model<T, ID>> modelSupplier) {
         super(queryTemplate, fromType, join, where, templates, modelSupplier);
-        this.dialect = Providers.getSqlDialect();
     }
 
 
@@ -84,7 +79,7 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
      */
     protected boolean supportsJoin() {
         // Only use joins if DELETE alias is supported by the SQL dialect.
-        return dialect.supportsDeleteAlias();
+        return SQL_DIALECT.supportsDeleteAlias();
     }
 
     /**

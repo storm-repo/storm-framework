@@ -138,7 +138,9 @@ public interface KQuery {
      * @throws PersistenceException if the query fails.
      */
     default <T> List<T> getResultList(@Nonnull KClass<T> type) {
-        return getResultStream(type).toList();
+        try (var stream = getResultStream(type)) {
+            return stream.toList();
+        }
     }
 
     /**

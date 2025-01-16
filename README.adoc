@@ -12,7 +12,7 @@
 * *Performance*: Built with efficiency in mind, Storm supports batch processing, lazy streams, and upsert functionality to enhance performance during database interactions.
 * *Universal Database Compatibility*: Fully compatible with all SQL databases, it offers flexibility and broad applicability across various database systems.
 
-In summary, Storm delivers a modern, efficient, and straightforward ORM solution that prioritizes direct ease of use, database interaction, and wide compatibility. It’s an excellent choice for Java and Kotlin developers seeking simplicity, performance, and enhanced readability in their database operations.
+In summary, Storm delivers a modern, efficient, and straightforward ORM solution that prioritizes ease of use, direct database interaction, and wide compatibility. It’s an excellent choice for Java and Kotlin developers seeking simplicity, performance, and enhanced readability in their database operations.
 
 == Getting Started
 
@@ -45,6 +45,7 @@ public class PreparedStatementExample {
 
     @Autowired
     private DataSource dataSource;
+
     public List<Pet> findByBirthDate(LocalDate birthDate) {
         try (PreparedStatement statement = PreparedStatementTemplate.of(dataSource).query(RAW."""
                     SELECT *
@@ -65,63 +66,67 @@ public class PreparedStatementExample {
 === Level 1 - Sql Template / Object-Relational Mapping
 Take advantage of Storm’s ORM while writing queries using plain, text-based SQL. Storm enhances this approach with automatic joins, table and column resolution, reducing boilerplate and increasing productivity, while producing rich ORM records for seamless interaction with your data.
 
-
 [source,java,indent=0]
 ----
 public record Pet(
-        @PK Integer id,
-        String name,
-        LocalDate birthDate,
-        PetType petType,
-        @FK Owner owner
+    @PK Integer id,
+    String name,
+    LocalDate birthDate,
+    PetType petType,
+    @FK Owner owner
 ) {}
 
 public record Owner(
-        @PK Integer id,
-        String firstName,
-        String lastName,
-        Address address,
-        String telephone
+    @PK Integer id,
+    String firstName,
+    String lastName,
+    Address address,
+    String telephone
 ) {}
 
 public record Address (
-        String address,
-        String city
+    String address,
+    String city
 ) {}
 ----
 
+Select all pets that belong to the owner. Uses the auto join feature based on @FK relationships.
 [source,java,indent=0]
 ----
-public class ORMTemplateExample {
-
     public List<Pet> findByOwner(Owner owner) {
-        // Select all pets that belong to the owner.
-        // Uses the auto join feature based on @FK relationships.
         return ORM(dataSource).query(RAW."""
                 SELECT \{Pet.class}
                 FROM \{Pet.class}
                 WHERE \{owner}""")
             .getResultList(Pet.class);
     }
+----
 
+Count the number of pets that belong to the owner. Uses custom result mapping.
+[source,java,indent=0]
+----
     public int findPetCountByOwner(Owner owner) {
-        // Count the number of pets that belong to the owner.
-        // Uses custom result mapping.
         return ORM(dataSource)
                 .query(RAW."SELECT COUNT(*) FROM \{Pet.class} WHERE \{owner}")
                 .getSingleResult(Integer.class);
     }
+----
 
+
+Group by owner and count the number of pets. Uses custom result mapping using a record.
+[source,java,indent=0]
+----
     public record CountByOwner(Owner owner, int count) {}
 
     public List<CountByOwner> getPetCount() {
-        // Group by owner and count the number of pets.
-        // Uses custom result mapping using a record.
         return ORM(dataSource)
                 .query(RAW."SELECT \{Owner.class}, COUNT(*) FROM \{Pet.class} GROUP BY \{Owner.class}.id")
                 .getResultList(CountByOwner.class);
     }
+----
 
+[source,java,indent=0]
+----
     public Pet insert(String name, LocalDate birthDate, PetType petType) {
         var pet = Pet.builder()
                 .name(name)
@@ -133,9 +138,12 @@ public class ORMTemplateExample {
                 VALUES \{pet}""")
             .executeUpdate();
     }
+----
 
+Insert pets into the database with a batch statement. Uses bind variables.
+[source,java,indent=0]
+----
     public void insert(List<Pet> pets) {
-        // Insert pets into the database with a batch statement. Uses bind variables.
         var orm = ORM(dataSource);
         var bindVars = orm.createBindVars();
         try (var query = orm.query(RAW."""
@@ -145,9 +153,12 @@ public class ORMTemplateExample {
             query.executeUpdate();  // Performs the batch update.
         }
     }
+----
 
+Updates pets with a batch statement. Uses bind variables.
+[source,java,indent=0]
+----
     public void update(List<Pet> pets) {
-        // Updates pets with a batch statement. Uses bind variables.
         var orm = ORM(dataSource);
         var bindVars = orm.createBindVars();
         try (var query = orm.query(RAW."""
@@ -158,7 +169,6 @@ public class ORMTemplateExample {
             query.executeUpdate();  // Performs the batch update.
         }
     }
-}
 ----
 
 === Level 2 - Repository
@@ -177,55 +187,65 @@ Maximize abstraction by using Storm’s repositories, which provide CRUD logic o
 
 The following example demonstrates how `ORM(datasource).entity(Pet.class)` returns a repository with CRUD features out of the box for the `Pet` entity:
 
+Selects all pets.
 [source,java,indent=0]
 ----
-public class ORMRepositoryExample {
-
     public List<Pet> findAll() {
-        // Selects all pets.
         return ORM(dataSource).entity(Pet.class)
             .select()
             .getResultList();   // Use getResultStream() for a lazily loaded stream instead.
     }
+----
 
+Select all pets that belong to an owner with the specified first name. Uses the metamodel for column name resolution and utilizes parameter binding.
+[source,java,indent=0]
+----
     public List<Pet> findByFirstName(String firstName) {
-        // Select all pets that belong to an owner with the specified first name. Uses the
-        // metamodel for column name resolution and utilizes parameter binding.
         return ORM(dataSource).entity(Pet.class)
             .select()
             .where(RAW."\{Owner_.firstName} = \{firstName}")
             .getResultList();
     }
+----
 
+Use metamodel to identify column.
+[source,java,indent=0]
+----
     public List<Pet> findByLastName(String lastName) {
-        // Use metamodel to identify column.
         return ORM(dataSource).entity(Pet.class)
             .select()
             .where(Owner_.lastName, EQUALS, lastName)
             .getResultList();
     }
+----
 
+Build the query using mixed styles.
+[source,java,indent=0]
+----
     public List<Pet> findByFirstNameAndLastName(String firstName, String lastName) {
-        // Build where using mixed styles.
         return ORM(dataSource).entity(Pet.class)
             .select()
             .where(it -> it.filter(Owner_.firstName, EQUALS, firstName) // Type-safe!
               .and(it.expression(RAW."\{Owner_.lastName} = \{lastName}"))) // Name resolution / binding.
             .getResultList();
     }
+----
 
+Select all pets that belong to the specified owners. Uses the auto join feature based on @FK relationships.
+[source,java,indent=0]
+----
     public List<Pet> findByOwners(List<Owner> owner) {
-        // Select all pets that belong to the specified owners.
-        // Uses the auto join feature based on @FK relationships.
         return ORM(dataSource).entity(Pet.class)
             .select()
             .where(Pet_.owner, owners)   // Type-safe!
             .getResultList();
     }
+----
 
+Create a new pet with the specified name and pet type. Returns the newly created pet with the generated ID.
+[source,java,indent=0]
+----
     public Pet insert(String name, LocalDate birthDate, PetType petType) {
-        // Create a new pet with the specified name and pet type.
-        // Returns the newly created pet with the generated ID.
         return ORM(dataSource).entity(Pet.class)
             .insert(Pet.builder()
                 .name(name)
@@ -233,23 +253,27 @@ public class ORMRepositoryExample {
                 .petType(petType)
                 .build());
     }
+----
 
+Out of the box insert logic.
+[source,java,indent=0]
+----
     public void insert(List<Pet> pets) {
-        // Out of the box insert logic.
         return ORM(dataSource).entity(Pet.class)
             .insert(pets);
     }
+----
 
-    public void update(List<Pet> pets) {
-        // Out of the box insert logic.
+Out of the box update logic.
+[source,java,indent=0]
+----
+public void update(List<Pet> pets) {
         return ORM(dataSource).entity(Pet.class)
             .update(pets);
     }
-}
 ----
 
 The following logic shows howto extend a repository with custom methods:
-
 [source,java,indent=0]
 ----
 public interface PetRepository extends EntityRepository<Pet> {
@@ -280,13 +304,23 @@ JSON is supported as a first-class citizen. The following example demonstrates h
 
 [source,java,indent=0]
 ----
-public record Vet(@PK Integer id, String firstName, String lastName) implements Entity<Integer> {}
+public record Vet(
+    @PK Integer id,
+    String firstName,
+    String lastName
+) implements Entity<Integer> {}
 
-public record Specialty(@PK Integer id, String name) implements Entity<Integer> {}
+public record Specialty(
+    @PK Integer id,
+    String name
+) implements Entity<Integer> {}
 
 public interface VetRepository extends EntityRepository<Vet> {
 
-    record SpecialtiesByVet(Vet vet, @Json List<Specialty> specialties) {}
+    record SpecialtiesByVet(
+        Vet vet,
+        @Json List<Specialty> specialties
+    ) {}
 
     default List<SpecialtiesByVet> getSpecialties() {
         // Uses VET as the root entity and aggregates the specialties into a JSON object.
@@ -300,16 +334,16 @@ public interface VetRepository extends EntityRepository<Vet> {
 }
 ----
 
-The JSON address field is automatically converted to a map with the keys 'address' and 'city' given that the address field contains the following format: `{ "address": "638 Cardinal Ave.", "city": "Sun Prairie" }`
+The JSON address field is automatically converted to a map with the keys 'address' and 'city' given that the address field contains the following format: `{ "address": "243 Acalanes Dr", "city": "Sunnyvale" }`
 
 [source,java,indent=0]
 ----
 public record Owner(
-        @PK Integer id,
-        String firstName,
-        String lastName,
-        @Json Map<String, String> address,
-        String telephone
+    @PK Integer id,
+    String firstName,
+    String lastName,
+    @Json Map<String, String> address,
+    String telephone
 ) implements Entity<Integer> {}
 
 public interface OwnerRepository extends EntityRepository<Owner> {

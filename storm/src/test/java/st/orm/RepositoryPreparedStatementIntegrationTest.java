@@ -1057,11 +1057,11 @@ public class RepositoryPreparedStatementIntegrationTest {
         String expectedSql = """
             SELECT _o.id, _o.first_name, _o.last_name, _o.address, _o.city, _o.telephone, _o.version
             FROM owner _o
-            WHERE id = ? AND (EXISTS (
+            WHERE id = ? AND EXISTS (
               SELECT _o1.id, _o1.first_name, _o1.last_name, _o1.address, _o1.city, _o1.telephone, _o1.version
               FROM owner _o1
               WHERE id = ?
-            )) AND (3 = ?)""";
+            ) AND 3 = ?""";
         try (var _ = SqlInterceptor.intercept(sql -> {
             assertEquals(expectedSql, sql.statement());
             assertTrue(sql.parameters().get(0) instanceof PositionalParameter(int position, Object dbValue)

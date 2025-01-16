@@ -27,6 +27,7 @@ import st.orm.Query;
 import st.orm.Version;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
+import st.orm.spi.SqlDialect;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
 import st.orm.template.Metamodel;
@@ -121,6 +122,7 @@ record ElementProcessor(
         @Nullable Table primaryTable
 ) {
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
+    private static final SqlDialect SQL_DIALECT = Providers.getSqlDialect();
 
     @FunctionalInterface
     private interface OptionalSql {
@@ -470,7 +472,7 @@ record ElementProcessor(
         }
         String column = null;
         int size = 0;
-        List<String> args = new ArrayList<>();
+        List<Map<String, Object>> multiValues = new ArrayList<>();
         for (var o : getObjectIterable(object)) {
             if (o == null) {
                 parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), null));
@@ -486,7 +488,8 @@ record ElementProcessor(
                         throw new SqlTemplateException(STR."Failed to find primary key field for \{rootTable.getSimpleName()} table.");
                     }
                 } else if (elementType.isRecord()) {
-                    valueMap = getValuesForCondition((Record) o, null, rootTable, alias, tableMapper, sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver(), versionAware.getPlain());
+                    //noinspection DataFlowIssue
+                    valueMap = getValuesForCondition((Record) o, null, primaryTable.table(), rootTable, alias, tableMapper, sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver(), versionAware.getPlain());
                     if (valueMap.isEmpty()) {
                         throw new SqlTemplateException(STR."Failed to find \{o.getClass().getSimpleName()} record on \{rootTable.getSimpleName()} table graph.");
                     }
@@ -495,18 +498,18 @@ record ElementProcessor(
                 }
             } else {
                 if (elementType.isRecord()) {
-                    valueMap = getValuesForCondition((Record) o, path, rootTable, alias, tableMapper, sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver(), versionAware.getPlain());
+                    valueMap = getValuesForCondition((Record) o, path, primaryTable.table(), rootTable, alias, tableMapper, sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver(), versionAware.getPlain());
                     if (valueMap.isEmpty()) {
                         throw new SqlTemplateException(STR."Failed to find field for \{o.getClass().getSimpleName()} argument on \{rootTable.getSimpleName()} table graph.");
                     }
                 } else {
-                    valueMap = getValuesForCondition(o, path, rootTable, aliasMapper, sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver());
+                    valueMap = getValuesForCondition(o, path, primaryTable.table(), rootTable, aliasMapper, sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver());
                     if (valueMap.isEmpty()) {
                         throw new SqlTemplateException(STR."Failed to find field for \{o.getClass().getSimpleName()} argument on \{rootTable.getSimpleName()} table at path '\{path}'.");
                     }
                 }
             }
-            if (valueMap.size() == 1) {
+            if (multiValues.isEmpty() && valueMap.size() == 1) {
                 var entry = valueMap.entrySet().iterator().next();
                 parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), entry.getValue()));
                 var k = entry.getKey();
@@ -521,26 +524,15 @@ record ElementProcessor(
                 if (column != null) {
                     throw new SqlTemplateException("Multiple columns specified by where-clause arguments.");
                 }
-                try {
-                    args.add(STR."(\{valueMap.keySet().stream()
-                            .map(k -> operator.format(k, 1))
-                            .collect(joining(" AND "))})");
-                } catch (IllegalArgumentException e) {
-                    throw new SqlTemplateException(e);
-                }
-                args.add(" OR ");
-                parameters.addAll(valueMap.values().stream()
-                        .map(v -> new PositionalParameter(parameterPosition.getAndIncrement(), v))
-                        .toList());
+                multiValues.add(valueMap);
             }
         }
-        if (!args.isEmpty()) {
-            args.removeLast();
-            return String.join("", args);
+        if (!multiValues.isEmpty()) {
+            return getMultiValuesIn(multiValues);
         }
         if (column == null) {
             var valueMap = path != null
-                    ? getValuesForCondition(null, path, rootTable, aliasMapper, sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver())
+                    ? getValuesForCondition(null, path, primaryTable.table(), rootTable, aliasMapper, sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver())
                     : getValuesForCondition(null, rootTable, alias, sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver());
             if (valueMap.size() == 1) {
                 column = valueMap.sequencedKeySet().getFirst();
@@ -555,6 +547,11 @@ record ElementProcessor(
         } catch (IllegalArgumentException e) {
             throw new SqlTemplateException(e);
         }
+    }
+
+    private String getMultiValuesIn(@Nonnull List<Map<String, Object>> values) throws SqlTemplateException {
+        return SQL_DIALECT.multiValueIn(values,
+                o -> parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), o)));
     }
 
     ElementResult where(Where it) throws SqlTemplateException {
@@ -572,7 +569,7 @@ record ElementProcessor(
                 vars.addParameterExtractor(record -> {
                     try {
                         AtomicInteger position = new AtomicInteger(fixedParameterPosition);
-                        return getValuesForCondition(record, null, primaryTable.table(), primaryTable.alias(), tableMapper, sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver(), versionAware.getPlain())
+                        return getValuesForCondition(record, null, primaryTable.table(), primaryTable.table(), primaryTable.alias(), tableMapper, sqlTemplate.columnNameResolver(), sqlTemplate.foreignKeyResolver(), versionAware.getPlain())
                                 .values().stream()
                                 .map(o -> new PositionalParameter(position.getAndIncrement(), o))
                                 .toList();
@@ -1187,6 +1184,7 @@ record ElementProcessor(
 
     private static Map<String, Object> getValuesForCondition(@Nonnull Record record,
                                                              @Nullable String path,
+                                                             @Nonnull Class<? extends Record> primaryTable,
                                                              @Nonnull Class<? extends Record> rootTable,
                                                              @Nonnull String alias,
                                                              @Nonnull TableMapper tableMapper,
@@ -1211,7 +1209,8 @@ record ElementProcessor(
                 }
                 return values;
             }
-            Mapping mapping = tableMapper.getMapping(record.getClass(), path == null ? null : rootTable, path);
+            String searchPath = rootTable != primaryTable && path != null && path.isEmpty() ? null : path;
+            Mapping mapping = tableMapper.getMapping(record.getClass(), searchPath == null ? null : rootTable, searchPath);
             String a = mapping.alias();
             if (mapping.primaryKey()) {
                 for (var component : mapping.components()) {
@@ -1276,15 +1275,17 @@ record ElementProcessor(
 
     private static SequencedMap<String, Object> getValuesForCondition(@Nullable Object value,
                                                                       @Nonnull String path,
+                                                                      @Nonnull Class<? extends Record> primaryTable,
                                                                       @Nonnull Class<? extends Record> recordType,
                                                                       @Nonnull AliasMapper aliasMapper,
                                                                       @Nullable ColumnNameResolver columnNameResolver,
                                                                       @Nullable ForeignKeyResolver foreignKeyResolver) throws SqlTemplateException {
-        return getValuesForCondition(value, path, recordType, aliasMapper, columnNameResolver, foreignKeyResolver, 0, null, 0);
+        return getValuesForCondition(value, path, primaryTable, recordType, aliasMapper, columnNameResolver, foreignKeyResolver, 0, null, 0);
     }
 
     private static SequencedMap<String, Object> getValuesForCondition(@Nullable Object value,
                                                                       @Nonnull String path,
+                                                                      @Nonnull Class<? extends Record> primaryTable,
                                                                       @Nonnull Class<? extends Record> recordType,
                                                                       @Nonnull AliasMapper aliasMapper,
                                                                       @Nullable ColumnNameResolver columnNameResolver,
@@ -1301,7 +1302,11 @@ record ElementProcessor(
                 String name = parts[depth];
                 for (var component : components) {
                     if (component.getName().equals(name)) {
-                        String alias = aliasMapper.getAlias(recordType, Stream.of(parts).limit(depth - inlineDepth).collect(joining(".")), INNER);
+                        String searchPath = Stream.of(parts).limit(depth - inlineDepth).collect(joining("."));
+                        if (recordType != primaryTable && searchPath.isEmpty()) {
+                            searchPath = null;
+                        }
+                        String alias = aliasMapper.getAlias(recordType, searchPath, INNER);
                         if (REFLECTION.isAnnotationPresent(component, FK.class)) {
                             values.put(STR."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getForeignKey(component, foreignKeyResolver)}", value);
                         } else {
@@ -1334,6 +1339,7 @@ record ElementProcessor(
                             values.putAll(getValuesForCondition(
                                     value,
                                     path,
+                                    primaryTable,
                                     type,
                                     aliasMapper,
                                     columnNameResolver,

@@ -16,6 +16,11 @@
 package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
+import st.orm.template.SqlTemplateException;
+
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * Represents a specific SQL dialect with methods to determine feature support and handle identifier escaping.
@@ -35,6 +40,14 @@ public interface SqlDialect {
     boolean supportsDeleteAlias();
 
     /**
+     * Indicates whether the SQL dialect supports multi-value tuples in the IN clause.
+     *
+     * @return {@code true} if multi-value tuples are supported, {@code false} otherwise.
+     * @since 1.2
+     */
+    boolean supportsMultiValueTuples();
+
+    /**
      * Escapes the given database identifier (e.g., table or column name) according to this SQL dialect.
      *
      * @param name the identifier to escape (must not be {@code null})
@@ -43,13 +56,25 @@ public interface SqlDialect {
     String escape(@Nonnull String name);
 
     /**
+     * Returns a string for the given column name.
+     *
+     * @param values the (multi) values to use in the IN clause.
+     * @param parameterConsumer the consumer for the parameters.
+     * @return the string that represents the multi value IN clause.
+     * @throws SqlTemplateException if the values are incompatible.
+     * @since 1.2
+     */
+    String multiValueIn(@Nonnull List<Map<String, Object>> values,
+                        @Nonnull Consumer<Object> parameterConsumer) throws SqlTemplateException;
+
+    /**
      * Returns a string template for the given limit.
      *
      * @param limit the maximum number of records to return.
      * @return a string template for the given limit.
      * @since 1.2
      */
-    StringTemplate limit(int limit);
+    String limit(int limit);
 
     /**
      * Returns a string template for the given limit and offset.
@@ -59,5 +84,5 @@ public interface SqlDialect {
      * @return a string template for the given limit and offset.
      * @since 1.2
      */
-    StringTemplate limit(int limit, int offset);
+    String limit(int limit, int offset);
 }
