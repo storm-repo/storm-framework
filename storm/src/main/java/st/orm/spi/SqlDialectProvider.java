@@ -16,6 +16,8 @@
 package st.orm.spi;
 
 /**
+ * Provides the SQL dialect.
+ *
  * @since 1.1
  */
 public interface SqlDialectProvider extends Provider {

@@ -38,6 +38,7 @@ import static st.orm.spi.Providers.selectFrom;
 import static st.orm.template.QueryBuilder.slice;
 
 /**
+ * Base implementation for all repositories.
  */
 abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
 

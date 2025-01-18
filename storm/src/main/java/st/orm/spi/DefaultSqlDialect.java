@@ -16,7 +16,6 @@
 package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
-import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplateException;
 
 import java.util.ArrayList;
@@ -90,6 +89,13 @@ public class DefaultSqlDialect implements SqlDialect {
         return String.join("", args);
     }
 
+    /**
+     * Returns a string template for the given limit.
+     *
+     * @param limit the maximum number of records to return.
+     * @return a string template for the given limit.
+     * @since 1.2
+     */
     @Override
     public String limit(int limit) {
         // Taking the most basic approach that is supported by most database in test (containers).
@@ -97,6 +103,14 @@ public class DefaultSqlDialect implements SqlDialect {
         return STR."LIMIT \{limit}";
     }
 
+    /**
+     * Returns a string template for the given limit and offset.
+     *
+     * @param offset the offset.
+     * @param limit the maximum number of records to return.
+     * @return a string template for the given limit and offset.
+     * @since 1.2
+     */
     @Override
     public String limit(int limit, int offset) {
         // Taking the most basic approach that is supported by most database in test (containers).

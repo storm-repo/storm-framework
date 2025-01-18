@@ -15,6 +15,9 @@
  */
 package st.orm.spi;
 
+/**
+ * Provides pluggable ORM reflection logic.
+ */
 public interface ORMReflectionProvider extends Provider {
 
     ORMReflection getReflection();

@@ -25,9 +25,26 @@ import st.orm.template.impl.SelectBuilderImpl;
 
 import java.util.function.Supplier;
 
+/**
+ * Default implementation of {@link QueryBuilderProvider} that are based on {@code SelectBuilderImpl} and
+ * {@code DeleteBuilderImpl}.
+ */
 @AfterAny
 public class DefaultQueryBuilderProviderImpl implements QueryBuilderProvider {
 
+    /**
+     * Creates a query builder for the specified table and select type using the given {@code template}.
+     *
+     * @param queryTemplate provides the template logic for the query builder.
+     * @param fromType the table to select from.
+     * @param selectType the result type of the query.
+     * @param template the select clause template.
+     * @param subquery whether the query is a subquery.
+     * @param modelSupplier a supplier that creates the model when needed.
+     * @return the query builder.
+     * @param <T> the table type to select from.
+     * @param <R> the result type.
+     */
     @Override
     public <T extends Record, R, ID> QueryBuilder<T, R, ID> selectFrom(@Nonnull QueryTemplate queryTemplate,
                                                                        @Nonnull Class<T> fromType,
@@ -38,6 +55,15 @@ public class DefaultQueryBuilderProviderImpl implements QueryBuilderProvider {
         return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, template, subquery, modelSupplier);
     }
 
+    /**
+     * Creates a query builder for the specified table to delete from.
+     *
+     * @param queryTemplate provides the template logic for the query builder.
+     * @param fromType the table to delete from.
+     * @param modelSupplier a supplier that creates the model when needed.
+     * @return the query builder.
+     * @param <T> the table type to delete from.
+     */
     @Override
     public <T extends Record, ID> QueryBuilder<T, ?, ID> deleteFrom(@Nonnull QueryTemplate queryTemplate,
                                                                     @Nonnull Class<T> fromType,

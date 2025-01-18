@@ -21,6 +21,9 @@ import st.orm.repository.Model;
 import st.orm.repository.EntityRepository;
 import st.orm.template.ORMTemplate;
 
+/**
+ * Provides pluggable entity repository logic.
+ */
 public interface EntityRepositoryProvider extends Provider {
 
     <ID, E extends Record & Entity<ID>> EntityRepository<E, ID> getEntityRepository(@Nonnull ORMTemplate orm,

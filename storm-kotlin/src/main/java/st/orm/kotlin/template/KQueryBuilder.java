@@ -15,7 +15,6 @@ import st.orm.template.Metamodel;
 import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
 import st.orm.template.TemplateFunction;
-import st.orm.template.impl.Elements;
 import st.orm.template.impl.Elements.ObjectExpression;
 
 import java.util.List;
@@ -372,7 +371,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @param record the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> KPredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, V record) {
+        public final <V extends Record> KPredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, @Nonnull V record) {
             return filter(path, EQUALS, record);
         }
 
@@ -383,7 +382,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @param record the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> KPredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, V record) {
+        public final <V extends Record> KPredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, @Nonnull V record) {
             return filterAny(path, EQUALS, record);
         }
 
@@ -394,7 +393,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @param it the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> KPredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, Iterable<V> it) {
+        public final <V extends Record> KPredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<V> it) {
             return filter(path, IN, it);
         }
 
@@ -405,7 +404,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @param it the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> KPredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, Iterable<V> it) {
+        public final <V extends Record> KPredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<V> it) {
             return filterAny(path, IN, it);
         }
 
@@ -590,7 +589,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Record> KQueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, V record) {
+    public final <V extends Record> KQueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull V record) {
         return where(path, EQUALS, record);
     }
 
@@ -601,7 +600,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Record> KQueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, V record) {
+    public final <V extends Record> KQueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull V record) {
         return whereAny(path, EQUALS, record);
     }
 
@@ -612,7 +611,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Record> KQueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, Iterable<V> it) {
+    public final <V extends Record> KQueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<V> it) {
         return where(path, IN, it);
     }
 
@@ -623,7 +622,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Record> KQueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, Iterable<V> it) {
+    public final <V extends Record> KQueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<V> it) {
         return whereAny(path, IN, it);
     }
 
@@ -716,7 +715,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     @SafeVarargs
     public final <V> KQueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path,
                                                       @Nonnull Operator operator,
-                                                      V... o) {
+                                                      @Nonnull V... o) {
         return where(predicate -> predicate.filterAny(path, operator, o));
     }
 
@@ -773,7 +772,6 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @param path the path to group by.
      * @return the query builder.
      */
-    @SafeVarargs
     public final KQueryBuilder<T, R, ID> groupBy(@Nonnull Metamodel<?, ?>... path) {
         // We can safely invoke groupByAny as the underlying logic is identical. The main purpose of having these
         // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
@@ -830,7 +828,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     @SafeVarargs
     public final <V> KQueryBuilder<T, R, ID> having(@Nonnull Metamodel<T, V> path,
                                                     @Nonnull Operator operator,
-                                                    V... o) {
+                                                    @Nonnull V... o) {
         return havingAny(path, operator, o);
     }
 
@@ -846,7 +844,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     @SafeVarargs
     public final <V> KQueryBuilder<T, R, ID> havingAny(@Nonnull Metamodel<?, V> path,
                                                        @Nonnull Operator operator,
-                                                       V... o) {
+                                                       @Nonnull V... o) {
         return having(RAW."\{new ObjectExpression(path, operator, o)}");
     }
 

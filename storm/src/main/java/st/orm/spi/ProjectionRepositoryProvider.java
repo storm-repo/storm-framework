@@ -21,6 +21,9 @@ import st.orm.repository.Projection;
 import st.orm.repository.ProjectionRepository;
 import st.orm.template.ORMTemplate;
 
+/**
+ * Provides pluggable projection repository logic.
+ */
 public interface ProjectionRepositoryProvider extends Provider {
 
     <ID, P extends Record & Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(@Nonnull ORMTemplate orm,

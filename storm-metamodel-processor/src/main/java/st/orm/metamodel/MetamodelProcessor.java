@@ -50,7 +50,6 @@ import static javax.lang.model.element.ElementKind.FIELD;
 import static javax.lang.model.element.ElementKind.RECORD;
 import static javax.tools.Diagnostic.Kind.ERROR;
 import static javax.tools.Diagnostic.Kind.NOTE;
-import static javax.tools.Diagnostic.Kind.WARNING;
 
 /**
  * @since 1.2
@@ -356,7 +355,6 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     continue;
                 }
                 String fieldTypeName = getTypeName(fieldType, packageName);
-                String recordType = recordName + ".class";
                 if (isRecord(fieldType)) {
                     if (isNestedRecord(fieldType)) {
                         continue;   // Skip nested records.

@@ -20,11 +20,9 @@ import jakarta.annotation.Nullable;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.SqlTemplateException;
 
-import java.lang.reflect.RecordComponent;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.SequencedMap;
-import java.util.function.Function;
 
 public interface ORMConverter {
 

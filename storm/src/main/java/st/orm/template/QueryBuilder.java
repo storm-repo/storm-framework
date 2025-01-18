@@ -317,7 +317,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param record the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, V record) {
+        public final <V extends Record> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, @Nonnull V record) {
             return filter(path, EQUALS, record);
         }
 
@@ -328,7 +328,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param record the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> PredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, V record) {
+        public final <V extends Record> PredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, @Nonnull V record) {
             return filterAny(path, EQUALS, record);
         }
 
@@ -339,7 +339,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param it the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, Iterable<V> it) {
+        public final <V extends Record> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<V> it) {
             return filter(path, IN, it);
         }
 
@@ -350,7 +350,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param it the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> PredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, Iterable<V> it) {
+        public final <V extends Record> PredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<V> it) {
             return filterAny(path, IN, it);
         }
 
@@ -524,7 +524,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Record> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, V record) {
+    public final <V extends Record> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull V record) {
         return where(path, EQUALS, record);
     }
 
@@ -536,7 +536,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Record> QueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, V record) {
+    public final <V extends Record> QueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull V record) {
         return whereAny(path, EQUALS, record);
     }
 
@@ -548,7 +548,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Record> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, Iterable<V> it) {
+    public final <V extends Record> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<V> it) {
         return where(path, IN, it);
     }
 
@@ -560,7 +560,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Record> QueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, Iterable<V> it) {
+    public final <V extends Record> QueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<V> it) {
         return whereAny(path, IN, it);
     }
 
@@ -653,7 +653,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     @SafeVarargs
     public final <V> QueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path,
                                                      @Nonnull Operator operator,
-                                                     V... o) {
+                                                     @Nonnull V... o) {
         return where(predicate -> predicate.filterAny(path, operator, o));
     }
 
@@ -739,7 +739,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     @SafeVarargs
     public final <V> QueryBuilder<T, R, ID> having(@Nonnull Metamodel<T, V> path,
                                                    @Nonnull Operator operator,
-                                                   V... o) {
+                                                   @Nonnull V... o) {
         return havingAny(path, operator, o);
     }
 
@@ -755,7 +755,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     @SafeVarargs
     public final <V> QueryBuilder<T, R, ID> havingAny(@Nonnull Metamodel<?, V> path,
                                                       @Nonnull Operator operator,
-                                                      V... o) {
+                                                      @Nonnull V... o) {
         return having(RAW."\{new ObjectExpression(path, operator, o)}");
     }
 

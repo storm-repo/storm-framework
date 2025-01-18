@@ -23,6 +23,8 @@ import st.orm.template.QueryTemplate;
 import java.util.function.Supplier;
 
 /**
+ * Provides pluggable query builder logic.
+ *
  * @since 1.1
  */
 public interface QueryBuilderProvider extends Provider {
@@ -30,9 +32,12 @@ public interface QueryBuilderProvider extends Provider {
     /**
      * Creates a query builder for the specified table and select type using the given {@code template}.
      *
+     * @param queryTemplate provides the template logic for the query builder.
      * @param fromType the table to select from.
      * @param selectType the result type of the query.
      * @param template the select clause template.
+     * @param subquery whether the query is a subquery.
+     * @param modelSupplier a supplier that creates the model when needed.
      * @return the query builder.
      * @param <T> the table type to select from.
      * @param <R> the result type.
@@ -47,7 +52,9 @@ public interface QueryBuilderProvider extends Provider {
     /**
      * Creates a query builder for the specified table to delete from.
      *
+     * @param queryTemplate provides the template logic for the query builder.
      * @param fromType the table to delete from.
+     * @param modelSupplier a supplier that creates the model when needed.
      * @return the query builder.
      * @param <T> the table type to delete from.
      */
