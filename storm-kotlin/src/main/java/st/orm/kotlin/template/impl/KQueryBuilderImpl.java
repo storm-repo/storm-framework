@@ -391,6 +391,31 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
         }));
     }
 
+    /**
+     * Adds a LIMIT clause to the query.
+     *
+     * @param limit the maximum number of records to return.
+     * @return the query builder.
+     * @since 1.2
+     */
+    @Override
+    public KQueryBuilder<T, R, ID> limit(int limit) {
+        return new KQueryBuilderImpl<>(builder.limit(limit));
+    }
+
+    /**
+     * Adds a LIMIT clause to the query.
+     *
+     * @param offset the offset.
+     * @param limit the maximum number of records to return.
+     * @return the query builder.
+     * @since 1.2
+     */
+    @Override
+    public KQueryBuilder<T, R, ID> limit(int offset, int limit) {
+        return new KQueryBuilderImpl<>(builder.limit(offset, limit));
+    }
+
     @Override
     public StringTemplate getStringTemplate() {
         return ((Subqueryable) builder).getStringTemplate();

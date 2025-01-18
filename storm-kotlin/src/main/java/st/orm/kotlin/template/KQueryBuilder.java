@@ -760,6 +760,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to group by.
      * @return the query builder.
+     * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> groupBy(@Nonnull Metamodel<T, ?> path) {
         return groupBy(RAW."\{path}");
@@ -771,6 +772,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to group by.
      * @return the query builder.
+     * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> groupBy(@Nonnull Metamodel<?, ?>... path) {
         // We can safely invoke groupByAny as the underlying logic is identical. The main purpose of having these
@@ -785,6 +787,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to group by.
      * @return the query builder.
+     * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> groupByAny(@Nonnull Metamodel<?, ?>... path) {
         if (path.length == 0) {
@@ -801,6 +804,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param template the template to group by.
      * @return the query builder.
+     * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> groupBy(@Nonnull StringTemplate template) {
         return append(StringTemplate.combine(RAW."GROUP BY ", template));
@@ -811,6 +815,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param function used to define the template to group by.
      * @return the query builder.
+     * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> groupBy(@Nonnull TemplateFunction function) {
         return groupBy(TemplateFunction.template(function));
@@ -824,6 +829,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
      *          table graph.
      * @return the query builder.
+     * @since 1.2
      */
     @SafeVarargs
     public final <V> KQueryBuilder<T, R, ID> having(@Nonnull Metamodel<T, V> path,
@@ -840,6 +846,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
      *          table graph or manually added joins.
      * @return the query builder.
+     * @since 1.2
      */
     @SafeVarargs
     public final <V> KQueryBuilder<T, R, ID> havingAny(@Nonnull Metamodel<?, V> path,
@@ -853,6 +860,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param template the expression to add.
      * @return the query builder.
+     * @since 1.2
      */
     public final <V> KQueryBuilder<T, R, ID> having(@Nonnull StringTemplate template) {
         return append(StringTemplate.combine(RAW."HAVING ", template));
@@ -863,6 +871,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to order by.
      * @return the query builder.
+     * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?> path) {
         return orderBy(RAW."\{path}");
@@ -874,6 +883,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @param path the path to order by.
      * @param ascending whether to order in ascending order.
      * @return the query builder.
+     * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?> path, boolean ascending) {
         return orderBy(RAW."\{path} \{ascending ? "ASC" : "DESC"}");
@@ -885,6 +895,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to order by.
      * @return the query builder.
+     * @since 1.2
      */
     @SafeVarargs
     public final KQueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?>... path) {
@@ -900,6 +911,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to order by.
      * @return the query builder.
+     * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> orderByAny(@Nonnull Metamodel<?, ?>... path) {
         if (path.length == 0) {
@@ -916,6 +928,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param template the template to order by.
      * @return the query builder.
+     * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> orderBy(@Nonnull StringTemplate template) {
         return append(StringTemplate.combine(RAW."ORDER BY ", template));
@@ -926,10 +939,30 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param function used to define the template to order by.
      * @return the query builder.
+     * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> orderBy(@Nonnull TemplateFunction function) {
         return groupBy(TemplateFunction.template(function));
     }
+
+    /**
+     * Adds a LIMIT clause to the query.
+     *
+     * @param limit the maximum number of records to return.
+     * @return the query builder.
+     * @since 1.2
+     */
+    public abstract KQueryBuilder<T, R, ID> limit(int limit);
+
+    /**
+     * Adds a LIMIT clause to the query.
+     *
+     * @param offset the offset.
+     * @param limit the maximum number of records to return.
+     * @return the query builder.
+     * @since 1.2
+     */
+    public abstract KQueryBuilder<T, R, ID> limit(int offset, int limit);
 
     /**
      * Returns a processor that can be used to append the query with a string template.

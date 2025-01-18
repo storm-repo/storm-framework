@@ -22,8 +22,6 @@ import st.orm.PersistenceException;
 import st.orm.PreparedQuery;
 import st.orm.Query;
 import st.orm.ResultCallback;
-import st.orm.spi.Providers;
-import st.orm.spi.SqlDialect;
 import st.orm.template.impl.Elements.ObjectExpression;
 
 import java.util.Iterator;
@@ -47,8 +45,6 @@ import static st.orm.template.Operator.IN;
  * @param <ID> the type of the primary key.
  */
 public abstract class QueryBuilder<T extends Record, R, ID> {
-
-    private static final SqlDialect SQL_DIALECT = Providers.getSqlDialect();
 
     /**
      * Returns a typed query builder for the specified primary key type.
@@ -680,6 +676,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to group by.
      * @return the query builder.
+     * @since 1.2
      */
     public final QueryBuilder<T, R, ID> groupBy(@Nonnull Metamodel<T, ?> path) {
         return groupBy(RAW."\{path}");
@@ -691,6 +688,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to group by.
      * @return the query builder.
+     * @since 1.2
      */
     @SafeVarargs
     public final QueryBuilder<T, R, ID> groupBy(@Nonnull Metamodel<T, ?>... path) {
@@ -706,6 +704,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to group by.
      * @return the query builder.
+     * @since 1.2
      */
     public final QueryBuilder<T, R, ID> groupByAny(@Nonnull Metamodel<?, ?>... path) {
         if (path.length == 0) {
@@ -722,6 +721,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *
      * @param template the template to group by.
      * @return the query builder.
+     * @since 1.2
      */
     public final QueryBuilder<T, R, ID> groupBy(@Nonnull StringTemplate template) {
         return append(StringTemplate.combine(RAW."GROUP BY ", template));
@@ -735,6 +735,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
      *          table graph.
      * @return the query builder.
+     * @since 1.2
      */
     @SafeVarargs
     public final <V> QueryBuilder<T, R, ID> having(@Nonnull Metamodel<T, V> path,
@@ -751,6 +752,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
      *          table graph or manually added joins.
      * @return the query builder.
+     * @since 1.2
      */
     @SafeVarargs
     public final <V> QueryBuilder<T, R, ID> havingAny(@Nonnull Metamodel<?, V> path,
@@ -764,6 +766,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *
      * @param template the expression to add.
      * @return the query builder.
+     * @since 1.2
      */
     public final <V> QueryBuilder<T, R, ID> having(@Nonnull StringTemplate template) {
         return append(StringTemplate.combine(RAW."HAVING ", template));
@@ -774,6 +777,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to order by.
      * @return the query builder.
+     * @since 1.2
      */
     public final QueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?> path) {
         return orderBy(RAW."\{path}");
@@ -785,6 +789,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param path the path to order by.
      * @param ascending whether to order in ascending order.
      * @return the query builder.
+     * @since 1.2
      */
     public final QueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?> path, boolean ascending) {
         return orderBy(StringTemplate.combine(RAW."\{path}", StringTemplate.of(STR." \{ascending ? "ASC" : "DESC"}")));
@@ -796,6 +801,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to order by.
      * @return the query builder.
+     * @since 1.2
      */
     @SafeVarargs
     public final QueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?>... path) {
@@ -811,6 +817,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to order by.
      * @return the query builder.
+     * @since 1.2
      */
     public final QueryBuilder<T, R, ID> orderByAny(@Nonnull Metamodel<?, ?>... path) {
         if (path.length == 0) {
@@ -827,6 +834,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *
      * @param template the template to order by.
      * @return the query builder.
+     * @since 1.2
      */
     public final QueryBuilder<T, R, ID> orderBy(@Nonnull StringTemplate template) {
         return append(StringTemplate.combine(RAW."ORDER BY ", template));
@@ -837,20 +845,19 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *
      * @param limit the maximum number of records to return.
      * @return the query builder.
+     * @since 1.2
      */
-    public QueryBuilder<T, R, ID> limit(int limit) {
-        return append(StringTemplate.of(SQL_DIALECT.limit(limit)));
-    }
+    public abstract QueryBuilder<T, R, ID> limit(int limit);
 
     /**
      * Adds a LIMIT clause to the query.
+     *
      * @param offset the offset.
      * @param limit the maximum number of records to return.
      * @return the query builder.
+     * @since 1.2
      */
-    public QueryBuilder<T, R, ID> limit(int offset, int limit) {
-        return append(StringTemplate.of(SQL_DIALECT.limit(offset, limit)));
-    }
+    public abstract QueryBuilder<T, R, ID> limit(int offset, int limit);
 
     /**
      * Append the query with a string template.
