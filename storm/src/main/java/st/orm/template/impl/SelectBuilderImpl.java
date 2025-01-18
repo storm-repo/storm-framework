@@ -115,7 +115,8 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
     private StringTemplate toStringTemplate() {
         StringTemplate template = StringTemplate.combine(StringTemplate.of(STR."SELECT \{distinct ? "DISTINCT " : ""}"), selectTemplate);
         template = StringTemplate.combine(template, RAW."\nFROM \{from(fromType, true)}");
-        if (!forLock.fragments().isEmpty() && SQL_DIALECT.applyLockHintAfterFrom()) {
+        boolean hasLock = forLock.fragments().size() == 1 && !forLock.fragments().getFirst().isEmpty();
+        if (hasLock && SQL_DIALECT.applyLockHintAfterFrom()) {
             template = StringTemplate.combine(template, RAW."\n", forLock);
         }
         //noinspection DuplicatedCode
@@ -135,7 +136,7 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
         if (!templates.isEmpty()) {
             template = StringTemplate.combine(template, StringTemplate.combine(templates));
         }
-        if (!forLock.fragments().isEmpty() && !SQL_DIALECT.applyLockHintAfterFrom()) {
+        if (hasLock && !SQL_DIALECT.applyLockHintAfterFrom()) {
             template = StringTemplate.combine(template, RAW."\n", forLock);
         }
         return template;
