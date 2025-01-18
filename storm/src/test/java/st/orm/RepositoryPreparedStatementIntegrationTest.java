@@ -947,6 +947,20 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
+    public void selectOwnerForUpdate() {
+        // Note that H2 only supports FOR UPDATE.
+        String expectedSql = """
+            SELECT _o.id, _o.first_name, _o.last_name, _o.address, _o.city, _o.telephone, _o.version
+            FROM owner _o
+            WHERE _o.id = ?
+            FOR UPDATE""";
+        var repo = ORM(dataSource).entity(Owner.class);
+        try (var _ = SqlInterceptor.intercept(sql -> assertEquals(expectedSql, sql.statement()))) {
+            repo.select().forUpdate().where(1).getSingleResult();
+        }
+    }
+
+    @Test
     public void updateOwnerIntegerVersion() {
         var repo = ORM(dataSource).entity(Owner.class);
         Owner owner = repo.select(1);

@@ -39,6 +39,7 @@ import static st.orm.Templates.from;
  * @param <ID> the type of the primary key.
  */
 public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl<T, R, ID> {
+    private final StringTemplate forLock;
     private final StringTemplate selectTemplate;
     private final Class<R> selectType;
     private final boolean distinct;
@@ -50,7 +51,7 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
                              @Nonnull StringTemplate selectTemplate,
                              boolean subquery,
                              @Nonnull Supplier<Model<T, ID>> modelSupplier) {
-        this(queryTemplate, fromType, selectType, false, List.of(), List.of(), selectTemplate, List.of(), subquery, modelSupplier);
+        this(queryTemplate, fromType, selectType, false, List.of(), List.of(), RAW."", selectTemplate, List.of(), subquery, modelSupplier);
     }
 
     private SelectBuilderImpl(@Nonnull QueryTemplate queryTemplate,
@@ -59,11 +60,13 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
                               boolean distinct,
                               @Nonnull List<Join> join,
                               @Nonnull List<Where> where,
+                              @Nonnull StringTemplate forLock,
                               @Nonnull StringTemplate selectTemplate,
                               @Nonnull List<StringTemplate> templates,
                               boolean subquery,
                               @Nonnull Supplier<Model<T, ID>> modelSupplier) {
         super(queryTemplate, fromType, join, where, templates, modelSupplier);
+        this.forLock = forLock;
         this.selectType = selectType;
         this.distinct = distinct;
         this.selectTemplate = selectTemplate;
@@ -86,7 +89,7 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
                                     @Nonnull List<Join> join,
                                     @Nonnull List<Where> where,
                                     @Nonnull List<StringTemplate> templates) {
-        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, selectTemplate, templates, subquery, modelSupplier);
+        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, forLock, selectTemplate, templates, subquery, modelSupplier);
     }
 
     /**
@@ -106,12 +109,15 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
      */
     @Override
     public QueryBuilder<T, R, ID> distinct() {
-        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, true, join, where, selectTemplate, templates, subquery,  modelSupplier);
+        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, true, join, where, forLock, selectTemplate, templates, subquery, modelSupplier);
     }
 
     private StringTemplate toStringTemplate() {
         StringTemplate template = StringTemplate.combine(StringTemplate.of(STR."SELECT \{distinct ? "DISTINCT " : ""}"), selectTemplate);
         template = StringTemplate.combine(template, RAW."\nFROM \{from(fromType, true)}");
+        if (!forLock.fragments().isEmpty() && SQL_DIALECT.applyLockHintAfterFrom()) {
+            template = StringTemplate.combine(template, RAW."\n", forLock);
+        }
         //noinspection DuplicatedCode
         if (!join.isEmpty()) {
             template = join.stream()
@@ -129,12 +135,55 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
         if (!templates.isEmpty()) {
             template = StringTemplate.combine(template, StringTemplate.combine(templates));
         }
+        if (!forLock.fragments().isEmpty() && !SQL_DIALECT.applyLockHintAfterFrom()) {
+            template = StringTemplate.combine(template, RAW."\n", forLock);
+        }
         return template;
     }
 
     @Override
     public StringTemplate getStringTemplate() {
         return toStringTemplate();
+    }
+
+    /**
+     * Locks the selected rows for reading.
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the database does not support the specified lock mode, or if the lock mode is
+     * not supported for the current query.
+     * @since 1.2
+     */
+    @Override
+    public QueryBuilder<T, R, ID> forShare() {
+        return forLock(StringTemplate.of(SQL_DIALECT.forShareLockHint()));
+    }
+
+    /**
+     * Locks the selected rows for reading.
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the database does not support the specified lock mode, or if the lock mode is
+     * not supported for the current query.
+     * @since 1.2
+     */
+    @Override
+    public QueryBuilder<T, R, ID> forUpdate() {
+        return forLock(StringTemplate.of(SQL_DIALECT.forUpdateLockHint()));
+    }
+
+    /**
+     * Locks the selected rows using a custom lock mode.
+     *
+     * <p>Note that this method results in non-portable code, as the lock mode is specific to the underlying database.</p>
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the lock mode is not supported for the current query.
+     * @since 1.2
+     */
+    @Override
+    public QueryBuilder<T, R, ID> forLock(@Nonnull StringTemplate template) {
+        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, template, selectTemplate, templates, subquery, modelSupplier);
     }
 
     /**

@@ -92,6 +92,43 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
         throw new PersistenceException("Cannot use DISTINCT in a DELETE query.");
     }
 
+    /**
+     * Locks the selected rows for reading.
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the database does not support the specified lock mode, or if the lock mode is
+     * not supported for the current query.
+     */
+    @Override
+    public QueryBuilder<T, Object, ID> forShare() {
+        throw new PersistenceException("Cannot use FOR SHARE in a DELETE query.");
+    }
+
+    /**
+     * Locks the selected rows for reading.
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the database does not support the specified lock mode, or if the lock mode is
+     * not supported for the current query.
+     */
+    @Override
+    public QueryBuilder<T, Object, ID> forUpdate() {
+        throw new PersistenceException("Cannot use FOR UPDATE in a DELETE query.");
+    }
+
+    /**
+     * Locks the selected rows using a custom lock mode.
+     *
+     * <p>Note that this method results in non-portable code, as the lock mode is specific to the underlying database.</p>
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the lock mode is not supported for the current query.
+     */
+    @Override
+    public QueryBuilder<T, Object, ID> forLock(@Nonnull StringTemplate template) {
+        throw new PersistenceException("Cannot use FOR LOCK in a DELETE query.");
+    }
+
     private StringTemplate getPrimaryKeyTemplate(boolean alias) {
         var model = queryTemplate.model(fromType);
         return model.columns().stream()

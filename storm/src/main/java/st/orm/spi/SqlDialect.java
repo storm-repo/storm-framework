@@ -85,4 +85,30 @@ public interface SqlDialect {
      * @since 1.2
      */
     String limit(int limit, int offset);
+
+    /**
+     * Returns {@code true} if the lock hint should be applied after the FROM clause, {@code false} to apply the lock
+     * hint at the end of the query.
+     *
+     * @return {@code true} if the lock hint should be applied after the FROM clause, {@code false} to apply the lock
+     * hint at the end of the query.
+     * @since 1.2
+     */
+    boolean applyLockHintAfterFrom();
+
+    /**
+     * Returns the lock hint for a shared reading lock.
+     *
+     * @return the lock hint for a shared reading lock.
+     * @since 1.2
+     */
+    String forShareLockHint();
+
+    /**
+     * Returns the lock hint for a write lock.
+     *
+     * @return the lock hint for a write lock.
+     * @since 1.2
+     */
+    String forUpdateLockHint();
 }

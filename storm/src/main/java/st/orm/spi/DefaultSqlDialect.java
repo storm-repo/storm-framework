@@ -117,4 +117,39 @@ public class DefaultSqlDialect implements SqlDialect {
         // For production use, ensure the right dialect is used.
         return STR."LIMIT \{limit} OFFSET \{offset}";
     }
+
+    /**
+     * Returns {@code true} if the lock hint should be applied after the FROM clause, {@code false} to apply the lock
+     * hint at the end of the query.
+     *
+     * @return {@code true} if the lock hint should be applied after the FROM clause, {@code false} to apply the lock
+     * hint at the end of the query.
+     * @since 1.2
+     */
+    @Override
+    public boolean applyLockHintAfterFrom() {
+        return false;
+    }
+
+    /**
+     * Returns the lock hint for a shared reading lock.
+     *
+     * @return the lock hint for a shared reading lock.
+     * @since 1.2
+     */
+    @Override
+    public String forShareLockHint() {
+        return "FOR SHARE";
+    }
+
+    /**
+     * Returns the lock hint for a write lock.
+     *
+     * @return the lock hint for a write lock.
+     * @since 1.2
+     */
+    @Override
+    public String forUpdateLockHint() {
+        return "FOR UPDATE";
+    }
 }

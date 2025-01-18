@@ -860,6 +860,45 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      */
     public abstract QueryBuilder<T, R, ID> append(@Nonnull StringTemplate template);
 
+    //
+    // Locking.
+    //
+
+    /**
+     * Locks the selected rows for reading.
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the database does not support the specified lock mode, or if the lock mode is
+     * not supported for the current query.
+     * @since 1.2
+     */
+    public abstract QueryBuilder<T, R, ID> forShare();
+
+    /**
+     * Locks the selected rows for reading.
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the database does not support the specified lock mode, or if the lock mode is
+     * not supported for the current query.
+     * @since 1.2
+     */
+    public abstract QueryBuilder<T, R, ID> forUpdate();
+
+    /**
+     * Locks the selected rows using a custom lock mode.
+     *
+     * <p>Note that this method results in non-portable code, as the lock mode is specific to the underlying database.</p>
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the lock mode is not supported for the current query.
+     * @since 1.2
+     */
+    public abstract QueryBuilder<T, R, ID> forLock(@Nonnull StringTemplate template);
+
+    //
+    // Finalization.
+    //
+
     /**
      * Builds the query based on the current state of the query builder.
      *

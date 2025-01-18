@@ -776,7 +776,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
         // We can safely invoke groupByAny as the underlying logic is identical. The main purpose of having these
         // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
         // the table graph.
-        return groupBy(path);
+        return groupByAny(path);
     }
 
     /**
@@ -949,6 +949,45 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
         return append(TemplateFunction.template(function));
     }
 
+    //
+    // Locking.
+    //
+
+    /**
+     * Locks the selected rows for reading.
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the database does not support the specified lock mode, or if the lock mode is
+     * not supported for the current query.
+     * @since 1.2
+     */
+    public abstract KQueryBuilder<T, R, ID> forShare();
+
+    /**
+     * Locks the selected rows for reading.
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the database does not support the specified lock mode, or if the lock mode is
+     * not supported for the current query.
+     * @since 1.2
+     */
+    public abstract KQueryBuilder<T, R, ID> forUpdate();
+
+    /**
+     * Locks the selected rows using a custom lock mode.
+     *
+     * <p>Note that this method results in non-portable code, as the lock mode is specific to the underlying database.</p>
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the lock mode is not supported for the current query.
+     * @since 1.2
+     */
+    public abstract KQueryBuilder<T, R, ID> forLock(@Nonnull StringTemplate template);
+
+    //
+    // Finalization.
+    //
+
     /**
      * Builds the query based on the current state of the query builder.
      *
@@ -970,6 +1009,10 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     public final KPreparedQuery prepare() {
         return build().prepare();
     }
+
+    //
+    // Execution methods.
+    //
 
     /**
      * Executes the query and returns a stream of results.
