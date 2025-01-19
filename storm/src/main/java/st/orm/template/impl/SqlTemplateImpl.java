@@ -210,61 +210,127 @@ public final class SqlTemplateImpl implements SqlTemplate {
         this.foreignKeyResolver = foreignKeyResolver;
     }
 
+    /**
+     * Returns {@code true} if the template only support positional parameters, {@code false} otherwise.
+     *
+     * @return {@code true} if the template only support positional parameters, {@code false} otherwise.
+     */
     @Override
     public boolean positionalOnly() {
         return positionalOnly;
     }
 
+    /**
+     * Returns {@code true} if collection parameters must be expanded as multiple (positional) parameters,
+     * {@code false} otherwise.
+     *
+     * @return {@code true} if the template expands collection parameters, {@code false} otherwise.
+     */
     @Override
     public boolean expandCollection() {
         return expandCollection;
     }
 
+    /**
+     * Returns a new SQL template with the specified table name resolver.
+     *
+     * @param resolver the table name resolver.
+     * @return a new SQL template.
+     */
     @Override
     public SqlTemplateImpl withTableNameResolver(TableNameResolver resolver) {
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, resolver, tableAliasResolver, columnNameResolver, foreignKeyResolver);
     }
 
+    /**
+     * Returns the table name resolver that is used by this template.
+     *
+     * @return the table name resolver that is used by this template.
+     */
     @Override
     public TableNameResolver tableNameResolver() {
         return tableNameResolver;
     }
 
+    /**
+     * Returns a new SQL template with the specified table alias resolver.
+     *
+     * @param resolver the table alias resolver.
+     * @return a new SQL template.
+     */
     @Override
     public SqlTemplateImpl withTableAliasResolver(TableAliasResolver resolver) {
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, tableNameResolver, resolver, columnNameResolver, foreignKeyResolver);
     }
 
+    /**
+     * Returns the table alias resolver that is used by this template.
+     *
+     * @return the table alias resolver that is used by this template.
+     */
     @Override
     public TableAliasResolver tableAliasResolver() {
         return tableAliasResolver;
     }
 
+    /**
+     * Returns a new SQL template with the specified column name resolver.
+     *
+     * @param resolver the column name resolver.
+     * @return a new SQL template.
+     */
     @Override
     public SqlTemplateImpl withColumnNameResolver(ColumnNameResolver resolver) {
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, tableNameResolver, tableAliasResolver, resolver, foreignKeyResolver);
     }
 
+    /**
+     * Returns the column name resolver that is used by this template.
+     *
+     * @return the column name resolver that is used by this template.
+     */
     @Override
     public ColumnNameResolver columnNameResolver() {
         return columnNameResolver;
     }
 
+    /**
+     * Returns a new SQL template with the specified foreign key resolver.
+     *
+     * @param resolver the foreign key resolver.
+     * @return a new SQL template.
+     */
     @Override
     public SqlTemplateImpl withForeignKeyResolver(ForeignKeyResolver resolver) {
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, tableNameResolver, tableAliasResolver, columnNameResolver, resolver);
     }
 
+    /**
+     * Returns the foreign key resolver that is used by this template.
+     *
+     * @return the foreign key resolver that is used by this template.
+     */
     @Override
     public ForeignKeyResolver foreignKeyResolver() {
         return foreignKeyResolver;
     }
 
+    /**
+     * Returns a new SQL template with support for records enabled or disabled.
+     *
+     * @param supportRecords {@code true} if the template should support records, {@code false} otherwise.
+     * @return a new SQL template.
+     */
     @Override
     public SqlTemplateImpl withSupportRecords(boolean supportRecords) {
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver);
     }
 
+    /**
+     * Returns {@code true} if the template supports tables represented as records, {@code false} otherwise.
+     *
+     * @return {@code true} if the template supports records, {@code false} otherwise.
+     */
     @Override
     public boolean supportRecords() {
         return supportRecords;
@@ -954,7 +1020,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 .map(select -> new Table(select.table(), aliasMapper.getPrimaryAlias(select.table()).orElse("")));
     }
 
-
     private void postProcessElements(@Nonnull SqlMode sqlMode,
                                      @Nonnull List<Element> elements,
                                      @Nonnull AliasMapper aliasMapper,
@@ -968,7 +1033,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
     }
 
     /**
-     * Processes the specified {@code stringTemplate} and returns the resulting SQL and parameters.
+     * Processes the specified {@code template} and returns the resulting SQL and parameters.
      *
      * @param template the string template to process.
      * @return the resulting SQL and parameters.

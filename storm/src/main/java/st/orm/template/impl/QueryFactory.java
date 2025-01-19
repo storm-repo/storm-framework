@@ -25,9 +25,15 @@ import st.orm.Query;
  */
 public interface QueryFactory {
 
+    /**
+     * Create a new bind variables instance that can be used to add bind variables to a batch.
+     *
+     * @return a new bind variables instance.
+     */
     BindVars createBindVars();
 
     /**
+     * Create a new query for the specified {@code template}.
      *
      * @param template the template to process.
      * @return a query that can be executed.

@@ -86,6 +86,12 @@ public final class JpaTemplateImpl implements JpaTemplate {
         }
     }
 
+    /**
+     * Creates a query for the specified query {@code template}.
+     *
+     * @param template the query template.
+     * @return the query.
+     */
     @Override
     public jakarta.persistence.Query query(@Nonnull StringTemplate template) {
         return templateProcessor.process(template, null);
@@ -95,6 +101,9 @@ public final class JpaTemplateImpl implements JpaTemplate {
         return templateProcessor.process(template, resultClass);
     }
 
+    /**
+     * Returns an ORM template for this JPA template.
+     */
     @Override
     public ORMTemplate toORM() {
         return new ORMTemplateImpl(new QueryFactory() {

@@ -145,26 +145,55 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         this.lazyFactory = new LazyFactoryImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter);
     }
 
+    /**
+     * Returns a new prepared statement template with the specified table name resolver.
+     *
+     * @param tableNameResolver the table name resolver.
+     * @return a new prepared statement template.
+     */
     @Override
     public PreparedStatementTemplateImpl withTableNameResolver(@Nullable TableNameResolver tableNameResolver) {
         return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, providerFilter);
     }
 
+    /**
+     * Returns a new prepared statement template with the specified column name resolver.
+     *
+     * @param columnNameResolver the column name resolver.
+     * @return a new prepared statement template.
+     */
     @Override
     public PreparedStatementTemplateImpl withColumnNameResolver(@Nullable ColumnNameResolver columnNameResolver) {
         return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, providerFilter);
     }
 
+    /**
+     * Returns a new prepared statement template with the specified foreign key resolver.
+     *
+     * @param foreignKeyResolver the foreign key resolver.
+     * @return a new prepared statement template.
+     */
     @Override
     public PreparedStatementTemplateImpl withForeignKeyResolver(@Nullable ForeignKeyResolver foreignKeyResolver) {
         return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, providerFilter);
     }
 
+    /**
+     * Returns a new prepared statement template with the specified provider filter.
+     *
+     * @param providerFilter the provider filter.
+     * @return a new prepared statement template.
+     */
     @Override
     public PreparedStatementTemplateImpl withProviderFilter(@Nullable Predicate<Provider> providerFilter) {
         return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, providerFilter);
     }
 
+    /**
+     * Create a new bind variables instance that can be used to add bind variables to a batch.
+     *
+     * @return a new bind variables instance.
+     */
     @Override
     public BindVars createBindVars() {
         return sqlTemplate().createBindVars();
@@ -218,6 +247,11 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                 .withForeignKeyResolver(foreignKeyResolver);
     }
 
+    /**
+     * Returns an ORM template that is backed by this prepared statement template.
+     *
+     * @return the ORM template.
+     */
     @Override
     public ORMTemplate toORM() {
         return new ORMTemplateImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter);
@@ -254,6 +288,13 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         );
     }
 
+    /**
+     * Create a new query for the specified {@code template}.
+     *
+     * @param template the template to process.
+     * @return a query that can be executed.
+     * @throws PersistenceException if the template is invalid.
+     */
     @Override
     public Query create(@Nonnull StringTemplate template) {
         try {
@@ -271,6 +312,12 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         }
     }
 
+    /**
+     * Creates a query for the specified query {@code template}.
+     *
+     * @param template the query template.
+     * @return the query.
+     */
     @Override
     public PreparedStatement query(@Nonnull StringTemplate template) throws SQLException {
         var sql = sqlTemplate().process(template);

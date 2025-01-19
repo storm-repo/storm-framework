@@ -49,7 +49,7 @@ public interface Sql {
     List<String> generatedKeys();
 
     /**
-     * Returns true if the statement is version aware, false otherwise.
+     * Returns {@code true} if the statement is version aware, {@code false} otherwise.
      */
     boolean versionAware();
 }

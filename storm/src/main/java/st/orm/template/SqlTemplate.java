@@ -44,10 +44,17 @@ public interface SqlTemplate {
         void onBatch(@Nonnull List<PositionalParameter> parameters);
     }
 
+    /**
+     * The default SQL template that is optimized for prepared statements.
+     */
     SqlTemplate PS = new SqlTemplateImpl(
             true,
             true,
             true);
+
+    /**
+     * The default SQL template that is optimized for JPA.
+     */
     SqlTemplate JPA = new SqlTemplateImpl(
             false,
             false, // False, as JPA does not support collection expansion for positional parameters.
@@ -60,29 +67,102 @@ public interface SqlTemplate {
      */
     BindVars createBindVars();
 
+    /**
+     * Returns {@code true} if the template only support positional parameters, {@code false} otherwise.
+     *
+     * @return {@code true} if the template only support positional parameters, {@code false} otherwise.
+     */
     boolean positionalOnly();
 
+    /**
+     * Returns {@code true} if collection parameters must be expanded as multiple (positional) parameters,
+     * {@code false} otherwise.
+     *
+     * @return {@code true} if the template expands collection parameters, {@code false} otherwise.
+     */
     boolean expandCollection();
 
+    /**
+     * Returns a new SQL template with the specified table name resolver.
+     *
+     * @param resolver the table name resolver.
+     * @return a new SQL template.
+     */
     SqlTemplate withTableNameResolver(TableNameResolver resolver);
 
+    /**
+     * Returns the table name resolver that is used by this template.
+     *
+     * @return the table name resolver that is used by this template.
+     */
     TableNameResolver tableNameResolver();
 
+    /**
+     * Returns a new SQL template with the specified table alias resolver.
+     *
+     * @param resolver the table alias resolver.
+     * @return a new SQL template.
+     */
     SqlTemplate withTableAliasResolver(TableAliasResolver resolver);
 
+    /**
+     * Returns the table alias resolver that is used by this template.
+     *
+     * @return the table alias resolver that is used by this template.
+     */
     TableAliasResolver tableAliasResolver();
 
+    /**
+     * Returns a new SQL template with the specified column name resolver.
+     *
+     * @param resolver the column name resolver.
+     * @return a new SQL template.
+     */
     SqlTemplate withColumnNameResolver(ColumnNameResolver resolver);
 
+    /**
+     * Returns the column name resolver that is used by this template.
+     *
+     * @return the column name resolver that is used by this template.
+     */
     ColumnNameResolver columnNameResolver();
 
+    /**
+     * Returns a new SQL template with the specified foreign key resolver.
+     *
+     * @param resolver the foreign key resolver.
+     * @return a new SQL template.
+     */
     SqlTemplate withForeignKeyResolver(ForeignKeyResolver resolver);
 
+    /**
+     * Returns the foreign key resolver that is used by this template.
+     *
+     * @return the foreign key resolver that is used by this template.
+     */
     ForeignKeyResolver foreignKeyResolver();
 
+    /**
+     * Returns a new SQL template with support for records enabled or disabled.
+     *
+     * @param supportRecords {@code true} if the template should support records, {@code false} otherwise.
+     * @return a new SQL template.
+     */
     SqlTemplate withSupportRecords(boolean supportRecords);
 
+    /**
+     * Returns {@code true} if the template supports tables represented as records, {@code false} otherwise.
+     *
+     * @return {@code true} if the template supports records, {@code false} otherwise.
+     */
     boolean supportRecords();
 
+    /**
+     * Processes the specified {@code template} and returns the resulting SQL and parameters.
+     *
+     * @param template the string template to process.
+     * @return the resulting SQL and parameters.
+     * @throws SqlTemplateException if an error occurs while processing the input.
+     */
     Sql process(@Nonnull StringTemplate template) throws SqlTemplateException;
 }
