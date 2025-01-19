@@ -867,6 +867,17 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     }
 
     /**
+     * Adds a HAVING clause to the query using the specified expression.
+     *
+     * @param function used to define the expression to add.
+     * @return the query builder.
+     * @since 1.2
+     */
+    public final <V> KQueryBuilder<T, R, ID> having(@Nonnull TemplateFunction function) {
+        return having(TemplateFunction.template(function));
+    }
+
+    /**
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
      *
      * @param path the path to order by.
@@ -1011,11 +1022,26 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * <p>Note that this method results in non-portable code, as the lock mode is specific to the underlying database.</p>
      *
+     * @param template the template to use for the lock mode.
      * @return the query builder.
      * @throws PersistenceException if the lock mode is not supported for the current query.
      * @since 1.2
      */
     public abstract KQueryBuilder<T, R, ID> forLock(@Nonnull StringTemplate template);
+
+    /**
+     * Locks the selected rows using a custom lock mode.
+     *
+     * <p>Note that this method results in non-portable code, as the lock mode is specific to the underlying database.</p>
+     *
+     * @param function the function to use for the lock mode.
+     * @return the query builder.
+     * @throws PersistenceException if the lock mode is not supported for the current query.
+     * @since 1.2
+     */
+    public final KQueryBuilder<T, R, ID> forLock(@Nonnull TemplateFunction function) {
+        return forLock(TemplateFunction.template(function));
+    }
 
     //
     // Finalization.
