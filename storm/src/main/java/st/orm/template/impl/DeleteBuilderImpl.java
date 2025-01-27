@@ -41,8 +41,10 @@ import static st.orm.Templates.subquery;
  */
 public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T, Object, ID> {
 
-    public DeleteBuilderImpl(@Nonnull QueryTemplate orm, @Nonnull Class<T> fromType, @Nonnull Supplier<Model<T, ID>> modelSupplier) {
-        this(orm, fromType, List.of(), List.of(), List.of(), modelSupplier);
+    private final boolean safe;
+
+    public DeleteBuilderImpl(@Nonnull QueryTemplate queryTemplate, @Nonnull Class<T> fromType, @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+        this(queryTemplate, fromType, List.of(), List.of(), List.of(), modelSupplier, false);
     }
 
     private DeleteBuilderImpl(@Nonnull QueryTemplate queryTemplate,
@@ -50,10 +52,24 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
                               @Nonnull List<Join> join,
                               @Nonnull List<Where> where,
                               @Nonnull List<StringTemplate> templates,
-                              @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+                              @Nonnull Supplier<Model<T, ID>> modelSupplier,
+                              boolean safe) {
         super(queryTemplate, fromType, join, where, templates, modelSupplier);
+        this.safe = safe;
     }
 
+    /**
+     * Returns a query builder that does not require a WHERE clause for UPDATE and DELETE queries.
+     *
+     * <p>This method is used to prevent accidental updates or deletions of all records in a table when a WHERE clause
+     * is not provided.</p>
+     *
+     * @since 1.2
+     */
+    @Override
+    public QueryBuilder<T, Object, ID> safe() {
+        return new DeleteBuilderImpl<>(queryTemplate, fromType, join, where, templates, modelSupplier, true);
+    }
 
     /**
      * Returns a new query builder instance with the specified parameters.
@@ -71,7 +87,7 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
                                          @Nonnull List<Join> join,
                                          @Nonnull List<Where> where,
                                          @Nonnull List<StringTemplate> templates) {
-        return new DeleteBuilderImpl<>(queryTemplate, fromType, join, where, templates, modelSupplier);
+        return new DeleteBuilderImpl<>(queryTemplate, fromType, join, where, templates, modelSupplier, safe);
     }
 
     /**
@@ -130,7 +146,7 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
     }
 
     private StringTemplate getPrimaryKeyTemplate(boolean alias) {
-        var model = queryTemplate.model(fromType);
+        var model = modelSupplier.get();
         return model.columns().stream()
                 .filter(Column::primaryKey)
                 .map(c -> {
@@ -178,7 +194,7 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
     }
 
     @Override
-    public StringTemplate getStringTemplate() {
+    public StringTemplate getSubquery() {
         throw new PersistenceException("Cannot use a DELETE query as subquery.");
     }
 
@@ -189,7 +205,11 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
      */
     @Override
     public Query build() {
-        return queryTemplate.query(toStringTemplate());
+        Query query = queryTemplate.query(toStringTemplate());
+        if (safe || !where.isEmpty()) {
+            query = query.safe();
+        }
+        return query;
     }
 
     /**

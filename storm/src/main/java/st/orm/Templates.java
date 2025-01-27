@@ -169,11 +169,11 @@ public interface Templates {
      * <pre>{@code
      * EntityManager entityManager = ...;
      * ORMRepositoryTemplate orm = Templates.ORM(entityManager);
-     * List<OtherTable> otherTables = orm.query(RAW."""
-     *         SELECT \{OtherTable.class}
-     *         FROM \{OtherTable.class}
-     *         WHERE \{OtherTable_.city.name} = \{"Sunnyvale"}""")
-     *     .getResultList(OtherTable.class);
+     * List<MyTable> otherTables = orm.query(RAW."""
+     *         SELECT \{MyTable.class}
+     *         FROM \{MyTable.class}
+     *         WHERE \{MyTable_.city.name} = \{"Sunnyvale"}""")
+     *     .getResultList(MyTable.class);
      * }</pre>
      *
      * @param entityManager the {@link EntityManager} to use for database operations; must not be {@code null}.
@@ -193,11 +193,11 @@ public interface Templates {
      * <pre>{@code
      * DataSource dataSource = ...;
      * ORMRepositoryTemplate orm = Templates.ORM(dataSource);
-     * List<OtherTable> otherTables = orm.query(RAW."""
-     *         SELECT \{OtherTable.class}
-     *         FROM \{OtherTable.class}
-     *         WHERE \{OtherTable_.city.name} = \{"Sunnyvale"}""")
-     *     .getResultList(OtherTable.class);
+     * List<MyTable> otherTables = orm.query(RAW."""
+     *         SELECT \{MyTable.class}
+     *         FROM \{MyTable.class}
+     *         WHERE \{MyTable_.city.name} = \{"Sunnyvale"}""")
+     *     .getResultList(MyTable.class);
      * }</pre>
      *
      * @param dataSource the {@link DataSource} to use for database operations; must not be {@code null}.
@@ -218,11 +218,11 @@ public interface Templates {
      * <pre>{@code
      * try (Connection connection = ...) {
      *     ORMRepositoryTemplate orm = Templates.ORM(connection);
-     *     List<OtherTable> otherTables = orm.query(RAW."""
-     *             SELECT \{OtherTable.class}
-     *             FROM \{OtherTable.class}
-     *             WHERE \{OtherTable_.city.name} = \{"Sunnyvale"}""")
-     *         .getResultList(OtherTable.class)
+     *     List<MyTable> otherTables = orm.query(RAW."""
+     *             SELECT \{MyTable.class}
+     *             FROM \{MyTable.class}
+     *             WHERE \{MyTable_.city.name} = \{"Sunnyvale"}""")
+     *         .getResultList(MyTable.class)
      * }
      * }</pre>
      *
@@ -745,18 +745,18 @@ public interface Templates {
      * WHERE \{where(Table_.otherTable.id, Operator.IN, listOfIds)}
      * }</pre>
      *
-     * <p>In this example, {@code listOfIds} contains the primary key values of the {@code OtherTable} records,
-     * and the query selects all entries in {@code Table} linked to that OtherTable.</p>
+     * <p>In this example, {@code listOfIds} contains the primary key values of the {@code MyTable} records,
+     * and the query selects all entries in {@code Table} linked to that MyTable.</p>
      *
      * <p>Example usage with records:
      * <pre>{@code
-     * List<OtherTable> entities = ...;
+     * List<MyTable> entities = ...;
      * SELECT \{Table.class}
      * FROM \{Table.class}
      * WHERE \{where(Table_.otherTable, Operator.IN, entities)}
      * }</pre>
      *
-     * <p>In this example, {@code entities} is a list of {@code OtherTable} records. The query matches entries in
+     * <p>In this example, {@code entities} is a list of {@code MyTable} records. The query matches entries in
      * {@code Table} linked to any of the records in the list via their foreign keys.</p>
      *
      * @param path the path or column name to apply the condition on.
@@ -785,7 +785,7 @@ public interface Templates {
      * WHERE \{where(Table_.otherTable.id, Operator.BETWEEN, 1, 10)}
      * }</pre>
      *
-     * <p>In this example, the query selects all entries in {@code Table} where the associated {@code OtherTable} 
+     * <p>In this example, the query selects all entries in {@code Table} where the associated {@code MyTable} 
      * records have primary keys between {@code 1} and {@code 10}.
      *
      * @param path the path or column name to apply the condition on.
@@ -1040,17 +1040,17 @@ public interface Templates {
     /**
      * Generates an alias element for a table specified by the given {@code metamodel} in a type safe manner.
      *
-     * <p>Example usage in a string template where {@code OtherTable} is referenced twice:
+     * <p>Example usage in a string template where {@code MyTable} is referenced twice:
      * <pre>{@code
-     * // Define a record with two references to OtherTable
-     * record Table(int id, OtherTable child, OtherTable parent) {}
+     * // Define a record with two references to MyTable
+     * record Table(int id, MyTable child, MyTable parent) {}
      *
      * // In the SQL template
      * SELECT \{alias(Table_.child}.column_name FROM \{Table.class}
      * }</pre>
      *
      * <p>In this example, {@code Table_.child} specifies that we are referring to the {@code child} field of the {@code Table} record,
-     * which is of type {@code OtherTable}. This distinguishes it from the {@code parent} field, which is also of type {@code OtherTable}.
+     * which is of type {@code MyTable}. This distinguishes it from the {@code parent} field, which is also of type {@code MyTable}.
      *
      * @param path specifies the table for which the alias is to be generated.
      * @return an {@link Element} representing the table's alias with the specified path.
@@ -1063,17 +1063,17 @@ public interface Templates {
     /**
      * Generates an alias element for a table specified by the given {@code metamodel} in a type safe manner.
      *
-     * <p>Example usage in a string template where {@code OtherTable} is referenced twice:
+     * <p>Example usage in a string template where {@code MyTable} is referenced twice:
      * <pre>{@code
-     * // Define a record with two references to OtherTable
-     * record Table(int id, OtherTable child, OtherTable parent) {}
+     * // Define a record with two references to MyTable
+     * record Table(int id, MyTable child, MyTable parent) {}
      *
      * // In the SQL template
      * SELECT \{alias(Table_.child}.column_name FROM \{Table.class}
      * }</pre>
      *
      * <p>In this example, {@code Table_.child} specifies that we are referring to the {@code child} field of the {@code Table} record,
-     * which is of type {@code OtherTable}. This distinguishes it from the {@code parent} field, which is also of type {@code OtherTable}.
+     * which is of type {@code MyTable}. This distinguishes it from the {@code parent} field, which is also of type {@code MyTable}.
      *
      * @param path specifies the table for which the alias is to be generated.
      * @param scope the {@link ResolveScope} to use when resolving the alias. Use STRICT to include local and outer
@@ -1093,18 +1093,18 @@ public interface Templates {
      * uses inline records, the componentName is also constructed by concatenating the fields leading to the record
      * component.</p>
      *
-     * <p>Example usage in a string template where {@code OtherTable} is referenced twice:
+     * <p>Example usage in a string template where {@code MyTable} is referenced twice:
      * <pre>{@code
-     * // Define a record with two references to OtherTable
-     * record Table(int id, OtherTable child, OtherTable parent) {}
+     * // Define a record with two references to MyTable
+     * record Table(int id, MyTable child, MyTable parent) {}
      *
      * // In the SQL template
      * SELECT \{column(Table_.child.name)} FROM \{Table.class}
      * }</pre>
      *
      * <p>In this example, the path "child" specifies that we are referring to the {@code child} field of the
-     * {@code Table} record, which is of type {@code OtherTable}. This distinguishes it from the {@code parent} field, which
-     * is also of type {@code OtherTable}. The "name" componentName refers to the name record component of {@code OtherTable}.</p>
+     * {@code Table} record, which is of type {@code MyTable}. This distinguishes it from the {@code parent} field, which
+     * is also of type {@code MyTable}. The "name" componentName refers to the name record component of {@code MyTable}.</p>
      *
      * @param path specifies the database column for which the column is to be generated.
      * @return an {@link Element} representing the table's column with the specified path.
@@ -1122,18 +1122,18 @@ public interface Templates {
      * uses inline records, the componentName is also constructed by concatenating the fields leading to the record
      * component.</p>
      *
-     * <p>Example usage in a string template where {@code OtherTable} is referenced twice:
+     * <p>Example usage in a string template where {@code MyTable} is referenced twice:
      * <pre>{@code
-     * // Define a record with two references to OtherTable
-     * record Table(int id, OtherTable child, OtherTable parent) {}
+     * // Define a record with two references to MyTable
+     * record Table(int id, MyTable child, MyTable parent) {}
      *
      * // In the SQL template
      * SELECT \{column(Table_.child.name)} FROM \{Table.class}
      * }</pre>
      *
      * <p>In this example, the path "child" specifies that we are referring to the {@code child} field of the
-     * {@code Table} record, which is of type {@code OtherTable}. This distinguishes it from the {@code parent} field, which
-     * is also of type {@code OtherTable}. The "name" componentName refers to the name record component of {@code OtherTable}.</p>
+     * {@code Table} record, which is of type {@code MyTable}. This distinguishes it from the {@code parent} field, which
+     * is also of type {@code MyTable}. The "name" componentName refers to the name record component of {@code MyTable}.</p>
      *
      * @param path specifies the database column for which the column is to be generated.
      * @param scope the {@link ResolveScope} to use when resolving the alias. Use STRICT to include local and outer
@@ -1374,7 +1374,7 @@ public interface Templates {
      * @return a new {@code Subquery} element based on the provided query builder and correlation flag.
      */
     static Element subquery(@Nonnull QueryBuilder<?, ?, ?> builder, boolean correlate) {
-        return new Subquery(((Subqueryable) builder).getStringTemplate(), correlate);
+        return new Subquery(((Subqueryable) builder).getSubquery(), correlate);
     }
 
     /**
@@ -1398,7 +1398,7 @@ public interface Templates {
      * potentially unsafe and may expose your application to SQL injection attacks if not used carefully.
      *
      * <p><strong>Warning:</strong> Use this method only when you are certain that the SQL string being injected
-     * is safe and originates from a trusted source. Avoid using otherTable-supplied input with this method.
+     * is safe and originates from a trusted source. Avoid using user-supplied input with this method.
      *
      * <p>Example usage in a string template:
      * <pre>{@code

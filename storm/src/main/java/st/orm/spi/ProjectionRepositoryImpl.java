@@ -27,7 +27,8 @@ public final class ProjectionRepositoryImpl<P extends Record & Projection<ID>, I
         extends BaseRepositoryImpl<P, ID>
         implements ProjectionRepository<P, ID> {
 
-    public ProjectionRepositoryImpl(@Nonnull ORMTemplate orm, @Nonnull Model<P, ID> model) {
-        super(orm, model);
+    public ProjectionRepositoryImpl(@Nonnull ORMTemplate ormTemplate,
+                                    @Nonnull Model<P, ID> model) {
+        super(ormTemplate, model);
     }
 }

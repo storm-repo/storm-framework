@@ -58,6 +58,16 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     public abstract <X> QueryBuilder<T, R, X> typed(@Nonnull Class<X> pkType);
 
     /**
+     * Returns a query builder that does not require a WHERE clause for UPDATE and DELETE queries.
+     *
+     * <p>This method is used to prevent accidental updates or deletions of all records in a table when a WHERE clause
+     * is not provided.</p>
+     *
+     * @since 1.2
+     */
+    public abstract QueryBuilder<T, R, ID> safe();
+
+    /**
      * Marks the current query as a distinct query.
      *
      * @return the query builder.

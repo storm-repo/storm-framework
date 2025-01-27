@@ -33,7 +33,7 @@ import st.orm.template.impl.SqlTemplateImpl.Join;
 import st.orm.template.impl.SqlTemplateImpl.Wrapped;
 
 /**
- *
+ * Represents an element in a ST/ORM SQL query.
  */
 public sealed interface Element
         permits Alias, Column, Delete, From, Insert, Param, Select, Set, Table, Update, Values, Where, Join, Subquery, Unsafe, Wrapped {

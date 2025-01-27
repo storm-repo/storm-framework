@@ -16,7 +16,10 @@
 package st.orm;
 
 /**
- * BindVars instances can be used to mark bind variables in a query.
+ * Marker interface used within an SQL template to indicate where bind variables (parameters) should be injected.
+ *
+ * <p>This interface is typically referenced within the SQL string to specify placeholder positions for parameter
+ * binding.</p>
  */
 public interface BindVars {
 }

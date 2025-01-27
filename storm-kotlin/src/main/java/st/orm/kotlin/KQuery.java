@@ -22,6 +22,7 @@ import kotlin.sequences.SequencesKt;
 import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
 import st.orm.PersistenceException;
+import st.orm.Query;
 
 import java.util.List;
 import java.util.Optional;
@@ -46,6 +47,15 @@ public interface KQuery {
      * @throws PersistenceException if the query preparation fails.
      */
     KPreparedQuery prepare();
+
+    /**
+     * Returns a new query that is marked as safe. This means that dangerous operations, such as DELETE and UPDATE
+     * without a WHERE clause, will be allowed.
+     *
+     * @return a new query that is marked as safe.
+     * @since 1.2
+     */
+    KQuery safe();
 
     /**
      * Execute a SELECT query and returns a single row, where the columns of the row corresponds to the order of values

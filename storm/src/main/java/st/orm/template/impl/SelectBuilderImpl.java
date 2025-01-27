@@ -54,7 +54,7 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
         this(queryTemplate, fromType, selectType, false, List.of(), List.of(), RAW."", selectTemplate, List.of(), subquery, modelSupplier);
     }
 
-    private SelectBuilderImpl(@Nonnull QueryTemplate queryTemplate,
+    private SelectBuilderImpl(@Nonnull QueryTemplate ormTemplate,
                               @Nonnull Class<T> fromType,
                               @Nonnull Class<R> selectType,
                               boolean distinct,
@@ -65,12 +65,25 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
                               @Nonnull List<StringTemplate> templates,
                               boolean subquery,
                               @Nonnull Supplier<Model<T, ID>> modelSupplier) {
-        super(queryTemplate, fromType, join, where, templates, modelSupplier);
+        super(ormTemplate, fromType, join, where, templates, modelSupplier);
         this.forLock = forLock;
         this.selectType = selectType;
         this.distinct = distinct;
         this.selectTemplate = selectTemplate;
         this.subquery = subquery;
+    }
+
+    /**
+     * Returns a query builder that does not require a WHERE clause for UPDATE and DELETE queries.
+     *
+     * <p>This method is used to prevent accidental updates or deletions of all records in a table when a WHERE clause
+     * is not provided.</p>
+     *
+     * @since 1.2
+     */
+    @Override
+    public QueryBuilder<T, R, ID> safe() {
+        return this;
     }
 
     /**
@@ -143,7 +156,7 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
     }
 
     @Override
-    public StringTemplate getStringTemplate() {
+    public StringTemplate getSubquery() {
         return toStringTemplate();
     }
 

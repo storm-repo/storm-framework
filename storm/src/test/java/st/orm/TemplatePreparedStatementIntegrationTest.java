@@ -345,8 +345,8 @@ public class TemplatePreparedStatementIntegrationTest {
     @Test
     public void testDeleteWithAlias() {
         try (var query = ORM(dataSource).query(RAW."""
-            DELETE FROM \{Visit.class}
-            WHERE \{Visit.class}.id = \{1}""").prepare()) {
+                DELETE FROM \{Visit.class}
+                WHERE \{Visit.class}.id = \{1}""").prepare()) {
             query.executeUpdate();
         }
     }

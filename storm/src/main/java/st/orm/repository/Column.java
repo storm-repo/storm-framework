@@ -29,7 +29,7 @@ import jakarta.annotation.Nonnull;
  * @param insertable whether the column is insertable.
  * @param updatable whether the column is updatable.
  * @param version whether the column is a version column.
- * @param lazy whether the column is fetched lazily.
+ * @param lazy whether the column is a lazily fetched record.
  */
 public record Column(
         @Nonnull String columnName,

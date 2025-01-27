@@ -16,6 +16,8 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.template.SqlTemplate;
+import st.orm.template.impl.Elements.Unsafe;
 
 import java.util.Map;
 import java.util.Map.Entry;
@@ -28,8 +30,56 @@ import static java.util.regex.Pattern.DOTALL;
  */
 final class SqlParser {
 
+    /**
+     * Represents the SQL mode.
+     *
+     * <p>The SQL mode provides context for the {@link SqlTemplate} processor, enabling validation and inference by the
+     * SQL template logic. Each mode indicates the type of SQL operation being performed, which allows the framework to
+     * adapt behavior accordingly.</p>
+     */
     enum SqlMode {
-        SELECT, INSERT, UPDATE, DELETE, UNDEFINED
+
+        /**
+         * Represents a SELECT operation.
+         *
+         * <p>This mode is used for queries that retrieve data from the database without modifying its state. The SQL
+         * template processor uses this mode to validate that the query conforms to the structure of a SELECT
+         * statement.</p>
+         */
+        SELECT,
+
+        /**
+         * Represents an INSERT operation.
+         *
+         * <p>This mode is used for queries that add new records to the database. The SQL template processor validates
+         * that parameters align with the fields being inserted.</p>
+         */
+        INSERT,
+
+        /**
+         * Represents an UPDATE operation.
+         *
+         * <p>This mode is used for queries that modify existing records in the database. The SQL template processor
+         * ensures that the query includes a WHERE clause (if required) to avoid unintentional updates across all
+         * rows.</p>
+         */
+        UPDATE,
+
+        /**
+         * Represents a DELETE operation.
+         *
+         * <p>This mode is used for queries that remove records from the database. The SQL template processor validates
+         * the presence of a WHERE clause (if required) to prevent unintended deletion of all rows.</p>
+         */
+        DELETE,
+
+        /**
+         * Represents an undefined operation.
+         *
+         * <p>This mode is used when the type of SQL operation cannot be determined. The SQL template processor may
+         * apply relaxed validation or inference rules when this mode is specified.</p>
+         */
+        UNDEFINED
     }
 
     private static final Pattern WITH_PATTERN = Pattern.compile("^(?i:WITH)\\W.*", DOTALL);
@@ -39,36 +89,48 @@ final class SqlParser {
             Pattern.compile("^(?i:UPDATE)\\W.*", DOTALL), SqlMode.UPDATE,
             Pattern.compile("^(?i:DELETE)\\W.*", DOTALL), SqlMode.DELETE
     );
+    private static final Pattern WHERE_PATTERN = Pattern.compile(
+            "(?i:\\bWHERE\\b)",
+            Pattern.DOTALL
+    );
 
     private SqlParser() {
+    }
+
+    private static String getSql(@Nonnull StringTemplate template) {
+        String first = template.fragments().getFirst().stripLeading();
+        if (first.isEmpty()) {
+            first = template.values().stream()
+                    .findFirst()
+                    .filter(Unsafe.class::isInstance)
+                    .map(Unsafe.class::cast)
+                    .map(Unsafe::sql)
+                    .orElse("");
+        }
+        String input = removeComments(first).stripLeading();
+        if (WITH_PATTERN.matcher(input).matches()) {
+            input = removeWithClause(removeComments(String.join("", template.fragments())));
+        }
+        return input.stripLeading();
     }
 
     /**
      * Determines the SQL mode for the specified {@code stringTemplate}.
      *
-     * @param stringTemplate The string template.
+     * @param template The string template.
      * @return the SQL mode.
      */
-    static SqlMode getSqlMode(@Nonnull StringTemplate stringTemplate) {
-        String first = stringTemplate.fragments().getFirst().stripLeading();
-        if (first.isEmpty()) {
-            first = stringTemplate.values().stream()
-                    .findFirst()
-                    .filter(Elements.Unsafe.class::isInstance)
-                    .map(Elements.Unsafe.class::cast)
-                    .map(Elements.Unsafe::sql)
-                    .orElse("");
-        }
-        String input = removeComments(first).stripLeading();
-        if (WITH_PATTERN.matcher(input).matches()) {
-            input = removeWithClause(removeComments(String.join("", stringTemplate.fragments())));
-        }
-        String sql = input.stripLeading();
+    static SqlMode getSqlMode(@Nonnull StringTemplate template) {
+        String sql = getSql(template);
         return SQL_MODES.entrySet().stream()
                 .filter(e -> e.getKey().matcher(sql).matches())
                 .map(Entry::getValue)
                 .findFirst()
                 .orElse(SqlMode.UNDEFINED);
+    }
+
+    static boolean hasWhereClause(@Nonnull String sql) {
+        return WHERE_PATTERN.matcher(removeStringLiterals(removeComments(sql))).find();
     }
 
     static String removeWithClause(String sql) {
@@ -116,8 +178,8 @@ final class SqlParser {
     /**
      * Removes both single-line and multi-line comments from a SQL string.
      *
-     * @param sql The original SQL string.
-     * @return The SQL string with comments removed.
+     * @param sql the original SQL string.
+     * @return the SQL string with comments removed.
      */
     static String removeComments(@Nonnull String sql) {
         // Pattern for multi-line comments.
@@ -127,6 +189,18 @@ final class SqlParser {
         // Remove multi-line comments, then single-line comments.
         return sql.replaceAll(multiLineCommentRegex, "")
                 .replaceAll(singleLineCommentRegex, "")
+                .stripLeading();
+    }
+
+    /**
+     * Removes string literals from a SQL string.
+     * @param sql the original SQL string.
+     * @return the SQL string with string literals removed.
+     */
+    static String removeStringLiterals(@Nonnull String sql) {
+        // Regex for single-quoted string literals, handling both double single quotes and backslash escapes.
+        String singleQuotedStringRegex = "'(?:''|\\.|[^'])*'";
+        return sql.replaceAll(singleQuotedStringRegex, "")
                 .stripLeading();
     }
 }

@@ -27,8 +27,8 @@ public class DefaultProjectionRepositoryProviderImpl implements ProjectionReposi
 
     @Override
     public <ID, P extends Record & Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(
-            @Nonnull ORMTemplate orm,
+            @Nonnull ORMTemplate ormTemplate,
             @Nonnull Model<P, ID> model) {
-        return new ProjectionRepositoryImpl<>(orm, model);
+        return new ProjectionRepositoryImpl<>(ormTemplate, model);
     }
 }

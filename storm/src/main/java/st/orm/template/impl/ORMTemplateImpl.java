@@ -26,6 +26,7 @@ import st.orm.repository.Repository;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Provider;
 import st.orm.spi.Providers;
+import st.orm.spi.QueryFactory;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
 import st.orm.template.ORMTemplate;
@@ -36,7 +37,6 @@ import st.orm.template.TableNameResolver;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.sql.SQLException;
 import java.util.HashSet;
@@ -176,6 +176,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
                 .map(type -> (Class<T>) type);
     }
 
+    @SuppressWarnings("ConstantValue")
     public static Optional<Type> findGenericType(@Nonnull Class<?> clazz,
                                                  @Nonnull Class<?> targetInterface,
                                                  int typeArgumentIndex) {
@@ -227,7 +228,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
         }
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "DuplicatedCode"})
     private  <T extends Repository> T wrapRepository(@Nonnull T repository) {
         return (T) newProxyInstance(repository.getClass().getClassLoader(), getAllInterfaces(repository.getClass()).toArray(new Class[0]), (_, method, args) -> {
             var lastSql = new AtomicReference<Sql>();

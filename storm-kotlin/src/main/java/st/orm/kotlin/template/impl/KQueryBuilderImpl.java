@@ -52,6 +52,19 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
     }
 
     /**
+     * Returns a query builder that does not require a WHERE clause for UPDATE and DELETE queries.
+     *
+     * <p>This method is used to prevent accidental updates or deletions of all records in a table when a WHERE clause
+     * is not provided.</p>
+     *
+     * @since 1.2
+     */
+    @Override
+    public KQueryBuilder<T, R, ID> safe() {
+        return new KQueryBuilderImpl<>(builder.safe());
+    }
+
+    /**
      * Marks the current query as a distinct query.
      *
      * @return the query builder.
@@ -417,7 +430,7 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
     }
 
     @Override
-    public StringTemplate getStringTemplate() {
-        return ((Subqueryable) builder).getStringTemplate();
+    public StringTemplate getSubquery() {
+        return ((Subqueryable) builder).getSubquery();
     }
 }

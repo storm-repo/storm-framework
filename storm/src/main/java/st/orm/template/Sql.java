@@ -52,4 +52,12 @@ public interface Sql {
      * Returns {@code true} if the statement is version aware, {@code false} otherwise.
      */
     boolean versionAware();
+
+    /**
+     * Returns a warning message if the statement is deemed potentially unsafe, an empty optional otherwise.
+     *
+     * @return a warning message if the statement is deemed potentially unsafe.
+     * @since 1.2
+     */
+    Optional<String> unsafeWarning();
 }

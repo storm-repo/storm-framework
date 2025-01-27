@@ -31,6 +31,7 @@ import st.orm.repository.Model;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Provider;
 import st.orm.spi.Providers;
+import st.orm.spi.QueryFactory;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
 import st.orm.template.QueryBuilder;
@@ -56,29 +57,29 @@ class QueryTemplateImpl implements QueryTemplate {
     private static final ConcurrentHashMap<Class<?>, Model<?, ?>> MODEL_CACHE = new ConcurrentHashMap<>();
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
-    private final QueryFactory factory;
-    private final LazyFactory lazyFactory;
+    protected final QueryFactory queryFactory;
     protected final TableNameResolver tableNameResolver;
     protected final ColumnNameResolver columnNameResolver;
     protected final ForeignKeyResolver foreignKeyResolver;
     protected final Predicate<? super Provider> providerFilter;
+    private final LazyFactory lazyFactory;
 
-    public QueryTemplateImpl(@Nonnull QueryFactory factory,
+    public QueryTemplateImpl(@Nonnull QueryFactory queryFactory,
                              @Nullable TableNameResolver tableNameResolver,
                              @Nullable ColumnNameResolver columnNameResolver,
                              @Nullable ForeignKeyResolver foreignKeyResolver,
                              @Nullable Predicate<? super Provider> providerFilter) {
-        this.factory = requireNonNull(factory);
-        this.lazyFactory = new LazyFactoryImpl(factory, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter);
+        this.queryFactory = requireNonNull(queryFactory);
         this.tableNameResolver = tableNameResolver;
         this.columnNameResolver = columnNameResolver;
         this.foreignKeyResolver = foreignKeyResolver;
         this.providerFilter = providerFilter;
+        this.lazyFactory = new LazyFactoryImpl(queryFactory, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter);
     }
 
     @Override
     public BindVars createBindVars() {
-        return factory.createBindVars();
+        return queryFactory.createBindVars();
     }
 
     @Override
@@ -108,7 +109,7 @@ class QueryTemplateImpl implements QueryTemplate {
 
     @Override
     public Query query(@Nonnull StringTemplate template) {
-        return factory.create(template);
+        return queryFactory.create(template);
     }
 
     protected <T extends Record, ID> Model<T, ID> createModel(@Nonnull Class<T> type, boolean requirePrimaryKey) throws PersistenceException {

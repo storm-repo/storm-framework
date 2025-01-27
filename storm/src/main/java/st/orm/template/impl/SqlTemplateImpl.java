@@ -96,7 +96,7 @@ import static st.orm.template.impl.RecordReflection.getLazyRecordType;
 import static st.orm.template.impl.RecordReflection.getPkComponents;
 import static st.orm.template.impl.RecordReflection.isTypePresent;
 import static st.orm.template.impl.RecordReflection.mapForeignKeys;
-import static st.orm.template.impl.RecordValidation.validateNamedParameters;
+import static st.orm.template.impl.RecordValidation.validateParameters;
 import static st.orm.template.impl.RecordValidation.validateRecordGraph;
 import static st.orm.template.impl.RecordValidation.validateRecordType;
 import static st.orm.template.impl.RecordValidation.validateWhere;
@@ -105,10 +105,11 @@ import static st.orm.template.impl.SqlParser.SqlMode.INSERT;
 import static st.orm.template.impl.SqlParser.SqlMode.SELECT;
 import static st.orm.template.impl.SqlParser.SqlMode.UPDATE;
 import static st.orm.template.impl.SqlParser.getSqlMode;
+import static st.orm.template.impl.SqlParser.hasWhereClause;
 import static st.orm.template.impl.SqlParser.removeComments;
 
 /**
- *
+ * The sql template implementation that is responsible for generating SQL queries.
  */
 public final class SqlTemplateImpl implements SqlTemplate {
 
@@ -123,14 +124,21 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @param bindVariables a bind variables object that can be used to add bind variables to a batch.
      * @param generatedKeys the primary key that have been auto generated as part of in insert statement.
      * @param versionAware true if the statement is version aware, false otherwise.
+     * @param unsafeWarning a warning message if the statement is deemed potentially unsafe, an empty optional otherwise.
      */
     private record SqlImpl(
             @Nonnull String statement,
             @Nonnull List<Parameter> parameters,
-            @Nullable Optional<BindVariables> bindVariables,
+            @Nonnull Optional<BindVariables> bindVariables,
             @Nonnull List<String> generatedKeys,
-            boolean versionAware
-    ) implements Sql {}
+            boolean versionAware,
+            @Nonnull Optional<String> unsafeWarning
+    ) implements Sql {
+        public SqlImpl {
+            parameters = copyOf(parameters);
+            generatedKeys = copyOf(generatedKeys);
+        }
+    }
 
     record Wrapped(@Nonnull List<? extends Element> elements) implements Element {
         public Wrapped {
@@ -336,6 +344,12 @@ public final class SqlTemplateImpl implements SqlTemplate {
         return supportRecords;
     }
 
+    /**
+     * Manages the binding of variables in a SQL query.
+     *
+     * <p>Provides a handle for configuring parameter bindings and allows registering a listener for batch processing
+     * events.</p>
+     */
     static class BindVarsImpl implements BindVars, BindVariables {
         private final List<Function<Record, List<PositionalParameter>>> parameterExtractors;
         private BatchListener batchListener;
@@ -344,6 +358,12 @@ public final class SqlTemplateImpl implements SqlTemplate {
             this.parameterExtractors = new ArrayList<>();
         }
 
+        /**
+         * Retrieves a handle to the bound variables. Can be used for configuring or inspecting the
+         * parameters associated with the current query.
+         *
+         * @return a handle to the bound variables.
+         */
         @Override
         public BindVarsHandle getHandle() {
             return record -> {
@@ -360,9 +380,14 @@ public final class SqlTemplateImpl implements SqlTemplate {
             };
         }
 
+        /**
+         * Registers a listener that will be notified when positional parameters are processed in batches.
+         *
+         * @param listener the listener to be notified of batch events.
+         */
         @Override
-        public void setBatchListener(@Nonnull BatchListener batchListener) {
-            this.batchListener = batchListener;
+        public void setBatchListener(@Nonnull BatchListener listener) {
+            this.batchListener = listener;
         }
 
         public void addParameterExtractor(@Nonnull Function<Record, List<PositionalParameter>> parameterExtractor) {
@@ -375,6 +400,11 @@ public final class SqlTemplateImpl implements SqlTemplate {
         }
     }
 
+    /**
+     * Create a new bind variables instance that can be used to add bind variables to a batch.
+     *
+     * @return a new bind variables instance.
+     */
     @Override
     public BindVars createBindVars() {
         return new BindVarsImpl();
@@ -586,8 +616,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 }
                 case Expression _ -> throw new SqlTemplateException("Expression element not allowed in this context.");
                 case BindVars b -> resolveBindVarsElement(sqlMode, p, b);
-                case Subqueryable t -> new Subquery(t.getStringTemplate(), true);   // Correlate implicit subqueries.
-                case StringTemplate t -> new Subquery(t, true);                     // Correlate implicit subqueries.
+                case Subqueryable t -> new Subquery(t.getSubquery(), true);   // Correlate implicit subqueries.
+                case StringTemplate t -> new Subquery(t, true);               // Correlate implicit subqueries.
                 case Metamodel<?, ?> m -> new Column(m, CASCADE);
                 case Object[] a -> resolveArrayElement(sqlMode, p, a);
                 case Iterable<?> l -> resolveIterableElement(sqlMode, p, l);
@@ -681,7 +711,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
             // If no From element is present, we will only add table aliases.
             addTableAliases(elements, aliasMapper);
         }
-        validateWhere(elements);
     }
 
     /**
@@ -715,7 +744,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
             mapForeignKeys(tableMapper, alias, table, table, path);
         }
         addTableAliases(elements, aliasMapper);
-        validateWhere(elements);
     }
 
     /**
@@ -782,7 +810,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
             // If no From element is present, we will only add table aliases.
             addTableAliases(elements, aliasMapper);
         }
-        validateWhere(elements);
     }
 
     /**
@@ -806,7 +833,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
             // If no From element is present, we will only add table aliases.
             addTableAliases(elements, aliasMapper);
         }
-        validateWhere(elements);
     }
 
     void addJoins(@Nonnull Class<? extends Record> fromTable,
@@ -1056,8 +1082,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
         var fragments = template.fragments();
         var values = template.values();
         Sql generated;
+        var sqlMode = getSqlMode(template);
         if (!values.isEmpty()) {
-            var sqlMode = getSqlMode(template);
             var elements = resolveElements(sqlMode, values, fragments);
             var tableUse = getTableUse();
             var tableMapper = getTableMapper(tableUse); // No need to pass parent table mapper as only aliases are correlated.
@@ -1069,8 +1095,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
             assert values.size() == elements.size();
             Optional<Table> primaryTable = getPrimaryTable(unwrappedElements, aliasMapper);
             if (primaryTable.isPresent()) {
-                validateRecordType(sqlMode, primaryTable.get().table());
+                validateRecordType(primaryTable.get().table(), sqlMode);
             }
+            validateWhere(unwrappedElements);
             List<String> parts = new ArrayList<>();
             List<Parameter> parameters = new ArrayList<>();
             AtomicReference<BindVariables> bindVariables = new AtomicReference<>();
@@ -1128,7 +1155,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             for (var result : results) {
                 result.process();
             }
-            validateNamedParameters(parameters);
+            validateParameters(parameters);
             String sql = String.join("", parts);
             if (nested && !sql.startsWith("\n") && sql.contains("\n")) {
                 //noinspection StringTemplateMigration
@@ -1136,13 +1163,14 @@ public final class SqlTemplateImpl implements SqlTemplate {
             }
             generated = new SqlImpl(
                     sql,
-                    copyOf(parameters),
+                    parameters,
                     ofNullable(bindVariables.get()),
-                    copyOf(generatedKeys),
-                    versionAware.getPlain());
+                    generatedKeys,
+                    versionAware.getPlain(),
+                    checkSafety(sql, sqlMode));
         } else {
             assert fragments.size() == 1;
-            generated = new SqlImpl(fragments.getFirst(), List.of(), empty(), List.of(), false);
+            generated = new SqlImpl(fragments.getFirst(), List.of(), empty(), List.of(), false, checkSafety(fragments.getFirst(), sqlMode));
         }
         if (!nested) {
             // Don't intercept nested calls.
@@ -1154,5 +1182,17 @@ public final class SqlTemplateImpl implements SqlTemplate {
             }
         }
         return generated;
+    }
+
+    private Optional<String> checkSafety(@Nonnull String sql, @Nonnull SqlMode mode) {
+        return switch (mode) {
+            case SELECT, INSERT, UNDEFINED -> empty();
+            case UPDATE, DELETE -> {
+                if (!hasWhereClause(sql)) {
+                    yield Optional.of(STR."\{mode} without a WHERE clause is potentially unsafe.");
+                }
+                yield empty();
+            }
+        };
     }
 }

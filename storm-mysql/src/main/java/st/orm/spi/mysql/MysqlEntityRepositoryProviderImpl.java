@@ -17,8 +17,8 @@ package st.orm.spi.mysql;
 
 import jakarta.annotation.Nonnull;
 import st.orm.repository.Entity;
-import st.orm.repository.Model;
 import st.orm.repository.EntityRepository;
+import st.orm.repository.Model;
 import st.orm.spi.EntityRepositoryProvider;
 import st.orm.template.ORMTemplate;
 
@@ -29,8 +29,8 @@ public class MysqlEntityRepositoryProviderImpl implements EntityRepositoryProvid
 
     @Override
     public <ID, E extends Record & Entity<ID>> EntityRepository<E, ID> getEntityRepository(
-            @Nonnull ORMTemplate orm,
+            @Nonnull ORMTemplate ormTemplate,
             @Nonnull Model<E, ID> model) {
-        return new MysqlEntityRepositoryImpl<>(orm, model);
+        return new MysqlEntityRepositoryImpl<>(ormTemplate, model);
     }
 }

@@ -40,6 +40,16 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     public abstract <X> KQueryBuilder<T, R, X> typed(@Nonnull KClass<X> pkType);
 
     /**
+     * Returns a query builder that does not require a WHERE clause for UPDATE and DELETE queries.
+     *
+     * <p>This method is used to prevent accidental updates or deletions of all records in a table when a WHERE clause
+     * is not provided.</p>
+     *
+     * @since 1.2
+     */
+    public abstract KQueryBuilder<T, R, ID> safe();
+
+    /**
      * Marks the current query as a distinct query.
      *
      * @return the query builder.

@@ -26,7 +26,7 @@ import st.orm.template.ORMTemplate;
  */
 public class MariadbEntityRepositoryImpl<E extends Record & Entity<ID>, ID> extends MysqlEntityRepositoryImpl<E, ID> {
 
-    public MariadbEntityRepositoryImpl(@Nonnull ORMTemplate orm, @Nonnull Model<E, ID> model) {
-        super(orm, model);
+    public MariadbEntityRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
+        super(ormTemplate, model);
     }
 }

@@ -26,6 +26,8 @@ import st.orm.repository.ProjectionQuery;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.SqlTemplate;
+import st.orm.template.SqlTemplate.Parameter;
+import st.orm.template.SqlTemplate.PositionalParameter;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.impl.SqlParser.SqlMode;
 
@@ -35,6 +37,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -58,9 +62,16 @@ final class RecordValidation {
     record TypeValidationKey(@Nonnull SqlMode sqlMode, @Nonnull Class<? extends Record> recordType) {}
     private static final Map<TypeValidationKey, String> VALIDATE_RECORD_TYPE_CACHE = new ConcurrentHashMap<>();
 
+    /**
+     * Validates whether the specified record type is valid for the given SQL mode.
+     *
+     * @param recordType the record type to validate.
+     * @param sqlMode    the SQL mode to validate against.
+     * @throws SqlTemplateException if the record type is invalid for the given SQL mode.
+     */
     @SuppressWarnings("unchecked")
-    static void validateRecordType(@Nonnull SqlMode sqlMode,
-                                   @Nonnull Class<? extends Record> recordType) throws SqlTemplateException {
+    static void validateRecordType(@Nonnull Class<? extends Record> recordType, @Nonnull SqlMode sqlMode)
+            throws SqlTemplateException {
         String message = VALIDATE_RECORD_TYPE_CACHE.computeIfAbsent(new TypeValidationKey(sqlMode, recordType), _ -> {
             // Note that this result can be cached as we're inspecting types.
             var pkComponents = getPkComponents(recordType).toList();
@@ -204,12 +215,53 @@ final class RecordValidation {
     }
 
     /**
+     * Validates the parameters of a SQL template.
+     *
+     * @param parameters the parameters to validate.
+     * @throws SqlTemplateException if the parameters are invalid.
+     */
+    static void validateParameters(@Nonnull List<Parameter> parameters) throws SqlTemplateException {
+        validatePositionalParameters(parameters);
+        validateNamedParameters(parameters);
+    }
+
+    /**
+     * Validates that positional parameters cover all the positions from 1 to n without gaps.
+     *
+     * @param parameters the parameters to validate.
+     * @throws SqlTemplateException if a positional parameter is missing or if there are gaps in the positions.
+     */
+    static void validatePositionalParameters(@Nonnull List<Parameter> parameters) throws SqlTemplateException {
+        SortedSet<Integer> positionSet = new TreeSet<>();
+        for (Parameter param : parameters) {
+            if (param instanceof PositionalParameter pp) {
+                positionSet.add(pp.position());
+            }
+        }
+        if (positionSet.isEmpty()) {
+            return;
+        }
+        int minPos = positionSet.first();
+        if (minPos != 1) {
+            throw new SqlTemplateException(STR."Positional parameters must start at 1, but found \{minPos} instead.");
+        }
+        // Check for consecutive coverage from 1 through maxPos
+        int expected = 1;
+        for (int pos : positionSet) {
+            if (pos != expected) {
+                throw new SqlTemplateException(STR."Missing positional parameter at position \{expected}");
+            }
+            expected++;
+        }
+    }
+
+    /**
      * Validates that named parameters are not being used multiple times with varying values.
      *
      * @param parameters the parameters to validate.
      * @throws SqlTemplateException if a named parameter is being used multiple times with varying values.
      */
-    static void validateNamedParameters(List<SqlTemplate.Parameter> parameters) throws SqlTemplateException {
+    static void validateNamedParameters(List<Parameter> parameters) throws SqlTemplateException {
         var namedParameters = parameters.stream()
                 .filter(SqlTemplate.NamedParameter.class::isInstance)
                 .map(SqlTemplate.NamedParameter.class::cast)

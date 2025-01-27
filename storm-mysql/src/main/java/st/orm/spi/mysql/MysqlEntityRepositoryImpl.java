@@ -17,6 +17,7 @@ package st.orm.spi.mysql;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.BatchCallback;
 import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
 import st.orm.PersistenceException;
@@ -24,7 +25,6 @@ import st.orm.PreparedQuery;
 import st.orm.repository.Column;
 import st.orm.repository.Entity;
 import st.orm.repository.Model;
-import st.orm.BatchCallback;
 import st.orm.spi.EntityRepositoryImpl;
 import st.orm.template.ORMTemplate;
 import st.orm.template.impl.LazySupplier;
@@ -47,8 +47,8 @@ import static st.orm.template.QueryBuilder.slice;
  */
 public class MysqlEntityRepositoryImpl<E extends Record & Entity<ID>, ID> extends EntityRepositoryImpl<E, ID> {
 
-    public MysqlEntityRepositoryImpl(@Nonnull ORMTemplate orm, @Nonnull Model<E, ID> model) {
-        super(orm, model);
+    public MysqlEntityRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
+        super(ormTemplate, model);
     }
 
     private String onDuplicateKey() {
@@ -94,7 +94,7 @@ public class MysqlEntityRepositoryImpl<E extends Record & Entity<ID>, ID> extend
             update(entity);
             return;
         }
-        var query = orm.query(RAW."""
+        var query = ormTemplate.query(RAW."""
                 INSERT INTO \{model.type()}
                 VALUES \{entity}\{unsafe(onDuplicateKey())}""");
         query.executeUpdate();
@@ -120,7 +120,7 @@ public class MysqlEntityRepositoryImpl<E extends Record & Entity<ID>, ID> extend
             update(entity);
             return entity.id();
         }
-        try (var query = orm.query(RAW."""
+        try (var query = ormTemplate.query(RAW."""
                 INSERT INTO \{model.type()}
                 VALUES \{entity}\{unsafe(onDuplicateKey())}""").prepare()) {
             query.executeUpdate();
@@ -412,8 +412,8 @@ public class MysqlEntityRepositoryImpl<E extends Record & Entity<ID>, ID> extend
     }
 
     protected PreparedQuery prepareUpsertQuery() {
-        var bindVars = orm.createBindVars();
-        return orm.query(RAW."""
+        var bindVars = ormTemplate.createBindVars();
+        return ormTemplate.query(RAW."""
                 INSERT INTO \{model.type()}
                 VALUES \{bindVars}\{unsafe(onDuplicateKey())}""").prepare();
     }

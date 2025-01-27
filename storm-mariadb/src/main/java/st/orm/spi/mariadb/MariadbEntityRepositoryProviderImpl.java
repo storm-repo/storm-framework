@@ -17,8 +17,8 @@ package st.orm.spi.mariadb;
 
 import jakarta.annotation.Nonnull;
 import st.orm.repository.Entity;
-import st.orm.repository.Model;
 import st.orm.repository.EntityRepository;
+import st.orm.repository.Model;
 import st.orm.spi.EntityRepositoryProvider;
 import st.orm.spi.Orderable.Before;
 import st.orm.spi.mysql.MysqlEntityRepositoryProviderImpl;
@@ -32,8 +32,8 @@ public class MariadbEntityRepositoryProviderImpl implements EntityRepositoryProv
 
     @Override
     public <ID, E extends Record & Entity<ID>> EntityRepository<E, ID> getEntityRepository(
-            @Nonnull ORMTemplate orm,
+            @Nonnull ORMTemplate ormTemplate,
             @Nonnull Model<E, ID> model) {
-        return new MariadbEntityRepositoryImpl<>(orm, model);
+        return new MariadbEntityRepositoryImpl<>(ormTemplate, model);
     }
 }

@@ -130,23 +130,23 @@ public final class Providers {
     }
 
     public static <ID, E extends Record & Entity<ID>> EntityRepository<E, ID> getEntityRepository(
-            @Nonnull ORMTemplate orm,
+            @Nonnull ORMTemplate ormTemplate,
             @Nonnull Model<E, ID> model,
             @Nonnull Predicate<? super EntityRepositoryProvider> filter) {
         return Orderable.sort(ENTITY_REPOSITORY_PROVIDERS.get().stream())
                 .filter(filter)
-                .map(provider -> provider.getEntityRepository(orm, model))
+                .map(provider -> provider.getEntityRepository(ormTemplate, model))
                 .findFirst()
                 .orElseThrow();
     }
 
     public static <ID, P extends Record & Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(
-            @Nonnull ORMTemplate orm,
+            @Nonnull ORMTemplate ormTemplate,
             @Nonnull Model<P, ID> model,
             @Nonnull Predicate<? super ProjectionRepositoryProvider> filter) {
         return Orderable.sort(PROJECTION_REPOSITORY_PROVIDERS.get().stream())
                 .filter(filter)
-                .map(provider -> provider.getProjectionRepository(orm, model))
+                .map(provider -> provider.getProjectionRepository(ormTemplate, model))
                 .findFirst()
                 .orElseThrow();
     }

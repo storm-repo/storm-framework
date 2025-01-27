@@ -21,13 +21,14 @@ import st.orm.BindVars;
 import st.orm.PersistenceException;
 import st.orm.Query;
 import st.orm.spi.Provider;
+import st.orm.spi.QueryFactory;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
 import st.orm.template.ORMTemplate;
 import st.orm.template.PreparedStatementTemplate;
+import st.orm.template.Sql;
 import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplate.BatchListener;
-import st.orm.template.SqlTemplate.BindVariables;
 import st.orm.template.SqlTemplate.Parameter;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.TableAliasResolver;
@@ -51,10 +52,8 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
 
     @FunctionalInterface
     private interface TemplateProcessor {
-        PreparedStatement process(@Nonnull String sql,
-                                  @Nonnull List<Parameter> parameters,
-                                  @Nullable BindVariables bindVariables,
-                                  @Nonnull List<String> generatedKeys) throws SQLException;
+        PreparedStatement process(@Nonnull Sql ql,
+                                  boolean safe) throws SQLException;
     }
 
     private final TemplateProcessor templateProcessor;
@@ -68,19 +67,28 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     public PreparedStatementTemplateImpl(@Nonnull DataSource dataSource) {
         // Note that this logic does not use Spring's DataSourceUtils, so it is not aware of Spring's transaction
         // management.
-        templateProcessor = (sql, parameters, bindVariables, generatedKeys) -> {
+        templateProcessor = (sql, safe) -> {
+            if (!safe) {
+                sql.unsafeWarning().ifPresent(warning -> {
+                    throw new PersistenceException(STR."\{warning} Use Query.safe() to mark query as safe.");
+                });
+            }
+            var statement = sql.statement();
+            var parameters = sql.parameters();
+            var bindVariables = sql.bindVariables().orElse(null);
+            var generatedKeys = sql.generatedKeys();
             Connection connection = getConnection(dataSource);
             PreparedStatement preparedStatement = null;
             try {
                 if (!generatedKeys.isEmpty()) {
                     try {
                         //noinspection SqlSourceToSinkFlow
-                        preparedStatement = connection.prepareStatement(sql, generatedKeys.toArray(new String[0]));
+                        preparedStatement = connection.prepareStatement(statement, generatedKeys.toArray(new String[0]));
                     } catch (SQLFeatureNotSupportedException ignore) {}
                 }
                 if (preparedStatement == null) {
                     //noinspection SqlSourceToSinkFlow
-                    preparedStatement = connection.prepareStatement(sql);
+                    preparedStatement = connection.prepareStatement(statement);
                 }
                 if (bindVariables == null) {
                     setParameters(preparedStatement, parameters);
@@ -103,17 +111,26 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     }
 
     public PreparedStatementTemplateImpl(@Nonnull Connection connection) {
-        templateProcessor = (sql, parameters, bindVariables, generatedKeys) -> {
+        templateProcessor = (sql, safe) -> {
+            if (!safe) {
+                sql.unsafeWarning().ifPresent(warning -> {
+                    throw new PersistenceException(STR."\{warning} Use Query.safe() to mark query as safe.");
+                });
+            }
+            var statement = sql.statement();
+            var parameters = sql.parameters();
+            var bindVariables = sql.bindVariables().orElse(null);
+            var generatedKeys = sql.generatedKeys();
             PreparedStatement preparedStatement = null;
             if (!generatedKeys.isEmpty()) {
                 try {
                     //noinspection SqlSourceToSinkFlow
-                    preparedStatement = connection.prepareStatement(sql, generatedKeys.toArray(new String[0]));
+                    preparedStatement = connection.prepareStatement(statement, generatedKeys.toArray(new String[0]));
                 } catch (SQLFeatureNotSupportedException ignore) {}
             }
             if (preparedStatement == null) {
                 //noinspection SqlSourceToSinkFlow
-                preparedStatement = connection.prepareStatement(sql);
+                preparedStatement = connection.prepareStatement(statement);
             }
             if (bindVariables == null) {
                 setParameters(preparedStatement, parameters);
@@ -300,9 +317,9 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         try {
             var sql = sqlTemplate().process(template);
             var bindVariables = sql.bindVariables().orElse(null);
-            return new QueryImpl(lazyFactory, () -> {
+            return new QueryImpl(lazyFactory, safe -> {
                 try {
-                    return templateProcessor.process(sql.statement(), sql.parameters(), bindVariables, sql.generatedKeys());
+                    return templateProcessor.process(sql, safe);
                 } catch (SQLException e) {
                     throw new PersistenceException(e);
                 }
@@ -321,7 +338,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     @Override
     public PreparedStatement query(@Nonnull StringTemplate template) throws SQLException {
         var sql = sqlTemplate().process(template);
-        return templateProcessor.process(sql.statement(), sql.parameters(), sql.bindVariables().orElse(null), sql.generatedKeys());
+        return templateProcessor.process(sql, true);    // We allow unsafe queries in direct JDBC mode.
     }
 
     private static final Method GET_CONNECTION_METHOD = ((Supplier<Method>) () -> {
