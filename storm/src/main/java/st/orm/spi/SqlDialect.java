@@ -21,6 +21,7 @@ import st.orm.template.SqlTemplateException;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 /**
  * Represents a specific SQL dialect with methods to determine feature support and handle identifier escaping.
@@ -54,6 +55,38 @@ public interface SqlDialect {
      * @return the escaped identifier
      */
     String escape(@Nonnull String name);
+
+    /**
+     * Returns the pattern for single line comments.
+     *
+     * @return the pattern for single line comments.
+     * @since 1.2
+     */
+    Pattern getSingleLineCommentPattern();
+
+    /**
+     * Returns the pattern for multi line comments.
+     *
+     * @return the pattern for multi line comments.
+     * @since 1.2
+     */
+    Pattern getMultiLineCommentPattern();
+
+    /**
+     * Returns the pattern for identifiers.
+     *
+     * @return the pattern for identifiers.
+     * @since 1.2
+     */
+    Pattern getIdentifierPattern();
+
+    /**
+     * Returns the pattern for string literals.
+     *
+     * @return the pattern for string literals.
+     * @since 1.2
+     */
+    Pattern getQuoteLiteralPattern();
 
     /**
      * Returns a string for the given column name.

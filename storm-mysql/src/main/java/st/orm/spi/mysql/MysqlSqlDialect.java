@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 import static java.util.stream.Collectors.joining;
 
@@ -64,6 +65,44 @@ public class MysqlSqlDialect extends DefaultSqlDialect implements SqlDialect {
     @Override
     public String escape(@Nonnull String name) {
         return STR."`\{name}`";
+    }
+
+    /**
+     * Regex for double-quoted identifiers (including escaped quotes inside). In ANSI SQL, an embedded double quote is
+     * escaped by doubling it (""). Look for sequences of "" or any non-quote character, all enclosed between double
+     * quotes.
+     */
+    private static final Pattern IDENTIFIER_PATTERN = Pattern.compile(
+            "\"(?:\"\"|[^\"])*\""   // Either: double‐quoted identifier (with "" as escape)
+            + "|" +
+            "`(?:``|[^`])*`"    // Or: backtick‐quoted identifier (with `` as escape)
+    );
+
+    /**
+     * Returns the pattern for identifiers.
+     *
+     * @return the pattern for identifiers.
+     * @since 1.2
+     */
+    @Override
+    public Pattern getIdentifierPattern() {
+        return IDENTIFIER_PATTERN;
+    }
+
+    /**
+     * Regex for single-quoted string literals, handling both double single quotes and backslash escapes.
+     */
+    private static final Pattern QUOTE_LITERAL_PATTERN = Pattern.compile("'(?:''|\\.|[^'])*'");
+
+    /**
+     * Returns the pattern for string literals.
+     *
+     * @return the pattern for string literals.
+     * @since 1.2
+     */
+    @Override
+    public Pattern getQuoteLiteralPattern() {
+        return QUOTE_LITERAL_PATTERN;
     }
 
     /**

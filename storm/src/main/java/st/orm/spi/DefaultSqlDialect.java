@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 import static java.util.stream.Collectors.joining;
 import static st.orm.template.Operator.EQUALS;
@@ -61,6 +62,66 @@ public class DefaultSqlDialect implements SqlDialect {
     @Override
     public String escape(@Nonnull String name) {
         return STR."\"\{name}\"";
+    }
+
+    private static final Pattern SINGLE_LINE_COMMENT_PATTERN = Pattern.compile("(--|#).*?(\\n|$)");
+
+    /**
+     * Returns the pattern for single line comments.
+     *
+     * @return the pattern for single line comments.
+     * @since 1.2
+     */
+    @Override
+    public Pattern getSingleLineCommentPattern() {
+        return SINGLE_LINE_COMMENT_PATTERN;
+    }
+
+    private static final Pattern MULTI_LINE_COMMENT_PATTERN = Pattern.compile("(?s)/\\*.*?\\*/");
+
+    /**
+     * Returns the pattern for multi line comments.
+     *
+     * @return the pattern for multi line comments.
+     * @since 1.2
+     */
+    @Override
+    public Pattern getMultiLineCommentPattern() {
+        return MULTI_LINE_COMMENT_PATTERN;
+    }
+
+    /**
+     * Regex for double-quoted identifiers (including escaped quotes inside). In ANSI SQL, an embedded double quote is
+     * escaped by doubling it (""). Look for sequences of "" or any non-quote character, all enclosed between double
+     * quotes.
+     */
+    private static final Pattern IDENTIFIER_PATTERN = Pattern.compile("\"(?:\"\"|[^\"])*\"");
+
+    /**
+     * Returns the pattern for identifiers.
+     *
+     * @return the pattern for identifiers.
+     * @since 1.2
+     */
+    @Override
+    public Pattern getIdentifierPattern() {
+        return IDENTIFIER_PATTERN;
+    }
+
+    /**
+     * Regex for single-quoted string literals, handling double single quotes.
+     */
+    private static final Pattern QUOTE_LITERAL_PATTERN = Pattern.compile("'(?:''|[^'])*'");
+
+    /**
+     * Returns the pattern for string literals.
+     *
+     * @return the pattern for string literals.
+     * @since 1.2
+     */
+    @Override
+    public Pattern getQuoteLiteralPattern() {
+        return QUOTE_LITERAL_PATTERN;
     }
 
     /**

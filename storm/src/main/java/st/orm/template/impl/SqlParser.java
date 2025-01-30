@@ -16,19 +16,29 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.spi.Providers;
+import st.orm.spi.SqlDialect;
 import st.orm.template.SqlTemplate;
 import st.orm.template.impl.Elements.Unsafe;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
 import static java.util.regex.Pattern.DOTALL;
+import static st.orm.template.impl.SqlParser.SqlMode.DELETE;
+import static st.orm.template.impl.SqlParser.SqlMode.INSERT;
+import static st.orm.template.impl.SqlParser.SqlMode.SELECT;
+import static st.orm.template.impl.SqlParser.SqlMode.UNDEFINED;
+import static st.orm.template.impl.SqlParser.SqlMode.UPDATE;
 
 /**
  * SQL parser for basic SQL processing.
  */
 final class SqlParser {
+
+    private static final SqlDialect SQL_DIALECT = Providers.getSqlDialect();
 
     /**
      * Represents the SQL mode.
@@ -82,62 +92,85 @@ final class SqlParser {
         UNDEFINED
     }
 
-    private static final Pattern WITH_PATTERN = Pattern.compile("^(?i:WITH)\\W.*", DOTALL);
+    private static final Pattern WITH_PATTERN = Pattern.compile("^(?i:WITH)\\b.*", DOTALL);
     private static final Map<Pattern, SqlMode> SQL_MODES = Map.of(
-            Pattern.compile("^(?i:SELECT)\\W.*", DOTALL), SqlMode.SELECT,
-            Pattern.compile("^(?i:INSERT)\\W.*", DOTALL), SqlMode.INSERT,
-            Pattern.compile("^(?i:UPDATE)\\W.*", DOTALL), SqlMode.UPDATE,
-            Pattern.compile("^(?i:DELETE)\\W.*", DOTALL), SqlMode.DELETE
+            Pattern.compile("^(?i:SELECT)\\b.*", DOTALL), SELECT,
+            Pattern.compile("^(?i:INSERT)\\b.*", DOTALL), INSERT,
+            Pattern.compile("^(?i:UPDATE)\\b.*", DOTALL), UPDATE,
+            Pattern.compile("^(?i:DELETE)\\b.*", DOTALL), DELETE
     );
     private static final Pattern WHERE_PATTERN = Pattern.compile(
-            "(?i:\\bWHERE\\b)",
-            Pattern.DOTALL
+            "(?i:\\bWHERE\\b)", DOTALL
     );
 
     private SqlParser() {
     }
 
-    private static String getSql(@Nonnull StringTemplate template) {
-        String first = template.fragments().getFirst().stripLeading();
-        if (first.isEmpty()) {
-            first = template.values().stream()
-                    .findFirst()
-                    .filter(Unsafe.class::isInstance)
-                    .map(Unsafe.class::cast)
-                    .map(Unsafe::sql)
-                    .orElse("");
+    private static String getRawSql(@Nonnull StringTemplate template) {
+        StringBuilder sb = new StringBuilder();
+        List<String> fragments = template.fragments();
+        List<Object> values = template.values();
+        // Go through as many fragments as there are values.
+        int size = Math.min(fragments.size(), values.size());
+        for (int i = 0; i < size; i++) {
+            sb.append(fragments.get(i));
+            Object value = values.get(i);
+            if (value instanceof Unsafe) {
+                sb.append(((Unsafe) value).sql());
+            }
         }
-        String input = removeComments(first).stripLeading();
-        if (WITH_PATTERN.matcher(input).matches()) {
-            input = removeWithClause(removeComments(String.join("", template.fragments())));
+        // Append any leftover fragments if there are more fragments than values.
+        for (int i = size; i < fragments.size(); i++) {
+            sb.append(fragments.get(i));
         }
-        return input.stripLeading();
+        return sb.toString();
     }
 
     /**
-     * Determines the SQL mode for the specified {@code stringTemplate}.
+     * Determines the SQL mode for the specified {@code sql} string.
      *
-     * @param template The string template.
+     * @param sql the sql to inspect.
      * @return the SQL mode.
      */
-    static SqlMode getSqlMode(@Nonnull StringTemplate template) {
-        String sql = getSql(template);
+    private static SqlMode getSqlMode(@Nonnull String sql) {
         return SQL_MODES.entrySet().stream()
                 .filter(e -> e.getKey().matcher(sql).matches())
                 .map(Entry::getValue)
                 .findFirst()
-                .orElse(SqlMode.UNDEFINED);
+                .orElse(UNDEFINED);
+    }
+
+    /**
+     * Determines the SQL mode for the specified {@code template}.
+     *
+     * @param template the string template.
+     * @return the SQL mode.
+     */
+    static SqlMode getSqlMode(@Nonnull StringTemplate template) {
+        String rawSql = getRawSql(template);
+        SqlMode mode = getSqlMode(rawSql);  // First try directly.
+        if (mode != UNDEFINED) {
+            return mode;
+        }
+        rawSql = removeComments(rawSql).stripLeading();
+        mode = getSqlMode(rawSql);  // Remove potential leading comments and retry.
+        if (mode != UNDEFINED) {
+            return mode;
+        }
+        if (WITH_PATTERN.matcher(rawSql).matches()) {   // Remove potential WITH clause and retry.
+            mode = getSqlMode(removeWithClause(rawSql));
+        }
+        return mode;
     }
 
     static boolean hasWhereClause(@Nonnull String sql) {
-        return WHERE_PATTERN.matcher(removeStringLiterals(removeComments(sql))).find();
+        return WHERE_PATTERN.matcher(clearStringLiterals(clearQuotedIdentifiers(removeComments(sql)))).find();
     }
 
-    static String removeWithClause(String sql) {
+    private static String removeWithClause(String sql) {
+        sql = clearStringLiterals(clearQuotedIdentifiers(sql));
         assert sql.trim().toUpperCase().startsWith("WITH");
         int depth = 0; // Depth of nested parentheses.
-        boolean inSingleQuotes = false; // Track whether inside single quotes.
-        boolean inDoubleQuotes = false; // Track whether inside double quotes.
         int startIndex = sql.indexOf('('); // Find the first opening parenthesis.
         // If there's no opening parenthesis after "WITH", return the original string.
         if (startIndex == -1) {
@@ -145,34 +178,28 @@ final class SqlParser {
         }
         for (int i = startIndex; i < sql.length(); i++) {
             char ch = sql.charAt(i);
-            // Toggle state for single quotes.
-            if (ch == '\'' && !inDoubleQuotes) {
-                inSingleQuotes = !inSingleQuotes;
-            }
-            // Toggle state for double quotes.
-            else if (ch == '"' && !inSingleQuotes) {
-                inDoubleQuotes = !inDoubleQuotes;
-            }
-            // Count parentheses depth if not within quotes.
-            if (!inSingleQuotes && !inDoubleQuotes) {
-                if (ch == '(') {
-                    depth++;
-                } else if (ch == ')') {
-                    depth--;
-                    if (depth == 0) {
-                        // Found the matching closing parenthesis for the first opening parenthesis.
-                        String afterWithClause = sql.substring(i + 1).trim();
-                        // Check if it needs to remove a comma right after the closing parenthesis of WITH clause.
-                        if (afterWithClause.startsWith(",")) {
-                            afterWithClause = afterWithClause.substring(1).trim();
-                        }
-                        return afterWithClause;
+            if (ch == '(') {
+                depth++;
+            } else if (ch == ')') {
+                depth--;
+                if (depth == 0) {
+                    // Found the matching closing parenthesis for the first opening parenthesis.
+                    String afterWithClause = sql.substring(i + 1).trim();
+                    // Check if it needs to remove a comma right after the closing parenthesis of WITH clause.
+                    if (afterWithClause.startsWith(",")) {
+                        afterWithClause = afterWithClause.substring(1).trim();
                     }
+                    return afterWithClause;
                 }
             }
         }
-        // If depth never reaches 0, return the original string as it might be malformed or the logic above didn't correctly parse it.
+        // If depth never reaches 0, return the original string as it might be malformed or the logic above didn't
+        // correctly parse it.
         return sql;
+    }
+
+    private static String replaceAll(@Nonnull String sql, @Nonnull Pattern pattern, @Nonnull String replacement) {
+        return pattern.matcher(sql).replaceAll(replacement);
     }
 
     /**
@@ -182,25 +209,32 @@ final class SqlParser {
      * @return the SQL string with comments removed.
      */
     static String removeComments(@Nonnull String sql) {
-        // Pattern for multi-line comments.
-        String multiLineCommentRegex = "(?s)/\\*.*?\\*/";
-        // Pattern for single-line comments (both -- and #).
-        String singleLineCommentRegex = "(--|#).*?(\\n|$)";
         // Remove multi-line comments, then single-line comments.
-        return sql.replaceAll(multiLineCommentRegex, "")
-                .replaceAll(singleLineCommentRegex, "")
-                .stripLeading();
+        return replaceAll(
+                replaceAll(sql, SQL_DIALECT.getMultiLineCommentPattern(), ""),
+                    SQL_DIALECT.getSingleLineCommentPattern(), "");
     }
 
     /**
-     * Removes string literals from a SQL string.
-     * @param sql the original SQL string.
-     * @return the SQL string with string literals removed.
+     * Replaces all double-quoted identifiers with an empty double-quoted placeholder ("").
+     *
+     * <p>This is roughly analogous to removing the content of double-quoted identifiers
+     * in an ANSI SQL statement while leaving "" as a placeholder.</p>
+     *
+     * @param sql the original SQL string
+     * @return the modified SQL string
      */
-    static String removeStringLiterals(@Nonnull String sql) {
-        // Regex for single-quoted string literals, handling both double single quotes and backslash escapes.
-        String singleQuotedStringRegex = "'(?:''|\\.|[^'])*'";
-        return sql.replaceAll(singleQuotedStringRegex, "")
-                .stripLeading();
+    static String clearQuotedIdentifiers(@Nonnull String sql) {
+        return replaceAll(sql, SQL_DIALECT.getIdentifierPattern(), SQL_DIALECT.escape(""));
+    }
+
+    /**
+     * Replaces all single-quoted string literals with an empty string literal ('').
+     *
+     * @param sql the original SQL string
+     * @return the modified SQL string
+     */
+    static String clearStringLiterals(@Nonnull String sql) {
+        return replaceAll(sql, SQL_DIALECT.getQuoteLiteralPattern(), "''");
     }
 }
