@@ -376,7 +376,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
-         * the related tables in the table graph or manually added joins.
+         * the related tables in the table graph.
          *
          * @param record the records to match.
          * @return the predicate builder.
