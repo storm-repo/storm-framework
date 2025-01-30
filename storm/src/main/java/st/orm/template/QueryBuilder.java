@@ -378,7 +378,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph.
+         * graph or manually added joins.
          *
          * @param path the path to the object in the table graph.
          * @param operator the operator to use for the comparison.
@@ -413,7 +413,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph.
+         * graph or manually added joins.
          *
          * @param path the path to the object in the table graph.
          * @param operator the operator to use for the comparison.
@@ -432,7 +432,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph.
+         * graph or manually added joins.
          *
          * @param path the path to the object in the table graph.
          * @param operator the operator to use for the comparison.
@@ -610,7 +610,8 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     }
 
     /**
-     * Adds a WHERE clause that matches the specified objects at the specified path in the table graph.
+     * Adds a WHERE clause that matches the specified objects at the specified path in the table graph or manually added
+     * joins.
      *
      * @param path the path to the object in the table graph.
      * @param operator the operator to use for the comparison.
@@ -755,7 +756,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     }
 
     /**
-     * Adds a HAVING clause to the query using the specified expression.
+     * Adds a HAVING clause to the query using the specified expression. The metamodel can refer to manually added joins.
      *
      * @param path the path to the object in the table graph.
      * @param operator the operator to use for the comparison.
@@ -806,8 +807,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     }
 
     /**
-     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph or manually added
-     * joins.
+     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
      *
      * @param path the path to order by.
      * @return the query builder.

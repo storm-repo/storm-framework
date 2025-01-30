@@ -398,7 +398,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a condition to the WHERE clause that matches the specified records. The records can represent any of
-         * the related tables in the table graph or manually added joins.
+         * the related tables in the table graph.
          *
          * @param it the records to match.
          * @return the predicate builder.
@@ -436,7 +436,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph.
+         * graph or manually added joins.
          *
          * @param path the path to the object in the table graph.
          * @param operator the operator to use for the comparison.
@@ -471,7 +471,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph.
+         * graph or manually added joins.
          *
          * @param path the path to the object in the table graph.
          * @param operator the operator to use for the comparison.
@@ -490,7 +490,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph.
+         * graph or manually added joins.
          *
          * @param path the path to the object in the table graph.
          * @param operator the operator to use for the comparison.
@@ -676,7 +676,8 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     }
 
     /**
-     * Adds a WHERE clause that matches the specified objects at the specified path in the table graph.
+     * Adds a WHERE clause that matches the specified objects at the specified path in the table graph or manually added
+     * joins.
      *
      * @param path the path to the object in the table graph.
      * @param operator the operator to use for the comparison.
@@ -849,7 +850,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     }
 
     /**
-     * Adds a HAVING clause to the query using the specified expression.
+     * Adds a HAVING clause to the query using the specified expression. The metamodel can refer to manually added joins.
      *
      * @param path the path to the object in the table graph.
      * @param operator the operator to use for the comparison.
