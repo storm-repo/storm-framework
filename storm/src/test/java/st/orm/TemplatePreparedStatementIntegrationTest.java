@@ -58,7 +58,7 @@ import static st.orm.template.Operator.BETWEEN;
 import static st.orm.template.Operator.EQUALS;
 import static st.orm.template.ResolveScope.INNER;
 import static st.orm.template.ResolveScope.OUTER;
-import static st.orm.template.SqlInterceptor.intercept;
+import static st.orm.template.SqlInterceptor.consume;
 import static st.orm.template.TemplateFunction.template;
 
 @ExtendWith(SpringExtension.class)
@@ -331,7 +331,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 DELETE x
                 FROM visit x
                 WHERE x.id = ?""";
-        try (var _ = intercept(sql -> assertEquals(expectedSql, sql.statement()));
+        try (var _ = consume(sql -> assertEquals(expectedSql, sql.statement()));
              var _ = ORM(dataSource).query(RAW."""
                 DELETE \{Visit.class}
                 FROM \{from(Visit.class, "x", true)}
@@ -354,10 +354,10 @@ public class TemplatePreparedStatementIntegrationTest {
     @Test
     public void testDeleteWithType() {
         String expectedSql = """
-            DELETE _v
-            FROM visit _v
-            WHERE _v.id = ?""";
-        try (var _ = intercept(sql -> assertEquals(expectedSql, sql.statement()));
+            DELETE v
+            FROM visit v
+            WHERE v.id = ?""";
+        try (var _ = consume(sql -> assertEquals(expectedSql, sql.statement()));
              var _ = ORM(dataSource).query(RAW."""
                 DELETE \{Visit.class}
                 FROM \{Visit.class}
@@ -387,7 +387,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 DELETE f
                 FROM visit f
                 WHERE f.id = ?""";
-        try (var _ = intercept(sql -> assertEquals(expectedSql, sql.statement()));
+        try (var _ = consume(sql -> assertEquals(expectedSql, sql.statement()));
              var query = ORM(dataSource).query(RAW."""
                 DELETE \{Visit.class}
                 FROM \{from(Visit.class, "f", false)}
@@ -401,11 +401,11 @@ public class TemplatePreparedStatementIntegrationTest {
     @Test
     public void testDeleteWithAutoJoin() {
         String expectedSql = """
-            DELETE _v
-            FROM visit _v
-            INNER JOIN pet _p ON _v.pet_id = _p.id
-            WHERE _p.owner_id = ?""";
-        try (var _ = intercept(sql -> assertEquals(expectedSql, sql.statement()));
+            DELETE v
+            FROM visit v
+            INNER JOIN pet p ON v.pet_id = p.id
+            WHERE p.owner_id = ?""";
+        try (var _ = consume(sql -> assertEquals(expectedSql, sql.statement()));
              var _ = ORM(dataSource).query(RAW."""
                 DELETE \{Visit.class}
                 FROM \{from(Visit.class, true)}

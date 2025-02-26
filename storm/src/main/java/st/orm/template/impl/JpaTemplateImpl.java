@@ -122,7 +122,7 @@ public final class JpaTemplateImpl implements JpaTemplate {
             public Query create(@Nonnull StringTemplate template) {
                 return new JpaPreparedQuery(template, false);
             }
-        }, null, null, null, null);
+        }, ModelBuilder.newInstance(), null);
     }
 
     private class JpaPreparedQuery implements PreparedQuery {

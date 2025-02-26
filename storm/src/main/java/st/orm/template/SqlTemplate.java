@@ -98,11 +98,27 @@ public interface SqlTemplate {
     }
 
     /**
+     * A listener for record events within a SQL query context.
+     */
+    @FunctionalInterface
+    interface RecordListener {
+
+        /**
+         * Invoked when a new record is processed.
+         *
+         * @param record the record that is being processed.
+         * @since 1.2
+         */
+        void onRecord(@Nonnull Record record);
+    }
+
+    /**
      * A listener for batch events within a SQL query context.
      *
      * <p>When a batch of positional parameters is about to be processed, the {@link #onBatch(List)} method is called
      * with the current list of parameters.</p>
      */
+    @FunctionalInterface
     interface BatchListener {
 
         /**

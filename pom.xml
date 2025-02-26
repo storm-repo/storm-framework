@@ -16,8 +16,11 @@
         <module>storm-metamodel-processor</module>
         <module>storm</module>
         <module>storm-json</module>
+        <module>storm-oracle</module>
         <module>storm-mysql</module>
         <module>storm-mariadb</module>
+        <module>storm-postgresql</module>
+        <module>storm-sqlserver</module>
         <module>storm-kotlin</module>
         <module>storm-spring</module>
     </modules>

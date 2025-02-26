@@ -57,10 +57,8 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     }
 
     private final TemplateProcessor templateProcessor;
-    private final TableNameResolver tableNameResolver;
+    private final ModelBuilder modelBuilder;
     private final TableAliasResolver tableAliasResolver;
-    private final ColumnNameResolver columnNameResolver;
-    private final ForeignKeyResolver foreignKeyResolver;
     private final Predicate<Provider> providerFilter;
     private final LazyFactory lazyFactory;
 
@@ -102,12 +100,10 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
             }
             return createProxy(preparedStatement, connection, dataSource);
         };
-        this.tableNameResolver = TableNameResolver.DEFAULT;
+        this.modelBuilder = ModelBuilder.newInstance();
         this.tableAliasResolver = TableAliasResolver.DEFAULT;
-        this.columnNameResolver = ColumnNameResolver.DEFAULT;
-        this.foreignKeyResolver = ForeignKeyResolver.DEFAULT;
         this.providerFilter = null;
-        this.lazyFactory = new LazyFactoryImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, null);
+        this.lazyFactory = new LazyFactoryImpl(this, modelBuilder, null);
     }
 
     public PreparedStatementTemplateImpl(@Nonnull Connection connection) {
@@ -139,27 +135,21 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
             }
             return preparedStatement;
         };
-        this.tableNameResolver = TableNameResolver.DEFAULT;
+        this.modelBuilder = ModelBuilder.newInstance();
         this.tableAliasResolver = TableAliasResolver.DEFAULT;
-        this.columnNameResolver = ColumnNameResolver.DEFAULT;
-        this.foreignKeyResolver = ForeignKeyResolver.DEFAULT;
         this.providerFilter = null;
-        this.lazyFactory = new LazyFactoryImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, null);
+        this.lazyFactory = new LazyFactoryImpl(this, modelBuilder, null);
     }
 
     private PreparedStatementTemplateImpl(@Nonnull TemplateProcessor templateProcessor,
-                                          @Nullable TableNameResolver tableNameResolver,
+                                          @Nonnull ModelBuilder modelBuilder,
                                           @Nullable TableAliasResolver tableAliasResolver,
-                                          @Nullable ColumnNameResolver columnNameResolver,
-                                          @Nullable ForeignKeyResolver foreignKeyResolver,
                                           @Nullable Predicate<Provider> providerFilter) {
         this.templateProcessor = templateProcessor;
-        this.tableNameResolver = tableNameResolver;
+        this.modelBuilder = modelBuilder;
         this.tableAliasResolver = tableAliasResolver;
-        this.columnNameResolver = columnNameResolver;
-        this.foreignKeyResolver = foreignKeyResolver;
         this.providerFilter = providerFilter;
-        this.lazyFactory = new LazyFactoryImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter);
+        this.lazyFactory = new LazyFactoryImpl(this, modelBuilder, providerFilter);
     }
 
     /**
@@ -170,7 +160,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public PreparedStatementTemplateImpl withTableNameResolver(@Nullable TableNameResolver tableNameResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, providerFilter);
+        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, providerFilter);
     }
 
     /**
@@ -181,7 +171,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public PreparedStatementTemplateImpl withColumnNameResolver(@Nullable ColumnNameResolver columnNameResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, providerFilter);
+        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, providerFilter);
     }
 
     /**
@@ -192,7 +182,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public PreparedStatementTemplateImpl withForeignKeyResolver(@Nullable ForeignKeyResolver foreignKeyResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, providerFilter);
+        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, providerFilter);
     }
 
     /**
@@ -203,7 +193,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public PreparedStatementTemplateImpl withProviderFilter(@Nullable Predicate<Provider> providerFilter) {
-        return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, providerFilter);
+        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter);
     }
 
     /**
@@ -259,9 +249,9 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
 
     private SqlTemplate sqlTemplate() {
         return PS
-                .withTableNameResolver(tableNameResolver)
-                .withColumnNameResolver(columnNameResolver)
-                .withForeignKeyResolver(foreignKeyResolver);
+                .withTableNameResolver(modelBuilder.tableNameResolver())
+                .withColumnNameResolver(modelBuilder.columnNameResolver())
+                .withForeignKeyResolver(modelBuilder.foreignKeyResolver());
     }
 
     /**
@@ -271,7 +261,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public ORMTemplate toORM() {
-        return new ORMTemplateImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter);
+        return new ORMTemplateImpl(this, modelBuilder, providerFilter);
     }
 
     /**

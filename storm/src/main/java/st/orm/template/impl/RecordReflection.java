@@ -57,7 +57,6 @@ final class RecordReflection {
     private RecordReflection() {
     }
 
-
     /**
      * Looks up the record component in the given table, taking the {@code component} path into account.
      */
@@ -101,8 +100,8 @@ final class RecordReflection {
     }
 
     @SuppressWarnings("unchecked")
-    static Stream<RecordComponent> getPkComponents(@Nonnull Class<? extends Record> componentType) {
-        return Stream.of(componentType.getRecordComponents())
+    static Stream<RecordComponent> getPkComponents(@Nonnull Class<? extends Record> table) {
+        return Stream.of(table.getRecordComponents())
                 .flatMap(c -> {
                     if (REFLECTION.isAnnotationPresent(c, PK.class)) {
                         return Stream.of(c);
@@ -116,8 +115,8 @@ final class RecordReflection {
     }
 
     @SuppressWarnings("unchecked")
-    static Stream<RecordComponent> getFkComponents(@Nonnull Class<? extends Record> componentType) {
-        return Stream.of(componentType.getRecordComponents())
+    static Stream<RecordComponent> getFkComponents(@Nonnull Class<? extends Record> table) {
+        return Stream.of(table.getRecordComponents())
                 .flatMap(c -> {
                     if (REFLECTION.isAnnotationPresent(c, FK.class)) {
                         return Stream.of(c);
@@ -146,10 +145,10 @@ final class RecordReflection {
     }
 
     static Optional<RecordComponent> findComponent(@Nonnull List<RecordComponent> components,
-                                                   @Nonnull Class<? extends Record> recordType) throws SqlTemplateException {
+                                                   @Nonnull Class<? extends Record> table) throws SqlTemplateException {
         for (var component : components) {
-            if (component.getType().equals(recordType)
-                    || (Lazy.class.isAssignableFrom(component.getType()) && getLazyRecordType(component).equals(recordType))) {
+            if (component.getType().equals(table)
+                    || (Lazy.class.isAssignableFrom(component.getType()) && getLazyRecordType(component).equals(table))) {
                 return Optional.of(component);
             }
         }
@@ -223,21 +222,21 @@ final class RecordReflection {
     /**
      * Returns the table name for the specified record type taking the table name resolver into account, if present.
      *
-     * @param recordType the record type to obtain the table name for.
+     * @param table the record type to obtain the table name for.
      * @param tableNameResolver the table name resolver.
      * @return the table name for the specified record type.
      */
-    static String getTableName(@Nonnull Class<? extends Record> recordType,
+    static String getTableName(@Nonnull Class<? extends Record> table,
                                @Nullable TableNameResolver tableNameResolver) throws SqlTemplateException {
         String tableName = null;
-        DbTable dbTable = REFLECTION.getAnnotation(recordType, DbTable.class);
+        DbTable dbTable = REFLECTION.getAnnotation(table, DbTable.class);
         if (dbTable != null) {
             var tableNames = Stream.of(dbTable.name(), dbTable.value())
                     .filter(not(String::isEmpty))
                     .distinct()
                     .toList();
             if (tableNames.size() > 1) {
-                throw new PersistenceException(STR."Multiple table names found for \{recordType.getSimpleName()}.");
+                throw new PersistenceException(STR."Multiple table names found for \{table.getSimpleName()}.");
             }
             if (!tableNames.isEmpty()) {
                 tableName = tableNames.getFirst();
@@ -246,12 +245,12 @@ final class RecordReflection {
         if (tableName == null) {
             if (tableNameResolver != null) {
                 try {
-                    tableName = tableNameResolver.resolveTableName(recordType);
+                    tableName = tableNameResolver.resolveTableName(table);
                 } catch (SqlTemplateException e) {
                     throw new PersistenceException(e);
                 }
             } else {
-                tableName = recordType.getSimpleName();
+                tableName = table.getSimpleName();
             }
         }
         if (dbTable != null) {

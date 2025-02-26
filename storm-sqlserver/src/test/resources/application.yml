@@ -1,0 +1,28 @@
+### SQL Server Settings ###
+spring:
+  test:
+    database:
+      replace: auto_configured
+
+  datasource:
+    url: jdbc:sqlserver://localhost:1433;databaseName=master;encrypt=false;trustServerCertificate=true;
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    username: sa
+    password: test@1234
+    hikari:
+      maximum-pool-size: 4
+
+  jpa:
+    hibernate:
+      ddl-auto: create
+    defer-datasource-initialization: true
+
+  sql:
+    init:
+      mode: always
+      continue-on-error: false
+
+logging:
+  level:
+    root: INFO
+    org.springframework: WARN

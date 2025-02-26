@@ -121,7 +121,7 @@ public class MysqlSqlDialect extends DefaultSqlDialect implements SqlDialect {
             throw new SqlTemplateException("Multi-value IN clause requires at least one value.");
         }
         Set<String> columns = new LinkedHashSet<>(values.getFirst().keySet());
-        if (columns.size() == 1) {
+        if (columns.size() < 2) {
             throw new SqlTemplateException("Multi-value IN clause requires at least two columns.");
         }
         if (!supportsMultiValueTuples()) {
@@ -160,15 +160,27 @@ public class MysqlSqlDialect extends DefaultSqlDialect implements SqlDialect {
     }
 
     /**
-     * Returns a string template for the given limit and offset.
+     * Returns a string template for the given offset.
      *
      * @param offset the offset.
+     * @return a string template for the given offset.
+     * @since 1.2
+     */
+    @Override
+    public String offset(int offset) {
+        return STR."LIMIT 18446744073709551615 OFFSET \{offset}";
+    }
+
+    /**
+     * Returns a string template for the given limit and offset.
+     *
      * @param limit the maximum number of records to return.
+     * @param offset the offset.
      * @return a string template for the given limit and offset.
      * @since 1.2
      */
     @Override
-    public String limit(int limit, int offset) {
+    public String limit(int offset, int limit) {
         // Taking the most basic approach that is supported by most database in test (containers).
         // For production use, ensure the right dialect is used.
         return STR."LIMIT \{limit} OFFSET \{offset}";

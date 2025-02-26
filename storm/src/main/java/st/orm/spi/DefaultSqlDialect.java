@@ -151,6 +151,19 @@ public class DefaultSqlDialect implements SqlDialect {
     }
 
     /**
+     * Returns {@code true} if the limit should be applied after the SELECT clause, {@code false} to apply the limit at
+     * the end of the query.
+     *
+     * @return {@code true} if the limit should be applied after the SELECT clause, {@code false} to apply the limit at
+     * the end of the query.
+     * @since 1.2
+     */
+    @Override
+    public boolean applyLimitAfterSelect() {
+        return false;
+    }
+
+    /**
      * Returns a string template for the given limit.
      *
      * @param limit the maximum number of records to return.
@@ -162,6 +175,18 @@ public class DefaultSqlDialect implements SqlDialect {
         // Taking the most basic approach that is supported by most database in test (containers).
         // For production use, ensure the right dialect is used.
         return STR."LIMIT \{limit}";
+    }
+
+    /**
+     * Returns a string template for the given offset.
+     *
+     * @param offset the offset.
+     * @return a string template for the given offset.
+     * @since 1.2
+     */
+    @Override
+    public String offset(int offset) {
+        return STR."OFFSET \{offset}";
     }
 
     /**

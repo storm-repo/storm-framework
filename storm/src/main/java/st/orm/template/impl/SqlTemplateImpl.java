@@ -63,15 +63,12 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import static java.lang.Long.toHexString;
-import static java.lang.System.identityHashCode;
 import static java.util.Comparator.comparing;
 import static java.util.List.copyOf;
 import static java.util.Objects.requireNonNull;
@@ -138,6 +135,21 @@ public final class SqlTemplateImpl implements SqlTemplate {
             parameters = copyOf(parameters);
             generatedKeys = copyOf(generatedKeys);
         }
+
+        @Override
+        public Sql generatedKeys(@Nonnull List<String> generatedKeys) {
+            return new SqlImpl(statement, parameters, bindVariables, generatedKeys, versionAware, unsafeWarning);
+        }
+
+        @Override
+        public Sql versionAware(boolean versionAware) {
+            return new SqlImpl(statement, parameters, bindVariables, generatedKeys, versionAware, unsafeWarning);
+        }
+
+        @Override
+        public Sql unsafeWarning(@Nullable String unsafeWarning) {
+            return new SqlImpl(statement, parameters, bindVariables, generatedKeys, versionAware, ofNullable(unsafeWarning));
+        }
     }
 
     record Wrapped(@Nonnull List<? extends Element> elements) implements Element {
@@ -193,29 +205,23 @@ public final class SqlTemplateImpl implements SqlTemplate {
     private final boolean positionalOnly;
     private final boolean expandCollection;
     private final boolean supportRecords;
-    private final TableNameResolver tableNameResolver;
     private final TableAliasResolver tableAliasResolver;
-    private final ColumnNameResolver columnNameResolver;
-    private final ForeignKeyResolver foreignKeyResolver;
+    private final ModelBuilder modelBuilder;
 
     public SqlTemplateImpl(boolean positionalOnly, boolean expandCollection, boolean supportRecords) {
-        this(positionalOnly, expandCollection, supportRecords, TableNameResolver.DEFAULT, TableAliasResolver.DEFAULT, ColumnNameResolver.DEFAULT, ForeignKeyResolver.DEFAULT);
+        this(positionalOnly, expandCollection, supportRecords, ModelBuilder.newInstance(), TableAliasResolver.DEFAULT);
     }
 
     public SqlTemplateImpl(boolean positionalOnly,
                            boolean expandCollection,
                            boolean supportRecords,
-                           @Nullable TableNameResolver tableNameResolver,
-                           @Nullable TableAliasResolver tableAliasResolver,
-                           @Nullable ColumnNameResolver columnNameResolver,
-                           @Nullable ForeignKeyResolver foreignKeyResolver) {
+                           @Nonnull ModelBuilder modelBuilder,
+                           @Nullable TableAliasResolver tableAliasResolver) {
         this.positionalOnly = positionalOnly;
         this.expandCollection = expandCollection;
         this.supportRecords = supportRecords;
-        this.tableNameResolver = tableNameResolver;
         this.tableAliasResolver = tableAliasResolver;
-        this.columnNameResolver = columnNameResolver;
-        this.foreignKeyResolver = foreignKeyResolver;
+        this.modelBuilder = Objects.requireNonNull(modelBuilder);
     }
 
     /**
@@ -242,12 +248,12 @@ public final class SqlTemplateImpl implements SqlTemplate {
     /**
      * Returns a new SQL template with the specified table name resolver.
      *
-     * @param resolver the table name resolver.
+     * @param tableNameResolver the table name resolver.
      * @return a new SQL template.
      */
     @Override
-    public SqlTemplateImpl withTableNameResolver(TableNameResolver resolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, resolver, tableAliasResolver, columnNameResolver, foreignKeyResolver);
+    public SqlTemplateImpl withTableNameResolver(TableNameResolver tableNameResolver) {
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver);
     }
 
     /**
@@ -257,18 +263,18 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public TableNameResolver tableNameResolver() {
-        return tableNameResolver;
+        return modelBuilder.tableNameResolver();
     }
 
     /**
      * Returns a new SQL template with the specified table alias resolver.
      *
-     * @param resolver the table alias resolver.
+     * @param tableAliasResolver the table alias resolver.
      * @return a new SQL template.
      */
     @Override
-    public SqlTemplateImpl withTableAliasResolver(TableAliasResolver resolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, tableNameResolver, resolver, columnNameResolver, foreignKeyResolver);
+    public SqlTemplateImpl withTableAliasResolver(TableAliasResolver tableAliasResolver) {
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder, tableAliasResolver);
     }
 
     /**
@@ -284,12 +290,12 @@ public final class SqlTemplateImpl implements SqlTemplate {
     /**
      * Returns a new SQL template with the specified column name resolver.
      *
-     * @param resolver the column name resolver.
+     * @param columnNameResolver the column name resolver.
      * @return a new SQL template.
      */
     @Override
-    public SqlTemplateImpl withColumnNameResolver(ColumnNameResolver resolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, tableNameResolver, tableAliasResolver, resolver, foreignKeyResolver);
+    public SqlTemplateImpl withColumnNameResolver(ColumnNameResolver columnNameResolver) {
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver);
     }
 
     /**
@@ -299,18 +305,18 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public ColumnNameResolver columnNameResolver() {
-        return columnNameResolver;
+        return modelBuilder.columnNameResolver();
     }
 
     /**
      * Returns a new SQL template with the specified foreign key resolver.
      *
-     * @param resolver the foreign key resolver.
+     * @param foreignKeyResolver the foreign key resolver.
      * @return a new SQL template.
      */
     @Override
-    public SqlTemplateImpl withForeignKeyResolver(ForeignKeyResolver resolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, tableNameResolver, tableAliasResolver, columnNameResolver, resolver);
+    public SqlTemplateImpl withForeignKeyResolver(ForeignKeyResolver foreignKeyResolver) {
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver);
     }
 
     /**
@@ -320,7 +326,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public ForeignKeyResolver foreignKeyResolver() {
-        return foreignKeyResolver;
+        return modelBuilder.foreignKeyResolver();
     }
 
     /**
@@ -331,7 +337,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withSupportRecords(boolean supportRecords) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder, tableAliasResolver);
     }
 
     /**
@@ -342,62 +348,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
     @Override
     public boolean supportRecords() {
         return supportRecords;
-    }
-
-    /**
-     * Manages the binding of variables in a SQL query.
-     *
-     * <p>Provides a handle for configuring parameter bindings and allows registering a listener for batch processing
-     * events.</p>
-     */
-    static class BindVarsImpl implements BindVars, BindVariables {
-        private final List<Function<Record, List<PositionalParameter>>> parameterExtractors;
-        private BatchListener batchListener;
-
-        public BindVarsImpl() {
-            this.parameterExtractors = new ArrayList<>();
-        }
-
-        /**
-         * Retrieves a handle to the bound variables. Can be used for configuring or inspecting the
-         * parameters associated with the current query.
-         *
-         * @return a handle to the bound variables.
-         */
-        @Override
-        public BindVarsHandle getHandle() {
-            return record -> {
-                if (batchListener == null) {
-                    throw new IllegalStateException("Batch listener not set.");
-                }
-                if (parameterExtractors.isEmpty()) {
-                    throw new IllegalStateException("No parameter extractors not set.");
-                }
-                var positionalParameters = parameterExtractors.stream()
-                        .flatMap(pe -> pe.apply(record).stream())
-                        .toList();
-                batchListener.onBatch(positionalParameters);
-            };
-        }
-
-        /**
-         * Registers a listener that will be notified when positional parameters are processed in batches.
-         *
-         * @param listener the listener to be notified of batch events.
-         */
-        @Override
-        public void setBatchListener(@Nonnull BatchListener listener) {
-            this.batchListener = listener;
-        }
-
-        public void addParameterExtractor(@Nonnull Function<Record, List<PositionalParameter>> parameterExtractor) {
-            parameterExtractors.add(parameterExtractor);
-        }
-
-        @Override
-        public String toString() {
-            return STR."\{getClass().getSimpleName()}@\{toHexString(identityHashCode(this))}";
-        }
     }
 
     /**
@@ -579,7 +529,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             var v = values.get(i);
             var p = fragments.get(i);
             var n = fragments.get(i + 1);
-            var element = switch (v) {
+            Element element = switch (v) {
                 case Select _ when sqlMode != SELECT -> throw new SqlTemplateException("Select element is only allowed for select statements.");
                 case Insert _ when sqlMode != INSERT -> throw new SqlTemplateException("Insert element is only allowed for insert statements.");
                 case Update _ when sqlMode != UPDATE -> throw new SqlTemplateException("Update element is only allowed for update statements.");
@@ -617,7 +567,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 case Expression _ -> throw new SqlTemplateException("Expression element not allowed in this context.");
                 case BindVars b -> resolveBindVarsElement(sqlMode, p, b);
                 case Subqueryable t -> new Subquery(t.getSubquery(), true);   // Correlate implicit subqueries.
-                case StringTemplate t -> new Subquery(t, true);               // Correlate implicit subqueries.
                 case Metamodel<?, ?> m -> new Column(m, CASCADE);
                 case Object[] a -> resolveArrayElement(sqlMode, p, a);
                 case Iterable<?> l -> resolveIterableElement(sqlMode, p, l);
@@ -627,6 +576,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 // Note that the following flow would also support Class<?> c. but we'll keep the Class<?> c case for performance and readability.
                 case Object k when REFLECTION.isSupportedType(k) ->
                         resolveTypeElement(sqlMode, first, p, n, REFLECTION.getRecordType(k));
+                case StringTemplate _ -> throw new SqlTemplateException("StringTemplate not allowed as string template value.");
                 case Stream<?> _ -> throw new SqlTemplateException("Stream not supported as string template value.");
                 case Query _ -> throw new SqlTemplateException("Query not supported as string template value. Use QueryBuilder instead.");
                 case Object o -> resolveObjectElement(sqlMode, p, o);
@@ -666,7 +616,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
     }
 
     private AliasMapper getAliasMapper(@Nonnull TableUse tableUse) {
-        return new AliasMapper(tableUse, tableAliasResolver, tableNameResolver, ElementProcessor.current()
+        return new AliasMapper(tableUse, tableAliasResolver, modelBuilder.tableNameResolver(), ElementProcessor.current()
                 .map(ElementProcessor::aliasMapper)
                 .orElse(null));
     }
@@ -963,7 +913,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 tableMapper.mapForeignKey(recordType, componentType, fromAlias, component, rootTable, fkPath);
                 var pkComponent = getPkComponents(componentType).findFirst()    // We only support single primary keys for FK fields.
                         .orElseThrow(() -> new SqlTemplateException(STR."No primary key found for entity \{componentType.getSimpleName()}."));
-                String pkColumnName = getColumnName(pkComponent, columnNameResolver);
+                String pkColumnName = getColumnName(pkComponent, modelBuilder.columnNameResolver());
                 // We will only make primary keys available for mapping if the table is not part of the entity graph,
                 // because the entities can already be resolved by their foreign keys.
                 //  tableMapper.mapPrimaryKey(componentType, alias, List.of(pkComponent), pkPath);
@@ -973,7 +923,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 Source source = query != null
                         ? new TemplateSource(StringTemplate.of(query.value()))
                         : new TableSource(componentType);
-                joins.add(new Join(source, alias, new TemplateTarget(StringTemplate.of(STR."\{fromAlias}.\{getForeignKey(component, foreignKeyResolver)} = \{alias}.\{pkColumnName}")), joinType, true));
+                joins.add(new Join(source, alias, new TemplateTarget(StringTemplate.of(STR."\{fromAlias}.\{getForeignKey(component, modelBuilder.foreignKeyResolver())} = \{alias}.\{pkColumnName}")), joinType, true));
                 addAutoJoins(componentType, rootTable, copy, aliasMapper, tableMapper, joins, alias, effectiveOuterJoin);
             } else if (component.getType().isRecord()) {
                 if (REFLECTION.isAnnotationPresent(component, PK.class) || getORMConverter(component).isPresent()) {
@@ -1117,6 +1067,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                         Element e = elements.get(i);
                         var result = new ElementProcessor(
                                 this,
+                                modelBuilder,
                                 e,
                                 parameters,
                                 parameterPosition,

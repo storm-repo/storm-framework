@@ -40,7 +40,7 @@ public interface TableAliasResolver {
         return (type, counter) -> {
             // Extract the capitals from the class name to form the base alias.
             String name = type.getSimpleName();
-            StringBuilder aliasBuilder = new StringBuilder("_");    // Use underscore as prefix to avoid clashes with client aliases.
+            StringBuilder aliasBuilder = new StringBuilder();
             for (char ch : name.toCharArray()) {
                 if (isUpperCase(ch)) {
                     aliasBuilder.append(toLowerCase(ch));

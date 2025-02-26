@@ -16,9 +16,10 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import st.orm.PersistenceException;
 import st.orm.Query;
-import st.orm.repository.Model;
+import st.orm.template.Model;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryTemplate;
 import st.orm.template.impl.Elements.Where;
@@ -43,6 +44,8 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
     private final StringTemplate selectTemplate;
     private final Class<R> selectType;
     private final boolean distinct;
+    private final Integer limit;
+    private final Integer offset;
     private final boolean subquery;
 
     public SelectBuilderImpl(@Nonnull QueryTemplate queryTemplate,
@@ -51,7 +54,7 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
                              @Nonnull StringTemplate selectTemplate,
                              boolean subquery,
                              @Nonnull Supplier<Model<T, ID>> modelSupplier) {
-        this(queryTemplate, fromType, selectType, false, List.of(), List.of(), RAW."", selectTemplate, List.of(), subquery, modelSupplier);
+        this(queryTemplate, fromType, selectType, false, List.of(), List.of(), null, null, RAW."", selectTemplate, List.of(), subquery, modelSupplier);
     }
 
     private SelectBuilderImpl(@Nonnull QueryTemplate ormTemplate,
@@ -60,6 +63,8 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
                               boolean distinct,
                               @Nonnull List<Join> join,
                               @Nonnull List<Where> where,
+                              @Nullable Integer limit,
+                              @Nullable Integer offset,
                               @Nonnull StringTemplate forLock,
                               @Nonnull StringTemplate selectTemplate,
                               @Nonnull List<StringTemplate> templates,
@@ -70,6 +75,8 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
         this.selectType = selectType;
         this.distinct = distinct;
         this.selectTemplate = selectTemplate;
+        this.limit = limit;
+        this.offset = offset;
         this.subquery = subquery;
     }
 
@@ -102,7 +109,7 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
                                     @Nonnull List<Join> join,
                                     @Nonnull List<Where> where,
                                     @Nonnull List<StringTemplate> templates) {
-        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, forLock, selectTemplate, templates, subquery, modelSupplier);
+        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset, forLock, selectTemplate, templates, subquery, modelSupplier);
     }
 
     /**
@@ -122,12 +129,17 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
      */
     @Override
     public QueryBuilder<T, R, ID> distinct() {
-        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, true, join, where, forLock, selectTemplate, templates, subquery, modelSupplier);
+        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, true, join, where, limit, offset, forLock, selectTemplate, templates, subquery, modelSupplier);
     }
 
     private StringTemplate toStringTemplate() {
-        StringTemplate template = StringTemplate.combine(StringTemplate.of(STR."SELECT \{distinct ? "DISTINCT " : ""}"), selectTemplate);
-        template = StringTemplate.combine(template, RAW."\nFROM \{from(fromType, true)}");
+        StringTemplate template = StringTemplate.combine(StringTemplate.of(STR."SELECT \{distinct ? "DISTINCT " : ""}"));
+        if (SQL_DIALECT.applyLimitAfterSelect()) {
+            if (limit != null && offset == null) {
+                template = StringTemplate.combine(template, StringTemplate.of(SQL_DIALECT.limit(limit)), RAW." ");
+            }
+        }
+        template = StringTemplate.combine(template, selectTemplate, RAW."\nFROM \{from(fromType, true)}");
         boolean hasLock = forLock.fragments().size() == 1 && !forLock.fragments().getFirst().isEmpty();
         if (hasLock && SQL_DIALECT.applyLockHintAfterFrom()) {
             template = StringTemplate.combine(template, RAW."\n", forLock);
@@ -149,6 +161,16 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
         if (!templates.isEmpty()) {
             template = StringTemplate.combine(template, StringTemplate.combine(templates));
         }
+        if (!SQL_DIALECT.applyLimitAfterSelect()) {
+            if (limit != null && offset == null) {
+                template = StringTemplate.combine(template, RAW."\n", StringTemplate.of(SQL_DIALECT.limit(limit)));
+            }
+        }
+        if (limit != null && offset != null) {
+            template = StringTemplate.combine(template, RAW."\n", StringTemplate.of(SQL_DIALECT.limit(offset, limit)));
+        } else if (offset != null) {
+            template = StringTemplate.combine(template, RAW."\n", StringTemplate.of(SQL_DIALECT.offset(offset)));
+        }
         if (hasLock && !SQL_DIALECT.applyLockHintAfterFrom()) {
             template = StringTemplate.combine(template, RAW."\n", forLock);
         }
@@ -158,6 +180,30 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
     @Override
     public StringTemplate getSubquery() {
         return toStringTemplate();
+    }
+
+    /**
+     * Adds an OFFSET clause to the query.
+     *
+     * @param offset the offset.
+     * @return the query builder.
+     * @since 1.2
+     */
+    @Override
+    public QueryBuilder<T, R, ID> offset(int offset) {
+        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset, forLock, selectTemplate, templates, subquery, modelSupplier);
+    }
+
+    /**
+     * Adds a LIMIT clause to the query.
+     *
+     * @param limit the maximum number of records to return.
+     * @return the query builder.
+     * @since 1.2
+     */
+    @Override
+    public QueryBuilder<T, R, ID> limit(int limit) {
+        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset, forLock, selectTemplate, templates, subquery, modelSupplier);
     }
 
     /**
@@ -197,7 +243,7 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
      */
     @Override
     public QueryBuilder<T, R, ID> forLock(@Nonnull StringTemplate template) {
-        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, template, selectTemplate, templates, subquery, modelSupplier);
+        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset, template, selectTemplate, templates, subquery, modelSupplier);
     }
 
     /**

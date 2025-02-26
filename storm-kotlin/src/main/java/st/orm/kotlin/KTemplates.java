@@ -42,6 +42,7 @@ import st.orm.template.impl.Elements.Subquery;
 import st.orm.template.impl.Elements.TableSource;
 import st.orm.template.impl.Elements.TemplateSource;
 import st.orm.template.impl.Elements.Unsafe;
+import st.orm.template.impl.Elements.Var;
 import st.orm.template.impl.JpaTemplateImpl;
 import st.orm.template.impl.PreparedStatementTemplateImpl;
 import st.orm.template.impl.Subqueryable;
@@ -1416,6 +1417,17 @@ public interface KTemplates {
             case TIME -> new java.sql.Time(v.getTimeInMillis());
             case TIMESTAMP -> new java.sql.Timestamp(v.getTimeInMillis());
         });
+    }
+
+    /**
+     * Creates a new var element that can be used to specify individual bind variables in the query.
+     *
+     * @param bindVars the bind variables instance used for parameter binding.
+     * @param extractor the function used to extract the value from the record for the bind variable.
+     * @return a new {@link Element} representing the bind variable.
+     */
+    static Element var(@Nonnull BindVars bindVars, @Nonnull Function<Record, ?> extractor) {
+        return new Var(bindVars, extractor);
     }
 
     /**

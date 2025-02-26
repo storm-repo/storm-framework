@@ -860,14 +860,13 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     public abstract QueryBuilder<T, R, ID> limit(int limit);
 
     /**
-     * Adds a LIMIT clause to the query.
+     * Adds an OFFSET clause to the query.
      *
      * @param offset the offset.
-     * @param limit the maximum number of records to return.
      * @return the query builder.
      * @since 1.2
      */
-    public abstract QueryBuilder<T, R, ID> limit(int offset, int limit);
+    public abstract QueryBuilder<T, R, ID> offset(int offset);
 
     /**
      * Append the query with a string template.

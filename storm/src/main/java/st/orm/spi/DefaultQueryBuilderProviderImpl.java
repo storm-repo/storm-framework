@@ -16,7 +16,7 @@
 package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
-import st.orm.repository.Model;
+import st.orm.template.Model;
 import st.orm.spi.Orderable.AfterAny;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryTemplate;

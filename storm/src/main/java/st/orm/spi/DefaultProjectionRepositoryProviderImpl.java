@@ -16,12 +16,15 @@
 package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
-import st.orm.repository.Model;
+import st.orm.template.Model;
 import st.orm.repository.Projection;
 import st.orm.repository.ProjectionRepository;
 import st.orm.spi.Orderable.AfterAny;
 import st.orm.template.ORMTemplate;
 
+/**
+ * Provider for default projection repositories.
+ */
 @AfterAny
 public class DefaultProjectionRepositoryProviderImpl implements ProjectionRepositoryProvider {
 

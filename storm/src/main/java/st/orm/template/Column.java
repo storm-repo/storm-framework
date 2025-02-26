@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.repository;
+package st.orm.template;
 
 import jakarta.annotation.Nonnull;
 
 /**
  * Represents a column in a database table.
  *
+ * @param index the 1-based index of the column.
  * @param columnName the name of the column.
  * @param type the Java type of the column.
  * @param primaryKey whether the column is a primary key.
@@ -32,6 +33,7 @@ import jakarta.annotation.Nonnull;
  * @param lazy whether the column is a lazily fetched record.
  */
 public record Column(
+        int index,
         @Nonnull String columnName,
         @Nonnull Class<?> type,
         boolean primaryKey,
@@ -42,5 +44,4 @@ public record Column(
         boolean updatable,
         boolean version,
         boolean lazy
-) {
-}
+) {}

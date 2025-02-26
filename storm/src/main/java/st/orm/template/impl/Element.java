@@ -28,6 +28,7 @@ import st.orm.template.impl.Elements.Table;
 import st.orm.template.impl.Elements.Unsafe;
 import st.orm.template.impl.Elements.Update;
 import st.orm.template.impl.Elements.Values;
+import st.orm.template.impl.Elements.Var;
 import st.orm.template.impl.Elements.Where;
 import st.orm.template.impl.SqlTemplateImpl.Join;
 import st.orm.template.impl.SqlTemplateImpl.Wrapped;
@@ -36,6 +37,6 @@ import st.orm.template.impl.SqlTemplateImpl.Wrapped;
  * Represents an element in a ST/ORM SQL query.
  */
 public sealed interface Element
-        permits Alias, Column, Delete, From, Insert, Param, Select, Set, Table, Update, Values, Where, Join, Subquery, Unsafe, Wrapped {
+        permits Alias, Column, Delete, From, Insert, Param, Select, Set, Table, Update, Values, Where, Join, Var, Subquery, Unsafe, Wrapped {
 
 }

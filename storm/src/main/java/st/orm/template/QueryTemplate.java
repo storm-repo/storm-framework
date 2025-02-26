@@ -21,7 +21,6 @@ import st.orm.BindVars;
 import st.orm.Lazy;
 import st.orm.PreparedQuery;
 import st.orm.Query;
-import st.orm.repository.Model;
 
 import static java.lang.StringTemplate.RAW;
 

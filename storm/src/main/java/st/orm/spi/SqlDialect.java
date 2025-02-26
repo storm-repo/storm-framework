@@ -101,6 +101,16 @@ public interface SqlDialect {
                         @Nonnull Consumer<Object> parameterConsumer) throws SqlTemplateException;
 
     /**
+     * Returns {@code true} if the limit should be applied after the SELECT clause, {@code false} to apply the limit at
+     * the end of the query.
+     *
+     * @return {@code true} if the limit should be applied after the SELECT clause, {@code false} to apply the limit at
+     * the end of the query.
+     * @since 1.2
+     */
+    boolean applyLimitAfterSelect();
+
+    /**
      * Returns a string template for the given limit.
      *
      * @param limit the maximum number of records to return.
@@ -110,6 +120,15 @@ public interface SqlDialect {
     String limit(int limit);
 
     /**
+     * Returns a string template for the given offset.
+     *
+     * @param offset the offset.
+     * @return a string template for the given offset.
+     * @since 1.2
+     */
+    String offset(int offset);
+
+    /**
      * Returns a string template for the given limit and offset.
      *
      * @param offset the offset.
@@ -117,7 +136,7 @@ public interface SqlDialect {
      * @return a string template for the given limit and offset.
      * @since 1.2
      */
-    String limit(int limit, int offset);
+    String limit(int offset, int limit);
 
     /**
      * Returns {@code true} if the lock hint should be applied after the FROM clause, {@code false} to apply the lock

@@ -17,7 +17,7 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.PersistenceException;
-import st.orm.repository.Model;
+import st.orm.template.Model;
 import st.orm.spi.Providers;
 import st.orm.spi.SqlDialect;
 import st.orm.template.JoinType;
@@ -438,30 +438,5 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
         }
         var whereBuilder = new WhereBuilderImpl<T, R, ID>();
         return whereBuilder.build(((PredicateBuilderImpl<?, ?, ?>) predicate.apply(whereBuilder)).getTemplates());
-    }
-
-    /**
-     * Adds a LIMIT clause to the query.
-     *
-     * @param limit the maximum number of records to return.
-     * @return the query builder.
-     * @since 1.2
-     */
-    @Override
-    public QueryBuilder<T, R, ID> limit(int limit) {
-        return append(StringTemplate.of(SQL_DIALECT.limit(limit)));
-    }
-
-    /**
-     * Adds a LIMIT clause to the query.
-     *
-     * @param offset the offset.
-     * @param limit the maximum number of records to return.
-     * @return the query builder.
-     * @since 1.2
-     */
-    @Override
-    public QueryBuilder<T, R, ID> limit(int offset, int limit) {
-        return append(StringTemplate.of(SQL_DIALECT.limit(offset, limit)));
     }
 }

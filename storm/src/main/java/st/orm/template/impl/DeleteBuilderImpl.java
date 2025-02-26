@@ -18,8 +18,8 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import st.orm.PersistenceException;
 import st.orm.Query;
-import st.orm.repository.Column;
-import st.orm.repository.Model;
+import st.orm.template.Column;
+import st.orm.template.Model;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryTemplate;
 import st.orm.template.impl.Elements.Where;
@@ -106,6 +106,30 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
     @Override
     public QueryBuilder<T, Object, ID> distinct() {
         throw new PersistenceException("Cannot use DISTINCT in a DELETE query.");
+    }
+
+    /**
+     * Adds an OFFSET clause to the query.
+     *
+     * @param offset the offset.
+     * @return the query builder.
+     * @since 1.2
+     */
+    @Override
+    public QueryBuilder<T, Object, ID> offset(int offset) {
+        throw new PersistenceException("Cannot use OFFSET in a DELETE query.");
+    }
+
+    /**
+     * Adds a LIMIT clause to the query.
+     *
+     * @param limit the maximum number of records to return.
+     * @return the query builder.
+     * @since 1.2
+     */
+    @Override
+    public QueryBuilder<T, Object, ID> limit(int limit) {
+        throw new PersistenceException("Cannot use LIMIT in a DELETE query.");
     }
 
     /**

@@ -16,12 +16,13 @@
 package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
-import st.orm.repository.Model;
+import st.orm.template.Model;
 import st.orm.repository.Projection;
 import st.orm.repository.ProjectionRepository;
 import st.orm.template.ORMTemplate;
 
 /**
+ * Default implementation of {@link ProjectionRepository}.
  */
 public final class ProjectionRepositoryImpl<P extends Record & Projection<ID>, ID>
         extends BaseRepositoryImpl<P, ID>

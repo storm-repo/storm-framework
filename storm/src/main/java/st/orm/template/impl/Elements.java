@@ -146,6 +146,13 @@ public final class Elements {
         }
     }
 
+    public record Var(@Nonnull BindVars bindVars, @Nonnull Function<Record, ?> extractor) implements Element {
+        public Var {
+            requireNonNull(bindVars, "bindVars");
+            requireNonNull(extractor, "extractor");
+        }
+    }
+
     public record Subquery(@Nonnull StringTemplate template, boolean correlate) implements Element {}
 
     public record Unsafe(@Nonnull String sql) implements Element {

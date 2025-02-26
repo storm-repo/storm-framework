@@ -18,7 +18,7 @@ package st.orm.spi;
 import jakarta.annotation.Nonnull;
 import st.orm.repository.Entity;
 import st.orm.repository.EntityRepository;
-import st.orm.repository.Model;
+import st.orm.template.Model;
 import st.orm.repository.Projection;
 import st.orm.repository.ProjectionRepository;
 import st.orm.template.ORMTemplate;
@@ -110,8 +110,6 @@ public final class Providers {
     record ComponentKey(Class<?> record, String name) {}
     private static final Map<ComponentKey, Optional<ORMConverter>> ORM_CONVERTERS = new ConcurrentHashMap<>();
 
-    /**
-     */
     public static ORMReflection getORMReflection() {
         return ORM_REFLECTION.updateAndGet(value -> requireNonNullElseGet(value, () -> Orderable.sort(ORM_REFLECTION_PROVIDERS.get().stream())
                 .map(ORMReflectionProvider::getReflection)

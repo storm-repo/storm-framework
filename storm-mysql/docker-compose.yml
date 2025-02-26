@@ -1,0 +1,21 @@
+services:
+  mysql:
+    image: mysql:latest
+    platform: linux/arm64/v8
+    container_name: mysql-db
+    ports:
+      - "3306:3306"
+    # Provide passwords and other environment variables to the container
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: test
+      MYSQL_USER: test
+      MYSQL_PASSWORD: test
+    # Customize healthcheck options for startup
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+      start_interval: 5s

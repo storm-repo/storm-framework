@@ -1,0 +1,26 @@
+### Oracle Settings ###
+spring:
+  test:
+    database:
+      replace: auto_configured
+
+  datasource:
+    url: jdbc:oracle:thin:@//localhost:1521/FREEPDB1
+    driver-class-name: oracle.jdbc.OracleDriver
+    username: test
+    password: test
+    hikari:
+      maximum-pool-size: 4
+  jpa:
+    hibernate:
+      ddl-auto: create
+    defer-datasource-initialization: true
+  sql:
+    init:
+      mode: always
+      continue-on-error: true
+
+logging:
+  level:
+    root: INFO
+    org.springframework: WARN

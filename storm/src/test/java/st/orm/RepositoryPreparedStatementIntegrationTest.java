@@ -63,7 +63,7 @@ import static st.orm.template.Operator.GREATER_THAN_OR_EQUAL;
 import static st.orm.template.Operator.IN;
 import static st.orm.template.Operator.IS_NULL;
 import static st.orm.template.ResolveScope.OUTER;
-import static st.orm.template.SqlInterceptor.intercept;
+import static st.orm.template.SqlInterceptor.consume;
 import static st.orm.template.TemplateFunction.template;
 import static st.orm.template.impl.SqlTemplateImpl.DefaultJoinType.INNER;
 
@@ -274,7 +274,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var e = assertThrows(PersistenceException.class, () -> {
             var repository = ORM(dataSource).entity(Visit.class);
             //noinspection DataFlowIssue
-            Visit visit = new Visit(1, LocalDate.now(), "test", null, Instant.now());
+            Visit visit = new Visit(0, LocalDate.now(), "test", null, Instant.now());
             repository.insert(visit);
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
@@ -305,7 +305,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     void testInsertLazyPetWithNull() {
         var e = assertThrows(PersistenceException.class, () -> {
             var repository = ORM(dataSource).entity(VisitWithLazyNonnullPet.class);
-            VisitWithLazyNonnullPet visit = new VisitWithLazyNonnullPet(1, LocalDate.now(), "test", Lazy.ofNull());
+            VisitWithLazyNonnullPet visit = new VisitWithLazyNonnullPet(0, LocalDate.now(), "test", Lazy.ofNull());
             repository.insert(visit);
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
@@ -337,7 +337,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     void testInsertLazyNullablePetWithNull() {
         var e = assertThrows(PersistenceException.class, () -> {
             var repository = ORM(dataSource).entity(VisitWithLazyNullablePet.class);
-            VisitWithLazyNullablePet visit = new VisitWithLazyNullablePet(1, LocalDate.now(), "test", Lazy.ofNull(), Instant.now());
+            VisitWithLazyNullablePet visit = new VisitWithLazyNullablePet(0, LocalDate.now(), "test", Lazy.ofNull(), Instant.now());
             repository.insert(visit);
         });
         assertInstanceOf(SQLIntegrityConstraintViolationException.class, e.getCause());
@@ -356,7 +356,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     void testInsertLazyNullablePetWithNonnull() {
         var repository = ORM(dataSource).entity(VisitWithLazyNullablePet.class);
-        VisitWithLazyNullablePet visit = new VisitWithLazyNullablePet(1, LocalDate.now(), "test", Lazy.of(Pet.builder().id(1).build()), Instant.now());
+        VisitWithLazyNullablePet visit = new VisitWithLazyNullablePet(0, LocalDate.now(), "test", Lazy.of(Pet.builder().id(1).build()), Instant.now());
         var id = repository.insertAndFetchId(visit);
         var visitFromDb = repository.select(id);
         assertEquals(id, visitFromDb.id());
@@ -467,7 +467,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var orm = ORM(dataSource);
         var owner = orm.entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = intercept(sql::setPlain)) {
+        try (var _ = consume(sql::setPlain)) {
             var visits = orm.entity(VisitWithTwoPets.class)
                     .select()
                     .where(it -> it.filter(VisitWithTwoPets_.pet1.owner, EQUALS, owner)
@@ -481,7 +481,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetsWithMultipleParametersTemplate() {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = intercept(sql::setPlain)) {
+        try (var _ = consume(sql::setPlain)) {
             var visits = ORM(dataSource).entity(VisitWithTwoPets.class)
                     .select()
                     .where(it -> it.expression(RAW."\{VisitWithTwoPets_.pet1.owner} = \{owner.id()} OR \{VisitWithTwoPets_.pet2.owner} = \{owner.id()}")).getResultList();
@@ -502,7 +502,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetsOneLazyWithoutPath() throws Exception {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = intercept(sql::setPlain)) {
+        try (var _ = consume(sql::setPlain)) {
             var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().whereAny(owner).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
@@ -513,7 +513,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetsOneLazyWithoutPathTemplate() {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = intercept(sql::setPlain)) {
+        try (var _ = consume(sql::setPlain)) {
             var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
                     .select()
                     .where(it -> it.expression(RAW."\{PetLazyOwner.class}.owner_id = \{owner.id()}")).getResultList();
@@ -527,7 +527,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var e = assertThrows(PersistenceException.class, () -> {
             var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
             AtomicReference<Sql> sql = new AtomicReference<>();
-            try (var _ = intercept(sql::setPlain)) {
+            try (var _ = consume(sql::setPlain)) {
                 ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
                         .select()
                         .where(it -> it.expression(RAW."\{PetLazyOwner_.owner} = \{owner.id()}")).getResultList();
@@ -541,7 +541,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var e = assertThrows(PersistenceException.class, () -> {
             var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
             AtomicReference<Sql> sql = new AtomicReference<>();
-            try (var _ = intercept(sql::setPlain)) {
+            try (var _ = consume(sql::setPlain)) {
                 ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
                         .select()
                         .whereAny(PetLazyOwner_.owner, owner).getResultList();
@@ -555,7 +555,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var e = assertThrows(PersistenceException.class, () -> {
             var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
             AtomicReference<Sql> sql = new AtomicReference<>();
-            try (var _ = intercept(sql::setPlain)) {
+            try (var _ = consume(sql::setPlain)) {
                 ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
                         .select()
                         .where(RAW."\{PetLazyOwner_.owner}.id = \{owner.id()}").getResultList();
@@ -568,7 +568,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetsOneLazyWithPath() {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = intercept(sql::setPlain)) {
+        try (var _ = consume(sql::setPlain)) {
             var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().where(VisitWithTwoPetsOneLazy_.pet1.owner, EQUALS, owner).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
@@ -579,7 +579,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetsOneLazyWithPathTemplate() {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = intercept(sql::setPlain)) {
+        try (var _ = consume(sql::setPlain)) {
             var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
                     .select()
                     .where(it -> it.expression(RAW."\{VisitWithTwoPetsOneLazy_.pet1.owner} = \{owner.id()}")).getResultList();
@@ -611,7 +611,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetsOneLazyPetWithPath() {
         var pet = ORM(dataSource).entity(PetLazyOwner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = intercept(sql::setPlain)) {
+        try (var _ = consume(sql::setPlain)) {
             var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().where(VisitWithTwoPetsOneLazy_.pet1, EQUALS, pet).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
@@ -623,7 +623,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var ORM = ORM(dataSource);
         var pet = ORM.entity(PetLazyOwner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = intercept(sql::setPlain)) {
+        try (var _ = consume(sql::setPlain)) {
             var visits = ORM.entity(VisitWithTwoPetsOneLazy.class)
                     .select()
                     .where(it -> it.expression(RAW."\{VisitWithTwoPetsOneLazy_.pet1} = \{pet.id()}")).getResultList();
@@ -636,7 +636,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetsOneLazyOtherPetWithPath() {
         var pet = ORM(dataSource).entity(PetLazyOwner.class).select(1);
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = intercept(sql::setPlain)) {
+        try (var _ = consume(sql::setPlain)) {
             var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class).select().where(VisitWithTwoPetsOneLazy_.pet2, EQUALS, pet).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
@@ -646,7 +646,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testSelectWithTwoPetsOneLazyOtherPetWithPathTemplateMetamodel() {
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = intercept(sql::setPlain)) {
+        try (var _ = consume(sql::setPlain)) {
             var visits = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
                     .select()
                     .where(it -> it.expression(RAW."\{VisitWithTwoPetsOneLazy_.pet2} = \{1}")).getResultList();
@@ -950,12 +950,12 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void selectOwnerForUpdate() {
         // Note that H2 only supports FOR UPDATE.
         String expectedSql = """
-            SELECT _o.id, _o.first_name, _o.last_name, _o.address, _o.city, _o.telephone, _o.version
-            FROM owner _o
-            WHERE _o.id = ?
+            SELECT o.id, o.first_name, o.last_name, o.address, o.city, o.telephone, o.version
+            FROM owner o
+            WHERE o.id = ?
             FOR UPDATE""";
         var repo = ORM(dataSource).entity(Owner.class);
-        try (var _ = SqlInterceptor.intercept(sql -> assertEquals(expectedSql, sql.statement()))) {
+        try (var _ = SqlInterceptor.consume(sql -> assertEquals(expectedSql, sql.statement()))) {
             repo.select().forUpdate().where(1).getSingleResult();
         }
     }
@@ -1069,14 +1069,14 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testWherePredicateSubqueryParameters() {
         String expectedSql = """
-            SELECT _o.id, _o.first_name, _o.last_name, _o.address, _o.city, _o.telephone, _o.version
-            FROM owner _o
+            SELECT o.id, o.first_name, o.last_name, o.address, o.city, o.telephone, o.version
+            FROM owner o
             WHERE id = ? AND EXISTS (
-              SELECT _o1.id, _o1.first_name, _o1.last_name, _o1.address, _o1.city, _o1.telephone, _o1.version
-              FROM owner _o1
+              SELECT o1.id, o1.first_name, o1.last_name, o1.address, o1.city, o1.telephone, o1.version
+              FROM owner o1
               WHERE id = ?
             ) AND 3 = ?""";
-        try (var _ = SqlInterceptor.intercept(sql -> {
+        try (var _ = SqlInterceptor.consume(sql -> {
             assertEquals(expectedSql, sql.statement());
             assertTrue(sql.parameters().get(0) instanceof PositionalParameter(int position, Object dbValue)
                     && position == 1 && Integer.valueOf(1).equals(dbValue));
@@ -1099,16 +1099,16 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testWhereAppendQueryBuilderParameters() {
         String expectedSql = """
-            SELECT _o.id, _o.first_name, _o.last_name, _o.address, _o.city, _o.telephone, _o.version
-            FROM owner _o
+            SELECT o.id, o.first_name, o.last_name, o.address, o.city, o.telephone, o.version
+            FROM owner o
             WHERE id = ?
             AND EXISTS (
-              SELECT _o1.id, _o1.first_name, _o1.last_name, _o1.address, _o1.city, _o1.telephone, _o1.version
-              FROM owner _o1
+              SELECT o1.id, o1.first_name, o1.last_name, o1.address, o1.city, o1.telephone, o1.version
+              FROM owner o1
               WHERE id = ?
             )
             AND 3 = ?""";
-        try (var _ = SqlInterceptor.intercept(sql -> {
+        try (var _ = SqlInterceptor.consume(sql -> {
             assertEquals(expectedSql, sql.statement());
             assertTrue(sql.parameters().get(0) instanceof PositionalParameter(int position, Object dbValue)
                     && position == 1 && Integer.valueOf(1).equals(dbValue));

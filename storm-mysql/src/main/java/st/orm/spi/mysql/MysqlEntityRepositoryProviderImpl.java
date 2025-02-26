@@ -18,7 +18,7 @@ package st.orm.spi.mysql;
 import jakarta.annotation.Nonnull;
 import st.orm.repository.Entity;
 import st.orm.repository.EntityRepository;
-import st.orm.repository.Model;
+import st.orm.template.Model;
 import st.orm.spi.EntityRepositoryProvider;
 import st.orm.template.ORMTemplate;
 
