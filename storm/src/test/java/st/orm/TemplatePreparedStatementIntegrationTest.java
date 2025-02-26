@@ -22,6 +22,7 @@ import st.orm.model.VetSpecialtyPK;
 import st.orm.model.Visit;
 import st.orm.repository.Entity;
 import st.orm.repository.spring.PetRepository;
+import st.orm.template.SqlInterceptor;
 import st.orm.template.SqlTemplateException;
 
 import javax.sql.DataSource;
@@ -796,6 +797,29 @@ public class TemplatePreparedStatementIntegrationTest {
             var result = query.getSingleResult(Pet.class);
             assertEquals("Leona", result.name());
             assertEquals(2, result.type().id());
+        }
+    }
+
+    @Test
+    public void testUpdateSetWhereWithAliasClash() {
+        String expectedSql = """
+                SELECT p.id, p.name, p.birth_date, pt.id, pt.name, o1.id, o1.first_name, o1.last_name, o1.address, o1.city, o1.telephone, o1.version
+                FROM pet p
+                INNER JOIN pet_type pt ON p.type_id = pt.id
+                LEFT JOIN owner o1 ON p.owner_id = o1.id
+                INNER JOIN owner o ON p.owner_id = o.id
+                WHERE p.id = ?""";
+        try (var _ = SqlInterceptor.consume(sql -> {
+            assertEquals(expectedSql, sql.statement());
+        });
+             var query = ORM(dataSource).query(RAW."""
+                SELECT \{Pet.class}
+                FROM \{Pet.class}
+                INNER JOIN \{table(Owner.class, "o")} ON \{Pet.class}.owner_id = o.id
+                WHERE \{where(Pet.builder().id(1).build())}""").prepare()) {
+            var result = query.getSingleResult(Pet.class);
+            assertEquals("Leo", result.name());
+            assertEquals(1, result.type().id());
         }
     }
 

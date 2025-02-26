@@ -14,7 +14,6 @@ import st.orm.template.SqlTemplateException;
 
 import java.lang.reflect.RecordComponent;
 import java.util.LinkedHashMap;
-import java.util.Optional;
 import java.util.SequencedMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -22,6 +21,7 @@ import java.util.function.BiFunction;
 import java.util.function.Predicate;
 
 import static java.util.Objects.requireNonNull;
+import static java.util.Optional.ofNullable;
 import static st.orm.spi.Providers.getORMConverter;
 import static st.orm.spi.Providers.getORMReflection;
 
@@ -92,12 +92,13 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
         if (record.getClass() != model.type()) {
             throw new SqlTemplateException(STR."Record type not supported: \{record.getClass().getSimpleName()}. Expected: \{model.type().getSimpleName()}.");
         }
-        map(record, model.type(), false, new AtomicInteger(), columnFilter, callback);
+        map(record, model.type(), false, false, new AtomicInteger(), columnFilter, callback);
     }
 
-    private boolean map(@Nonnull Record record,
+    private boolean map(@Nullable Record record,
                         @Nonnull Class<? extends Record> recordClass,
                         boolean lookupForeignKey,
+                        boolean parentNullable,
                         @Nonnull AtomicInteger index,
                         @Nonnull Predicate<Column> columnFilter,
                         @Nonnull BiFunction<Column, Object, Boolean> callback) throws SqlTemplateException {
@@ -115,15 +116,15 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
                     continue;
                 }
                 if (Lazy.class.isAssignableFrom(component.getType())) {
-                    if (!processLazyComponent(record, component, column, callback)) {
+                    if (!processLazyComponent(record, component, column, parentNullable, callback)) {
                         return false;
                     }
                     continue;
                 }
                 if (lookupForeignKey) {
-                    return processLookupForeignKey(record, recordClass, component, column, index, columnFilter, callback);
+                    return processLookupForeignKey(record, recordClass, component, column, parentNullable, index, columnFilter, callback);
                 } else {
-                    if (!processDefaultComponent(record, component, column, index, columnFilter, callback)) {
+                    if (!processDefaultComponent(record, component, column, parentNullable, index, columnFilter, callback)) {
                         return false;
                     }
                 }
@@ -136,7 +137,7 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
         }
     }
 
-    private boolean processComponentWithConverter(@Nonnull Record record,
+    private boolean processComponentWithConverter(@Nullable Record record,
                                                   @Nonnull RecordComponent component,
                                                   @Nonnull ORMConverter converter,
                                                   @Nonnull AtomicInteger index,
@@ -157,36 +158,43 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
         return true;
     }
 
-    private boolean processLazyComponent(@Nonnull Record record,
+    private boolean processLazyComponent(@Nullable Record record,
                                          @Nonnull RecordComponent component,
                                          @Nonnull Column column,
+                                         boolean parentNullable,
                                          @Nonnull BiFunction<Column, Object, Boolean> callback) throws Throwable {
         if (!REFLECTION.isAnnotationPresent(component, FK.class)) {
             throw new SqlTemplateException(STR."Lazy component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is not a foreign key.");
         }
-        var id = Optional.ofNullable((Lazy<?, ?>) REFLECTION.invokeComponent(component, record))
+        var id = ofNullable(record == null
+                ? null
+                : (Lazy<?, ?>) REFLECTION.invokeComponent(component, record))
                 .map(Lazy::id)
                 .orElse(null);
-        if (id == null && REFLECTION.isNonnull(component)) {
+        if (id == null && !parentNullable && REFLECTION.isNonnull(component)) {
             throw new SqlTemplateException(STR."Nonnull Lazy component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
         }
         return callback.apply(column, id);
     }
 
-    private boolean processLookupForeignKey(@Nonnull Record record,
+    private boolean processLookupForeignKey(@Nullable Record record,
                                             @Nonnull Class<? extends Record> recordClass,
                                             @Nonnull RecordComponent component,
                                             @Nonnull Column column,
+                                            boolean parentNullable,
                                             @Nonnull AtomicInteger index,
                                             @Nonnull Predicate<Column> columnFilter,
                                             @Nonnull BiFunction<Column, Object, Boolean> callback) throws Throwable {
+        if (record == null) {
+            return callback.apply(column, null);
+        }
         if (component.getType().isRecord() && !REFLECTION.isAnnotationPresent(component, FK.class)) {
             var r = (Record) REFLECTION.invokeComponent(component, record);
             if (r == null) {
                 return true;
             }
             index.decrementAndGet(); // Reset index.
-            if (!map(r, recordClass, true, index, columnFilter, callback)) {
+            if (!map(r, recordClass, true, parentNullable || !REFLECTION.isNonnull(component), index, columnFilter, callback)) {
                 return false;
             }
         }
@@ -197,9 +205,10 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
         return true;
     }
 
-    private boolean processDefaultComponent(@Nonnull Record record,
+    private boolean processDefaultComponent(@Nullable Record record,
                                             @Nonnull RecordComponent component,
                                             @Nonnull Column column,
+                                            boolean parentNullable,
                                             @Nonnull AtomicInteger index,
                                             @Nonnull Predicate<Column> columnFilter,
                                             @Nonnull BiFunction<Column, Object, Boolean> callback) throws Throwable {
@@ -209,23 +218,28 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
             throw new SqlTemplateException(STR."Foreign key component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is not a record.");
         }
         if (isForeignKey || isRecord) {
-            Record r = (Record) REFLECTION.invokeComponent(component, record);
+            Record r = record == null
+                    ? null
+                    : (Record) REFLECTION.invokeComponent(component, record);
             if (r == null) {
-                if (REFLECTION.isNonnull(component)) {
+                if (!parentNullable && REFLECTION.isNonnull(component)) {
                     String compType = isForeignKey ? "foreign key " : "";
-                    throw new SqlTemplateException(STR."Nonnull \{compType}component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null."
-                    );
+                    throw new SqlTemplateException(STR."Nonnull \{compType}component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
                 }
-                return callback.apply(column, null);
+                if (isForeignKey) {
+                    // Skipping rest, as we're only interested in the foreign key.
+                    return callback.apply(column, null);
+                }
             }
             index.decrementAndGet(); // Reset index for nested mapping.
             //noinspection unchecked
-            return map(r, (Class<? extends Record>) component.getType(), isForeignKey, index, columnFilter, callback);
+            return map(r, (Class<? extends Record>) component.getType(), isForeignKey, parentNullable || !REFLECTION.isNonnull(component), index, columnFilter, callback);
         } else {
-            Object o = REFLECTION.invokeComponent(component, record);
-            if (o == null && REFLECTION.isNonnull(component)) {
-                throw new SqlTemplateException(STR."Nonnull component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null."
-                );
+            Object o = record == null
+                    ? null
+                    : REFLECTION.invokeComponent(component, record);
+            if (o == null && !parentNullable && REFLECTION.isNonnull(component)) {
+                throw new SqlTemplateException(STR."Nonnull component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
             }
             return callback.apply(column, o);
         }
