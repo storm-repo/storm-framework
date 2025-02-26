@@ -1,7 +1,7 @@
 services:
   oracle:
     image: gvenzl/oracle-free:latest
-    platform: linux/arm64/v8
+    platform: ${DOCKER_PLATFORM:-linux/arm64/v8}
     container_name: oracle-db
     ports:
       - "1521:1521"

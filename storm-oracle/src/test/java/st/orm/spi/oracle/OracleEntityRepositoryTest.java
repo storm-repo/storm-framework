@@ -9,7 +9,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 import st.orm.FK;
 import st.orm.PK;
 import st.orm.Persist;
@@ -22,6 +28,7 @@ import st.orm.template.SqlInterceptor;
 
 import javax.sql.DataSource;
 import java.sql.SQLIntegrityConstraintViolationException;
+import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -39,7 +46,37 @@ import static st.orm.template.Operator.GREATER_THAN_OR_EQUAL;
 @ContextConfiguration(classes = IntegrationConfig.class)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)    // Prevent swapping to H2.
 @DataJpaTest(showSql = false)
+@Testcontainers
 public class OracleEntityRepositoryTest {
+
+    @SuppressWarnings("resource")
+    @Container
+    public static GenericContainer<?> oracleContainer = new GenericContainer<>("gvenzl/oracle-free:latest")
+            .withExposedPorts(1521)
+            .withEnv("ORACLE_PASSWORD", "oracle")
+            .withEnv("APP_USER", "test")
+            .withEnv("APP_USER_PASSWORD", "test")
+            // Set the platform to linux/arm64/v8 and assign a container name.
+            .withCreateContainerCmdModifier(cmd -> {
+                // Retrieve the platform from an environment variable or default to "linux/arm64/v8"
+                String dockerPlatform = System.getenv("DOCKER_PLATFORM");
+                if (dockerPlatform == null || dockerPlatform.isEmpty()) {
+                    dockerPlatform = "linux/arm64/v8";
+                }
+                cmd.withPlatform(dockerPlatform);
+            })
+            .waitingFor(Wait.forLogMessage(".*DATABASE IS READY TO USE!.*\\n", 1))
+            .withStartupTimeout(Duration.ofMinutes(1));
+
+    @DynamicPropertySource
+    static void overrideProperties(DynamicPropertyRegistry registry) {
+        String host = oracleContainer.getHost();
+        Integer port = oracleContainer.getMappedPort(1521);
+        String jdbcUrl = String.format("jdbc:oracle:thin:@//%s:%d/FREEPDB1", host, port);
+        registry.add("spring.datasource.url", () -> jdbcUrl);
+        registry.add("spring.datasource.username", () -> "test");
+        registry.add("spring.datasource.password", () -> "test");
+    }
 
     @Autowired
     private DataSource dataSource;

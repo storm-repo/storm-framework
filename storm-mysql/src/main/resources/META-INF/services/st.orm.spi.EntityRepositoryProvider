@@ -1,1 +1,1 @@
-st.orm.spi.mysql.MysqlEntityRepositoryProviderImpl
+st.orm.spi.mysql.MySQLEntityRepositoryProviderImpl

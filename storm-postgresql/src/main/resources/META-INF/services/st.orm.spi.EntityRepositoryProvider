@@ -1,1 +1,1 @@
-st.orm.spi.postgresql.PostgresqlEntityRepositoryProviderImpl
+st.orm.spi.postgresql.PostgreSQLEntityRepositoryProviderImpl

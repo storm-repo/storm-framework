@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:latest
-    platform: linux/arm64/v8
+    platform: ${DOCKER_PLATFORM:-linux/arm64/v8}
     container_name: postgres-db
     ports:
       - "5432:5432"

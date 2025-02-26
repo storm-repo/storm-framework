@@ -1,1 +1,1 @@
-st.orm.spi.mariadb.MariadbEntityRepositoryProviderImpl
+st.orm.spi.mariadb.MariaDBEntityRepositoryProviderImpl

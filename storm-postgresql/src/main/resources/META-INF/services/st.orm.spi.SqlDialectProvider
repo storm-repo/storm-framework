@@ -1,1 +1,1 @@
-st.orm.spi.postgresql.PostgresqlSqlDialectProviderImpl
+st.orm.spi.postgresql.PostgreSQLSqlDialectProviderImpl
