@@ -15,7 +15,6 @@ import st.orm.template.Metamodel;
 import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
 import st.orm.template.TemplateFunction;
-import st.orm.template.impl.Elements;
 import st.orm.template.impl.Elements.ObjectExpression;
 
 import java.util.List;
@@ -39,6 +38,16 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @since 1.2
      */
     public abstract <X> KQueryBuilder<T, R, X> typed(@Nonnull KClass<X> pkType);
+
+    /**
+     * Returns a query builder that does not require a WHERE clause for UPDATE and DELETE queries.
+     *
+     * <p>This method is used to prevent accidental updates or deletions of all records in a table when a WHERE clause
+     * is not provided.</p>
+     *
+     * @since 1.2
+     */
+    public abstract KQueryBuilder<T, R, ID> safe();
 
     /**
      * Marks the current query as a distinct query.
@@ -367,12 +376,12 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
-         * the related tables in the table graph or manually added joins.
+         * the related tables in the table graph.
          *
          * @param record the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> KPredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, V record) {
+        public final <V extends Record> KPredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, @Nonnull V record) {
             return filter(path, EQUALS, record);
         }
 
@@ -383,18 +392,18 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @param record the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> KPredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, V record) {
+        public final <V extends Record> KPredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, @Nonnull V record) {
             return filterAny(path, EQUALS, record);
         }
 
         /**
          * Adds a condition to the WHERE clause that matches the specified records. The records can represent any of
-         * the related tables in the table graph or manually added joins.
+         * the related tables in the table graph.
          *
          * @param it the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> KPredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, Iterable<V> it) {
+        public final <V extends Record> KPredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<V> it) {
             return filter(path, IN, it);
         }
 
@@ -405,7 +414,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @param it the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> KPredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, Iterable<V> it) {
+        public final <V extends Record> KPredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<V> it) {
             return filterAny(path, IN, it);
         }
 
@@ -427,7 +436,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph.
+         * graph or manually added joins.
          *
          * @param path the path to the object in the table graph.
          * @param operator the operator to use for the comparison.
@@ -462,7 +471,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph.
+         * graph or manually added joins.
          *
          * @param path the path to the object in the table graph.
          * @param operator the operator to use for the comparison.
@@ -481,7 +490,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph.
+         * graph or manually added joins.
          *
          * @param path the path to the object in the table graph.
          * @param operator the operator to use for the comparison.
@@ -590,7 +599,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Record> KQueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, V record) {
+    public final <V extends Record> KQueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull V record) {
         return where(path, EQUALS, record);
     }
 
@@ -601,7 +610,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Record> KQueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, V record) {
+    public final <V extends Record> KQueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull V record) {
         return whereAny(path, EQUALS, record);
     }
 
@@ -612,7 +621,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Record> KQueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, Iterable<V> it) {
+    public final <V extends Record> KQueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<V> it) {
         return where(path, IN, it);
     }
 
@@ -623,7 +632,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Record> KQueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, Iterable<V> it) {
+    public final <V extends Record> KQueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<V> it) {
         return whereAny(path, IN, it);
     }
 
@@ -667,7 +676,8 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     }
 
     /**
-     * Adds a WHERE clause that matches the specified objects at the specified path in the table graph.
+     * Adds a WHERE clause that matches the specified objects at the specified path in the table graph or manually added
+     * joins.
      *
      * @param path the path to the object in the table graph.
      * @param operator the operator to use for the comparison.
@@ -716,7 +726,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     @SafeVarargs
     public final <V> KQueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path,
                                                       @Nonnull Operator operator,
-                                                      V... o) {
+                                                      @Nonnull V... o) {
         return where(predicate -> predicate.filterAny(path, operator, o));
     }
 
@@ -761,6 +771,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to group by.
      * @return the query builder.
+     * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> groupBy(@Nonnull Metamodel<T, ?> path) {
         return groupBy(RAW."\{path}");
@@ -772,13 +783,13 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to group by.
      * @return the query builder.
+     * @since 1.2
      */
-    @SafeVarargs
     public final KQueryBuilder<T, R, ID> groupBy(@Nonnull Metamodel<?, ?>... path) {
         // We can safely invoke groupByAny as the underlying logic is identical. The main purpose of having these
         // separate methods is to provide (more) type safety when using metamodels that are guaranteed to be present in
         // the table graph.
-        return groupBy(path);
+        return groupByAny(path);
     }
 
     /**
@@ -787,6 +798,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to group by.
      * @return the query builder.
+     * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> groupByAny(@Nonnull Metamodel<?, ?>... path) {
         if (path.length == 0) {
@@ -803,6 +815,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param template the template to group by.
      * @return the query builder.
+     * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> groupBy(@Nonnull StringTemplate template) {
         return append(StringTemplate.combine(RAW."GROUP BY ", template));
@@ -813,6 +826,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param function used to define the template to group by.
      * @return the query builder.
+     * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> groupBy(@Nonnull TemplateFunction function) {
         return groupBy(TemplateFunction.template(function));
@@ -826,27 +840,29 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
      *          table graph.
      * @return the query builder.
+     * @since 1.2
      */
     @SafeVarargs
     public final <V> KQueryBuilder<T, R, ID> having(@Nonnull Metamodel<T, V> path,
                                                     @Nonnull Operator operator,
-                                                    V... o) {
+                                                    @Nonnull V... o) {
         return havingAny(path, operator, o);
     }
 
     /**
-     * Adds a HAVING clause to the query using the specified expression.
+     * Adds a HAVING clause to the query using the specified expression. The metamodel can refer to manually added joins.
      *
      * @param path the path to the object in the table graph.
      * @param operator the operator to use for the comparison.
      * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
      *          table graph or manually added joins.
      * @return the query builder.
+     * @since 1.2
      */
     @SafeVarargs
     public final <V> KQueryBuilder<T, R, ID> havingAny(@Nonnull Metamodel<?, V> path,
                                                        @Nonnull Operator operator,
-                                                       V... o) {
+                                                       @Nonnull V... o) {
         return having(RAW."\{new ObjectExpression(path, operator, o)}");
     }
 
@@ -855,9 +871,21 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param template the expression to add.
      * @return the query builder.
+     * @since 1.2
      */
     public final <V> KQueryBuilder<T, R, ID> having(@Nonnull StringTemplate template) {
         return append(StringTemplate.combine(RAW."HAVING ", template));
+    }
+
+    /**
+     * Adds a HAVING clause to the query using the specified expression.
+     *
+     * @param function used to define the expression to add.
+     * @return the query builder.
+     * @since 1.2
+     */
+    public final <V> KQueryBuilder<T, R, ID> having(@Nonnull TemplateFunction function) {
+        return having(TemplateFunction.template(function));
     }
 
     /**
@@ -865,6 +893,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to order by.
      * @return the query builder.
+     * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?> path) {
         return orderBy(RAW."\{path}");
@@ -876,6 +905,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @param path the path to order by.
      * @param ascending whether to order in ascending order.
      * @return the query builder.
+     * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?> path, boolean ascending) {
         return orderBy(RAW."\{path} \{ascending ? "ASC" : "DESC"}");
@@ -887,6 +917,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to order by.
      * @return the query builder.
+     * @since 1.2
      */
     @SafeVarargs
     public final KQueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?>... path) {
@@ -902,6 +933,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to order by.
      * @return the query builder.
+     * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> orderByAny(@Nonnull Metamodel<?, ?>... path) {
         if (path.length == 0) {
@@ -918,6 +950,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param template the template to order by.
      * @return the query builder.
+     * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> orderBy(@Nonnull StringTemplate template) {
         return append(StringTemplate.combine(RAW."ORDER BY ", template));
@@ -928,10 +961,29 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *
      * @param function used to define the template to order by.
      * @return the query builder.
+     * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> orderBy(@Nonnull TemplateFunction function) {
         return groupBy(TemplateFunction.template(function));
     }
+
+    /**
+     * Adds a LIMIT clause to the query.
+     *
+     * @param limit the maximum number of records to return.
+     * @return the query builder.
+     * @since 1.2
+     */
+    public abstract KQueryBuilder<T, R, ID> limit(int limit);
+
+    /**
+     * Adds an OFFSET clause to the query.
+     *
+     * @param offset the offset.
+     * @return the query builder.
+     * @since 1.2
+     */
+    public abstract KQueryBuilder<T, R, ID> offset(int offset);
 
     /**
      * Returns a processor that can be used to append the query with a string template.
@@ -950,6 +1002,60 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     public final KQueryBuilder<T, R, ID> append(@Nonnull TemplateFunction function) {
         return append(TemplateFunction.template(function));
     }
+
+    //
+    // Locking.
+    //
+
+    /**
+     * Locks the selected rows for reading.
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the database does not support the specified lock mode, or if the lock mode is
+     * not supported for the current query.
+     * @since 1.2
+     */
+    public abstract KQueryBuilder<T, R, ID> forShare();
+
+    /**
+     * Locks the selected rows for reading.
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the database does not support the specified lock mode, or if the lock mode is
+     * not supported for the current query.
+     * @since 1.2
+     */
+    public abstract KQueryBuilder<T, R, ID> forUpdate();
+
+    /**
+     * Locks the selected rows using a custom lock mode.
+     *
+     * <p>Note that this method results in non-portable code, as the lock mode is specific to the underlying database.</p>
+     *
+     * @param template the template to use for the lock mode.
+     * @return the query builder.
+     * @throws PersistenceException if the lock mode is not supported for the current query.
+     * @since 1.2
+     */
+    public abstract KQueryBuilder<T, R, ID> forLock(@Nonnull StringTemplate template);
+
+    /**
+     * Locks the selected rows using a custom lock mode.
+     *
+     * <p>Note that this method results in non-portable code, as the lock mode is specific to the underlying database.</p>
+     *
+     * @param function the function to use for the lock mode.
+     * @return the query builder.
+     * @throws PersistenceException if the lock mode is not supported for the current query.
+     * @since 1.2
+     */
+    public final KQueryBuilder<T, R, ID> forLock(@Nonnull TemplateFunction function) {
+        return forLock(TemplateFunction.template(function));
+    }
+
+    //
+    // Finalization.
+    //
 
     /**
      * Builds the query based on the current state of the query builder.
@@ -972,6 +1078,10 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     public final KPreparedQuery prepare() {
         return build().prepare();
     }
+
+    //
+    // Execution methods.
+    //
 
     /**
      * Executes the query and returns a stream of results.

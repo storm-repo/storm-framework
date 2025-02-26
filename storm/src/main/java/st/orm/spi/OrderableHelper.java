@@ -217,7 +217,7 @@ final class OrderableHelper {
             String cycle = cycleList.stream()
                     .map(useFullyQualifiedClassNames ? Class::getName : Class::getSimpleName)
                     .collect(joining(" -> "));
-            throw new IllegalStateException("Circular dependency detected: " + cycle + ".");
+            throw new IllegalStateException(STR."Circular dependency detected: \{cycle}.");
         }
         visiting.add(node.getValue());
         path.push(node);

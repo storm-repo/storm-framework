@@ -21,13 +21,14 @@ import st.orm.BindVars;
 import st.orm.PersistenceException;
 import st.orm.Query;
 import st.orm.spi.Provider;
+import st.orm.spi.QueryFactory;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
 import st.orm.template.ORMTemplate;
 import st.orm.template.PreparedStatementTemplate;
+import st.orm.template.Sql;
 import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplate.BatchListener;
-import st.orm.template.SqlTemplate.BindVariables;
 import st.orm.template.SqlTemplate.Parameter;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.TableAliasResolver;
@@ -51,36 +52,41 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
 
     @FunctionalInterface
     private interface TemplateProcessor {
-        PreparedStatement process(@Nonnull String sql,
-                                  @Nonnull List<Parameter> parameters,
-                                  @Nullable BindVariables bindVariables,
-                                  @Nonnull List<String> generatedKeys) throws SQLException;
+        PreparedStatement process(@Nonnull Sql ql,
+                                  boolean safe) throws SQLException;
     }
 
     private final TemplateProcessor templateProcessor;
-    private final TableNameResolver tableNameResolver;
+    private final ModelBuilder modelBuilder;
     private final TableAliasResolver tableAliasResolver;
-    private final ColumnNameResolver columnNameResolver;
-    private final ForeignKeyResolver foreignKeyResolver;
     private final Predicate<Provider> providerFilter;
     private final LazyFactory lazyFactory;
 
     public PreparedStatementTemplateImpl(@Nonnull DataSource dataSource) {
         // Note that this logic does not use Spring's DataSourceUtils, so it is not aware of Spring's transaction
         // management.
-        templateProcessor = (sql, parameters, bindVariables, generatedKeys) -> {
+        templateProcessor = (sql, safe) -> {
+            if (!safe) {
+                sql.unsafeWarning().ifPresent(warning -> {
+                    throw new PersistenceException(STR."\{warning} Use Query.safe() to mark query as safe.");
+                });
+            }
+            var statement = sql.statement();
+            var parameters = sql.parameters();
+            var bindVariables = sql.bindVariables().orElse(null);
+            var generatedKeys = sql.generatedKeys();
             Connection connection = getConnection(dataSource);
             PreparedStatement preparedStatement = null;
             try {
                 if (!generatedKeys.isEmpty()) {
                     try {
                         //noinspection SqlSourceToSinkFlow
-                        preparedStatement = connection.prepareStatement(sql, generatedKeys.toArray(new String[0]));
+                        preparedStatement = connection.prepareStatement(statement, generatedKeys.toArray(new String[0]));
                     } catch (SQLFeatureNotSupportedException ignore) {}
                 }
                 if (preparedStatement == null) {
                     //noinspection SqlSourceToSinkFlow
-                    preparedStatement = connection.prepareStatement(sql);
+                    preparedStatement = connection.prepareStatement(statement);
                 }
                 if (bindVariables == null) {
                     setParameters(preparedStatement, parameters);
@@ -94,26 +100,33 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
             }
             return createProxy(preparedStatement, connection, dataSource);
         };
-        this.tableNameResolver = TableNameResolver.DEFAULT;
+        this.modelBuilder = ModelBuilder.newInstance();
         this.tableAliasResolver = TableAliasResolver.DEFAULT;
-        this.columnNameResolver = ColumnNameResolver.DEFAULT;
-        this.foreignKeyResolver = ForeignKeyResolver.DEFAULT;
         this.providerFilter = null;
-        this.lazyFactory = new LazyFactoryImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, null);
+        this.lazyFactory = new LazyFactoryImpl(this, modelBuilder, null);
     }
 
     public PreparedStatementTemplateImpl(@Nonnull Connection connection) {
-        templateProcessor = (sql, parameters, bindVariables, generatedKeys) -> {
+        templateProcessor = (sql, safe) -> {
+            if (!safe) {
+                sql.unsafeWarning().ifPresent(warning -> {
+                    throw new PersistenceException(STR."\{warning} Use Query.safe() to mark query as safe.");
+                });
+            }
+            var statement = sql.statement();
+            var parameters = sql.parameters();
+            var bindVariables = sql.bindVariables().orElse(null);
+            var generatedKeys = sql.generatedKeys();
             PreparedStatement preparedStatement = null;
             if (!generatedKeys.isEmpty()) {
                 try {
                     //noinspection SqlSourceToSinkFlow
-                    preparedStatement = connection.prepareStatement(sql, generatedKeys.toArray(new String[0]));
+                    preparedStatement = connection.prepareStatement(statement, generatedKeys.toArray(new String[0]));
                 } catch (SQLFeatureNotSupportedException ignore) {}
             }
             if (preparedStatement == null) {
                 //noinspection SqlSourceToSinkFlow
-                preparedStatement = connection.prepareStatement(sql);
+                preparedStatement = connection.prepareStatement(statement);
             }
             if (bindVariables == null) {
                 setParameters(preparedStatement, parameters);
@@ -122,49 +135,72 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
             }
             return preparedStatement;
         };
-        this.tableNameResolver = TableNameResolver.DEFAULT;
+        this.modelBuilder = ModelBuilder.newInstance();
         this.tableAliasResolver = TableAliasResolver.DEFAULT;
-        this.columnNameResolver = ColumnNameResolver.DEFAULT;
-        this.foreignKeyResolver = ForeignKeyResolver.DEFAULT;
         this.providerFilter = null;
-        this.lazyFactory = new LazyFactoryImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, null);
+        this.lazyFactory = new LazyFactoryImpl(this, modelBuilder, null);
     }
 
     private PreparedStatementTemplateImpl(@Nonnull TemplateProcessor templateProcessor,
-                                          @Nullable TableNameResolver tableNameResolver,
+                                          @Nonnull ModelBuilder modelBuilder,
                                           @Nullable TableAliasResolver tableAliasResolver,
-                                          @Nullable ColumnNameResolver columnNameResolver,
-                                          @Nullable ForeignKeyResolver foreignKeyResolver,
                                           @Nullable Predicate<Provider> providerFilter) {
         this.templateProcessor = templateProcessor;
-        this.tableNameResolver = tableNameResolver;
+        this.modelBuilder = modelBuilder;
         this.tableAliasResolver = tableAliasResolver;
-        this.columnNameResolver = columnNameResolver;
-        this.foreignKeyResolver = foreignKeyResolver;
         this.providerFilter = providerFilter;
-        this.lazyFactory = new LazyFactoryImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter);
+        this.lazyFactory = new LazyFactoryImpl(this, modelBuilder, providerFilter);
     }
 
+    /**
+     * Returns a new prepared statement template with the specified table name resolver.
+     *
+     * @param tableNameResolver the table name resolver.
+     * @return a new prepared statement template.
+     */
     @Override
     public PreparedStatementTemplateImpl withTableNameResolver(@Nullable TableNameResolver tableNameResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, providerFilter);
+        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, providerFilter);
     }
 
+    /**
+     * Returns a new prepared statement template with the specified column name resolver.
+     *
+     * @param columnNameResolver the column name resolver.
+     * @return a new prepared statement template.
+     */
     @Override
     public PreparedStatementTemplateImpl withColumnNameResolver(@Nullable ColumnNameResolver columnNameResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, providerFilter);
+        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, providerFilter);
     }
 
+    /**
+     * Returns a new prepared statement template with the specified foreign key resolver.
+     *
+     * @param foreignKeyResolver the foreign key resolver.
+     * @return a new prepared statement template.
+     */
     @Override
     public PreparedStatementTemplateImpl withForeignKeyResolver(@Nullable ForeignKeyResolver foreignKeyResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, providerFilter);
+        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, providerFilter);
     }
 
+    /**
+     * Returns a new prepared statement template with the specified provider filter.
+     *
+     * @param providerFilter the provider filter.
+     * @return a new prepared statement template.
+     */
     @Override
     public PreparedStatementTemplateImpl withProviderFilter(@Nullable Predicate<Provider> providerFilter) {
-        return new PreparedStatementTemplateImpl(templateProcessor, tableNameResolver, tableAliasResolver, columnNameResolver, foreignKeyResolver, providerFilter);
+        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter);
     }
 
+    /**
+     * Create a new bind variables instance that can be used to add bind variables to a batch.
+     *
+     * @return a new bind variables instance.
+     */
     @Override
     public BindVars createBindVars() {
         return sqlTemplate().createBindVars();
@@ -213,14 +249,19 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
 
     private SqlTemplate sqlTemplate() {
         return PS
-                .withTableNameResolver(tableNameResolver)
-                .withColumnNameResolver(columnNameResolver)
-                .withForeignKeyResolver(foreignKeyResolver);
+                .withTableNameResolver(modelBuilder.tableNameResolver())
+                .withColumnNameResolver(modelBuilder.columnNameResolver())
+                .withForeignKeyResolver(modelBuilder.foreignKeyResolver());
     }
 
+    /**
+     * Returns an ORM template that is backed by this prepared statement template.
+     *
+     * @return the ORM template.
+     */
     @Override
     public ORMTemplate toORM() {
-        return new ORMTemplateImpl(this, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter);
+        return new ORMTemplateImpl(this, modelBuilder, providerFilter);
     }
 
     /**
@@ -254,14 +295,21 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         );
     }
 
+    /**
+     * Create a new query for the specified {@code template}.
+     *
+     * @param template the template to process.
+     * @return a query that can be executed.
+     * @throws PersistenceException if the template is invalid.
+     */
     @Override
     public Query create(@Nonnull StringTemplate template) {
         try {
             var sql = sqlTemplate().process(template);
             var bindVariables = sql.bindVariables().orElse(null);
-            return new QueryImpl(lazyFactory, () -> {
+            return new QueryImpl(lazyFactory, safe -> {
                 try {
-                    return templateProcessor.process(sql.statement(), sql.parameters(), bindVariables, sql.generatedKeys());
+                    return templateProcessor.process(sql, safe);
                 } catch (SQLException e) {
                     throw new PersistenceException(e);
                 }
@@ -271,10 +319,16 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         }
     }
 
+    /**
+     * Creates a query for the specified query {@code template}.
+     *
+     * @param template the query template.
+     * @return the query.
+     */
     @Override
     public PreparedStatement query(@Nonnull StringTemplate template) throws SQLException {
         var sql = sqlTemplate().process(template);
-        return templateProcessor.process(sql.statement(), sql.parameters(), sql.bindVariables().orElse(null), sql.generatedKeys());
+        return templateProcessor.process(sql, true);    // We allow unsafe queries in direct JDBC mode.
     }
 
     private static final Method GET_CONNECTION_METHOD = ((Supplier<Method>) () -> {

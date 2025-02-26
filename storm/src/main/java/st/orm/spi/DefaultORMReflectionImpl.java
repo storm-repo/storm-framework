@@ -39,11 +39,11 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
     private static final Map<Class<? extends Record>, Optional<Class<?>>> PK_TYPE_CACHE = new ConcurrentHashMap<>();
 
     @Override
-    public Optional<Constructor<?>> findCanonicalConstructor(@Nonnull Class<? extends Record> recordType) {
-        assert recordType.isRecord();
-        return CONSTRUCTOR_CACHE.computeIfAbsent(recordType, _ -> {
-            RecordComponent[] components = recordType.getRecordComponents();
-            Constructor<?>[] constructors = recordType.getDeclaredConstructors();
+    public Optional<Constructor<?>> findCanonicalConstructor(@Nonnull Class<? extends Record> type) {
+        assert type.isRecord();
+        return CONSTRUCTOR_CACHE.computeIfAbsent(type, _ -> {
+            RecordComponent[] components = type.getRecordComponents();
+            Constructor<?>[] constructors = type.getDeclaredConstructors();
             for (Constructor<?> constructor : constructors) {
                 Class<?>[] parameterTypes = constructor.getParameterTypes();
                 if (parameterTypes.length != components.length) {

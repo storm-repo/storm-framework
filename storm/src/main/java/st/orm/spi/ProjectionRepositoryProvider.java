@@ -16,13 +16,17 @@
 package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
-import st.orm.repository.Model;
+import st.orm.template.Model;
 import st.orm.repository.Projection;
 import st.orm.repository.ProjectionRepository;
 import st.orm.template.ORMTemplate;
 
+/**
+ * Provides pluggable projection repository logic.
+ */
 public interface ProjectionRepositoryProvider extends Provider {
 
-    <ID, P extends Record & Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(@Nonnull ORMTemplate orm,
-                                                                                                @Nonnull Model<P, ID> model);
+    <ID, P extends Record & Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(
+            @Nonnull ORMTemplate ormTemplate,
+            @Nonnull Model<P, ID> model);
 }

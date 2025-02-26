@@ -27,5 +27,5 @@ public interface Subqueryable {
      *
      * @return the template.
      */
-    StringTemplate getStringTemplate();
+    StringTemplate getSubquery();
 }

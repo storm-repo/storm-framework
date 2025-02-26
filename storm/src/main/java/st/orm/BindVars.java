@@ -15,8 +15,24 @@
  */
 package st.orm;
 
+import jakarta.annotation.Nonnull;
+import st.orm.template.SqlTemplate.RecordListener;
+
 /**
- * BindVars instances can be used to mark bind variables in a query.
+ * Marker interface used within an SQL template to indicate where bind variables (parameters) should be injected.
+ *
+ * <p>This interface is typically referenced within the SQL string to specify placeholder positions for parameter
+ * binding.</p>
  */
 public interface BindVars {
+
+    /**
+     * Sets a listener that is invoked for each record that is being bound.
+     *
+     * <p>This method can be used to optimize the binding of parameters to the SQL statement.</p>
+     *
+     * @param listener the consumer to invoke for each bind variable.
+     * @since 1.2
+     */
+    void setRecordListener(@Nonnull RecordListener listener);
 }

@@ -20,7 +20,6 @@ import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import kotlin.reflect.KClass;
 import st.orm.BindVars;
-import st.orm.Query;
 import st.orm.TemporalType;
 import st.orm.kotlin.template.KORMTemplate;
 import st.orm.kotlin.template.KQueryBuilder;
@@ -43,6 +42,7 @@ import st.orm.template.impl.Elements.Subquery;
 import st.orm.template.impl.Elements.TableSource;
 import st.orm.template.impl.Elements.TemplateSource;
 import st.orm.template.impl.Elements.Unsafe;
+import st.orm.template.impl.Elements.Var;
 import st.orm.template.impl.JpaTemplateImpl;
 import st.orm.template.impl.PreparedStatementTemplateImpl;
 import st.orm.template.impl.Subqueryable;
@@ -201,11 +201,11 @@ public interface KTemplates {
      * <pre>{@code
      * EntityManager entityManager = ...;
      * KORMRepositoryTemplate orm = KTemplates.ORM(entityManager);
-     * List<OtherTable> otherTables = orm.query(RAW."""
-     *         SELECT \{OtherTable.class}
-     *         FROM \{OtherTable.class}
-     *         WHERE \{OtherTable_.city.name} = \{"Sunnyvale"}""")
-     *     .getResultList(OtherTable.class);
+     * List<MyTable> myTables = orm.query(RAW."""
+     *         SELECT \{MyTable.class}
+     *         FROM \{MyTable.class}
+     *         WHERE \{MyTable_.city.name} = \{"Sunnyvale"}""")
+     *     .getResultList(MyTable.class);
      * }</pre>
      *
      * @param entityManager the {@link EntityManager} to use for database operations; must not be {@code null}.
@@ -225,11 +225,11 @@ public interface KTemplates {
      * <pre>{@code
      * DataSource dataSource = ...;
      * KORMRepositoryTemplate orm = KTemplates.ORM(dataSource);
-     * List<OtherTable> otherTables = orm.query(RAW."""
-     *         SELECT \{OtherTable.class}
-     *         FROM \{OtherTable.class}
-     *         WHERE \{OtherTable_.city.name} = \{"Sunnyvale"}""")
-     *     .getResultList(OtherTable.class);
+     * List<MyTable> myTables = orm.query(RAW."""
+     *         SELECT \{MyTable.class}
+     *         FROM \{MyTable.class}
+     *         WHERE \{MyTable_.city.name} = \{"Sunnyvale"}""")
+     *     .getResultList(MyTable.class);
      * }</pre>
      *
      * @param dataSource the {@link DataSource} to use for database operations; must not be {@code null}.
@@ -250,11 +250,11 @@ public interface KTemplates {
      * <pre>{@code
      * try (Connection connection = ...) {
      *     KORMRepositoryTemplate orm = KTemplates.ORM(connection);
-     *     List<OtherTable> otherTables = orm.query(RAW."""
-     *             SELECT \{OtherTable.class}
-     *             FROM \{OtherTable.class}
-     *             WHERE \{OtherTable_.city.name} = \{"Sunnyvale"}""")
-     *         .getResultList(OtherTable.class)
+     *     List<MyTable> myTables = orm.query(RAW."""
+     *             SELECT \{MyTable.class}
+     *             FROM \{MyTable.class}
+     *             WHERE \{MyTable_.city.name} = \{"Sunnyvale"}""")
+     *         .getResultList(MyTable.class)
      * }
      * }</pre>
      *
@@ -696,7 +696,7 @@ public interface KTemplates {
      * WHERE \{where(entities)}
      * }</pre>
      *
-     * <p>In this example, the query selects all entries in {@code Table} that are linked to any of the otherTables in the
+     * <p>In this example, the query selects all entries in {@code Table} that are linked to any of the myTables in the
      * list.
      *
      *
@@ -753,10 +753,10 @@ public interface KTemplates {
      * Table entity = ...;
      * SELECT \{Table.class}
      * FROM \{Table.class}
-     * WHERE \{where(otherTable)}
+     * WHERE \{where(myTable)}
      * }</pre>
      *
-     * <p>In this example, the query selects all entries in {@code Table} that are linked to the specified {@code otherTable}.
+     * <p>In this example, the query selects all entries in {@code Table} that are linked to the specified {@code myTable}.
      *
      * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically detects that
      * a WHERE element is required based on its placement in the query:
@@ -797,21 +797,21 @@ public interface KTemplates {
      * <pre>{@code
      * SELECT \{Table.class}
      * FROM \{Table.class}
-     * WHERE \{where(Table_.otherTable.id, Operator.IN, listOfIds)}
+     * WHERE \{where(Table_.myTable.id, Operator.IN, listOfIds)}
      * }</pre>
      *
-     * <p>In this example, {@code listOfIds} contains the primary key values of the {@code OtherTable} records,
-     * and the query selects all entries in {@code Table} linked to that OtherTable.</p>
+     * <p>In this example, {@code listOfIds} contains the primary key values of the {@code MyTable} records,
+     * and the query selects all entries in {@code Table} linked to that MyTable.</p>
      *
      * <p>Example usage with records:
      * <pre>{@code
-     * List<OtherTable> entities = ...;
+     * List<MyTable> entities = ...;
      * SELECT \{Table.class}
      * FROM \{Table.class}
-     * WHERE \{where(Table_.otherTable, Operator.IN, entities)}
+     * WHERE \{where(Table_.myTable, Operator.IN, entities)}
      * }</pre>
      *
-     * <p>In this example, {@code entities} is a list of {@code OtherTable} records. The query matches entries in
+     * <p>In this example, {@code entities} is a list of {@code MyTable} records. The query matches entries in
      * {@code Table} linked to any of the records in the list via their foreign keys.</p>
      *
      * @param path the path or column name to apply the condition on.
@@ -837,10 +837,10 @@ public interface KTemplates {
      * <pre>{@code
      * SELECT \{Table.class}
      * FROM \{Table.class}
-     * WHERE \{where(Table_.otherTable.id, Operator.BETWEEN, 1, 10)}
+     * WHERE \{where(Table_.myTable.id, Operator.BETWEEN, 1, 10)}
      * }</pre>
      *
-     * <p>In this example, the query selects all entries in {@code Table} where the associated {@code OtherTable}
+     * <p>In this example, the query selects all entries in {@code Table} where the associated {@code MyTable}
      * records have primary keys between {@code 1} and {@code 10}.
      *
      * @param path the path or column name to apply the condition on.
@@ -1095,17 +1095,17 @@ public interface KTemplates {
     /**
      * Generates an alias element for a table specified by the given {@code metamodel} in a type safe manner.
      *
-     * <p>Example usage in a string template where {@code OtherTable} is referenced twice:
+     * <p>Example usage in a string template where {@code MyTable} is referenced twice:
      * <pre>{@code
-     * // Define a record with two references to OtherTable
-     * record Table(int id, OtherTable child, OtherTable parent) {}
+     * // Define a record with two references to MyTable
+     * record Table(int id, MyTable child, MyTable parent) {}
      *
      * // In the SQL template
      * SELECT \{alias(Table_.child}.column_name FROM \{Table.class}
      * }</pre>
      *
      * <p>In this example, {@code Table_.child} specifies that we are referring to the {@code child} field of the {@code Table} record,
-     * which is of type {@code OtherTable}. This distinguishes it from the {@code parent} field, which is also of type {@code OtherTable}.
+     * which is of type {@code MyTable}. This distinguishes it from the {@code parent} field, which is also of type {@code MyTable}.
      *
      * @param path specifies the table for which the alias is to be generated.
      * @return an {@link Element} representing the table's alias with the specified path.
@@ -1118,17 +1118,17 @@ public interface KTemplates {
     /**
      * Generates an alias element for a table specified by the given {@code metamodel} in a type safe manner.
      *
-     * <p>Example usage in a string template where {@code OtherTable} is referenced twice:
+     * <p>Example usage in a string template where {@code MyTable} is referenced twice:
      * <pre>{@code
-     * // Define a record with two references to OtherTable
-     * record Table(int id, OtherTable child, OtherTable parent) {}
+     * // Define a record with two references to MyTable
+     * record Table(int id, MyTable child, MyTable parent) {}
      *
      * // In the SQL template
      * SELECT \{alias(Table_.child}.column_name FROM \{Table.class}
      * }</pre>
      *
      * <p>In this example, {@code Table_.child} specifies that we are referring to the {@code child} field of the {@code Table} record,
-     * which is of type {@code OtherTable}. This distinguishes it from the {@code parent} field, which is also of type {@code OtherTable}.
+     * which is of type {@code MyTable}. This distinguishes it from the {@code parent} field, which is also of type {@code MyTable}.
      *
      * @param path specifies the table for which the alias is to be generated.
      * @param scope the {@link ResolveScope} to use when resolving the alias. Use STRICT to include local and outer
@@ -1148,18 +1148,18 @@ public interface KTemplates {
      * uses inline records, the componentName is also constructed by concatenating the fields leading to the record
      * component.</p>
      *
-     * <p>Example usage in a string template where {@code OtherTable} is referenced twice:
+     * <p>Example usage in a string template where {@code MyTable} is referenced twice:
      * <pre>{@code
-     * // Define a record with two references to OtherTable
-     * record Table(int id, OtherTable child, OtherTable parent) {}
+     * // Define a record with two references to MyTable
+     * record Table(int id, MyTable child, MyTable parent) {}
      *
      * // In the SQL template
      * SELECT \{column(Table_.child.name)} FROM \{Table.class}
      * }</pre>
      *
      * <p>In this example, the path "child" specifies that we are referring to the {@code child} field of the
-     * {@code Table} record, which is of type {@code OtherTable}. This distinguishes it from the {@code parent} field, which
-     * is also of type {@code OtherTable}. The "name" componentName refers to the name record component of {@code OtherTable}.</p>
+     * {@code Table} record, which is of type {@code MyTable}. This distinguishes it from the {@code parent} field, which
+     * is also of type {@code MyTable}. The "name" componentName refers to the name record component of {@code MyTable}.</p>
      *
      * @param path specifies the database column for which the column is to be generated.
      * @return an {@link Element} representing the table's column with the specified path.
@@ -1177,18 +1177,18 @@ public interface KTemplates {
      * uses inline records, the componentName is also constructed by concatenating the fields leading to the record
      * component.</p>
      *
-     * <p>Example usage in a string template where {@code OtherTable} is referenced twice:
+     * <p>Example usage in a string template where {@code MyTable} is referenced twice:
      * <pre>{@code
-     * // Define a record with two references to OtherTable
-     * record Table(int id, OtherTable child, OtherTable parent) {}
+     * // Define a record with two references to MyTable
+     * record Table(int id, MyTable child, MyTable parent) {}
      *
      * // In the SQL template
      * SELECT \{column(Table_.child.name)} FROM \{Table.class}
      * }</pre>
      *
      * <p>In this example, the path "child" specifies that we are referring to the {@code child} field of the
-     * {@code Table} record, which is of type {@code OtherTable}. This distinguishes it from the {@code parent} field, which
-     * is also of type {@code OtherTable}. The "name" componentName refers to the name record component of {@code OtherTable}.</p>
+     * {@code Table} record, which is of type {@code MyTable}. This distinguishes it from the {@code parent} field, which
+     * is also of type {@code MyTable}. The "name" componentName refers to the name record component of {@code MyTable}.</p>
      *
      * @param path specifies the database column for which the column is to be generated.
      * @param scope the {@link ResolveScope} to use when resolving the alias. Use STRICT to include local and outer
@@ -1420,6 +1420,17 @@ public interface KTemplates {
     }
 
     /**
+     * Creates a new var element that can be used to specify individual bind variables in the query.
+     *
+     * @param bindVars the bind variables instance used for parameter binding.
+     * @param extractor the function used to extract the value from the record for the bind variable.
+     * @return a new {@link Element} representing the bind variable.
+     */
+    static Element var(@Nonnull BindVars bindVars, @Nonnull Function<Record, ?> extractor) {
+        return new Var(bindVars, extractor);
+    }
+
+    /**
      * Creates a new subquery element using a query builder.
      *
      * @param builder   the query builder used to construct the subquery; must not be null.
@@ -1430,7 +1441,7 @@ public interface KTemplates {
      * @throws NullPointerException if the {@code builder} is null.
      */
     static Element subquery(@Nonnull KQueryBuilder<?, ?, ?> builder, boolean correlate) {
-        return new Subquery(((Subqueryable) builder).getStringTemplate(), correlate);
+        return new Subquery(((Subqueryable) builder).getSubquery(), correlate);
     }
 
     /**
@@ -1455,7 +1466,7 @@ public interface KTemplates {
      * potentially unsafe and may expose your application to SQL injection attacks if not used carefully.
      *
      * <p><strong>Warning:</strong> Use this method only when you are certain that the SQL string being injected
-     * is safe and originates from a trusted source. Avoid using otherTable-supplied input with this method.
+     * is safe and originates from a trusted source. Avoid using user-supplied input with this method.
      *
      * <p>Example usage in a string template:
      * <pre>{@code

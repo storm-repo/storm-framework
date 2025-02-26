@@ -19,10 +19,8 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Lazy;
 import st.orm.spi.Provider;
-import st.orm.template.ColumnNameResolver;
-import st.orm.template.ForeignKeyResolver;
+import st.orm.spi.QueryFactory;
 import st.orm.template.QueryBuilder;
-import st.orm.template.TableNameResolver;
 
 import java.util.function.Predicate;
 
@@ -33,20 +31,14 @@ import static java.util.Objects.requireNonNull;
  */
 public final class LazyFactoryImpl implements LazyFactory {
     private final QueryFactory factory;
-    private final TableNameResolver tableNameResolver;
-    private final ColumnNameResolver columnNameResolver;
-    private final ForeignKeyResolver foreignKeyResolver;
+    private final ModelBuilder modelBuilder;
     private final Predicate<? super Provider> providerFilter;
 
     public LazyFactoryImpl(@Nonnull QueryFactory factory,
-                           @Nullable TableNameResolver tableNameResolver,
-                           @Nullable ColumnNameResolver columnNameResolver,
-                           @Nullable ForeignKeyResolver foreignKeyResolver,
+                           @Nonnull ModelBuilder modelBuilder,
                            @Nullable Predicate<? super Provider> providerFilter) {
         this.factory = requireNonNull(factory, "factory");
-        this.tableNameResolver = tableNameResolver;
-        this.columnNameResolver = columnNameResolver;
-        this.foreignKeyResolver = foreignKeyResolver;
+        this.modelBuilder = requireNonNull(modelBuilder, "modelBuilder");
         this.providerFilter = providerFilter;
     }
 
@@ -65,9 +57,7 @@ public final class LazyFactoryImpl implements LazyFactory {
         //noinspection unchecked
         QueryBuilder<T, T, ID> queryBuilder = (QueryBuilder<T, T, ID>) new ORMTemplateImpl(
                 factory,
-                tableNameResolver,
-                columnNameResolver,
-                foreignKeyResolver,
+                modelBuilder,
                 providerFilter).selectFrom(type);
         LazySupplier<T> supplier = new LazySupplier<>(() -> {
             if (pk == null) {

@@ -1,0 +1,20 @@
+services:
+  oracle:
+    image: gvenzl/oracle-free:latest
+    platform: ${DOCKER_PLATFORM:-linux/arm64/v8}
+    container_name: oracle-db
+    ports:
+      - "1521:1521"
+    # Provide passwords and other environment variables to the container
+    environment:
+      ORACLE_PASSWORD: oracle
+      APP_USER: test
+      APP_USER_PASSWORD: test
+    # Customize healthcheck script options for startup
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+      start_interval: 5s

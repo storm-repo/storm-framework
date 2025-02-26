@@ -17,7 +17,9 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.PersistenceException;
-import st.orm.repository.Model;
+import st.orm.template.Model;
+import st.orm.spi.Providers;
+import st.orm.spi.SqlDialect;
 import st.orm.template.JoinType;
 import st.orm.template.Metamodel;
 import st.orm.template.Operator;
@@ -54,6 +56,9 @@ import static st.orm.template.Operator.IN;
  * @param <ID> the type of the primary key.
  */
 abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T, R, ID> implements Subqueryable {
+
+    protected final static SqlDialect SQL_DIALECT = Providers.getSqlDialect();
+
     protected final QueryTemplate queryTemplate;
     protected final Class<T> fromType;
     protected final List<Join> join;
@@ -310,8 +315,9 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
     }
 
     // Define the raw templates
-    private static final StringTemplate RAW_AND = RAW." AND (";
-    private static final StringTemplate RAW_OR = RAW." OR (";
+    private static final StringTemplate RAW_AND = RAW." AND ";
+    private static final StringTemplate RAW_OR = RAW." OR ";
+    private static final StringTemplate RAW_OPEN = RAW."(";
     private static final StringTemplate RAW_CLOSE = RAW.")";
 
     /**
@@ -332,18 +338,26 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
 
             @Override
             public PredicateBuilder<TX, RX, IDX> and(@Nonnull PredicateBuilder<TX, RX, IDX> predicate) {
-                templates.add(RAW_AND);
-                templates.addAll(((PredicateBuilderImpl<TX, RX, IDX>) predicate).templates);
-                templates.add(RAW_CLOSE);
+                add(RAW_AND, predicate);
                 return this;
             }
 
             @Override
             public PredicateBuilder<TX, RX, IDX> or(@Nonnull PredicateBuilder<TX, RX, IDX> predicate) {
-                templates.add(RAW_OR);
-                templates.addAll(((PredicateBuilderImpl<TX, RX, IDX>) predicate).templates);
-                templates.add(RAW_CLOSE);
+                add(RAW_OR, predicate);
                 return this;
+            }
+
+            private void add(@Nonnull StringTemplate operator, @Nonnull PredicateBuilder<TX, RX, IDX> predicate) {
+                templates.add(operator);
+                var list = ((PredicateBuilderImpl<TX, RX, IDX>) predicate).templates;
+                if (list.size() > 1) {
+                    templates.add(RAW_OPEN);
+                }
+                templates.addAll(list);
+                if (list.size() > 1) {
+                    templates.add(RAW_CLOSE);
+                }
             }
 
             private List<StringTemplate> getTemplates() {

@@ -51,9 +51,9 @@ public final class KORMReflectionImpl implements ORMReflection {
     private static final DefaultORMReflectionImpl defaultReflection = new DefaultORMReflectionImpl();
 
     @Override
-    public Optional<Constructor<?>> findCanonicalConstructor(@Nonnull Class<? extends Record> recordType) {
-        assert recordType.isRecord();
-        return defaultReflection.findCanonicalConstructor(recordType);
+    public Optional<Constructor<?>> findCanonicalConstructor(@Nonnull Class<? extends Record> type) {
+        assert type.isRecord();
+        return defaultReflection.findCanonicalConstructor(type);
     }
 
     @Override

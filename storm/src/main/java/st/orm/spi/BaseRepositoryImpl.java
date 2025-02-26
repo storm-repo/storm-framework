@@ -20,8 +20,8 @@ import jakarta.annotation.Nullable;
 import st.orm.Lazy;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
-import st.orm.repository.Column;
-import st.orm.repository.Model;
+import st.orm.template.Column;
+import st.orm.template.Model;
 import st.orm.repository.Repository;
 import st.orm.template.ORMTemplate;
 import st.orm.template.QueryBuilder;
@@ -38,21 +38,35 @@ import static st.orm.spi.Providers.selectFrom;
 import static st.orm.template.QueryBuilder.slice;
 
 /**
+ * Base implementation for all repositories.
  */
 abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
 
-    protected final ORMTemplate orm;
+    private static final SqlDialect SQL_DIALECT = Providers.getSqlDialect();
+
+    protected final ORMTemplate ormTemplate;
     protected final Model<E, ID> model;
     protected final int defaultSliceSize;
 
-    public BaseRepositoryImpl(@Nonnull ORMTemplate orm, @Nonnull Model<E, ID> model) {
-        this.orm = requireNonNull(orm);
+    public BaseRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
+        this.ormTemplate = requireNonNull(ormTemplate);
         this.model = requireNonNull(model);
-        this.defaultSliceSize = model.columns().stream().filter(Column::primaryKey).count() > 1
-                ? 100   // Compound PKs can become quite large, so we default to a smaller batch size.
-                : 1000;
+        if (SQL_DIALECT.supportsMultiValueTuples()) {
+            this.defaultSliceSize = 1000;
+        } else {
+            this.defaultSliceSize = model.columns().stream().filter(Column::primaryKey).count() > 1
+                    ? 100   // Compound PKs can become quite large, so we default to a smaller batch size.
+                    : 1000;
+        }
     }
 
+    /**
+     * Converts an iterable collection to a stream.
+     *
+     * @param iterable the iterable collection to convert.
+     * @return a stream representing the elements of the iterable collection.
+     * @param <X> the type of elements in the iterable collection.
+     */
     protected static <X> Stream<X> toStream(@Nonnull Iterable<X> iterable) {
         return StreamSupport.stream(spliteratorUnknownSize(iterable.iterator(), ORDERED), false);
     }
@@ -64,7 +78,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      */
     @Override
     public ORMTemplate orm() {
-        return orm;
+        return ormTemplate;
     }
 
     /**
@@ -83,7 +97,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @return a lazy entity instance.
      */
     public Lazy<E, ID> lazy(@Nullable ID id) {
-        return orm.lazy(model.type(), id);
+        return ormTemplate.lazy(model.type(), id);
     }
 
     /**
@@ -101,7 +115,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @return a new query builder for the entity type.
      */
     public QueryBuilder<E, Long, ID> selectCount() {
-        return selectFrom(orm, model.type(), Long.class, RAW."COUNT(*)", false, () -> model);
+        return selectFrom(ormTemplate, model.type(), Long.class, RAW."COUNT(*)", false, () -> model);
     }
 
     /**
@@ -124,7 +138,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @param <R> the result type of the query.
      */
     public <R> QueryBuilder<E, R, ID> select(@Nonnull Class<R> selectType, @Nonnull StringTemplate template) {
-        return selectFrom(orm, model().type(), selectType, template, false, () -> model);
+        return selectFrom(ormTemplate, model().type(), selectType, template, false, () -> model);
     }
 
     /**

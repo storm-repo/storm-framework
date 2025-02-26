@@ -22,6 +22,7 @@ import st.orm.Lazy;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.ResultCallback;
+import st.orm.template.Model;
 import st.orm.template.QueryBuilder;
 
 import java.util.List;

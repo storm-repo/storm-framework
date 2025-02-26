@@ -34,7 +34,6 @@ import java.util.stream.StreamSupport;
 import static java.lang.Integer.MAX_VALUE;
 import static java.lang.StringTemplate.RAW;
 import static java.util.Spliterators.spliteratorUnknownSize;
-import static st.orm.spi.Providers.getSqlDialect;
 import static st.orm.template.Operator.EQUALS;
 import static st.orm.template.Operator.IN;
 
@@ -57,6 +56,16 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @since 1.2
      */
     public abstract <X> QueryBuilder<T, R, X> typed(@Nonnull Class<X> pkType);
+
+    /**
+     * Returns a query builder that does not require a WHERE clause for UPDATE and DELETE queries.
+     *
+     * <p>This method is used to prevent accidental updates or deletions of all records in a table when a WHERE clause
+     * is not provided.</p>
+     *
+     * @since 1.2
+     */
+    public abstract QueryBuilder<T, R, ID> safe();
 
     /**
      * Marks the current query as a distinct query.
@@ -309,12 +318,12 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
-         * the related tables in the table graph or manually added joins.
+         * the related tables in the table graph.
          *
          * @param record the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, V record) {
+        public final <V extends Record> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, @Nonnull V record) {
             return filter(path, EQUALS, record);
         }
 
@@ -325,7 +334,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param record the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> PredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, V record) {
+        public final <V extends Record> PredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, @Nonnull V record) {
             return filterAny(path, EQUALS, record);
         }
 
@@ -336,7 +345,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param it the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, Iterable<V> it) {
+        public final <V extends Record> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<V> it) {
             return filter(path, IN, it);
         }
 
@@ -347,7 +356,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param it the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> PredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, Iterable<V> it) {
+        public final <V extends Record> PredicateBuilder<T, R, ID> filterAny(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<V> it) {
             return filterAny(path, IN, it);
         }
 
@@ -369,7 +378,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph.
+         * graph or manually added joins.
          *
          * @param path the path to the object in the table graph.
          * @param operator the operator to use for the comparison.
@@ -404,7 +413,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph.
+         * graph or manually added joins.
          *
          * @param path the path to the object in the table graph.
          * @param operator the operator to use for the comparison.
@@ -423,7 +432,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph.
+         * graph or manually added joins.
          *
          * @param path the path to the object in the table graph.
          * @param operator the operator to use for the comparison.
@@ -521,7 +530,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Record> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, V record) {
+    public final <V extends Record> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull V record) {
         return where(path, EQUALS, record);
     }
 
@@ -533,7 +542,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Record> QueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, V record) {
+    public final <V extends Record> QueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull V record) {
         return whereAny(path, EQUALS, record);
     }
 
@@ -545,7 +554,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Record> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, Iterable<V> it) {
+    public final <V extends Record> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<V> it) {
         return where(path, IN, it);
     }
 
@@ -557,7 +566,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Record> QueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, Iterable<V> it) {
+    public final <V extends Record> QueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<V> it) {
         return whereAny(path, IN, it);
     }
 
@@ -601,7 +610,8 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     }
 
     /**
-     * Adds a WHERE clause that matches the specified objects at the specified path in the table graph.
+     * Adds a WHERE clause that matches the specified objects at the specified path in the table graph or manually added
+     * joins.
      *
      * @param path the path to the object in the table graph.
      * @param operator the operator to use for the comparison.
@@ -650,7 +660,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     @SafeVarargs
     public final <V> QueryBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path,
                                                      @Nonnull Operator operator,
-                                                     V... o) {
+                                                     @Nonnull V... o) {
         return where(predicate -> predicate.filterAny(path, operator, o));
     }
 
@@ -677,6 +687,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to group by.
      * @return the query builder.
+     * @since 1.2
      */
     public final QueryBuilder<T, R, ID> groupBy(@Nonnull Metamodel<T, ?> path) {
         return groupBy(RAW."\{path}");
@@ -688,6 +699,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to group by.
      * @return the query builder.
+     * @since 1.2
      */
     @SafeVarargs
     public final QueryBuilder<T, R, ID> groupBy(@Nonnull Metamodel<T, ?>... path) {
@@ -703,6 +715,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to group by.
      * @return the query builder.
+     * @since 1.2
      */
     public final QueryBuilder<T, R, ID> groupByAny(@Nonnull Metamodel<?, ?>... path) {
         if (path.length == 0) {
@@ -719,6 +732,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *
      * @param template the template to group by.
      * @return the query builder.
+     * @since 1.2
      */
     public final QueryBuilder<T, R, ID> groupBy(@Nonnull StringTemplate template) {
         return append(StringTemplate.combine(RAW."GROUP BY ", template));
@@ -732,27 +746,29 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
      *          table graph.
      * @return the query builder.
+     * @since 1.2
      */
     @SafeVarargs
     public final <V> QueryBuilder<T, R, ID> having(@Nonnull Metamodel<T, V> path,
                                                    @Nonnull Operator operator,
-                                                   V... o) {
+                                                   @Nonnull V... o) {
         return havingAny(path, operator, o);
     }
 
     /**
-     * Adds a HAVING clause to the query using the specified expression.
+     * Adds a HAVING clause to the query using the specified expression. The metamodel can refer to manually added joins.
      *
      * @param path the path to the object in the table graph.
      * @param operator the operator to use for the comparison.
      * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
      *          table graph or manually added joins.
      * @return the query builder.
+     * @since 1.2
      */
     @SafeVarargs
     public final <V> QueryBuilder<T, R, ID> havingAny(@Nonnull Metamodel<?, V> path,
                                                       @Nonnull Operator operator,
-                                                      V... o) {
+                                                      @Nonnull V... o) {
         return having(RAW."\{new ObjectExpression(path, operator, o)}");
     }
 
@@ -761,6 +777,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *
      * @param template the expression to add.
      * @return the query builder.
+     * @since 1.2
      */
     public final <V> QueryBuilder<T, R, ID> having(@Nonnull StringTemplate template) {
         return append(StringTemplate.combine(RAW."HAVING ", template));
@@ -771,6 +788,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to order by.
      * @return the query builder.
+     * @since 1.2
      */
     public final QueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?> path) {
         return orderBy(RAW."\{path}");
@@ -782,17 +800,18 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param path the path to order by.
      * @param ascending whether to order in ascending order.
      * @return the query builder.
+     * @since 1.2
      */
     public final QueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?> path, boolean ascending) {
         return orderBy(StringTemplate.combine(RAW."\{path}", StringTemplate.of(STR." \{ascending ? "ASC" : "DESC"}")));
     }
 
     /**
-     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph or manually added
-     * joins.
+     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
      *
      * @param path the path to order by.
      * @return the query builder.
+     * @since 1.2
      */
     @SafeVarargs
     public final QueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?>... path) {
@@ -808,6 +827,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *
      * @param path the path to order by.
      * @return the query builder.
+     * @since 1.2
      */
     public final QueryBuilder<T, R, ID> orderByAny(@Nonnull Metamodel<?, ?>... path) {
         if (path.length == 0) {
@@ -824,6 +844,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *
      * @param template the template to order by.
      * @return the query builder.
+     * @since 1.2
      */
     public final QueryBuilder<T, R, ID> orderBy(@Nonnull StringTemplate template) {
         return append(StringTemplate.combine(RAW."ORDER BY ", template));
@@ -834,20 +855,18 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *
      * @param limit the maximum number of records to return.
      * @return the query builder.
+     * @since 1.2
      */
-    public QueryBuilder<T, R, ID> limit(int limit) {
-        return append(getSqlDialect().limit(limit));
-    }
+    public abstract QueryBuilder<T, R, ID> limit(int limit);
 
     /**
-     * Adds a LIMIT clause to the query.
+     * Adds an OFFSET clause to the query.
+     *
      * @param offset the offset.
-     * @param limit the maximum number of records to return.
      * @return the query builder.
+     * @since 1.2
      */
-    public QueryBuilder<T, R, ID> limit(int offset, int limit) {
-        return append(getSqlDialect().limit(offset, limit));
-    }
+    public abstract QueryBuilder<T, R, ID> offset(int offset);
 
     /**
      * Append the query with a string template.
@@ -856,6 +875,45 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     public abstract QueryBuilder<T, R, ID> append(@Nonnull StringTemplate template);
+
+    //
+    // Locking.
+    //
+
+    /**
+     * Locks the selected rows for reading.
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the database does not support the specified lock mode, or if the lock mode is
+     * not supported for the current query.
+     * @since 1.2
+     */
+    public abstract QueryBuilder<T, R, ID> forShare();
+
+    /**
+     * Locks the selected rows for reading.
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the database does not support the specified lock mode, or if the lock mode is
+     * not supported for the current query.
+     * @since 1.2
+     */
+    public abstract QueryBuilder<T, R, ID> forUpdate();
+
+    /**
+     * Locks the selected rows using a custom lock mode.
+     *
+     * <p>Note that this method results in non-portable code, as the lock mode is specific to the underlying database.</p>
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the lock mode is not supported for the current query.
+     * @since 1.2
+     */
+    public abstract QueryBuilder<T, R, ID> forLock(@Nonnull StringTemplate template);
+
+    //
+    // Finalization.
+    //
 
     /**
      * Builds the query based on the current state of the query builder.

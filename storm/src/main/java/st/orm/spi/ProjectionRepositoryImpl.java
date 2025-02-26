@@ -16,18 +16,20 @@
 package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
-import st.orm.repository.Model;
+import st.orm.template.Model;
 import st.orm.repository.Projection;
 import st.orm.repository.ProjectionRepository;
 import st.orm.template.ORMTemplate;
 
 /**
+ * Default implementation of {@link ProjectionRepository}.
  */
 public final class ProjectionRepositoryImpl<P extends Record & Projection<ID>, ID>
         extends BaseRepositoryImpl<P, ID>
         implements ProjectionRepository<P, ID> {
 
-    public ProjectionRepositoryImpl(@Nonnull ORMTemplate orm, @Nonnull Model<P, ID> model) {
-        super(orm, model);
+    public ProjectionRepositoryImpl(@Nonnull ORMTemplate ormTemplate,
+                                    @Nonnull Model<P, ID> model) {
+        super(ormTemplate, model);
     }
 }

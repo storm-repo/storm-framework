@@ -40,6 +40,18 @@ public class KQueryImpl implements KQuery {
     }
 
     /**
+     * Returns a new query that is marked as safe. This means that dangerous operations, such as DELETE and UPDATE
+     * without a WHERE clause, will be allowed.
+     *
+     * @return a new query that is marked as safe.
+     * @since 1.2
+     */
+    @Override
+    public KQuery safe() {
+        return new KQueryImpl(query.safe());
+    }
+
+    /**
      * Execute a SELECT query and return the resulting rows as a stream of row instances.
      *
      * <p>Each element in the stream represents a row in the result, where the columns of the row corresponds to the

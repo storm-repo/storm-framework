@@ -22,6 +22,7 @@ import jakarta.persistence.PersistenceException;
 import st.orm.BindVars;
 import st.orm.PreparedQuery;
 import st.orm.Query;
+import st.orm.spi.QueryFactory;
 import st.orm.template.JpaTemplate;
 import st.orm.template.ORMTemplate;
 import st.orm.template.SqlTemplate;
@@ -39,15 +40,20 @@ public final class JpaTemplateImpl implements JpaTemplate {
 
     @FunctionalInterface
     private interface TemplateProcessor {
-        jakarta.persistence.Query process(@Nonnull StringTemplate stringTemplate, @Nullable Class<?> resultClass);
+        jakarta.persistence.Query process(@Nonnull StringTemplate stringTemplate, @Nullable Class<?> resultClass, boolean safe);
     }
 
     private final TemplateProcessor templateProcessor;
 
     public JpaTemplateImpl(@Nonnull EntityManager entityManager) {
-        templateProcessor = (template, resultClass) -> {
+        templateProcessor = (template, resultClass, safe) -> {
             try {
                 var sql = JPA.process(template);
+                if (!safe) {
+                    sql.unsafeWarning().ifPresent(warning -> {
+                        throw new st.orm.PersistenceException(STR."\{warning} Use Query.safe() to mark query as safe.");
+                    });
+                }
                 //noinspection SqlSourceToSinkFlow
                 jakarta.persistence.Query query = resultClass == null
                         ? entityManager.createNativeQuery(sql.statement())
@@ -86,15 +92,24 @@ public final class JpaTemplateImpl implements JpaTemplate {
         }
     }
 
+    /**
+     * Creates a query for the specified query {@code template}.
+     *
+     * @param template the query template.
+     * @return the query.
+     */
     @Override
     public jakarta.persistence.Query query(@Nonnull StringTemplate template) {
-        return templateProcessor.process(template, null);
+        return templateProcessor.process(template, null, true); // We allow unsafe queries in direct JPA mode.
     }
 
     private jakarta.persistence.Query query(@Nonnull StringTemplate template, @Nonnull Class<?> resultClass) {
-        return templateProcessor.process(template, resultClass);
+        return templateProcessor.process(template, resultClass, true);  // We allow unsafe queries in direct JPA mode.
     }
 
+    /**
+     * Returns an ORM template for this JPA template.
+     */
     @Override
     public ORMTemplate toORM() {
         return new ORMTemplateImpl(new QueryFactory() {
@@ -105,67 +120,82 @@ public final class JpaTemplateImpl implements JpaTemplate {
 
             @Override
             public Query create(@Nonnull StringTemplate template) {
-                return new PreparedQuery() {
-                    @Override
-                    public PreparedQuery prepare() {
-                        return this;
-                    }
-
-                    @SuppressWarnings("unchecked")
-                    @Override
-                    public Stream<Object[]> getResultStream() {
-                        return JpaTemplateImpl.this.query(template).getResultStream().map(this::convert);
-                    }
-
-                    @SuppressWarnings("unchecked")
-                    @Override
-                    public <T> Stream<T> getResultStream(@Nonnull Class<T> type) {
-                        return query(template, type).getResultStream();
-                    }
-
-                    @Override
-                    public boolean isVersionAware() {
-                        throw new UnsupportedOperationException("Not supported by JPA.");
-                    }
-
-                    @Override
-                    public int executeUpdate() {
-                        return JpaTemplateImpl.this.query(template).executeUpdate();
-                    }
-
-                    /**
-                     * Converts a database row into a list of values.
-                     *
-                     * @param row row to convert.
-                     * @return an array of values.
-                     */
-                    private Object[] convert(@Nullable Object row) {
-                        if (row == null || !row.getClass().isArray()) {
-                            return new Object[]{row};
-                        }
-                        return (Object[]) row;
-                    }
-
-                    @Override
-                    public void addBatch(@Nonnull Record record) {
-                        throw new UnsupportedOperationException("Not supported by JPA.");
-                    }
-
-                    @Override
-                    public int[] executeBatch() {
-                        throw new UnsupportedOperationException("Not supported by JPA.");
-                    }
-
-                    @Override
-                    public <ID> Stream<ID> getGeneratedKeys(@Nonnull Class<ID> type) {
-                        throw new UnsupportedOperationException("Not supported by JPA.");
-                    }
-
-                    @Override
-                    public void close() {
-                    }
-                };
+                return new JpaPreparedQuery(template, false);
             }
-        }, null, null, null, null);
+        }, ModelBuilder.newInstance(), null);
+    }
+
+    private class JpaPreparedQuery implements PreparedQuery {
+        private final StringTemplate template;
+        private final boolean safe;
+
+        public JpaPreparedQuery(StringTemplate template, boolean safe) {
+            this.template = template;
+            this.safe = safe;
+        }
+
+        @Override
+        public PreparedQuery prepare() {
+            return this;
+        }
+
+        @Override
+        public Query safe() {
+            return new JpaPreparedQuery(template, safe);
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public Stream<Object[]> getResultStream() {
+            return JpaTemplateImpl.this.query(template).getResultStream().map(this::convert);
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public <T> Stream<T> getResultStream(@Nonnull Class<T> type) {
+            return query(template, type).getResultStream();
+        }
+
+        @Override
+        public boolean isVersionAware() {
+            throw new UnsupportedOperationException("Not supported by JPA.");
+        }
+
+        @Override
+        public int executeUpdate() {
+            return JpaTemplateImpl.this.query(template).executeUpdate();
+        }
+
+        /**
+         * Converts a database row into a list of values.
+         *
+         * @param row row to convert.
+         * @return an array of values.
+         */
+        private Object[] convert(@Nullable Object row) {
+            if (row == null || !row.getClass().isArray()) {
+                return new Object[]{row};
+            }
+            return (Object[]) row;
+        }
+
+        @Override
+        public void addBatch(@Nonnull Record record) {
+            throw new UnsupportedOperationException("Not supported by JPA.");
+        }
+
+        @Override
+        public int[] executeBatch() {
+            throw new UnsupportedOperationException("Not supported by JPA.");
+        }
+
+        @Override
+        public <ID> Stream<ID> getGeneratedKeys(@Nonnull Class<ID> type) {
+            throw new UnsupportedOperationException("Not supported by JPA.");
+        }
+
+        @Override
+        public void close() {
+        }
     }
 }

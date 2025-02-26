@@ -42,7 +42,7 @@ final class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
                              @Nonnull PreparedStatement statement,
                              @Nullable BindVarsHandle bindVarsHandle,
                              boolean versionAware) {
-        super(lazyFactory, () -> statement, bindVarsHandle, versionAware);
+        super(lazyFactory, _ -> statement, bindVarsHandle, versionAware);
         this.lazyFactory = lazyFactory;
         this.statement = statement;
         this.bindVarsHandle = bindVarsHandle;

@@ -16,11 +16,8 @@
 package st.orm.template;
 
 import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import st.orm.PersistenceException;
 import st.orm.template.impl.MetamodelImpl;
-
-import java.util.Optional;
 
 /**
  * The metamodel is used to map database columns to the object model in a type-safe way.

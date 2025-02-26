@@ -18,7 +18,7 @@ package st.orm.kotlin.repository;
 import jakarta.annotation.Nonnull;
 import kotlin.jvm.JvmClassMappingKt;
 import kotlin.reflect.KClass;
-import st.orm.repository.Model;
+import st.orm.template.Model;
 
 import java.util.List;
 

@@ -15,6 +15,9 @@
  */
 package st.orm;
 
+/**
+ * Thrown when an optimistic locking conflict occurs.
+ */
 public class OptimisticLockException extends PersistenceException {
 
     /**

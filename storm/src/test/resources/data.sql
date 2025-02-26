@@ -13,7 +13,7 @@ create table specialty (id integer auto_increment, name varchar(255), primary ke
 create table vet (id integer auto_increment, first_name varchar(255), last_name varchar(255), primary key (id));
 create table vet_specialty (vet_id integer, specialty_id integer not null, primary key (vet_id, specialty_id));
 create table visit (id integer auto_increment, visit_date date, description varchar(255), pet_id integer not null, timestamp timestamp default CURRENT_TIMESTAMP, primary key (id));
-alter table pet add constraint pet_ownwer_fk foreign key (owner_id) references owner (id);
+alter table pet add constraint pet_owner_fk foreign key (owner_id) references owner (id);
 alter table pet add constraint pet_pet_type_fk foreign key (type_id) references pet_type (id);
 alter table vet_specialty add constraint vet_specialty_specialty_fk foreign key (specialty_id) references specialty (id);
 alter table vet_specialty add constraint vet_specialty_vet_fk foreign key (vet_id) references vet (id);

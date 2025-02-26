@@ -26,17 +26,13 @@ import st.orm.repository.Repository;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Provider;
 import st.orm.spi.Providers;
-import st.orm.template.ColumnNameResolver;
-import st.orm.template.ForeignKeyResolver;
+import st.orm.spi.QueryFactory;
 import st.orm.template.ORMTemplate;
 import st.orm.template.Sql;
-import st.orm.template.SqlInterceptor;
 import st.orm.template.SqlTemplateException;
-import st.orm.template.TableNameResolver;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.sql.SQLException;
 import java.util.HashSet;
@@ -49,17 +45,16 @@ import static java.lang.System.identityHashCode;
 import static java.lang.reflect.Proxy.newProxyInstance;
 import static st.orm.spi.Providers.getEntityRepository;
 import static st.orm.spi.Providers.getProjectionRepository;
+import static st.orm.template.SqlInterceptor.consume;
 
 public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTemplate {
 
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
     public ORMTemplateImpl(@Nonnull QueryFactory factory,
-                           @Nullable TableNameResolver tableNameResolver,
-                           @Nullable ColumnNameResolver columnNameResolver,
-                           @Nullable ForeignKeyResolver foreignKeyResolver,
+                           @Nonnull ModelBuilder modelBuilder,
                            @Nullable Predicate<? super Provider> providerFilter) {
-        super(factory, tableNameResolver, columnNameResolver, foreignKeyResolver, providerFilter);
+        super(factory, modelBuilder, providerFilter);
     }
 
     /**
@@ -72,7 +67,11 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
      */
     @Override
     public <T extends Record & Entity<ID>, ID> EntityRepository<T, ID> entity(@Nonnull Class<T> type) {
-        return wrapRepository(getEntityRepository(this, createModel(type, true), providerFilter == null ? _ -> true : providerFilter));
+        try {
+            return wrapRepository(getEntityRepository(this, modelBuilder.build(type, true), providerFilter == null ? _ -> true : providerFilter));
+        } catch (SqlTemplateException e) {
+            throw new PersistenceException(e);
+        }
     }
 
     /**
@@ -85,7 +84,11 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
      */
     @Override
     public <T extends Record & Projection<ID>, ID> ProjectionRepository<T, ID> projection(@Nonnull Class<T> type) {
-        return wrapRepository(getProjectionRepository(this, createModel(type, false), providerFilter == null ? _ -> true : providerFilter));
+        try {
+            return wrapRepository(getProjectionRepository(this, modelBuilder.build(type, false), providerFilter == null ? _ -> true : providerFilter));
+        } catch (SqlTemplateException e) {
+            throw new PersistenceException(e);
+        }
     }
 
     /**
@@ -112,26 +115,26 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
                 if (method.getName().equals("toString") && method.getParameterCount() == 0) {
                     return STR."\{type.getName()}@proxy";
                 }
+                if (REFLECTION.isDefaultMethod(method)) {
+                    return REFLECTION.execute(proxy, method, args);
+                }
                 if (method.getDeclaringClass().isAssignableFrom(Repository.class)) {
                     // Handle Repository interface methods by delegating to the 'repository' instance.
                     return method.invoke(repository, args);
                 }
-                if (method.getDeclaringClass().isAssignableFrom(EntityRepository.class)) {
+                if (EntityRepository.class.isAssignableFrom(method.getDeclaringClass())) {   // Also support sub-interfaces of EntityRepository.
                     if (entityRepository == null) {
                         throw new UnsupportedOperationException(STR."EntityRepository not available for \{type.getName()}.");
                     }
                     // Handle EntityRepository interface methods by delegating to the 'entityRepository' instance.
                     return method.invoke(entityRepository, args);
                 }
-                if (method.getDeclaringClass().isAssignableFrom(ProjectionRepository.class)) {
+                if (ProjectionRepository.class.isAssignableFrom(method.getDeclaringClass())) {   // Also support sub-interfaces of ProjectionRepository.
                     if (projectionRepository == null) {
                         throw new UnsupportedOperationException(STR."ProjectionRepository not available for \{type.getName()}.");
                     }
                     // Handle ProjectionRepository interface methods by delegating to the 'projectionRepository' instance.
                     return method.invoke(projectionRepository, args);
-                }
-                if (REFLECTION.isDefaultMethod(method)) {
-                    return REFLECTION.execute(proxy, method, args);
                 }
                 throw new UnsupportedOperationException(STR."Unsupported method: \{method.getName()} for \{type.getName()}.");
             } catch (InvocationTargetException e) {
@@ -176,6 +179,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
                 .map(type -> (Class<T>) type);
     }
 
+    @SuppressWarnings("ConstantValue")
     public static Optional<Type> findGenericType(@Nonnull Class<?> clazz,
                                                  @Nonnull Class<?> targetInterface,
                                                  int typeArgumentIndex) {
@@ -227,11 +231,11 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
         }
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "DuplicatedCode"})
     private  <T extends Repository> T wrapRepository(@Nonnull T repository) {
         return (T) newProxyInstance(repository.getClass().getClassLoader(), getAllInterfaces(repository.getClass()).toArray(new Class[0]), (_, method, args) -> {
             var lastSql = new AtomicReference<Sql>();
-            try (var _ = SqlInterceptor.intercept(lastSql::setPlain)) {
+            try (var _ = consume(lastSql::setPlain)) {
                 try {
                     return method.invoke(repository, args);
                 } catch (Exception | Error e) {

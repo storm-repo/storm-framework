@@ -1,0 +1,21 @@
+services:
+  mariadb:
+    image: mariadb:latest
+    platform: ${DOCKER_PLATFORM:-linux/arm64/v8}
+    container_name: mariadb-db
+    ports:
+      - "3306:3306"
+    # Provide passwords and other environment variables to the container
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: test
+      MARIADB_USER: test
+      MARIADB_PASSWORD: test
+    # Customize healthcheck options for startup
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+      start_interval: 5s

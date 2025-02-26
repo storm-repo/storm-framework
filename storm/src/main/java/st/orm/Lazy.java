@@ -141,7 +141,7 @@ public interface Lazy<T extends Record, ID> {
     }
 
     /**
-     * Returns the primary key of the record. This
+     * Returns the primary key of the record.
      *
      * @return primary key.
      */

@@ -12,7 +12,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Date;
 import java.util.Objects;
-import java.util.function.Supplier;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static java.lang.Integer.toHexString;
@@ -23,18 +23,28 @@ import static st.orm.template.impl.ObjectMapperFactory.getObjectMapper;
 
 class QueryImpl implements Query {
     private final LazyFactory lazyFactory;
-    private final Supplier<PreparedStatement> statement;
+    private final Function<Boolean, PreparedStatement> statement;
     private final BindVarsHandle bindVarsHandle;
     private final boolean versionAware;
+    private final boolean safe;
 
     QueryImpl(@Nonnull LazyFactory lazyFactory,
-              @Nonnull Supplier<PreparedStatement> statement,
+              @Nonnull Function<Boolean, PreparedStatement> statement,
               @Nullable BindVarsHandle bindVarsHandle,
               boolean versionAware) {
+        this(lazyFactory, statement, bindVarsHandle, versionAware, false);
+    }
+
+    QueryImpl(@Nonnull LazyFactory lazyFactory,
+              @Nonnull Function<Boolean, PreparedStatement> statement,
+              @Nullable BindVarsHandle bindVarsHandle,
+              boolean versionAware,
+              boolean safe) {
         this.lazyFactory = lazyFactory;
         this.statement = statement;
         this.bindVarsHandle = bindVarsHandle;
         this.versionAware = versionAware;
+        this.safe = safe;
     }
 
     /**
@@ -51,11 +61,23 @@ class QueryImpl implements Query {
      */
     @Override
     public PreparedQuery prepare() {
-        return MonitoredResource.wrap(new PreparedQueryImpl(lazyFactory, statement.get(), bindVarsHandle, versionAware));
+        return MonitoredResource.wrap(new PreparedQueryImpl(lazyFactory, statement.apply(safe), bindVarsHandle, versionAware));
+    }
+
+    /**
+     * Returns a new query that is marked as safe. This means that dangerous operations, such as DELETE and UPDATE
+     * without a WHERE clause, will be allowed.
+     *
+     * @return a new query that is marked as safe.
+     * @since 1.2
+     */
+    @Override
+    public Query safe() {
+        return new QueryImpl(lazyFactory, statement, bindVarsHandle, versionAware, true);
     }
 
     private PreparedStatement getStatement() {
-        return statement.get();
+        return statement.apply(safe);
     }
 
     protected boolean closeStatement() {

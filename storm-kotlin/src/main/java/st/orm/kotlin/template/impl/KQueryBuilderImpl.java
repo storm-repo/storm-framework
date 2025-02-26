@@ -52,6 +52,19 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
     }
 
     /**
+     * Returns a query builder that does not require a WHERE clause for UPDATE and DELETE queries.
+     *
+     * <p>This method is used to prevent accidental updates or deletions of all records in a table when a WHERE clause
+     * is not provided.</p>
+     *
+     * @since 1.2
+     */
+    @Override
+    public KQueryBuilder<T, R, ID> safe() {
+        return new KQueryBuilderImpl<>(builder.safe());
+    }
+
+    /**
      * Marks the current query as a distinct query.
      *
      * @return the query builder.
@@ -70,6 +83,46 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
     @Override
     public KQueryBuilder<T, R, ID> append(@Nonnull StringTemplate template) {
         return new KQueryBuilderImpl<>(builder.append(template));
+    }
+
+    /**
+     * Locks the selected rows for reading.
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the database does not support the specified lock mode, or if the lock mode is
+     * not supported for the current query.
+     * @since 1.2
+     */
+    @Override
+    public KQueryBuilder<T, R, ID> forShare() {
+        return new KQueryBuilderImpl<>(builder.forShare());
+    }
+
+    /**
+     * Locks the selected rows for reading.
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the database does not support the specified lock mode, or if the lock mode is
+     * not supported for the current query.
+     * @since 1.2
+     */
+    @Override
+    public KQueryBuilder<T, R, ID> forUpdate() {
+        return new KQueryBuilderImpl<>(builder.forUpdate());
+    }
+
+    /**
+     * Locks the selected rows using a custom lock mode.
+     *
+     * <p>Note that this method results in non-portable code, as the lock mode is specific to the underlying database.</p>
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the lock mode is not supported for the current query.
+     * @since 1.2
+     */
+    @Override
+    public KQueryBuilder<T, R, ID> forLock(@Nonnull StringTemplate template) {
+        return new KQueryBuilderImpl<>(builder.forLock(template));
     }
 
     /**
@@ -351,8 +404,32 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
         }));
     }
 
+    /**
+     * Adds a LIMIT clause to the query.
+     *
+     * @param limit the maximum number of records to return.
+     * @return the query builder.
+     * @since 1.2
+     */
     @Override
-    public StringTemplate getStringTemplate() {
-        return ((Subqueryable) builder).getStringTemplate();
+    public KQueryBuilder<T, R, ID> limit(int limit) {
+        return new KQueryBuilderImpl<>(builder.limit(limit));
+    }
+
+    /**
+     * Adds an OFFSET clause to the query.
+     *
+     * @param offset the offset.
+     * @return the query builder.
+     * @since 1.2
+     */
+    @Override
+    public KQueryBuilder<T, R, ID> offset(int offset) {
+        return new KQueryBuilderImpl<>(builder.offset(offset));
+    }
+
+    @Override
+    public StringTemplate getSubquery() {
+        return ((Subqueryable) builder).getSubquery();
     }
 }

@@ -1,1 +1,1 @@
-st.orm.spi.mariadb.MariadbSqlDialectProviderImpl
+st.orm.spi.mariadb.MariaDBSqlDialectProviderImpl

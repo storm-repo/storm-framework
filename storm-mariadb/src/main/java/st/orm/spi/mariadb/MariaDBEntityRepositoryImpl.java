@@ -1,0 +1,33 @@
+/*
+ * Copyright 2024 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package st.orm.spi.mariadb;
+
+import jakarta.annotation.Nonnull;
+import st.orm.repository.Entity;
+import st.orm.spi.mysql.MySQLEntityRepositoryImpl;
+import st.orm.template.Model;
+import st.orm.template.ORMTemplate;
+
+/**
+ * Implementation of {@link st.orm.repository.EntityRepository} for MariaDB.
+ */
+public class MariaDBEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
+        extends MySQLEntityRepositoryImpl<E, ID> {
+
+    public MariaDBEntityRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
+        super(ormTemplate, model);
+    }
+}

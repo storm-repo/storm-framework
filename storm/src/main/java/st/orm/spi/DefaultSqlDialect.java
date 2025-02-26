@@ -16,6 +16,16 @@
 package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
+import st.orm.template.SqlTemplateException;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
+import java.util.regex.Pattern;
+
+import static java.util.stream.Collectors.joining;
+import static st.orm.template.Operator.EQUALS;
 
 public class DefaultSqlDialect implements SqlDialect {
 
@@ -33,6 +43,17 @@ public class DefaultSqlDialect implements SqlDialect {
     }
 
     /**
+     * Indicates whether the SQL dialect supports multi-value tuples in the IN clause.
+     *
+     * @return {@code true} if multi-value tuples are supported, {@code false} otherwise.
+     * @since 1.2
+     */
+    @Override
+    public boolean supportsMultiValueTuples() {
+        return false;
+    }
+
+    /**
      * Escapes the given database identifier (e.g., table or column name) according to this SQL dialect.
      *
      * @param name the identifier to escape (must not be {@code null})
@@ -43,17 +64,178 @@ public class DefaultSqlDialect implements SqlDialect {
         return STR."\"\{name}\"";
     }
 
+    private static final Pattern SINGLE_LINE_COMMENT_PATTERN = Pattern.compile("(--|#).*?(\\n|$)");
+
+    /**
+     * Returns the pattern for single line comments.
+     *
+     * @return the pattern for single line comments.
+     * @since 1.2
+     */
     @Override
-    public StringTemplate limit(int limit) {
-        // Taking the most basic approach that is supported by most database in test (containers).
-        // For production use, ensure the right dialect is used.
-        return StringTemplate.of(STR."LIMIT \{limit}");
+    public Pattern getSingleLineCommentPattern() {
+        return SINGLE_LINE_COMMENT_PATTERN;
     }
 
+    private static final Pattern MULTI_LINE_COMMENT_PATTERN = Pattern.compile("(?s)/\\*.*?\\*/");
+
+    /**
+     * Returns the pattern for multi line comments.
+     *
+     * @return the pattern for multi line comments.
+     * @since 1.2
+     */
     @Override
-    public StringTemplate limit(int limit, int offset) {
+    public Pattern getMultiLineCommentPattern() {
+        return MULTI_LINE_COMMENT_PATTERN;
+    }
+
+    /**
+     * Regex for double-quoted identifiers (including escaped quotes inside). In ANSI SQL, an embedded double quote is
+     * escaped by doubling it (""). Look for sequences of "" or any non-quote character, all enclosed between double
+     * quotes.
+     */
+    private static final Pattern IDENTIFIER_PATTERN = Pattern.compile("\"(?:\"\"|[^\"])*\"");
+
+    /**
+     * Returns the pattern for identifiers.
+     *
+     * @return the pattern for identifiers.
+     * @since 1.2
+     */
+    @Override
+    public Pattern getIdentifierPattern() {
+        return IDENTIFIER_PATTERN;
+    }
+
+    /**
+     * Regex for single-quoted string literals, handling double single quotes.
+     */
+    private static final Pattern QUOTE_LITERAL_PATTERN = Pattern.compile("'(?:''|[^'])*'");
+
+    /**
+     * Returns the pattern for string literals.
+     *
+     * @return the pattern for string literals.
+     * @since 1.2
+     */
+    @Override
+    public Pattern getQuoteLiteralPattern() {
+        return QUOTE_LITERAL_PATTERN;
+    }
+
+    /**
+     * Returns a string for the given column name.
+     *
+     * @param values the (multi) values to use in the IN clause.
+     * @param parameterConsumer the consumer for the parameters.
+     * @return the string that represents the multi value IN clause.
+     * @throws SqlTemplateException if the values are incompatible.
+     * @since 1.2
+     */
+    @Override
+    public String multiValueIn(@Nonnull List<Map<String, Object>> values,
+                               @Nonnull Consumer<Object> parameterConsumer) throws SqlTemplateException {
+        List<String> args = new ArrayList<>();
+        for (var valueMap : values) {
+            args.add(STR."(\{valueMap.keySet().stream()
+                    .map(k -> EQUALS.format(k, 1))  // We can safely use EQUALS here.
+                    .collect(joining(" AND "))})");
+            valueMap.values().forEach(parameterConsumer);
+            args.add(" OR ");
+        }
+        if (!args.isEmpty()) {
+            args.removeLast();
+        }
+        return String.join("", args);
+    }
+
+    /**
+     * Returns {@code true} if the limit should be applied after the SELECT clause, {@code false} to apply the limit at
+     * the end of the query.
+     *
+     * @return {@code true} if the limit should be applied after the SELECT clause, {@code false} to apply the limit at
+     * the end of the query.
+     * @since 1.2
+     */
+    @Override
+    public boolean applyLimitAfterSelect() {
+        return false;
+    }
+
+    /**
+     * Returns a string template for the given limit.
+     *
+     * @param limit the maximum number of records to return.
+     * @return a string template for the given limit.
+     * @since 1.2
+     */
+    @Override
+    public String limit(int limit) {
         // Taking the most basic approach that is supported by most database in test (containers).
         // For production use, ensure the right dialect is used.
-        return StringTemplate.of(STR."LIMIT \{limit} OFFSET \{offset}");
+        return STR."LIMIT \{limit}";
+    }
+
+    /**
+     * Returns a string template for the given offset.
+     *
+     * @param offset the offset.
+     * @return a string template for the given offset.
+     * @since 1.2
+     */
+    @Override
+    public String offset(int offset) {
+        return STR."OFFSET \{offset}";
+    }
+
+    /**
+     * Returns a string template for the given limit and offset.
+     *
+     * @param offset the offset.
+     * @param limit the maximum number of records to return.
+     * @return a string template for the given limit and offset.
+     * @since 1.2
+     */
+    @Override
+    public String limit(int limit, int offset) {
+        // Taking the most basic approach that is supported by most database in test (containers).
+        // For production use, ensure the right dialect is used.
+        return STR."LIMIT \{limit} OFFSET \{offset}";
+    }
+
+    /**
+     * Returns {@code true} if the lock hint should be applied after the FROM clause, {@code false} to apply the lock
+     * hint at the end of the query.
+     *
+     * @return {@code true} if the lock hint should be applied after the FROM clause, {@code false} to apply the lock
+     * hint at the end of the query.
+     * @since 1.2
+     */
+    @Override
+    public boolean applyLockHintAfterFrom() {
+        return false;
+    }
+
+    /**
+     * Returns the lock hint for a shared reading lock.
+     *
+     * @return the lock hint for a shared reading lock.
+     * @since 1.2
+     */
+    @Override
+    public String forShareLockHint() {
+        return "FOR SHARE";
+    }
+
+    /**
+     * Returns the lock hint for a write lock.
+     *
+     * @return the lock hint for a write lock.
+     * @since 1.2
+     */
+    @Override
+    public String forUpdateLockHint() {
+        return "FOR UPDATE";
     }
 }

@@ -18,10 +18,8 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import st.orm.PersistenceException;
 import st.orm.Query;
-import st.orm.repository.Column;
-import st.orm.repository.Model;
-import st.orm.spi.Providers;
-import st.orm.spi.SqlDialect;
+import st.orm.template.Column;
+import st.orm.template.Model;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryTemplate;
 import st.orm.template.impl.Elements.Where;
@@ -43,10 +41,10 @@ import static st.orm.Templates.subquery;
  */
 public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T, Object, ID> {
 
-    private final SqlDialect dialect;
+    private final boolean safe;
 
-    public DeleteBuilderImpl(@Nonnull QueryTemplate orm, @Nonnull Class<T> fromType, @Nonnull Supplier<Model<T, ID>> modelSupplier) {
-        this(orm, fromType, List.of(), List.of(), List.of(), modelSupplier);
+    public DeleteBuilderImpl(@Nonnull QueryTemplate queryTemplate, @Nonnull Class<T> fromType, @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+        this(queryTemplate, fromType, List.of(), List.of(), List.of(), modelSupplier, false);
     }
 
     private DeleteBuilderImpl(@Nonnull QueryTemplate queryTemplate,
@@ -54,11 +52,24 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
                               @Nonnull List<Join> join,
                               @Nonnull List<Where> where,
                               @Nonnull List<StringTemplate> templates,
-                              @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+                              @Nonnull Supplier<Model<T, ID>> modelSupplier,
+                              boolean safe) {
         super(queryTemplate, fromType, join, where, templates, modelSupplier);
-        this.dialect = Providers.getSqlDialect();
+        this.safe = safe;
     }
 
+    /**
+     * Returns a query builder that does not require a WHERE clause for UPDATE and DELETE queries.
+     *
+     * <p>This method is used to prevent accidental updates or deletions of all records in a table when a WHERE clause
+     * is not provided.</p>
+     *
+     * @since 1.2
+     */
+    @Override
+    public QueryBuilder<T, Object, ID> safe() {
+        return new DeleteBuilderImpl<>(queryTemplate, fromType, join, where, templates, modelSupplier, true);
+    }
 
     /**
      * Returns a new query builder instance with the specified parameters.
@@ -76,7 +87,7 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
                                          @Nonnull List<Join> join,
                                          @Nonnull List<Where> where,
                                          @Nonnull List<StringTemplate> templates) {
-        return new DeleteBuilderImpl<>(queryTemplate, fromType, join, where, templates, modelSupplier);
+        return new DeleteBuilderImpl<>(queryTemplate, fromType, join, where, templates, modelSupplier, safe);
     }
 
     /**
@@ -84,7 +95,7 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
      */
     protected boolean supportsJoin() {
         // Only use joins if DELETE alias is supported by the SQL dialect.
-        return dialect.supportsDeleteAlias();
+        return SQL_DIALECT.supportsDeleteAlias();
     }
 
     /**
@@ -97,8 +108,69 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
         throw new PersistenceException("Cannot use DISTINCT in a DELETE query.");
     }
 
+    /**
+     * Adds an OFFSET clause to the query.
+     *
+     * @param offset the offset.
+     * @return the query builder.
+     * @since 1.2
+     */
+    @Override
+    public QueryBuilder<T, Object, ID> offset(int offset) {
+        throw new PersistenceException("Cannot use OFFSET in a DELETE query.");
+    }
+
+    /**
+     * Adds a LIMIT clause to the query.
+     *
+     * @param limit the maximum number of records to return.
+     * @return the query builder.
+     * @since 1.2
+     */
+    @Override
+    public QueryBuilder<T, Object, ID> limit(int limit) {
+        throw new PersistenceException("Cannot use LIMIT in a DELETE query.");
+    }
+
+    /**
+     * Locks the selected rows for reading.
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the database does not support the specified lock mode, or if the lock mode is
+     * not supported for the current query.
+     */
+    @Override
+    public QueryBuilder<T, Object, ID> forShare() {
+        throw new PersistenceException("Cannot use FOR SHARE in a DELETE query.");
+    }
+
+    /**
+     * Locks the selected rows for reading.
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the database does not support the specified lock mode, or if the lock mode is
+     * not supported for the current query.
+     */
+    @Override
+    public QueryBuilder<T, Object, ID> forUpdate() {
+        throw new PersistenceException("Cannot use FOR UPDATE in a DELETE query.");
+    }
+
+    /**
+     * Locks the selected rows using a custom lock mode.
+     *
+     * <p>Note that this method results in non-portable code, as the lock mode is specific to the underlying database.</p>
+     *
+     * @return the query builder.
+     * @throws PersistenceException if the lock mode is not supported for the current query.
+     */
+    @Override
+    public QueryBuilder<T, Object, ID> forLock(@Nonnull StringTemplate template) {
+        throw new PersistenceException("Cannot use FOR LOCK in a DELETE query.");
+    }
+
     private StringTemplate getPrimaryKeyTemplate(boolean alias) {
-        var model = queryTemplate.model(fromType);
+        var model = modelSupplier.get();
         return model.columns().stream()
                 .filter(Column::primaryKey)
                 .map(c -> {
@@ -146,7 +218,7 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
     }
 
     @Override
-    public StringTemplate getStringTemplate() {
+    public StringTemplate getSubquery() {
         throw new PersistenceException("Cannot use a DELETE query as subquery.");
     }
 
@@ -157,7 +229,11 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
      */
     @Override
     public Query build() {
-        return queryTemplate.query(toStringTemplate());
+        Query query = queryTemplate.query(toStringTemplate());
+        if (safe || !where.isEmpty()) {
+            query = query.safe();
+        }
+        return query;
     }
 
     /**

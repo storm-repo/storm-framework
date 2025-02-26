@@ -17,12 +17,15 @@ package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
 import st.orm.repository.Entity;
-import st.orm.repository.Model;
 import st.orm.repository.EntityRepository;
+import st.orm.template.Model;
 import st.orm.template.ORMTemplate;
 
+/**
+ * Provides pluggable entity repository logic.
+ */
 public interface EntityRepositoryProvider extends Provider {
 
-    <ID, E extends Record & Entity<ID>> EntityRepository<E, ID> getEntityRepository(@Nonnull ORMTemplate orm,
+    <ID, E extends Record & Entity<ID>> EntityRepository<E, ID> getEntityRepository(@Nonnull ORMTemplate ormTemplate,
                                                                                     @Nonnull Model<E, ID> model);
 }

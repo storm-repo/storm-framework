@@ -1,1 +1,1 @@
-st.orm.spi.mysql.MysqlSqlDialectProviderImpl
+st.orm.spi.mysql.MySQLSqlDialectProviderImpl

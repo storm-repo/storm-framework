@@ -42,6 +42,15 @@ public interface Query {
     PreparedQuery prepare();
 
     /**
+     * Returns a new query that is marked as safe. This means that dangerous operations, such as DELETE and UPDATE
+     * without a WHERE clause, will be allowed.
+     *
+     * @return a new query that is marked as safe.
+     * @since 1.2
+     */
+    Query safe();
+
+    /**
      * Execute a SELECT query and returns a single row, where the columns of the row corresponds to the order of values
      * in the list.
      *

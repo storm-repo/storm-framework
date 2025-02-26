@@ -31,30 +31,87 @@ import java.util.function.Predicate;
  */
 public interface PreparedStatementTemplate {
 
+    /**
+     * Creates a new prepared statement template for the given data source.
+     *
+     * @param dataSource the data source.
+     * @return the prepared statement template.
+     */
     static PreparedStatementTemplate of(@Nonnull DataSource dataSource) {
         return new PreparedStatementTemplateImpl(dataSource);
     }
 
+    /**
+     * Creates a new prepared statement template for the given connection.
+     *
+     * <p><strong>Note:</strong> The caller is responsible for closing the connection after usage.</p>
+     *
+     * @param connection the connection.
+     * @return the prepared statement template.
+     */
     static PreparedStatementTemplate of(@Nonnull Connection connection) {
         return new PreparedStatementTemplateImpl(connection);
     }
 
+    /**
+     * Creates a new ORM template for the given data source.
+     *
+     * @param dataSource the data source.
+     * @return the ORM template.
+     */
     static ORMTemplate ORM(@Nonnull DataSource dataSource) {
         return new PreparedStatementTemplateImpl(dataSource).toORM();
     }
 
+    /**
+     * Creates a new ORM template for the given connection.
+     *
+     * <p><strong>Note:</strong> The caller is responsible for closing the connection after usage.</p>
+     *
+     * @param connection the connection.
+     * @return the ORM template.
+     */
     static ORMTemplate ORM(@Nonnull Connection connection) {
         return new PreparedStatementTemplateImpl(connection).toORM();
     }
 
+    /**
+     * Returns a new prepared statement template with the specified table name resolver.
+     *
+     * @param tableNameResolver the table name resolver.
+     * @return a new prepared statement template.
+     */
     PreparedStatementTemplate withTableNameResolver(@Nonnull TableNameResolver tableNameResolver);
 
+    /**
+     * Returns a new prepared statement template with the specified column name resolver.
+     *
+     * @param columnNameResolver the column name resolver.
+     * @return a new prepared statement template.
+     */
     PreparedStatementTemplate withColumnNameResolver(@Nonnull ColumnNameResolver columnNameResolver);
 
+    /**
+     * Returns a new prepared statement template with the specified foreign key resolver.
+     *
+     * @param foreignKeyResolver the foreign key resolver.
+     * @return a new prepared statement template.
+     */
     PreparedStatementTemplate withForeignKeyResolver(@Nonnull ForeignKeyResolver foreignKeyResolver);
 
+    /**
+     * Returns a new prepared statement template with the specified provider filter.
+     *
+     * @param providerFilter the provider filter.
+     * @return a new prepared statement template.
+     */
     PreparedStatementTemplate withProviderFilter(@Nonnull Predicate<Provider> providerFilter);
 
+    /**
+     * Returns an ORM template that is backed by this prepared statement template.
+     *
+     * @return the ORM template.
+     */
     ORMTemplate toORM();
 
     /**
