@@ -49,12 +49,44 @@ public interface SqlDialect {
     boolean supportsMultiValueTuples();
 
     /**
+     * Returns the pattern for valid identifiers.
+     *
+     * @return the pattern for valid identifiers.
+     * @since 1.2
+     */
+    Pattern getValidIdentifierPattern();
+
+    /**
+     * Indicates whether the given name is a keyword in this SQL dialect.
+     *
+     * @param name the name to check.
+     * @return {@code true} if the name is a keyword, {@code false} otherwise.
+     * @since 1.2
+     */
+    boolean isKeyword(@Nonnull String name);
+
+    /**
      * Escapes the given database identifier (e.g., table or column name) according to this SQL dialect.
      *
      * @param name the identifier to escape (must not be {@code null})
      * @return the escaped identifier
      */
     String escape(@Nonnull String name);
+
+    /**
+     * Returns a safe identifier for the given name, possibly escaping it if it is a keyword or contains invalid
+     * characters.
+     *
+     * @param name the name to check.
+     * @return a safe identifier for the given name.
+     * @since 1.2
+     */
+    default String getSafeIdentifier(String name) {
+        if (isKeyword(name) || !getValidIdentifierPattern().matcher(name).matches()) {
+            return escape(name);
+        }
+        return name;
+    }
 
     /**
      * Returns the pattern for single line comments.

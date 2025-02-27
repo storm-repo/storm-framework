@@ -42,7 +42,10 @@ public @interface DbColumn {
     String name() default "";
 
     /**
-     * Whether to escape the name.
+     * True to force escaping the column name.
+     *
+     * <p>Note that the column name is automatically escaped if it contains special characters or is a reserved
+     * keyword.</p>
      */
     boolean escape() default false;
 }

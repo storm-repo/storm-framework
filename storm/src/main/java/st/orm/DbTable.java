@@ -46,7 +46,10 @@ public @interface DbTable {
     String schema() default "";
 
     /**
-     * Whether to escape the schema.
+     * True to force escaping the schema and table name.
+     *
+     * <p>Note that the schema and table names are automatically escaped if they contain special characters or are a
+     * reserved keyword.</p>
      */
     boolean escape() default false;
 }

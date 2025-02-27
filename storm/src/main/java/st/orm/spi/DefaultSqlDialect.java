@@ -21,6 +21,7 @@ import st.orm.template.SqlTemplateException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
@@ -51,6 +52,68 @@ public class DefaultSqlDialect implements SqlDialect {
     @Override
     public boolean supportsMultiValueTuples() {
         return false;
+    }
+
+    // ANSI SQL valid identifier regex pattern.
+    private static final Pattern SQL_IDENTIFIER_PATTERN = Pattern.compile("^[A-Za-z][A-Za-z0-9_]*$");
+
+    /**
+     * Returns the pattern for valid identifiers.
+     *
+     * @return the pattern for valid identifiers.
+     * @since 1.2
+     */
+    @Override
+    public Pattern getValidIdentifierPattern() {
+        return SQL_IDENTIFIER_PATTERN;
+    }
+
+    protected static final Set<String> ANSI_KEYWORDS = Set.of(
+            "ABSOLUTE", "ACTION", "ADD", "ALL", "ALLOCATE", "ALTER", "AND", "ANY", "ARE",
+            "ARRAY", "AS", "ASC", "ASSERTION", "AT", "AUTHORIZATION", "AVG", "BEGIN",
+            "BETWEEN", "BIGINT", "BINARY", "BIT", "BLOB", "BOOLEAN", "BOTH", "BY", "CALL",
+            "CALLED", "CASCADE", "CASE", "CAST", "CHAR", "CHARACTER", "CHECK", "CLOB",
+            "CLOSE", "COALESCE", "COLLATE", "COLUMN", "COMMIT", "CONNECT", "CONNECTION",
+            "CONSTRAINT", "CONTINUE", "CONVERT", "CORRESPONDING", "COUNT", "CREATE", "CROSS",
+            "CURRENT", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "CURSOR", "DATE", "DAY", "DEALLOCATE", "DEC", "DECIMAL", "DECLARE", "DEFAULT",
+            "DELETE", "DESC", "DESCRIBE", "DISCONNECT", "DISTINCT", "DOMAIN", "DOUBLE",
+            "DROP", "ELSE", "END", "ESCAPE", "EXCEPT", "EXCEPTION", "EXEC", "EXECUTE",
+            "EXISTS", "EXTERNAL", "EXTRACT", "FALSE", "FETCH", "FILTER", "FLOAT", "FOR",
+            "FOREIGN", "FREE", "FROM", "FULL", "FUNCTION", "GET", "GLOBAL", "GRANT",
+            "GROUP", "HAVING", "HOUR", "IDENTITY", "IMMEDIATE", "IN", "INDICATOR",
+            "INNER", "INOUT", "INPUT", "INSENSITIVE", "INSERT", "INT", "INTEGER",
+            "INTERSECT", "INTERVAL", "INTO", "IS", "ITERATE", "JOIN", "LANGUAGE", "LARGE",
+            "LAST", "LEADING", "LEFT", "LIKE", "LOCAL", "LOCALTIME", "LOCALTIMESTAMP",
+            "LOOP", "LOWER", "MATCH", "MEMBER", "MERGE", "METHOD", "MINUTE", "MOD",
+            "MODIFIES", "MODULE", "MONTH", "MULTISET", "NATIONAL", "NATURAL", "NCHAR",
+            "NCLOB", "NEW", "NO", "NONE", "NOT", "NULL", "NUMERIC", "OCTET_LENGTH", "OF",
+            "OLD", "ON", "ONLY", "OPEN", "OR", "ORDER", "OUT", "OUTER", "OVER", "OVERLAPS",
+            "PARAMETER", "PARTITION", "POSITION", "PRECISION", "PREPARE", "PRIMARY",
+            "PROCEDURE", "RANGE", "READS", "REAL", "RECURSIVE", "REF", "REFERENCES",
+            "REFERENCING", "RELEASE", "REPEAT", "RESIGNAL", "RESULT", "RETURN", "RETURNS",
+            "REVOKE", "RIGHT", "ROLLBACK", "ROLLUP", "ROUTINE", "ROW", "ROWS", "SAVEPOINT",
+            "SCROLL", "SEARCH", "SECOND", "SELECT", "SENSITIVE", "SESSION_USER", "SET",
+            "SIGNAL", "SIMILAR", "SMALLINT", "SOME", "SPECIFIC", "SPECIFICTYPE", "SQL",
+            "SQLEXCEPTION", "SQLSTATE", "SQLWARNING", "START", "STATIC", "SUBSTRING",
+            "SUM", "SYSTEM", "TABLE", "TEMPORARY", "THEN", "TIME", "TIMESTAMP",
+            "TIMEZONE_HOUR", "TIMEZONE_MINUTE", "TO", "TRAILING", "TRANSLATION", "TREAT",
+            "TRIGGER", "TRIM", "TRUE", "UNDO", "UNION", "UNIQUE", "UNKNOWN", "UNNEST",
+            "UNTIL", "UPDATE", "UPPER", "USAGE", "USER", "USING", "VALUE", "VALUES",
+            "VAR_POP", "VAR_SAMP", "VARCHAR", "VARYING", "WHEN", "WHENEVER", "WHERE",
+            "WHILE", "WINDOW", "WITH", "WITHIN"
+    );
+
+    /**
+     * Indicates whether the given name is a keyword in this SQL dialect.
+     *
+     * @param name the name to check.
+     * @return {@code true} if the name is a keyword, {@code false} otherwise.
+     * @since 1.2
+     */
+    @Override
+    public boolean isKeyword(@Nonnull String name) {
+        return ANSI_KEYWORDS.contains(name.toUpperCase());
     }
 
     /**

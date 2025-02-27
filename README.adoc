@@ -267,7 +267,7 @@ Out of the box insert logic.
 Out of the box update logic.
 [source,java,indent=0]
 ----
-public void update(List<Pet> pets) {
+    public void update(List<Pet> pets) {
         return ORM(dataSource).entity(Pet.class)
             .update(pets);
     }

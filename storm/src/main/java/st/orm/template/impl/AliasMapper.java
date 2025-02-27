@@ -17,6 +17,8 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.spi.Providers;
+import st.orm.spi.SqlDialect;
 import st.orm.template.Metamodel;
 import st.orm.template.ResolveScope;
 import st.orm.template.SqlTemplateException;
@@ -43,6 +45,8 @@ import static st.orm.template.impl.RecordReflection.getTableName;
 import static st.orm.template.impl.SqlTemplateImpl.multiplePathsFoundException;
 
 final class AliasMapper {
+    private static final SqlDialect SQL_DIALECT = Providers.getSqlDialect();
+
     private final TableUse tableUse;
     private final Map<Class<? extends Record>, SequencedCollection<TableAlias>> aliasMap;
     private final AliasMapper parent;
@@ -296,6 +300,7 @@ final class AliasMapper {
                 if (alias.isEmpty()) {
                     break;
                 }
+                alias = SQL_DIALECT.getSafeIdentifier(alias);
                 if (!aliases.add(alias)) {
                     throw new SqlTemplateException(STR."Table alias returns the same alias \{alias} multiple times.");
                 }

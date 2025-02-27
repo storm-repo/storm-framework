@@ -256,11 +256,11 @@ final class RecordReflection {
         if (dbTable != null) {
             String schemaPrefix = "";
             if (!dbTable.schema().isEmpty()) {
-                schemaPrefix = (dbTable.escape() ? SQL_DIALECT.escape(dbTable.schema()) : dbTable.schema()) + '.';
+                schemaPrefix = (dbTable.escape() ? SQL_DIALECT.escape(dbTable.schema()) : SQL_DIALECT.getSafeIdentifier(dbTable.schema())) + '.';
             }
-            tableName = schemaPrefix + (dbTable.escape() ? SQL_DIALECT.escape(tableName) : tableName);
+            return schemaPrefix + (dbTable.escape() ? SQL_DIALECT.escape(tableName) : SQL_DIALECT.getSafeIdentifier(tableName));
         }
-        return tableName;
+        return SQL_DIALECT.getSafeIdentifier(tableName);
     }
 
     private static Stream<String> getColumnNames(@Nonnull Annotation annotation) {
@@ -284,14 +284,14 @@ final class RecordReflection {
      */
     static String getColumnName(@Nonnull RecordComponent component, @Nullable ColumnNameResolver columnNameResolver)
             throws SqlTemplateException {
-        String name = getColumnName(component, COLUMN_ANNOTATIONS).orElse(columnNameResolver != null
+        DbColumn dbColumn = REFLECTION.getAnnotation(component, DbColumn.class);
+        String name = getPureColumnName(component, COLUMN_ANNOTATIONS).orElse(columnNameResolver != null
                 ? columnNameResolver.resolveColumnName(component)
                 : component.getName());
-        DbColumn dbColumn = REFLECTION.getAnnotation(component, DbColumn.class);
         if (dbColumn != null && dbColumn.escape()) {
-            name = SQL_DIALECT.escape(name);
+            return SQL_DIALECT.escape(name);
         }
-        return name;
+        return SQL_DIALECT.getSafeIdentifier(name);
     }
 
     /**
@@ -303,6 +303,26 @@ final class RecordReflection {
      */
     static Optional<String> getColumnName(@Nonnull RecordComponent component,
                                           @Nonnull List<Class<? extends Annotation>> annotationTypes)
+            throws SqlTemplateException {
+        DbColumn dbColumn = REFLECTION.getAnnotation(component, DbColumn.class);
+        return getPureColumnName(component, annotationTypes)
+                .map(name -> {
+                    if (dbColumn != null && dbColumn.escape()) {
+                        return SQL_DIALECT.escape(name);
+                    }
+                    return SQL_DIALECT.getSafeIdentifier(name);
+                });
+    }
+
+    /**
+     * Returns the column name for the specified record component taking the column name resolver into account,
+     * if present. The column name is not escaped.
+     *
+     * @param component the record component to obtain the column name for.
+     * @return the column name for the specified record component.
+     */
+    private static Optional<String> getPureColumnName(@Nonnull RecordComponent component,
+                                                      @Nonnull List<Class<? extends Annotation>> annotationTypes)
             throws SqlTemplateException {
         var columNames = annotationTypes.stream()
                 .map(c -> REFLECTION.getAnnotation(component, c))

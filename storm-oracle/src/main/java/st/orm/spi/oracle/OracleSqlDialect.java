@@ -26,8 +26,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toSet;
 
 public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
 
@@ -41,6 +43,38 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
     public boolean supportsMultiValueTuples() {
         // Oracle supports multi-column IN (col1, col2) IN ((v1_1, v1_2), ...).
         return true;
+    }
+
+    private static final Pattern ORACLE_IDENTIFIER = Pattern.compile("^[A-Za-z][A-Za-z0-9_]*$");
+
+    /**
+     * Returns the pattern for valid identifiers.
+     *
+     * @return the pattern for valid identifiers.
+     * @since 1.2
+     */
+    @Override
+    public Pattern getValidIdentifierPattern() {
+        return ORACLE_IDENTIFIER;
+    }
+
+    private static final Set<String> ORACLE_RESERVED = Stream.concat(ANSI_KEYWORDS.stream(), Stream.of(
+            "ACCESS", "AUDIT", "CLUSTER", "COMMENT", "COMPRESS", "EXCLUSIVE", "FILE",
+            "IDENTIFIED", "INCREMENT", "INITIAL", "INTERSECT", "LOCK", "LONG", "MAXEXTENTS",
+            "MLSLABEL", "MODE", "MODIFY", "NOWAIT", "OFFLINE", "ONLINE", "PCTFREE",
+            "RAW", "ROWID", "ROWNUM", "SESSION", "SHARE", "SUCCESSFUL", "SYNONYM",
+            "UID", "VALIDATE", "VARCHAR2", "VIEW")).collect(toSet());
+
+    /**
+     * Indicates whether the given name is a keyword in this SQL dialect.
+     *
+     * @param name the name to check.
+     * @return {@code true} if the name is a keyword, {@code false} otherwise.
+     * @since 1.2
+     */
+    @Override
+    public boolean isKeyword(@Nonnull String name) {
+        return ORACLE_RESERVED.contains(name.toUpperCase());
     }
 
     @Override

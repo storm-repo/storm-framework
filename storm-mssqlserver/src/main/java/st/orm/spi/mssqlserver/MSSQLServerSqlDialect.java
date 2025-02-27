@@ -22,8 +22,12 @@ import st.orm.template.SqlTemplateException;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
+
+import static java.util.stream.Collectors.toSet;
 
 public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDialect {
 
@@ -47,6 +51,37 @@ public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDiale
     public boolean supportsMultiValueTuples() {
         // SQL Server does not support multi-value tuple IN clauses.
         return false;
+    }
+
+    private static final Pattern MSSQL_IDENTIFIER = Pattern.compile("^[_A-Za-z#][_A-Za-z0-9]*$");
+
+    /**
+     * Returns the pattern for valid identifiers.
+     *
+     * @return the pattern for valid identifiers.
+     * @since 1.2
+     */
+    @Override
+    public Pattern getValidIdentifierPattern() {
+        return MSSQL_IDENTIFIER;
+    }
+
+    private static final Set<String> MSSQL_RESERVED = Stream.concat(ANSI_KEYWORDS.stream(), Stream.of(
+            "CLOSE", "COMPUTE", "CONTAINS", "CONTAINSTABLE", "FREETEXT", "FREETEXTTABLE",
+            "LINENO", "MERGE", "PIVOT", "RAISERROR", "READTEXT", "REPLICATION", "ROWCOUNT",
+            "ROWGUIDCOL", "SEQUENCE", "TRY_CONVERT", "TSEQUAL", "UNPIVOT", "UPDATETEXT",
+            "WRITETEXT")).collect(toSet());
+
+    /**
+     * Indicates whether the given name is a keyword in this SQL dialect.
+     *
+     * @param name the name to check.
+     * @return {@code true} if the name is a keyword, {@code false} otherwise.
+     * @since 1.2
+     */
+    @Override
+    public boolean isKeyword(@Nonnull String name) {
+        return MSSQL_RESERVED.contains(name.toUpperCase());
     }
 
     /**

@@ -30,9 +30,9 @@ import java.util.SequencedMap;
 public interface Model<E extends Record, ID> {
 
     /**
-     * Returns the name of the table or view, may include the schema.
+     * Returns the name of the table or view, may include the schema and escape characters.
      *
-     * @return the name of the table or view, may include the schema.
+     * @return the name of the table or view, may include the schema and escape characters.
      */
     String name();
 
