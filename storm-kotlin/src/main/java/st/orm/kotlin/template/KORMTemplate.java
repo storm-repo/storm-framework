@@ -43,20 +43,20 @@ import st.orm.template.ORMTemplate;
  *   <li><strong>Ease of Use:</strong> Reduces boilerplate code and simplifies common database operations.</li>
  * </ul>
  *
- * <h2>Creating KORMRepositoryTemplate Instances</h2>
+ * <h2>Creating KORMTemplate Instances</h2>
  *
  * <p>The {@code KTemplates} interface provides static methods to create {@link KORMTemplate} instances based on your data source:
  *
  * <h3>Using EntityManager (JPA)</h3>
  * <pre>{@code
  * EntityManager entityManager = ...;
- * KORMRepositoryTemplate orm = Kemplates.ORM(entityManager);
+ * KORMTemplate orm = Kemplates.ORM(entityManager);
  * }</pre>
  *
  * <h3>Using DataSource (JDBC)</h3>
  * <pre>{@code
  * DataSource dataSource = ...;
- * KORMRepositoryTemplate orm = KTemplates.ORM(dataSource);
+ * KORMTemplate orm = KTemplates.ORM(dataSource);
  * }</pre>
  *
  * <h3>Using Connection (JDBC)</h3>
@@ -65,7 +65,7 @@ import st.orm.template.ORMTemplate;
  *
  * <pre>{@code
  * Connection connection = ...;
- * ORMRepositoryTemplate orm = KTemplates.KORM(connection);
+ * ORMTemplate orm = KTemplates.KORM(connection);
  * }</pre>
  *
  * <h2>Example: Querying with Fluent API</h2>

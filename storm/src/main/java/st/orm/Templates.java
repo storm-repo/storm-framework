@@ -137,13 +137,13 @@ import static st.orm.template.ResolveScope.CASCADE;
  * <h3>Using EntityManager (JPA)</h3>
  * <pre>{@code
  * EntityManager entityManager = ...;
- * ORMRepositoryTemplate orm = Templates.ORM(entityManager);
+ * ORMTemplate orm = Templates.ORM(entityManager);
  * }</pre>
  *
  * <h3>Using DataSource (JDBC)</h3>
  * <pre>{@code
  * DataSource dataSource = ...;
- * ORMRepositoryTemplate orm = Templates.ORM(dataSource);
+ * ORMTemplate orm = Templates.ORM(dataSource);
  * }</pre>
  *
  * <h3>Using Connection (JDBC)</h3>
@@ -152,7 +152,7 @@ import static st.orm.template.ResolveScope.CASCADE;
  *
  * <pre>{@code
  * Connection connection = ...;
- * ORMRepositoryTemplate orm = Templates.ORM(connection);
+ * ORMTemplate orm = Templates.ORM(connection);
  * }</pre>
  *
  * @see EntityRepository
@@ -169,7 +169,7 @@ public interface Templates {
      * <p>Example usage:
      * <pre>{@code
      * EntityManager entityManager = ...;
-     * ORMRepositoryTemplate orm = Templates.ORM(entityManager);
+     * ORMTemplate orm = Templates.ORM(entityManager);
      * List<MyTable> otherTables = orm.query(RAW."""
      *         SELECT \{MyTable.class}
      *         FROM \{MyTable.class}
@@ -193,7 +193,7 @@ public interface Templates {
      * <p>Example usage:
      * <pre>{@code
      * DataSource dataSource = ...;
-     * ORMRepositoryTemplate orm = Templates.ORM(dataSource);
+     * ORMTemplate orm = Templates.ORM(dataSource);
      * List<MyTable> otherTables = orm.query(RAW."""
      *         SELECT \{MyTable.class}
      *         FROM \{MyTable.class}
@@ -218,7 +218,7 @@ public interface Templates {
      * <p>Example usage:
      * <pre>{@code
      * try (Connection connection = ...) {
-     *     ORMRepositoryTemplate orm = Templates.ORM(connection);
+     *     ORMTemplate orm = Templates.ORM(connection);
      *     List<MyTable> otherTables = orm.query(RAW."""
      *             SELECT \{MyTable.class}
      *             FROM \{MyTable.class}

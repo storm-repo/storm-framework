@@ -148,13 +148,13 @@ import static st.orm.template.impl.Elements.Where;
  * <h3>Using EntityManager (JPA)</h3>
  * <pre>{@code
  * EntityManager entityManager = ...;
- * KORMRepositoryTemplate orm = KTemplates.ORM(entityManager);
+ * KORMTemplate orm = KTemplates.ORM(entityManager);
  * }</pre>
  *
  * <h3>Using DataSource (JDBC)</h3>
  * <pre>{@code
  * DataSource dataSource = ...;
- * KORMRepositoryTemplate orm = KTemplates.ORM(dataSource);
+ * KORMTemplate orm = KTemplates.ORM(dataSource);
  * }</pre>
  *
  * <h3>Using Connection (JDBC)</h3>
@@ -163,7 +163,7 @@ import static st.orm.template.impl.Elements.Where;
  *
  * <pre>{@code
  * Connection connection = ...;
- * KORMRepositoryTemplate orm = KTemplates.ORM(connection);
+ * KORMTemplate orm = KTemplates.ORM(connection);
  * }</pre>
  *
  * @see EntityRepository
@@ -200,7 +200,7 @@ public interface KTemplates {
      * <p>Example usage:
      * <pre>{@code
      * EntityManager entityManager = ...;
-     * KORMRepositoryTemplate orm = KTemplates.ORM(entityManager);
+     * KORMTemplate orm = KTemplates.ORM(entityManager);
      * List<MyTable> myTables = orm.query(RAW."""
      *         SELECT \{MyTable.class}
      *         FROM \{MyTable.class}
@@ -224,7 +224,7 @@ public interface KTemplates {
      * <p>Example usage:
      * <pre>{@code
      * DataSource dataSource = ...;
-     * KORMRepositoryTemplate orm = KTemplates.ORM(dataSource);
+     * KORMTemplate orm = KTemplates.ORM(dataSource);
      * List<MyTable> myTables = orm.query(RAW."""
      *         SELECT \{MyTable.class}
      *         FROM \{MyTable.class}
@@ -249,7 +249,7 @@ public interface KTemplates {
      * <p>Example usage:
      * <pre>{@code
      * try (Connection connection = ...) {
-     *     KORMRepositoryTemplate orm = KTemplates.ORM(connection);
+     *     KORMTemplate orm = KTemplates.ORM(connection);
      *     List<MyTable> myTables = orm.query(RAW."""
      *             SELECT \{MyTable.class}
      *             FROM \{MyTable.class}
