@@ -36,7 +36,7 @@ import jakarta.annotation.Nonnull;
  *
  *     default List<User> findByCity(City city) {
  *         return select().
- *             .where(User_city, city)
+ *             .where(User_.city, city)
  *             .getResultList();
  *     }
  * }}</pre>
