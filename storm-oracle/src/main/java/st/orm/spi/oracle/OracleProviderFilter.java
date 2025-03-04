@@ -16,6 +16,7 @@
 package st.orm.spi.oracle;
 
 import st.orm.spi.Provider;
+import st.orm.spi.SqlDialectProvider;
 
 import java.util.function.Predicate;
 
@@ -31,6 +32,10 @@ public final class OracleProviderFilter implements Predicate<Provider> {
 
     @Override
     public boolean test(Provider provider) {
+        if (!(provider instanceof SqlDialectProvider)) {
+            // Only filter providers that implement the SqlDialectProvider interface.
+            return true;
+        }
         return provider instanceof OracleEntityRepositoryProviderImpl;
     }
 }

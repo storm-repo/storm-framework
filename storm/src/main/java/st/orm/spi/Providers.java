@@ -24,6 +24,7 @@ import st.orm.repository.ProjectionRepository;
 import st.orm.template.ORMTemplate;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryTemplate;
+import st.orm.template.SqlDialect;
 import st.orm.template.impl.LazySupplier;
 
 import java.lang.reflect.RecordComponent;
@@ -180,5 +181,13 @@ public final class Providers {
 
     public static SqlDialect getSqlDialect() {
         return SQL_DIALECT.get();
+    }
+
+    public static SqlDialect getSqlDialect(@Nonnull Predicate<? super SqlDialectProvider> filter) {
+        return Orderable.sort(SQL_DIALECT_PROVIDERS.get().stream())
+                .filter(filter)
+                .map(SqlDialectProvider::getSqlDialect)
+                .findFirst()
+                .orElseThrow();
     }
 }

@@ -13,14 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.template;
+package st.orm.kotlin.template;
 
 import jakarta.annotation.Nonnull;
+import kotlin.reflect.KClass;
+import st.orm.template.SqlDialect;
 
 /**
  * Represents a column in a database table.
  */
-public interface Column {
+public interface KColumn {
     /**
      * Gets the 1-based index of the column.
      *
@@ -44,11 +46,11 @@ public interface Column {
     String qualifiedName(@Nonnull SqlDialect dialect);
 
     /**
-     * Gets the type of the column.
+     * Gets the Java type of the column.
      *
-     * @return the type of the column.
+     * @return the Java type.
      */
-    Class<?> type();
+    KClass<?> type();
 
     /**
      * Determines if the column is a primary key.

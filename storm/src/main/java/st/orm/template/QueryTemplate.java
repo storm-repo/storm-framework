@@ -30,6 +30,14 @@ import static java.lang.StringTemplate.RAW;
 public interface QueryTemplate extends SubqueryTemplate {
 
     /**
+     * Get the SQL dialect for this template.
+     *
+     * @return the SQL dialect.
+     * @since 1.2
+     */
+    SqlDialect dialect();
+
+    /**
      * Create a new bind variables instance that can be used to add bind variables to a batch.
      *
      * @return a new bind variables instance.

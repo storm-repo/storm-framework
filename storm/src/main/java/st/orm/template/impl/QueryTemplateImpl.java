@@ -24,6 +24,7 @@ import st.orm.Query;
 import st.orm.spi.Provider;
 import st.orm.spi.Providers;
 import st.orm.spi.QueryFactory;
+import st.orm.template.SqlDialect;
 import st.orm.template.Model;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryTemplate;
@@ -32,20 +33,28 @@ import st.orm.template.SqlTemplateException;
 import java.util.function.Predicate;
 
 import static java.util.Objects.requireNonNull;
+import static st.orm.spi.Providers.getSqlDialect;
 
 class QueryTemplateImpl implements QueryTemplate {
     protected final QueryFactory queryFactory;
     protected final ModelBuilder modelBuilder;
     protected final Predicate<? super Provider> providerFilter;
     private final LazyFactory lazyFactory;
+    private final SqlDialect dialect;
 
     QueryTemplateImpl(@Nonnull QueryFactory queryFactory,
                       @Nonnull ModelBuilder modelBuilder,
-                     @Nullable Predicate<? super Provider> providerFilter) {
+                      @Nullable Predicate<? super Provider> providerFilter) {
         this.queryFactory = requireNonNull(queryFactory);
         this.modelBuilder = requireNonNull(modelBuilder);
         this.providerFilter = providerFilter;
+        this.dialect = getSqlDialect(providerFilter == null ? _ -> true : providerFilter);
         this.lazyFactory = new LazyFactoryImpl(queryFactory, modelBuilder, providerFilter);
+    }
+
+    @Override
+    public SqlDialect dialect() {
+        return dialect;
     }
 
     @Override

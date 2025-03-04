@@ -16,7 +16,7 @@
 package st.orm.spi.mariadb;
 
 import st.orm.spi.Orderable.Before;
-import st.orm.spi.SqlDialect;
+import st.orm.template.SqlDialect;
 import st.orm.spi.SqlDialectProvider;
 import st.orm.spi.mysql.MySQLSqlDialectProviderImpl;
 

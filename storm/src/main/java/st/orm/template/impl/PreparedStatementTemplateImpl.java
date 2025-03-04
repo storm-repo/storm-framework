@@ -21,6 +21,7 @@ import st.orm.BindVars;
 import st.orm.PersistenceException;
 import st.orm.Query;
 import st.orm.spi.Provider;
+import st.orm.spi.Providers;
 import st.orm.spi.QueryFactory;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
@@ -52,7 +53,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
 
     @FunctionalInterface
     private interface TemplateProcessor {
-        PreparedStatement process(@Nonnull Sql ql,
+        PreparedStatement process(@Nonnull Sql sql,
                                   boolean safe) throws SQLException;
     }
 
@@ -143,7 +144,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
 
     private PreparedStatementTemplateImpl(@Nonnull TemplateProcessor templateProcessor,
                                           @Nonnull ModelBuilder modelBuilder,
-                                          @Nullable TableAliasResolver tableAliasResolver,
+                                          @Nonnull TableAliasResolver tableAliasResolver,
                                           @Nullable Predicate<Provider> providerFilter) {
         this.templateProcessor = templateProcessor;
         this.modelBuilder = modelBuilder;
@@ -183,6 +184,17 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     @Override
     public PreparedStatementTemplateImpl withForeignKeyResolver(@Nullable ForeignKeyResolver foreignKeyResolver) {
         return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, providerFilter);
+    }
+
+    /**
+     * Returns a new prepared statement template with the specified table alias resolver.
+     *
+     * @param tableAliasResolver the table alias resolver.
+     * @return a new prepared statement template.
+     */
+    @Override
+    public PreparedStatementTemplate withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver) {
+        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter);
     }
 
     /**
@@ -248,10 +260,15 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     }
 
     private SqlTemplate sqlTemplate() {
-        return PS
+        SqlTemplate template = PS
                 .withTableNameResolver(modelBuilder.tableNameResolver())
                 .withColumnNameResolver(modelBuilder.columnNameResolver())
-                .withForeignKeyResolver(modelBuilder.foreignKeyResolver());
+                .withForeignKeyResolver(modelBuilder.foreignKeyResolver())
+                .withTableAliasResolver(tableAliasResolver);
+        if (providerFilter != null) {
+            template = template.withDialect(Providers.getSqlDialect(providerFilter));
+        }
+        return template;
     }
 
     /**

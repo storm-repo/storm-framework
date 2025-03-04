@@ -25,6 +25,7 @@ import st.orm.Query;
 import st.orm.repository.ProjectionQuery;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
+import st.orm.template.SqlDialect;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
 import st.orm.template.JoinType;
@@ -85,6 +86,7 @@ import static st.orm.Templates.update;
 import static st.orm.Templates.values;
 import static st.orm.Templates.where;
 import static st.orm.spi.Providers.getORMConverter;
+import static st.orm.spi.Providers.getSqlDialect;
 import static st.orm.template.ResolveScope.CASCADE;
 import static st.orm.template.ResolveScope.INNER;
 import static st.orm.template.impl.RecordReflection.getColumnName;
@@ -205,23 +207,37 @@ public final class SqlTemplateImpl implements SqlTemplate {
     private final boolean positionalOnly;
     private final boolean expandCollection;
     private final boolean supportRecords;
-    private final TableAliasResolver tableAliasResolver;
     private final ModelBuilder modelBuilder;
+    private final TableAliasResolver tableAliasResolver;
+    private final SqlDialect dialect;
+    private final DialectTemplate dialectTemplate;
 
     public SqlTemplateImpl(boolean positionalOnly, boolean expandCollection, boolean supportRecords) {
-        this(positionalOnly, expandCollection, supportRecords, ModelBuilder.newInstance(), TableAliasResolver.DEFAULT);
+        this(positionalOnly, expandCollection, supportRecords, ModelBuilder.newInstance(), TableAliasResolver.DEFAULT, getSqlDialect());
     }
 
     public SqlTemplateImpl(boolean positionalOnly,
                            boolean expandCollection,
                            boolean supportRecords,
                            @Nonnull ModelBuilder modelBuilder,
-                           @Nullable TableAliasResolver tableAliasResolver) {
+                           @Nonnull TableAliasResolver tableAliasResolver,
+                           @Nonnull SqlDialect dialect) {
         this.positionalOnly = positionalOnly;
         this.expandCollection = expandCollection;
         this.supportRecords = supportRecords;
-        this.tableAliasResolver = tableAliasResolver;
-        this.modelBuilder = Objects.requireNonNull(modelBuilder);
+        this.modelBuilder = requireNonNull(modelBuilder);
+        this.tableAliasResolver = requireNonNull(tableAliasResolver);
+        this.dialect = requireNonNull(dialect);
+        this.dialectTemplate = new DialectTemplate(dialect);
+    }
+
+    /**
+     * Returns the dialect template that is used to process dialect aware components.
+     *
+     * @return the dialect template that is used to process dialect aware components.
+     */
+    DialectTemplate dialectTemplate() {
+        return dialectTemplate;
     }
 
     /**
@@ -253,7 +269,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withTableNameResolver(TableNameResolver tableNameResolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, dialect);
     }
 
     /**
@@ -274,7 +290,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withTableAliasResolver(TableAliasResolver tableAliasResolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder, tableAliasResolver);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder, tableAliasResolver, dialect);
     }
 
     /**
@@ -295,7 +311,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withColumnNameResolver(ColumnNameResolver columnNameResolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, dialect);
     }
 
     /**
@@ -316,7 +332,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withForeignKeyResolver(ForeignKeyResolver foreignKeyResolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, dialect);
     }
 
     /**
@@ -329,6 +345,23 @@ public final class SqlTemplateImpl implements SqlTemplate {
         return modelBuilder.foreignKeyResolver();
     }
 
+    @Override
+    public SqlTemplate withDialect(SqlDialect dialect) {
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder, tableAliasResolver, dialect);
+    }
+
+    /**
+     * Returns the SQL dialect that is used by this template.
+     *
+     * @return the SQL dialect that is used by this template.
+     * @since 1.2
+     */
+    @Override
+    public SqlDialect dialect() {
+        return dialect;
+    }
+
+
     /**
      * Returns a new SQL template with support for records enabled or disabled.
      *
@@ -337,7 +370,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withSupportRecords(boolean supportRecords) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder, tableAliasResolver);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder, tableAliasResolver, dialect);
     }
 
     /**
@@ -363,7 +396,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
     private Element resolveBindVarsElement(@Nonnull SqlMode mode,
                                            @Nonnull String previousFragment,
                                            @Nonnull BindVars bindVars) throws SqlTemplateException {
-        String previous = removeComments(previousFragment).stripTrailing().toUpperCase();
+        String previous = removeComments(previousFragment, dialect).stripTrailing().toUpperCase();
         return switch (mode) {
             case SELECT, DELETE, UNDEFINED -> {
                 if (previous.endsWith("WHERE")) {
@@ -395,7 +428,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
     private Element resolveObjectElement(@Nonnull SqlMode mode,
                                          @Nonnull String previousFragment,
                                          @Nullable Object o) throws SqlTemplateException {
-        String previous = removeComments(previousFragment).stripTrailing().toUpperCase();
+        String previous = removeComments(previousFragment, dialect).stripTrailing().toUpperCase();
         return switch (mode) {
             case SELECT, DELETE, UNDEFINED -> {
                 if (previous.endsWith("WHERE")) {
@@ -449,7 +482,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
     private Element resolveIterableElement(@Nonnull SqlMode mode,
                                            @Nonnull String previousFragment,
                                            @Nonnull Iterable<?> iterable) throws SqlTemplateException {
-        String previous = removeComments(previousFragment).stripTrailing().toUpperCase();
+        String previous = removeComments(previousFragment, dialect).stripTrailing().toUpperCase();
         return switch (mode) {
             case SELECT, UPDATE, DELETE, UNDEFINED -> {
                 if (previous.endsWith("WHERE")) {
@@ -481,8 +514,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
         if (nextFragment.startsWith(".")) {
             return new Alias(recordType, CASCADE);
         }
-        String next = removeComments(nextFragment).stripLeading().toUpperCase();
-        String previous = removeComments(previousFragment).stripTrailing().toUpperCase();
+        String next = removeComments(nextFragment, dialect).stripLeading().toUpperCase();
+        String previous = removeComments(previousFragment, dialect).stripTrailing().toUpperCase();
         return switch (mode) {
             case SELECT -> {
                 if (previous.endsWith("FROM")) {
@@ -642,7 +675,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             String alias;
             if (from.alias().isEmpty()) {
                 // Replace From element by from element with alias.
-                alias = aliasMapper.generateAlias(table, path);
+                alias = aliasMapper.generateAlias(table, path, dialect);
             } else {
                 alias = from.alias();
                 aliasMapper.setAlias(table, alias, path);
@@ -682,7 +715,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             String path = "";   // Use "" because it's the root table.
             String alias;
             if (update.alias().isEmpty()) {
-                alias = aliasMapper.generateAlias(table, path);
+                alias = aliasMapper.generateAlias(table, path, dialect);
             } else {
                 alias = update.alias();
                 aliasMapper.setAlias(table, alias, path);
@@ -726,7 +759,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     aliasMapper.setAlias(table, "", path);
                     alias = "";
                 } else {
-                    alias = aliasMapper.generateAlias(table, path);
+                    alias = aliasMapper.generateAlias(table, path, dialect);
                 }
                 effectiveFrom = new From(new TableSource(table), alias, from.autoJoin());
                 elements.replaceAll(element -> element instanceof From ? effectiveFrom : element);
@@ -801,7 +834,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 if (j instanceof Join(TableSource ts, _, _, _, _)) {
                     String alias;
                     if (j.alias().isEmpty()) {
-                        alias = aliasMapper.generateAlias(ts.table(), null);
+                        alias = aliasMapper.generateAlias(ts.table(), null, dialect);
                     } else {
                         alias = j.alias();
                         aliasMapper.setAlias(ts.table(), j.alias(), null);
@@ -886,7 +919,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     // No join needed for lazy components, but we will map the table, so we can query the lazy component.
                     String fromAlias;
                     if (fkName == null) {
-                        fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, null);    // Use local resolve mode to prevent shadowing.
+                        fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, null, dialect);    // Use local resolve mode to prevent shadowing.
                     } else {
                         fromAlias = fkName;
                     }
@@ -905,15 +938,15 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 // in a unified way (auto join vs manual join).
                 String fromAlias;
                 if (fkName == null) {
-                    fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, componentType);    // Use local resolve mode to prevent shadowing.
+                    fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, componentType, dialect);    // Use local resolve mode to prevent shadowing.
                 } else {
                     fromAlias = fkName;
                 }
-                String alias = aliasMapper.generateAlias(componentType, pkPath, recordType);
+                String alias = aliasMapper.generateAlias(componentType, pkPath, recordType, dialect);
                 tableMapper.mapForeignKey(recordType, componentType, fromAlias, component, rootTable, fkPath);
                 var pkComponent = getPkComponents(componentType).findFirst()    // We only support single primary keys for FK fields.
                         .orElseThrow(() -> new SqlTemplateException(STR."No primary key found for entity \{componentType.getSimpleName()}."));
-                String pkColumnName = getColumnName(pkComponent, modelBuilder.columnNameResolver());
+                var pkColumnName = getColumnName(pkComponent, modelBuilder.columnNameResolver());
                 // We will only make primary keys available for mapping if the table is not part of the entity graph,
                 // because the entities can already be resolved by their foreign keys.
                 //  tableMapper.mapPrimaryKey(componentType, alias, List.of(pkComponent), pkPath);
@@ -923,7 +956,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 Source source = query != null
                         ? new TemplateSource(StringTemplate.of(query.value()))
                         : new TableSource(componentType);
-                joins.add(new Join(source, alias, new TemplateTarget(StringTemplate.of(STR."\{fromAlias}.\{getForeignKey(component, modelBuilder.foreignKeyResolver())} = \{alias}.\{pkColumnName}")), joinType, true));
+                joins.add(new Join(source, alias, new TemplateTarget(StringTemplate.of(dialectTemplate."\{fromAlias}.\{getForeignKey(component, modelBuilder.foreignKeyResolver())} = \{alias}.\{pkColumnName}")), joinType, true));
                 addAutoJoins(componentType, rootTable, copy, aliasMapper, tableMapper, joins, alias, effectiveOuterJoin);
             } else if (component.getType().isRecord()) {
                 if (REFLECTION.isAnnotationPresent(component, PK.class) || getORMConverter(component).isPresent()) {
@@ -933,7 +966,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 Class<? extends Record> componentType = (Class<? extends Record>) component.getType();
                 String fromAlias;
                 if (fkName == null) {
-                    fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, componentType);    // Use local resolve mode to prevent shadowing.
+                    fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, componentType, dialect);    // Use local resolve mode to prevent shadowing.
                 } else {
                     fromAlias = fkName;
                 }
@@ -1032,7 +1065,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         var fragments = template.fragments();
         var values = template.values();
         Sql generated;
-        var sqlMode = getSqlMode(template);
+        var sqlMode = getSqlMode(template, dialect);
         if (!values.isEmpty()) {
             var elements = resolveElements(sqlMode, values, fragments);
             var tableUse = getTableUse();
@@ -1139,7 +1172,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         return switch (mode) {
             case SELECT, INSERT, UNDEFINED -> empty();
             case UPDATE, DELETE -> {
-                if (!hasWhereClause(sql)) {
+                if (!hasWhereClause(sql, dialect)) {
                     yield Optional.of(STR."\{mode} without a WHERE clause is potentially unsafe.");
                 }
                 yield empty();

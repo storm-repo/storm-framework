@@ -17,14 +17,16 @@ package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.template.ColumnNameResolver;
 import st.orm.template.SqlTemplateException;
 
-import java.util.LinkedHashMap;
+import java.lang.reflect.RecordComponent;
 import java.util.List;
-import java.util.SequencedMap;
 
 public interface ORMConverter {
+
+    interface NameResolver {
+        Name getName(@Nonnull RecordComponent component) throws SqlTemplateException;
+    }
 
     default int getParameterCount() throws SqlTemplateException {
         return getParameterTypes().size();
@@ -34,20 +36,7 @@ public interface ORMConverter {
 
     Object convert(@Nonnull Object[] args) throws SqlTemplateException;
 
-    List<String> getColumns(@Nonnull ColumnNameResolver columnNameResolver) throws SqlTemplateException;
+    List<Name> getColumns(@Nonnull NameResolver nameResolver) throws SqlTemplateException;
 
     List<Object> getValues(@Nullable Record record) throws SqlTemplateException;
-
-    default SequencedMap<String, Object> getValues(@Nullable Record record, @Nonnull ColumnNameResolver columnNameResolver) throws SqlTemplateException {
-        var columns = getColumns(columnNameResolver);
-        var values = getValues(record);
-        if (columns.size() != values.size()) {
-            throw new SqlTemplateException("Column count does not match value count.");
-        }
-        var map = new LinkedHashMap<String, Object>(columns.size(), 1f);
-        for (int i = 0; i < columns.size(); i++) {
-            map.put(columns.get(i), values.get(i));
-        }
-        return map;
-    }
 }

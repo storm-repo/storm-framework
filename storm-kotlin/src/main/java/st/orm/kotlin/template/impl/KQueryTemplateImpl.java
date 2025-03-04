@@ -7,12 +7,13 @@ import st.orm.BindVars;
 import st.orm.Lazy;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KQuery;
-import st.orm.kotlin.repository.KModel;
+import st.orm.kotlin.template.KModel;
 import st.orm.kotlin.template.KQueryTemplate;
 import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.QueryTemplate;
+import st.orm.template.impl.ModelImpl;
 
 import static java.util.Objects.requireNonNull;
 
@@ -40,7 +41,7 @@ public class KQueryTemplateImpl implements KQueryTemplate {
     @Override
     public <T extends Record, ID> KModel<T, ID> model(@Nonnull KClass<T> type) {
         //noinspection unchecked
-        return new KModel<>(orm.model((Class<T>) REFLECTION.getType(type)));
+        return new KModelImpl<>((ModelImpl<T, ID>) orm.model((Class<T>) REFLECTION.getType(type)));
     }
 
     @Override

@@ -19,20 +19,21 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import kotlin.sequences.Sequence;
 import kotlin.sequences.SequencesKt;
-import org.jetbrains.annotations.NotNull;
 import st.orm.Lazy;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KBatchCallback;
 import st.orm.kotlin.KResultCallback;
 import st.orm.kotlin.repository.KEntityRepository;
-import st.orm.kotlin.repository.KModel;
+import st.orm.kotlin.template.KModel;
 import st.orm.kotlin.template.KORMTemplate;
 import st.orm.kotlin.template.KQueryBuilder;
+import st.orm.kotlin.template.impl.KModelImpl;
 import st.orm.kotlin.template.impl.KORMTemplateImpl;
 import st.orm.kotlin.template.impl.KQueryBuilderImpl;
 import st.orm.repository.Entity;
 import st.orm.repository.EntityRepository;
+import st.orm.template.impl.ModelImpl;
 
 import java.util.Iterator;
 import java.util.List;
@@ -67,9 +68,21 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * Returns the entity model associated with this repository.
      *
      * @return the entity model.
-     */    @Override
+     */
+    @Override
     public KModel<E, ID> model() {
-        return new KModel<>(entityRepository.model());
+        return new KModelImpl<>((ModelImpl<E, ID>) entityRepository.model());
+    }
+
+    /**
+     * Creates a new lazy entity instance with the specified entity.
+     *
+     * @param entity the entity.
+     * @return a lazy entity instance.
+     */
+    @Override
+    public Lazy<E, ID> lazy(@Nullable E entity) {
+        return entityRepository.lazy(entity);
     }
 
     /**
@@ -377,7 +390,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      *                              issues, or if the entity parameter is null.
      */
     @Override
-    public void delete(@NotNull ID id) {
+    public void delete(@Nonnull ID id) {
         entityRepository.delete(id);
     }
 

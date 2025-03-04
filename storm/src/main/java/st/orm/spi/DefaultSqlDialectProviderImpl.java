@@ -16,6 +16,7 @@
 package st.orm.spi;
 
 import st.orm.spi.Orderable.AfterAny;
+import st.orm.template.SqlDialect;
 
 @AfterAny
 public class DefaultSqlDialectProviderImpl implements SqlDialectProvider {

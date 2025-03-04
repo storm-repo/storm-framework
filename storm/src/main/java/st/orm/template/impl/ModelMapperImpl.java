@@ -144,13 +144,14 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
                                                   @Nonnull Predicate<Column> columnFilter,
                                                   @Nonnull BiFunction<Column, Object, Boolean> callback) throws Throwable {
         var values = converter.getValues(record);
-        if (values.isEmpty()) {
-            throw new SqlTemplateException(STR."Converter returned no values for component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}'.");
+        int expected = converter.getParameterCount();
+        if (values.size() != expected) {
+            throw new SqlTemplateException(STR."Converter returned \{values.size()} values for component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}', but expected \{expected}.");
         }
         for (var value : values) {
-            Column col = model.columns().get(index.getAndIncrement());
-            if (columnFilter.test(col)) {
-                if (!callback.apply(col, value)) {
+            Column column = model.columns().get(index.getAndIncrement());
+            if (columnFilter.test(column)) {
+                if (!callback.apply(column, value)) {
                     return false;
                 }
             }

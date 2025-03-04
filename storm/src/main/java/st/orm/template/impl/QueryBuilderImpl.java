@@ -18,8 +18,6 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import st.orm.PersistenceException;
 import st.orm.template.Model;
-import st.orm.spi.Providers;
-import st.orm.spi.SqlDialect;
 import st.orm.template.JoinType;
 import st.orm.template.Metamodel;
 import st.orm.template.Operator;
@@ -56,8 +54,6 @@ import static st.orm.template.Operator.IN;
  * @param <ID> the type of the primary key.
  */
 abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T, R, ID> implements Subqueryable {
-
-    protected final static SqlDialect SQL_DIALECT = Providers.getSqlDialect();
 
     protected final QueryTemplate queryTemplate;
     protected final Class<T> fromType;

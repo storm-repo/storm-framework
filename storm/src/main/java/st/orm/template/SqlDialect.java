@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spi;
+package st.orm.template;
 
 import jakarta.annotation.Nonnull;
-import st.orm.template.SqlTemplateException;
 
 import java.util.List;
 import java.util.Map;
@@ -29,6 +28,14 @@ import java.util.regex.Pattern;
  * @since 1.1
  */
 public interface SqlDialect {
+
+    /**
+     * Returns the name of the SQL dialect.
+     *
+     * @return the name of the SQL dialect.
+     * @since 1.2
+     */
+    String name();
 
     /**
      * Indicates whether the SQL dialect supports delete aliases.

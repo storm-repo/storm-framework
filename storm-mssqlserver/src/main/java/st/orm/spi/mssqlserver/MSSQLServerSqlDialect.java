@@ -17,7 +17,7 @@ package st.orm.spi.mssqlserver;
 
 import jakarta.annotation.Nonnull;
 import st.orm.spi.DefaultSqlDialect;
-import st.orm.spi.SqlDialect;
+import st.orm.template.SqlDialect;
 import st.orm.template.SqlTemplateException;
 
 import java.util.List;
@@ -30,6 +30,17 @@ import java.util.stream.Stream;
 import static java.util.stream.Collectors.toSet;
 
 public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDialect {
+
+    /**
+     * Returns the name of the SQL dialect.
+     *
+     * @return the name of the SQL dialect.
+     * @since 1.2
+     */
+    @Override
+    public String name() {
+        return "MS SQL Server";
+    }
 
     /**
      * Indicates whether the SQL dialect supports delete aliases.

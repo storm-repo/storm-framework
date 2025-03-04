@@ -13,26 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.template;
+package st.orm.kotlin.template;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import kotlin.reflect.KClass;
+import st.orm.template.SqlDialect;
 
 import java.util.List;
 import java.util.SequencedMap;
 
 /**
- * Represents the model of an entity or projection.
- *
- * @param <E> the type of the entity or projection.
- * @param <ID> the type of the primary key, or {@code Void} in case of a projection without a primary key.
+ * Represents the model of an entity.
  */
-public interface Model<E extends Record, ID> {
+public interface KModel<E extends Record, ID> {
 
     /**
-     * Returns the schema, or an empty String if the schema is not specified.
+     * Returns the schema, or empty String if the schema is not specified.
      *
-     * @return the schema, or an empty String if the schema is not specified.
+     * @return the schema, or empty String if the schema is not specified.
      */
     String schema();
 
@@ -55,21 +54,21 @@ public interface Model<E extends Record, ID> {
      *
      * @return the type of the entity or projection.
      */
-    Class<E> type();
+    KClass<E> type();
 
     /**
      * Returns the type of the primary key.
      *
      * @return the type of the primary key.
      */
-    Class<ID> primaryKeyType();
+    KClass<ID> primaryKeyType();
 
     /**
      * Returns an immutable list of columns in the entity or projection.
      *
      * @return an immutable list of columns in the entity or projection.
      */
-    List<Column> columns();
+    List<KColumn> columns();
 
     /**
      * Returns {code true} if the specified primary key represents a default value, {@code false} otherwise.
@@ -91,7 +90,7 @@ public interface Model<E extends Record, ID> {
      * @return the value for the specified column from the given record.
      * @since 1.2
      */
-    Object getValue(@Nonnull Column column, @Nonnull E record);
+    Object getValue(@Nonnull KColumn column, @Nonnull E record);
 
     /**
      * Extracts the values from the given record and maps them to the columns of the entity or projection.
@@ -100,5 +99,5 @@ public interface Model<E extends Record, ID> {
      * @return the values from the given record mapped to the columns of the entity or projection.
      * @since 1.2
      */
-    SequencedMap<Column, Object> getValues(@Nonnull E record);
+    SequencedMap<KColumn, Object> getValues(@Nonnull E record);
 }

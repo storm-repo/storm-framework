@@ -17,8 +17,7 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.spi.Providers;
-import st.orm.spi.SqlDialect;
+import st.orm.template.SqlDialect;
 import st.orm.template.Metamodel;
 import st.orm.template.ResolveScope;
 import st.orm.template.SqlTemplateException;
@@ -36,8 +35,7 @@ import java.util.SequencedCollection;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import static java.lang.Character.isUpperCase;
-import static java.lang.Character.toLowerCase;
+import static java.util.Objects.requireNonNull;
 import static java.util.Optional.empty;
 import static st.orm.template.ResolveScope.CASCADE;
 import static st.orm.template.ResolveScope.INNER;
@@ -45,7 +43,6 @@ import static st.orm.template.impl.RecordReflection.getTableName;
 import static st.orm.template.impl.SqlTemplateImpl.multiplePathsFoundException;
 
 final class AliasMapper {
-    private static final SqlDialect SQL_DIALECT = Providers.getSqlDialect();
 
     private final TableUse tableUse;
     private final Map<Class<? extends Record>, SequencedCollection<TableAlias>> aliasMap;
@@ -56,12 +53,12 @@ final class AliasMapper {
     record TableAlias(Class<? extends Record> table, String path, String alias) {}
 
     AliasMapper(@Nonnull TableUse tableUse,
-                @Nullable TableAliasResolver tableAliasResolver,
-                @Nullable TableNameResolver tableNameResolver,
+                @Nonnull TableAliasResolver tableAliasResolver,
+                @Nonnull TableNameResolver tableNameResolver,
                 @Nullable AliasMapper parent) {
-        this.tableUse = tableUse;
-        this.tableAliasResolver = tableAliasResolver;
-        this.tableNameResolver = tableNameResolver;
+        this.tableUse = requireNonNull(tableUse);
+        this.tableAliasResolver = requireNonNull(tableAliasResolver);
+        this.tableNameResolver = requireNonNull(tableNameResolver);
         this.parent = parent;
         this.aliasMap = new HashMap<>();
     }
@@ -188,22 +185,25 @@ final class AliasMapper {
     }
 
     public String getAlias(@Nonnull Metamodel<?, ?> metamodel,
-                           @Nonnull ResolveScope scope) throws SqlTemplateException {
+                           @Nonnull ResolveScope scope,
+                           @Nonnull SqlDialect dialect) throws SqlTemplateException {
         var table = metamodel.table();
         String path = table.componentPath();
-        return getAlias(table.componentType(), path.isEmpty() ? null : path, scope, null);
-    }
-
-    public String getAlias(@Nonnull Class<? extends Record> table,
-                           @Nullable String path,
-                           @Nonnull ResolveScope scope) throws SqlTemplateException {
-        return getAlias(table, path, scope, null);
+        return getAlias(table.componentType(), path.isEmpty() ? null : path, scope, null, dialect);
     }
 
     public String getAlias(@Nonnull Class<? extends Record> table,
                            @Nullable String path,
                            @Nonnull ResolveScope scope,
-                           @Nullable Class<? extends Record> autoJoinTable) throws SqlTemplateException {
+                           @Nonnull SqlDialect dialect) throws SqlTemplateException {
+        return getAlias(table, path, scope, null, dialect);
+    }
+
+    public String getAlias(@Nonnull Class<? extends Record> table,
+                           @Nullable String path,
+                           @Nonnull ResolveScope scope,
+                           @Nullable Class<? extends Record> autoJoinTable,
+                           @Nonnull SqlDialect dialect) throws SqlTemplateException {
         var result = findAlias(table, path, scope, autoJoinTable);
         if (result.isPresent()) {
             return result.get();
@@ -213,7 +213,7 @@ final class AliasMapper {
         }
         if (exists(table, scope)) {
             // Table is registered, but alias could not be resolved (due to empty registration). Revert to full table name.
-            return getTableName(table, tableNameResolver);
+            return getTableName(table, tableNameResolver).getQualifiedName(dialect);
         }
         throw new SqlTemplateException(STR."Alias for \{table.getSimpleName()} not found.");
     }
@@ -245,18 +245,23 @@ final class AliasMapper {
         return alias.isEmpty() ? Optional.empty() : Optional.of(alias);
     }
 
-    public String generateAlias(@Nonnull Class<? extends Record> table, @Nullable String path) throws SqlTemplateException {
-        return generateAlias(table, path, null);
+    public String generateAlias(@Nonnull Class<? extends Record> table,
+                                @Nullable String path,
+                                @Nonnull SqlDialect dialect) throws SqlTemplateException {
+        return generateAlias(table, path, null, dialect);
     }
 
-    public String generateAlias(@Nonnull Class<? extends Record> table, @Nullable String path, @Nullable Class<? extends Record> autoJoinTable) throws SqlTemplateException {
+    public String generateAlias(@Nonnull Class<? extends Record> table,
+                                @Nullable String path,
+                                @Nullable Class<? extends Record> autoJoinTable,
+                                @Nonnull SqlDialect dialect) throws SqlTemplateException {
         if (autoJoinTable != null) {
             tableUse.addAutoJoinTable(table, autoJoinTable);
         } else {
             tableUse.addReferencedTable(table);
         }
-        String alias = generateAlias(table, tableAliasResolver,
-                proposedAlias -> aliases().noneMatch(proposedAlias::equals));    // Take all aliases into account to prevent unnecessary shadowing.
+        String alias = generateAlias(table,
+                proposedAlias -> aliases().noneMatch(proposedAlias::equals), dialect);    // Take all aliases into account to prevent unnecessary shadowing.
         if (alias.isEmpty()) {
             throw new SqlTemplateException(STR."Failed to generate alias for \{table.getSimpleName()}.");
         }
@@ -272,43 +277,23 @@ final class AliasMapper {
     }
 
     private String generateAlias(@Nonnull Class<? extends Record> table,
-                                 @Nullable TableAliasResolver tableAliasResolver,
-                                 @Nonnull Predicate<String> tester) throws SqlTemplateException {
+                                 @Nonnull Predicate<String> tester,
+                                 @Nonnull SqlDialect dialect) throws SqlTemplateException {
         String alias;
-        if (tableAliasResolver == null) {
-            // Extract the capitals from the class name to form the base alias.
-            String className = table.getSimpleName();
-            StringBuilder aliasBuilder = new StringBuilder("_");    // Use underscore as prefix to avoid clashes with client aliases.
-            for (char ch : className.toCharArray()) {
-                if (isUpperCase(ch)) {
-                    aliasBuilder.append(toLowerCase(ch));
-                }
+        int counter = 0;
+        var aliases = new HashSet<>();
+        do {
+            alias = tableAliasResolver.resolveTableAlias(table, counter++);
+            if (alias.isEmpty()) {
+                break;
             }
-            String baseAlias = aliasBuilder.toString();
-            alias = baseAlias;
-            // Check if the base alias passes the tester predicate. If not, append a number and check again.
-            int counter = 1;
-            while (!tester.test(alias)) {
-                alias = baseAlias + counter;
-                counter++;
+            if (!aliases.add(alias)) {
+                throw new SqlTemplateException(STR."Table alias returns the same alias \{alias} multiple times.");
             }
-        } else {
-            int counter = 0;
-            var aliases = new HashSet<>();
-            do {
-                alias = tableAliasResolver.resolveTableAlias(table, counter++);
-                if (alias.isEmpty()) {
-                    break;
-                }
-                alias = SQL_DIALECT.getSafeIdentifier(alias);
-                if (!aliases.add(alias)) {
-                    throw new SqlTemplateException(STR."Table alias returns the same alias \{alias} multiple times.");
-                }
-            } while (!tester.test(alias));
-        }
+        } while (!tester.test(alias));
         if (alias.isEmpty()) {
             throw new SqlTemplateException(STR."Table alias for \{table.getSimpleName()} is empty.");
         }
-        return alias;
+        return dialect.getSafeIdentifier(alias);
     }
 }

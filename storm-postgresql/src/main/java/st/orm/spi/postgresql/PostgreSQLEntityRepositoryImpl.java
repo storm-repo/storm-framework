@@ -63,7 +63,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
     }
 
     private StringTemplate getVersionString(@Nonnull Class<? extends Record> type, @Nonnull Column column) {
-        StringTemplate columnName = StringTemplate.of(column.columnName());
+        StringTemplate columnName = StringTemplate.of(column.qualifiedName(ormTemplate.dialect()));
         StringTemplate updateExpression = switch (column.type()) {
             case Class<?> c when Integer.TYPE.isAssignableFrom(c)
                     || Long.TYPE.isAssignableFrom(c)
@@ -92,10 +92,11 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
      * @return the conflict clause as a StringTemplate.
      */
     private StringTemplate onConflictClause(@Nonnull AtomicBoolean versionAware) {
+        var dialect = ormTemplate.dialect();
         // Determine the conflict target from primary key columns.
         String conflictTarget = model.columns().stream()
                 .filter(Column::primaryKey)
-                .map(Column::columnName)
+                .map(c -> c.qualifiedName(dialect))
                 .reduce((a, b) -> STR."\{a}, \{b}")
                 .orElseThrow(() -> new PersistenceException("No primary key defined."));
         // Build the assignment list for non-primary key updatable columns.
@@ -107,7 +108,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
                         versionAware.setPlain(true);
                         return getVersionString(model.type(), column);
                     }
-                    return StringTemplate.of(STR."\{column.columnName()} = EXCLUDED.\{column.columnName()}");
+                    return StringTemplate.of(STR."\{column.qualifiedName(dialect)} = EXCLUDED.\{column.qualifiedName(dialect)}");
                 })
                 .reduce((left, right) -> combine(left, RAW.", ", right))
                 .map(st -> StringTemplate.combine(RAW."DO UPDATE SET ", st))

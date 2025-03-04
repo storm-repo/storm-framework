@@ -100,6 +100,14 @@ public interface PreparedStatementTemplate {
     PreparedStatementTemplate withForeignKeyResolver(@Nonnull ForeignKeyResolver foreignKeyResolver);
 
     /**
+     * Returns a new prepared statement template with the specified table alias resolver.
+     *
+     * @param tableAliasResolver the table alias resolver.
+     * @return a new prepared statement template.
+     */
+    PreparedStatementTemplate withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver);
+
+    /**
      * Returns a new prepared statement template with the specified provider filter.
      *
      * @param providerFilter the provider filter.

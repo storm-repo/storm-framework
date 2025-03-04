@@ -17,7 +17,7 @@ package st.orm.spi.oracle;
 
 import jakarta.annotation.Nonnull;
 import st.orm.spi.DefaultSqlDialect;
-import st.orm.spi.SqlDialect;
+import st.orm.template.SqlDialect;
 import st.orm.template.SqlTemplateException;
 
 import java.util.LinkedHashSet;
@@ -33,12 +33,37 @@ import static java.util.stream.Collectors.toSet;
 
 public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
 
+    /**
+     * Returns the name of the SQL dialect.
+     *
+     * @return the name of the SQL dialect.
+     * @since 1.2
+     */
+    @Override
+    public String name() {
+        return "Oracle";
+    }
+
+    /**
+     * Indicates whether the SQL dialect supports delete aliases.
+     *
+     * <p>Delete aliases allow delete statements to use table aliases in joins,  making it easier to filter rows based
+     * on related data.</p>
+     *
+     * @return {@code true} if delete aliases are supported, {@code false} otherwise.
+     */
     @Override
     public boolean supportsDeleteAlias() {
         // Oracle doesn't allow table aliases in DELETE.
         return false;
     }
 
+    /**
+     * Indicates whether the SQL dialect supports multi-value tuples in the IN clause.
+     *
+     * @return {@code true} if multi-value tuples are supported, {@code false} otherwise.
+     * @since 1.2
+     */
     @Override
     public boolean supportsMultiValueTuples() {
         // Oracle supports multi-column IN (col1, col2) IN ((v1_1, v1_2), ...).

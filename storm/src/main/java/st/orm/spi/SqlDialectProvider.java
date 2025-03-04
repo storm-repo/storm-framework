@@ -15,6 +15,8 @@
  */
 package st.orm.spi;
 
+import st.orm.template.SqlDialect;
+
 /**
  * Provides the SQL dialect.
  *

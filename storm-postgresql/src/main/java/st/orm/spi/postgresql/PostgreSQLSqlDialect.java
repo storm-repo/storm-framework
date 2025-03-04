@@ -17,7 +17,7 @@ package st.orm.spi.postgresql;
 
 import jakarta.annotation.Nonnull;
 import st.orm.spi.DefaultSqlDialect;
-import st.orm.spi.SqlDialect;
+import st.orm.template.SqlDialect;
 import st.orm.template.SqlTemplateException;
 
 import java.util.LinkedHashSet;
@@ -32,6 +32,17 @@ import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toSet;
 
 public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
+
+    /**
+     * Returns the name of the SQL dialect.
+     *
+     * @return the name of the SQL dialect.
+     * @since 1.2
+     */
+    @Override
+    public String name() {
+        return "PostgreSQL";
+    }
 
     /**
      * PostgreSQL does not support aliasing the target table in DELETE statements.

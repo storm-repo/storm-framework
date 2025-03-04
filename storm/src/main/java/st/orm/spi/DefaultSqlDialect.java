@@ -16,6 +16,7 @@
 package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
+import st.orm.template.SqlDialect;
 import st.orm.template.SqlTemplateException;
 
 import java.util.ArrayList;
@@ -29,6 +30,17 @@ import static java.util.stream.Collectors.joining;
 import static st.orm.template.Operator.EQUALS;
 
 public class DefaultSqlDialect implements SqlDialect {
+
+    /**
+     * Returns the name of the SQL dialect.
+     *
+     * @return the name of the SQL dialect.
+     * @since 1.2
+     */
+    @Override
+    public String name() {
+        return "Default";
+    }
 
     /**
      * Indicates whether the SQL dialect supports delete aliases.

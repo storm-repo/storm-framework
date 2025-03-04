@@ -18,7 +18,10 @@ package st.orm.template;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
+import st.orm.spi.Provider;
 import st.orm.template.impl.JpaTemplateImpl;
+
+import java.util.function.Predicate;
 
 /**
  * A template backed by JPA.
@@ -49,6 +52,46 @@ public interface JpaTemplate {
      * Returns an ORM template for this JPA template.
      */
     ORMTemplate toORM();
+
+    /**
+     * Returns a new JPA template with the specified table name resolver.
+     *
+     * @param tableNameResolver the table name resolver.
+     * @return a new JPA template.
+     */
+    JpaTemplate withTableNameResolver(@Nonnull TableNameResolver tableNameResolver);
+
+    /**
+     * Returns a new JPA template with the specified column name resolver.
+     *
+     * @param columnNameResolver the column name resolver.
+     * @return a new JPA template.
+     */
+    JpaTemplate withColumnNameResolver(@Nonnull ColumnNameResolver columnNameResolver);
+
+    /**
+     * Returns a new JPA template with the specified foreign key resolver.
+     *
+     * @param foreignKeyResolver the foreign key resolver.
+     * @return a new JPA template.
+     */
+    JpaTemplate withForeignKeyResolver(@Nonnull ForeignKeyResolver foreignKeyResolver);
+
+    /**
+     * Returns a new JPA template with the specified table alias resolver.
+     *
+     * @param tableAliasResolver the table alias resolver.
+     * @return a new JPA template.
+     */
+    JpaTemplate withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver);
+
+    /**
+     * Returns a new JPA template with the specified provider filter.
+     *
+     * @param providerFilter the provider filter.
+     * @return a new JPA template.
+     */
+    JpaTemplate withProviderFilter(@Nonnull Predicate<Provider> providerFilter);
 
     /**
      * Creates a query for the specified query {@code template}.

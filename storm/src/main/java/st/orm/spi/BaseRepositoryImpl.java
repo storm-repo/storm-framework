@@ -42,8 +42,6 @@ import static st.orm.template.QueryBuilder.slice;
  */
 abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
 
-    private static final SqlDialect SQL_DIALECT = Providers.getSqlDialect();
-
     protected final ORMTemplate ormTemplate;
     protected final Model<E, ID> model;
     protected final int defaultSliceSize;
@@ -51,7 +49,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
     public BaseRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
         this.ormTemplate = requireNonNull(ormTemplate);
         this.model = requireNonNull(model);
-        if (SQL_DIALECT.supportsMultiValueTuples()) {
+        if (ormTemplate.dialect().supportsMultiValueTuples()) {
             this.defaultSliceSize = 1000;
         } else {
             this.defaultSliceSize = model.columns().stream().filter(Column::primaryKey).count() > 1

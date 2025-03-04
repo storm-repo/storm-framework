@@ -13,43 +13,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.template.impl;
+package st.orm.kotlin.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import kotlin.jvm.JvmClassMappingKt;
+import kotlin.reflect.KClass;
 import st.orm.PersistenceException;
+import st.orm.kotlin.template.KColumn;
+import st.orm.kotlin.template.KModel;
 import st.orm.template.SqlDialect;
-import st.orm.template.Column;
-import st.orm.template.Model;
-import st.orm.template.SqlTemplateException;
+import st.orm.template.impl.ColumnImpl;
+import st.orm.template.impl.ModelImpl;
+import st.orm.template.impl.TableName;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.SequencedMap;
 
 import static java.util.List.copyOf;
-import static java.util.Objects.requireNonNull;
 
 /**
- * Represents the model of an entity or projection.
- *
- * @param <E> the type of the entity or projection.
- * @param <ID> the type of the primary key, or {@code Void} in case of a projection without a primary key.
- * @param tableName the name of the table or view.
- * @param type the type of the entity or projection.
- * @param primaryKeyType the type of the primary key.
- * @param columns an immutable list of columns in the entity or projection.
+ * Represents the model of an entity.
  */
-public record ModelImpl<E extends Record, ID>(
+public record KModelImpl<E extends Record, ID>(
+        @Nonnull ModelImpl<E, ID> model,
         @Nonnull TableName tableName,
-        @Nonnull Class<E> type,
-        @Nonnull Class<ID> primaryKeyType,
-        @Nonnull List<Column> columns) implements Model<E, ID> {
+        @Nonnull KClass<E> type,
+        @Nonnull KClass<ID> primaryKeyType,
+        @Nonnull List<KColumn> columns) implements KModel<E, ID> {
 
-    public ModelImpl {
-        requireNonNull(tableName, "tableName");
-        requireNonNull(type, "type");
-        requireNonNull(primaryKeyType, "primaryKeyType");
+    public KModelImpl {
         columns = copyOf(columns); // Defensive copy.
+    }
+
+    public KModelImpl(@Nonnull ModelImpl<E, ID> model) {
+        this(
+                model,
+                model.tableName(),
+                JvmClassMappingKt.getKotlinClass(model.type()),
+                JvmClassMappingKt.getKotlinClass(model.primaryKeyType()),
+                model.columns().stream()
+                        .map(c -> new KColumnImpl((ColumnImpl) c))
+                        .map(KColumn.class::cast)
+                        .toList()
+        );
     }
 
     /**
@@ -94,7 +102,7 @@ public record ModelImpl<E extends Record, ID>(
      */
     @Override
     public boolean isDefaultPrimaryKey(@Nullable ID pk) {
-        return ModelMapper.of(this).isDefaultValue(pk);
+        return model.isDefaultPrimaryKey(pk);
     }
 
     /**
@@ -106,12 +114,10 @@ public record ModelImpl<E extends Record, ID>(
      * @since 1.2
      */
     @Override
-    public SequencedMap<Column, Object> getValues(@Nonnull E record) {
-        try {
-            return ModelMapper.of(this).map(record);
-        } catch (SqlTemplateException e) {
-            throw new PersistenceException(e);
-        }
+    public SequencedMap<KColumn, Object> getValues(@Nonnull E record) {
+        var map = new LinkedHashMap<KColumn, Object>();
+        model.getValues(record).forEach((c, v) -> map.put(new KColumnImpl((ColumnImpl) c), v));
+        return map;
     }
 
     /**
@@ -124,11 +130,7 @@ public record ModelImpl<E extends Record, ID>(
      * @since 1.2
      */
     @Override
-    public Object getValue(@Nonnull Column column, @Nonnull E record) {
-        try {
-            return ModelMapper.of(this).map(column, record);
-        } catch (SqlTemplateException e) {
-            throw new PersistenceException(e);
-        }
+    public Object getValue(@Nonnull KColumn column, @Nonnull E record) {
+        return model.getValue(((KColumnImpl) column).column(), record);
     }
 }

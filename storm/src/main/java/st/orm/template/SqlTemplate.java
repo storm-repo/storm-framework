@@ -245,6 +245,22 @@ public interface SqlTemplate {
     ForeignKeyResolver foreignKeyResolver();
 
     /**
+     * Returns a new SQL template with the specified SQL dialect.
+     *
+     * @param dialect the SQL dialect to use.
+     * @return a new SQL template.
+     */
+    SqlTemplate withDialect(SqlDialect dialect);
+
+    /**
+     * Returns the SQL dialect that is used by this template.
+     *
+     * @return the SQL dialect that is used by this template.
+     * @since 1.2
+     */
+    SqlDialect dialect();
+
+    /**
      * Processes the specified {@code template} and returns the resulting SQL and parameters.
      *
      * @param template the string template to process.

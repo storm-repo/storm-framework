@@ -21,7 +21,6 @@ import kotlin.reflect.KClass;
 import st.orm.BindVars;
 import st.orm.Lazy;
 import st.orm.kotlin.KQuery;
-import st.orm.kotlin.repository.KModel;
 import st.orm.kotlin.template.impl.KQueryTemplateImpl;
 import st.orm.template.QueryTemplate;
 import st.orm.template.TemplateFunction;

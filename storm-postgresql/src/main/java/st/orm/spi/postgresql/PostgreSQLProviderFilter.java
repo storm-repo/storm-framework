@@ -1,6 +1,7 @@
 package st.orm.spi.postgresql;
 
 import st.orm.spi.Provider;
+import st.orm.spi.SqlDialectProvider;
 
 import java.util.function.Predicate;
 
@@ -16,6 +17,10 @@ public final class PostgreSQLProviderFilter implements Predicate<Provider> {
 
     @Override
     public boolean test(Provider provider) {
+        if (!(provider instanceof SqlDialectProvider)) {
+            // Only filter providers that implement the SqlDialectProvider interface.
+            return true;
+        }
         return provider instanceof PostgreSQLEntityRepositoryProviderImpl;
     }
 }

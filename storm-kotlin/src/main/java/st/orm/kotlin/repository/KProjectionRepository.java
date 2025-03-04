@@ -22,6 +22,7 @@ import st.orm.Lazy;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KResultCallback;
+import st.orm.kotlin.template.KModel;
 import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.repository.Projection;
 

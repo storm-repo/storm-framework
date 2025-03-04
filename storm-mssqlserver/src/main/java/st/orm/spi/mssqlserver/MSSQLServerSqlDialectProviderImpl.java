@@ -15,7 +15,7 @@
  */
 package st.orm.spi.mssqlserver;
 
-import st.orm.spi.SqlDialect;
+import st.orm.template.SqlDialect;
 import st.orm.spi.SqlDialectProvider;
 
 /**
