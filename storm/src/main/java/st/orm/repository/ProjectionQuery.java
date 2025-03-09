@@ -41,7 +41,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  * var baskets = ...
  * List<BasketSummary> summaries = ORM(dataSource).projection(BasketSummary.class)
  *     .select()
- *     .where(baskets)
+ *     .where(baskets)  // Type-safe.
  *     .getResultList();
  * }</pre>
  *
@@ -54,7 +54,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  * <pre>{@code
  * List<User> users = ORM(dataSource).projection(User.class)
  *     .select()
- *     .where("basketSummary.itemCount", GREATER_THAN, 0)
+ *     .where(User_.basketSummary.itemCount, GREATER_THAN, 0)   // Type-safe metamodel.
  *     .getResultList();
  * }</pre>
  */

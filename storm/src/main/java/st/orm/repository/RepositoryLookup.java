@@ -30,13 +30,13 @@ import jakarta.annotation.Nonnull;
  * interface UserRepository extends EntityRepository<User, Integer> {
  *     default Optional<User> findByName(String name) {
  *         return select().
- *             .where(User_.name, EQUALS, name)
+ *             .where(User_.name, EQUALS, name) // Type-safe metamodel.
  *             .getOptionalResult();
  *     }
  *
  *     default List<User> findByCity(City city) {
  *         return select().
- *             .where(User_.city, city)
+ *             .where(User_.city, city) // Type-safe metamodel.
  *             .getResultList();
  *     }
  * }}</pre>

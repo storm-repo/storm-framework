@@ -16,7 +16,41 @@ In summary, Storm delivers a modern, efficient, and straightforward ORM solution
 
 == Getting Started
 
-Storm offers a flexible and layered approach to database interaction, catering to developers with varying needs and preferences. Whether you’re looking for minimal enhancements or a complete abstraction, Storm has you covered. The following paragraphs outline the three levels at which Storm can be used, showcasing its capabilities and how it simplifies database access at each level.
+Storm offers a flexible and layered approach to database interaction, catering to developers with varying needs and preferences. Whether you’re looking for minimal enhancements or a complete abstraction, Storm has you covered.
+
+=== Dependency Management
+
+Include the following dependencies in your project to start using Storm:
+
+[source,xml,indent=0]
+----
+<dependencies>
+    <dependency>
+        <groupId>st.orm</groupId>
+        <artifactId>storm</artifactId>
+        <version>1.2.0</version>
+        <scope>compile</scope>
+    </dependency>
+    <dependency> <!-- Include for JSON support. -->
+        <groupId>st.orm</groupId>
+        <artifactId>storm-json</artifactId>
+        <version>1.2.0</version>
+        <scope>compile</scope>
+    </dependency>
+    <dependency> <!-- Spring Framework integration. -->
+        <groupId>st.orm</groupId>
+        <artifactId>storm-spring</artifactId>
+        <version>1.2.0</version>
+        <scope>compile</scope>
+    </dependency>
+    <dependency> <!-- Optional database extensions. -->
+        <groupId>st.orm</groupId>
+        <artifactId>storm-oracle</artifactId>
+        <version>1.2.0</version>
+        <scope>runtime</scope>
+    </dependency>
+</dependencies>
+----
 
 === Level 0 - Parameter Binding
 Enhance your existing workflows using technologies like JDBC or JPA, while leveraging Storm for safe and efficient parameter binding. This level is ideal for developers who want to retain control over SQL execution but benefit from Storm’s binding capabilities.
@@ -203,7 +237,7 @@ Select all pets that belong to an owner with the specified first name. Uses the 
     public List<Pet> findByFirstName(String firstName) {
         return ORM(dataSource).entity(Pet.class)
             .select()
-            .where(RAW."\{Owner_.firstName} = \{firstName}")
+            .where(RAW."\{Pet_.owner.firstName} = \{firstName}")
             .getResultList();
     }
 ----
@@ -214,7 +248,7 @@ Use metamodel to identify column.
     public List<Pet> findByLastName(String lastName) {
         return ORM(dataSource).entity(Pet.class)
             .select()
-            .where(Owner_.lastName, EQUALS, lastName)
+            .where(Pet_.owner.lastName, EQUALS, lastName)   // Type-safe!
             .getResultList();
     }
 ----
@@ -225,8 +259,8 @@ Build the query using mixed styles.
     public List<Pet> findByFirstNameAndLastName(String firstName, String lastName) {
         return ORM(dataSource).entity(Pet.class)
             .select()
-            .where(it -> it.filter(Owner_.firstName, EQUALS, firstName) // Type-safe!
-              .and(it.expression(RAW."\{Owner_.lastName} = \{lastName}"))) // Name resolution / binding.
+            .where(it -> it.filter(Pet_.owner.firstName, EQUALS, firstName) // Type-safe!
+              .and(it.expression(RAW."\{Pet_.owner.lastName} = \{lastName}"))) // Name resolution / binding.
             .getResultList();
     }
 ----
@@ -394,7 +428,7 @@ public class AcmeRepositoryBeanFactoryPostProcessor extends RepositoryBeanFactor
 
 == Future Work
 
-The following examples show how ST/ORM will evolve once String Template 2.0 and Derived Record Creation (JEP 468) are available.
+The following examples show how ST/ORM will evolve once String Template 2.0 and Derived Record Creation (JEP 468) can be used.
 
 [source,java,indent=0]
 ----

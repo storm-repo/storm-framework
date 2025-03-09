@@ -60,7 +60,7 @@ import java.util.stream.Stream;
  * City city = ORM(dataSource).entity(City.class).select(1);
  * List<User> users = ORM(dataSource).entity(User.class)
  *         .select()
- *         .where(city)
+ *         .where(User_.city, city) // Type-safe metamodel.
  *         .getResultList();
  * }</pre>
  *

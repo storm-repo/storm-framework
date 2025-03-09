@@ -28,7 +28,7 @@ package st.orm.repository;
  * <p>Define a projection record based on the {@code basket_summary_view} view, with a {@code basket_id} primary
  * key.
  * <pre>{@code
- * @DbName("basket_summary_view")
+ * @DbTable("basket_summary_view")
  * record BasketSummary(@PK @FK Basket basket, int itemCount, BigDecimal totalPrice) implements Projection<Integer> {}
  * }</pre>
  *
@@ -37,7 +37,7 @@ package st.orm.repository;
  * var baskets = ...
  * List<BasketSummary> summaries = ORM(dataSource).projection(BasketSummary.class)
  *     .select()
- *     .where(baskets)
+ *     .where(baskets)  // Type-safe.
  *     .getResultList();
  * }</pre>
  *
@@ -50,12 +50,13 @@ package st.orm.repository;
  * <pre>{@code
  * List<User> users = ORM(dataSource).projection(User.class)
  *     .select()
- *     .where("basketSummary.itemCount", GREATER_THAN, 0)
+ *     .where(User_.basketSummary.itemCount, GREATER_THAN, 0)   // Type-safe metamodel.
  *     .getResultList();
  * }</pre>
  *
  * @see ProjectionRepository
  * @see ProjectionQuery
+ * @param <ID> the type of the projection's primary key, or Void if the projection has no primary key.
  */
 public interface Projection<ID> {
 }
