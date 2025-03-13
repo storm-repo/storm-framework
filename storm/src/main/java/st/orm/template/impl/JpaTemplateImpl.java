@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,48 +22,64 @@ import jakarta.persistence.PersistenceException;
 import st.orm.BindVars;
 import st.orm.PreparedQuery;
 import st.orm.Query;
+import st.orm.spi.Provider;
+import st.orm.spi.Providers;
 import st.orm.spi.QueryFactory;
+import st.orm.template.ColumnNameResolver;
+import st.orm.template.ForeignKeyResolver;
 import st.orm.template.JpaTemplate;
 import st.orm.template.ORMTemplate;
+import st.orm.template.Sql;
 import st.orm.template.SqlTemplate;
+import st.orm.template.SqlTemplateException;
+import st.orm.template.TableAliasResolver;
+import st.orm.template.TableNameResolver;
 
-import java.sql.SQLException;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static jakarta.persistence.TemporalType.DATE;
 import static jakarta.persistence.TemporalType.TIME;
 import static jakarta.persistence.TemporalType.TIMESTAMP;
-import static st.orm.template.SqlTemplate.JPA;
+import static st.orm.template.SqlTemplate.PS;
 
 public final class JpaTemplateImpl implements JpaTemplate {
 
     @FunctionalInterface
     private interface TemplateProcessor {
-        jakarta.persistence.Query process(@Nonnull StringTemplate stringTemplate, @Nullable Class<?> resultClass, boolean safe);
+        jakarta.persistence.Query process(@Nonnull Sql sql, @Nullable Class<?> resultClass, boolean safe);
     }
 
     private final TemplateProcessor templateProcessor;
+    private final ModelBuilder modelBuilder;
+    private final TableAliasResolver tableAliasResolver;
+    private final Predicate<Provider> providerFilter;
 
     public JpaTemplateImpl(@Nonnull EntityManager entityManager) {
-        templateProcessor = (template, resultClass, safe) -> {
-            try {
-                var sql = JPA.process(template);
-                if (!safe) {
-                    sql.unsafeWarning().ifPresent(warning -> {
-                        throw new st.orm.PersistenceException(STR."\{warning} Use Query.safe() to mark query as safe.");
-                    });
-                }
-                //noinspection SqlSourceToSinkFlow
-                jakarta.persistence.Query query = resultClass == null
-                        ? entityManager.createNativeQuery(sql.statement())
-                        : entityManager.createNativeQuery(sql.statement(), resultClass);
-                setParameters(query, sql.parameters());
-                return query;
-            } catch (SQLException e) {
-                throw new PersistenceException(e);
+        templateProcessor = (sql, resultClass, safe) -> {
+            if (!safe) {
+                sql.unsafeWarning().ifPresent(warning -> {
+                    throw new PersistenceException(STR."\{warning} Use Query.safe() to mark query as safe.");
+                });
             }
+            //noinspection SqlSourceToSinkFlow
+            jakarta.persistence.Query query = resultClass == null
+                    ? entityManager.createNativeQuery(sql.statement())
+                    : entityManager.createNativeQuery(sql.statement(), resultClass);
+            setParameters(query, sql.parameters());
+            return query;
         };
+        this.modelBuilder = ModelBuilder.newInstance();
+        this.tableAliasResolver = TableAliasResolver.DEFAULT;
+        this.providerFilter = null;
+    }
+
+    private JpaTemplateImpl(@Nonnull TemplateProcessor templateProcessor, @Nonnull ModelBuilder modelBuilder, @Nonnull TableAliasResolver tableAliasResolver, @Nullable Predicate<Provider> providerFilter) {
+        this.templateProcessor = templateProcessor;
+        this.modelBuilder = modelBuilder;
+        this.tableAliasResolver = tableAliasResolver;
+        this.providerFilter = providerFilter;
     }
 
     private void setParameters(@Nonnull jakarta.persistence.Query query, @Nonnull List<SqlTemplate.Parameter> parameters) {
@@ -100,11 +116,33 @@ public final class JpaTemplateImpl implements JpaTemplate {
      */
     @Override
     public jakarta.persistence.Query query(@Nonnull StringTemplate template) {
-        return templateProcessor.process(template, null, true); // We allow unsafe queries in direct JPA mode.
+        try {
+            var sql = sqlTemplate().process(template);
+            return templateProcessor.process(sql, null, true);  // We allow unsafe queries in direct JPA mode.
+        } catch (SqlTemplateException e) {
+            throw new PersistenceException(e.getMessage(), e);
+        }
     }
 
     private jakarta.persistence.Query query(@Nonnull StringTemplate template, @Nonnull Class<?> resultClass) {
-        return templateProcessor.process(template, resultClass, true);  // We allow unsafe queries in direct JPA mode.
+        try {
+            var sql = sqlTemplate().process(template);
+            return templateProcessor.process(sql, resultClass, true);  // We allow unsafe queries in direct JPA mode.
+        } catch (SqlTemplateException e) {
+            throw new PersistenceException(e.getMessage(), e);
+        }
+    }
+
+    private SqlTemplate sqlTemplate() {
+        SqlTemplate template = PS
+                .withTableNameResolver(modelBuilder.tableNameResolver())
+                .withColumnNameResolver(modelBuilder.columnNameResolver())
+                .withForeignKeyResolver(modelBuilder.foreignKeyResolver())
+                .withTableAliasResolver(tableAliasResolver);
+        if (providerFilter != null) {
+            template = template.withDialect(Providers.getSqlDialect(providerFilter));
+        }
+        return template;
     }
 
     /**
@@ -125,11 +163,66 @@ public final class JpaTemplateImpl implements JpaTemplate {
         }, ModelBuilder.newInstance(), null);
     }
 
+    /**
+     * Returns a new JPA template with the specified table name resolver.
+     *
+     * @param tableNameResolver the table name resolver.
+     * @return a new JPA template.
+     */
+    @Override
+    public JpaTemplate withTableNameResolver(@Nullable TableNameResolver tableNameResolver) {
+        return new JpaTemplateImpl(templateProcessor, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, providerFilter);
+    }
+
+    /**
+     * Returns a new jpa statement template with the specified column name resolver.
+     *
+     * @param columnNameResolver the column name resolver.
+     * @return a new jpa statement template.
+     */
+    @Override
+    public JpaTemplate withColumnNameResolver(@Nullable ColumnNameResolver columnNameResolver) {
+        return new JpaTemplateImpl(templateProcessor, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, providerFilter);
+    }
+
+    /**
+     * Returns a new jpa statement template with the specified foreign key resolver.
+     *
+     * @param foreignKeyResolver the foreign key resolver.
+     * @return a new jpa statement template.
+     */
+    @Override
+    public JpaTemplate withForeignKeyResolver(@Nullable ForeignKeyResolver foreignKeyResolver) {
+        return new JpaTemplateImpl(templateProcessor, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, providerFilter);
+    }
+
+    /**
+     * Returns a new JPA template with the specified table alias resolver.
+     *
+     * @param tableAliasResolver the table alias resolver.
+     * @return a new JPA template.
+     */
+    @Override
+    public JpaTemplate withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver) {
+        return new JpaTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter);
+    }
+
+    /**
+     * Returns a new jpa statement template with the specified provider filter.
+     *
+     * @param providerFilter the provider filter.
+     * @return a new jpa statement template.
+     */
+    @Override
+    public JpaTemplate withProviderFilter(@Nullable Predicate<Provider> providerFilter) {
+        return new JpaTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter);
+    }
+
     private class JpaPreparedQuery implements PreparedQuery {
         private final StringTemplate template;
         private final boolean safe;
 
-        public JpaPreparedQuery(StringTemplate template, boolean safe) {
+        public JpaPreparedQuery(@Nonnull StringTemplate template, boolean safe) {
             this.template = template;
             this.safe = safe;
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KBatchCallback;
 import st.orm.kotlin.KResultCallback;
+import st.orm.kotlin.template.KModel;
 import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.repository.Entity;
 
@@ -39,6 +40,14 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * @return the entity model.
      */
     KModel<E, ID> model();
+
+    /**
+     * Creates a new lazy entity instance with the specified entity.
+     *
+     * @param entity the entity.
+     * @return a lazy entity instance.
+     */
+    Lazy<E, ID> lazy(@Nullable E entity);
 
     /**
      * Creates a new lazy entity instance with the specified primary key.

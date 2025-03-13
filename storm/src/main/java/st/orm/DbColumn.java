@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,7 +42,10 @@ public @interface DbColumn {
     String name() default "";
 
     /**
-     * Whether to escape the name.
+     * True to force escaping the column name.
+     *
+     * <p>Note that the column name is automatically escaped if it contains special characters or is a reserved
+     * keyword.</p>
      */
     boolean escape() default false;
 }

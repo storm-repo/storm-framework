@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -98,6 +98,14 @@ public interface PreparedStatementTemplate {
      * @return a new prepared statement template.
      */
     PreparedStatementTemplate withForeignKeyResolver(@Nonnull ForeignKeyResolver foreignKeyResolver);
+
+    /**
+     * Returns a new prepared statement template with the specified table alias resolver.
+     *
+     * @param tableAliasResolver the table alias resolver.
+     * @return a new prepared statement template.
+     */
+    PreparedStatementTemplate withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver);
 
     /**
      * Returns a new prepared statement template with the specified provider filter.

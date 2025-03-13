@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import st.orm.template.Model;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryTemplate;
 import st.orm.template.impl.Elements.Where;
-import st.orm.template.impl.SqlTemplateImpl.Join;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -134,14 +133,14 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
 
     private StringTemplate toStringTemplate() {
         StringTemplate template = StringTemplate.combine(StringTemplate.of(STR."SELECT \{distinct ? "DISTINCT " : ""}"));
-        if (SQL_DIALECT.applyLimitAfterSelect()) {
+        if (queryTemplate.dialect().applyLimitAfterSelect()) {
             if (limit != null && offset == null) {
-                template = StringTemplate.combine(template, StringTemplate.of(SQL_DIALECT.limit(limit)), RAW." ");
+                template = StringTemplate.combine(template, StringTemplate.of(queryTemplate.dialect().limit(limit)), RAW." ");
             }
         }
         template = StringTemplate.combine(template, selectTemplate, RAW."\nFROM \{from(fromType, true)}");
         boolean hasLock = forLock.fragments().size() == 1 && !forLock.fragments().getFirst().isEmpty();
-        if (hasLock && SQL_DIALECT.applyLockHintAfterFrom()) {
+        if (hasLock && queryTemplate.dialect().applyLockHintAfterFrom()) {
             template = StringTemplate.combine(template, RAW."\n", forLock);
         }
         //noinspection DuplicatedCode
@@ -161,17 +160,17 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
         if (!templates.isEmpty()) {
             template = StringTemplate.combine(template, StringTemplate.combine(templates));
         }
-        if (!SQL_DIALECT.applyLimitAfterSelect()) {
+        if (!queryTemplate.dialect().applyLimitAfterSelect()) {
             if (limit != null && offset == null) {
-                template = StringTemplate.combine(template, RAW."\n", StringTemplate.of(SQL_DIALECT.limit(limit)));
+                template = StringTemplate.combine(template, RAW."\n", StringTemplate.of(queryTemplate.dialect().limit(limit)));
             }
         }
         if (limit != null && offset != null) {
-            template = StringTemplate.combine(template, RAW."\n", StringTemplate.of(SQL_DIALECT.limit(offset, limit)));
+            template = StringTemplate.combine(template, RAW."\n", StringTemplate.of(queryTemplate.dialect().limit(offset, limit)));
         } else if (offset != null) {
-            template = StringTemplate.combine(template, RAW."\n", StringTemplate.of(SQL_DIALECT.offset(offset)));
+            template = StringTemplate.combine(template, RAW."\n", StringTemplate.of(queryTemplate.dialect().offset(offset)));
         }
-        if (hasLock && !SQL_DIALECT.applyLockHintAfterFrom()) {
+        if (hasLock && !queryTemplate.dialect().applyLockHintAfterFrom()) {
             template = StringTemplate.combine(template, RAW."\n", forLock);
         }
         return template;
@@ -216,7 +215,7 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
      */
     @Override
     public QueryBuilder<T, R, ID> forShare() {
-        return forLock(StringTemplate.of(SQL_DIALECT.forShareLockHint()));
+        return forLock(StringTemplate.of(queryTemplate.dialect().forShareLockHint()));
     }
 
     /**
@@ -229,7 +228,7 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
      */
     @Override
     public QueryBuilder<T, R, ID> forUpdate() {
-        return forLock(StringTemplate.of(SQL_DIALECT.forUpdateLockHint()));
+        return forLock(StringTemplate.of(queryTemplate.dialect().forUpdateLockHint()));
     }
 
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,14 +23,16 @@ import st.orm.Lazy;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KResultCallback;
-import st.orm.kotlin.repository.KModel;
+import st.orm.kotlin.template.KModel;
 import st.orm.kotlin.repository.KProjectionRepository;
 import st.orm.kotlin.template.KORMTemplate;
 import st.orm.kotlin.template.KQueryBuilder;
+import st.orm.kotlin.template.impl.KModelImpl;
 import st.orm.kotlin.template.impl.KORMTemplateImpl;
 import st.orm.kotlin.template.impl.KQueryBuilderImpl;
 import st.orm.repository.Projection;
 import st.orm.repository.ProjectionRepository;
+import st.orm.template.impl.ModelImpl;
 
 import java.util.Iterator;
 import java.util.List;
@@ -68,7 +70,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      */
     @Override
     public KModel<P, ID> model() {
-        return new KModel<>(projectionRepository.model());
+        return new KModelImpl<>((ModelImpl<P, ID>) projectionRepository.model());
     }
 
     /**

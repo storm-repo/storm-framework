@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,7 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
-import st.orm.spi.Providers;
-import st.orm.spi.SqlDialect;
+import st.orm.template.SqlDialect;
 import st.orm.template.SqlTemplate;
 import st.orm.template.impl.Elements.Unsafe;
 
@@ -37,8 +36,6 @@ import static st.orm.template.impl.SqlParser.SqlMode.UPDATE;
  * SQL parser for basic SQL processing.
  */
 final class SqlParser {
-
-    private static final SqlDialect SQL_DIALECT = Providers.getSqlDialect();
 
     /**
      * Represents the SQL mode.
@@ -146,29 +143,29 @@ final class SqlParser {
      * @param template the string template.
      * @return the SQL mode.
      */
-    static SqlMode getSqlMode(@Nonnull StringTemplate template) {
+    static SqlMode getSqlMode(@Nonnull StringTemplate template, @Nonnull SqlDialect dialect) {
         String rawSql = getRawSql(template);
         SqlMode mode = getSqlMode(rawSql);  // First try directly.
         if (mode != UNDEFINED) {
             return mode;
         }
-        rawSql = removeComments(rawSql).stripLeading();
+        rawSql = removeComments(rawSql, dialect).stripLeading();
         mode = getSqlMode(rawSql);  // Remove potential leading comments and retry.
         if (mode != UNDEFINED) {
             return mode;
         }
         if (WITH_PATTERN.matcher(rawSql).matches()) {   // Remove potential WITH clause and retry.
-            mode = getSqlMode(removeWithClause(rawSql));
+            mode = getSqlMode(removeWithClause(rawSql, dialect));
         }
         return mode;
     }
 
-    static boolean hasWhereClause(@Nonnull String sql) {
-        return WHERE_PATTERN.matcher(clearStringLiterals(clearQuotedIdentifiers(removeComments(sql)))).find();
+    static boolean hasWhereClause(@Nonnull String sql, @Nonnull SqlDialect dialect) {
+        return WHERE_PATTERN.matcher(clearStringLiterals(clearQuotedIdentifiers(removeComments(sql, dialect), dialect), dialect)).find();
     }
 
-    private static String removeWithClause(String sql) {
-        sql = clearStringLiterals(clearQuotedIdentifiers(sql));
+    private static String removeWithClause(@Nonnull String sql, @Nonnull SqlDialect dialect) {
+        sql = clearStringLiterals(clearQuotedIdentifiers(sql, dialect), dialect);
         assert sql.trim().toUpperCase().startsWith("WITH");
         int depth = 0; // Depth of nested parentheses.
         int startIndex = sql.indexOf('('); // Find the first opening parenthesis.
@@ -206,13 +203,14 @@ final class SqlParser {
      * Removes both single-line and multi-line comments from a SQL string.
      *
      * @param sql the original SQL string.
+     * @param dialect the SQL dialect.
      * @return the SQL string with comments removed.
      */
-    static String removeComments(@Nonnull String sql) {
+    static String removeComments(@Nonnull String sql, @Nonnull SqlDialect dialect) {
         // Remove multi-line comments, then single-line comments.
         return replaceAll(
-                replaceAll(sql, SQL_DIALECT.getMultiLineCommentPattern(), ""),
-                    SQL_DIALECT.getSingleLineCommentPattern(), "");
+                replaceAll(sql, dialect.getMultiLineCommentPattern(), ""),
+                    dialect.getSingleLineCommentPattern(), "");
     }
 
     /**
@@ -221,20 +219,22 @@ final class SqlParser {
      * <p>This is roughly analogous to removing the content of double-quoted identifiers
      * in an ANSI SQL statement while leaving "" as a placeholder.</p>
      *
-     * @param sql the original SQL string
-     * @return the modified SQL string
+     * @param sql the original SQL string.
+     * @param dialect the SQL dialect.
+     * @return the modified SQL string.
      */
-    static String clearQuotedIdentifiers(@Nonnull String sql) {
-        return replaceAll(sql, SQL_DIALECT.getIdentifierPattern(), SQL_DIALECT.escape(""));
+    static String clearQuotedIdentifiers(@Nonnull String sql, @Nonnull SqlDialect dialect) {
+        return replaceAll(sql, dialect.getIdentifierPattern(), dialect.escape(""));
     }
 
     /**
      * Replaces all single-quoted string literals with an empty string literal ('').
      *
-     * @param sql the original SQL string
-     * @return the modified SQL string
+     * @param sql the original SQL string.
+     * @param dialect the SQL dialect.
+     * @return the modified SQL string.
      */
-    static String clearStringLiterals(@Nonnull String sql) {
-        return replaceAll(sql, SQL_DIALECT.getQuoteLiteralPattern(), "''");
+    static String clearStringLiterals(@Nonnull String sql, @Nonnull SqlDialect dialect) {
+        return replaceAll(sql, dialect.getQuoteLiteralPattern(), "''");
     }
 }

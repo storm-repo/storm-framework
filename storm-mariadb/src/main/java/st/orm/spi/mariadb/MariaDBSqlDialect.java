@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,4 +18,15 @@ package st.orm.spi.mariadb;
 import st.orm.spi.mysql.MySQLSqlDialect;
 
 public class MariaDBSqlDialect extends MySQLSqlDialect {
+
+    /**
+     * Returns the name of the SQL dialect.
+     *
+     * @return the name of the SQL dialect.
+     * @since 1.2
+     */
+    @Override
+    public String name() {
+        return "MariaDB";
+    }
 }

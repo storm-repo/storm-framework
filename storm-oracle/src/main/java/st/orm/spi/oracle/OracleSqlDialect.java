@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ package st.orm.spi.oracle;
 
 import jakarta.annotation.Nonnull;
 import st.orm.spi.DefaultSqlDialect;
-import st.orm.spi.SqlDialect;
+import st.orm.template.SqlDialect;
 import st.orm.template.SqlTemplateException;
 
 import java.util.LinkedHashSet;
@@ -26,21 +26,80 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toSet;
 
 public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
 
+    /**
+     * Returns the name of the SQL dialect.
+     *
+     * @return the name of the SQL dialect.
+     * @since 1.2
+     */
+    @Override
+    public String name() {
+        return "Oracle";
+    }
+
+    /**
+     * Indicates whether the SQL dialect supports delete aliases.
+     *
+     * <p>Delete aliases allow delete statements to use table aliases in joins,  making it easier to filter rows based
+     * on related data.</p>
+     *
+     * @return {@code true} if delete aliases are supported, {@code false} otherwise.
+     */
     @Override
     public boolean supportsDeleteAlias() {
         // Oracle doesn't allow table aliases in DELETE.
         return false;
     }
 
+    /**
+     * Indicates whether the SQL dialect supports multi-value tuples in the IN clause.
+     *
+     * @return {@code true} if multi-value tuples are supported, {@code false} otherwise.
+     * @since 1.2
+     */
     @Override
     public boolean supportsMultiValueTuples() {
         // Oracle supports multi-column IN (col1, col2) IN ((v1_1, v1_2), ...).
         return true;
+    }
+
+    private static final Pattern ORACLE_IDENTIFIER = Pattern.compile("^[A-Za-z][A-Za-z0-9_]*$");
+
+    /**
+     * Returns the pattern for valid identifiers.
+     *
+     * @return the pattern for valid identifiers.
+     * @since 1.2
+     */
+    @Override
+    public Pattern getValidIdentifierPattern() {
+        return ORACLE_IDENTIFIER;
+    }
+
+    private static final Set<String> ORACLE_RESERVED = Stream.concat(ANSI_KEYWORDS.stream(), Stream.of(
+            "ACCESS", "AUDIT", "CLUSTER", "COMMENT", "COMPRESS", "EXCLUSIVE", "FILE",
+            "IDENTIFIED", "INCREMENT", "INITIAL", "INTERSECT", "LOCK", "LONG", "MAXEXTENTS",
+            "MLSLABEL", "MODE", "MODIFY", "NOWAIT", "OFFLINE", "ONLINE", "PCTFREE",
+            "RAW", "ROWID", "ROWNUM", "SESSION", "SHARE", "SUCCESSFUL", "SYNONYM",
+            "UID", "VALIDATE", "VARCHAR2", "VIEW")).collect(toSet());
+
+    /**
+     * Indicates whether the given name is a keyword in this SQL dialect.
+     *
+     * @param name the name to check.
+     * @return {@code true} if the name is a keyword, {@code false} otherwise.
+     * @since 1.2
+     */
+    @Override
+    public boolean isKeyword(@Nonnull String name) {
+        return ORACLE_RESERVED.contains(name.toUpperCase());
     }
 
     @Override

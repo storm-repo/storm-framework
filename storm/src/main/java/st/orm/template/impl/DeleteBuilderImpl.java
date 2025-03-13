@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import st.orm.template.Model;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryTemplate;
 import st.orm.template.impl.Elements.Where;
-import st.orm.template.impl.SqlTemplateImpl.Join;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -95,7 +94,7 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
      */
     protected boolean supportsJoin() {
         // Only use joins if DELETE alias is supported by the SQL dialect.
-        return SQL_DIALECT.supportsDeleteAlias();
+        return queryTemplate.dialect().supportsDeleteAlias();
     }
 
     /**
@@ -175,10 +174,9 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
                 .filter(Column::primaryKey)
                 .map(c -> {
                     if (alias) {
-                        return StringTemplate.combine(RAW."\{fromType}.", StringTemplate.of(c.columnName()));
-                    } else {
-                        return StringTemplate.of(c.columnName());
+                        return StringTemplate.combine(RAW."\{fromType}.", StringTemplate.of(c.qualifiedName(queryTemplate.dialect())));
                     }
+                    return StringTemplate.of(c.qualifiedName(queryTemplate.dialect()));
                 })
                 .reduce((a, b) -> StringTemplate.combine(a, RAW.", ", b))
                 .orElseThrow(() -> new PersistenceException(STR."No primary key found for table: \{fromType.getSimpleName()}."));

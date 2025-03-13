@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package st.orm.spi.mariadb;
 
 import st.orm.spi.Provider;
+import st.orm.spi.SqlDialectProvider;
 
 import java.util.function.Predicate;
 
@@ -31,6 +32,10 @@ public final class MariaDBProviderFilter implements Predicate<Provider> {
     
     @Override
     public boolean test(Provider provider) {
+        if (!(provider instanceof SqlDialectProvider)) {
+            // Only filter providers that implement the SqlDialectProvider interface.
+            return true;
+        }
         return provider instanceof MariaDBEntityRepositoryProviderImpl;
     }
 }

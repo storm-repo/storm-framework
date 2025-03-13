@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,6 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import st.orm.PersistenceException;
 import st.orm.template.Model;
-import st.orm.spi.Providers;
-import st.orm.spi.SqlDialect;
 import st.orm.template.JoinType;
 import st.orm.template.Metamodel;
 import st.orm.template.Operator;
@@ -32,7 +30,6 @@ import st.orm.template.impl.Elements.TemplateExpression;
 import st.orm.template.impl.Elements.TemplateSource;
 import st.orm.template.impl.Elements.TemplateTarget;
 import st.orm.template.impl.Elements.Where;
-import st.orm.template.impl.SqlTemplateImpl.Join;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -56,8 +53,6 @@ import static st.orm.template.Operator.IN;
  * @param <ID> the type of the primary key.
  */
 abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T, R, ID> implements Subqueryable {
-
-    protected final static SqlDialect SQL_DIALECT = Providers.getSqlDialect();
 
     protected final QueryTemplate queryTemplate;
     protected final Class<T> fromType;

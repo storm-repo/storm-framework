@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,13 +30,13 @@ import jakarta.annotation.Nonnull;
  * interface UserRepository extends EntityRepository<User, Integer> {
  *     default Optional<User> findByName(String name) {
  *         return select().
- *             .where(User_.name, EQUALS, name)
+ *             .where(User_.name, EQUALS, name) // Type-safe metamodel.
  *             .getOptionalResult();
  *     }
  *
  *     default List<User> findByCity(City city) {
  *         return select().
- *             .where(User_city, city)
+ *             .where(User_.city, city) // Type-safe metamodel.
  *             .getResultList();
  *     }
  * }}</pre>

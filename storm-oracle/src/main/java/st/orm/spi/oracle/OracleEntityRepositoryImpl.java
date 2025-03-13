@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@ public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> exten
     }
 
     private String getVersionString(@Nonnull Column column) {
-        String columnName = column.columnName();
+        String columnName = column.qualifiedName(ormTemplate.dialect());
         String updateExpression = switch (column.type()) {
             case Class<?> c when Integer.TYPE.isAssignableFrom(c)
                     || Long.TYPE.isAssignableFrom(c)
@@ -83,10 +83,11 @@ public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> exten
     }
 
     private StringTemplate mergeSelect(@Nonnull E entity) {
+        var dialect = ormTemplate.dialect();
         var values = model.getValues(entity);
         var duplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alon fields. Only include them once.
         return values.entrySet().stream()
-                .filter(entry -> duplicates.add(entry.getKey().columnName()))
+                .filter(entry -> duplicates.add(entry.getKey().name()))
                 .map(entry -> {
                     Column column = entry.getKey();
                     Object value = entry.getValue();
@@ -96,7 +97,7 @@ public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> exten
                             value = null;   // Always pass NULL for auto-generated primary keys to force a mismatch.
                         }
                     }
-                    return combine(RAW."\{value}", StringTemplate.of(STR." AS \{column.columnName()}"));
+                    return combine(RAW."\{value}", StringTemplate.of(STR." AS \{column.qualifiedName(dialect)}"));
                 })
                 .reduce((left, right) -> combine(left, RAW.", ", right))
                 .map(t -> combine(RAW."SELECT ", t, RAW." FROM DUAL"))
@@ -104,40 +105,43 @@ public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> exten
     }
 
     private StringTemplate mergeSelect(@Nonnull BindVars bindVars) {
+        var dialect = ormTemplate.dialect();
         var values = new AtomicReference<Map<Column, ?>>();
         //noinspection unchecked
         bindVars.setRecordListener(record -> values.setPlain(model.getValues((E) record)));
         var duplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alon fields. Only include them once.
         return model.columns().stream()
-                .filter(column -> duplicates.add(column.columnName()))
-                .map(c -> combine(RAW."\{var(bindVars, _ -> values.getPlain().get(c))}", StringTemplate.of(STR." AS \{c.columnName()}")))
+                .filter(column -> duplicates.add(column.name()))
+                .map(c -> combine(RAW."\{var(bindVars, _ -> values.getPlain().get(c))}", StringTemplate.of(STR." AS \{c.qualifiedName(dialect)}")))
                 .reduce((left, right) -> combine(left, RAW.", ", right))
                 .map(t -> combine(RAW."SELECT ", t, RAW." FROM DUAL"))
                 .orElseThrow();
     }
 
     private StringTemplate mergeOn() {
+        var dialect = ormTemplate.dialect();
         var primaryKeys = model.columns().stream()
                 .filter(Column::primaryKey)
                 .toList();
         String sql = primaryKeys.stream()
-                .map(c -> STR."t.\{c.columnName()} = src.\{c.columnName()}")
+                .map(c -> STR."t.\{c.qualifiedName(dialect)} = src.\{c.qualifiedName(dialect)}")
                 .collect(joining(" AND "));
         return StringTemplate.of(sql);
     }
 
     private StringTemplate mergeUpdate(@Nonnull AtomicBoolean versionAware) {
+        var dialect = ormTemplate.dialect();
         var duplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alon fields. Only include them once.
         var args = model.columns().stream()
                 .filter(not(Column::primaryKey))
                 .filter(Column::updatable)
-                .filter(column -> duplicates.add(column.columnName()))
+                .filter(column -> duplicates.add(column.name()))
                 .map(column -> {
                     if (column.version()) {
                         versionAware.setPlain(true);
                         return getVersionString(column);
                     }
-                    return STR."t.\{column.columnName()} = src.\{column.columnName()}";
+                    return STR."t.\{column.name()} = src.\{column.qualifiedName(dialect)}";
                 })
                 .toList();
         if (args.isEmpty()) {
@@ -148,17 +152,18 @@ public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> exten
     }
 
     private StringTemplate mergeInsert() {
+        var dialect = ormTemplate.dialect();
         var insertDuplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alon fields. Only include them once.
         var insertArgs = model.columns().stream()
                 .filter(c -> !c.primaryKey() || !c.autoGenerated())
-                .filter(column -> insertDuplicates.add(column.columnName()))
-                .map(c -> STR."\{c.columnName()}")
+                .filter(column -> insertDuplicates.add(column.name()))
+                .map(c -> STR."\{c.qualifiedName(dialect)}")
                 .toList();
         var valuesDuplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alon fields. Only include them once.
         var valuesArgs = model.columns().stream()
                 .filter(c -> !c.primaryKey() || !c.autoGenerated())
-                .filter(column -> valuesDuplicates.add(column.columnName()))
-                .map(c -> STR."src.\{c.columnName()}")
+                .filter(column -> valuesDuplicates.add(column.name()))
+                .map(c -> STR."src.\{c.qualifiedName(dialect)}")
                 .toList();
         assert insertArgs.size() == valuesArgs.size();
         if (insertArgs.isEmpty()) {

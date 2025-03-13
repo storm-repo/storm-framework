@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spi;
+package st.orm.template;
 
 import jakarta.annotation.Nonnull;
-import st.orm.template.SqlTemplateException;
 
 import java.util.List;
 import java.util.Map;
@@ -29,6 +28,14 @@ import java.util.regex.Pattern;
  * @since 1.1
  */
 public interface SqlDialect {
+
+    /**
+     * Returns the name of the SQL dialect.
+     *
+     * @return the name of the SQL dialect.
+     * @since 1.2
+     */
+    String name();
 
     /**
      * Indicates whether the SQL dialect supports delete aliases.
@@ -49,12 +56,44 @@ public interface SqlDialect {
     boolean supportsMultiValueTuples();
 
     /**
+     * Returns the pattern for valid identifiers.
+     *
+     * @return the pattern for valid identifiers.
+     * @since 1.2
+     */
+    Pattern getValidIdentifierPattern();
+
+    /**
+     * Indicates whether the given name is a keyword in this SQL dialect.
+     *
+     * @param name the name to check.
+     * @return {@code true} if the name is a keyword, {@code false} otherwise.
+     * @since 1.2
+     */
+    boolean isKeyword(@Nonnull String name);
+
+    /**
      * Escapes the given database identifier (e.g., table or column name) according to this SQL dialect.
      *
      * @param name the identifier to escape (must not be {@code null})
      * @return the escaped identifier
      */
     String escape(@Nonnull String name);
+
+    /**
+     * Returns a safe identifier for the given name, possibly escaping it if it is a keyword or contains invalid
+     * characters.
+     *
+     * @param name the name to check.
+     * @return a safe identifier for the given name.
+     * @since 1.2
+     */
+    default String getSafeIdentifier(String name) {
+        if (isKeyword(name) || !getValidIdentifierPattern().matcher(name).matches()) {
+            return escape(name);
+        }
+        return name;
+    }
 
     /**
      * Returns the pattern for single line comments.

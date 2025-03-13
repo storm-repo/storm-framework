@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.PersistenceException;
+import st.orm.template.SqlDialect;
 import st.orm.template.Column;
 import st.orm.template.Model;
 import st.orm.template.SqlTemplateException;
@@ -26,25 +27,59 @@ import java.util.List;
 import java.util.SequencedMap;
 
 import static java.util.List.copyOf;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Represents the model of an entity or projection.
  *
  * @param <E> the type of the entity or projection.
  * @param <ID> the type of the primary key, or {@code Void} in case of a projection without a primary key.
- * @param name the name of the table or view, may include the schema.
- * @param type the Java type of the entity or projection.
- * @param primaryKeyType the Java type of the primary key.
+ * @param tableName the name of the table or view.
+ * @param type the type of the entity or projection.
+ * @param primaryKeyType the type of the primary key.
  * @param columns an immutable list of columns in the entity or projection.
  */
 public record ModelImpl<E extends Record, ID>(
-        @Nonnull String name,
+        @Nonnull TableName tableName,
         @Nonnull Class<E> type,
         @Nonnull Class<ID> primaryKeyType,
         @Nonnull List<Column> columns) implements Model<E, ID> {
 
     public ModelImpl {
+        requireNonNull(tableName, "tableName");
+        requireNonNull(type, "type");
+        requireNonNull(primaryKeyType, "primaryKeyType");
         columns = copyOf(columns); // Defensive copy.
+    }
+
+    /**
+     * Returns the schema, or empty String if the schema is not specified.
+     *
+     * @return the schema, or empty String if the schema is not specified.
+     */
+    @Override
+    public String schema() {
+        return tableName.schema();
+    }
+
+    /**
+     * Returns the name of the table or view.
+     *
+     * @return the name of the table or view.
+     */
+    @Override
+    public String name() {
+        return tableName.name();
+    }
+
+    /**
+     * Returns the qualified name of the table or view, including the schema and escape characters where necessary.
+     *
+     * @return the qualified name of the table or view, including the schema and escape characters where necessary.
+     */
+    @Override
+    public String qualifiedName(@Nonnull SqlDialect dialect) {
+        return tableName.getQualifiedName(dialect);
     }
 
     /**

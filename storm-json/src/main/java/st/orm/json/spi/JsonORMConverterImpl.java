@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,10 +21,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.json.Json;
+import st.orm.spi.Name;
 import st.orm.spi.ORMConverter;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
-import st.orm.template.ColumnNameResolver;
 import st.orm.template.SqlTemplateException;
 
 import java.lang.reflect.RecordComponent;
@@ -59,6 +59,11 @@ public class JsonORMConverterImpl implements ORMConverter {
     }
 
     @Override
+    public int getParameterCount() {
+        return 1;
+    }
+
+    @Override
     public List<Class<?>> getParameterTypes() {
         return List.of(String.class);
     }
@@ -74,8 +79,8 @@ public class JsonORMConverterImpl implements ORMConverter {
     }
 
     @Override
-    public List<String> getColumns(@Nonnull ColumnNameResolver columnNameResolver) throws SqlTemplateException {
-        return List.of(columnNameResolver.resolveColumnName(component));
+    public List<Name> getColumns(@Nonnull NameResolver nameResolver) throws SqlTemplateException {
+        return List.of(nameResolver.getName(component));
     }
 
     @Override

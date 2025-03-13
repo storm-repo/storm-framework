@@ -1,3 +1,18 @@
+/*
+ * Copyright 2024 - 2025 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
@@ -144,13 +159,14 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
                                                   @Nonnull Predicate<Column> columnFilter,
                                                   @Nonnull BiFunction<Column, Object, Boolean> callback) throws Throwable {
         var values = converter.getValues(record);
-        if (values.isEmpty()) {
-            throw new SqlTemplateException(STR."Converter returned no values for component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}'.");
+        int expected = converter.getParameterCount();
+        if (values.size() != expected) {
+            throw new SqlTemplateException(STR."Converter returned \{values.size()} values for component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}', but expected \{expected}.");
         }
         for (var value : values) {
-            Column col = model.columns().get(index.getAndIncrement());
-            if (columnFilter.test(col)) {
-                if (!callback.apply(col, value)) {
+            Column column = model.columns().get(index.getAndIncrement());
+            if (columnFilter.test(column)) {
+                if (!callback.apply(column, value)) {
                     return false;
                 }
             }

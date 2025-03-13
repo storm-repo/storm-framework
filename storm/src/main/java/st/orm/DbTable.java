@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,7 +46,10 @@ public @interface DbTable {
     String schema() default "";
 
     /**
-     * Whether to escape the schema.
+     * True to force escaping the schema and table name.
+     *
+     * <p>Note that the schema and table names are automatically escaped if they contain special characters or are a
+     * reserved keyword.</p>
      */
     boolean escape() default false;
 }

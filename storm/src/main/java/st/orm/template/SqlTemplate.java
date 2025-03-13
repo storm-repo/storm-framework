@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -243,6 +243,22 @@ public interface SqlTemplate {
      * @return the foreign key resolver that is used by this template.
      */
     ForeignKeyResolver foreignKeyResolver();
+
+    /**
+     * Returns a new SQL template with the specified SQL dialect.
+     *
+     * @param dialect the SQL dialect to use.
+     * @return a new SQL template.
+     */
+    SqlTemplate withDialect(SqlDialect dialect);
+
+    /**
+     * Returns the SQL dialect that is used by this template.
+     *
+     * @return the SQL dialect that is used by this template.
+     * @since 1.2
+     */
+    SqlDialect dialect();
 
     /**
      * Processes the specified {@code template} and returns the resulting SQL and parameters.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 package st.orm.template;
 
-import st.orm.template.impl.SqlTemplateImpl.DefaultJoinType;
+import st.orm.template.impl.DefaultJoinType;
 
 /**
  * Represents a join type in a SQL query.

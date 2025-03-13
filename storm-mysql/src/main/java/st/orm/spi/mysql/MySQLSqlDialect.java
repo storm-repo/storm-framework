@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ package st.orm.spi.mysql;
 
 import jakarta.annotation.Nonnull;
 import st.orm.spi.DefaultSqlDialect;
-import st.orm.spi.SqlDialect;
+import st.orm.template.SqlDialect;
 import st.orm.template.SqlTemplateException;
 
 import java.util.LinkedHashSet;
@@ -26,10 +26,23 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toSet;
 
 public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
+
+    /**
+     * Returns the name of the SQL dialect.
+     *
+     * @return the name of the SQL dialect.
+     * @since 1.2
+     */
+    @Override
+    public String name() {
+        return "MySQL";
+    }
 
     /**
      * Indicates whether the SQL dialect supports delete aliases.
@@ -54,6 +67,42 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
     public boolean supportsMultiValueTuples() {
         // Note that tuple IN is only supported as of MySQL 8.0.19. We will account for this in the future.
         return true;
+    }
+
+    private static final Pattern MYSQL_IDENTIFIER = Pattern.compile("^[_A-Za-z][_A-Za-z0-9]*$");
+
+    /**
+     * Returns the pattern for valid identifiers.
+     *
+     * @return the pattern for valid identifiers.
+     * @since 1.2
+     */
+    @Override
+    public Pattern getValidIdentifierPattern() {
+        return MYSQL_IDENTIFIER;
+    }
+
+    private static final Set<String> MYSQL_KEYWORDS = Stream.concat(ANSI_KEYWORDS.stream(), Stream.of(
+            "ACCESSIBLE", "CHANGE", "DATABASE", "DAY_HOUR", "DAY_MINUTE", "DAY_SECOND",
+            "DELAYED", "DISTINCTROW", "DIV", "ENCLOSED", "ESCAPED", "EXPLAIN", "FULLTEXT",
+            "HIGH_PRIORITY", "HOUR_MICROSECOND", "HOUR_SECOND", "IGNORE", "INFILE",
+            "INT1", "INT2", "INT3", "INT4", "INT8", "KEYS", "LINES", "LOAD", "LOW_PRIORITY",
+            "MATCH", "MEDIUMINT", "MIDDLEINT", "MODIFIES", "OPTION", "OPTIONALLY",
+            "OUTFILE", "PARTITION", "PRIVILEGES", "REQUIRE", "RESIGNAL", "SCHEMAS", "SHOW",
+            "SQL_BIG_RESULT", "SQL_CALC_FOUND_ROWS", "SQL_SMALL_RESULT", "STRAIGHT_JOIN",
+            "TERMINATED", "TINYINT", "UNSIGNED", "UTC_DATE", "UTC_TIME", "UTC_TIMESTAMP",
+            "XOR", "ZEROFILL")).collect(toSet());
+
+    /**
+     * Indicates whether the given name is a keyword in this SQL dialect.
+     *
+     * @param name the name to check.
+     * @return {@code true} if the name is a keyword, {@code false} otherwise.
+     * @since 1.2
+     */
+    @Override
+    public boolean isKeyword(@Nonnull String name) {
+        return MYSQL_KEYWORDS.contains(name.toUpperCase());
     }
 
     /**

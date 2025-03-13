@@ -1,3 +1,18 @@
+/*
+ * Copyright 2024 - 2025 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package st.orm.kotlin.template.impl;
 
 import jakarta.annotation.Nonnull;
@@ -7,12 +22,13 @@ import st.orm.BindVars;
 import st.orm.Lazy;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KQuery;
-import st.orm.kotlin.repository.KModel;
+import st.orm.kotlin.template.KModel;
 import st.orm.kotlin.template.KQueryTemplate;
 import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.QueryTemplate;
+import st.orm.template.impl.ModelImpl;
 
 import static java.util.Objects.requireNonNull;
 
@@ -40,7 +56,7 @@ public class KQueryTemplateImpl implements KQueryTemplate {
     @Override
     public <T extends Record, ID> KModel<T, ID> model(@Nonnull KClass<T> type) {
         //noinspection unchecked
-        return new KModel<>(orm.model((Class<T>) REFLECTION.getType(type)));
+        return new KModelImpl<>((ModelImpl<T, ID>) orm.model((Class<T>) REFLECTION.getType(type)));
     }
 
     @Override

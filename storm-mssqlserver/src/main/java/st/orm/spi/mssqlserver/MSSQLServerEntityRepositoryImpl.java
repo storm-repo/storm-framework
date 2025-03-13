@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,7 +70,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
      * for date/timestamp types CURRENT_TIMESTAMP is used.
      */
     private String getVersionString(@Nonnull Column column) {
-        String columnName = column.columnName();
+        String columnName = column.qualifiedName(ormTemplate.dialect());
         String updateExpression = switch (column.type()) {
             case Class<?> c when Integer.TYPE.isAssignableFrom(c)
                     || Long.TYPE.isAssignableFrom(c)
@@ -92,10 +92,11 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
      * (Note: Unlike Oracle, SQL Server does not require a FROM DUAL clause.)
      */
     private StringTemplate mergeSelect(@Nonnull E entity) {
+        var dialect = ormTemplate.dialect();
         var values = model.getValues(entity);
         var duplicates = new HashSet<>(); // Ensure each column appears only once.
         return values.entrySet().stream()
-                .filter(entry -> duplicates.add(entry.getKey().columnName()))
+                .filter(entry -> duplicates.add(entry.getKey().name()))
                 .map(entry -> {
                     Column column = entry.getKey();
                     Object value = entry.getValue();
@@ -105,7 +106,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
                             value = null;
                         }
                     }
-                    return combine(RAW."\{value}", StringTemplate.of(STR." AS \{column.columnName()}"));
+                    return combine(RAW."\{value}", StringTemplate.of(STR." AS \{column.qualifiedName(dialect)}"));
                 })
                 .reduce((left, right) -> combine(left, RAW.", ", right))
                 .map(t -> combine(RAW."SELECT ", t))
@@ -121,9 +122,9 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         bindVars.setRecordListener(record -> values.setPlain(model.getValues((E) record)));
         var duplicates = new HashSet<>();
         return model.columns().stream()
-                .filter(column -> duplicates.add(column.columnName()))
+                .filter(column -> duplicates.add(column.name()))
                 .map(c -> combine(RAW."\{var(bindVars, _ -> values.getPlain().get(c))}",
-                        StringTemplate.of(STR." AS \{c.columnName()}")))
+                        StringTemplate.of(STR." AS \{c.name()}")))
                 .reduce((left, right) -> combine(left, RAW.", ", right))
                 .map(t -> combine(RAW."SELECT ", t))
                 .orElseThrow();
@@ -133,11 +134,12 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
      * Constructs the ON clause by equating primary key columns.
      */
     private StringTemplate mergeOn() {
+        var dialect = ormTemplate.dialect();
         var primaryKeys = model.columns().stream()
                 .filter(Column::primaryKey)
                 .toList();
         String sql = primaryKeys.stream()
-                .map(c -> STR."t.\{c.columnName()} = src.\{c.columnName()}")
+                .map(c -> STR."t.\{c.qualifiedName(dialect)} = src.\{c.qualifiedName(dialect)}")
                 .collect(joining(" AND "));
         return StringTemplate.of(sql);
     }
@@ -146,50 +148,50 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
      * Constructs the UPDATE clause for the MERGE statement.
      */
     private StringTemplate mergeUpdate(@Nonnull AtomicBoolean versionAware) {
+        var dialect = ormTemplate.dialect();
         var duplicates = new HashSet<>();
         var args = model.columns().stream()
                 .filter(not(Column::primaryKey))
                 .filter(Column::updatable)
-                .filter(column -> duplicates.add(column.columnName()))
+                .filter(column -> duplicates.add(column.name()))
                 .map(column -> {
                     if (column.version()) {
                         versionAware.setPlain(true);
                         return getVersionString(column);
                     }
-                    return STR."t.\{column.columnName()} = src.\{column.columnName()}";
+                    return STR."t.\{column.qualifiedName(dialect)} = src.\{column.qualifiedName(dialect)}";
                 })
                 .toList();
         if (args.isEmpty()) {
             return StringTemplate.of("");
         }
         String sql = args.stream().collect(joining(", ", "UPDATE SET ", ""));
-        //noinspection StringOperationCanBeSimplified
-        return StringTemplate.of(STR."\nWHEN MATCHED THEN\n\t" + sql);
+        return StringTemplate.of(STR."\nWHEN MATCHED THEN\n\t\{sql}");
     }
 
     /**
      * Constructs the INSERT clause for the MERGE statement.
      */
     private StringTemplate mergeInsert() {
+        var dialect = ormTemplate.dialect();
         var insertDuplicates = new HashSet<>();
         var insertArgs = model.columns().stream()
                 .filter(c -> !c.primaryKey() || !c.autoGenerated())
-                .filter(column -> insertDuplicates.add(column.columnName()))
-                .map(Column::columnName)
+                .map(Column::name)
+                .filter(insertDuplicates::add)
                 .toList();
         var valuesDuplicates = new HashSet<>();
         var valuesArgs = model.columns().stream()
                 .filter(c -> !c.primaryKey() || !c.autoGenerated())
-                .filter(column -> valuesDuplicates.add(column.columnName()))
-                .map(c -> STR."src.\{c.columnName()}")
+                .filter(column -> valuesDuplicates.add(column.name()))
+                .map(c -> STR."src.\{c.qualifiedName(dialect)}")
                 .toList();
         if (insertArgs.isEmpty()) {
             return StringTemplate.of("");
         }
         String insertSql = String.join(", ", insertArgs);
         String valuesSql = String.join(", ", valuesArgs);
-        //noinspection StringOperationCanBeSimplified
-        String sql = STR."\n\tINSERT (" + insertSql + ")\n\tVALUES (" + valuesSql + ")";
+        String sql = STR."\n\tINSERT (\{insertSql})\n\tVALUES (\{valuesSql})";
         return StringTemplate.of(STR."\nWHEN NOT MATCHED THEN\{sql}");
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,23 +30,37 @@ import java.util.SequencedMap;
 public interface Model<E extends Record, ID> {
 
     /**
-     * Returns the name of the table or view, may include the schema.
+     * Returns the schema, or an empty String if the schema is not specified.
      *
-     * @return the name of the table or view, may include the schema.
+     * @return the schema, or an empty String if the schema is not specified.
+     */
+    String schema();
+
+    /**
+     * Returns the name of the table or view.
+     *
+     * @return the name of the table or view.
      */
     String name();
 
     /**
-     * Returns the Java type of the entity or projection.
+     * Returns the qualified name of the table or view, including the schema and escape characters where necessary.
      *
-     * @return the Java type of the entity or projection.
+     * @return the qualified name of the table or view, including the schema and escape characters where necessary.
+     */
+    String qualifiedName(@Nonnull SqlDialect dialect);
+
+    /**
+     * Returns the type of the entity or projection.
+     *
+     * @return the type of the entity or projection.
      */
     Class<E> type();
 
     /**
-     * Returns the Java type of the primary key.
+     * Returns the type of the primary key.
      *
-     * @return the Java type of the primary key.
+     * @return the type of the primary key.
      */
     Class<ID> primaryKeyType();
 

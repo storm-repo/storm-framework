@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 the original author or authors.
+ * Copyright 2024 - 2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,6 @@ import st.orm.PersistenceException;
 import st.orm.repository.Entity;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
-import st.orm.spi.SqlDialect;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
 import st.orm.template.SqlTemplateException;
@@ -37,6 +36,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -52,7 +52,6 @@ import static st.orm.spi.Providers.getORMConverter;
 final class RecordReflection {
 
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
-    private static final SqlDialect SQL_DIALECT = Providers.getSqlDialect();
 
     private RecordReflection() {
     }
@@ -188,7 +187,7 @@ final class RecordReflection {
         }
     }
 
-    private static final java.util.Map<RecordComponentKey, Class<? extends Record>> LAZY_RECORD_TYPE_CACHE = new ConcurrentHashMap<>();
+    private static final Map<RecordComponentKey, Class<? extends Record>> LAZY_RECORD_TYPE_CACHE = new ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")
     static Class<? extends Record> getLazyRecordType(@Nonnull RecordComponent component) throws SqlTemplateException {
@@ -226,8 +225,8 @@ final class RecordReflection {
      * @param tableNameResolver the table name resolver.
      * @return the table name for the specified record type.
      */
-    static String getTableName(@Nonnull Class<? extends Record> table,
-                               @Nullable TableNameResolver tableNameResolver) throws SqlTemplateException {
+    static TableName getTableName(@Nonnull Class<? extends Record> table,
+                                  @Nonnull TableNameResolver tableNameResolver) throws SqlTemplateException {
         String tableName = null;
         DbTable dbTable = REFLECTION.getAnnotation(table, DbTable.class);
         if (dbTable != null) {
@@ -243,24 +242,19 @@ final class RecordReflection {
             }
         }
         if (tableName == null) {
-            if (tableNameResolver != null) {
-                try {
-                    tableName = tableNameResolver.resolveTableName(table);
-                } catch (SqlTemplateException e) {
-                    throw new PersistenceException(e);
-                }
-            } else {
-                tableName = table.getSimpleName();
+            try {
+                tableName = tableNameResolver.resolveTableName(table);
+            } catch (SqlTemplateException e) {
+                throw new PersistenceException(e);
             }
         }
         if (dbTable != null) {
-            String schemaPrefix = "";
             if (!dbTable.schema().isEmpty()) {
-                schemaPrefix = (dbTable.escape() ? SQL_DIALECT.escape(dbTable.schema()) : dbTable.schema()) + '.';
+                return new TableName(tableName, dbTable.schema(), dbTable.escape());
             }
-            tableName = schemaPrefix + (dbTable.escape() ? SQL_DIALECT.escape(tableName) : tableName);
+            return new TableName(tableName, "", dbTable.escape());
         }
-        return tableName;
+        return new TableName(tableName, "", false);
     }
 
     private static Stream<String> getColumnNames(@Nonnull Annotation annotation) {
@@ -282,16 +276,12 @@ final class RecordReflection {
      * @param columnNameResolver the column name resolver.
      * @return the column name for the specified record component.
      */
-    static String getColumnName(@Nonnull RecordComponent component, @Nullable ColumnNameResolver columnNameResolver)
+    static ColumnName getColumnName(@Nonnull RecordComponent component, @Nonnull ColumnNameResolver columnNameResolver)
             throws SqlTemplateException {
-        String name = getColumnName(component, COLUMN_ANNOTATIONS).orElse(columnNameResolver != null
-                ? columnNameResolver.resolveColumnName(component)
-                : component.getName());
         DbColumn dbColumn = REFLECTION.getAnnotation(component, DbColumn.class);
-        if (dbColumn != null && dbColumn.escape()) {
-            name = SQL_DIALECT.escape(name);
-        }
-        return name;
+        String name = getPureColumnName(component, COLUMN_ANNOTATIONS)
+                .orElse(columnNameResolver.resolveColumnName(component));
+        return new ColumnName(name, dbColumn != null && dbColumn.escape());
     }
 
     /**
@@ -299,10 +289,26 @@ final class RecordReflection {
      * if present.
      *
      * @param component the record component to obtain the column name for.
+     * @param annotationTypes the column name annotations to consider.
      * @return the column name for the specified record component.
      */
-    static Optional<String> getColumnName(@Nonnull RecordComponent component,
-                                          @Nonnull List<Class<? extends Annotation>> annotationTypes)
+    static Optional<ColumnName> getColumnName(@Nonnull RecordComponent component,
+                                              @Nonnull List<Class<? extends Annotation>> annotationTypes)
+            throws SqlTemplateException {
+        DbColumn dbColumn = REFLECTION.getAnnotation(component, DbColumn.class);
+        return getPureColumnName(component, annotationTypes)
+                .map(name -> new ColumnName(name, dbColumn != null && dbColumn.escape()));
+    }
+
+    /**
+     * Returns the column name for the specified record component taking the column name resolver into account,
+     * if present. The column name is not escaped.
+     *
+     * @param component the record component to obtain the column name for.
+     * @return the column name for the specified record component.
+     */
+    private static Optional<String> getPureColumnName(@Nonnull RecordComponent component,
+                                                      @Nonnull List<Class<? extends Annotation>> annotationTypes)
             throws SqlTemplateException {
         var columNames = annotationTypes.stream()
                 .map(c -> REFLECTION.getAnnotation(component, c))
@@ -331,8 +337,8 @@ final class RecordReflection {
      * @return the column name for the specified record component.
      */
     @SuppressWarnings("unchecked")
-    static String getForeignKey(@Nonnull RecordComponent component,
-                                @Nullable ForeignKeyResolver foreignKeyResolver) throws SqlTemplateException {
+    static ColumnName getForeignKey(@Nonnull RecordComponent component,
+                                    @Nonnull ForeignKeyResolver foreignKeyResolver) throws SqlTemplateException {
         var columnName = getColumnName(component, FK_COLUMN_ANNOTATIONS);
         if (columnName.isPresent()) {
             return columnName.get();
@@ -340,13 +346,16 @@ final class RecordReflection {
         Class<? extends Record> recordType = Lazy.class.isAssignableFrom(component.getType())
                 ? getLazyRecordType(component)
                 : (Class<? extends Record>) component.getType();
-        if (foreignKeyResolver != null) {
-            return foreignKeyResolver.resolveColumnName(component, recordType);
-        }
-        throw new SqlTemplateException(STR."Cannot infer foreign key column name for entity \{component.getDeclaringRecord().getSimpleName()}. Specify a @DbName annotation or provide a foreign key resolver.");
+        DbColumn dbColumn = REFLECTION.getAnnotation(component, DbColumn.class);
+        String name = foreignKeyResolver.resolveColumnName(component, recordType);
+        return new ColumnName(name, dbColumn != null && dbColumn.escape());
     }
 
-    static void mapForeignKeys(@Nonnull TableMapper tableMapper, @Nonnull String alias, @Nonnull Class<? extends Record> rootTable, @Nonnull Class<? extends Record> table, @Nullable String path)
+    static void mapForeignKeys(@Nonnull TableMapper tableMapper,
+                               @Nonnull String alias,
+                               @Nonnull Class<? extends Record> rootTable,
+                               @Nonnull Class<? extends Record> table,
+                               @Nullable String path)
             throws SqlTemplateException {
         for (var component : table.getRecordComponents()) {
             if (REFLECTION.isAnnotationPresent(component, FK.class)) {
