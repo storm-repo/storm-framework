@@ -18,8 +18,8 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
           server-id: 'ossrh'
-          server-username: OSSRH_USERNAME
-          server-password: OSSRH_PASSWORD
+          server-username: ${{ secrets.OSSRH_USERNAME }}
+          server-password: ${{ secrets.OSSRH_PASSWORD }}
 
       - name: Build and publish
         run: mvn clean deploy -Dgpg.skip=false
