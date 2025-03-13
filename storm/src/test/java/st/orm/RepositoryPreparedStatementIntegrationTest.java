@@ -65,7 +65,7 @@ import static st.orm.template.Operator.IS_NULL;
 import static st.orm.template.ResolveScope.OUTER;
 import static st.orm.template.SqlInterceptor.consume;
 import static st.orm.template.TemplateFunction.template;
-import static st.orm.template.impl.SqlTemplateImpl.DefaultJoinType.INNER;
+import static st.orm.template.impl.DefaultJoinType.INNER;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)

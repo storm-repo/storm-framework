@@ -30,7 +30,6 @@ import st.orm.template.impl.Elements.TemplateExpression;
 import st.orm.template.impl.Elements.TemplateSource;
 import st.orm.template.impl.Elements.TemplateTarget;
 import st.orm.template.impl.Elements.Where;
-import st.orm.template.impl.SqlTemplateImpl.Join;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -26,11 +26,11 @@ import static java.util.Objects.requireNonNull;
 /**
  * SQL template processor that converts a {@link StringTemplate} into a SQL string using a {@link SqlDialect}.
  */
-final class DialectTemplate implements Processor<String, RuntimeException> {
+final class SqlDialectTemplate implements Processor<String, RuntimeException> {
 
     private final SqlDialect dialect;
 
-    public DialectTemplate(@Nonnull SqlDialect dialect) {
+    public SqlDialectTemplate(@Nonnull SqlDialect dialect) {
         this.dialect = requireNonNull(dialect);
     }
 

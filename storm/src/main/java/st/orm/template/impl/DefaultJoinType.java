@@ -13,36 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.template;
+package st.orm.template.impl;
 
-import st.orm.template.impl.DefaultJoinType;
+import jakarta.annotation.Nonnull;
+import st.orm.template.JoinType;
 
 /**
- * Represents a join type in a SQL query.
- *
- * <p>There are four default join types that can be accessed via the static methods. Alternatively, custom join types can
- * be created by implementing this interface.</p>
+ * Default implementation of the {@link JoinType} interface used to represent the default join types.
  */
-public interface JoinType {
+public enum DefaultJoinType implements JoinType {
+    INNER("INNER JOIN", true, false),
+    CROSS("CROSS JOIN", false, false),
+    LEFT("LEFT JOIN", true, true),
+    RIGHT("RIGHT JOIN", true, true);
 
-    /** The default inner join type. */
-    static JoinType inner() { return DefaultJoinType.INNER; }
+    private final String sql;
+    private final boolean on;
+    private final boolean outer;
 
-    /** The default cross join type. */
-    static JoinType cross() { return DefaultJoinType.CROSS; }
-
-    /** The default left join type. */
-    static JoinType left() { return DefaultJoinType.LEFT; }
-
-    /** The default right join type. */
-    static JoinType right() { return DefaultJoinType.RIGHT; }
+    DefaultJoinType(@Nonnull String sql, boolean on, boolean outer) {
+        this.sql = sql;
+        this.on = on;
+        this.outer = outer;
+    }
 
     /**
      * The SQL representation of the join type. For example, "INNER JOIN" or "LEFT JOIN".
      *
      * @return the SQL representation of the join type.
      */
-    String sql();
+    @Override
+    public String sql() {
+        return sql;
+    }
 
     /**
      * Whether the join type will be accompanied by an ON clause.
@@ -52,8 +55,9 @@ public interface JoinType {
      *
      * @return {@code true} if the join type will be accompanied by an ON clause, {@code false} otherwise.
      */
-    default boolean hasOnClause() {
-        return true;
+    @Override
+    public boolean hasOnClause() {
+        return on;
     }
 
     /**
@@ -64,7 +68,8 @@ public interface JoinType {
      *
      * @return {@code true} if the join type is an outer join, {@code false} otherwise.
      */
-    default boolean isOuter() {
-        return false;
+    @Override
+    public boolean isOuter() {
+        return outer;
     }
 }
