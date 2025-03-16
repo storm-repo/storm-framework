@@ -3,7 +3,7 @@ name: Publish to Maven Central
 on:
   push:
     tags:
-      - 'v*'  # Only triggers on version tags like v1.2.0
+      - 'v*'  # Only triggers on version tags like v1.2.1
 
 jobs:
   publish:
@@ -51,11 +51,7 @@ jobs:
         env:
           CENTRAL_USER_TOKEN: ${{ secrets.CENTRAL_USER_TOKEN }}
 
-      - name: Extract version from tag
-        id: get_version
-        run: echo "REVISION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
-
       - name: Publish package to Maven Central
-        run: mvn clean deploy -Drevision=${{ env.REVISION }} -Dgpg.skip=false -Dgpg.passphrase="${GPG_PASSPHRASE}" -DskipTests -B
+        run: mvn clean deploy -Dgpg.skip=false -Dgpg.passphrase="${GPG_PASSPHRASE}" -DskipTests -B
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}

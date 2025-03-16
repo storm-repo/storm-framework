@@ -28,25 +28,25 @@ Include the following dependencies in your project to start using Storm:
     <dependency>
         <groupId>st.orm</groupId>
         <artifactId>storm</artifactId>
-        <version>1.2.0</version>
+        <version>1.2.1</version>
         <scope>compile</scope>
     </dependency>
     <dependency> <!-- Include for JSON support. -->
         <groupId>st.orm</groupId>
         <artifactId>storm-json</artifactId>
-        <version>1.2.0</version>
+        <version>1.2.1</version>
         <scope>compile</scope>
     </dependency>
     <dependency> <!-- Spring Framework integration. -->
         <groupId>st.orm</groupId>
         <artifactId>storm-spring</artifactId>
-        <version>1.2.0</version>
+        <version>1.2.1</version>
         <scope>compile</scope>
     </dependency>
     <dependency> <!-- Optional database extensions. -->
         <groupId>st.orm</groupId>
         <artifactId>storm-oracle</artifactId>
-        <version>1.2.0</version>
+        <version>1.2.1</version>
         <scope>runtime</scope>
     </dependency>
 </dependencies>
@@ -61,7 +61,7 @@ Include the following dependency to generate a static metamodel for your entitie
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-metamodel-processor</artifactId>
-    <version>1.2.0</version>
+    <version>1.2.1</version>
     <scope>provided</scope>
 </dependency>
 ----
@@ -77,25 +77,25 @@ Include the following dependencies in your project to start using Storm:
     <dependency>
         <groupId>st.orm</groupId>
         <artifactId>storm</artifactId>
-        <version>1.2.0</version>
+        <version>1.2.1</version>
         <scope>compile</scope>
     </dependency>
     <dependency> <!-- Include for JSON support. -->
         <groupId>st.orm</groupId>
         <artifactId>storm-json</artifactId>
-        <version>1.2.0</version>
+        <version>1.2.1</version>
         <scope>compile</scope>
     </dependency>
     <dependency> <!-- Spring Framework integration. -->
         <groupId>st.orm</groupId>
         <artifactId>storm-spring</artifactId>
-        <version>1.2.0</version>
+        <version>1.2.1</version>
         <scope>compile</scope>
     </dependency>
     <dependency> <!-- Optional database extensions. -->
         <groupId>st.orm</groupId>
         <artifactId>storm-oracle</artifactId>
-        <version>1.2.0</version>
+        <version>1.2.1</version>
         <scope>runtime</scope>
     </dependency>
 </dependencies>
