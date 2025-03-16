@@ -190,7 +190,7 @@ public interface SqlTemplate {
      * @param resolver the table name resolver.
      * @return a new SQL template.
      */
-    SqlTemplate withTableNameResolver(TableNameResolver resolver);
+    SqlTemplate withTableNameResolver(@Nonnull TableNameResolver resolver);
 
     /**
      * Returns the table name resolver that is used by this template.
@@ -205,7 +205,7 @@ public interface SqlTemplate {
      * @param resolver the table alias resolver.
      * @return a new SQL template.
      */
-    SqlTemplate withTableAliasResolver(TableAliasResolver resolver);
+    SqlTemplate withTableAliasResolver(@Nonnull TableAliasResolver resolver);
 
     /**
      * Returns the table alias resolver that is used by this template.
@@ -220,7 +220,7 @@ public interface SqlTemplate {
      * @param resolver the column name resolver.
      * @return a new SQL template.
      */
-    SqlTemplate withColumnNameResolver(ColumnNameResolver resolver);
+    SqlTemplate withColumnNameResolver(@Nonnull ColumnNameResolver resolver);
 
     /**
      * Returns the column name resolver that is used by this template.
@@ -235,7 +235,7 @@ public interface SqlTemplate {
      * @param resolver the foreign key resolver.
      * @return a new SQL template.
      */
-    SqlTemplate withForeignKeyResolver(ForeignKeyResolver resolver);
+    SqlTemplate withForeignKeyResolver(@Nonnull ForeignKeyResolver resolver);
 
     /**
      * Returns the foreign key resolver that is used by this template.
@@ -250,7 +250,7 @@ public interface SqlTemplate {
      * @param dialect the SQL dialect to use.
      * @return a new SQL template.
      */
-    SqlTemplate withDialect(SqlDialect dialect);
+    SqlTemplate withDialect(@Nonnull SqlDialect dialect);
 
     /**
      * Returns the SQL dialect that is used by this template.

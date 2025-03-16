@@ -31,6 +31,9 @@ import st.orm.template.impl.AbstractLazy;
  *
  * <p>Lazy records are effectively immutable and can be used as keys in maps and sets. Equality is based on the primary
  * key of the record and the actual record instance will be fetched at most once.</p>
+ *
+ * @param <T> record type.
+ * @param <ID> primary key type.
  */
 public interface Lazy<T extends Record, ID> {
 

@@ -52,6 +52,55 @@ Include the following dependencies in your project to start using Storm:
 </dependencies>
 ----
 
+==== Static Metamodel Generation
+
+Include the following dependency to generate a static metamodel for your entities:
+
+[source,xml,indent=0]
+----
+<dependency>
+    <groupId>st.orm</groupId>
+    <artifactId>storm-metamodel-processor</artifactId>
+    <version>1.2.0</version>
+    <scope>provided</scope>
+</dependency>
+----
+Storm offers a flexible and layered approach to database interaction, catering to developers with varying needs and preferences. Whether you’re looking for minimal enhancements or a complete abstraction, Storm has you covered.
+
+=== Dependency Management
+
+Include the following dependencies in your project to start using Storm:
+
+[source,xml,indent=0]
+----
+<dependencies>
+    <dependency>
+        <groupId>st.orm</groupId>
+        <artifactId>storm</artifactId>
+        <version>1.2.0</version>
+        <scope>compile</scope>
+    </dependency>
+    <dependency> <!-- Include for JSON support. -->
+        <groupId>st.orm</groupId>
+        <artifactId>storm-json</artifactId>
+        <version>1.2.0</version>
+        <scope>compile</scope>
+    </dependency>
+    <dependency> <!-- Spring Framework integration. -->
+        <groupId>st.orm</groupId>
+        <artifactId>storm-spring</artifactId>
+        <version>1.2.0</version>
+        <scope>compile</scope>
+    </dependency>
+    <dependency> <!-- Optional database extensions. -->
+        <groupId>st.orm</groupId>
+        <artifactId>storm-oracle</artifactId>
+        <version>1.2.0</version>
+        <scope>runtime</scope>
+    </dependency>
+</dependencies>
+----
+
 === Level 0 - Parameter Binding
 Enhance your existing workflows using technologies like JDBC or JPA, while leveraging Storm for safe and efficient parameter binding. This level is ideal for developers who want to retain control over SQL execution but benefit from Storm’s binding capabilities.
 

@@ -30,11 +30,15 @@ public abstract class AbstractLazy<T extends Record, ID> implements Lazy<T, ID> 
 
     /**
      * Returns the primary key of the record, may be null if unknown.
+     *
+     * @return primary key.
      */
     protected abstract Class<T> type();
 
     /**
      * Returns true if the record has been fetched, false otherwise.
+     *
+     * @return true if fetched, false otherwise.
      */
     protected abstract boolean isFetched();
 

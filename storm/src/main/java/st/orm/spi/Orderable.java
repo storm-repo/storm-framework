@@ -26,6 +26,8 @@ import java.util.stream.Stream;
 
 /**
  * Interface for classes that can be ordered.
+ *
+ * @param <T> the type of the orderable class.
  */
 public interface Orderable<T extends Orderable<T>> {
 

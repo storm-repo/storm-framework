@@ -27,6 +27,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  *
  * <p>
  * The following numerical types are supported:
+ * </p>
  * <ul>
  *     <li>{@code int}</li>
  *     <li>{@code long}</li>
@@ -41,7 +42,6 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  *     <li>{@code java.util.Calendar}</li>
  *     <li>{@code java.sql.Timestamp}</li>
  * </ul>
- * </p>
  */
 @Target({RECORD_COMPONENT, PARAMETER})
 @Retention(RUNTIME)

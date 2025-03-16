@@ -8,7 +8,6 @@ module storm.kotlin {
     requires jakarta.annotation;
     requires kotlin.reflect;
     requires kotlin.stdlib;
-    requires annotations;
     uses st.orm.spi.ORMReflection;
     provides st.orm.spi.ORMReflectionProvider with st.orm.kotlin.spi.KORMReflectionProviderImpl;
 }

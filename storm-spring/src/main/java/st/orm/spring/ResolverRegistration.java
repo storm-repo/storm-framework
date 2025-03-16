@@ -18,11 +18,19 @@ package st.orm.spring;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.stereotype.Component;
 
+/**
+ * Registers a resolver bean in the Spring application context.
+ */
 @Component
 public class ResolverRegistration {
 
     private final ConfigurableListableBeanFactory beanFactory;
 
+    /**
+     * Creates a new {@link ResolverRegistration} instance.
+     *
+     * @param beanFactory the bean factory.
+     */
     public ResolverRegistration(ConfigurableListableBeanFactory beanFactory) {
         this.beanFactory = beanFactory;
     }
