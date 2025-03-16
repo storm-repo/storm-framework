@@ -3,16 +3,17 @@ name: Publish to Maven Central
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*'  # Only triggers on version tags like v1.2.0
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up Java 21
+      - name: Set up Java 21 and Maven Central credentials
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
@@ -23,25 +24,16 @@ jobs:
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
-      - name: Configure Maven settings.xml
+      - name: Import GPG key manually
         run: |
-          mkdir -p ~/.m2
-          cat > ~/.m2/settings.xml <<EOF
-          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
-                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
-            <servers>
-              <server>
-                <id>central</id>
-                <username>${{ secrets.CENTRAL_USERNAME }}</username>
-                <password>${{ secrets.CENTRAL_PASSWORD }}</password>
-              </server>
-            </servers>
-          </settings>
-          EOF
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --yes --import
+          gpg --list-keys
 
-      - name: Publish package
-        run: mvn clean deploy -Dgpg.skip=false
+      - name: Set GPG_TTY for batch mode
+        run: echo "GPG_TTY=$(tty)" >> $GITHUB_ENV
+
+      - name: Publish package to Maven Central
+        run: mvn clean deploy -Dgpg.skip=false -DskipTests -B
         env:
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
