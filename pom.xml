@@ -121,7 +121,8 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <updatePomFile>true</updatePomFile>
+                    <updatePomFile>false</updatePomFile>
+                    <flattenMode>resolveCiFriendliesOnly</flattenMode>
                 </configuration>
             </plugin>
             <plugin>
