@@ -175,7 +175,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @return a new SQL template.
      */
     @Override
-    public SqlTemplateImpl withTableNameResolver(TableNameResolver tableNameResolver) {
+    public SqlTemplateImpl withTableNameResolver(@Nonnull TableNameResolver tableNameResolver) {
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, dialect);
     }
 
@@ -196,7 +196,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @return a new SQL template.
      */
     @Override
-    public SqlTemplateImpl withTableAliasResolver(TableAliasResolver tableAliasResolver) {
+    public SqlTemplateImpl withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver) {
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder, tableAliasResolver, dialect);
     }
 
@@ -217,7 +217,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @return a new SQL template.
      */
     @Override
-    public SqlTemplateImpl withColumnNameResolver(ColumnNameResolver columnNameResolver) {
+    public SqlTemplateImpl withColumnNameResolver(@Nonnull ColumnNameResolver columnNameResolver) {
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, dialect);
     }
 
@@ -238,7 +238,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @return a new SQL template.
      */
     @Override
-    public SqlTemplateImpl withForeignKeyResolver(ForeignKeyResolver foreignKeyResolver) {
+    public SqlTemplateImpl withForeignKeyResolver(@Nonnull ForeignKeyResolver foreignKeyResolver) {
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, dialect);
     }
 
@@ -259,7 +259,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @return a new SQL template.
      */
     @Override
-    public SqlTemplate withDialect(SqlDialect dialect) {
+    public SqlTemplate withDialect(@Nonnull SqlDialect dialect) {
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder, tableAliasResolver, dialect);
     }
 

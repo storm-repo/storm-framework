@@ -43,21 +43,49 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+/**
+ * A {@link BeanFactoryPostProcessor} that scans the specified base packages for repository interfaces and registers
+ * them as beans in the bean factory. This allows repository interfaces to be autowired by the ORM framework.
+ */
 @Configuration
 public class RepositoryBeanFactoryPostProcessor implements BeanFactoryPostProcessor {
 
+    /**
+     * The name of the ORM template bean to use for repository autowiring. If not specified, the default ORM template
+     * bean will be used.
+     *
+     * @return the name of the ORM template bean.
+     */
     public String getORMTemplateBeanName() {
         return null;
     }
 
+    /**
+     * The name of the KORM template bean to use for repository autowiring. If not specified, the default KORM template
+     * bean will be used.
+     *
+     * @return the name of the KORM template bean.
+     */
     public String getKORMTemplateBeanName() {
         return null;
     }
 
+    /**
+     * The base packages to scan for repository interfaces. This is used to find all repository interfaces that should
+     * be autowired by the ORM framework. If not specified, no repositories will be autowired.
+     *
+     * @return the base packages to scan for repository interfaces.
+     */
     public String[] getRepositoryBasePackages() {
         return new String[0];
     }
 
+    /**
+     * The qualifier prefix to use for the repository beans. This is used to distinguish between multiple repository
+     * beans of the same type. The default is "primary".
+     *
+     * @return the qualifier prefix to use for the repository beans.
+     */
     public String getRepositoryPrefix() {
         return "primary";
     }
@@ -67,6 +95,12 @@ public class RepositoryBeanFactoryPostProcessor implements BeanFactoryPostProces
     // primarily for our own convenience. It is not required for the operation of the ORM framework.
     //
 
+    /**
+     * Scans the specified base packages for repository interfaces and registers them as beans in the bean factory.
+     *
+     * @param beanFactory the bean factory to register the repository beans with.
+     * @throws BeansException if an error occurs while registering the repository beans.
+     */
     @SuppressWarnings("unchecked")
     @Override
     public void postProcessBeanFactory(@Nonnull ConfigurableListableBeanFactory beanFactory) throws BeansException {
@@ -140,6 +174,11 @@ public class RepositoryBeanFactoryPostProcessor implements BeanFactoryPostProces
 
         private final AutowireCandidateResolver delegate;
 
+        /**
+         * Creates a new {@link RepositoryAutowireCandidateResolver} instance.
+         *
+         * @param delegate the delegate autowire candidate resolver.
+         */
         public RepositoryAutowireCandidateResolver(AutowireCandidateResolver delegate) {
             this.delegate = delegate;
         }

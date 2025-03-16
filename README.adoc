@@ -52,6 +52,20 @@ Include the following dependencies in your project to start using Storm:
 </dependencies>
 ----
 
+==== Static Metamodel Generation
+
+Include the following dependency to generate a static metamodel for your entities:
+
+[source,xml,indent=0]
+----
+<dependency>
+    <groupId>st.orm</groupId>
+    <artifactId>storm-metamodel-processor</artifactId>
+    <version>1.2.0</version>
+    <scope>provided</scope>
+</dependency>
+----
+
 === Level 0 - Parameter Binding
 Enhance your existing workflows using technologies like JDBC or JPA, while leveraging Storm for safe and efficient parameter binding. This level is ideal for developers who want to retain control over SQL execution but benefit from Storm’s binding capabilities.
 

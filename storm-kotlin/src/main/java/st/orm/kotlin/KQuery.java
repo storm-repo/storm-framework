@@ -106,7 +106,7 @@ public interface KQuery {
      * @throws NonUniqueResultException if more than one result.
      * @throws PersistenceException if the query fails.
      */
-    default <T> T getSingleResult(KClass<T> type) {
+    default <T> T getSingleResult(@Nonnull KClass<T> type) {
         return singleResult(getResultStream(type));
     }
 
@@ -266,7 +266,7 @@ public interface KQuery {
      * @throws NoResultException if there is no result.
      * @throws NonUniqueResultException if more than one result.
      */
-    private <T> T singleResult(Stream<T> stream) {
+    private <T> T singleResult(@Nonnull Stream<T> stream) {
         try (stream) {
             return stream
                     .reduce((_, _) -> {
@@ -283,7 +283,7 @@ public interface KQuery {
      * @param <T> the type of the result.
      * @throws NonUniqueResultException if more than one result.
      */
-    private <T> Optional<T> optionalResult(Stream<T> stream) {
+    private <T> Optional<T> optionalResult(@Nonnull Stream<T> stream) {
         try (stream) {
             return stream
                     .reduce((_, _) -> {

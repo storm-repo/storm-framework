@@ -42,6 +42,10 @@ import static st.orm.spi.Providers.deleteFrom;
 import static st.orm.template.QueryBuilder.slice;
 
 /**
+ * Default implementation of {@link EntityRepository}.
+ *
+ * @param <E> the type of entity managed by this repository.
+ * @param <ID> the type of the primary key of the entity.
  */
 @SuppressWarnings("DuplicatedCode")
 public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>

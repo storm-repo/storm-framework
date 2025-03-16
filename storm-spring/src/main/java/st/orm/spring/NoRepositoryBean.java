@@ -21,6 +21,10 @@ import java.lang.annotation.Target;
 import static java.lang.annotation.ElementType.TYPE;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
+/**
+ * Indicates that an interface is not a repository bean. Any interface annotated with this annotation will not be
+ * considered a repository bean by the Storm repository scanner.
+ */
 @Target(TYPE)
 @Retention(RUNTIME)
 public @interface NoRepositoryBean {

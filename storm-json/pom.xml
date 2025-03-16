@@ -14,29 +14,6 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
-                    <release>${java.version}</release>
-                    <compilerArgs>--enable-preview</compilerArgs>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.5.0</version>
-                <configuration>
-                    <failOnError>false</failOnError>
-                    <source>{$java.version}</source>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.3</version>
                 <configuration>
@@ -44,7 +21,6 @@
                         --enable-preview
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens storm/st.orm=ALL-UNNAMED
-                        --add-opens storm/st.orm.json.repository.spring=ALL-UNNAMED
                         --add-opens=storm.json/st.orm.json=storm
                         --add-opens=storm.json/st.orm.json.model=storm
                         --add-opens=storm.json/st.orm.json=com.fasterxml.jackson.databind
