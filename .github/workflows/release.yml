@@ -33,7 +33,8 @@ jobs:
         run: echo "GPG_TTY=$(tty)" >> $GITHUB_ENV
 
       - name: Publish package to Maven Central
-        run: mvn clean deploy -Dgpg.skip=false -DskipTests -B
+        run: mvn clean deploy -Dgpg.skip=false -Dgpg.passphrase="${GPG_PASSPHRASE}" -DskipTests -B
         env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
