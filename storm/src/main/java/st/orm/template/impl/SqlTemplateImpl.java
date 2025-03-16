@@ -175,8 +175,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @return a new SQL template.
      */
     @Override
-    public SqlTemplateImpl withTableNameResolver(TableNameResolver tableNameResolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, dialect);
     public SqlTemplateImpl withTableNameResolver(@Nonnull TableNameResolver tableNameResolver) {
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, dialect);
     }
@@ -198,8 +196,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @return a new SQL template.
      */
     @Override
-    public SqlTemplateImpl withTableAliasResolver(TableAliasResolver tableAliasResolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder, tableAliasResolver, dialect);
     public SqlTemplateImpl withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver) {
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder, tableAliasResolver, dialect);
     }
@@ -242,8 +238,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @return a new SQL template.
      */
     @Override
-    public SqlTemplateImpl withForeignKeyResolver(ForeignKeyResolver foreignKeyResolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, dialect);
     public SqlTemplateImpl withForeignKeyResolver(@Nonnull ForeignKeyResolver foreignKeyResolver) {
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, dialect);
     }
@@ -256,28 +250,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
     @Override
     public ForeignKeyResolver foreignKeyResolver() {
         return modelBuilder.foreignKeyResolver();
-    }
-
-    /**
-     * Returns a new SQL template with the specified SQL dialect.
-     *
-     * @param dialect the SQL dialect to use.
-     * @return a new SQL template.
-     */
-    @Override
-    public SqlTemplate withDialect(SqlDialect dialect) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder, tableAliasResolver, dialect);
-    }
-
-    /**
-     * Returns the SQL dialect that is used by this template.
-     *
-     * @return the SQL dialect that is used by this template.
-     * @since 1.2
-     */
-    @Override
-    public SqlDialect dialect() {
-        return dialect;
     }
 
     /**
