@@ -68,7 +68,7 @@ record SqlTemplateProcessor(
         @Nonnull AtomicReference<BindVariables> bindVariables,
         @Nonnull List<String> generatedKeys,
         @Nonnull AtomicBoolean versionAware,
-        @Nullable Table primaryTable
+        @Nullable PrimaryTable primaryTable
 ) implements ElementProcessor<Element> {
     private static final ScopedValue<SqlTemplateProcessor> CURRENT_PROCESSOR = ScopedValue.newInstance();
 

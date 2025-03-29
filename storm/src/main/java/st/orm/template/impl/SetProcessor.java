@@ -21,7 +21,6 @@ import st.orm.PersistenceException;
 import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.impl.Elements.Set;
-import st.orm.template.impl.Elements.Table;
 
 import java.math.BigInteger;
 import java.sql.Timestamp;
@@ -42,8 +41,9 @@ final class SetProcessor implements ElementProcessor<Set> {
 
     private final SqlTemplateProcessor templateProcessor;
     private final SqlTemplate template;
+    private final SqlDialectTemplate dialectTemplate;
     private final ModelBuilder modelBuilder;
-    private final Table primaryTable;
+    private final PrimaryTable primaryTable;
     private final List<SqlTemplate.Parameter> parameters;
     private final AtomicInteger parameterPosition;
     private final AtomicBoolean versionAware;
@@ -51,6 +51,7 @@ final class SetProcessor implements ElementProcessor<Set> {
     SetProcessor(@Nonnull SqlTemplateProcessor templateProcessor) {
         this.templateProcessor = templateProcessor;
         this.template = templateProcessor.template();
+        this.dialectTemplate = templateProcessor.dialectTemplate();
         this.modelBuilder = templateProcessor.modelBuilder();
         this.primaryTable = templateProcessor.primaryTable();
         this.parameters = templateProcessor.parameters();
@@ -96,7 +97,7 @@ final class SetProcessor implements ElementProcessor<Set> {
         for (var entry : mapped.entrySet()) {
             var column = entry.getKey();
             if (!column.version()) {
-                args.add(STR."\{primaryTable.alias().isEmpty() ? "" : STR."\{primaryTable.alias()}."}\{column.qualifiedName(template.dialect())} = ?");
+                args.add(dialectTemplate."\{primaryTable.alias().isEmpty() ? "" : STR."\{primaryTable.alias()}."}\{column.qualifiedName(template.dialect())} = ?");
                 parameters.add(new SqlTemplate.PositionalParameter(parameterPosition.getAndIncrement(), entry.getValue()));
                 args.add(", ");
             } else {

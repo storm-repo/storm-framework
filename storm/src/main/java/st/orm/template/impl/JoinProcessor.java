@@ -92,7 +92,7 @@ final class JoinProcessor implements ElementProcessor<Join> {
                         // Joins foreign key of left table to primary key of right table.
                         var fk = getForeignKey(leftComponent.get(), foreignKeyResolver);
                         var pk = getColumnName(getPkComponents(toTable).findFirst().orElseThrow(exception), columnNameResolver);
-                        yield dialectTemplate."\{aliasMapper.getAlias(root(fromTable), INNER, template.dialect())}.\{fk} = \{aliasMapper.getAlias(toTable, null, INNER, dialect)}.\{pk}";
+                        yield dialectTemplate."\{aliasMapper.getAlias(root(fromTable), INNER, dialect)}.\{fk} = \{aliasMapper.getAlias(toTable, null, INNER, dialect)}.\{pk}";
                     } else {
                         var rightComponent = findComponent(rightComponents, fromTable);
                         if (rightComponent.isPresent()) {

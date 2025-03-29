@@ -11,6 +11,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.model.Address;
+import st.orm.model.City;
 import st.orm.model.Owner;
 import st.orm.model.Pet;
 import st.orm.model.PetType;
@@ -113,6 +114,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 FROM \{table(Pet.class, "p")}
                   INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
                   LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                  LEFT OUTER JOIN \{table(City.class, "c")} ON o.city_id = c.id
                 WHERE p.name LIKE \{param(nameFilter)}""").prepare();
              var stream = query.getResultStream(Pet.class)) {
             assertEquals(5, stream.filter(Objects::nonNull)
@@ -126,7 +128,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectPetWithRecord() throws SQLException  {
-        record Owner(String firstName, String lastName, Address address, String telephone) {}
+        record Owner(String firstName, String lastName, String telephone) {}
         record Pet(String name, LocalDate birthDate, Owner owner) {}
         String nameFilter = "%y%";
         var query = ORM(dataSource).query(RAW."""
@@ -152,6 +154,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 FROM \{table(Pet.class, "p")}
                   INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
                   LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                  LEFT OUTER JOIN \{table(City.class, "c")} ON o.city_id = c.id
                 WHERE \{alias(Pet.class)}.name LIKE \{param(nameFilter)}""").prepare();
              var stream = query.getResultStream(Pet.class)) {
             assertEquals(5, stream.filter(Objects::nonNull)
@@ -170,6 +173,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 FROM \{table(Pet.class, "p")}
                   INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
                   LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                  LEFT OUTER JOIN \{table(City.class, "c")} ON o.city_id = c.id
                 WHERE p.name IN (\{param(List.of("Iggy", "Lucky", "Sly"))})""").prepare();
              var stream = query.getResultStream(Pet.class)) {
             assertEquals(3, stream.filter(Objects::nonNull)
@@ -189,6 +193,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 FROM \{table(Pet.class, "p")}
                   INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
                   LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                  LEFT OUTER JOIN \{table(City.class, "c")} ON o.city_id = c.id
                 WHERE p.name IN (\{param(new Object[]{"Iggy", "Lucky", "Sly"})})""").prepare();
              var stream = query.getResultStream(Pet.class)) {
             assertEquals(3, stream.filter(Objects::nonNull)
@@ -431,6 +436,7 @@ public class TemplatePreparedStatementIntegrationTest {
                   INNER JOIN \{table(Pet.class, "p")} ON v.pet_id = p.id
                   INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
                   LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                  LEFT OUTER JOIN \{table(City.class, "c")} ON o.city_id = c.id
                 WHERE v.description LIKE \{"test%"}""").prepare();
              var stream = query.getResultStream(Visit.class)) {
             assertEquals(1, stream.map(Visit::description).distinct().count());
@@ -477,6 +483,7 @@ public class TemplatePreparedStatementIntegrationTest {
                   INNER JOIN \{table(Pet.class, "p")} ON v.pet_id = p.id
                   INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
                   LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                  LEFT OUTER JOIN \{table(City.class, "c")} ON o.city_id = c.id
                 WHERE v.description LIKE \{"test%"}""").prepare();
              var stream = query.getResultStream(Visit.class)) {
             assertEquals(2, stream.map(Visit::description).distinct().count());
@@ -498,6 +505,7 @@ public class TemplatePreparedStatementIntegrationTest {
                   INNER JOIN \{table(Pet.class, "p")} ON v.pet_id = p.id
                   INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
                   LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                  LEFT OUTER JOIN \{table(City.class, "c")} ON o.city_id = c.id
                 WHERE v.description LIKE \{"test%"}""").prepare();
              var stream = query.getResultStream(Visit.class)) {
             assertEquals(2, stream.map(Visit::description).distinct().count());
@@ -509,7 +517,7 @@ public class TemplatePreparedStatementIntegrationTest {
         Owner owner = Owner.builder()
                 .firstName("John")
                 .lastName("Doe")
-                .address(new Address("271 University Ave", "Palo Alto"))
+                .address(new Address("271 University Ave", City.builder().id(1).build()))
                 .telephone("1234567890")
                 .build();
         try (var query = ORM(dataSource).query(RAW."""
@@ -536,7 +544,8 @@ public class TemplatePreparedStatementIntegrationTest {
                 )
                 SELECT \{select(FilteredPet.class)}
                 FROM \{table(FilteredPet.class, "p")}
-                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id""").prepare();
+                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                  LEFT OUTER JOIN \{table(City.class, "c")} ON o.city_id = c.id""").prepare();
              var stream = query.getResultStream(FilteredPet.class)) {
             assertEquals(5, stream.map(FilteredPet::owner).filter(Objects::nonNull).map(Owner::firstName).distinct().count());
         }
@@ -558,7 +567,8 @@ public class TemplatePreparedStatementIntegrationTest {
                 )
                 SELECT \{select(FilteredPet.class)}
                 FROM \{table(FilteredPet.class, "p")}
-                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id""").prepare();
+                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                  LEFT OUTER JOIN \{table(City.class, "c")} ON o.city_id = c.id""").prepare();
              var stream = query.getResultStream(FilteredPet.class)) {
             assertEquals(5, stream.map(FilteredPet::owner).filter(Objects::nonNull).map(Owner::firstName).distinct().count());
         }
@@ -757,6 +767,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 FROM \{table(Pet.class, "p")}
                   INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
                   LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                  LEFT OUTER JOIN \{table(City.class, "c")} ON o.city_id = c.id
                 WHERE \{where(update)}""").prepare()) {
             var result = query.getSingleResult(Pet.class);
             assertEquals("Leona", result.name());
@@ -793,6 +804,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 FROM \{table(Pet.class, "p")}
                   INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
                   LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                  LEFT OUTER JOIN \{table(City.class, "c")} ON o.city_id = c.id
                 WHERE \{where(Pet.builder().id(1).build())}""").prepare()) {
             var result = query.getSingleResult(Pet.class);
             assertEquals("Leona", result.name());
@@ -803,11 +815,13 @@ public class TemplatePreparedStatementIntegrationTest {
     @Test
     public void testUpdateSetWhereWithAliasClash() {
         String expectedSql = """
-                SELECT p.id, p.name, p.birth_date, pt.id, pt.name, o1.id, o1.first_name, o1.last_name, o1.address, o1.city, o1.telephone, o1.version
+                SELECT p.id, p.name, p.birth_date, pt.id, pt.name, o1.id, o1.first_name, o1.last_name, o1.address, c1.id, c1.name, o1.telephone, o1.version
                 FROM pet p
                 INNER JOIN pet_type pt ON p.type_id = pt.id
                 LEFT JOIN owner o1 ON p.owner_id = o1.id
+                LEFT JOIN city c1 ON o1.city_id = c1.id
                 INNER JOIN owner o ON p.owner_id = o.id
+                INNER JOIN city c ON o.city_id = c.id
                 WHERE p.id = ?""";
         try (var _ = SqlInterceptor.consume(sql -> {
             assertEquals(expectedSql, sql.statement());
@@ -816,6 +830,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 SELECT \{Pet.class}
                 FROM \{Pet.class}
                 INNER JOIN \{table(Owner.class, "o")} ON \{Pet.class}.owner_id = o.id
+                INNER JOIN \{table(City.class, "c")} ON o.city_id = c.id
                 WHERE \{where(Pet.builder().id(1).build())}""").prepare()) {
             var result = query.getSingleResult(Pet.class);
             assertEquals("Leo", result.name());
@@ -871,6 +886,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 FROM \{table(PetWithoutPersist.class, "p")}
                   INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
                   LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                  LEFT OUTER JOIN \{table(City.class, "c")} ON o.city_id = c.id
                 WHERE \{where(update)}""").prepare()) {
             var result = query.getSingleResult(PetWithoutPersist.class);
             assertEquals("Leona", result.name());

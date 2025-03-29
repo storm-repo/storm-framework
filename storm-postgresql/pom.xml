@@ -6,7 +6,7 @@
     <parent>
         <groupId>st.orm</groupId>
         <artifactId>storm-framework</artifactId>
-        <version>1.2.1</version>
+        <version>1.2.2</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>storm-postgresql</artifactId>
@@ -62,10 +62,6 @@
         </plugins>
     </build>
     <dependencies>
-        <dependency>
-            <groupId>jakarta.annotation</groupId>
-            <artifactId>jakarta.annotation-api</artifactId>
-        </dependency>
         <dependency>
             <groupId>st.orm</groupId>
             <artifactId>storm</artifactId>

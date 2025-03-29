@@ -2,6 +2,7 @@ package st.orm.template.impl;
 
 import org.junit.jupiter.api.Test;
 import st.orm.model.Address;
+import st.orm.model.City;
 import st.orm.model.Owner;
 import st.orm.model.Pet;
 import st.orm.model.PetType;
@@ -26,7 +27,7 @@ public class ModelMapperTest {
                         .lastName("Doe")
                         .address(Address.builder()
                                 .address("123 Street")
-                                .city("New York")
+                                .city(City.builder().id(1).name("New York").build())
                                 .build())
                 .build());
         var values = new ArrayList<>(result.values());
@@ -34,7 +35,7 @@ public class ModelMapperTest {
         assertEquals("John", values.get(1));
         assertEquals("Doe", values.get(2));
         assertEquals("123 Street", values.get(3));
-        assertEquals("New York", values.get(4));
+        assertEquals(1, values.get(4));
         assertNull("Telephone", values.get(5));
         assertEquals(0, values.get(6));
     }
@@ -48,7 +49,7 @@ public class ModelMapperTest {
                 .lastName("Doe")
                 .address(Address.builder()
                         .address("123 Street")
-                        .city("New York")
+                        .city(City.builder().id(1).name("New York").build())
                         .build())
                 .build()));
     }
@@ -72,7 +73,7 @@ public class ModelMapperTest {
                                 .lastName("Doe")
                                 .address(Address.builder()
                                         .address("123 Street")
-                                        .city("New York")
+                                        .city(City.builder().id(1).name("New York").build())
                                         .build())
                                 .build())
                         .build());

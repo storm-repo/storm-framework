@@ -1,6 +1,7 @@
 package st.orm.model;
 
 import lombok.Builder;
+import st.orm.FK;
 
 /**
  * Simple business object representing an address.
@@ -8,5 +9,5 @@ import lombok.Builder;
 @Builder(toBuilder = true)
 public record Address(
         String address,
-        String city
+        @FK City city
 ) {}

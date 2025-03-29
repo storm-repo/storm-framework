@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.model.City;
 import st.orm.model.Owner;
 import st.orm.model.Owner_;
 import st.orm.model.Pet;
@@ -31,11 +32,11 @@ import st.orm.model.Visit_;
 import st.orm.repository.Entity;
 import st.orm.repository.PetRepository;
 import st.orm.template.Metamodel;
-import st.orm.template.ResolveScope;
 import st.orm.template.Sql;
 import st.orm.template.SqlInterceptor;
 import st.orm.template.SqlTemplate.PositionalParameter;
 import st.orm.template.SqlTemplateException;
+import st.orm.template.impl.DefaultJoinType;
 
 import javax.sql.DataSource;
 import java.sql.SQLIntegrityConstraintViolationException;
@@ -54,7 +55,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.Templates.ORM;
 import static st.orm.Templates.alias;
-import static st.orm.Templates.table;
 import static st.orm.Templates.where;
 import static st.orm.template.Operator.BETWEEN;
 import static st.orm.template.Operator.EQUALS;
@@ -62,10 +62,10 @@ import static st.orm.template.Operator.GREATER_THAN;
 import static st.orm.template.Operator.GREATER_THAN_OR_EQUAL;
 import static st.orm.template.Operator.IN;
 import static st.orm.template.Operator.IS_NULL;
+import static st.orm.template.ResolveScope.INNER;
 import static st.orm.template.ResolveScope.OUTER;
 import static st.orm.template.SqlInterceptor.consume;
 import static st.orm.template.TemplateFunction.template;
-import static st.orm.template.impl.DefaultJoinType.INNER;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
@@ -146,7 +146,12 @@ public class RepositoryPreparedStatementIntegrationTest {
         var e = assertThrows(PersistenceException.class, () -> {
             var model = Visit_.pet.name;
             // We don't want to use Metamodel.of as it would already throw an exception.
-            Metamodel<Visit, String> invalidModel = new Metamodel<Visit, String>() {
+            Metamodel<Visit, String> invalidModel = new Metamodel<>() {
+                @Override
+                public boolean isColumn() {
+                    return true;
+                }
+
                 @Override
                 public Class<Visit> root() {
                     return model.root();
@@ -380,6 +385,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var owners = ORM(dataSource)
                 .selectFrom(PetWithLazyNullableOwner.class, Owner.class, RAW."DISTINCT \{Owner.class}")
                 .innerJoin(Owner.class).on(PetWithLazyNullableOwner.class)
+                .innerJoin(City.class).on(Owner.class)
                 .getResultList();
         assertEquals(10, owners.size());
     }
@@ -678,21 +684,21 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWithInlinePath() {
-        var list = ORM(dataSource).entity(Owner.class).select().where(Owner_.address.city, EQUALS, "Madison").getResultList();
+        var list = ORM(dataSource).entity(Owner.class).select().where(Owner_.address.city.name, EQUALS, "Madison").getResultList();
         assertEquals(4, list.size());
     }
 
     @Test
     public void testSelectWithInlinePathEqualsMultiArgument() {
         var e = assertThrows(PersistenceException.class, () -> {
-            ORM(dataSource).entity(Owner.class).select().where(Owner_.address.city, EQUALS, "Madison", "Monona").getResultList();
+            ORM(dataSource).entity(Owner.class).select().where(Owner_.address.city.name, EQUALS, "Madison", "Monona").getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
 
     @Test
     public void testSelectWithInlinePathInMultiArgument() {
-        var list = ORM(dataSource).entity(Owner.class).select().where(Owner_.address.city, IN, "Madison", "Monona").getResultList();
+        var list = ORM(dataSource).entity(Owner.class).select().where(Owner_.address.city.name, IN, "Madison", "Monona").getResultList();
         assertEquals(6, list.size());
     }
 
@@ -909,7 +915,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         record Result(int petId, int visitCount) {}
         var list = ORM(dataSource)
                 .selectFrom(Pet.class, Result.class, RAW."\{Pet_.id}, COUNT(*)")
-                .join(INNER, RAW."SELECT * FROM \{table(Visit.class, "a")} WHERE \{alias(Visit.class)}.id > \{-1}", "x").on(RAW."\{Pet.class}.id = x.pet_id")
+                .join(DefaultJoinType.INNER, RAW."SELECT * FROM \{Visit.class} WHERE \{Visit.class}.id > \{-1}", "x").on(RAW."\{Pet.class}.id = x.pet_id")
                 .groupBy(Pet_.id)
                 .getResultList();
         assertEquals(8, list.size());
@@ -922,7 +928,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var orm = ORM(dataSource);
         var list = orm
                 .selectFrom(Pet.class, Result.class, RAW."\{Pet_.id}, COUNT(*)")
-                .join(INNER, orm.subquery(Visit.class), "x").on(RAW."\{Pet_.id} = x.pet_id")
+                .join(DefaultJoinType.INNER, orm.subquery(Visit.class), "x").on(RAW."\{Pet_.id} = x.pet_id")
                 .groupBy(Pet_.id)
                 .getResultList();
         assertEquals(8, list.size());
@@ -950,8 +956,9 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void selectOwnerForUpdate() {
         // Note that H2 only supports FOR UPDATE.
         String expectedSql = """
-            SELECT o.id, o.first_name, o.last_name, o.address, o.city, o.telephone, o.version
+            SELECT o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version
             FROM owner o
+            LEFT JOIN city c ON o.city_id = c.id
             WHERE o.id = ?
             FOR UPDATE""";
         var repo = ORM(dataSource).entity(Owner.class);
@@ -1036,7 +1043,7 @@ public class RepositoryPreparedStatementIntegrationTest {
                 .select()
                 .where(it ->
                         it.expression(RAW."EXISTS (\{
-                                it.subquery(Visit.class).where(RAW."\{alias(Owner.class, OUTER)}.id = \{alias(Owner.class, ResolveScope.INNER)}.id")
+                                it.subquery(Visit.class).where(RAW."\{alias(Owner.class, OUTER)}.id = \{alias(Owner.class, INNER)}.id")
                         })"))
                 .getResultList();
         assertEquals(6, list.size());
@@ -1069,12 +1076,14 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testWherePredicateSubqueryParameters() {
         String expectedSql = """
-            SELECT o.id, o.first_name, o.last_name, o.address, o.city, o.telephone, o.version
+            SELECT o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version
             FROM owner o
-            WHERE id = ? AND EXISTS (
-              SELECT o1.id, o1.first_name, o1.last_name, o1.address, o1.city, o1.telephone, o1.version
+            LEFT JOIN city c ON o.city_id = c.id
+            WHERE o.id = ? AND EXISTS (
+              SELECT o1.id, o1.first_name, o1.last_name, o1.address, c1.id, c1.name, o1.telephone, o1.version
               FROM owner o1
-              WHERE id = ?
+              LEFT JOIN city c1 ON o1.city_id = c1.id
+              WHERE o1.id = ?
             ) AND 3 = ?""";
         try (var _ = SqlInterceptor.consume(sql -> {
             assertEquals(expectedSql, sql.statement());
@@ -1088,8 +1097,8 @@ public class RepositoryPreparedStatementIntegrationTest {
             var orm = ORM(dataSource);
             orm.entity(Owner.class)
                     .select()
-                    .where(it -> it.expression(RAW."id = \{1}")
-                            .and(it.expression(RAW."EXISTS (\{it.subquery(Owner.class).where(RAW."id = \{2}")})"))
+                    .where(it -> it.expression(RAW."\{alias(Owner.class, INNER)}.id = \{1}")
+                            .and(it.expression(RAW."EXISTS (\{it.subquery(Owner.class).where(RAW."\{alias(Owner.class, INNER)}.id = \{2}")})"))
                             .and(it.expression(RAW."3 = \{3}"))
                     )
                     .getResultList();
@@ -1099,13 +1108,15 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testWhereAppendQueryBuilderParameters() {
         String expectedSql = """
-            SELECT o.id, o.first_name, o.last_name, o.address, o.city, o.telephone, o.version
+            SELECT o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version
             FROM owner o
-            WHERE id = ?
+            LEFT JOIN city c ON o.city_id = c.id
+            WHERE o.id = ?
             AND EXISTS (
-              SELECT o1.id, o1.first_name, o1.last_name, o1.address, o1.city, o1.telephone, o1.version
+              SELECT o1.id, o1.first_name, o1.last_name, o1.address, c1.id, c1.name, o1.telephone, o1.version
               FROM owner o1
-              WHERE id = ?
+              LEFT JOIN city c1 ON o1.city_id = c1.id
+              WHERE o1.id = ?
             )
             AND 3 = ?""";
         try (var _ = SqlInterceptor.consume(sql -> {
@@ -1120,8 +1131,8 @@ public class RepositoryPreparedStatementIntegrationTest {
             var orm = ORM(dataSource);
             orm.entity(Owner.class)
                     .select()
-                    .append(RAW."WHERE id = \{1}")
-                    .append(RAW."AND EXISTS (\{orm.subquery(Owner.class).where(RAW."id = \{2}")})")
+                    .append(RAW."WHERE \{alias(Owner.class, INNER)}.id = \{1}")
+                    .append(RAW."AND EXISTS (\{orm.subquery(Owner.class).where(RAW."\{alias(Owner.class, INNER)}.id = \{2}")})")
                     .append(RAW."AND 3 = \{3}")
                     .getResultList();
         }

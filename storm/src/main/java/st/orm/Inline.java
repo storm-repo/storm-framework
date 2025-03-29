@@ -26,7 +26,29 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  * Indicates that the underlying fields of the record component are inlined in this record.
  *
  * <p>This annotation must only be used on record components that are also records. Note that record components that do
- * not specify {@code @FK} or converter annotations are implicitly regarded as inlined.</p>
+ * not specify {@code @FK} or converter annotations are implicitly regarded as inlined. Note that the {@code @Inline}
+ * is optional and can be omitted if the record component is inlined.</p>
+ *
+ * <p>Example:</p>
+ * <pre>{@code
+ * record City(@PK int id, String name, long population)
+ *         implements Entity<City, Integer> {};
+ *
+ * record Address(String street, String postalCode, @FK City city) {};
+ *
+ * record User(@PK int id, String email, LocalDate birthDate, @Inline Address address)
+ *         implements Entity<User, Integer> {};
+ * }</pre>
+ *
+ * <p>Is similar to:</p>
+ * <pre>{@code
+ * record User(@PK int id, String email, LocalDate birthDate,
+ *             String street, String postalCode, @FK City city)
+ *         implements Entity<User, Integer> {};
+ *
+ * record City(@PK int id, String name, long population)
+ *         implements Entity<City, Integer> {};
+ * }</pre>
  */
 @Target({RECORD_COMPONENT, PARAMETER})
 @Retention(RUNTIME)

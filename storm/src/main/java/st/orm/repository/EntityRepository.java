@@ -18,90 +18,151 @@ package st.orm.repository;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.BatchCallback;
+import st.orm.FK;
+import st.orm.Inline;
 import st.orm.Lazy;
 import st.orm.NoResultException;
+import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.ResultCallback;
+import st.orm.Templates;
 import st.orm.template.Model;
 import st.orm.template.QueryBuilder;
 
+import java.sql.Connection;
 import java.util.List;
 import java.util.stream.Stream;
 
 /**
  * Provides a generic interface with CRUD operations for entities.
  *
- * <h2>Using Entity Repositories</h2>
+ * <h1>Using Entity Repositories</h1>
  *
- * <p>Define the entity records to use them to in combination with repositories:</p>
+ * <p>Entity repositories provide a high-level abstraction for managing entities in the database. They offer a set of
+ * methods for creating, reading, updating, and deleting entities, as well as querying and filtering entities based on
+ * specific criteria. The {@code EntityRepository} interface is designed to work with entity records that implement the
+ * {@link Entity} interface, providing a consistent and type-safe way to interact with the database.</p>
  *
+ * <h2>Entity Definition</h2>
+ * <p>Define the entity records to use them to in combination with repositories. The {@link Entity} interface is a
+ * marker interface that indicates that the record is an entity and has a primary key of type {@code ID}. The {@link PK}
+ * annotation is used to mark the primary key field of the entity record. The {@link FK} annotation is used to mark
+ * the foreign key field of the entity record. The {@link Inline} annotation (optional) is used to mark the record
+ * component that is inlined in the entity record.</p>
+ *
+ * <p>Example:</p>
  * <pre>{@code
- * record User(@PK int id, String email, LocalDate birthDate, @FK City city)
- *         implements Entity<User, Integer> {};
- * record City(@PK int id, String name, long population)
- *         implements Entity<City, Integer> {};
+ * record City(@PK int id,
+ *             String name,
+ *             long population
+ * ) implements Entity<City, Integer> {};
+ *
+ * record Address(String street, String postalCode, @FK City city)
+ *
+ * record User(@PK int id,
+ *             String email,
+ *             LocalDate birthDate,
+ *             @Inline Address address
+ * ) implements Entity<User, Integer> {};
  * }</pre>
+ *
+ * <h2>Repository Lookup</h2>
+ * <p>An entity repository can be obtained by invoking {@code entity} on an {@code ORMTemplate} with the desired entity
+ * class. The orm template can be requested as demonstrated below. Note that orm templates are supported for
+ * Data Sources, JDBC Connections and JPA Entity Managers.</p>
+ * <pre>{@code
+ * ORMTemplate orm = Templates.ORM(dataSource);
+ * EntityRepository<User> userRepository = orm.entity(User.class);
+ * }</pre>
+ * <p>Alternatively, a specialized repository can be requested by calling the {@code repository} method with the repository
+ * class. Specialized repositories allow specialized repository methods to be defined in the repository interface. The
+ * specialized repository can be used to implement specialized queries or operations that are specific to the entity type.
+ * The specialized logic can utilize the {@link QueryBuilder} interface to build SELECT and DELETE statements.</p>
+ * <pre>{@code
+ * interface UserRepository extends EntityRepository<User> {
+ *
+ *     // Specialized repository methods go here:
+ *
+ *     default Optional<User> findByEmail(String email) {
+ *         return select()
+ *                 .where(User_.email, EQUALS, email)
+ *                 .getOptionalResult();
+ *     }
+ * }
+ *
+ * UserRepository userRepository = orm.repository(UserRepository.class)
+ * }</pre>
+ *
+ * <h2>Repository Injection</h2>
+ * <p>A specialized repository can also be injected using Spring's dependency injection mechanism when the
+ * {@code storm-spring} package is included in the project. Check the storm-spring package to lean how to make
+ * repositories available to the application for dependency injection.</p>
+ *
+ * <h2>CRUD Operations</h2>
+ * <p>Entity repositories provide a set of methods for creating, reading, updating, and deleting entities in the
+ * database. The following sections provide examples of how to use these methods to interact with the database.</p>
  *
  * <h3>Create</h3>
  *
- * <p>Insert a user into the database. The template engine also supports insertion of multiple entries by passing an
- * array (or list) of entities or primary keys. Alternatively, insertion can also be executed in batch mode by using
- * a stream of entities.</p>
+ * <p>Insert a user into the database. The template engine also supports insertion of multiple entries in batch mode by
+ * passing a list of entities. Alternatively, insertion can also be executed using a stream of entities.</p>
  * <pre>{@code
  * User user = ...;
- * ORM(dataSource).entity(User.class).insert(user);
+ * userRepository.insert(user);
  * }</pre>
  *
  * <h3>Read</h3>
  *
- * <p>Select all users from the database that are linked to City with primary key 1. Alternatively,
- * {@code getResultStream()} can be invoked to load the users lazily.</p>
+ * <p>Select all users from the database that are linked to cities with the name "Sunnyvale". The static metamodel is
+ * used to specify the City entity in the QueryBuilder's entity graph.</p>
  * <pre>{@code
- * City city = ORM(dataSource).entity(City.class).select(1);
- * List<User> users = ORM(dataSource).entity(User.class)
+ * List<City> cities = cityRepository.findByName("Sunnyvale")
+ * List<User> users = userRepository
  *         .select()
- *         .where(User_.city, city) // Type-safe metamodel.
+ *         .where(User_.address.city, cities) // Type-safe metamodel.
+ *         .getResultList();
+ * }</pre>
+ * <p>Alternatively, {@code getResultStream()} can be invoked to load the users lazily.</p>
+ *
+ * <p>The QueryBuilder also allows the previous queries to be combined into a single select query, using the
+ * User's static metamodel to specify the city name field in the QueryBuilder's entity graph.</p>
+ * <pre>{@code
+ * List<User> users = userRepository
+ *         .select()
+ *         .where(User_.address.city.name, EQUALS, "Sunnyvale") // Type-safe metamodel.
  *         .getResultList();
  * }</pre>
  *
- * <p>The {@link QueryBuilder} also allows the previous statements to be combined into a single select query, utilizing
- * the entity's object model:</p>
- * <pre>{@code
- * List<User> users = ORM(dataSource).entity(User.class)
- *         .select()
- *         .where(User_.city.name, EQUALS, "Sunnyvale") // Type-safe metamodel.
- *         .getResultList();
- * }</pre>
+ * <h4>Update</h4>
  *
- * <h3>Update</h3>
- *
- * <p>Update a user in the database. The repository also supports updates for multiple entries by passing an
- * array or list of entities. Alternatively, updates can also be executed in batch mode by using a stream of
- * entities.</p>
+ * <p>Update a user in the database. The repository also supports updates for multiple entries in batch model by passing
+ * a list of entities. Alternatively, updates can also be executed using a stream of entities.</p>
  * <pre>{@code
  * User user = ...;
- * ORM(dataSource).entity(User.class).update(user);
+ * userRepository.update(user);
  * }</pre>
  *
  * <h3>Delete</h3>
  *
- * <p>Delete user in the database. The repository also supports updates for multiple entries by passing an
- * array (or list) of entities or primary keys. Alternatively, deletion can be executed in batch mode by using a stream
- * of entities.
+ * <p>Delete user in the database. The repository also supports updates for multiple entries in batch mode by passing a
+ * list entities or primary keys. Alternatively, deletion can be executed in using a stream of entities.
  * <pre>{@code
  * User user = ...;
- * ORM(dataSource).entity(User.class).delete(user);
+ * userRepository.delete(user);
  * }</pre>
  *
- * <p>Also here, the {@link QueryBuilder} can be used to create a more specialized statement, for instance, to delete
- * all users where the name field is NULL.</p>
+ * <p>Also here, the QueryBuilder can be used to create specialized statement, for instance, to delete all users where
+ * the email field IS NULL.</p>
  * <pre>{@code
- * ORM(dataSource).entity(User.class)
+ * repository
  *         .delete()
  *         .where(User_.email, IS_NULL) // Type-safe metamodel.
  *         .executeUpdate();
  * }</pre>
  *
+ * @see Templates#ORM(javax.sql.DataSource)
+ * @see Templates#ORM(jakarta.persistence.EntityManager)
+ * @see Templates#ORM(Connection)
  * @see QueryBuilder
  * @param <E> the type of entity managed by this repository.
  * @param <ID> the type of the primary key of the entity.
@@ -148,20 +209,20 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
     QueryBuilder<E, Long, ID> selectCount();
 
     /**
-     * Creates a new query builder for the custom {@code selectType}.
+     * Creates a new query builder for the specialized {@code selectType}.
      *
      * @param selectType the result type of the query.
-     * @return a new query builder for the custom {@code selectType}.
+     * @return a new query builder for the specialized {@code selectType}.
      * @param <R> the result type of the query.
      */
     <R> QueryBuilder<E, R, ID> select(@Nonnull Class<R> selectType);
 
     /**
-     * Creates a new query builder for the custom {@code selectType} and custom {@code template} for the select clause.
+     * Creates a new query builder for the specialized {@code selectType} and specialized {@code template} for the select clause.
      *
      * @param selectType the result type of the query.
-     * @param template the custom template for the select clause.
-     * @return a new query builder for the custom {@code selectType}.
+     * @param template the specialized template for the select clause.
+     * @return a new query builder for the specialized {@code selectType}.
      * @param <R> the result type of the query.
      */
     <R> QueryBuilder<E, R, ID> select(@Nonnull Class<R> selectType, @Nonnull StringTemplate template);
@@ -949,7 +1010,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * <p>This method processes the provided stream of entities in batches, performing an "upsert" operation on each entity.
      * For each entity, it will be inserted if it does not already exist in the database or updated if it does. After
      * each batch operation, the IDs of the upserted entities are passed to the provided callback, allowing for
-     * customized handling of the IDs as they are retrieved.</p>
+     * specializedized handling of the IDs as they are retrieved.</p>
      *
      * @param entities a stream of entities to be inserted or updated. Each entity in the stream must be non-null and
      *                 contain valid data for insertion or update in the database.
@@ -964,7 +1025,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      *
      * <p>This method processes the provided stream of entities in batches, performing an "upsert" operation on each entity.
      * For each entity, it will be inserted if it does not already exist in the database or updated if it does. After
-     * each batch operation, the updated entities are passed to the provided callback, allowing for customized handling
+     * each batch operation, the updated entities are passed to the provided callback, allowing for specializedized handling
      * of the entities as they are retrieved. The entities returned reflect their current state in the database, including
      * any changes such as generated primary keys, timestamps, or default values set by the database during the upsert process.</p>
      *
@@ -984,7 +1045,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * For each entity, it will be inserted if it does not already exist in the database or updated if it does. The batch size
      * parameter allows control over the number of entities processed in each batch, optimizing memory and performance based
      * on system requirements. After each batch operation, the IDs of the upserted entities are passed to the provided
-     * callback, allowing for customized handling of the IDs as they are retrieved.</p>
+     * callback, allowing for specializedized handling of the IDs as they are retrieved.</p>
      *
      * @param entities a stream of entities to be inserted or updated. Each entity in the stream must be non-null and contain
      *                 valid data for insertion or update in the database.
@@ -1003,7 +1064,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * For each entity, it will be inserted if it does not already exist in the database or updated if it does. The
      * `batchSize` parameter allows control over the number of entities processed in each batch, optimizing performance
      * and memory usage based on system requirements. After each batch operation, the updated entities are passed to
-     * the provided callback, allowing for customized handling of the entities as they are retrieved. The entities
+     * the provided callback, allowing for specializedized handling of the entities as they are retrieved. The entities
      * returned reflect their current state in the database, including any changes such as generated primary keys,
      * timestamps, or default values applied during the upsert process.</p>
      *

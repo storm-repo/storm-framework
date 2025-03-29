@@ -44,11 +44,11 @@ final class TableProcessor implements ElementProcessor<Table> {
      */
     @Override
     public ElementResult process(@Nonnull Table table) throws SqlTemplateException {
-        StringBuilder s = new StringBuilder();
-        s.append(dialectTemplate."\{getTableName(table.table(), template.tableNameResolver())}");
-        if (!table.alias().isEmpty()) {
-            s.append(STR." \{table.alias()}");
+        TableName tableName = getTableName(table.table(), template.tableNameResolver());
+        String alias = table.alias();
+        if (alias.isEmpty()) {
+            return new ElementResult(dialectTemplate."\{tableName}");
         }
-        return new ElementResult(s.toString());
+        return new ElementResult(dialectTemplate."\{tableName} \{alias}");
     }
 }

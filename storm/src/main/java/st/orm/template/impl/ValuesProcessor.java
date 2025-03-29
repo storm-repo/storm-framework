@@ -21,7 +21,6 @@ import st.orm.PersistenceException;
 import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplate.Parameter;
 import st.orm.template.SqlTemplateException;
-import st.orm.template.impl.Elements.Table;
 import st.orm.template.impl.Elements.Values;
 
 import java.util.ArrayList;
@@ -37,7 +36,7 @@ final class ValuesProcessor implements ElementProcessor<Values> {
 
     private final SqlTemplateProcessor templateProcessor;
     private final ModelBuilder modelBuilder;
-    private final Table primaryTable;
+    private final PrimaryTable primaryTable;
     private final List<Parameter> parameters;
     private final AtomicInteger parameterPosition;
 

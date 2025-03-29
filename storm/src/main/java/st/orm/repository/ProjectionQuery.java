@@ -33,7 +33,10 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  *     FROM basket b
  *       LEFT JOIN basket_item bi ON b.id = bi.basket_id
  *     GROUP BY b.id""")
- * record BasketSummary(@PK @FK("id") Basket basket, int itemCount, BigDecimal totalPrice) implements Projection<Integer> {}
+ * record BasketSummary(@PK @FK("id") Basket basket,
+ *                      int itemCount,
+ *                      BigDecimal totalPrice
+ * ) implements Projection<Integer> {}
  * }</pre>
  *
  * <p>Then, you can use the projection in a query like this:
@@ -47,7 +50,9 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  *
  * <p>Or use it as a foreign key in an entity:
  * <pre>{@code
- * record User(@PK int id, @FK("basket_id") BasketSummary basketSummary) implements Entity<Integer> {}
+ * record User(@PK int id,
+ *             @FK("basket_id") BasketSummary basketSummary
+ * ) implements Entity<Integer> {}
  * }</pre>
  *
  * <p>Then, you can query all users having a basket with at least 1 item:</p>

@@ -40,9 +40,9 @@ public class JpaIntegrationTest {
     @Test
     public void testSelectPet() {
         try (var query = ORM(entityManager).query(RAW."""
-            SELECT p.id, p.name, p.birth_date, pt.*, o.* 
-            FROM pet p 
-              INNER JOIN pet_type pt ON p.type_id = pt.id 
+            SELECT p.id, p.name, p.birth_date, pt.*, o.*
+            FROM pet p
+              INNER JOIN pet_type pt ON p.type_id = pt.id
               INNER JOIN owner o ON p.owner_id = o.id""").prepare()) {
             assertEquals(12, query.getResultCount());
         }

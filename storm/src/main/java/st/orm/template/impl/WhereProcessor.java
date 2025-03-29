@@ -30,8 +30,15 @@ import st.orm.template.Operator;
 import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplate.PositionalParameter;
 import st.orm.template.SqlTemplateException;
+import st.orm.template.impl.Elements.Alias;
+import st.orm.template.impl.Elements.Column;
 import st.orm.template.impl.Elements.Expression;
+import st.orm.template.impl.Elements.ObjectExpression;
+import st.orm.template.impl.Elements.Param;
+import st.orm.template.impl.Elements.Subquery;
 import st.orm.template.impl.Elements.Table;
+import st.orm.template.impl.Elements.TemplateExpression;
+import st.orm.template.impl.Elements.Unsafe;
 import st.orm.template.impl.Elements.Where;
 
 import java.util.ArrayList;
@@ -52,7 +59,6 @@ import static st.orm.template.ResolveScope.CASCADE;
 import static st.orm.template.ResolveScope.INNER;
 import static st.orm.template.impl.RecordReflection.getColumnName;
 import static st.orm.template.impl.RecordReflection.getForeignKey;
-import static st.orm.template.impl.RecordReflection.getTableName;
 
 /**
  * A processor for a where element of a template.
@@ -66,7 +72,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
     private final SqlDialectTemplate dialectTemplate;
     private final AliasMapper aliasMapper;
     private final TableMapper tableMapper;
-    private final Table primaryTable;
+    private final PrimaryTable primaryTable;
     private final List<SqlTemplate.Parameter> parameters;
     private final AtomicInteger parameterPosition;
     private final AtomicBoolean versionAware;
@@ -362,6 +368,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
                                 //noinspection unchecked
                                 type = (Class<? extends Record>) component.getType();
                                 inlineType = null;
+                                inlineDepth = 0;
                             } else {    // Can either be PK or Inline.
                                 // Assuming @Inline; No need to check for optional annotation.
                                 type = recordType;
@@ -406,7 +413,8 @@ final class WhereProcessor implements ElementProcessor<Where> {
                 if (o instanceof Record r) {
                     values.putAll(getValuesForInlined(r, alias));
                 } else {
-                    values.put(STR."\{alias.isEmpty() ? "" : dialectTemplate."\{alias}.\{getColumnName(component, template.columnNameResolver())}"}", o);
+                    var columnName = getColumnName(component, template.columnNameResolver());
+                    values.put(alias.isEmpty() ? dialectTemplate."\{columnName}" : dialectTemplate."\{alias}.\{columnName}", o);
                 }
             }
             return values;
@@ -420,13 +428,13 @@ final class WhereProcessor implements ElementProcessor<Where> {
     /**
      * Returns the SQL string for the specified {@code template} expression.
      *
-     * @param template the template to process.
+     * @param stringTemplate the template to process.
      * @return the SQL string for the specified template expression.
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
-    private String getTemplateExpressionString(@Nonnull StringTemplate template) throws SqlTemplateException{
-        var fragments = template.fragments();
-        var values = template.values();
+    private String getTemplateExpressionString(@Nonnull StringTemplate stringTemplate) throws SqlTemplateException{
+        var fragments = stringTemplate.fragments();
+        var values = stringTemplate.values();
         List<String> parts = new ArrayList<>();
         for (int i = 0; i < fragments.size(); i++) {
             String fragment = fragments.get(i);
@@ -435,17 +443,16 @@ final class WhereProcessor implements ElementProcessor<Where> {
                 Object value = resolveElements(values.get(i));
                 switch (value) {
                     case Expression exp -> parts.add(getExpressionString(exp));
-                    case Elements.Subquery s -> parts.add(templateProcessor.parse(s.template(), s.correlate()));
-                    case Elements.Column c -> parts.add(new ColumnProcessor(templateProcessor).process(c).get());
-                    case Elements.Unsafe u -> parts.add(u.sql());
-                    case Table t -> parts.add(dialectTemplate."\{getTableName(t.table(), this.template.tableNameResolver())}\{t.alias().isEmpty() ? "" : STR." \{t.alias()}"}");
-                    case Elements.Alias a -> parts.add(aliasMapper.getAlias(a.metamodel(), a.scope(), this.template.dialect()));
-                    case Elements.Param p when p.name() != null -> parts.add(templateProcessor.registerParam(p.name(), p.dbValue()));
-                    case Elements.Param p -> parts.add(templateProcessor.registerParam(p.dbValue()));
+                    case Subquery s -> parts.add(new SubqueryProcessor(templateProcessor).process(s).get());
+                    case Column c -> parts.add(new ColumnProcessor(templateProcessor).process(c).get());
+                    case Unsafe u -> parts.add(new UnsafeProcessor(templateProcessor).process(u).get());
+                    case Table t -> parts.add(new TableProcessor(templateProcessor).process(t).get());
+                    case Alias a -> parts.add(new AliasProcessor(templateProcessor).process(a).get());
+                    case Param p -> parts.add(new ParamProcessor(templateProcessor).process(p).get());
                     case Record r -> parts.add(getObjectExpressionString(r));
                     case Class<?> c when c.isRecord() -> //noinspection unchecked
-                            parts.add(aliasMapper.getAlias(root((Class<? extends Record>) c), CASCADE, this.template.dialect()));
-                    case Object k when REFLECTION.isSupportedType(k) -> parts.add(aliasMapper.getAlias(root(REFLECTION.getRecordType(k)), CASCADE, this.template.dialect()));
+                            parts.add(dialectTemplate."\{aliasMapper.getAlias(root((Class<? extends Record>) c), CASCADE, template.dialect())}");
+                    case Object k when REFLECTION.isSupportedType(k) -> parts.add(dialectTemplate."\{aliasMapper.getAlias(root(REFLECTION.getRecordType(k)), CASCADE, template.dialect())}");
                     case Stream<?> _ -> throw new SqlTemplateException("Stream not supported in expression.");
                     case Query _ -> throw new SqlTemplateException("Query not supported in expression. Use QueryBuilder instead.");
                     case Element e -> throw new SqlTemplateException(STR."Unsupported element type in expression: \{e.getClass().getSimpleName()}.");
@@ -467,8 +474,9 @@ final class WhereProcessor implements ElementProcessor<Where> {
         return switch (value) {
             case StringTemplate _ -> throw new SqlTemplateException("StringTemplate not allowed as string template value.");
             case Stream<?> _ -> throw new SqlTemplateException("Stream not supported as string template value.");
-            case Subqueryable t -> new Elements.Subquery(t.getSubquery(), true);
-            case Metamodel<?, ?> m -> new Elements.Column(m, CASCADE);
+            case Subqueryable t -> new Subquery(t.getSubquery(), true);
+            case Metamodel<?, ?> m when m.isColumn() -> new Column(m, CASCADE);
+            case Metamodel<?, ?> _ -> throw new SqlTemplateException("Metamodel does not reference a column.");
             case null, default -> value;
         };
     }
@@ -482,13 +490,13 @@ final class WhereProcessor implements ElementProcessor<Where> {
      */
     private String getExpressionString(Expression expression) throws SqlTemplateException {
         return switch(expression) {
-            case Elements.TemplateExpression it -> getTemplateExpressionString(it.template());
-            case Elements.ObjectExpression it -> getObjectExpressionString(it.metamodel(), it.operator(), it.object());
+            case TemplateExpression it -> getTemplateExpressionString(it.template());
+            case ObjectExpression it -> getObjectExpressionString(it.metamodel(), it.operator(), it.object());
         };
     }
 
     /**
-     * Transfors the specified {@code object} into an object expression without using a metamodel or operator.
+     * Transforms the specified {@code object} into an object expression without using a metamodel or operator.
      *
      * @param object the object to transform.
      * @return the object expression string.
