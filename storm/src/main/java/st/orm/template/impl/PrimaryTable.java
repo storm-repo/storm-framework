@@ -19,8 +19,14 @@ import jakarta.annotation.Nonnull;
 
 import static java.util.Objects.requireNonNull;
 
-public record PrimaryTable(Class<? extends Record> table, @Nonnull String alias) {
-    public PrimaryTable {
+/**
+ * Represents a primary table in a SQL query.
+ *
+ * @param table the table class.
+ * @param alias the table alias.
+ */
+record PrimaryTable(@Nonnull Class<? extends Record> table, @Nonnull String alias) {
+    PrimaryTable {
         requireNonNull(table, "table");
         requireNonNull(alias, "alias");
     }

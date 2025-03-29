@@ -25,6 +25,7 @@ In summary, Storm delivers a modern, efficient, and straightforward ORM solution
 database interaction, and wide compatibility. It’s an excellent choice for Java and Kotlin developers seeking
 simplicity, performance, and enhanced readability in their database operations.
 
+
 == Getting Started
 
 Storm offers a flexible and layered approach to database interaction, catering to developers with varying needs and
@@ -105,7 +106,7 @@ The following example demonstrates how to query the `User` entity using both SQL
 fetches users based on the specified email address. The email address is passed as a bind variable to the underlying SQL
 query in both modes.
 
-In SQL Template mode:
+SQL Template mode:
 [source,java,indent=0]
 ----
 Optional<User> user = ORM(dataSource).query(RAW."""
@@ -115,14 +116,28 @@ Optional<User> user = ORM(dataSource).query(RAW."""
     .getOptionalResult(User.class);
 ----
 
-In ORM mode:
+ORM mode:
 [source,java,indent=0]
 ----
 Optional<User> user = ORM(dataSource).entity(User.class)
     .select()
     .where(User_.email, EQUALS, email)    // Type-safe!
-    .getResultList();
+    .getOptionalResult();
 ----
+
+Mixed mode:
+[source,java,indent=0]
+----
+Optional<User> user = ORM(dataSource).entity(User.class)
+    .select()
+    .where(RAW."\{User_.email} = \{email}")
+    .getOptionalResult();
+----
+
+ORM mode should generally be preferred for its type-safe, readable syntax and portability. However, SQL Template mode is
+also available for those who prefer a more SQL-like approach or need to execute complex queries that may not be easily
+expressed in code. All ORM elements are also available in SQL Template mode, allowing for a seamless transition between
+the two modes.
 
 ==== one-to-one / many-to-one relationships
 
@@ -138,7 +153,7 @@ fetch related entities.
 When _one-to-many_ relationships need to be queried, a query can be constructed to fetch the related entities. For
 example, to fetch all users in a specific city, you can use the following approaches:
 
-In SQL Template mode:
+Sql Template mode:
 [source,java,indent=0]
 ----
 List<User> usersInCity = ORM(dataSource).query(RAW."""
@@ -148,7 +163,7 @@ List<User> usersInCity = ORM(dataSource).query(RAW."""
     .getResultList(User.class);
 ----
 
-In ORM mode:
+ORM mode:
 [source,java,indent=0]
 ----
 List<User> usersInCity = ORM(dataSource).entity(User.class)
@@ -178,7 +193,7 @@ The `UserRole` entity represents the join table between `User` and `Role`. The `
 key that consists of the user ID and role ID. The `user` and `role` fields are foreign keys that reference the `User`
 and `Role` entities, respectively.
 
-In SQL Template mode:
+Sql Template mode:
 [source,java,indent=0]
 ----
 List<UserRole> userRoles = ORM(dataSource).query(RAW."""
@@ -188,7 +203,7 @@ List<UserRole> userRoles = ORM(dataSource).query(RAW."""
     .getResultList(UserRole.class);
 ----
 
-In ORM mode:
+ORM mode:
 [source,java,indent=0]
 ----
 List<UserRole> userRoles = ORM(dataSource).entity(UserRole.class)
@@ -485,7 +500,7 @@ List<User> users = userRepository
         .getResultList();
 ----
 
-The metamodel can also be used in SQL Templates mode. The example below shows how SQL Templates are also supported when
+The metamodel can also be used in SQL Template mode. The example below shows how SQL Templates are also supported when
 using the ORM API, allowing for full flexibility in querying the database:
 
 [source,java,indent=0]
