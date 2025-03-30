@@ -72,9 +72,11 @@ public interface Metamodel<T extends Record, E> {
     Class<T> root();
 
     /**
-     * Returns the table to which this metamodel is pointing.
+     * Returns the table that holds the column to which this metamodel is pointing. If the metamodel points to an
+     * inline record, the table is the parent table of the inline record. If the metamodel is a root metamodel, the
+     * root table is returned.
      *
-     * @return the table to which this metamodel is pointing.
+     * @return the table that holds the column to which this metamodel is pointing.
      */
     Metamodel<T, ? extends Record> table();
 

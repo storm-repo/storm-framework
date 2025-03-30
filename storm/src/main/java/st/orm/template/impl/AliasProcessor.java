@@ -42,6 +42,6 @@ final class AliasProcessor implements ElementProcessor<Alias> {
      */
     @Override
     public ElementResult process(@Nonnull Alias alias) throws SqlTemplateException {
-        return new ElementResult(aliasMapper.getAlias(alias.metamodel(), alias.scope(), template.dialect()));
+        return new ElementResult(aliasMapper.getAlias(alias.table(), null, alias.scope(), template.dialect()));
     }
 }

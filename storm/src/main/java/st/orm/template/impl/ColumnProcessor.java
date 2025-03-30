@@ -28,7 +28,6 @@ import java.lang.reflect.RecordComponent;
 
 import static st.orm.template.impl.RecordReflection.getColumnName;
 import static st.orm.template.impl.RecordReflection.getForeignKey;
-import static st.orm.template.impl.RecordReflection.getLazyRecordType;
 import static st.orm.template.impl.RecordReflection.getRecordComponent;
 
 /**
@@ -41,11 +40,13 @@ final class ColumnProcessor implements ElementProcessor<Column> {
     private final SqlTemplate template;
     private final SqlDialectTemplate dialectTemplate;
     private final AliasMapper aliasMapper;
+    private final PrimaryTable primaryTable;
 
     ColumnProcessor(@Nonnull SqlTemplateProcessor templateProcessor) {
         this.template = templateProcessor.template();
         this.dialectTemplate = templateProcessor.dialectTemplate();
         this.aliasMapper = templateProcessor.aliasMapper();
+        this.primaryTable = templateProcessor.primaryTable();
     }
 
     /**
@@ -57,20 +58,22 @@ final class ColumnProcessor implements ElementProcessor<Column> {
      */
     @Override
     public ElementResult process(@Nonnull Column column) throws SqlTemplateException {
-        RecordComponent component = getRecordComponent(column.metamodel().root(), column.metamodel().componentPath());
-        String alias;
+        var metamodel = column.metamodel();
+        boolean isNested = metamodel.table().componentType() != metamodel.root();
+        if (isNested) {
+            if (primaryTable == null) {
+                throw new SqlTemplateException(STR."Nested metamodel \{metamodel} is not supported when not using a primary table.");
+            }
+            if (primaryTable.table() != metamodel.root()) {
+                throw new SqlTemplateException(STR."Nested metamodel \{metamodel} is not the primary table \{primaryTable.table()}.");
+            }
+        }
+        String alias = aliasMapper.getAlias(column.metamodel(), column.scope(), template.dialect());
+        RecordComponent component = getRecordComponent(metamodel.root(), column.metamodel().componentPath());
         ColumnName columnName;
         if (REFLECTION.isAnnotationPresent(component, FK.class)) {
-            Class<?> table = component.getDeclaringRecord();
-            if (Lazy.class.isAssignableFrom(table)) {
-                table = getLazyRecordType(component);
-            }
-            //noinspection unchecked
-            alias = aliasMapper.getAlias((Class<? extends Record>) table, column.metamodel().table().path(),
-                    column.scope(), template.dialect());
             columnName = getForeignKey(component, template.foreignKeyResolver());
         } else {
-            alias = aliasMapper.getAlias(column.metamodel(), column.scope(), template.dialect());
             columnName = getColumnName(component, template.columnNameResolver());
         }
         return new ElementResult(dialectTemplate."\{alias}.\{columnName}");

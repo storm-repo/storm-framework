@@ -19,6 +19,7 @@ public class MetamodelTest {
         assertEquals("", model.path());
         assertEquals("pet", model.component());
         assertEquals(Visit.class, model.root());
+        assertEquals(Visit.class, model.table().componentType());
         assertEquals(Pet.class, model.componentType());
     }
 

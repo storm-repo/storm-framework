@@ -28,6 +28,7 @@ import st.orm.template.SqlTemplateException;
 import java.lang.reflect.RecordComponent;
 import java.util.Optional;
 
+import static java.util.Optional.ofNullable;
 import static st.orm.template.impl.RecordReflection.getLazyRecordType;
 import static st.orm.template.impl.RecordReflection.getRecordComponent;
 
@@ -177,17 +178,19 @@ public class MetamodelImpl<T extends Record, E> implements Metamodel<T, E> {
     }
 
     /**
-     * Returns the table to which this metamodel is pointing.
+     * Returns the table that holds the column to which this metamodel is pointing. If the metamodel points to an
+     * inline record, the table is the parent table of the inline record. If the metamodel is a root metamodel, the
+     * root table is returned.
      *
-     * @return the table to which this metamodel is pointing.
+     * @return the table that holds the column to which this metamodel is pointing.
      */
     @Override
     public Metamodel<T, ? extends Record> table() {
-        if (componentType().isRecord() && !isInline()) {
-            //noinspection unchecked
-            return (Metamodel<T, ? extends Record>) this;
+        if (isInline()) {
+            return parent().orElseThrow().table();
         }
-        return parent().orElseThrow().table();
+        //noinspection unchecked
+        return (Metamodel<T, ? extends Record>) parent().orElse(this);
     }
 
     /**
@@ -205,7 +208,7 @@ public class MetamodelImpl<T extends Record, E> implements Metamodel<T, E> {
      * @return the parent metamodel or an empty optional if this is the root metamodel.
      */
     private Optional<Metamodel<T, ?>> parent() {
-        return Optional.ofNullable(parent);
+        return ofNullable(parent);
     }
 
     /**

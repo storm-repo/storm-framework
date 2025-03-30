@@ -55,6 +55,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.Templates.ORM;
 import static st.orm.Templates.alias;
+import static st.orm.Templates.column;
 import static st.orm.Templates.where;
 import static st.orm.template.Operator.BETWEEN;
 import static st.orm.template.Operator.EQUALS;
@@ -529,6 +530,22 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
+    public void testSelectWithTwoPetsOneLazyWithRootPathTemplateMetamodel() {
+        var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        try (var _ = consume(sql::setPlain)) {
+            var list = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
+                    .select()
+                    .where(it -> it.expression(RAW."\{PetLazyOwner_.owner} = \{owner.id()}")).getResultList();
+            assertEquals(2, list.size());
+            //noinspection DataFlowIssue
+            assertEquals(owner.id(), list.getFirst().pet1().owner().id());
+            //noinspection DataFlowIssue
+            assertEquals(owner.id(), list.getLast().pet1().owner().id());
+        }
+    }
+
+    @Test
     public void testSelectWithTwoPetsOneLazyWithInvalidPathTemplateMetamodel() {
         var e = assertThrows(PersistenceException.class, () -> {
             var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
@@ -536,7 +553,7 @@ public class RepositoryPreparedStatementIntegrationTest {
             try (var _ = consume(sql::setPlain)) {
                 ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
                         .select()
-                        .where(it -> it.expression(RAW."\{PetLazyOwner_.owner} = \{owner.id()}")).getResultList();
+                        .where(it -> it.expression(RAW."\{Pet_.owner} = \{owner.id()}")).getResultList();
             }
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
@@ -557,6 +574,22 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
+    public void testSelectWithTwoPetsOneLazyWithRootPathMetamodelTemplate() {
+        var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        try (var _ = consume(sql::setPlain)) {
+            var list = ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
+                    .select()
+                    .where(RAW."\{PetLazyOwner_.owner} = \{owner.id()}").getResultList();
+            assertEquals(2, list.size());
+            //noinspection DataFlowIssue
+            assertEquals(owner.id(), list.getFirst().pet1().owner().id());
+            //noinspection DataFlowIssue
+            assertEquals(owner.id(), list.getLast().pet1().owner().id());
+        }
+    }
+
+    @Test
     public void testSelectWithTwoPetsOneLazyWithInvalidPathMetamodelTemplate() {
         var e = assertThrows(PersistenceException.class, () -> {
             var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
@@ -564,7 +597,7 @@ public class RepositoryPreparedStatementIntegrationTest {
             try (var _ = consume(sql::setPlain)) {
                 ORM(dataSource).entity(VisitWithTwoPetsOneLazy.class)
                         .select()
-                        .where(RAW."\{PetLazyOwner_.owner}.id = \{owner.id()}").getResultList();
+                        .where(RAW."\{Pet_.owner} = \{owner.id()}").getResultList();
             }
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
@@ -1007,7 +1040,16 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testWhereExists() {
         var list = ORM(dataSource).entity(Owner.class)
                 .select()
-                .where(it -> it.exists(it.subquery(Visit.class).where(RAW."\{alias(Owner.class, OUTER)}.id = \{alias(Visit_.pet.owner)}.id")))
+                .where(it -> it.exists(it.subquery(Visit.class).where(RAW."\{alias(Owner.class, OUTER)}.id = \{alias(Owner.class, INNER)}.id")))
+                .getResultList();
+        assertEquals(6, list.size());
+    }
+
+    @Test
+    public void testWhereExistsMetamodel() {
+        var list = ORM(dataSource).entity(Owner.class)
+                .select()
+                .where(it -> it.exists(it.subquery(Visit.class).where(RAW."\{column(Owner_.id, OUTER)} = \{column(Owner_.id, INNER)}")))
                 .getResultList();
         assertEquals(6, list.size());
     }
@@ -1055,7 +1097,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var list = ORM(dataSource).entity(Owner.class)
                 .select()
                 .append(RAW."WHERE EXISTS (\{
-                        orm.subquery(Visit.class).where(RAW."\{alias(Owner.class, OUTER)}.id = \{alias(Visit_.pet.owner)}.id")
+                        orm.subquery(Visit.class).where(RAW."\{alias(Owner.class, OUTER)}.id = \{alias(Owner.class, INNER)}.id")
                 })")
                 .getResultList();
         assertEquals(6, list.size());

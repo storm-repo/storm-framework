@@ -105,6 +105,7 @@ import static st.orm.template.impl.SqlParser.SqlMode.UPDATE;
 import static st.orm.template.impl.SqlParser.getSqlMode;
 import static st.orm.template.impl.SqlParser.hasWhereClause;
 import static st.orm.template.impl.SqlParser.removeComments;
+import static st.orm.template.impl.SqlTemplateProcessor.current;
 
 /**
  * The sql template implementation that is responsible for generating SQL queries.
@@ -562,7 +563,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
     }
 
     private AliasMapper getAliasMapper(@Nonnull TableUse tableUse) {
-        return new AliasMapper(tableUse, tableAliasResolver, modelBuilder.tableNameResolver(), SqlTemplateProcessor.current()
+        return new AliasMapper(tableUse, tableAliasResolver, modelBuilder.tableNameResolver(), current()
                 .map(SqlTemplateProcessor::aliasMapper)
                 .orElse(null));
     }
@@ -963,7 +964,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public Sql process(@Nonnull StringTemplate template) throws SqlTemplateException {
-        return process(template, SqlTemplateProcessor.current().isPresent());
+        return process(template, current().isPresent());
     }
 
     /**

@@ -21,6 +21,7 @@ import st.orm.model.Vet;
 import st.orm.model.VetSpecialty;
 import st.orm.model.VetSpecialtyPK;
 import st.orm.model.Visit;
+import st.orm.model.Visit_;
 import st.orm.repository.Entity;
 import st.orm.repository.spring.PetRepository;
 import st.orm.template.SqlInterceptor;
@@ -104,6 +105,18 @@ public class TemplatePreparedStatementIntegrationTest {
                     .distinct()
                     .count());
         }
+    }
+
+    @Test
+    public void testSelectPetWithJoinsMetamodel() {
+        var visit = ORM(dataSource).entity(Visit.class).select(1);
+        Pet pet = ORM(dataSource).query(RAW."""
+                SELECT \{Pet.class}
+                FROM \{Pet.class}
+                  INNER JOIN \{Visit.class} ON \{Pet_.id} = \{Visit_.pet}
+                WHERE \{Visit_.id} = \{visit.id()}""")
+        .getSingleResult(Pet.class);
+        assertEquals(pet.id(), visit.pet().id());
     }
 
     @Test

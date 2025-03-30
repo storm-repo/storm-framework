@@ -745,7 +745,7 @@ public interface Templates {
      * <pre>{@code
      * SELECT \{MyTable.class}
      * FROM \{MyTable.class}
-     * WHERE \{where(Table_.otherTable.id, Operator.IN, listOfIds)}
+     * WHERE \{where(MyTable_.otherTable.id, Operator.IN, listOfIds)}
      * }</pre>
      *
      * <p>In this example, {@code listOfIds} contains the primary key values of the {@code MyTable} records,
@@ -756,7 +756,7 @@ public interface Templates {
      * List<MyTable> entities = ...;
      * SELECT \{MyTable.class}
      * FROM \{MyTable.class}
-     * WHERE \{where(Table_.otherTable, Operator.IN, entities)}
+     * WHERE \{where(MyTable_.otherTable, Operator.IN, entities)}
      * }</pre>
      *
      * <p>In this example, {@code entities} is a list of {@code MyTable} records. The query matches entries in
@@ -785,7 +785,7 @@ public interface Templates {
      * <pre>{@code
      * SELECT \{MyTable.class}
      * FROM \{MyTable.class}
-     * WHERE \{where(Table_.otherTable.id, Operator.BETWEEN, 1, 10)}
+     * WHERE \{where(MyTable_.otherTable.id, Operator.BETWEEN, 1, 10)}
      * }</pre>
      *
      * <p>In this example, the query selects all entries in {@code Table} where the associated {@code MyTable} 
@@ -1041,54 +1041,6 @@ public interface Templates {
     }
 
     /**
-     * Generates an alias element for a table specified by the given {@code metamodel} in a type safe manner.
-     *
-     * <p>Example usage in a string template where {@code MyTable} is referenced twice:
-     * <pre>{@code
-     * // Define a record with two references to MyTable
-     * record Table(int id, MyTable child, MyTable parent) {}
-     *
-     * // In the SQL template
-     * SELECT \{alias(Table_.child}.column_name FROM \{MyTable.class}
-     * }</pre>
-     *
-     * <p>In this example, {@code Table_.child} specifies that we are referring to the {@code child} field of the {@code Table} record,
-     * which is of type {@code MyTable}. This distinguishes it from the {@code parent} field, which is also of type {@code MyTable}.
-     *
-     * @param path specifies the table for which the alias is to be generated.
-     * @return an {@link Element} representing the table's alias with the specified path.
-     * @since 1.2
-     */
-    static Element alias(@Nonnull Metamodel<?, ? extends Record> path) {
-        return new Alias(path, CASCADE);
-    }
-
-    /**
-     * Generates an alias element for a table specified by the given {@code metamodel} in a type safe manner.
-     *
-     * <p>Example usage in a string template where {@code MyTable} is referenced twice:
-     * <pre>{@code
-     * // Define a record with two references to MyTable
-     * record Table(int id, MyTable child, MyTable parent) {}
-     *
-     * // In the SQL template
-     * SELECT \{alias(Table_.child}.column_name FROM \{MyTable.class}
-     * }</pre>
-     *
-     * <p>In this example, {@code Table_.child} specifies that we are referring to the {@code child} field of the {@code Table} record,
-     * which is of type {@code MyTable}. This distinguishes it from the {@code parent} field, which is also of type {@code MyTable}.
-     *
-     * @param path specifies the table for which the alias is to be generated.
-     * @param scope the {@link ResolveScope} to use when resolving the alias. Use CASCADE to include local and outer
-     *              aliases, LOCAL to include local aliases only, and OUTER to include outer aliases only.
-     * @return an {@link Element} representing the table's alias with the specified path.
-     * @since 1.2
-     */
-    static Element alias(@Nonnull Metamodel<?, ? extends Record> path, @Nonnull ResolveScope scope) {
-        return new Alias(path, scope);
-    }
-
-    /**
      * Generates a column element for a column specified by the given {@code metamodel} in a type safe manner.
      *
      * <p>The path is constructed by concatenating the names of the fields that lead to the target table from the root
@@ -1102,7 +1054,7 @@ public interface Templates {
      * record Table(int id, MyTable child, MyTable parent) {}
      *
      * // In the SQL template
-     * SELECT \{column(Table_.child.name)} FROM \{MyTable.class}
+     * SELECT \{column(MyTable_.child.name)} FROM \{MyTable.class}
      * }</pre>
      *
      * <p>In this example, the path "child" specifies that we are referring to the {@code child} field of the
@@ -1131,7 +1083,7 @@ public interface Templates {
      * record Table(int id, MyTable child, MyTable parent) {}
      *
      * // In the SQL template
-     * SELECT \{column(Table_.child.name)} FROM \{MyTable.class}
+     * SELECT \{column(MyTable_.child.name)} FROM \{MyTable.class}
      * }</pre>
      *
      * <p>In this example, the path "child" specifies that we are referring to the {@code child} field of the
