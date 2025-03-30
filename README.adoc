@@ -195,7 +195,7 @@ Mixed::
 ----
 List<User> usersInCity = ORM(dataSource).entity(User.class)
     .select()
-    .where(RAW."\{User_.city} = \{city}")
+    .where(RAW."\{city}")
     .getResultList();
 ----
 ====
@@ -239,7 +239,7 @@ SQL Template::
 List<UserRole> userRoles = ORM(dataSource).query(RAW."""
         SELECT \{UserRole.class}
         FROM \{UserRole.class}
-        WHERE \{UserRole_.role} = \{role.id()}""")
+        WHERE \{role}""")
     .getResultList(UserRole.class);
 ----
 Mixed::
@@ -248,7 +248,7 @@ Mixed::
 ----
 List<UserRole> userRoles = ORM(dataSource).entity(UserRole.class)
     .select()
-    .where(RAW."\{UserRole_.rol} = \{role.id()}")
+    .where(RAW."\{role}")
     .getResultList();
 ----
 ====
@@ -316,7 +316,7 @@ SQL Template::
 List<User> users = ORM(dataSource).query(RAW."""
         SELECT \{User.class}
         FROM \{User.class}
-        WHERE \{User_.city} = \{city.id()}
+        WHERE \{city}
           AND \{User_.birthDate} < \{LocalDate.of(2000, 1, 1)}""")
     .getResultList(User.class);
 ----
@@ -327,7 +327,7 @@ Mixed::
 List<Role> users = ORM(dataSource).entity(Role.class)
     .select()
     .innerJoin(UserRole.class).on(Role.class)
-    .where(RAW."\{User_.city} = \{city.id()} AND \{User_.birthDate} < \{LocalDate.of(2000, 1, 1)}")
+    .where(RAW."\{city} AND \{User_.birthDate} < \{LocalDate.of(2000, 1, 1)}")
     .getResultList();
 ----
 ====
