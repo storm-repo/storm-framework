@@ -48,6 +48,7 @@ import java.util.Map;
 import java.util.SequencedMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
@@ -59,6 +60,7 @@ import static st.orm.template.ResolveScope.CASCADE;
 import static st.orm.template.ResolveScope.INNER;
 import static st.orm.template.impl.RecordReflection.getColumnName;
 import static st.orm.template.impl.RecordReflection.getForeignKey;
+import static st.orm.template.impl.SqlParser.removeComments;
 
 /**
  * A processor for a where element of a template.
@@ -440,7 +442,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
             String fragment = fragments.get(i);
             parts.add(fragment);
             if (i < values.size()) {
-                Object value = resolveElements(values.get(i));
+                Object value = resolveElements(values.get(i), fragment, i + 1 < fragments.size() ? fragments.get(i + 1) : "");
                 switch (value) {
                     case Expression exp -> parts.add(getExpressionString(exp));
                     case Subquery s -> parts.add(new SubqueryProcessor(templateProcessor).process(s).get());
@@ -463,6 +465,9 @@ final class WhereProcessor implements ElementProcessor<Where> {
         return String.join("", parts);
     }
 
+    private static final Pattern ENDS_WITH_OPERATOR = Pattern.compile(".*[<=>]$");
+    private static final Pattern STARTS_WITH_OPERATOR = Pattern.compile("^[<=>].*");
+
     /**
      * Resolves the specified {@code value} into an element that can be processed downstream.
      *
@@ -470,14 +475,26 @@ final class WhereProcessor implements ElementProcessor<Where> {
      * @return the resolved element.
      * @throws SqlTemplateException if the element cannot be resolved.
      */
-    private Object resolveElements(@Nullable Object value) throws SqlTemplateException {
+    private Object resolveElements(@Nullable Object value, @Nonnull String previousFragment, @Nonnull String nextFragment) throws SqlTemplateException {
         return switch (value) {
             case StringTemplate _ -> throw new SqlTemplateException("StringTemplate not allowed as string template value.");
             case Stream<?> _ -> throw new SqlTemplateException("Stream not supported as string template value.");
             case Subqueryable t -> new Subquery(t.getSubquery(), true);
             case Metamodel<?, ?> m when m.isColumn() -> new Column(m, CASCADE);
             case Metamodel<?, ?> _ -> throw new SqlTemplateException("Metamodel does not reference a column.");
-            case null, default -> value;
+            case null, default -> {
+                if (!(value instanceof Element) && value instanceof Record) {
+                    String previous = removeComments(previousFragment, template.dialect()).stripTrailing().toUpperCase();
+                    if (ENDS_WITH_OPERATOR.matcher(previous).find()) {
+                        throw new SqlTemplateException("Record not allowed in expression with operator.");
+                    }
+                    String next = removeComments(nextFragment, template.dialect()).stripLeading().toUpperCase();
+                    if (STARTS_WITH_OPERATOR.matcher(next).find()) {
+                        throw new SqlTemplateException("Record not allowed in expression with operator.");
+                    }
+                }
+                yield value;
+            }
         };
     }
 

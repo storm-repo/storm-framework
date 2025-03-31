@@ -267,6 +267,17 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
+    public void testWhereWithOperatorAndRecord() {
+        var e = assertThrows(PersistenceException.class, () -> {
+            var owner = ORM(dataSource).entity(Owner.class).select(1);
+            ORM(dataSource).entity(Pet.class).select()
+                    .where(RAW."\{Pet_.owner} = \{owner}")
+                    .getResultList();
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+    }
+
+    @Test
     public void testSelectWithInvalidPathNoArg() {
         var e = assertThrows(PersistenceException.class, () ->
                 ORM(dataSource).entity(Pet.class).select()
