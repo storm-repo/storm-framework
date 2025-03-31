@@ -34,7 +34,7 @@ preferences. Whether you’re looking for minimal enhancements or a complete abs
 
 === Dependency Management
 
-Include the following dependencies in your project to start using Storm:
+Include the following dependency in your project to start using Storm:
 
 [tabs]
 ====
@@ -60,9 +60,9 @@ implementation 'st.orm:storm:1.2.2'
 
 === Writing Entities
 
-Storm entities are straightforward, concise, and typically defined using Java record classes. By default, Storm
-automatically applies a naming scheme to map entity fields directly to corresponding database columns. This approach
-simplifies development, as explicit annotations or mappings are not required for standard naming conventions.
+Storm entities are defined using Java record classes. By default, Storm automatically applies a naming scheme to map
+entity fields directly to corresponding database columns. This approach simplifies development, as explicit annotations
+or mappings are not required for standard naming conventions.
 
 Consider the following example, where two entities — City and User — are defined:
 
@@ -101,8 +101,8 @@ approaches:
 * Annotate the record with the `@DbTable` annotation to define custom table names.
 * Annotate fields with the `@DbColumn` annotation to define custom column names or specify a custom name in `@PK` or
 `@FK` annotations.
-* Providing implementations of the `ColumnNameResolver` or `ForeignKeyResolver` interfaces to globally manage naming
-conventions.
+* Providing implementations of the `TableNameResolver`, `ColumnNameResolver` or `ForeignKeyResolver` interfaces to 
+globally manage naming conventions.
 
 This flexible approach enables developers to easily adapt Storm entities to existing database schemas or specific naming
 preferences.
@@ -115,7 +115,7 @@ allowing developers to choose the approach that best fits their needs.
 
 The following example demonstrates how to query the `User` entity using both SQL Template mode and ORM mode. The query
 fetches users based on the specified email address. The email address is passed as a bind variable to the underlying SQL
-query in both modes.
+query in all modes.
 
 [tabs]
 ====
@@ -138,7 +138,7 @@ Optional<User> user = ORM(dataSource).query(RAW."""
         WHERE \{User_.email} = \{email}""")
     .getOptionalResult(User.class);
 ----
-Mixed::
+Hybrid::
 +
 [source,java]
 ----
@@ -151,8 +151,8 @@ Optional<User> user = ORM(dataSource).entity(User.class)
 
 ORM mode should generally be preferred for its type-safe, readable syntax and portability. However, SQL Template mode is
 also available for those who prefer a more SQL-like approach or need to execute complex queries that may not be easily
-expressed in code. All ORM elements are also available in SQL Template mode, allowing for a seamless transition between
-the two modes.
+expressed in code. All ORM methods also support SQL Templates in a hybrid fashion, allowing for a seamless transition
+between ORM and SQL Template modes.
 
 ==== one-to-one / many-to-one relationships
 
@@ -189,7 +189,7 @@ List<User> usersInCity = ORM(dataSource).query(RAW."""
         WHERE \{city}""")
     .getResultList(User.class);
 ----
-Mixed::
+Hybrid::
 +
 [source,java]
 ----
@@ -242,7 +242,7 @@ List<UserRole> userRoles = ORM(dataSource).query(RAW."""
         WHERE \{role}""")
     .getResultList(UserRole.class);
 ----
-Mixed::
+Hybrid::
 +
 [source,java]
 ----
@@ -279,7 +279,7 @@ List<Role> userRoles = ORM(dataSource).query(RAW."""
         WHERE \{UserRole_.user} = \{user.id()}""")
     .getResultList(Role.class);
 ----
-Mixed::
+Hybrid::
 +
 [source,java]
 ----
@@ -320,7 +320,7 @@ List<User> users = ORM(dataSource).query(RAW."""
           AND \{User_.birthDate} < \{LocalDate.of(2000, 1, 1)}""")
     .getResultList(User.class);
 ----
-Mixed::
+Hybrid::
 +
 [source,java]
 ----
@@ -367,7 +367,7 @@ List<GroupedByCity> counts = ORM(dataSource).query(RAW."""
         GROUP BY \{User_.city}""")
     .getResultList(GroupedByCity.class);
 ----
-Mixed::
+Hybrid::
 +
 [source,java]
 ----
@@ -409,7 +409,7 @@ List<User> counts = ORM(dataSource).query(RAW."""
         ORDER BY \{User_.birthDate}""")
     .getResultList(User.class);
 ----
-Mixed::
+Hybrid::
 +
 [source,java]
 ----
@@ -659,7 +659,7 @@ List<User> users = userRepository
         .where(User_.email, EQUALS, email)
         .getResultList();
 ----
-Mixed::
+Hybrid::
 +
 [source,java]
 ----
@@ -684,7 +684,7 @@ List<User> users = userRepository
         .where(User_.city.name, EQUALS, "Sunnyvale")
         .getResultList();
 ----
-Mixed::
+Hybrid::
 +
 [source,java]
 ----
