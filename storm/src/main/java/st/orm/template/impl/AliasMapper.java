@@ -114,6 +114,7 @@ final class AliasMapper {
      * @param path  the path to retrieve the aliases for.
      * @param scope CASCADE to include local and outer aliases, LOCAL to include local aliases only, and
      *              OUTER to include outer aliases only.
+     * @param autoJoinTable the table that is auto-joined to the specified table.
      */
     private Stream<String> aliases(@Nonnull Class<? extends Record> table,
                                    @Nullable String path,
@@ -184,6 +185,17 @@ final class AliasMapper {
         return Optional.of(list.getFirst());
     }
 
+    /**
+     * Returns the alias for the table at the specified path.
+     *
+     * <p>Note that the alias returned is safe for use in SQL and does not require escaping.</p>
+     *
+     * @param metamodel the metamodel of the table to get the alias for.
+     * @param scope the scope to resolve the alias in.
+     * @param dialect the SQL dialect to use in case the alias is based on table name and potentially requires escaping.
+     * @return the alias for the table at the specified path.
+     * @throws SqlTemplateException if the alias could not be resolved.
+     */
     public String getAlias(@Nonnull Metamodel<?, ?> metamodel,
                            @Nonnull ResolveScope scope,
                            @Nonnull SqlDialect dialect) throws SqlTemplateException {
@@ -192,6 +204,18 @@ final class AliasMapper {
         return getAlias(table.componentType(), path.isEmpty() ? null : path, scope, null, dialect);
     }
 
+    /**
+     * Returns the alias for the table at the specified path.
+     *
+     * <p>Note that the alias returned is safe for use in SQL and does not require escaping.</p>
+     *
+     * @param table the table to get the alias for.
+     * @param path the path of the table (optional).
+     * @param scope the scope to resolve the alias in.
+     * @param dialect the SQL dialect to use in case the alias is based on table name and potentially requires escaping.
+     * @return the alias for the table at the specified path.
+     * @throws SqlTemplateException if the alias could not be resolved.
+     */
     public String getAlias(@Nonnull Class<? extends Record> table,
                            @Nullable String path,
                            @Nonnull ResolveScope scope,
@@ -199,6 +223,19 @@ final class AliasMapper {
         return getAlias(table, path, scope, null, dialect);
     }
 
+    /**
+     * Returns the alias for the table at the specified path.
+     *
+     * <p>Note that the alias returned is safe for use in SQL and does not require escaping.</p>
+     *
+     * @param table the table to get the alias for.
+     * @param path the path of the table (optional).
+     * @param scope the scope to resolve the alias in.
+     * @param autoJoinTable the table that is auto-joined to the specified table (optional).
+     * @param dialect the SQL dialect to use in case the alias is based on table name and potentially requires escaping.
+     * @return the alias for the table at the specified path.
+     * @throws SqlTemplateException if the alias could not be resolved.
+     */
     public String getAlias(@Nonnull Class<? extends Record> table,
                            @Nullable String path,
                            @Nonnull ResolveScope scope,

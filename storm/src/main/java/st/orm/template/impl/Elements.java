@@ -118,13 +118,10 @@ public final class Elements {
         }
     }
 
-    public record Alias(@Nonnull Metamodel<?, ?> metamodel, @Nonnull ResolveScope scope) implements Element {
+    public record Alias(@Nonnull Class<? extends Record> table, @Nonnull ResolveScope scope) implements Element {
         public Alias {
-            requireNonNull(metamodel, "metamodel");
+            requireNonNull(table, "table");
             requireNonNull(scope, "scope");
-        }
-        public Alias(@Nonnull Class<? extends  Record> table, @Nonnull ResolveScope scope) {
-            this(Metamodel.root(table), scope);
         }
     }
 

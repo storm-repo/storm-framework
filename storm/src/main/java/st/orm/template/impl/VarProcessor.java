@@ -16,7 +16,7 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
-import st.orm.template.SqlTemplate;
+import st.orm.template.SqlTemplate.PositionalParameter;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.impl.Elements.Var;
 
@@ -48,7 +48,7 @@ final class VarProcessor implements ElementProcessor<Var> {
         if (var.bindVars() instanceof BindVarsImpl vars) {
             templateProcessor.setBindVars(vars);
             final int position = parameterPosition.getAndIncrement();
-            vars.addParameterExtractor(record -> List.of(new SqlTemplate.PositionalParameter(position, var.extractor().apply(record))));
+            vars.addParameterExtractor(record -> List.of(new PositionalParameter(position, var.extractor().apply(record))));
             return new ElementResult("?");
         }
         throw new SqlTemplateException("Unsupported BindVars type.");

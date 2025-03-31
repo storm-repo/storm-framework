@@ -88,7 +88,9 @@ import static st.orm.template.impl.Elements.Where;
  * <p>Define the records to use them to construct the query using templates:</p>
  *
  * <pre>{@code
- * record User(int id, String name, int age, LocalDate birthDate, int cityId) {};
+ * record User(int id, String name, int age, LocalDate birthDate,
+ *             String street, String postalCode, int cityId) {};
+ *
  * record City(int id, String name, long population) {};
  * }</pre>
  *
@@ -113,7 +115,7 @@ import static st.orm.template.impl.Elements.Where;
  * List<User> users = ORM(dataSource).query(RAW."""
  *         SELECT \{User.class}
  *         FROM \{User.class}
- *         WHERE city_id = \{1}""")
+ *         WHERE \{User.class}.city_id = \{1}""")
  *     .getResultList(User.class);
  * }</pre>
  *
@@ -204,7 +206,7 @@ public interface KTemplates {
      * List<MyTable> myTables = orm.query(RAW."""
      *         SELECT \{MyTable.class}
      *         FROM \{MyTable.class}
-     *         WHERE \{MyTable_.city.name} = \{"Sunnyvale"}""")
+     *         WHERE \{MyTable_.name} = \{"ABC"}""")
      *     .getResultList(MyTable.class);
      * }</pre>
      *
@@ -228,7 +230,7 @@ public interface KTemplates {
      * List<MyTable> myTables = orm.query(RAW."""
      *         SELECT \{MyTable.class}
      *         FROM \{MyTable.class}
-     *         WHERE \{MyTable_.city.name} = \{"Sunnyvale"}""")
+     *         WHERE \{MyTable_.name} = \{"ABC"}""")
      *     .getResultList(MyTable.class);
      * }</pre>
      *
@@ -253,7 +255,7 @@ public interface KTemplates {
      *     List<MyTable> myTables = orm.query(RAW."""
      *             SELECT \{MyTable.class}
      *             FROM \{MyTable.class}
-     *             WHERE \{MyTable_.city.name} = \{"Sunnyvale"}""")
+     *             WHERE \{MyTable_.name} = \{"ABC"}""")
      *         .getResultList(MyTable.class)
      * }
      * }</pre>
@@ -275,15 +277,15 @@ public interface KTemplates {
      *
      * <p>Example usage in a string template:
      * <pre>{@code
-     * SELECT \{select(Table.class)}
-     * FROM \{from(Table.class)}
+     * SELECT \{select(MyTable.class)}
+     * FROM \{from(MyTable.class)}
      * }</pre>
      *
      * <p>For convenience, you can also use the shorthand notation. The SQL template engine
      * automatically detects that a SELECT element is required based on its placement in the query:
      * <pre>{@code
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
+     * SELECT \{MyTable.class}
+     * FROM \{MyTable.class}
      * }</pre>
      *
      * @param table the {@link Class} object representing the table record.
@@ -303,15 +305,15 @@ public interface KTemplates {
      *
      * <p>Example usage in a string template:
      * <pre>{@code
-     * SELECT \{select(Table.class)}
-     * FROM \{from(Table.class)}
+     * SELECT \{select(MyTable.class)}
+     * FROM \{from(MyTable.class)}
      * }</pre>
      *
      * <p>For convenience, you can also use the shorthand notation. The SQL template engine
      * automatically detects that a SELECT element is required based on its placement in the query:
      * <pre>{@code
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
+     * SELECT \{MyTable.class}
+     * FROM \{MyTable.class}
      * }</pre>
      *
      * @param table the {@link Class} object representing the table record.
@@ -332,16 +334,16 @@ public interface KTemplates {
      *
      * <p>Example usage in a string template:
      * <pre>{@code
-     * SELECT \{select(Table.class)}
-     * FROM \{from(Table.class, true)}
+     * SELECT \{select(MyTable.class)}
+     * FROM \{from(MyTable.class, true)}
      * }</pre>
      *
      * <p>For convenience, you can also use the shorthand notation. In this case, {@code autoJoin}
      * defaults to {@code false}. The SQL template engine automatically detects that a FROM element is required
      * based on its placement in the query:
      * <pre>{@code
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
+     * SELECT \{MyTable.class}
+     * FROM \{MyTable.class}
      * }</pre>
      *
      * @param table the {@link Class} object representing the table record.
@@ -367,7 +369,7 @@ public interface KTemplates {
      * }</pre>
      *
      * @param table the {@link Class} object representing the table record.
-     * @param alias the alias to use for the table in the query.
+     * @param alias the alias to use for the table in the query. The alias must not require escaping.
      * @param autoJoin if {@code true}, automatically join all foreign keys listed in the record.
      * @return an {@link Element} representing the FROM clause for the specified table.
      */
@@ -391,7 +393,7 @@ public interface KTemplates {
      * <p>Note that in this context, the alias is mandatory and auto-joining of foreign keys is not applicable.
      *
      * @param template the {@link StringTemplate} representing the custom SQL to be used in the FROM clause.
-     * @param alias the alias to assign to the template in the query.
+     * @param alias the alias to assign to the from clause in the query. The alias must not require escaping.
      * @return an {@link Element} representing the FROM clause with the specified template and alias.
      */
     static Element from(@Nonnull StringTemplate template, @Nonnull String alias) {
@@ -414,7 +416,7 @@ public interface KTemplates {
      * <p>Note that in this context, the alias is mandatory and auto-joining of foreign keys is not applicable.
      *
      * @param function used to define the string template to be used in the FROM clause.
-     * @param alias the alias to assign to the template in the query.
+     * @param alias the alias to assign to the from clause in the query. The alias must not require escaping.
      * @return an {@link Element} representing the FROM clause with the specified template and alias.
      */
     static Element from(@Nonnull TemplateFunction function, @Nonnull String alias) {
@@ -429,14 +431,14 @@ public interface KTemplates {
      *
      * <p>Example usage in a string template:
      * <pre>{@code
-     * INSERT INTO \{insert(Table.class)}
+     * INSERT INTO \{insert(MyTable.class)}
      * VALUES \{values(entity)}
      * }</pre>
      *
      * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically detects that
      * an INSERT element is required based on its placement in the query:
      * <pre>{@code
-     * INSERT INTO \{Table.class}
+     * INSERT INTO \{MyTable.class}
      * VALUES \{entity}
      * }</pre>
      *
@@ -458,14 +460,14 @@ public interface KTemplates {
      *
      * <p>Example usage in a string template:
      * <pre>{@code
-     * INSERT INTO \{Table.class}
+     * INSERT INTO \{MyTable.class}
      * VALUES \{values(entity1, entity2)}
      * }</pre>
      *
      * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically
      * detects that a VALUES element is required based on its placement in the query:
      * <pre>{@code
-     * INSERT INTO \{Table.class}
+     * INSERT INTO \{MyTable.class}
      * VALUES \{new Record[] {entity1, entity2}}
      * }</pre>
      *
@@ -488,14 +490,14 @@ public interface KTemplates {
      *
      * <p>Example usage in a string template:
      * <pre>{@code
-     * INSERT INTO \{Table.class}
+     * INSERT INTO \{MyTable.class}
      * VALUES \{values(records)}
      * }</pre>
      *
      * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically
      * detects that a VALUES element is required based on its placement in the query:
      * <pre>{@code
-     * INSERT INTO \{Table.class}
+     * INSERT INTO \{MyTable.class}
      * VALUES \{records}
      * }</pre>
      *
@@ -520,7 +522,7 @@ public interface KTemplates {
      * <pre>{@code
      * var bindVars = orm.createBindVars();
      * try (var query = orm.query(RAW."""
-     *         INSERT INTO \{Table.class}
+     *         INSERT INTO \{MyTable.class}
      *         VALUES \{values(bindVars)}""").prepare()) {
      *     records.forEach(query::addBatch);
      *     query.executeBatch();
@@ -530,7 +532,7 @@ public interface KTemplates {
      * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically
      * detects that a VALUES element is required based on its placement in the query:
      * <pre>{@code
-     * INSERT INTO \{Table.class}
+     * INSERT INTO \{MyTable.class}
      * VALUES \{bindVars}
      * }</pre>
      *
@@ -552,7 +554,7 @@ public interface KTemplates {
      *
      * <p>Example usage in a string template:
      * <pre>{@code
-     * UPDATE \{update(Table.class)}
+     * UPDATE \{update(MyTable.class)}
      * SET \{set(record)}
      * WHERE \{where(record)}
      * }</pre>
@@ -560,7 +562,7 @@ public interface KTemplates {
      * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically detects that
      * an UPDATE element is required based on its placement in the query:
      * <pre>{@code
-     * UPDATE \{Table.class}
+     * UPDATE \{MyTable.class}
      * SET \{record}
      * WHERE \{record}
      * }</pre>
@@ -583,7 +585,7 @@ public interface KTemplates {
      *
      * <p>Example usage in a string template:
      * <pre>{@code
-     * UPDATE \{update(Table.class, "t")}
+     * UPDATE \{update(MyTable.class, "t")}
      * SET \{set(record)}
      * WHERE \{where(record)}
      * }</pre>
@@ -606,7 +608,7 @@ public interface KTemplates {
      *
      * <p>Example usage in a string template:
      * <pre>{@code
-     * UPDATE \{Table.class}
+     * UPDATE \{MyTable.class}
      * SET \{set(record)}
      * WHERE \{where(record)}
      * }</pre>
@@ -614,7 +616,7 @@ public interface KTemplates {
      * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically detects
      * that a SET element is required based on its placement in the query:
      * <pre>{@code
-     * UPDATE \{Table.class}
+     * UPDATE \{MyTable.class}
      * SET \{record}
      * WHERE \{record}
      * }</pre>
@@ -639,7 +641,7 @@ public interface KTemplates {
      * <pre>{@code
      * var bindVars = orm.createBindVars();
      * try (var query = orm.query(RAW."""
-     *         UPDATE \{Table.class}
+     *         UPDATE \{MyTable.class}
      *         SET \{set(bindVars)}
      *         WHERE \{where(bindVars)}""").prepare()) {
      *     records.forEach(query::addBatch);
@@ -650,7 +652,7 @@ public interface KTemplates {
      * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically detects that
      * an UPDATE element is required based on its placement in the query:
      * <pre>{@code
-     * UPDATE \{Table.class}
+     * UPDATE \{MyTable.class}
      * SET \{record}
      * WHERE \{record}
      * }</pre>
@@ -683,16 +685,16 @@ public interface KTemplates {
      *
      * <p>Example usage with primary key values:
      * <pre>{@code
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
+     * SELECT \{MyTable.class}
+     * FROM \{MyTable.class}
      * WHERE \{where(listOfIds)}
      * }</pre>
      *
      * <p>Example usage with records:
      * <pre>{@code
      * List<Table> entities = List.of(entity1, entity2);
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
+     * SELECT \{MyTable.class}
+     * FROM \{MyTable.class}
      * WHERE \{where(entities)}
      * }</pre>
      *
@@ -704,8 +706,8 @@ public interface KTemplates {
      * a WHERE element is required based on its placement in the query:
      * <pre>{@code
      * List<Table> entities = List.of(entity1, entity2);
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
+     * SELECT \{MyTable.class}
+     * FROM \{MyTable.class}
      * WHERE \{entities}
      * }</pre>
      *
@@ -743,16 +745,16 @@ public interface KTemplates {
      *
      * <p>Example usage with a primary key value:
      * <pre>{@code
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
+     * SELECT \{MyTable.class}
+     * FROM \{MyTable.class}
      * WHERE \{where(id)}
      * }</pre>
      *
      * <p>Example usage with a record:
      * <pre>{@code
      * Table entity = ...;
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
+     * SELECT \{MyTable.class}
+     * FROM \{MyTable.class}
      * WHERE \{where(myTable)}
      * }</pre>
      *
@@ -762,8 +764,8 @@ public interface KTemplates {
      * a WHERE element is required based on its placement in the query:
      * <pre>{@code
      * Table entity = ...;
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
+     * SELECT \{MyTable.class}
+     * FROM \{MyTable.class}
      * WHERE \{entity}
      * }</pre>
      *
@@ -795,9 +797,9 @@ public interface KTemplates {
      *
      * <p>Example usage with primary keys:
      * <pre>{@code
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
-     * WHERE \{where(Table_.myTable.id, Operator.IN, listOfIds)}
+     * SELECT \{MyTable.class}
+     * FROM \{MyTable.class}
+     * WHERE \{where(MyTable_.myTable.id, Operator.IN, listOfIds)}
      * }</pre>
      *
      * <p>In this example, {@code listOfIds} contains the primary key values of the {@code MyTable} records,
@@ -806,9 +808,9 @@ public interface KTemplates {
      * <p>Example usage with records:
      * <pre>{@code
      * List<MyTable> entities = ...;
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
-     * WHERE \{where(Table_.myTable, Operator.IN, entities)}
+     * SELECT \{MyTable.class}
+     * FROM \{MyTable.class}
+     * WHERE \{where(MyTable_.myTable, Operator.IN, entities)}
      * }</pre>
      *
      * <p>In this example, {@code entities} is a list of {@code MyTable} records. The query matches entries in
@@ -835,9 +837,9 @@ public interface KTemplates {
      *
      * <p>Example usage with primary keys:
      * <pre>{@code
-     * SELECT \{Table.class}
-     * FROM \{Table.class}
-     * WHERE \{where(Table_.myTable.id, Operator.BETWEEN, 1, 10)}
+     * SELECT \{MyTable.class}
+     * FROM \{MyTable.class}
+     * WHERE \{where(MyTable_.myTable.id, Operator.BETWEEN, 1, 10)}
      * }</pre>
      *
      * <p>In this example, the query selects all entries in {@code Table} where the associated {@code MyTable}
@@ -864,7 +866,7 @@ public interface KTemplates {
      * <pre>{@code
      * var bindVars = orm.createBindVars();
      * try (var query = orm.query(RAW."""
-     *         UPDATE \{Table.class}
+     *         UPDATE \{MyTable.class}
      *         SET \{bindVars}
      *         WHERE \{where(bindVars)}""").prepare()) {
      *     records.forEach(query::addBatch);
@@ -878,7 +880,7 @@ public interface KTemplates {
      * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically detects that
      * a WHERE element is required based on its placement in the query:
      * <pre>{@code
-     * UPDATE \{Table.class}
+     * UPDATE \{MyTable.class}
      * SET \{bindVars}
      * WHERE \{bindVars}
      * }</pre>
@@ -899,14 +901,14 @@ public interface KTemplates {
      *
      * <p>Example usage in a string template:
      * <pre>{@code
-     * DELETE \{delete(Table.class)} FROM \{from(Table.class)}
+     * DELETE \{delete(MyTable.class)} FROM \{from(MyTable.class)}
      * WHERE \{where(record)}
      * }</pre>
      *
      * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically detects that
      * a DELETE element is required based on its placement in the query:
      * <pre>{@code
-     * DELETE \{Table.class} FROM \{Table.class}
+     * DELETE \{MyTable.class} FROM \{MyTable.class}
      * WHERE \{record}
      * }</pre>
      *
@@ -915,7 +917,7 @@ public interface KTemplates {
      * <p>Note that in most databases, specifying the table in the DELETE clause is not necessary, or even disallowed;
      * the DELETE statement is usually constructed with only a FROM clause:
      * <pre>{@code
-     * DELETE FROM \{from(Table.class)}
+     * DELETE FROM \{from(MyTable.class)}
      * WHERE \{where(record)}
      * }</pre>
      *
@@ -935,7 +937,7 @@ public interface KTemplates {
      *
      * <p>Example usage in a string template:
      * <pre>{@code
-     * DELETE \{delete(Table.class, "t")} FROM \{from(Table.class, "t")}
+     * DELETE \{delete(MyTable.class, "t")} FROM \{from(MyTable.class, "t")}
      * WHERE \{where(record)}
      * }</pre>
      *
@@ -949,7 +951,7 @@ public interface KTemplates {
      * }</pre>
      *
      * @param table the {@link Class} object representing the table record.
-     * @param alias the alias to use for the table in the query.
+     * @param alias the alias to use for the table in the query. The alias must not require escaping.
      * @return an {@link Element} representing the DELETE clause for the specified table with an alias.
      */
     static Element delete(@Nonnull KClass<? extends Record> table, @Nonnull String alias) {
@@ -965,29 +967,29 @@ public interface KTemplates {
      *
      * <p>Example usage in a string template:
      * <pre>{@code
-     * SELECT * FROM \{table(Table.class)}
+     * SELECT * FROM \{table(MyTable.class)}
      * }</pre>
      *
      * <p>For convenience, you can also use the shorthand notation. If the SQL template engine cannot resolve
-     * {@code \{Table.class}} into a specific element based on its placement in the query (e.g., after SELECT, FROM, etc.),
+     * {@code \{MyTable.class}} into a specific element based on its placement in the query (e.g., after SELECT, FROM, etc.),
      * it will default to creating a Table element:
      * <pre>{@code
-     * ... \{Table.class} ...
+     * ... \{MyTable.class} ...
      * }</pre>
      *
-     * <p>However, if {@code \{Table.class}} is followed by a dot {@code '.'}, the SQL template engine will resolve it into an
+     * <p>However, if {@code \{MyTable.class}} is followed by a dot {@code '.'}, the SQL template engine will resolve it into an
      * alias element, representing the alias of the table in the query:
      * <pre>{@code
-     * SELECT \{Table.class}.column_name FROM \{Table.class}
+     * SELECT \{MyTable.class}.column_name FROM \{MyTable.class}
      * }</pre>
      *
      * <p>As per the resolution rules:
      * <ul>
-     *   <li>If {@code \{Table.class}} is placed after keywords like SELECT, FROM, INSERT INTO, UPDATE, or DELETE,
+     *   <li>If {@code \{MyTable.class}} is placed after keywords like SELECT, FROM, INSERT INTO, UPDATE, or DELETE,
      *       the SQL template engine resolves it into the appropriate element (e.g., SELECT element, FROM element).</li>
-     *   <li>If {@code \{Table.class}} is not in such a placement and is not followed by a dot {@code '.'},
+     *   <li>If {@code \{MyTable.class}} is not in such a placement and is not followed by a dot {@code '.'},
      *       it is resolved into a table element.</li>
-     *   <li>If {@code \{Table.class}} is followed by a dot {@code '.'}, it is resolved into an alias element.</li>
+     *   <li>If {@code \{MyTable.class}} is followed by a dot {@code '.'}, it is resolved into an alias element.</li>
      * </ul>
      *
      * @param table the {@link Class} object representing the table record.
@@ -1006,16 +1008,16 @@ public interface KTemplates {
      *
      * <p>Example usage in a string template:
      * <pre>{@code
-     * SELECT * FROM \{table(Table.class, "t")}
+     * SELECT * FROM \{table(MyTable.class, "t")}
      * }</pre>
      *
      * <p>You can refer to the table alias in your query as follows:
      * <pre>{@code
-     * SELECT \{alias(Table.class)}.column_name FROM \{table(Table.class, "t")}
+     * SELECT \{alias(MyTable.class)}.column_name FROM \{table(MyTable.class, "t")}
      * }</pre>
      *
      * @param table the {@link Class} object representing the table record.
-     * @param alias the alias to use for the table in the query.
+     * @param alias the alias to use for the table in the query. The alias must not require escaping.
      * @return an {@link Element} representing the table with an alias.
      */
     static Element table(@Nonnull KClass<? extends Record> table, @Nonnull String alias) {
@@ -1031,22 +1033,22 @@ public interface KTemplates {
      *
      * <p>Example usage in a string template:
      * <pre>{@code
-     * SELECT \{alias(Table.class)}.column_name FROM \{table(Table.class, "t")}
+     * SELECT \{alias(MyTable.class)}.column_name FROM \{table(MyTable.class, "t")}
      * }</pre>
      *
-     * <p>According to the resolution rules, if {@code \{Table.class}} is followed by a dot {@code '.'}, the SQL template engine
+     * <p>According to the resolution rules, if {@code \{MyTable.class}} is followed by a dot {@code '.'}, the SQL template engine
      * automatically resolves it into an alias element:
      * <pre>{@code
-     * SELECT \{Table.class}.column_name FROM \{Table.class}
+     * SELECT \{MyTable.class}.column_name FROM \{MyTable.class}
      * }</pre>
      *
      * <p>As per the resolution rules:
      * <ul>
-     *   <li>If {@code \{Table.class}} is placed after keywords like SELECT, FROM, INSERT INTO, UPDATE, or DELETE,
+     *   <li>If {@code \{MyTable.class}} is placed after keywords like SELECT, FROM, INSERT INTO, UPDATE, or DELETE,
      *       the SQL template engine resolves it into the appropriate element (e.g., SELECT element, FROM element).</li>
-     *   <li>If {@code \{Table.class}} is not in such a placement and is not followed by a dot {@code '.'},
+     *   <li>If {@code \{MyTable.class}} is not in such a placement and is not followed by a dot {@code '.'},
      *       it is resolved into a table element.</li>
-     *   <li>If {@code \{Table.class}} is followed by a dot {@code '.'}, it is resolved into an alias element.</li>
+     *   <li>If {@code \{MyTable.class}} is followed by a dot {@code '.'}, it is resolved into an alias element.</li>
      * </ul>
      *
      * @param table the {@link Class} object representing the table record.
@@ -1065,79 +1067,31 @@ public interface KTemplates {
      *
      * <p>Example usage in a string template:
      * <pre>{@code
-     * SELECT \{alias(Table.class)}.column_name FROM \{table(Table.class, "t")}
+     * SELECT \{alias(MyTable.class)}.column_name FROM \{table(MyTable.class, "t")}
      * }</pre>
      *
-     * <p>According to the resolution rules, if {@code \{Table.class}} is followed by a dot {@code '.'}, the SQL template engine
+     * <p>According to the resolution rules, if {@code \{MyTable.class}} is followed by a dot {@code '.'}, the SQL template engine
      * automatically resolves it into an alias element:
      * <pre>{@code
-     * SELECT \{Table.class}.column_name FROM \{Table.class}
+     * SELECT \{MyTable.class}.column_name FROM \{MyTable.class}
      * }</pre>
      *
      * <p>As per the resolution rules:
      * <ul>
-     *   <li>If {@code \{Table.class}} is placed after keywords like SELECT, FROM, INSERT INTO, UPDATE, or DELETE,
+     *   <li>If {@code \{MyTable.class}} is placed after keywords like SELECT, FROM, INSERT INTO, UPDATE, or DELETE,
      *       the SQL template engine resolves it into the appropriate element (e.g., SELECT element, FROM element).</li>
-     *   <li>If {@code \{Table.class}} is not in such a placement and is not followed by a dot {@code '.'},
+     *   <li>If {@code \{MyTable.class}} is not in such a placement and is not followed by a dot {@code '.'},
      *       it is resolved into a table element.</li>
-     *   <li>If {@code \{Table.class}} is followed by a dot {@code '.'}, it is resolved into an alias element.</li>
+     *   <li>If {@code \{MyTable.class}} is followed by a dot {@code '.'}, it is resolved into an alias element.</li>
      * </ul>
      *
      * @param table the {@link Class} object representing the table record.
-     * @param scope the {@link ResolveScope} to use when resolving the alias. Use STRICT to include local and outer
+     * @param scope the {@link ResolveScope} to use when resolving the alias. Use CASCADE to include local and outer
      *        aliases, LOCAL to include local aliases only, and OUTER to include outer aliases only.
      * @return an {@link Element} representing the table's alias.
      */
     static Element alias(@Nonnull KClass<? extends Record> table, @Nonnull ResolveScope scope) {
         return new Alias(getORMReflection().getRecordType(table), scope);
-    }
-
-    /**
-     * Generates an alias element for a table specified by the given {@code metamodel} in a type safe manner.
-     *
-     * <p>Example usage in a string template where {@code MyTable} is referenced twice:
-     * <pre>{@code
-     * // Define a record with two references to MyTable
-     * record Table(int id, MyTable child, MyTable parent) {}
-     *
-     * // In the SQL template
-     * SELECT \{alias(Table_.child}.column_name FROM \{Table.class}
-     * }</pre>
-     *
-     * <p>In this example, {@code Table_.child} specifies that we are referring to the {@code child} field of the {@code Table} record,
-     * which is of type {@code MyTable}. This distinguishes it from the {@code parent} field, which is also of type {@code MyTable}.
-     *
-     * @param path specifies the table for which the alias is to be generated.
-     * @return an {@link Element} representing the table's alias with the specified path.
-     * @since 1.2
-     */
-    static Element alias(@Nonnull Metamodel<?, ? extends Record> path) {
-        return new Alias(path, CASCADE);
-    }
-
-    /**
-     * Generates an alias element for a table specified by the given {@code metamodel} in a type safe manner.
-     *
-     * <p>Example usage in a string template where {@code MyTable} is referenced twice:
-     * <pre>{@code
-     * // Define a record with two references to MyTable
-     * record Table(int id, MyTable child, MyTable parent) {}
-     *
-     * // In the SQL template
-     * SELECT \{alias(Table_.child}.column_name FROM \{Table.class}
-     * }</pre>
-     *
-     * <p>In this example, {@code Table_.child} specifies that we are referring to the {@code child} field of the {@code Table} record,
-     * which is of type {@code MyTable}. This distinguishes it from the {@code parent} field, which is also of type {@code MyTable}.
-     *
-     * @param path specifies the table for which the alias is to be generated.
-     * @param scope the {@link ResolveScope} to use when resolving the alias. Use STRICT to include local and outer
-     *              aliases, LOCAL to include local aliases only, and OUTER to include outer aliases only.
-     * @return an {@link Element} representing the table's alias with the specified path.
-     * @since 1.2
-     */
-    static Element alias(@Nonnull Metamodel<?, ? extends Record> path, @Nonnull ResolveScope scope) {
-        return new Alias(path, scope);
     }
 
     /**
@@ -1154,7 +1108,7 @@ public interface KTemplates {
      * record Table(int id, MyTable child, MyTable parent) {}
      *
      * // In the SQL template
-     * SELECT \{column(Table_.child.name)} FROM \{Table.class}
+     * SELECT \{column(MyTable_.child.name)} FROM \{MyTable.class}
      * }</pre>
      *
      * <p>In this example, the path "child" specifies that we are referring to the {@code child} field of the
@@ -1183,7 +1137,7 @@ public interface KTemplates {
      * record Table(int id, MyTable child, MyTable parent) {}
      *
      * // In the SQL template
-     * SELECT \{column(Table_.child.name)} FROM \{Table.class}
+     * SELECT \{column(MyTable_.child.name)} FROM \{MyTable.class}
      * }</pre>
      *
      * <p>In this example, the path "child" specifies that we are referring to the {@code child} field of the
@@ -1191,7 +1145,7 @@ public interface KTemplates {
      * is also of type {@code MyTable}. The "name" componentName refers to the name record component of {@code MyTable}.</p>
      *
      * @param path specifies the database column for which the column is to be generated.
-     * @param scope the {@link ResolveScope} to use when resolving the alias. Use STRICT to include local and outer
+     * @param scope the {@link ResolveScope} to use when resolving the alias. Use CASCADE to include local and outer
      *              aliases, LOCAL to include local aliases only, and OUTER to include outer aliases only.
      * @return an {@link Element} representing the table's column with the specified path.
      * @since 1.2
@@ -1210,7 +1164,7 @@ public interface KTemplates {
      * <p>Example usage in a string template:
      * <pre>{@code
      * SELECT *
-     * FROM \{Table.class}
+     * FROM \{MyTable.class}
      * WHERE status = \{param(1)}
      * }</pre>
      *
@@ -1218,7 +1172,7 @@ public interface KTemplates {
      * automatically detects that a parameter is required:
      * <pre>{@code
      * SELECT *
-     * FROM \{Table.class}
+     * FROM \{MyTable.class}
      * WHERE status = \{1}
      * }</pre>
      *
@@ -1246,7 +1200,7 @@ public interface KTemplates {
      * <p>Example usage in a string template:
      * <pre>{@code
      * SELECT *
-     * FROM \{Table.class}
+     * FROM \{MyTable.class}
      * WHERE status = \{param("status", 1)}
      * }</pre>
      *
@@ -1270,7 +1224,7 @@ public interface KTemplates {
      * <p>Example usage in a string template:
      * <pre>{@code
      * SELECT *
-     * FROM \{Table.class}
+     * FROM \{MyTable.class}
      * WHERE created_at = \{param(dateValue, date -> new java.sql.Date(date.getTime()))}
      * }</pre>
      *
@@ -1295,7 +1249,7 @@ public interface KTemplates {
      * <p>Example usage in a string template:
      * <pre>{@code
      * SELECT *
-     * FROM \{Table.class}
+     * FROM \{MyTable.class}
      * WHERE created_at = \{param("createdAt", dateValue, date -> new java.sql.Date(date.getTime()))}
      * }</pre>
      *
@@ -1321,7 +1275,7 @@ public interface KTemplates {
      * <p>Example usage in a string template:
      * <pre>{@code
      * SELECT *
-     * FROM \{Table.class}
+     * FROM \{MyTable.class}
      * WHERE event_date = \{param(dateValue, TemporalType.DATE)}
      * }</pre>
      *
@@ -1347,7 +1301,7 @@ public interface KTemplates {
      * <p>Example usage in a string template:
      * <pre>{@code
      * SELECT *
-     * FROM \{Table.class}
+     * FROM \{MyTable.class}
      * WHERE event_date = \{param("eventDate", dateValue, TemporalType.DATE)}
      * }</pre>
      *
@@ -1374,7 +1328,7 @@ public interface KTemplates {
      * <p>Example usage in a string template:
      * <pre>{@code
      * SELECT *
-     * FROM \{Table.class}
+     * FROM \{MyTable.class}
      * WHERE event_time = \{param(calendarValue, TemporalType.TIMESTAMP)}
      * }</pre>
      *
@@ -1401,7 +1355,7 @@ public interface KTemplates {
      * <p>Example usage in a string template:
      * <pre>{@code
      * SELECT *
-     * FROM \{Table.class}
+     * FROM \{MyTable.class}
      * WHERE event_time = \{param("eventTime", calendarValue, TemporalType.TIMESTAMP)}
      * }</pre>
      *

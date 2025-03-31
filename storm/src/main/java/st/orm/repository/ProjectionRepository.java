@@ -29,7 +29,12 @@ import java.util.stream.Stream;
 
 /**
  * Provides a generic interface with read operations for projections.
- * 
+ *
+ * <p>Projection repositories provide a high-level abstraction for reading projections in the database. They offer a
+ * set of methods for reading projections, as well as querying and filtering entities based on specific criteria. The
+ * repository interface is designed to work with entity records that implement the {@link Projection} interface,
+ * providing a consistent and type-safe way to interact with the database.</p>
+ *
  * @since 1.1
  * @see QueryBuilder
  * @param <P> the type of projection managed by this repository.

@@ -28,6 +28,7 @@ import st.orm.template.SqlTemplateException;
 import java.lang.reflect.RecordComponent;
 import java.util.Optional;
 
+import static java.util.Optional.ofNullable;
 import static st.orm.template.impl.RecordReflection.getLazyRecordType;
 import static st.orm.template.impl.RecordReflection.getRecordComponent;
 
@@ -41,7 +42,6 @@ import static st.orm.template.impl.RecordReflection.getRecordComponent;
 public class MetamodelImpl<T extends Record, E> implements Metamodel<T, E> {
 
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
-
 
     /**
      * Creates a new metamodel for the given record type.
@@ -72,6 +72,7 @@ public class MetamodelImpl<T extends Record, E> implements Metamodel<T, E> {
         String effectivePath;
         String effectiveComponent;
         Metamodel<T, ? extends Record> tableModel;
+        boolean isColumn = false;
         if (path.isEmpty()) {
             componentType = rootTable;
             effectivePath = "";
@@ -84,10 +85,15 @@ public class MetamodelImpl<T extends Record, E> implements Metamodel<T, E> {
                     effectivePath = path.substring(0, path.lastIndexOf('.')); // Remove last component.
                     effectiveComponent = component.getName();
                     componentType = getLazyRecordType(component);
+                    isColumn = true;
                 } else {
                     effectivePath = path;
                     effectiveComponent = component.getName();
                     componentType = component.getType();
+                    if (!component.getType().isRecord() ||
+                            REFLECTION.isAnnotationPresent(component, FK.class)) {
+                        isColumn = true;
+                    }
                     do {
                         int index = effectivePath.lastIndexOf('.');
                         effectivePath = effectivePath.substring(0, index == -1 ? 0 : index); // Remove last component.
@@ -106,7 +112,7 @@ public class MetamodelImpl<T extends Record, E> implements Metamodel<T, E> {
             }
             tableModel = of(rootTable, effectivePath);
         }
-        return new SimpleMetamodel<>(rootTable, effectivePath, componentType, effectiveComponent, tableModel);
+        return new SimpleMetamodel<>(rootTable, effectivePath, componentType, effectiveComponent, isColumn, tableModel);
     }
 
     private final Class<E> componentType;
@@ -114,14 +120,15 @@ public class MetamodelImpl<T extends Record, E> implements Metamodel<T, E> {
     private final String component;
     private final boolean inline;
     private final Metamodel<T, ?> parent;
+    private final boolean isColumn;
 
     public MetamodelImpl(@Nonnull Class<E> componentType) {
-        this(componentType, "","", false, null);
+        this(componentType, "","", false, null, false);
     }
 
     public MetamodelImpl(@Nonnull Class<E> componentType,
                          @Nonnull String path) {
-        this(componentType, path,"", false, null);
+        this(componentType, path,"", false, null, true);
     }
 
     public MetamodelImpl(@Nonnull Class<E> componentType,
@@ -129,11 +136,32 @@ public class MetamodelImpl<T extends Record, E> implements Metamodel<T, E> {
                          @Nonnull String component,
                          boolean inline,
                          @Nullable Metamodel<T, ?> parent) {
+        this(componentType, path, component, inline, parent, !inline);
+    }
+
+    private MetamodelImpl(@Nonnull Class<E> componentType,
+                          @Nonnull String path,
+                          @Nonnull String component,
+                          boolean inline,
+                          @Nullable Metamodel<T, ?> parent,
+                          boolean isColumn) {
         this.componentType = componentType;
         this.path = path;
         this.component = component;
         this.inline = inline;
         this.parent = parent;
+        this.isColumn = isColumn;
+    }
+
+    /**
+     * Returns {@code true} if the metamodel corresponds to a database column, returns {@code false} otherwise, for
+     * example if the metamodel refers to the root metamodel or an inline record.
+     *
+     * @return {@code true} if this metamodel maps to a column, {@code false} otherwise.
+     */
+    @Override
+    public boolean isColumn() {
+        return isColumn;
     }
 
     /**
@@ -150,17 +178,19 @@ public class MetamodelImpl<T extends Record, E> implements Metamodel<T, E> {
     }
 
     /**
-     * Returns the table to which this metamodel is pointing.
+     * Returns the table that holds the column to which this metamodel is pointing. If the metamodel points to an
+     * inline record, the table is the parent table of the inline record. If the metamodel is a root metamodel, the
+     * root table is returned.
      *
-     * @return the table to which this metamodel is pointing.
+     * @return the table that holds the column to which this metamodel is pointing.
      */
     @Override
     public Metamodel<T, ? extends Record> table() {
-        if (componentType().isRecord() && !isInline()) {
-            //noinspection unchecked
-            return (Metamodel<T, ? extends Record>) this;
+        if (isInline()) {
+            return parent().orElseThrow().table();
         }
-        return parent().orElseThrow().table();
+        //noinspection unchecked
+        return (Metamodel<T, ? extends Record>) parent().orElse(this);
     }
 
     /**
@@ -178,7 +208,7 @@ public class MetamodelImpl<T extends Record, E> implements Metamodel<T, E> {
      * @return the parent metamodel or an empty optional if this is the root metamodel.
      */
     private Optional<Metamodel<T, ?>> parent() {
-        return Optional.ofNullable(parent);
+        return ofNullable(parent);
     }
 
     /**
@@ -221,19 +251,30 @@ public class MetamodelImpl<T extends Record, E> implements Metamodel<T, E> {
         private final String path;
         private final Class<?> componentType;
         private final String component;
+        private final boolean isColumn;
         private final Metamodel<T, ? extends Record> tableModel;
 
         public SimpleMetamodel(@Nonnull Class<T> rootTable,
                                @Nonnull String path,
                                @Nonnull Class<?> componentType,
                                @Nonnull String component,
+                               boolean isColumn,
                                @Nullable Metamodel<T, ? extends Record> tableModel) {
+            if (!rootTable.isRecord()) {
+                throw new PersistenceException(STR."Table must be a record type: \{rootTable.getSimpleName()}.");
+            }
             this.rootTable = rootTable;
             this.path = path;
             this.componentType = componentType;
             this.component = component;
+            this.isColumn = isColumn;
             //noinspection unchecked
             this.tableModel = tableModel == null ? (Metamodel<T, ? extends Record>) (Object) this : tableModel;
+        }
+
+        @Override
+        public boolean isColumn() {
+            return isColumn;
         }
 
         @Override

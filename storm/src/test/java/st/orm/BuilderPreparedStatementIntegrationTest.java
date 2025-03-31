@@ -71,6 +71,7 @@ public class BuilderPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithJoinTemplateFunctionParameter() {
+        //noinspection RedundantEmbeddedExpression
         var list = ORM(dataSource)
                 .selectFrom(Pet.class)
                 .innerJoin(Visit.class).on(template(it -> STR."\{it.invoke(Pet.class)}.id = \{1}"))
@@ -81,6 +82,7 @@ public class BuilderPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithJoinTemplateFunctionParameterMetamodel() {
+        //noinspection RedundantEmbeddedExpression
         var list = ORM(dataSource)
                 .selectFrom(Pet.class)
                 .innerJoin(Visit.class).on(template(it -> STR."\{it.invoke(Pet.class)}.id = \{1}"))

@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static st.orm.Templates.ORM;
 import static st.orm.Templates.alias;
+import static st.orm.template.SqlInterceptor.consume;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
@@ -161,5 +162,25 @@ public class JsonIntegrationTest {
                 .getResultList();
         assertEquals(4, vets.size());
         assertEquals(5, vets.stream().mapToLong(v -> v.specialties().size()).sum());
+    }
+
+    @Test
+    public void testSpecialtiesByVetDoubleClass() {
+        String expectedSql = """
+                SELECT v.id, v.first_name, v.last_name, JSON_OBJECTAGG(s.id, s.name)
+                FROM vet v
+                INNER JOIN vet_specialty vs ON vs.vet_id = v.id
+                INNER JOIN specialty s ON s.id = vs.specialty_id
+                GROUP BY v.id""";
+        try (var _ = consume(sql -> assertEquals(expectedSql, sql.statement()))) {
+            ORM(dataSource).selectFrom(Vet.class, SpecialtyNamesByVet.class, RAW."""
+                        \{Vet.class}, JSON_OBJECTAGG(\{Specialty.class})""")
+                    .innerJoin(VetSpecialty.class).on(Vet.class)
+                    .innerJoin(Specialty.class).on(VetSpecialty.class)
+                    .append(RAW."GROUP BY \{Vet.class}.id")
+                    .getResultList();
+        } catch (PersistenceException _) {
+            // H2 Does not support JSON_OBJECTAGG. We only check the expected SQL.
+        }
     }
 }

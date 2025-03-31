@@ -105,6 +105,7 @@ import static st.orm.template.impl.SqlParser.SqlMode.UPDATE;
 import static st.orm.template.impl.SqlParser.getSqlMode;
 import static st.orm.template.impl.SqlParser.hasWhereClause;
 import static st.orm.template.impl.SqlParser.removeComments;
+import static st.orm.template.impl.SqlTemplateProcessor.current;
 
 /**
  * The sql template implementation that is responsible for generating SQL queries.
@@ -512,7 +513,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 case Expression _ -> throw new SqlTemplateException("Expression element not allowed in this context.");
                 case BindVars b -> resolveBindVarsElement(sqlMode, p, b);
                 case Subqueryable t -> new Subquery(t.getSubquery(), true);   // Correlate implicit subqueries.
-                case Metamodel<?, ?> m -> new Column(m, CASCADE);
+                case Metamodel<?, ?> m when m.isColumn() -> new Column(m, CASCADE);
+                case Metamodel<?, ?> _ -> throw new SqlTemplateException("Metamodel does not reference a column.");
                 case Object[] a -> resolveArrayElement(sqlMode, p, a);
                 case Iterable<?> l -> resolveIterableElement(sqlMode, p, l);
                 case Element e -> e;
@@ -561,7 +563,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
     }
 
     private AliasMapper getAliasMapper(@Nonnull TableUse tableUse) {
-        return new AliasMapper(tableUse, tableAliasResolver, modelBuilder.tableNameResolver(), SqlTemplateProcessor.current()
+        return new AliasMapper(tableUse, tableAliasResolver, modelBuilder.tableNameResolver(), current()
                 .map(SqlTemplateProcessor::aliasMapper)
                 .orElse(null));
     }
@@ -904,41 +906,41 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @param aliasMapper a mapper of table classes to their aliases.
      * @return the primary table for the sql statement.
      */
-    private Optional<Table> getPrimaryTable(@Nonnull List<Element> elements, @Nonnull AliasMapper aliasMapper) {
+    private Optional<PrimaryTable> getPrimaryTable(@Nonnull List<Element> elements, @Nonnull AliasMapper aliasMapper) {
         assert elements.stream().noneMatch(Wrapped.class::isInstance);
-        Table table = elements.stream()
+        PrimaryTable primaryTable = elements.stream()
                 .filter(From.class::isInstance)
                 .map(From.class::cast)
                 .map(f -> {
                     if (f.source() instanceof TableSource(var t)) {
-                        return new Table(t, f.alias());
+                        return new PrimaryTable(t, f.alias());
                     }
                     return null;
                 })
                 .filter(Objects::nonNull)
                 .findAny()
                 .orElse(null);
-        if (table != null) {
-            return Optional.of(table);
+        if (primaryTable != null) {
+            return Optional.of(primaryTable);
         }
-        table = elements.stream()
+        primaryTable = elements.stream()
                 .map(element -> switch(element) {
-                    case Insert it -> new Table(it.table(), "");
-                    case Update it -> new Table(it.table(), it.alias());
-                    case Delete it -> new Table(it.table(), "");
+                    case Insert it -> new PrimaryTable(it.table(), "");
+                    case Update it -> new PrimaryTable(it.table(), it.alias());
+                    case Delete it -> new PrimaryTable(it.table(), "");
                     default -> null;
                 })
                 .filter(Objects::nonNull)
                 .findAny()
                 .orElse(null);
-        if (table != null) {
-            return Optional.of(table);
+        if (primaryTable != null) {
+            return Optional.of(primaryTable);
         }
         return elements.stream()
                 .filter(Select.class::isInstance)
                 .map(Select.class::cast)
                 .findAny()
-                .map(select -> new Table(select.table(), aliasMapper.getPrimaryAlias(select.table()).orElse("")));
+                .map(select -> new PrimaryTable(select.table(), aliasMapper.getPrimaryAlias(select.table()).orElse("")));
     }
 
     private void postProcessElements(@Nonnull SqlMode sqlMode,
@@ -962,7 +964,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public Sql process(@Nonnull StringTemplate template) throws SqlTemplateException {
-        return process(template, SqlTemplateProcessor.current().isPresent());
+        return process(template, current().isPresent());
     }
 
     /**
@@ -988,7 +990,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     .flatMap(e -> e instanceof Wrapped(var we) ? we.stream() : Stream.of(e))
                     .toList();
             assert values.size() == elements.size();
-            Optional<Table> primaryTable = getPrimaryTable(unwrappedElements, aliasMapper);
+            Optional<PrimaryTable> primaryTable = getPrimaryTable(unwrappedElements, aliasMapper);
             if (primaryTable.isPresent()) {
                 validateRecordType(primaryTable.get().table(), sqlMode);
             }

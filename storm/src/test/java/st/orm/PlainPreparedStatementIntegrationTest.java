@@ -41,23 +41,26 @@ public class PlainPreparedStatementIntegrationTest {
     @Test
     public void testSelectPet() {
         try (var query = ORM(dataSource).query(RAW."""
-                SELECT p.id, p.name, p.birth_date, pt.*, o.* 
-                FROM pet p 
-                  INNER JOIN pet_type pt ON p.type_id = pt.id 
-                  INNER JOIN owner o ON p.owner_id = o.id""").prepare();
+                SELECT p.id, p.name, p.birth_date, pt.id, pt.name, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version
+                FROM pet p
+                  INNER JOIN pet_type pt ON p.type_id = pt.id
+                  INNER JOIN owner o ON p.owner_id = o.id
+                  INNER JOIN city c ON o.city_id = c.id""").prepare();
              var stream = query.getResultStream()) {
-            assertEquals(12, stream.map(Arrays::asList).count());
+            assertEquals(12, stream.count());
         }
     }
 
     @Test
     public void testSelectPetTyped() {
         try (var query = ORM(dataSource).query(RAW."""
-                SELECT p.id, p.name, p.birth_date, pt.*, o.* 
-                FROM pet p 
-                  INNER JOIN pet_type pt ON p.type_id = pt.id 
-                  INNER JOIN owner o ON p.owner_id = o.id""").prepare();
+                SELECT p.id, p.name, p.birth_date, pt.id, pt.name, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version
+                FROM pet p
+                  INNER JOIN pet_type pt ON p.type_id = pt.id
+                  INNER JOIN owner o ON p.owner_id = o.id
+                  INNER JOIN city c ON o.city_id = c.id""").prepare();
              var stream = query.getResultStream(Pet.class)) {
+            //noinspection DataFlowIssue
             assertEquals(10, stream.map(x -> x.owner().firstName()).distinct().count());
         }
     }
@@ -66,12 +69,14 @@ public class PlainPreparedStatementIntegrationTest {
     public void testSelectPetTypedWithFilter() {
         String nameFilter = "%y%";
         try (var query = ORM(dataSource).query(RAW."""
-                SELECT p.id, p.name, p.birth_date, pt.*, o.*
+                SELECT p.id, p.name, p.birth_date, pt.id, pt.name, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version
                 FROM pet p
                   INNER JOIN pet_type pt ON p.type_id = pt.id
                   INNER JOIN owner o ON p.owner_id = o.id
+                  INNER JOIN city c ON o.city_id = c.id
                 WHERE p.name LIKE \{nameFilter}""").prepare();
              var stream = query.getResultStream(Pet.class)) {
+            //noinspection DataFlowIssue
             assertEquals(5, stream.map(x -> x.owner().firstName()).distinct().count());
         }
     }
@@ -90,12 +95,11 @@ public class PlainPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectPetTypedWithLocalRecordAndEnum() {
-        record Pet(int id, String name, LocalDate birthDate, PetTypeEnum type, Owner owner) {}
+        record Pet(int id, String name, LocalDate birthDate, PetTypeEnum type) {}
         try (var query = ORM(dataSource).query(RAW."""
-            SELECT p.id, p.name, p.birth_date, UPPER(pt.name) pet_type, o.*
+            SELECT p.id, p.name, p.birth_date, UPPER(pt.name) pet_type
             FROM pet p
-              INNER JOIN pet_type pt ON p.type_id = pt.id
-              INNER JOIN owner o ON p.owner_id = o.id""").prepare();
+              INNER JOIN pet_type pt ON p.type_id = pt.id""").prepare();
              var stream = query.getResultStream(Pet.class)) {
             assertEquals(6, stream.map(Pet::type).distinct().count());
         }
@@ -103,26 +107,24 @@ public class PlainPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectPetTypedWithLocalRecordAndEnumNull() {
-        record Pet(int id, String name, LocalDate birthDate, PetTypeEnum type, Owner owner) {}
+        record Pet(int id, String name, LocalDate birthDate, PetTypeEnum type) {}
         try (var query = ORM(dataSource).query(RAW."""
-            SELECT p.id, p.name, p.birth_date, NULL pet_type, o.*
+            SELECT p.id, p.name, p.birth_date, NULL pet_type
             FROM pet p
-              INNER JOIN pet_type pt ON p.type_id = pt.id
-              INNER JOIN owner o ON p.owner_id = o.id""").prepare();
+              INNER JOIN pet_type pt ON p.type_id = pt.id""").prepare();
              var stream = query.getResultStream(Pet.class)) {
-            assertEquals(12, stream.map(Pet::type).filter(Objects::isNull).count());
+            assertEquals(13, stream.map(Pet::type).filter(Objects::isNull).count());
         }
     }
 
     @Test
     public void testSelectPetTypedWithLocalRecordAndNonnullEnumNull() {
         assertThrows(PersistenceException.class, () -> {
-            record Pet(int id, String name, LocalDate birthDate, @Nonnull PetTypeEnum type, Owner owner) {}
+            record Pet(int id, String name, LocalDate birthDate, @Nonnull PetTypeEnum type) {}
             try (var query = ORM(dataSource).query(RAW."""
-                SELECT p.id, p.name, p.birth_date, NULL pet_type, o.*
+                SELECT p.id, p.name, p.birth_date, NULL pet_type
                 FROM pet p
-                  INNER JOIN pet_type pt ON p.type_id = pt.id
-                  INNER JOIN owner o ON p.owner_id = o.id""").prepare();
+                  INNER JOIN pet_type pt ON p.type_id = pt.id""").prepare();
                  var stream = query.getResultStream(Pet.class)) {
                 stream.toList();
             }
@@ -132,12 +134,11 @@ public class PlainPreparedStatementIntegrationTest {
     @Test
     public void testSelectPetTypedWithLocalRecordAndEnumNotExists() {
         assertThrows(PersistenceException.class, () -> {
-            record Pet(int id, String name, LocalDate birthDate, PetTypeEnum type, Owner owner) {}
+            record Pet(int id, String name, LocalDate birthDate, PetTypeEnum type) {}
             try (var query = ORM(dataSource).query(RAW."""
-                    SELECT p.id, p.name, p.birth_date, 'fail' pet_type, o.*
+                    SELECT p.id, p.name, p.birth_date, 'fail' pet_type
                     FROM pet p
-                      INNER JOIN pet_type pt ON p.type_id = pt.id
-                      INNER JOIN owner o ON p.owner_id = o.id""").prepare();
+                      INNER JOIN pet_type pt ON p.type_id = pt.id""").prepare();
                  var stream = query.getResultStream(Pet.class)) {
                 stream.toList();
             }
@@ -145,12 +146,13 @@ public class PlainPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testSelectPetWithoutType() throws Exception {
+    public void testSelectPetWithoutType() {
         assertThrows(PersistenceException.class, () -> {
             try (var query = ORM(dataSource).query(RAW."""
-                    SELECT p.id, p.name, p.birth_date, pt.*, o.*
+                    SELECT p.id, p.name, p.birth_date, pt.id, pt.name, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version
                     FROM pet p
                       INNER JOIN owner o ON p.owner_id = o.id
+                      INNER JOIN city c ON o.city_id = c.id
                       LEFT OUTER JOIN pet_type pt ON p.type_id = pt.id AND 1 <> 1""").prepare();
                  var stream = query.getResultStream(Pet.class)) {
                 stream.toList();
@@ -169,7 +171,7 @@ public class PlainPreparedStatementIntegrationTest {
         ) {}
         assertThrows(PersistenceException.class, () -> {
             try (var query = ORM(dataSource).query(RAW."""
-                    SELECT p.id, p.name, p.birth_date, pt.*, o.*
+                    SELECT p.id, p.name, p.birth_date, pt.id, pt.name, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version
                     FROM pet p
                       INNER JOIN pet_type pt ON p.type_id = pt.id
                       LEFT OUTER JOIN owner o ON p.owner_id = o.id AND 1 <> 1""").prepare();
@@ -182,10 +184,11 @@ public class PlainPreparedStatementIntegrationTest {
     @Test
     public void testSelectPetWithoutOwnerWithNullableOwner() {
         try (var query = ORM(dataSource).query(RAW."""
-                SELECT p.id, p.name, p.birth_date, pt.*, o.*
+                SELECT p.id, p.name, p.birth_date, pt.id, pt.name, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version
                 FROM pet p
                   INNER JOIN pet_type pt ON p.type_id = pt.id
-                  LEFT OUTER JOIN owner o ON p.owner_id = o.id AND 1 <> 1""").prepare();
+                  LEFT OUTER JOIN owner o ON p.owner_id = o.id AND 1 <> 1
+                  LEFT OUTER JOIN city c ON o.city_id = c.id""").prepare();
              var stream = query.getResultStream(Pet.class)) {
             assertEquals(13, stream.count());
         }

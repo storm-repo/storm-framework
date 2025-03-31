@@ -23,7 +23,7 @@ import jakarta.annotation.Nonnull;
  * <p>Entity repositories returned by {@code entity} provide basic CRUD operations for database tables. Projection
  * repositories returned by {@code projection} provide read operations for database views and projection queries. The
  * repositories returned by the {@code repository} method
- * allow to implement custom repository logic by implementing default methods. The default methods have full access
+ * allow to implement specialized repository logic by implementing default methods. The default methods have full access
  * to the CRUD and {@code QueryBuilder} logic of the repository it extends:</p>
  *
  * <pre>{@code

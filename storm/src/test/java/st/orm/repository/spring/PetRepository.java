@@ -2,6 +2,7 @@ package st.orm.repository.spring;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
+import st.orm.model.City;
 import st.orm.model.Owner;
 import st.orm.model.PetType;
 import st.orm.model.Pet;
@@ -25,7 +26,8 @@ public class PetRepository {
                 SELECT \{select(Pet.class)}
                 FROM \{table(Pet.class, "p")}
                   INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
-                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id""")
+                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                  LEFT OUTER JOIN \{table(City.class, "c")} ON o.city_id = c.id""")
         .getResultList(Pet.class);
     }
 
@@ -35,6 +37,7 @@ public class PetRepository {
                 FROM \{table(Pet.class, "p")}
                   INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
                   LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id
+                  LEFT OUTER JOIN \{table(City.class, "c")} ON o.city_id = c.id
                 WHERE p.id = \{id}""")
             .getSingleResult(Pet.class);
     }

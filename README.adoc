@@ -1,448 +1,818 @@
 = ST/ORM
 
-*Storm* is a SQL Template and ORM framework designed for Java 21 and later versions, focusing on modernizing and simplifying database programming. By leveraging the latest features of Java, it enables developers to define entities and queries in a concise and readable manner, enhancing both productivity and code clarity.
+*Storm* is a SQL Template and ORM framework designed for Java 21 and later versions, focusing on modernizing and
+simplifying database programming. By leveraging the latest features of Java, it enables developers to define entities
+and queries in a concise and readable manner, enhancing both productivity and code clarity.
 
 *Key benefits of Storm:*
 
-* *Easy to learn*: With a programming model similar to the Java Persistence API (JPA), developers familiar with JPA can quickly and easily adapt to using Storm.
+* *Easy to learn*: With a programming model similar to the Java Persistence API (JPA), developers familiar with JPA can
+quickly and easily adapt to using Storm.
 * *Modern Syntax*: Storm allows for clean and concise code, making it effortless to write entities and queries.
-* *Type-safe* The best DSL is no DSL. Storm’s query builder mirrors SQL, providing a type-safe, intuitive experience that makes queries easy to write and read while reducing the risk of runtime errors.
-* *Direct Database Interaction*: Storm translates method calls directly into database operations, offering a transparent and straightforward experience. It eliminates inefficiencies like the N+1 query problem for predictable and efficient interactions.
-* *Stateless*: Avoids hidden complexities and “magic” with stateless, record-based entities, ensuring simplicity and eliminating lazy initialization and transaction issues downstream.
-* *Performance*: Built with efficiency in mind, Storm supports batch processing, lazy streams, and upsert functionality to enhance performance during database interactions.
-* *Universal Database Compatibility*: Fully compatible with all SQL databases, it offers flexibility and broad applicability across various database systems.
+* *Type-safe*: The best DSL is no DSL. Storm’s query builder mirrors SQL, providing a type-safe, intuitive experience
+that makes queries easy to write and read while reducing the risk of runtime errors.
+* *Direct Database Interaction*: Storm translates method calls directly into database operations, offering a transparent
+and straightforward experience. It eliminates inefficiencies like the N+1 query problem for predictable and efficient
+interactions.
+* *Stateless*: Avoids hidden complexities and “magic” with stateless, record-based entities, ensuring simplicity and
+eliminating lazy initialization and transaction issues downstream.
+* *Performance*: Built with efficiency in mind, Storm supports batch processing, lazy streams, and upsert functionality
+to enhance performance during database interactions.
+* *Universal Database Compatibility*: Fully compatible with all SQL databases, it offers flexibility and broad
+applicability across various database systems.
 
-In summary, Storm delivers a modern, efficient, and straightforward ORM solution that prioritizes ease of use, direct database interaction, and wide compatibility. It’s an excellent choice for Java and Kotlin developers seeking simplicity, performance, and enhanced readability in their database operations.
+In summary, Storm delivers a modern, efficient, and straightforward ORM solution that prioritizes ease of use, direct
+database interaction, and wide compatibility. It’s an excellent choice for Java and Kotlin developers seeking
+simplicity, performance, and enhanced readability in their database operations.
+
 
 == Getting Started
 
-Storm offers a flexible and layered approach to database interaction, catering to developers with varying needs and preferences. Whether you’re looking for minimal enhancements or a complete abstraction, Storm has you covered.
+Storm offers a flexible and layered approach to database interaction, catering to developers with varying needs and
+preferences. Whether you’re looking for minimal enhancements or a complete abstraction, Storm has you covered.
+
 
 === Dependency Management
 
 Include the following dependencies in your project to start using Storm:
 
-[source,xml,indent=0]
+[tabs]
+====
+Maven::
++
+[source,xml]
 ----
-<dependencies>
-    <dependency>
-        <groupId>st.orm</groupId>
-        <artifactId>storm</artifactId>
-        <version>1.2.1</version>
-        <scope>compile</scope>
-    </dependency>
-    <dependency> <!-- Include for JSON support. -->
-        <groupId>st.orm</groupId>
-        <artifactId>storm-json</artifactId>
-        <version>1.2.1</version>
-        <scope>compile</scope>
-    </dependency>
-    <dependency> <!-- Spring Framework integration. -->
-        <groupId>st.orm</groupId>
-        <artifactId>storm-spring</artifactId>
-        <version>1.2.1</version>
-        <scope>compile</scope>
-    </dependency>
-    <dependency> <!-- Optional database extensions. -->
-        <groupId>st.orm</groupId>
-        <artifactId>storm-oracle</artifactId>
-        <version>1.2.1</version>
-        <scope>runtime</scope>
-    </dependency>
-</dependencies>
+<dependency>
+    <groupId>st.orm</groupId>
+    <artifactId>storm</artifactId>
+    <version>1.2.2</version>
+    <scope>compile</scope>
+</dependency>
+----
+Gradle::
++
+[source,groovy]
+----
+implementation 'st.orm:storm:1.2.2'
+----
+====
+
+
+=== Writing Entities
+
+Storm entities are straightforward, concise, and typically defined using Java record classes. By default, Storm
+automatically applies a naming scheme to map entity fields directly to corresponding database columns. This approach
+simplifies development, as explicit annotations or mappings are not required for standard naming conventions.
+
+Consider the following example, where two entities — City and User — are defined:
+
+* The City entity maps directly to the columns: id, name, and population.
+* The User entity maps directly to the columns: id, email, birth_date, street, postal_code and city_id.
+
+When an entity references another entity, Storm applies a default naming convention to handle foreign keys. For
+instance, the city field in the User entity automatically maps to the city_id column in the database, creating a foreign
+key relationship referencing the primary key of the City entity.
+
+[source,java,indent=0]
+----
+record City(@PK int id,
+            String name,
+            long population
+) implements Entity<City, Integer> {}
+
+record User(@PK int id,
+            String email,
+            LocalDate birthDate,
+            String street,
+            String postalCode,
+            @FK City city
+) implements Entity<User, Integer> {}
 ----
 
-==== Static Metamodel Generation
+Implementing the `Entity` interface is optional, but required when using `EntityRepository` to leverage built-in CRUD
+operations.
 
-Include the following dependency to generate a static metamodel for your entities:
+==== Naming Conventions
 
-[source,xml,indent=0]
+While Storm's default naming conventions simplify entity definitions, custom column names or foreign key mappings can
+easily be accommodated. Developers can customize the mapping of entity fields to database columns using various
+approaches:
+
+* Annotate the record with the `@DbTable` annotation to define custom table names.
+* Annotate fields with the `@DbColumn` annotation to define custom column names or specify a custom name in `@PK` or
+`@FK` annotations.
+* Providing implementations of the `ColumnNameResolver` or `ForeignKeyResolver` interfaces to globally manage naming
+conventions.
+
+This flexible approach enables developers to easily adapt Storm entities to existing database schemas or specific naming
+preferences.
+
+
+=== Querying Entities
+
+The Storm API provides a powerful and flexible way to query entities. It supports both SQL Template mode and ORM mode,
+allowing developers to choose the approach that best fits their needs.
+
+The following example demonstrates how to query the `User` entity using both SQL Template mode and ORM mode. The query
+fetches users based on the specified email address. The email address is passed as a bind variable to the underlying SQL
+query in both modes.
+
+[tabs]
+====
+ORM::
++
+[source,java]
+----
+Optional<User> user = ORM(dataSource).entity(User.class)
+    .select()
+    .where(User_.email, EQUALS, email)    // Type-safe!
+    .getOptionalResult();
+----
+SQL Template::
++
+[source,java]
+----
+Optional<User> user = ORM(dataSource).query(RAW."""
+        SELECT \{User.class}
+        FROM \{User.class}
+        WHERE \{User_.email} = \{email}""")
+    .getOptionalResult(User.class);
+----
+Mixed::
++
+[source,java]
+----
+Optional<User> user = ORM(dataSource).entity(User.class)
+    .select()
+    .where(RAW."\{User_.email} = \{email}")
+    .getOptionalResult();
+----
+====
+
+ORM mode should generally be preferred for its type-safe, readable syntax and portability. However, SQL Template mode is
+also available for those who prefer a more SQL-like approach or need to execute complex queries that may not be easily
+expressed in code. All ORM elements are also available in SQL Template mode, allowing for a seamless transition between
+the two modes.
+
+==== one-to-one / many-to-one relationships
+
+Storm supports _one-to-one_ and _many-to-one_ relationships through the use of the `@FK` annotation. This annotation
+allows you to define foreign key relationships between entities. For example, in the `User` entity, the `city` field is
+annotated with `@FK`, indicating that it references the `City` entity. This establishes a foreign key relationship
+between the two entities. Foreign keys are automatically loaded as part of the entity graph, allowing you to navigate
+relationships easily. The entity graph is always loaded in a single query, eliminating the need for multiple queries to
+fetch related entities.
+
+==== many-to-one relationships
+
+When _one-to-many_ relationships need to be queried, a query can be constructed to fetch the related entities. For
+example, to fetch all users in a specific city, you can use the following approaches:
+
+[tabs]
+====
+ORM::
++
+[source,java]
+----
+List<User> usersInCity = ORM(dataSource).entity(User.class)
+    .select()
+    .where(User_.city, EQUALS, city)    // Type-safe!
+    .getResultList();
+----
+SQL Template::
++
+[source,java]
+----
+List<User> usersInCity = ORM(dataSource).query(RAW."""
+        SELECT \{User.class}
+        FROM \{User.class}
+        WHERE \{city}""")
+    .getResultList(User.class);
+----
+Mixed::
++
+[source,java]
+----
+List<User> usersInCity = ORM(dataSource).entity(User.class)
+    .select()
+    .where(RAW."\{city}")
+    .getResultList();
+----
+====
+
+==== many-to-many relationships
+
+For _many-to-many_ relationships a join table is required. The join table can be represented as a separate entity, and
+the relationship can be defined using the `@FK` annotation. For example, consider the following entities:
+
+[source,java,indent=0]
+----
+record Role(@PK Integer id, String name) implements Entity<Integer> {}
+
+record UserRolePk(int userId, int roleId) {}
+
+record UserRole(@PK UserRolePk userRolePk,
+                @FK User user,
+                @FK Role role
+) implements Entity<UserRolePk> {}
+----
+
+The `UserRole` entity represents the join table between `User` and `Role`. The `userRolePk` field is a composite primary
+key that consists of the user ID and role ID. The `user` and `role` fields are foreign keys that reference the `User`
+and `Role` entities, respectively.
+
+[tabs]
+====
+ORM::
++
+[source,java]
+----
+List<UserRole> userRoles = ORM(dataSource).entity(UserRole.class)
+    .select()
+    .where(UserRole_.role, EQUALS, role)    // Type-safe!
+    .getResultList();
+----
+SQL Template::
++
+[source,java]
+----
+List<UserRole> userRoles = ORM(dataSource).query(RAW."""
+        SELECT \{UserRole.class}
+        FROM \{UserRole.class}
+        WHERE \{role}""")
+    .getResultList(UserRole.class);
+----
+Mixed::
++
+[source,java]
+----
+List<UserRole> userRoles = ORM(dataSource).entity(UserRole.class)
+    .select()
+    .where(RAW."\{role}")
+    .getResultList();
+----
+====
+
+Alternatively, you can use the `UserRole` entity to fetch users or roles associated with a specific user or role. For
+example, to fetch all users associated with a specific role, you can use the following approaches using join tables:
+
+[tabs]
+====
+ORM::
++
+[source,java]
+----
+List<Role> users = ORM(dataSource).entity(Role.class)
+    .select()
+    .innerJoin(UserRole.class).on(Role.class)
+    .where(UserRole_.user, EQUALS, user)    // Type-safe!
+    .getResultList();
+----
+SQL Template::
++
+[source,java]
+----
+List<Role> userRoles = ORM(dataSource).query(RAW."""
+        SELECT \{Role.class}
+        FROM \{Role.class}
+        INNER JOIN \{UserRole.class} ON \{UserRole_.role} = \{Role_.id}
+        WHERE \{UserRole_.user} = \{user.id()}""")
+    .getResultList(Role.class);
+----
+Mixed::
++
+[source,java]
+----
+List<Role> users = ORM(dataSource).entity(Role.class)
+    .select()
+    .innerJoin(UserRole.class).on(Role.class)
+    .where(RAW."\{UserRole_.user} = \{user.id()}")
+    .getResultList();
+----
+====
+
+==== Filtering Results
+
+Storm supports filtering results using the `where` method. This allows you to specify conditions for filtering
+results based on specific fields. The following example demonstrates how to build a where clause using multiple
+conditions:
+
+[tabs]
+====
+ORM::
++
+[source,java]
+----
+List<User> users = ORM(dataSource).entity(User.class)
+        .select()
+        .where(it -> it.filter(User_.city, EQUALS, city)
+                .and(it.filter(User_.birthDate, LESS_THAN, LocalDate.of(2000, 1, 1))))
+        .getResultList();
+----
+SQL Template::
++
+[source,java]
+----
+List<User> users = ORM(dataSource).query(RAW."""
+        SELECT \{User.class}
+        FROM \{User.class}
+        WHERE \{city}
+          AND \{User_.birthDate} < \{LocalDate.of(2000, 1, 1)}""")
+    .getResultList(User.class);
+----
+Mixed::
++
+[source,java]
+----
+List<Role> users = ORM(dataSource).entity(Role.class)
+    .select()
+    .innerJoin(UserRole.class).on(Role.class)
+    .where(RAW."\{city} AND \{User_.birthDate} < \{LocalDate.of(2000, 1, 1)}")
+    .getResultList();
+----
+====
+
+
+==== Aggregating Results
+
+Storm supports aggregating results using the `groupBy` method. This allows you to group results based on specific fields
+and perform aggregate functions like `COUNT`, `SUM`, `AVG`, etc.
+
+[source,java]
+----
+record GroupedByCity(City city, long count) {}
+----
+
+The `GroupedByCity` can be a local record or a top-level class. The example below shows how to use the `groupBy` method
+to group users by city and count the number of users in each city:
+
+[tabs]
+====
+ORM::
++
+[source,java]
+----
+List<GroupedByCity> counts = ORM(dataSource).entity(User.class)
+        .select(GroupedByCity.class, RAW."\{City.class}, COUNT(*)")
+        .groupBy(User_.city)
+        .getResultList();
+----
+SQL Template::
++
+[source,java]
+----
+List<GroupedByCity> counts = ORM(dataSource).query(RAW."""
+        SELECT \{City.class}, COUNT(*)
+        FROM \{User.class}
+        GROUP BY \{User_.city}""")
+    .getResultList(GroupedByCity.class);
+----
+Mixed::
++
+[source,java]
+----
+List<Role> users = ORM(dataSource).entity(User.class)
+    .select(GroupedByCity.class, RAW."\{City.class}, COUNT(*)")
+    .groupBy(RAW."\{User_.city}")
+    .getResultList();
+----
+====
+
+The `GroupedByCity` record is used to represent the result of the aggregation. The `select` method specifies the
+columns to be selected, and the `groupBy` method specifies the field to group by. The result is a list of
+`GroupedByCity` records, each containing a `City` object and the count of users in that city. Additionally, a having
+clause can be added by using the `having` method.
+
+==== Ordering Results
+
+Storm supports ordering results using the `orderBy` method. This allows you to specify the order in which results should
+be returned. The following example demonstrates how to order users by their birth date in ascending order:
+
+[tabs]
+====
+ORM::
++
+[source,java]
+----
+List<User> users = ORM(dataSource).entity(User.class)
+        .select()
+        .orderBy(User_.birthDate)
+        .getResultList();
+----
+SQL Template::
++
+[source,java]
+----
+List<User> counts = ORM(dataSource).query(RAW."""
+        SELECT \{User.class}
+        FROM \{User.class}
+        ORDER BY \{User_.birthDate}""")
+    .getResultList(User.class);
+----
+Mixed::
++
+[source,java]
+----
+List<User> users = ORM(dataSource).entity(User.class)
+    .select()
+    .orderBy(RAW."\{User_.birthDate}")
+    .getResultList();
+----
+====
+
+The `orderBy` method specifies the field to order by. You can also specify the order direction (ascending or
+descending), or order by multiple fields by using the SQL Template version of the `orderBy` method.
+
+
+=== Using Repositories
+
+Entity repositories provide a high-level abstraction for managing entities in the database. They offer a set of methods
+for creating, reading, updating, and deleting entities, as well as querying and filtering entities based on specific
+criteria. The `EntityRepository` interface is designed to work with entity records that implement the `Entity`
+interface, providing a consistent and type-safe way to interact with the database.
+
+An entity repository can be obtained by invoking `entity` on an `ORMTemplate` with the desired entity class. The orm
+template can be requested as demonstrated below. Note that orm templates are supported for Data Sources, 
+JDBC Connections and JPA Entity Managers.
+
+[source,java,indent=0]
+----
+ORMTemplate orm = ORM(dataSource);
+EntityRepository<User> userRepository = orm.entity(User.class);
+----
+
+Alternatively, a specialized repository can be requested by calling the `repository` method with the repository class.
+Specialized repositories allow specialized repository methods to be defined in the repository interface. The specialized
+repository can be used to implement specialized queries or operations that are specific to the entity type. The custom
+logic can utilize the `QueryBuilder` interface to build SELECT and DELETE statements.
+
+[tabs]
+====
+ORM::
++
+[source,java]
+----
+interface UserRepository extends EntityRepository<User> {
+
+    // CRUD operations for User are inherited from EntityRepository.
+
+    // Specialized repository methods go here. Example:
+    default Optional<User> findByEmail(String email) {
+        return select()
+                .where(User_.email, EQUALS, email)
+                .getOptionalResult();
+    }
+}
+----
+====
+
+Specialized entity repositories can be retrieved using the `repository` method, which accepts the repository class as an
+argument.
+
+[source,java]
+----
+UserRepository userRepository = orm.repository(UserRepository.class);
+----
+
+==== Repository Injection
+
+Specialized entity repositories can also be injected using Spring's dependency injection mechanism when the 
+`storm-spring` package is included in the project. Check the Spring Framework Integration section for more information.
+
+
+=== Transaction Management
+
+Storm works directly with the underlying database platform, being JPA, JDBC Connections or JDBC Data Sources. It does
+not provide its own transaction management. Instead, it relies on the transaction management capabilities of the
+underlying database platform. This means that you can use Storm in conjunction with your existing transaction management
+mechanism, whether it’s JPA or JDBC.
+
+When Data Sources are used in a Spring application, the transaction management is handled by Spring. You can use the
+`@Transactional` annotation to manage transactions in your Spring application. Storm will then automatically participate
+in the Spring-managed transactions.
+
+Storm's sessionless design means that it does not maintain any internal state or session. Each operation is stateless
+and independent, allowing for a clean and efficient interaction with the database. This design choice simplifies the
+programming model and reduces the complexity associated with managing transactions.
+
+*Note:* Spring's transaction management also works without the `storm-spring` dependency, as this dependency is only
+needed for repository injection.
+
+=== Batch Processing
+
+Storm supports batch processing, allowing you to execute multiple database operations in a single batch. This can
+significantly improve performance when dealing with large datasets or multiple insert/update/delete operations.
+Batch processing is particularly useful when you need to perform bulk operations, such as inserting or updating a large
+number of records.
+
+To use batch processing, you can use the out-of-the-box `insert`, `update`, and `delete` methods provided by the
+`EntityRepository` interface. These methods can be used to perform batch operations on entities. The batch size can be
+configured to control the number of operations executed in a single batch.
+
+
+=== Streaming
+
+Storm supports streaming, allowing you to process large datasets efficiently without loading them entirely into memory.
+This is particularly useful when dealing with large result sets or when you need to process data in a memory-efficient
+manner. Streaming allows you to retrieve and process records one at a time, reducing memory consumption and improving
+performance.
+
+The out-of-the-box methods of the repository return a stream of results for methods that query the entire table. The
+`QueryBuilder` interface also provides a `getResultStream` method that returns a stream of results for the specified
+query can be used as a swap-in for the `getResultList` method.
+
+*Note:* Streams must be closed after use to release any resources associated with them. This can be done using the
+`try-with-resources` statement or by explicitly closing the stream in a `finally` block.
+
+The following example demonstrates how to use streaming to process a large dataset without loading it entirely into
+memory:
+
+[tabs]
+====
+ORM::
++
+[source,java]
+----
+try (Stream<User> users = userRepository.select()) {
+    List<Integer> users.map(User::id).toList();
+    ...
+}
+----
+====
+
+The example uses the `select` method to retrieve a stream of `User` records. The stream is then processed using
+Java's stream API to extract the user IDs. The `try-with-resources` statement ensures that the stream is closed
+automatically after use. This approach allows you to convert the stream to a list of user IDs without loading all
+`User` records into memory at once.
+
+=== Upsert Processing
+
+Storm supports upsert processing, allowing you to insert or update records in a single operation. This is particularly
+useful when you need to ensure that a record exists in the database, and if it does not, it should be inserted. If it
+already exists, it should be updated. This can help reduce the number of database operations and improve performance.
+It also allows you to let the database handle the logic of determining whether to insert or update a record.
+
+To use upsert processing, you can use the `upsert` method provided by the `EntityRepository` interface. This method
+can be used to perform upsert operations on entities. The upsert method will automatically determine whether to insert
+or update the record based on its existence in the database.
+
+The following example demonstrates how to use upsert processing to insert or update a user record in the database:
+
+[tabs]
+====
+ORM::
++
+[source,java]
+----
+City city = ...;
+User user = userRepository.upsertAndFetch(User.builder()
+    .email("colin@acme.com")
+    .birthDate(LocalDate.of(2019, 1, 28))
+    .street("243 Acalanes Dr.")
+    .postalCode("94086")
+    .city(city)
+    .build()
+);
+----
+====
+
+The example uses Lombok's `@Builder` annotation to create a new `User` object for readability. The upsert logic is
+invoked by passing an object without a primary key. The `upsertAndFetch` method will automatically determine whether
+to insert or update the record. The resulting `User` object will contain the values read from the database, including
+the primary key. An alternative `upsert` method is also available to perform the operation without fetching the record
+from the database.
+
+*Note:* Upsert logic is implemented using the underlying database platform's capabilities. This means that the correct
+database dialect must be provided to support upsert operations. Storm supports various database dialects, including
+Oracle, MySQL, PostgreSQL, and MS SQL Server.
+
+
+=== Database Dialects
+
+Storm supports various database dialects, including Oracle, MySQL, PostgreSQL, and MS SQL Server. Include the
+appropriate dependency for your database to fully utilize the capabilities of the underlying database system, in a
+platform-independent manner. To use Storm with Oracle, include the following dependency:
+
+[tabs]
+====
+Maven::
++
+[source,xml]
+----
+<dependency>
+    <groupId>st.orm</groupId>
+    <artifactId>storm-oracle</artifactId>
+    <version>1.2.2</version>
+    <scope>runtime</scope>
+</dependency>
+----
+Gradle::
++
+[source,groovy]
+----
+runtimeOnly 'st.orm:storm-oracle:1.2.2'
+----
+====
+
+Replace `storm-oracle` with `storm-mysql`, `storm-mariadb`, `storm-postgresql`, or `storm-mssqlserver` to use Storm with
+the respective database system.
+
+
+=== Static Metamodel Generation
+
+The static metamodel feature provides type-safe access to entity attributes at compile time, reducing the risk of
+runtime errors. To generate a static metamodel for your entities, include the following dependency:
+
+[tabs]
+====
+Maven::
++
+[source,xml]
 ----
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-metamodel-processor</artifactId>
-    <version>1.2.1</version>
+    <version>1.2.2</version>
     <scope>provided</scope>
 </dependency>
 ----
-Storm offers a flexible and layered approach to database interaction, catering to developers with varying needs and preferences. Whether you’re looking for minimal enhancements or a complete abstraction, Storm has you covered.
-
-=== Dependency Management
-
-Include the following dependencies in your project to start using Storm:
-
-[source,xml,indent=0]
+Gradle::
++
+[source,groovy]
 ----
-<dependencies>
-    <dependency>
-        <groupId>st.orm</groupId>
-        <artifactId>storm</artifactId>
-        <version>1.2.1</version>
-        <scope>compile</scope>
-    </dependency>
-    <dependency> <!-- Include for JSON support. -->
-        <groupId>st.orm</groupId>
-        <artifactId>storm-json</artifactId>
-        <version>1.2.1</version>
-        <scope>compile</scope>
-    </dependency>
-    <dependency> <!-- Spring Framework integration. -->
-        <groupId>st.orm</groupId>
-        <artifactId>storm-spring</artifactId>
-        <version>1.2.1</version>
-        <scope>compile</scope>
-    </dependency>
-    <dependency> <!-- Optional database extensions. -->
-        <groupId>st.orm</groupId>
-        <artifactId>storm-oracle</artifactId>
-        <version>1.2.1</version>
-        <scope>runtime</scope>
-    </dependency>
-</dependencies>
+annotationProcessor 'st.orm:storm-metamodel-processor:1.2.2'
 ----
+====
 
-=== Level 0 - Parameter Binding
-Enhance your existing workflows using technologies like JDBC or JPA, while leveraging Storm for safe and efficient parameter binding. This level is ideal for developers who want to retain control over SQL execution but benefit from Storm’s binding capabilities.
+The metamodel is used to access attributes in the entity in a type-safe manner. For example, to access the `email`
+attribute of the `User` entity, use the `User_.email` field:
 
-[source,java,indent=0]
+[tabs]
+====
+ORM::
++
+[source,java]
 ----
-public class JPAExample {
+String email = ...;
+List<User> users = userRepository
+        .select()
+        .where(User_.email, EQUALS, email)
+        .getResultList();
+----
+Mixed::
++
+[source,java]
+----
+List<User> users = userRepository
+        .select()
+        .where(RAW."\{User_.email} = \{email}")
+        .getResultList();
+----
+====
 
-    @PersistenceContext
-    private EntityManager entityManager;
+The metamodel can be used to access attributes of the entire entity graph. The example below demonstrates how to specify
+the city name of the city associated with the user:
 
-    public List findByBirthDate(LocalDate birthDate) {
-        return JpaTemplate.of(entityManager).query(RAW."""
-                SELECT *
-                FROM pet
-                WHERE birth_date = \{birthDate}""")
-            .getResultList();
-    }
-}
+[tabs]
+====
+ORM::
++
+[source,java]
 ----
-
-
-[source,java,indent=0]
+List<User> users = userRepository
+        .select()
+        .where(User_.city.name, EQUALS, "Sunnyvale")
+        .getResultList();
 ----
-public class PreparedStatementExample {
-
-    @Autowired
-    private DataSource dataSource;
-
-    public List<Pet> findByBirthDate(LocalDate birthDate) {
-        try (PreparedStatement statement = PreparedStatementTemplate.of(dataSource).query(RAW."""
-                    SELECT *
-                    FROM pet
-                    WHERE birth_date = \{birthDate}""");
-                ResultSet resultSet = statement.executeQuery()) {
-            List<Pet> pets = new ArrayList<>();
-            while (resultSet.next()) {
-                // ...
-            }
-            return pets;
-        }
-    }
-}
+Mixed::
++
+[source,java]
 ----
-
-
-=== Level 1 - Sql Template / Object-Relational Mapping
-Take advantage of Storm’s ORM while writing queries using plain, text-based SQL. Storm enhances this approach with automatic joins, table and column resolution, reducing boilerplate and increasing productivity, while producing rich ORM records for seamless interaction with your data.
-
-[source,java,indent=0]
+List<User> users = userRepository
+        .select()
+        .where(RAW."\{User_.city.name} = \{"Sunnyvale"}")
+        .getResultList();
 ----
-public record Pet(
-    @PK Integer id,
-    String name,
-    LocalDate birthDate,
-    PetType petType,
-    @FK Owner owner
-) {}
-
-public record Owner(
-    @PK Integer id,
-    String firstName,
-    String lastName,
-    Address address,
-    String telephone
-) {}
-
-public record Address (
-    String address,
-    String city
-) {}
-----
-
-Select all pets that belong to the owner. Uses the auto join feature based on @FK relationships.
-[source,java,indent=0]
-----
-    public List<Pet> findByOwner(Owner owner) {
-        return ORM(dataSource).query(RAW."""
-                SELECT \{Pet.class}
-                FROM \{Pet.class}
-                WHERE \{owner}""")
-            .getResultList(Pet.class);
-    }
-----
-
-Count the number of pets that belong to the owner. Uses custom result mapping.
-[source,java,indent=0]
-----
-    public int findPetCountByOwner(Owner owner) {
-        return ORM(dataSource)
-                .query(RAW."SELECT COUNT(*) FROM \{Pet.class} WHERE \{owner}")
-                .getSingleResult(Integer.class);
-    }
-----
-
-
-Group by owner and count the number of pets. Uses custom result mapping using a record.
-[source,java,indent=0]
-----
-    public record CountByOwner(Owner owner, int count) {}
-
-    public List<CountByOwner> getPetCount() {
-        return ORM(dataSource)
-                .query(RAW."SELECT \{Owner.class}, COUNT(*) FROM \{Pet.class} GROUP BY \{Owner.class}.id")
-                .getResultList(CountByOwner.class);
-    }
-----
-
-[source,java,indent=0]
-----
-    public Pet insert(String name, LocalDate birthDate, PetType petType) {
-        var pet = Pet.builder()
-                .name(name)
-                .birthDate(birthDate)
-                .petType(petType)
-                .build();
-        return ORM(dataSource).query(RAW."""
-                INSERT INTO \{Pet.class}
-                VALUES \{pet}""")
-            .executeUpdate();
-    }
-----
-
-Insert pets into the database with a batch statement. Uses bind variables.
-[source,java,indent=0]
-----
-    public void insert(List<Pet> pets) {
-        var orm = ORM(dataSource);
-        var bindVars = orm.createBindVars();
-        try (var query = orm.query(RAW."""
-                INSERT INTO \{Pet.class}
-                VALUES \{bindVars}""".prepare())) {
-            pets.forEach(query::addBatch);
-            query.executeUpdate();  // Performs the batch update.
-        }
-    }
-----
-
-Updates pets with a batch statement. Uses bind variables.
-[source,java,indent=0]
-----
-    public void update(List<Pet> pets) {
-        var orm = ORM(dataSource);
-        var bindVars = orm.createBindVars();
-        try (var query = orm.query(RAW."""
-                UPDATE \{Pet.class}
-                SET \{bindVars}
-                WHERE \{bindVars}""".prepare())) {
-            pets.forEach(query::addBatch);
-            query.executeUpdate();  // Performs the batch update.
-        }
-    }
-----
-
-=== Level 2 - Repository
-Maximize abstraction by using Storm’s repositories, which provide CRUD logic out of the box. By utilizing a static metamodel, Level 2 can be used in a 100% type-safe manner, ensuring a robust and error-free development experience. This is the recommended level for most use cases. For scenarios requiring a higher level of specialized SQL, Level 2 can be seamlessly combined with Level 1 to leverage text-based SQL when needed, offering the perfect balance between simplicity and advanced query customization.
-
-[source,java,indent=0]
-----
-    public record Pet(
-            @PK Integer id,
-            @Nonnull String name,
-            @Nonnull LocalDate birthDate,
-            @Nonnull PetType petType,
-            @Nullable @FK Owner owner
-    ) implements Entity<Integer> {}
-----
-
-The following example demonstrates how `ORM(datasource).entity(Pet.class)` returns a repository with CRUD features out of the box for the `Pet` entity:
-
-Selects all pets.
-[source,java,indent=0]
-----
-    public List<Pet> findAll() {
-        return ORM(dataSource).entity(Pet.class)
-            .select()
-            .getResultList();   // Use getResultStream() for a lazily loaded stream instead.
-    }
-----
-
-Select all pets that belong to an owner with the specified first name. Uses the metamodel for column name resolution and utilizes parameter binding.
-[source,java,indent=0]
-----
-    public List<Pet> findByFirstName(String firstName) {
-        return ORM(dataSource).entity(Pet.class)
-            .select()
-            .where(RAW."\{Pet_.owner.firstName} = \{firstName}")
-            .getResultList();
-    }
-----
-
-Use metamodel to identify column.
-[source,java,indent=0]
-----
-    public List<Pet> findByLastName(String lastName) {
-        return ORM(dataSource).entity(Pet.class)
-            .select()
-            .where(Pet_.owner.lastName, EQUALS, lastName)   // Type-safe!
-            .getResultList();
-    }
-----
-
-Build the query using mixed styles.
-[source,java,indent=0]
-----
-    public List<Pet> findByFirstNameAndLastName(String firstName, String lastName) {
-        return ORM(dataSource).entity(Pet.class)
-            .select()
-            .where(it -> it.filter(Pet_.owner.firstName, EQUALS, firstName) // Type-safe!
-              .and(it.expression(RAW."\{Pet_.owner.lastName} = \{lastName}"))) // Name resolution / binding.
-            .getResultList();
-    }
-----
-
-Select all pets that belong to the specified owners. Uses the auto join feature based on @FK relationships.
-[source,java,indent=0]
-----
-    public List<Pet> findByOwners(List<Owner> owner) {
-        return ORM(dataSource).entity(Pet.class)
-            .select()
-            .where(Pet_.owner, owners)   // Type-safe!
-            .getResultList();
-    }
-----
-
-Create a new pet with the specified name and pet type. Returns the newly created pet with the generated ID.
-[source,java,indent=0]
-----
-    public Pet insert(String name, LocalDate birthDate, PetType petType) {
-        return ORM(dataSource).entity(Pet.class)
-            .insert(Pet.builder()
-                .name(name)
-                .birthDate(birthDate)
-                .petType(petType)
-                .build());
-    }
-----
-
-Out of the box insert logic.
-[source,java,indent=0]
-----
-    public void insert(List<Pet> pets) {
-        return ORM(dataSource).entity(Pet.class)
-            .insert(pets);
-    }
-----
-
-Out of the box update logic.
-[source,java,indent=0]
-----
-    public void update(List<Pet> pets) {
-        return ORM(dataSource).entity(Pet.class)
-            .update(pets);
-    }
-----
-
-The following logic shows howto extend a repository with custom methods:
-[source,java,indent=0]
-----
-public interface PetRepository extends EntityRepository<Pet> {
-
-    default List<Pet> findByOwner(Owner owner) {
-        // Use select() to query the Pet table.
-        return select()
-            .where(Pet_.owner, owner)
-            .getResultList();
-    }
-
-    default Stream<Pet> findByCity(String city) {
-        // Select a lazy loaded stream pets that belong to an owner in the specified city.
-        return select()
-            .where(Pet_.owner.city, EQUALS, city)
-            .getResultStream();
-    }
-
-    // Select, Insert, Update, Delete and Upsert methods are inherited from EntityRepository.
-}
-----
-
-== Additional Features
+====
 
 === JSON
 
-JSON is supported as a first-class citizen. The following example demonstrates how to use JSON in a repository:
+JSON is supported as a first-class citizen. Include the following dependency to enable JSON support:
 
-[source,java,indent=0]
+[tabs]
+====
+Maven::
++
+[source,xml]
 ----
-public record Vet(
-    @PK Integer id,
-    String firstName,
-    String lastName
-) implements Entity<Integer> {}
+<dependency>
+    <groupId>st.orm</groupId>
+    <artifactId>storm-json</artifactId>
+    <version>1.2.2</version>
+    <scope>compile</scope>
+</dependency>
+----
+Gradle::
++
+[source,groovy]
+----
+implementation 'st.orm:storm-json:1.2.2'
+----
+====
 
-public record Specialty(
-    @PK Integer id,
-    String name
-) implements Entity<Integer> {}
+The following example demonstrates how to combine a regular query with a _many-to-many_ relationship using JSON
+aggregation. It shows how JSON can efficiently aggregate related entities into a single query, avoiding multiple
+database calls.
 
-public interface VetRepository extends EntityRepository<Vet> {
+The example defines a simple entity `Role` and a record `RolesByUser` to represent query results. The `getUserRoles`
+method in the `UserRepository` interface illustrates how to fetch users along with their associated roles as JSON
+objects, utilizing a combination of joins and JSON aggregation:
 
-    record SpecialtiesByVet(
-        Vet vet,
-        @Json List<Specialty> specialties
-    ) {}
+[tabs]
+====
+ORM::
++
+[source,java]
+----
+interface UserRepository extends EntityRepository<User> {
 
-    default List<SpecialtiesByVet> getSpecialties() {
-        // Uses VET as the root entity and aggregates the specialties into a JSON object.
-        // The result is a list of SpecialtiesByVet records.
-        return select(SpecialtiesByVet.class, RAW."\{Vet.class}, JSON_OBJECTAGG(\{Specialty_.id}, \{Specialty_.name})")
-            .innerJoin(VetSpecialty.class).on(Vet.class)
-            .innerJoin(Specialty.class).on(VetSpecialty.class)
-            .groupBy(Vet_.id)
+    record RolesByUser(User user, @Json List<Role> roles) {}
+
+    default List<RolesByUser> getUserRoles() {
+        return select(RolesByUser.class, RAW."\{User.class}, JSON_OBJECTAGG(\{Role.class})")
+            .innerJoin(UserRole.class).on(User.class)
+            .groupBy(User_.id)
             .getResultList();
     }
 }
 ----
+====
 
-The JSON address field is automatically converted to a map with the keys 'address' and 'city' given that the address field contains the following format: `{ "address": "243 Acalanes Dr", "city": "Sunnyvale" }`
+*Note:* This approach is suitable for mappings with a moderate size. For larger datasets or extensive mappings, it’s
+advisable to split queries into two separate parts: one to retrieve the main entities, and another to fetch their
+related entities. This strategy can help maintain optimal performance and manageability.
 
-[source,java,indent=0]
+[source,java]
 ----
-public record Owner(
-    @PK Integer id,
-    String firstName,
-    String lastName,
-    @Json Map<String, String> address,
-    String telephone
+public record User(@PK Integer id,
+                   String email,
+                   LocalDate birthDate,
+                   @Json Map<String, String> address
 ) implements Entity<Integer> {}
+----
 
-public interface OwnerRepository extends EntityRepository<Owner> {
+Another way to use JSON is to have a database column with JSON content and map it to a Java Map. In the following
+example the JSON address field is automatically converted to a map with the keys 'street', 'postalCode' and 'city' given
+that the address column contains data in the following format: `{ "street": "243 Acalanes Dr.", "postalCode": "94086", """city": "Sunnyvale" }`
 
-    // Nothing to do here. The JSON annotation takes care of the conversion.
+[tabs]
+====
+ORM::
++
+[source,java]
+----
+public interface UserRepository extends EntityRepository<User> {
+
+    // Nothing to do here. The Json annotation takes care of the conversion.
     // Select, Insert, Update, Delete and Upsert methods are inherited from EntityRepository.
 
 }
 ----
-
+====
 
 === Spring Framework Integration
 
-Spring Framework integration is straightforward. The following example demonstrates how to configure the `ORMTemplate` bean using a `DataSource`.
+Spring Framework integration is straightforward. Include the following dependency to tie Storm into your Spring (Boot)
+application:
 
-[source,java,indent=0]
+[tabs]
+====
+Maven::
++
+[source,xml]
+----
+<dependency>
+    <groupId>st.orm</groupId>
+    <artifactId>storm-spring</artifactId>
+    <version>1.2.2</version>
+    <scope>compile</scope>
+</dependency>
+----
+Gradle::
++
+[source,groovy]
+----
+implementation 'st.orm:storm-spring:1.2.2'
+----
+====
+
+The following example demonstrates how to configure the `ORMTemplate` bean using a `DataSource`.
+
+[tabs]
+====
+Spring::
++
+[source,java]
 ----
 @Configuration
 public class ORMTemplateConfiguration {
@@ -459,10 +829,15 @@ public class ORMTemplateConfiguration {
     }
 }
 ----
+====
 
 The repositories can be made available for dependency injection by extending the `RepositoryBeanFactoryPostProcessor` class.
 
-[source,java,indent=0]
+[tabs]
+====
+Spring::
++
+[source,java]
 ----
 @Configuration
 public class AcmeRepositoryBeanFactoryPostProcessor extends RepositoryBeanFactoryPostProcessor {
@@ -474,30 +849,4 @@ public class AcmeRepositoryBeanFactoryPostProcessor extends RepositoryBeanFactor
     }
 }
 ----
-
-== Future Work
-
-The following examples show how ST/ORM will evolve once String Template 2.0 and Derived Record Creation (JEP 468) can be used.
-
-[source,java,indent=0]
-----
-public interface PetRepository extends EntityRepository<Pet> {
-
-    record CountByPet(Pet pet, int count) {}
-
-    default List<CountByPet> getVisitCount() {
-        // QueryBuilder example with method based String Templates resulting in a much cleaner syntax.
-        return select(CountByPet.class, "\{Pet.class}, COUNT(*)")
-                .innerJoin(Visit.class).on(Pet.class)
-                .groupBy(Vet_.id)
-                .getResultList();
-    }
-
-    default void removeOwners() {
-        // Repository example utilizing derived record creation to update record fields.
-        try (var pets = selectAll()) {
-            update(pets.map(pet -> pet with { owner = null; });
-        }
-    }
-}
-----
+====

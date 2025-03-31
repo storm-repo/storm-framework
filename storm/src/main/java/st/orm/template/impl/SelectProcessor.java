@@ -26,7 +26,6 @@ import st.orm.template.SqlDialect;
 import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.impl.Elements.Select;
-import st.orm.template.impl.Elements.Table;
 
 import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
@@ -51,7 +50,7 @@ final class SelectProcessor implements ElementProcessor<Select> {
     private final SqlTemplate template;
     private final SqlDialectTemplate dialectTemplate;
     private final AliasMapper aliasMapper;
-    private final Table primaryTable;
+    private final PrimaryTable primaryTable;
 
     SelectProcessor(@Nonnull SqlTemplateProcessor templateProcessor) {
         this.template = templateProcessor.template();

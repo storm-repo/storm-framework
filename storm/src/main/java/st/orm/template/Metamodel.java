@@ -57,6 +57,14 @@ public interface Metamodel<T extends Record, E> {
     }
 
     /**
+     * Returns {@code true} if the metamodel corresponds to a database column, returns {@code false} otherwise, for
+     * example if the metamodel refers to the root metamodel or an inline record.
+     *
+     * @return {@code true} if this metamodel maps to a column, {@code false} otherwise.
+     */
+    boolean isColumn();
+
+    /**
      * Returns the root metamodel. This is typically the table specified in the FROM clause of a query.
      *
      * @return the root metamodel.
@@ -64,9 +72,11 @@ public interface Metamodel<T extends Record, E> {
     Class<T> root();
 
     /**
-     * Returns the table to which this metamodel is pointing.
+     * Returns the table that holds the column to which this metamodel is pointing. If the metamodel points to an
+     * inline record, the table is the parent table of the inline record. If the metamodel is a root metamodel, the
+     * root table is returned.
      *
-     * @return the table to which this metamodel is pointing.
+     * @return the table that holds the column to which this metamodel is pointing.
      */
     Metamodel<T, ? extends Record> table();
 
