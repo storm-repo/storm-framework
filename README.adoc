@@ -534,7 +534,7 @@ ORM::
 [source,java]
 ----
 try (Stream<User> users = userRepository.select()) {
-    List<Integer> users.map(User::id).toList();
+    List<Integer> userIds = users.map(User::id).toList();
     ...
 }
 ----
