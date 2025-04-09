@@ -50,7 +50,7 @@ class QueryTemplateImpl implements QueryTemplate {
         this.modelBuilder = requireNonNull(modelBuilder);
         this.providerFilter = providerFilter;
         this.dialect = getSqlDialect(providerFilter == null ? _ -> true : providerFilter);
-        this.refFactory = new RefFactoryImpl(queryFactory, modelBuilder, providerFilter);
+        this.refFactory = new RefFactoryImpl(this);
     }
 
     /**

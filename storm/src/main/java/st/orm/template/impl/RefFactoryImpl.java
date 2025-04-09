@@ -21,6 +21,7 @@ import st.orm.Ref;
 import st.orm.spi.Provider;
 import st.orm.spi.QueryFactory;
 import st.orm.template.QueryBuilder;
+import st.orm.template.QueryTemplate;
 
 import java.util.function.Predicate;
 
@@ -32,16 +33,16 @@ import static java.util.Objects.requireNonNull;
  * @since 1.3
  */
 public final class RefFactoryImpl implements RefFactory {
-    private final QueryFactory factory;
-    private final ModelBuilder modelBuilder;
-    private final Predicate<? super Provider> providerFilter;
+    private final QueryTemplate template;
 
     public RefFactoryImpl(@Nonnull QueryFactory factory,
                           @Nonnull ModelBuilder modelBuilder,
                           @Nullable Predicate<? super Provider> providerFilter) {
-        this.factory = requireNonNull(factory, "factory");
-        this.modelBuilder = requireNonNull(modelBuilder, "modelBuilder");
-        this.providerFilter = providerFilter;
+        this(new ORMTemplateImpl(factory, modelBuilder, providerFilter));
+    }
+
+    public RefFactoryImpl(@Nonnull QueryTemplate template) {
+        this.template = requireNonNull(template, "template");
     }
 
     /**
@@ -58,7 +59,7 @@ public final class RefFactoryImpl implements RefFactory {
     @Override
     public <T extends Record, ID> Ref<T> create(@Nonnull Class<T> type, @Nonnull ID pk) {
         var supplier = new LazySupplier<>(() ->
-                ((QueryBuilder<T, T, ID>) new ORMTemplateImpl(factory, modelBuilder, providerFilter)
+                ((QueryBuilder<T, T, ID>) template
                         .selectFrom(type))
                         .where(pk)
                         .getSingleResult());
@@ -80,7 +81,7 @@ public final class RefFactoryImpl implements RefFactory {
     public <T extends Record, ID> Ref<T> create(@Nonnull T record, @Nonnull ID pk) {
         var type = (Class<T>) record.getClass();
         var supplier = new LazySupplier<>(() ->
-                ((QueryBuilder<T, T, ID>) new ORMTemplateImpl(factory, modelBuilder, providerFilter)
+                ((QueryBuilder<T, T, ID>) template
                         .selectFrom(type))
                         .where(pk)
                         .getSingleResult(), record);
