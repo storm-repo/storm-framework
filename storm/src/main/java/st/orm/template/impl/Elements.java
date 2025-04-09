@@ -18,6 +18,7 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.BindVars;
+import st.orm.Templates.SelectMode;
 import st.orm.template.Metamodel;
 import st.orm.template.Operator;
 import st.orm.template.ResolveScope;
@@ -25,6 +26,7 @@ import st.orm.template.ResolveScope;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
+import static st.orm.Templates.SelectMode.NESTED;
 import static st.orm.template.Operator.EQUALS;
 
 public final class Elements {
@@ -32,9 +34,13 @@ public final class Elements {
     private Elements() {
     }
 
-    public record Select(@Nonnull Class<? extends Record> table, boolean nested) implements Element {
+    public record Select(@Nonnull Class<? extends Record> table, @Nonnull SelectMode mode) implements Element {
         public Select {
             requireNonNull(table, "table");
+            requireNonNull(mode, "mode");
+        }
+        public Select(@Nonnull Class<? extends Record> table) {
+            this(table, NESTED);
         }
     }
 

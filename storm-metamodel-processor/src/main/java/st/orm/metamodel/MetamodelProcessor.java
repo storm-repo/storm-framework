@@ -115,12 +115,11 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return empty();
     }
 
-    private static final Pattern LAZY_PATTERN =
-            Pattern.compile("^st\\.orm\\.Lazy<([^,]+),([^>]+)>$");
+    private static final Pattern REF_PATTERN =
+            Pattern.compile("^st\\.orm\\.Ref<([^>]+)>$");
 
-
-    private static String extractNameIfLazy(String input) {
-        Matcher matcher = LAZY_PATTERN.matcher(input);
+    private static String extractNameIfRef(String input) {
+        Matcher matcher = REF_PATTERN.matcher(input);
         if (matcher.matches()) {
             return matcher.group(1).trim();
         }
@@ -128,7 +127,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
     }
 
     private static String getTypeName(TypeMirror typeMirror, String packageName) {
-        String className = extractNameIfLazy(typeMirror.toString());
+        String className = extractNameIfRef(typeMirror.toString());
         className = getBoxedTypeName(className);
         if (className.startsWith(packageName)) {
             String simpleName = className.substring(packageName.length() + 1);
@@ -184,20 +183,24 @@ public final class MetamodelProcessor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         processingEnv.getMessager().printMessage(NOTE, "Storm Metamodel Processor is running.");
-        for (Element element : roundEnv.getRootElements()) {
-            if (!isRecord(element)) {
-                continue;
+        try {
+            for (Element element : roundEnv.getRootElements()) {
+                if (!isRecord(element)) {
+                    continue;
+                }
+                boolean hasGenerateMetamodel = element.getAnnotationMirrors().stream()
+                        .anyMatch(annotationMirror -> GENERATE_METAMODEL
+                                .equals(annotationMirror.getAnnotationType().toString()));
+                // Check if it implements Entity or Projection.
+                boolean implementsEntity = implementsInterface(element.asType(), ENTITY, processingEnv.getTypeUtils());
+                boolean implementsProjection = implementsInterface(element.asType(), PROJECTION, processingEnv.getTypeUtils());
+                // Only generate if it’s annotated OR implements one of those interfaces.
+                if (hasGenerateMetamodel || implementsEntity || implementsProjection) {
+                    generateMetamodelInterface(element);
+                }
             }
-            boolean hasGenerateMetamodel = element.getAnnotationMirrors().stream()
-                    .anyMatch(annotationMirror -> GENERATE_METAMODEL
-                            .equals(annotationMirror.getAnnotationType().toString()));
-            // Check if it implements Entity or Projection.
-            boolean implementsEntity = implementsInterface(element.asType(), ENTITY, processingEnv.getTypeUtils());
-            boolean implementsProjection = implementsInterface(element.asType(), PROJECTION, processingEnv.getTypeUtils());
-            // Only generate if it’s annotated OR implements one of those interfaces.
-            if (hasGenerateMetamodel || implementsEntity || implementsProjection) {
-                generateMetamodelInterface(element);
-            }
+        } catch (Exception e) {
+            processingEnv.getMessager().printMessage(ERROR, "Failed to process metamodel. Error: " + e);
         }
         return true;
     }
@@ -448,7 +451,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return builder.toString();
     }
 
-    private String initClassFields(Element recordElement, String packageName, String recordName) {
+    private String initClassFields(Element recordElement, String packageName) {
         StringBuilder builder = new StringBuilder();
         for (Element enclosed : recordElement.getEnclosedElements()) {
             TypeMirror recordComponent = getRecordComponentType(enclosed).orElse(null);
@@ -525,7 +528,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     %s
                         }
                     }""", packageName, recordName, getClass().getName(), metaClassName, recordName, buildClassFields(recordElement, packageName, recordName),
-                        metaClassName, recordName, metaClassName, metaClassName, metaClassName, recordName, initClassFields(recordElement, packageName, recordName)));
+                        metaClassName, recordName, metaClassName, metaClassName, metaClassName, recordName, initClassFields(recordElement, packageName)));
             }
         } catch (Exception e) {
             processingEnv.getMessager().printMessage(ERROR, "Failed to process " + metaClassName + ". Error: " + e);

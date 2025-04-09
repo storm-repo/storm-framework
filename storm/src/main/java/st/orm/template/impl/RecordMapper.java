@@ -17,7 +17,7 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.Lazy;
+import st.orm.Ref;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.SqlTemplateException;
@@ -35,8 +35,8 @@ import static java.util.Collections.addAll;
 import static java.util.Optional.empty;
 import static st.orm.spi.Providers.getORMConverter;
 import static st.orm.template.impl.ObjectMapperFactory.construct;
-import static st.orm.template.impl.RecordReflection.getLazyPkType;
-import static st.orm.template.impl.RecordReflection.getLazyRecordType;
+import static st.orm.template.impl.RecordReflection.getRefPkType;
+import static st.orm.template.impl.RecordReflection.getRefRecordType;
 
 /**
  * Factory for creating instances for record types.
@@ -60,7 +60,7 @@ final class RecordMapper {
      */
     static <T> Optional<ObjectMapper<T>> getFactory(int columnCount,
                                                     @Nonnull Class<? extends T> type,
-                                                    @Nonnull LazyFactory bridge) throws SqlTemplateException {
+                                                    @Nonnull RefFactory bridge) throws SqlTemplateException {
         if (!type.isRecord()) {
             throw new SqlTemplateException(STR."Type must be a record: \{type.getName()}.");
         }
@@ -102,13 +102,14 @@ final class RecordMapper {
      * Wraps the specified constructor in a factory.
      *
      * @param constructor the constructor to wrap.
-     * @param lazyFactory the bridge for creating supplier instances for records.
+     * @param refFactory the bridge for creating supplier instances for records.
      * @return a factory for creating instances using the specified constructor.
      * @param <T> the type of the instance to create.
      */
-    private static <T> ObjectMapper<T> wrapConstructor(@Nonnull Constructor<?> constructor, @Nonnull LazyFactory lazyFactory) throws SqlTemplateException {
+    private static <T> ObjectMapper<T> wrapConstructor(@Nonnull Constructor<?> constructor,
+                                                       @Nonnull RefFactory refFactory) throws SqlTemplateException {
         // Prefetch the parameter types to avoid reflection overhead.
-        Class<?>[] parameterTypes = expandParameterTypes(constructor.getParameterTypes(), constructor, lazyFactory);
+        Class<?>[] parameterTypes = expandParameterTypes(constructor.getParameterTypes(), constructor, refFactory);
         var interner = new WeakInterner();
         return new ObjectMapper<>() {
             @Override
@@ -125,7 +126,7 @@ final class RecordMapper {
                         constructor,
                         args,
                         0,
-                        lazyFactory,
+                        refFactory,
                         false,
                         interner).arguments();
                 // Don't intern top level records.
@@ -144,7 +145,7 @@ final class RecordMapper {
      */
     private static Class<?>[] expandParameterTypes(@Nonnull Class<?>[] parameterTypes,
                                                    @Nullable Constructor<?> constructor,
-                                                   @Nonnull LazyFactory lazyFactory) throws SqlTemplateException {
+                                                   @Nonnull RefFactory refFactory) throws SqlTemplateException {
         List<Class<?>> expandedTypes = new ArrayList<>();
         var recordComponents = constructor == null
                 ? null
@@ -163,13 +164,13 @@ final class RecordMapper {
                 // Recursively expand record components.
                 //noinspection unchecked
                 Constructor<?> canonicalConstructor = REFLECTION.findCanonicalConstructor((Class<? extends Record>) paramType).orElseThrow();
-                addAll(expandedTypes, expandParameterTypes(canonicalConstructor.getParameterTypes(), canonicalConstructor, lazyFactory));
-            } else if (Lazy.class.isAssignableFrom(paramType)) {
-                // Lazy type, add the parameterized type.
+                addAll(expandedTypes, expandParameterTypes(canonicalConstructor.getParameterTypes(), canonicalConstructor, refFactory));
+            } else if (Ref.class.isAssignableFrom(paramType)) {
+                // Ref type, add the parameterized type.
                 assert constructor != null;
                 assert constructor.getDeclaringClass().isRecord();
                 assert recordComponents != null;
-                expandedTypes.add(getLazyPkType(recordComponents[i]));
+                expandedTypes.add(getRefPkType(recordComponents[i]));
             } else {
                 // Non-record type, add directly.
                 expandedTypes.add(paramType);
@@ -200,7 +201,7 @@ final class RecordMapper {
                                                        @Nonnull Constructor<?> constructor,
                                                        @Nonnull Object[] args,
                                                        int argsIndex,
-                                                       @Nonnull LazyFactory lazyFactory,
+                                                       @Nonnull RefFactory refFactory,
                                                        boolean nullable,
                                                        @Nonnull WeakInterner interner) throws SqlTemplateException {
         Object[] adaptedArgs = new Object[parameterTypes.length];
@@ -223,8 +224,8 @@ final class RecordMapper {
                 Class<?>[] recordParamTypes = recordConstructor.getParameterTypes();
                 // Recursively adapt arguments for nested records, updating currentIndex after processing.
                 nullable |= !REFLECTION.isNonnull(component);
-                AdaptArgumentsResult result = adaptArguments(recordParamTypes, recordConstructor, args, currentIndex, lazyFactory, nullable, interner);
-                if (Arrays.stream(args, currentIndex, result.offset()).allMatch(a -> a == null || (a instanceof Lazy<?, ?> l && l.isNull()))
+                AdaptArgumentsResult result = adaptArguments(recordParamTypes, recordConstructor, args, currentIndex, refFactory, nullable, interner);
+                if (Arrays.stream(args, currentIndex, result.offset()).allMatch(a -> a == null || (a instanceof Ref<?> l && l.isNull()))
                         && nullable) {   // Only apply null if resulting component is marked as nullable.
                     arg = null;
                 } else {
@@ -235,9 +236,9 @@ final class RecordMapper {
                     arg = interner.intern(construct(recordConstructor, result.arguments(), argsIndex + i));
                 }
                 currentIndex = result.offset();
-            } else if (Lazy.class.isAssignableFrom(paramType)) {
+            } else if (Ref.class.isAssignableFrom(paramType)) {
                 Object pk = args[currentIndex++];
-                arg = lazyFactory.create(getLazyRecordType(recordComponents[i]), pk);
+                arg = pk == null ? Ref.ofNull() : refFactory.create(getRefRecordType(recordComponents[i]), pk);
             } else {
                 arg = args[currentIndex++];
             }

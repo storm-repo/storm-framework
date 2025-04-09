@@ -20,7 +20,7 @@ import jakarta.annotation.Nullable;
 import st.orm.DbColumn;
 import st.orm.DbTable;
 import st.orm.FK;
-import st.orm.Lazy;
+import st.orm.Ref;
 import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.repository.Entity;
@@ -147,7 +147,7 @@ final class RecordReflection {
                                                    @Nonnull Class<? extends Record> table) throws SqlTemplateException {
         for (var component : components) {
             if (component.getType().equals(table)
-                    || (Lazy.class.isAssignableFrom(component.getType()) && getLazyRecordType(component).equals(table))) {
+                    || (Ref.class.isAssignableFrom(component.getType()) && getRefRecordType(component).equals(table))) {
                 return Optional.of(component);
             }
         }
@@ -162,12 +162,12 @@ final class RecordReflection {
             this((Class<? extends Record>) component.getDeclaringRecord(), component.getName());
         }
     }
-    private static final java.util.Map<RecordComponentKey, Class<?>> LAZY_PK_TYPE_CACHE = new ConcurrentHashMap<>();
+    private static final java.util.Map<RecordComponentKey, Class<?>> REF_PK_TYPE_CACHE = new ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")
-    static Class<?> getLazyPkType(@Nonnull RecordComponent component) throws SqlTemplateException {
+    static Class<?> getRefPkType(@Nonnull RecordComponent component) throws SqlTemplateException {
         try {
-            return LAZY_PK_TYPE_CACHE.computeIfAbsent(new RecordComponentKey(component), _ -> {
+            return REF_PK_TYPE_CACHE.computeIfAbsent(new RecordComponentKey(component), _ -> {
                 try {
                     var type = component.getGenericType();
                     if (type instanceof ParameterizedType parameterizedType) {
@@ -177,7 +177,7 @@ final class RecordReflection {
                                     .orElseThrow(() -> new SqlTemplateException(STR."Primary key not found for entity: \{c.getSimpleName()}."));
                         }
                     }
-                    throw new SqlTemplateException(STR."Lazy component must specify an entity: \{component.getType().getSimpleName()}.");
+                    throw new SqlTemplateException(STR."Ref component must specify an entity: \{component.getType().getSimpleName()}.");
                 } catch (SqlTemplateException e) {
                     throw new RuntimeException(e);
                 }
@@ -187,12 +187,12 @@ final class RecordReflection {
         }
     }
 
-    private static final Map<RecordComponentKey, Class<? extends Record>> LAZY_RECORD_TYPE_CACHE = new ConcurrentHashMap<>();
+    private static final Map<RecordComponentKey, Class<? extends Record>> REF_RECORD_TYPE_CACHE = new ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")
-    static Class<? extends Record> getLazyRecordType(@Nonnull RecordComponent component) throws SqlTemplateException {
+    static Class<? extends Record> getRefRecordType(@Nonnull RecordComponent component) throws SqlTemplateException {
         try {
-            return LAZY_RECORD_TYPE_CACHE.computeIfAbsent(new RecordComponentKey(component), _ -> {
+            return REF_RECORD_TYPE_CACHE.computeIfAbsent(new RecordComponentKey(component), _ -> {
                 try {
                     Class<? extends Record> recordType = null;
                     var type = component.getGenericType();
@@ -203,10 +203,10 @@ final class RecordReflection {
                         }
                     }
                     if (!Entity.class.isAssignableFrom(component.getType()) && recordType == null) {
-                        throw new SqlTemplateException(STR."Lazy component must specify an entity: \{component.getType().getSimpleName()}.");
+                        throw new SqlTemplateException(STR."Ref component must specify an entity: \{component.getType().getSimpleName()}.");
                     }
                     if (recordType == null) {
-                        throw new SqlTemplateException(STR."Lazy component must be a record: \{component.getType().getSimpleName()}.");
+                        throw new SqlTemplateException(STR."Ref component must be a record: \{component.getType().getSimpleName()}.");
                     }
                     return recordType;
                 } catch (SqlTemplateException e) {
@@ -343,8 +343,8 @@ final class RecordReflection {
         if (columnName.isPresent()) {
             return columnName.get();
         }
-        Class<? extends Record> recordType = Lazy.class.isAssignableFrom(component.getType())
-                ? getLazyRecordType(component)
+        Class<? extends Record> recordType = Ref.class.isAssignableFrom(component.getType())
+                ? getRefRecordType(component)
                 : (Class<? extends Record>) component.getType();
         DbColumn dbColumn = REFLECTION.getAnnotation(component, DbColumn.class);
         String name = foreignKeyResolver.resolveColumnName(component, recordType);
@@ -359,8 +359,8 @@ final class RecordReflection {
             throws SqlTemplateException {
         for (var component : table.getRecordComponents()) {
             if (REFLECTION.isAnnotationPresent(component, FK.class)) {
-                if (Lazy.class.isAssignableFrom(component.getType())) {
-                    tableMapper.mapForeignKey(table, getLazyRecordType(component), alias, component, rootTable, path);
+                if (Ref.class.isAssignableFrom(component.getType())) {
+                    tableMapper.mapForeignKey(table, getRefRecordType(component), alias, component, rootTable, path);
                 } else {
                     if (!component.getType().isRecord()) {
                         throw new SqlTemplateException(STR."FK annotation is only allowed on record types: \{component.getType().getSimpleName()}.");

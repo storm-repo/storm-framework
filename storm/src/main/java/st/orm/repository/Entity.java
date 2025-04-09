@@ -28,7 +28,8 @@ public interface Entity<ID> {
     /**
      * Returns the primary key of the entity.
      *
-     * The primary key can be any type, such as a {@code Integer} or {@code Long}, but compound keys are also supported.
+     * <p>The primary key can be any type, such as a {@code Integer} or {@code Long}, but records representing compound
+     * keys are also supported.</p>
      *
      * @return the primary key of the entity.
      */

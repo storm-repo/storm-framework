@@ -16,8 +16,7 @@
 package st.orm.repository;
 
 import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
-import st.orm.Lazy;
+import st.orm.Ref;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.ResultCallback;
@@ -50,12 +49,20 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
     Model<P, ID> model();
 
     /**
-     * Creates a new lazy projection instance with the specified primary key.
+     * Creates a new ref projection instance with the specified primary key.
      *
      * @param id the primary key of the projection.
-     * @return a lazy projection instance.
+     * @return a ref projection instance.
      */
-    Lazy<P, ID> lazy(@Nullable ID id);
+    Ref<P> ref(@Nonnull ID id);
+
+    /**
+     * Creates a new ref projection instance with the specified projection.
+     *
+     * @param projection the projection.
+     * @return a ref projection instance.
+     */
+    Ref<P> ref(@Nonnull P projection, @Nonnull ID id);
 
     // Query builder methods.
 

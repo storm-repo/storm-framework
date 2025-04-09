@@ -50,6 +50,11 @@ public final class LazySupplier<T> implements Supplier<T> {
         this.reference = new AtomicReference<>();
     }
 
+    public LazySupplier(@Nonnull Supplier<T> supplier, @Nonnull T initialValue) {
+        this.supplier = requireNonNull(supplier);
+        this.reference = new AtomicReference<>(requireNonNull(initialValue));
+    }
+
     /**
      * Gets a result.
      *
@@ -67,6 +72,13 @@ public final class LazySupplier<T> implements Supplier<T> {
      */
     public Optional<T> value() {
         return ofNullable(reference.get());
+    }
+
+    /**
+     * Removes the lazily loaded value. This will not remove the supplier.
+     */
+    public void remove() {
+        reference.set(null);
     }
 
     /**

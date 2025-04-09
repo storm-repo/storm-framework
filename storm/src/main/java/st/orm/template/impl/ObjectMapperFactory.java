@@ -16,7 +16,7 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
-import st.orm.Lazy;
+import st.orm.Ref;
 import st.orm.PK;
 import st.orm.template.SqlTemplateException;
 
@@ -51,12 +51,12 @@ public final class ObjectMapperFactory {
      */
     public static <T> Optional<ObjectMapper<T>> getObjectMapper(int columnCount,
                                                                 @Nonnull Class<T> type,
-                                                                @Nonnull LazyFactory lazyFactory) throws SqlTemplateException {
+                                                                @Nonnull RefFactory refFactory) throws SqlTemplateException {
         if (type.isPrimitive()) {
             return PrimitiveMapper.getFactory(columnCount, type);
         }
         if (type.isRecord()) {
-            return RecordMapper.getFactory(columnCount, type, lazyFactory);
+            return RecordMapper.getFactory(columnCount, type, refFactory);
         }
         if (type.isEnum()) {
             return EnumMapper.getFactory(columnCount, type);
@@ -138,7 +138,7 @@ public final class ObjectMapperFactory {
             for (int i = 0; i < parameterTypes.length; i++) {
                 Object arg = args[i];
                 Class<?> paramType = parameterTypes[i];
-                if (arg == null || (arg instanceof Lazy<?, ?> l && l.isNull())) {
+                if (arg == null || (arg instanceof Ref<?> l && l.isNull())) {
                     if (isNonnull(parameters[i])) {
                         throw new SqlTemplateException(STR."Nonnull argument of \{constructor.getDeclaringClass().getSimpleName()} (\{parameters[i].getName()}) is NULL at position \{offset + i + 1}.");
                     }

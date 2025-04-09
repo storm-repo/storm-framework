@@ -17,6 +17,7 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.PersistenceException;
+import st.orm.Ref;
 import st.orm.template.Model;
 import st.orm.template.JoinType;
 import st.orm.template.Metamodel;
@@ -387,6 +388,11 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
             }
 
             @Override
+            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull Ref<TX> ref) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(EQUALS, ref)}");
+            }
+
+            @Override
             public PredicateBuilder<TX, RX, IDX> filter(@Nonnull TX record) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(EQUALS, record)}");
             }
@@ -402,6 +408,11 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
             }
 
             @Override
+            public PredicateBuilder<TX, RX, IDX> filterRefs(@Nonnull Iterable<? extends Ref<TX>> it) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(IN, it)}");
+            }
+
+            @Override
             public PredicateBuilder<TX, RX, IDX> filter(@Nonnull Iterable<? extends TX> it) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(IN, it)}");
             }
@@ -412,8 +423,18 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
             }
 
             @Override
+            public <V extends Record> PredicateBuilder<TX, RX, IDX> filter(@Nonnull Metamodel<TX, V> path, @Nonnull Ref<V> ref) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(path, EQUALS, ref)}");
+            }
+
+            @Override
             public <V> PredicateBuilder<TX, RX, IDX> filter(@Nonnull Metamodel<TX, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(path, operator, it)}");
+            }
+
+            @Override
+            public <V extends Record> PredicateBuilder<TX, RX, IDX> filterRefs(@Nonnull Metamodel<TX, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(path, IN, it)}");
             }
 
             @Override

@@ -16,9 +16,8 @@
 package st.orm.template;
 
 import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import st.orm.BindVars;
-import st.orm.Lazy;
+import st.orm.Ref;
 import st.orm.PreparedQuery;
 import st.orm.Query;
 
@@ -46,16 +45,30 @@ public interface QueryTemplate extends SubqueryTemplate {
     BindVars createBindVars();
 
     /**
-     * Creates a lazy instance for the specified record {@code type} and {@code pk}. This method can be used to generate
-     * lazy instances for entities, projections and regular records.
+     * Creates a ref instance for the specified record {@code type} and {@code pk}. This method can be used to generate
+     * ref instances for entities, projections and regular records.
      *
      * @param type record type.
-     * @param pk primary key.
-     * @return lazy instance.
+     * @param id primary key.
+     * @return ref instance.
      * @param <T> table type.
      * @param <ID> primary key type.
+     * @since 1.3
      */
-    <T extends Record, ID> Lazy<T, ID> lazy(@Nonnull Class<T> type, @Nullable ID pk);
+    <T extends Record, ID> Ref<T> ref(@Nonnull Class<T> type, @Nonnull ID id);
+
+    /**
+     * Creates a ref instance for the specified record {@code type} and {@code id}. This method can be used to generate
+     * ref instances for entities, projections and regular records. The object returned by this method already contains
+     * the fetched record.
+     *
+     * @param id primary key.
+     * @return ref instance.
+     * @param <T> table type.
+     * @param <ID> primary key type.
+     * @since 1.3
+     */
+    <T extends Record, ID> Ref<T> ref(@Nonnull T record, @Nonnull ID id);
 
     /**
      * Get the model for the specified record {@code type}. The model provides information about the type's database
@@ -66,7 +79,22 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @param <T> table type.
      * @param <ID> primary key type.
      */
-    <T extends Record, ID> Model<T, ID> model(@Nonnull Class<T> type);
+    default <T extends Record, ID> Model<T, ID> model(@Nonnull Class<T> type) {
+        return model(type, false);
+    }
+
+    /**
+     * Get the model for the specified record {@code type}. The model provides information about the type's database
+     * name, primary keys and columns.
+     *
+     * @param type record type.
+     * @param requirePrimaryKey whether to require a primary key.
+     * @return the model.
+     * @param <T> table type.
+     * @param <ID> primary key type.
+     * @since 1.3
+     */
+    <T extends Record, ID> Model<T, ID> model(@Nonnull Class<T> type, boolean requirePrimaryKey);
 
     /**
      * Creates a query builder for the specified table.

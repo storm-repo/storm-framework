@@ -18,8 +18,9 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.FK;
-import st.orm.Lazy;
+import st.orm.Ref;
 import st.orm.PK;
+import st.orm.Templates.SelectMode;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.SqlDialect;
@@ -85,8 +86,8 @@ final class SelectProcessor implements ElementProcessor<Select> {
             resolvedAlias = aliasMapper.findAlias(select.table(), null, INNER);
         }
         var alias = resolvedAlias.orElse("");
-        var columns = getColumnsString(select.table(), select.nested(), path, aliasMapper,
-                primaryTable == null ? null : primaryTable.table(), alias);
+        var columns = getColumnsString(select.table(), select.mode(), path, aliasMapper,
+                primaryTable == null ? null : primaryTable.table(), alias, false);
         if (!columns.isEmpty()) {
             columns.removeLast();
         }
@@ -103,68 +104,79 @@ final class SelectProcessor implements ElementProcessor<Select> {
      * Returns the columns of a record type as a SQL string. Each element of the resulting list is a column.
      *
      * @param type the record type.
-     * @param nested whether the record is nested.
+     * @param mode the mode determines which columns are selected.
      * @param path the path of the record type.
      * @param aliasMapper the alias mapper.
      * @param primaryTable the primary table (optional).
      * @param alias the alias of the table.
+     * @param isPk if the method is called recursively in the context of a pk.
      * @return a list of columns as a SQL string.
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
     private List<String> getColumnsString(@Nonnull Class<? extends Record> type,
-                                          boolean nested,
+                                          @Nonnull SelectMode mode,
                                           @Nullable List<RecordComponent> path,
                                           @Nonnull AliasMapper aliasMapper,
                                           @Nullable Class<? extends Record> primaryTable,
-                                          @Nonnull String alias) throws SqlTemplateException {
+                                          @Nonnull String alias,
+                                          boolean isPk) throws SqlTemplateException {
         var columns = new ArrayList<String>();
         for (var component : type.getRecordComponents()) {
+            boolean pk = isPk || REFLECTION.isAnnotationPresent(component, PK.class);
             boolean fk = REFLECTION.isAnnotationPresent(component, FK.class);
-            boolean lazy = Lazy.class.isAssignableFrom(component.getType());
+            boolean ref = Ref.class.isAssignableFrom(component.getType());
             var converter = getORMConverter(component).orElse(null);
             if (converter != null) {
-                converter.getColumns(c -> getColumnName(c, template.columnNameResolver())).forEach(name -> {
+                if (mode != SelectMode.PK) {
+                    converter.getColumns(c -> getColumnName(c, template.columnNameResolver())).forEach(name -> {
+                        if (!alias.isEmpty()) {
+                            columns.add(dialectTemplate."\{alias}.\{name}");
+                        } else {
+                            columns.add(dialectTemplate."\{name}");
+                        }
+                        columns.add(", ");
+                    });
+                }
+            } else if (fk && (mode != SelectMode.NESTED || ref)) {   // Use foreign key column if not nested or if ref.
+                if (mode != SelectMode.PK) {
+                    var name = getForeignKey(component, template.foreignKeyResolver());
                     if (!alias.isEmpty()) {
                         columns.add(dialectTemplate."\{alias}.\{name}");
                     } else {
                         columns.add(dialectTemplate."\{name}");
                     }
                     columns.add(", ");
-                });
-            } else if (fk && (!nested || lazy)) {   // Use foreign key column if not nested or if lazy.
-                var name = getForeignKey(component, template.foreignKeyResolver());
-                if (!alias.isEmpty()) {
-                    columns.add(dialectTemplate."\{alias}.\{name}");
-                } else {
-                    columns.add(dialectTemplate."\{name}");
                 }
-                columns.add(", ");
             } else if (component.getType().isRecord()) {
-                @SuppressWarnings("unchecked")
-                var recordType = (Class<? extends Record>) component.getType();
-                List<RecordComponent> newPath;
-                if (path != null) {
-                    newPath = new ArrayList<>(path);
-                    newPath.add(component);
-                    newPath = copyOf(newPath);
-                } else if (recordType == primaryTable) {
-                    newPath = List.of();
-                } else {
-                    newPath = null;
+                if (mode != SelectMode.PK || pk) {
+                    @SuppressWarnings("unchecked")
+                    var recordType = (Class<? extends Record>) component.getType();
+                    List<RecordComponent> newPath;
+                    if (path != null) {
+                        newPath = new ArrayList<>(path);
+                        newPath.add(component);
+                        newPath = copyOf(newPath);
+                    } else if (recordType == primaryTable) {
+                        newPath = List.of();
+                    } else {
+                        newPath = null;
+                    }
+                    columns.addAll(getColumnsString(recordType, mode, newPath, aliasMapper, primaryTable,
+                            getAlias(recordType, newPath, alias, aliasMapper, template.dialect()), pk));
                 }
-                columns.addAll(getColumnsString(recordType, true, newPath, aliasMapper, primaryTable,
-                        getAlias(recordType, newPath, alias, aliasMapper, template.dialect())));
             } else {
-                if (lazy) {
-                    throw new SqlTemplateException(STR."Lazy component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is not a foreign key.");
+                if (ref) {
+                    throw new SqlTemplateException(STR."Ref component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is not a foreign key.");
                 }
-                var name = getColumnName(component, template.columnNameResolver());
-                if (!alias.isEmpty()) {
-                    columns.add(dialectTemplate."\{alias}.\{name}");
-                } else {
-                    columns.add(dialectTemplate."\{name}");
+                if (mode != SelectMode.PK || pk) {
+                    var name = getColumnName(component, template.columnNameResolver());
+                    if (!alias.isEmpty()) {
+                        columns.add(dialectTemplate."\{alias}.\{name}");
+                    } else {
+                        columns.add(dialectTemplate."\{name}");
+                    }
+                    columns.add(", ");
                 }
-                columns.add(", ");
             }
         }
         return columns;

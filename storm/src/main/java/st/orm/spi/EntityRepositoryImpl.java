@@ -18,7 +18,7 @@ package st.orm.spi;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.BatchCallback;
-import st.orm.Lazy;
+import st.orm.Ref;
 import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
 import st.orm.OptimisticLockException;
@@ -39,6 +39,7 @@ import java.util.stream.StreamSupport;
 
 import static java.lang.StringTemplate.RAW;
 import static st.orm.spi.Providers.deleteFrom;
+import static st.orm.spi.Providers.selectRefFrom;
 import static st.orm.template.QueryBuilder.slice;
 
 /**
@@ -101,14 +102,72 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
     }
 
     /**
-     * Creates a new lazy entity instance with the specified entity.
+     * Creates a new ref entity instance for the specified entity.
      *
-     * @param entity the entity.
-     * @return a lazy entity instance.
+     * <p>This method wraps a fully loaded entity in a lightweight reference. Although the complete entity is provided,
+     * the returned ref retains only the primary key for identification. In this case, calling {@link Ref#fetch()} will
+     * return the full entity (which is already loaded), ensuring a consistent API for accessing entity records on
+     * demand. This approach supports lazy-loading scenarios where only the identifier is needed initially.</p>
+     *
+     * @param entity the entity to wrap in a ref.
+     * @return a ref entity instance containing the primary key of the provided entity.
+     * @since 1.3
      */
     @Override
-    public Lazy<E, ID> lazy(@Nullable E entity) {
-        return Lazy.of(entity);
+    public Ref<E> ref(@Nonnull E entity) {
+        return ormTemplate.ref(entity, entity.id());
+    }
+
+    /**
+     * Unloads the given entity from memory by converting it into a lightweight ref containing only its primary key.
+     *
+     * <p>This method discards the full entity data and returns a ref that encapsulates just the primary key. The actual
+     * record is not retained in memory, but can be retrieved on demand by calling {@link Ref#fetch()}, which will
+     * trigger a new database call. This approach is particularly useful when you need to minimize memory usage while
+     * keeping the option to re-fetch the complete record later.</p>
+     *
+     * @param entity the entity to unload into a lightweight ref.
+     * @return a ref containing only the primary key of the entity, allowing the full record to be fetched again when
+     * needed.
+     * @since 1.3
+     */
+    @Override
+    public Ref<E> unload(@Nonnull E entity) {
+        return ref(entity.id());
+    }
+
+    /**
+     * Creates a new query builder for selecting refs to entities of the type managed by this repository.
+     *
+     * <p>This method is typically used when you only need the primary keys of the entities initially, and you want to
+     * defer fetching the full data until it is actually required. The query builder will return ref instances that
+     * encapsulate the primary key. To retrieve the full entity, call {@link Ref#fetch()}, which will perform an
+     * additional database query on demand.</p>
+     *
+     * @return a new query builder for selecting refs to entities.
+     * @since 1.3
+     */
+    @Override
+    public QueryBuilder<E, Ref<E>, ID> selectRef() {
+        return selectRefFrom(ormTemplate, model.type(), model.type(), model.primaryKeyType(), () -> model);
+    }
+
+    /**
+     * Creates a new query builder for selecting refs to entities of the type managed by this repository.
+     *
+     * <p>This method is typically used when you only need the primary keys of the entities initially, and you want to
+     * defer fetching the full data until it is actually required. The query builder will return ref instances that
+     * encapsulate the primary key. To retrieve the full entity, call {@link Ref#fetch()}, which will perform an
+     * additional database query on demand.</p>
+     *
+     * @param refType the type that is selected as ref.
+     * @return a new query builder for selecting refs to entities.
+     * @since 1.3
+     */
+    @Override
+    public <R extends Record & Entity<?>> QueryBuilder<E, Ref<R>, ID> selectRef(@Nonnull Class<R> refType) {
+        var pkType = ormTemplate.model(refType, true).primaryKeyType();
+        return selectRefFrom(ormTemplate, model.type(), refType, pkType, () -> model);
     }
 
     /**

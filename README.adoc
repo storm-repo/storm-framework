@@ -45,7 +45,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm</artifactId>
-    <version>1.2.2</version>
+    <version>1.3.1</version>
     <scope>compile</scope>
 </dependency>
 ----
@@ -53,7 +53,7 @@ Gradle::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm:1.2.2'
+implementation 'st.orm:storm:1.3.1'
 ----
 ====
 
@@ -73,7 +73,7 @@ When an entity references another entity, Storm applies a default naming convent
 instance, the city field in the User entity automatically maps to the city_id column in the database, creating a foreign
 key relationship referencing the primary key of the City entity.
 
-[source,java,indent=0]
+[source,java]
 ----
 record City(@PK int id,
             String name,
@@ -91,6 +91,32 @@ record User(@PK int id,
 
 Implementing the `Entity` interface is optional, but required when using `EntityRepository` to leverage built-in CRUD
 operations.
+
+==== Nullability
+
+In Storm, all fields are nullable by default, except for the primary key field, which is always non-nullable. To
+explicitly mark a field as non-nullable, use the `@Nonnull` annotation. Storm automatically validates nullability
+constraints when reading from or writing to the database, throwing an exception if a non-nullable field is found to be
+`null`.
+
+Additionally, it's beneficial to use the optional `@Nullable` annotation, as it enables automatic null-checking support
+within your IDE.
+
+[source,java,indent=0]
+----
+record User(@PK int id,
+            @Nonnull String email,
+            @Nonnull LocalDate birthDate,
+            @Nonnull String street,
+            @Nullable String postalCode,
+            @Nullable @FK City city
+) implements Entity<User, Integer> {}
+----
+
+In this example, the fields `id`, `email`, `birthDate`, and `street` are marked as non-nullable, whereas the
+`postalCode` and `city` fields remain nullable. Consequently, the relationship between the `User` and `City` entities
+results in a left join, accommodating potential `null` values for the `city` field. Conversely, a non-nullable foreign
+key would lead to an inner join, ensuring the referenced entity must always exist.
 
 ==== Naming Conventions
 
@@ -262,7 +288,7 @@ ORM::
 +
 [source,java]
 ----
-List<Role> users = ORM(dataSource).entity(Role.class)
+List<Role> roles = ORM(dataSource).entity(Role.class)
     .select()
     .innerJoin(UserRole.class).on(Role.class)
     .where(UserRole_.user, EQUALS, user)    // Type-safe!
@@ -272,7 +298,7 @@ SQL Template::
 +
 [source,java]
 ----
-List<Role> userRoles = ORM(dataSource).query(RAW."""
+List<Role> roles = ORM(dataSource).query(RAW."""
         SELECT \{Role.class}
         FROM \{Role.class}
         INNER JOIN \{UserRole.class} ON \{UserRole_.role} = \{Role_.id}
@@ -283,7 +309,7 @@ Hybrid::
 +
 [source,java]
 ----
-List<Role> users = ORM(dataSource).entity(Role.class)
+List<Role> roles = ORM(dataSource).entity(Role.class)
     .select()
     .innerJoin(UserRole.class).on(Role.class)
     .where(RAW."\{UserRole_.user} = \{user.id()}")
@@ -324,14 +350,12 @@ Hybrid::
 +
 [source,java]
 ----
-List<Role> users = ORM(dataSource).entity(Role.class)
+List<User> users = ORM(dataSource).entity(User.class)
     .select()
-    .innerJoin(UserRole.class).on(Role.class)
     .where(RAW."\{city} AND \{User_.birthDate} < \{LocalDate.of(2000, 1, 1)}")
     .getResultList();
 ----
 ====
-
 
 ==== Aggregating Results
 
@@ -371,7 +395,7 @@ Hybrid::
 +
 [source,java]
 ----
-List<Role> users = ORM(dataSource).entity(User.class)
+List<GroupedByCity> counts = ORM(dataSource).entity(User.class)
     .select(GroupedByCity.class, RAW."\{City.class}, COUNT(*)")
     .groupBy(RAW."\{User_.city}")
     .getResultList();
@@ -403,7 +427,7 @@ SQL Template::
 +
 [source,java]
 ----
-List<User> counts = ORM(dataSource).query(RAW."""
+List<User> users = ORM(dataSource).query(RAW."""
         SELECT \{User.class}
         FROM \{User.class}
         ORDER BY \{User_.birthDate}""")
@@ -480,6 +504,184 @@ Specialized entity repositories can also be injected using Spring's dependency i
 `storm-spring` package is included in the project. Check the Spring Framework Integration section for more information.
 
 
+=== Using Refs
+
+Refs are a powerful feature provided by Storm for efficiently managing entity relationships. A Ref serves as a
+lightweight identifier for the referenced entity, deferring the fetching of entity data until explicitly required. This
+approach effectively handles large object graphs and optimizes database performance by avoiding unnecessary data
+retrieval. Refs are particularly useful in scenarios where you want to:
+
+* Represent foreign key relationships without immediately fetching the referenced entity.
+* Optimize performance by reducing memory usage when full entity details are not required.
+* Efficiently use entities as keys in hash-based data structures.
+
+==== Lazy Loading with Ref
+
+Refs allow the inclusion of related entities in the object graph without preloading them. When you include a Ref to an
+entity, it doesn't immediately load the referenced entity. Instead, the data is fetched only when you explicitly call
+`fetch()` on the `Ref`. This behavior reduces unnecessary database operations, improving application performance. The
+primary key of the referenced entity is available in the Ref and can be obtained using the `id()` method.
+
+[source,java]
+----
+record User(@PK int id,
+            String email,
+            LocalDate birthDate,
+            String street,
+            String postalCode,
+            @FK Ref<City> city
+) implements Entity<User, Integer> {}
+----
+
+==== Preventing Circular Dependencies
+
+Another significant advantage of using Refs is to prevent circular dependencies within your object graphs. By using
+Refs, you explicitly control when and how each part of the object graph is loaded, effectively preventing circular
+dependencies.
+
+[source,java]
+----
+record User(@PK int id,
+            String email,
+            LocalDate birthDate,
+            String street,
+            String postalCode,
+            @FK City city,
+            @FK Ref<User> invitedBy
+) implements Entity<User, Integer> {}
+----
+
+In this example, the `invitedBy` field is a Ref to another User entity. The Ref represents a nullable field. When the
+underlying database field is null, it is set to the `Ref.ofNull()` instance. The null state of the `Ref` can be checked
+by calling its `isNull()` method.
+
+==== Optimizing Memory and Performance
+
+Refs also help minimize memory usage and data retrieval. They store only the entity type and primary key information
+until explicitly fetched, making them highly efficient in terms of memory footprint. This is particularly useful when
+dealing with large datasets or when entities are primarily needed as keys in collections such as hash maps or sets.
+
+[tabs]
+====
+ORM::
++
+[source,java]
+----
+Role role = ...;
+List<Ref<User>> users = ORM(dataSource).entity(UserRole.class)
+        .selectRef(User.class)
+        .where(UserRole_.role, role)
+        .getResultList();
+----
+SQL Template::
++
+[source,java]
+----
+Role role = ...;
+List<Ref<User>> users = ORM(dataSource).query(RAW."""
+        SELECT \{select(User.class, SelectMode.PK)}
+        FROM \{UserRole.class}
+        WHERE \{role}""")
+    .getRefList(User.class, Integer.class);
+----
+Hybrid::
++
+[source,java]
+----
+List<User> users = ORM(dataSource).entity(UserRole.class)
+    .selectRef(User.class)
+    .where(RAW."\{role}")
+    .getResultList();
+----
+====
+
+The example demonstrates how to use to fetch a list of user refs associated with a specific role. The resulting list
+contains `Ref<User>` objects, which can be used to access the user entities later, or use the identity to perform
+further operations.
+
+[tabs]
+====
+ORM::
++
+[source,java]
+----
+List<Ref<User>> users = ...;
+List<Role> roles = ORM(dataSource).entity(UserRole.class)
+        .select(Role.class)
+        .distinct()
+        .whereRefs(UserRole_.user, users)
+        .getResultList();
+----
+SQL Template::
++
+[source,java]
+----
+List<Ref<User>> users = ...;
+List<Role> roles = ORM(dataSource).query(RAW."""
+        SELECT DISTINCT \{Role.class}
+        FROM \{UserRole.class}
+        WHERE \{users}""")
+    .getResultList(Role.class);
+----
+Hybrid::
++
+[source,java]
+----
+List<Ref<User>> users = ...;
+List<Role> users = ORM(dataSource).entity(UserRole.class)
+    .select(Role.class)
+    .distinct()
+    .where(RAW."\{users}")
+    .getResultList();
+----
+====
+
+The example demonstrates how to use the `where` method to filter results based on a list of user refs. The resulting
+list contains distinct `Role` objects associated with the specified user refs.
+
+The `GroupedByCity` record can also be used to capture the city ref and the count of users in that city:
+
+[source,java]
+----
+record GroupedByCity(Ref<City> city, long count) {}
+----
+
+The following example demonstrates how to select the primary key of the `City` entity using `SelectMode.PK` and map it
+directly to a `Ref<City>` within the `GroupedByCity` record.
+
+[tabs]
+====
+ORM::
++
+[source,java]
+----
+List<GroupedByCity> counts = ORM(dataSource).entity(User.class)
+        .select(GroupedByCity.class, RAW."\{select(City.class, SelectMode.PK)}, COUNT(*)")
+        .groupBy(User_.city)
+        .getResultList();
+----
+SQL Template::
++
+[source,java]
+----
+List<GroupedByCity> counts = ORM(dataSource).query(RAW."""
+        SELECT \{select(City.class, SelectMode.PK)}, COUNT(*)
+        FROM \{User.class}
+        GROUP BY \{User_.city}""")
+    .getResultList(GroupedByCity.class);
+----
+Hybrid::
++
+[source,java]
+----
+List<GroupedByCity> counts = ORM(dataSource).entity(User.class)
+    .select(GroupedByCity.class, RAW."\{select(City.class, SelectMode.PK)}, COUNT(*)")
+    .groupBy(RAW."\{User_.city}")
+    .getResultList();
+----
+====
+
+
 === Transaction Management
 
 Storm works directly with the underlying database platform, being JPA, JDBC Connections or JDBC Data Sources. It does
@@ -545,6 +747,7 @@ Java's stream API to extract the user IDs. The `try-with-resources` statement en
 automatically after use. This approach allows you to convert the stream to a list of user IDs without loading all
 `User` records into memory at once.
 
+
 === Upsert Processing
 
 Storm supports upsert processing, allowing you to insert or update records in a single operation. This is particularly
@@ -602,7 +805,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-oracle</artifactId>
-    <version>1.2.2</version>
+    <version>1.3.1</version>
     <scope>runtime</scope>
 </dependency>
 ----
@@ -610,7 +813,7 @@ Gradle::
 +
 [source,groovy]
 ----
-runtimeOnly 'st.orm:storm-oracle:1.2.2'
+runtimeOnly 'st.orm:storm-oracle:1.3.1'
 ----
 ====
 
@@ -632,7 +835,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-metamodel-processor</artifactId>
-    <version>1.2.2</version>
+    <version>1.3.1</version>
     <scope>provided</scope>
 </dependency>
 ----
@@ -640,7 +843,7 @@ Gradle::
 +
 [source,groovy]
 ----
-annotationProcessor 'st.orm:storm-metamodel-processor:1.2.2'
+annotationProcessor 'st.orm:storm-metamodel-processor:1.3.1'
 ----
 ====
 
@@ -708,7 +911,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-json</artifactId>
-    <version>1.2.2</version>
+    <version>1.3.1</version>
     <scope>compile</scope>
 </dependency>
 ----
@@ -716,7 +919,7 @@ Gradle::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-json:1.2.2'
+implementation 'st.orm:storm-json:1.3.1'
 ----
 ====
 
@@ -780,6 +983,7 @@ public interface UserRepository extends EntityRepository<User> {
 ----
 ====
 
+
 === Spring Framework Integration
 
 Spring Framework integration is straightforward. Include the following dependency to tie Storm into your Spring (Boot)
@@ -794,7 +998,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-spring</artifactId>
-    <version>1.2.2</version>
+    <version>1.3.1</version>
     <scope>compile</scope>
 </dependency>
 ----
@@ -802,7 +1006,7 @@ Gradle::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-spring:1.2.2'
+implementation 'st.orm:storm-spring:1.3.1'
 ----
 ====
 

@@ -20,6 +20,7 @@ import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import kotlin.reflect.KClass;
 import st.orm.BindVars;
+import st.orm.Templates;
 import st.orm.TemporalType;
 import st.orm.kotlin.template.KORMTemplate;
 import st.orm.kotlin.template.KQueryBuilder;
@@ -55,6 +56,8 @@ import java.util.Date;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
+import static st.orm.Templates.SelectMode.NESTED;
+import static st.orm.kotlin.KTemplates.SelectMode.*;
 import static st.orm.spi.Providers.getORMReflection;
 import static st.orm.template.Operator.IN;
 import static st.orm.template.ResolveScope.CASCADE;
@@ -172,6 +175,29 @@ import static st.orm.template.impl.Elements.Where;
  * @see ProjectionRepository
  */
 public interface KTemplates {
+    /**
+     * Specifies the selection mode for query operations.
+     */
+    enum SelectMode {
+
+        /**
+         * Only the primary key fields are selected.
+         * This mode returns the minimal data necessary to identify records.
+         */
+        PK,
+
+        /**
+         * Only the fields of the main table are selected, without including nested object hierarchies.
+         * This mode is useful if you need the basic attributes of the record without fetching associated records.
+         */
+        FLAT,
+
+        /**
+         * The entire object hierarchy is selected.
+         * This mode retrieves the full record along with any nested associations, providing a complete view of the entity.
+         */
+        NESTED
+    }
 
     /**
      * Converts an {@link QueryTemplate} to a {@link KQueryTemplate}.
@@ -291,8 +317,8 @@ public interface KTemplates {
      * @param table the {@link Class} object representing the table record.
      * @return an {@link Element} representing the SELECT clause for the specified table.
      */
-    static Element select(KClass<? extends Record> table) {
-        return select(table, true);
+    static Element select(@Nonnull KClass<? extends Record> table) {
+        return select(table, KTemplates.SelectMode.NESTED);
     }
 
     /**
@@ -305,7 +331,7 @@ public interface KTemplates {
      *
      * <p>Example usage in a string template:
      * <pre>{@code
-     * SELECT \{select(MyTable.class)}
+     * SELECT \{select(MyTable.class, NESTED)}
      * FROM \{from(MyTable.class)}
      * }</pre>
      *
@@ -317,11 +343,16 @@ public interface KTemplates {
      * }</pre>
      *
      * @param table the {@link Class} object representing the table record.
-     * @param nested if {@code true}, include columns from foreign key relationships.
+     * @param mode NESTED to include the full object hierarchy, FLAT to include only the main table's fields, PK to
+     * include only the primary key fields.
      * @return an {@link Element} representing the SELECT clause for the specified table.
      */
-    static Element select(KClass<? extends Record> table, boolean nested) {
-        return new Select(getORMReflection().getRecordType(table), nested);
+    static Element select(@Nonnull KClass<? extends Record> table, @Nonnull KTemplates.SelectMode mode) {
+        return new Select(getORMReflection().getRecordType(table), switch (mode) {
+            case PK -> Templates.SelectMode.PK;
+            case FLAT -> Templates.SelectMode.FLAT;
+            case NESTED -> Templates.SelectMode.NESTED;
+        });
     }
 
     /**

@@ -33,7 +33,7 @@ import st.orm.template.Column;
  * @param insertable whether the column is insertable.
  * @param updatable whether the column is updatable.
  * @param version whether the column is a version column.
- * @param lazy whether the column is a lazily fetched record.
+ * @param ref whether the column is a lazily fetched record.
  */
 public record ColumnImpl(
         @Nonnull Name columnName,
@@ -46,7 +46,7 @@ public record ColumnImpl(
         boolean insertable,
         boolean updatable,
         boolean version,
-        boolean lazy
+        boolean ref
 ) implements Column {
 
     /**

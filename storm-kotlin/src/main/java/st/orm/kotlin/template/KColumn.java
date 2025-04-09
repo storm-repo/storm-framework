@@ -102,9 +102,9 @@ public interface KColumn {
     boolean version();
 
     /**
-     * Determines if the column is lazily fetched.
+     * Determines if the column is a ref column.
      *
-     * @return true if it is lazily loaded, false otherwise.
+     * @return true if the column is a ref column, false otherwise.
      */
-    boolean lazy();
+    boolean ref();
 }

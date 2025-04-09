@@ -16,6 +16,7 @@
 package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Ref;
 import st.orm.repository.Entity;
 import st.orm.repository.EntityRepository;
 import st.orm.template.Model;
@@ -159,6 +160,18 @@ public final class Providers {
             @Nonnull Supplier<Model<T, ID>> modelSupplier) {
         return Orderable.sort(QUERY_BUILDER_REPOSITORY_PROVIDERS.get().stream())
                 .map(provider -> provider.selectFrom(queryTemplate, fromType, selectType, template, subquery, modelSupplier))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    public static <T extends Record, R extends Record, ID> QueryBuilder<T, Ref<R>, ID> selectRefFrom(
+            @Nonnull QueryTemplate queryTemplate,
+            @Nonnull Class<T> fromType,
+            @Nonnull Class<R> refType,
+            @Nonnull Class<?> pkType,
+            @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+        return Orderable.sort(QUERY_BUILDER_REPOSITORY_PROVIDERS.get().stream())
+                .map(provider -> provider.selectRefFrom(queryTemplate, fromType, refType, pkType, modelSupplier))
                 .findFirst()
                 .orElseThrow();
     }

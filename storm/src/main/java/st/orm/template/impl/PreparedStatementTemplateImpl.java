@@ -61,7 +61,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     private final ModelBuilder modelBuilder;
     private final TableAliasResolver tableAliasResolver;
     private final Predicate<Provider> providerFilter;
-    private final LazyFactory lazyFactory;
+    private final RefFactory refFactory;
 
     public PreparedStatementTemplateImpl(@Nonnull DataSource dataSource) {
         // Note that this logic does not use Spring's DataSourceUtils, so it is not aware of Spring's transaction
@@ -104,7 +104,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         this.modelBuilder = ModelBuilder.newInstance();
         this.tableAliasResolver = TableAliasResolver.DEFAULT;
         this.providerFilter = null;
-        this.lazyFactory = new LazyFactoryImpl(this, modelBuilder, null);
+        this.refFactory = new RefFactoryImpl(this, modelBuilder, null);
     }
 
     public PreparedStatementTemplateImpl(@Nonnull Connection connection) {
@@ -139,7 +139,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         this.modelBuilder = ModelBuilder.newInstance();
         this.tableAliasResolver = TableAliasResolver.DEFAULT;
         this.providerFilter = null;
-        this.lazyFactory = new LazyFactoryImpl(this, modelBuilder, null);
+        this.refFactory = new RefFactoryImpl(this, modelBuilder, null);
     }
 
     private PreparedStatementTemplateImpl(@Nonnull TemplateProcessor templateProcessor,
@@ -150,7 +150,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         this.modelBuilder = modelBuilder;
         this.tableAliasResolver = tableAliasResolver;
         this.providerFilter = providerFilter;
-        this.lazyFactory = new LazyFactoryImpl(this, modelBuilder, providerFilter);
+        this.refFactory = new RefFactoryImpl(this, modelBuilder, providerFilter);
     }
 
     /**
@@ -324,7 +324,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         try {
             var sql = sqlTemplate().process(template);
             var bindVariables = sql.bindVariables().orElse(null);
-            return new QueryImpl(lazyFactory, safe -> {
+            return new QueryImpl(refFactory, safe -> {
                 try {
                     return templateProcessor.process(sql, safe);
                 } catch (SQLException e) {

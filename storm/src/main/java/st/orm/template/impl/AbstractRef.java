@@ -15,23 +15,23 @@
  */
 package st.orm.template.impl;
 
-import st.orm.Lazy;
+import st.orm.Ref;
 
 import java.util.Objects;
 
 /**
- * Abstract implementation of {@link Lazy} to have consistent implementations of
+ * Abstract implementation of {@link Ref} to have consistent implementations of
  * {@link #hashCode()}, {@link #equals(Object)}.
  *
  * @param <T> record type.
- * @param <ID> primary key type.
+ * @since 1.3
  */
-public abstract class AbstractLazy<T extends Record, ID> implements Lazy<T, ID> {
+public abstract class AbstractRef<T extends Record> implements Ref<T> {
 
     /**
-     * Returns the primary key of the record, may be null if unknown.
+     * The type of the record.
      *
-     * @return primary key.
+     * @return the type of the record.
      */
     protected abstract Class<T> type();
 
@@ -49,7 +49,10 @@ public abstract class AbstractLazy<T extends Record, ID> implements Lazy<T, ID> 
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof AbstractLazy<?,?> l) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj instanceof AbstractRef<?> l) {
             return Objects.equals(type(), l.type())
                     && Objects.equals(id(), l.id());
         }
@@ -58,6 +61,6 @@ public abstract class AbstractLazy<T extends Record, ID> implements Lazy<T, ID> 
 
     @Override
     public String toString() {
-        return STR."Lazy[pk=\{id()}, fetched=\{isFetched()}]";
+        return STR."Ref[type=\{type().getSimpleName()}, pk=\{id()}, fetched=\{isFetched()}]";
     }
 }

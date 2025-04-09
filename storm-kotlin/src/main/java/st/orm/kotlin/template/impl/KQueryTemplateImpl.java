@@ -16,10 +16,9 @@
 package st.orm.kotlin.template.impl;
 
 import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import kotlin.reflect.KClass;
 import st.orm.BindVars;
-import st.orm.Lazy;
+import st.orm.Ref;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KQuery;
 import st.orm.kotlin.template.KModel;
@@ -48,15 +47,26 @@ public class KQueryTemplateImpl implements KQueryTemplate {
     }
 
     @Override
-    public <T extends Record, ID> Lazy<T, ID> lazy(@Nonnull KClass<T> type, @Nullable ID pk) {
+    public <T extends Record, ID> Ref<T> ref(@Nonnull KClass<T> type, @Nonnull ID id) {
         //noinspection unchecked
-        return orm.lazy((Class<T>) REFLECTION.getRecordType(type), pk);
+        return orm.ref((Class<T>) REFLECTION.getRecordType(type), id);
+    }
+
+    @Override
+    public <T extends Record, ID> Ref<T> ref(@Nonnull T record, @Nonnull ID id) {
+        return orm.ref(record, id);
     }
 
     @Override
     public <T extends Record, ID> KModel<T, ID> model(@Nonnull KClass<T> type) {
         //noinspection unchecked
         return new KModelImpl<>((ModelImpl<T, ID>) orm.model((Class<T>) REFLECTION.getType(type)));
+    }
+
+    @Override
+    public <T extends Record, ID> KModel<T, ID> model(@Nonnull KClass<T> type, boolean requirePrimaryKey) {
+        //noinspection unchecked
+        return new KModelImpl<>((ModelImpl<T, ID>) orm.model((Class<T>) REFLECTION.getType(type), requirePrimaryKey));
     }
 
     @Override

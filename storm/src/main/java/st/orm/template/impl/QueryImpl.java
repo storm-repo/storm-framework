@@ -20,6 +20,7 @@ import jakarta.annotation.Nullable;
 import st.orm.PersistenceException;
 import st.orm.PreparedQuery;
 import st.orm.Query;
+import st.orm.Ref;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -37,25 +38,25 @@ import static java.util.stream.Stream.generate;
 import static st.orm.template.impl.ObjectMapperFactory.getObjectMapper;
 
 class QueryImpl implements Query {
-    private final LazyFactory lazyFactory;
+    private final RefFactory refFactory;
     private final Function<Boolean, PreparedStatement> statement;
     private final BindVarsHandle bindVarsHandle;
     private final boolean versionAware;
     private final boolean safe;
 
-    QueryImpl(@Nonnull LazyFactory lazyFactory,
+    QueryImpl(@Nonnull RefFactory refFactory,
               @Nonnull Function<Boolean, PreparedStatement> statement,
               @Nullable BindVarsHandle bindVarsHandle,
               boolean versionAware) {
-        this(lazyFactory, statement, bindVarsHandle, versionAware, false);
+        this(refFactory, statement, bindVarsHandle, versionAware, false);
     }
 
-    QueryImpl(@Nonnull LazyFactory lazyFactory,
+    QueryImpl(@Nonnull RefFactory refFactory,
               @Nonnull Function<Boolean, PreparedStatement> statement,
               @Nullable BindVarsHandle bindVarsHandle,
               boolean versionAware,
               boolean safe) {
-        this.lazyFactory = lazyFactory;
+        this.refFactory = refFactory;
         this.statement = statement;
         this.bindVarsHandle = bindVarsHandle;
         this.versionAware = versionAware;
@@ -76,7 +77,7 @@ class QueryImpl implements Query {
      */
     @Override
     public PreparedQuery prepare() {
-        return MonitoredResource.wrap(new PreparedQueryImpl(lazyFactory, statement.apply(safe), bindVarsHandle, versionAware));
+        return MonitoredResource.wrap(new PreparedQueryImpl(refFactory, statement.apply(safe), bindVarsHandle, versionAware));
     }
 
     /**
@@ -88,7 +89,7 @@ class QueryImpl implements Query {
      */
     @Override
     public Query safe() {
-        return new QueryImpl(lazyFactory, statement, bindVarsHandle, versionAware, true);
+        return new QueryImpl(refFactory, statement, bindVarsHandle, versionAware, true);
     }
 
     private PreparedStatement getStatement() {
@@ -174,7 +175,7 @@ class QueryImpl implements Query {
             try {
                 ResultSet resultSet = statement.executeQuery();
                 int columnCount = resultSet.getMetaData().getColumnCount();
-                var mapper = getObjectMapper(columnCount, type, lazyFactory)
+                var mapper = getObjectMapper(columnCount, type, refFactory)
                         .orElseThrow(() -> new PersistenceException(STR."No suitable constructor found for \{type}."));
                 close = false;
                 return MonitoredResource.wrap(
@@ -189,6 +190,29 @@ class QueryImpl implements Query {
         } catch (SQLException e) {
             throw new PersistenceException(e);
         }
+    }
+
+    /**
+     * Execute a SELECT query and return the resulting rows as a stream of ref instances.
+     *
+     * <p>Each element in the stream represents a row in the result, where the columns of the row are mapped to the
+     * constructor arguments primary key type.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only be invoked
+     * when the query is intended to run. Since the stream holds resources open while in use, it must be closed after
+     * usage to prevent resource leaks. As the stream is AutoCloseable, it is recommended to use it within a
+     * try-with-resources block.</p>
+     *
+     * @param type the type of the results that are being referenced.
+     * @param pkType the primary key type.
+     * @return a stream of ref instances.
+     * @throws PersistenceException if the query fails.
+     * @since 1.3
+     */
+    @Override
+    public <T extends Record> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
+        return getResultStream(pkType)
+                .map(id -> id == null ? Ref.ofNull() : refFactory.create(type, id));
     }
 
     protected void close(@Nonnull ResultSet resultSet, @Nonnull PreparedStatement statement) {

@@ -56,6 +56,7 @@ import java.util.Date;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
+import static st.orm.Templates.SelectMode.NESTED;
 import static st.orm.template.Operator.IN;
 import static st.orm.template.ResolveScope.CASCADE;
 
@@ -163,6 +164,30 @@ import static st.orm.template.ResolveScope.CASCADE;
 public interface Templates {
 
     /**
+     * Specifies the selection mode for query operations.
+     */
+    enum SelectMode {
+
+        /**
+         * Only the primary key fields are selected.
+         * This mode returns the minimal data necessary to identify records.
+         */
+        PK,
+
+        /**
+         * Only the fields of the main table are selected, without including nested object hierarchies.
+         * This mode is useful if you need the basic attributes of the record without fetching associated records.
+         */
+        FLAT,
+
+        /**
+         * The entire object hierarchy is selected.
+         * This mode retrieves the full record along with any nested associations, providing a complete view of the entity.
+         */
+        NESTED
+    }
+
+    /**
      * Returns an {@link ORMTemplate} for use with JPA.
      *
      * <p>This method creates an ORM repository template using the provided {@link EntityManager}.
@@ -261,7 +286,7 @@ public interface Templates {
      * @return an {@link Element} representing the SELECT clause for the specified table.
      */
     static Element select(Class<? extends Record> table) {
-        return select(table, true);
+        return select(table, NESTED);
     }
 
     /**
@@ -274,7 +299,7 @@ public interface Templates {
      *
      * <p>Example usage in a string template:
      * <pre>{@code
-     * SELECT \{select(MyTable.class, true)}
+     * SELECT \{select(MyTable.class, NESTED)}
      * FROM \{from(MyTable.class)}
      * }</pre>
      *
@@ -286,11 +311,12 @@ public interface Templates {
      * }</pre>
      *
      * @param table the {@link Class} object representing the table record.
-     * @param nested if {@code true}, include columns from foreign key relationships.
+     * @param mode NESTED to include the full object hierarchy, FLAT to include only the main table's fields, PK to
+     * include only the primary key fields.
      * @return an {@link Element} representing the SELECT clause for the specified table.
      */
-    static Element select(Class<? extends Record> table, boolean nested) {
-        return new Select(table, nested);
+    static Element select(@Nonnull Class<? extends Record> table, @Nonnull SelectMode mode) {
+        return new Select(table, mode);
     }
 
     /**
