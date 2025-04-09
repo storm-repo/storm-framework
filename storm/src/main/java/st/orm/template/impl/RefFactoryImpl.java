@@ -54,17 +54,16 @@ public final class RefFactoryImpl implements RefFactory {
      * @param <T> record type.
      * @param <ID> primary key type.
      */
+    @SuppressWarnings("unchecked")
     @Override
     public <T extends Record, ID> Ref<T> create(@Nonnull Class<T> type, @Nonnull ID pk) {
-        //noinspection unchecked
-        var builder = (QueryBuilder<T, T, ID>) new ORMTemplateImpl(
-                factory,
-                modelBuilder,
-                providerFilter).selectFrom(type);
-        var supplier = new LazySupplier<>(() -> builder.where(pk).getSingleResult());
+        var supplier = new LazySupplier<>(() ->
+                ((QueryBuilder<T, T, ID>) new ORMTemplateImpl(factory, modelBuilder, providerFilter)
+                        .selectFrom(type))
+                        .where(pk)
+                        .getSingleResult());
         return create(supplier, type, pk);
     }
-
 
     /**
      * Creates a ref instance for the specified {@code record}, {@code type} and {@code pk}. This method can be used to
@@ -76,16 +75,15 @@ public final class RefFactoryImpl implements RefFactory {
      * @param <T> record type.
      * @param <ID> primary key type.
      */
+    @SuppressWarnings("unchecked")
     @Override
     public <T extends Record, ID> Ref<T> create(@Nonnull T record, @Nonnull ID pk) {
-        //noinspection unchecked
         var type = (Class<T>) record.getClass();
-        //noinspection unchecked
-        var builder = (QueryBuilder<T, T, ID>) new ORMTemplateImpl(
-                factory,
-                modelBuilder,
-                providerFilter).selectFrom(type);
-        var supplier = new LazySupplier<>(() -> builder.where(pk).getSingleResult(), record);
+        var supplier = new LazySupplier<>(() ->
+                ((QueryBuilder<T, T, ID>) new ORMTemplateImpl(factory, modelBuilder, providerFilter)
+                        .selectFrom(type))
+                        .where(pk)
+                        .getSingleResult(), record);
         return create(supplier, type, pk);
     }
 
@@ -100,38 +98,6 @@ public final class RefFactoryImpl implements RefFactory {
      * @param <ID> primary key type.
      */
     private <T extends Record, ID> Ref<T> create(@Nonnull LazySupplier<T> supplier, @Nonnull Class<T> type, @Nonnull ID pk) {
-        class RefImpl extends AbstractRef<T> {
-            private final ID pk;
-
-            RefImpl(@Nonnull ID pk) {
-                this.pk = requireNonNull(pk);
-            }
-
-            @Override
-            protected boolean isFetched() {
-                return supplier.value().isPresent();
-            }
-
-            @Override
-            public Class<T> type() {
-                return type;
-            }
-
-            @Override
-            public ID id() {
-                return pk;
-            }
-
-            @Override
-            public T fetch() {
-                return supplier.get();
-            }
-
-            @Override
-            public void unload() {
-                supplier.remove();
-            }
-        }
-        return new RefImpl(pk);
+        return new RefImpl<>(supplier, type, pk);
     }
 }
