@@ -21,6 +21,7 @@ import st.orm.Ref;
 import st.orm.spi.Provider;
 import st.orm.spi.QueryFactory;
 import st.orm.template.QueryBuilder;
+import st.orm.template.QueryTemplate;
 
 import java.util.function.Predicate;
 
@@ -32,16 +33,16 @@ import static java.util.Objects.requireNonNull;
  * @since 1.3
  */
 public final class RefFactoryImpl implements RefFactory {
-    private final QueryFactory factory;
-    private final ModelBuilder modelBuilder;
-    private final Predicate<? super Provider> providerFilter;
+    private final QueryTemplate template;
 
     public RefFactoryImpl(@Nonnull QueryFactory factory,
                           @Nonnull ModelBuilder modelBuilder,
                           @Nullable Predicate<? super Provider> providerFilter) {
-        this.factory = requireNonNull(factory, "factory");
-        this.modelBuilder = requireNonNull(modelBuilder, "modelBuilder");
-        this.providerFilter = providerFilter;
+        this(new ORMTemplateImpl(factory, modelBuilder, providerFilter));
+    }
+
+    public RefFactoryImpl(@Nonnull QueryTemplate template) {
+        this.template = requireNonNull(template, "template");
     }
 
     /**
@@ -54,17 +55,16 @@ public final class RefFactoryImpl implements RefFactory {
      * @param <T> record type.
      * @param <ID> primary key type.
      */
+    @SuppressWarnings("unchecked")
     @Override
     public <T extends Record, ID> Ref<T> create(@Nonnull Class<T> type, @Nonnull ID pk) {
-        //noinspection unchecked
-        var builder = (QueryBuilder<T, T, ID>) new ORMTemplateImpl(
-                factory,
-                modelBuilder,
-                providerFilter).selectFrom(type);
-        var supplier = new LazySupplier<>(() -> builder.where(pk).getSingleResult());
+        var supplier = new LazySupplier<>(() ->
+                ((QueryBuilder<T, T, ID>) template
+                        .selectFrom(type))
+                        .where(pk)
+                        .getSingleResult());
         return create(supplier, type, pk);
     }
-
 
     /**
      * Creates a ref instance for the specified {@code record}, {@code type} and {@code pk}. This method can be used to
@@ -76,16 +76,15 @@ public final class RefFactoryImpl implements RefFactory {
      * @param <T> record type.
      * @param <ID> primary key type.
      */
+    @SuppressWarnings("unchecked")
     @Override
     public <T extends Record, ID> Ref<T> create(@Nonnull T record, @Nonnull ID pk) {
-        //noinspection unchecked
         var type = (Class<T>) record.getClass();
-        //noinspection unchecked
-        var builder = (QueryBuilder<T, T, ID>) new ORMTemplateImpl(
-                factory,
-                modelBuilder,
-                providerFilter).selectFrom(type);
-        var supplier = new LazySupplier<>(() -> builder.where(pk).getSingleResult(), record);
+        var supplier = new LazySupplier<>(() ->
+                ((QueryBuilder<T, T, ID>) template
+                        .selectFrom(type))
+                        .where(pk)
+                        .getSingleResult(), record);
         return create(supplier, type, pk);
     }
 
@@ -100,38 +99,6 @@ public final class RefFactoryImpl implements RefFactory {
      * @param <ID> primary key type.
      */
     private <T extends Record, ID> Ref<T> create(@Nonnull LazySupplier<T> supplier, @Nonnull Class<T> type, @Nonnull ID pk) {
-        class RefImpl extends AbstractRef<T> {
-            private final ID pk;
-
-            RefImpl(@Nonnull ID pk) {
-                this.pk = requireNonNull(pk);
-            }
-
-            @Override
-            protected boolean isFetched() {
-                return supplier.value().isPresent();
-            }
-
-            @Override
-            public Class<T> type() {
-                return type;
-            }
-
-            @Override
-            public ID id() {
-                return pk;
-            }
-
-            @Override
-            public T fetch() {
-                return supplier.get();
-            }
-
-            @Override
-            public void unload() {
-                supplier.remove();
-            }
-        }
-        return new RefImpl(pk);
+        return new RefImpl<>(supplier, type, pk);
     }
 }
