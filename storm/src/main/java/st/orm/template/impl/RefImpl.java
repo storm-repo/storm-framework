@@ -18,8 +18,6 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import st.orm.Ref;
 
-import static java.util.Objects.requireNonNull;
-
 /**
  * Default {@link Ref} implementation.
  *
