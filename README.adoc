@@ -427,7 +427,7 @@ SQL Template::
 +
 [source,java]
 ----
-List<User> counts = ORM(dataSource).query(RAW."""
+List<User> users = ORM(dataSource).query(RAW."""
         SELECT \{User.class}
         FROM \{User.class}
         ORDER BY \{User_.birthDate}""")
