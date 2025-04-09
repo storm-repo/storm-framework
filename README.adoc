@@ -506,7 +506,7 @@ Specialized entity repositories can also be injected using Spring's dependency i
 
 === Using Refs
 
-Refs are a powerful feature provided by Storm ORM for efficiently managing entity relationships. A Ref serves as a
+Refs are a powerful feature provided by Storm for efficiently managing entity relationships. A Ref serves as a
 lightweight identifier for the referenced entity, deferring the fetching of entity data until explicitly required. This
 approach effectively handles large object graphs and optimizes database performance by avoiding unnecessary data
 retrieval. Refs are particularly useful in scenarios where you want to:
