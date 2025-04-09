@@ -17,7 +17,6 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.FK;
-import st.orm.Lazy;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.SqlTemplate;

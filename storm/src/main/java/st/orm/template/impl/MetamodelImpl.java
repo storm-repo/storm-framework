@@ -18,7 +18,7 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.FK;
-import st.orm.Lazy;
+import st.orm.Ref;
 import st.orm.PersistenceException;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
@@ -29,7 +29,7 @@ import java.lang.reflect.RecordComponent;
 import java.util.Optional;
 
 import static java.util.Optional.ofNullable;
-import static st.orm.template.impl.RecordReflection.getLazyRecordType;
+import static st.orm.template.impl.RecordReflection.getRefRecordType;
 import static st.orm.template.impl.RecordReflection.getRecordComponent;
 
 /**
@@ -81,10 +81,10 @@ public class MetamodelImpl<T extends Record, E> implements Metamodel<T, E> {
         } else {
             try {
                 RecordComponent component = getRecordComponent(rootTable, path);
-                if (Lazy.class.isAssignableFrom(component.getType())) {
+                if (Ref.class.isAssignableFrom(component.getType())) {
                     effectivePath = path.substring(0, path.lastIndexOf('.')); // Remove last component.
                     effectiveComponent = component.getName();
-                    componentType = getLazyRecordType(component);
+                    componentType = getRefRecordType(component);
                     isColumn = true;
                 } else {
                     effectivePath = path;

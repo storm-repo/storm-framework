@@ -18,6 +18,7 @@ package st.orm.kotlin.template.impl;
 import jakarta.annotation.Nonnull;
 import kotlin.reflect.KClass;
 import st.orm.PersistenceException;
+import st.orm.Ref;
 import st.orm.kotlin.KQuery;
 import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.spi.ORMReflection;
@@ -360,8 +361,13 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull IDX o) {
-            return new KPredicateBuilderImpl<>(whereBuilder.filter(o));
+        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull IDX id) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filter(id));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull Ref<TX> ref) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filter(ref));
         }
 
         @Override
@@ -380,13 +386,28 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
         }
 
         @Override
+        public KPredicateBuilder<TX, RX, IDX> filterRefs(@Nonnull Iterable<? extends Ref<TX>> it) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filterRefs(it));
+        }
+
+        @Override
         public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull Iterable<? extends TX> it) {
             return new KPredicateBuilderImpl<>(whereBuilder.filter(it));
         }
 
         @Override
+        public <V extends Record> KPredicateBuilder<TX, RX, IDX> filter(@Nonnull Metamodel<TX, V> path, @Nonnull Ref<V> ref) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filter(path, ref));
+        }
+
+        @Override
         public KPredicateBuilder<TX, RX, IDX> filterAny(@Nonnull Iterable<? extends Record> it) {
             return new KPredicateBuilderImpl<>(whereBuilder.filterAny(it));
+        }
+
+        @Override
+        public <V extends Record> KPredicateBuilder<TX, RX, IDX> filterRefs(@Nonnull Metamodel<TX, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
+            return new KPredicateBuilderImpl<>(whereBuilder.filterRefs(path, it));
         }
 
         @Override

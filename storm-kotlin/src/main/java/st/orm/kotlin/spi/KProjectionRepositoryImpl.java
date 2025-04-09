@@ -16,10 +16,9 @@
 package st.orm.kotlin.spi;
 
 import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import kotlin.sequences.Sequence;
 import kotlin.sequences.SequencesKt;
-import st.orm.Lazy;
+import st.orm.Ref;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KResultCallback;
@@ -74,14 +73,25 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
     }
 
     /**
-     * Creates a new lazy projection instance with the specified primary key.
+     * Creates a new ref projection instance with the specified primary key.
      *
      * @param id the primary key of the projection.
-     * @return a lazy projection instance.
+     * @return a ref projection instance.
      */
     @Override
-    public Lazy<P, ID> lazy(@Nullable ID id) {
-        return projectionRepository.lazy(id);
+    public Ref<P> ref(@Nonnull ID id) {
+        return projectionRepository.ref(id);
+    }
+
+    /**
+     * Creates a new ref projection instance with the specified projection.
+     *
+     * @param projection the projection.
+     * @return a ref projection instance.
+     */
+    @Override
+    public Ref<P> ref(@Nonnull P projection, @Nonnull ID id) {
+        return projectionRepository.ref(projection, id);
     }
 
     /**

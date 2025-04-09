@@ -22,6 +22,7 @@ import jakarta.persistence.PersistenceException;
 import st.orm.BindVars;
 import st.orm.PreparedQuery;
 import st.orm.Query;
+import st.orm.Ref;
 import st.orm.spi.Provider;
 import st.orm.spi.Providers;
 import st.orm.spi.QueryFactory;
@@ -44,7 +45,7 @@ import static jakarta.persistence.TemporalType.TIME;
 import static jakarta.persistence.TemporalType.TIMESTAMP;
 import static st.orm.template.SqlTemplate.PS;
 
-public final class JpaTemplateImpl implements JpaTemplate {
+public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
 
     @FunctionalInterface
     private interface TemplateProcessor {
@@ -55,6 +56,7 @@ public final class JpaTemplateImpl implements JpaTemplate {
     private final ModelBuilder modelBuilder;
     private final TableAliasResolver tableAliasResolver;
     private final Predicate<Provider> providerFilter;
+    private final RefFactory refFactory;
 
     public JpaTemplateImpl(@Nonnull EntityManager entityManager) {
         templateProcessor = (sql, resultClass, safe) -> {
@@ -73,6 +75,7 @@ public final class JpaTemplateImpl implements JpaTemplate {
         this.modelBuilder = ModelBuilder.newInstance();
         this.tableAliasResolver = TableAliasResolver.DEFAULT;
         this.providerFilter = null;
+        this.refFactory = new RefFactoryImpl(this, modelBuilder, null);
     }
 
     private JpaTemplateImpl(@Nonnull TemplateProcessor templateProcessor, @Nonnull ModelBuilder modelBuilder, @Nonnull TableAliasResolver tableAliasResolver, @Nullable Predicate<Provider> providerFilter) {
@@ -80,6 +83,7 @@ public final class JpaTemplateImpl implements JpaTemplate {
         this.modelBuilder = modelBuilder;
         this.tableAliasResolver = tableAliasResolver;
         this.providerFilter = providerFilter;
+        this.refFactory = new RefFactoryImpl(this, modelBuilder, providerFilter);
     }
 
     private void setParameters(@Nonnull jakarta.persistence.Query query, @Nonnull List<SqlTemplate.Parameter> parameters) {
@@ -146,21 +150,26 @@ public final class JpaTemplateImpl implements JpaTemplate {
     }
 
     /**
+     * Create a new bind variables instance that can be used to add bind variables to a batch.
+     *
+     * @return a new bind variables instance.
+     */
+    @Override
+    public BindVars createBindVars() {
+        throw new PersistenceException("Not supported by JPA.");
+    }
+
+    @Override
+    public Query create(@Nonnull StringTemplate template) {
+        return new JpaPreparedQuery(template, false);
+    }
+
+    /**
      * Returns an ORM template for this JPA template.
      */
     @Override
     public ORMTemplate toORM() {
-        return new ORMTemplateImpl(new QueryFactory() {
-            @Override
-            public BindVars createBindVars() {
-                throw new PersistenceException("Not supported by JPA.");
-            }
-
-            @Override
-            public Query create(@Nonnull StringTemplate template) {
-                return new JpaPreparedQuery(template, false);
-            }
-        }, ModelBuilder.newInstance(), null);
+        return new ORMTemplateImpl(this, ModelBuilder.newInstance(), null);
     }
 
     /**
@@ -247,6 +256,12 @@ public final class JpaTemplateImpl implements JpaTemplate {
         @Override
         public <T> Stream<T> getResultStream(@Nonnull Class<T> type) {
             return query(template, type).getResultStream();
+        }
+
+        @Override
+        public <T extends Record> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
+            return getResultStream(pkType)
+                    .map(id -> id == null ? Ref.ofNull() : refFactory.create(type, id));
         }
 
         @Override

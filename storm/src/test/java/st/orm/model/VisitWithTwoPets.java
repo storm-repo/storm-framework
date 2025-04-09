@@ -18,7 +18,7 @@ public record VisitWithTwoPets(
         @PK Integer id,
         @Nonnull @DbColumn("visit_date") LocalDate visitDate,
         @Nullable String description,
-        @FK @DbColumn("pet_id") @Qualifier("mom") PetLazyOwner pet1,
-        @FK @DbColumn("pet_id") @Qualifier("dad") PetLazyOwner pet2
+        @FK @DbColumn("pet_id") @Qualifier("mom") PetOwnerRef pet1,
+        @FK @DbColumn("pet_id") @Qualifier("dad") PetOwnerRef pet2
 ) implements Entity<Integer> {
 }

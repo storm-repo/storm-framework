@@ -36,7 +36,7 @@ import st.orm.template.impl.ColumnImpl;
  * @param insertable whether the column is insertable.
  * @param updatable whether the column is updatable.
  * @param version whether the column is a version column.
- * @param lazy whether the column is a lazily fetched record.
+ * @param ref whether the column is a lazily fetched record.
  */
 public record KColumnImpl(
         @Nonnull ColumnImpl column,
@@ -50,7 +50,7 @@ public record KColumnImpl(
         boolean insertable,
         boolean updatable,
         boolean version,
-        boolean lazy
+        boolean ref
 ) implements KColumn {
 
     public KColumnImpl(@Nonnull ColumnImpl column) {
@@ -66,7 +66,7 @@ public record KColumnImpl(
                 column.insertable(),
                 column.updatable(),
                 column.version(),
-                column.lazy()
+                column.ref()
         );
     }
 

@@ -235,23 +235,23 @@ public class TemplatePreparedStatementIntegrationTest {
     }
 
     @DbTable("pet")
-    public record PetWithLazyNonNullViolation(
+    public record PetWithRefNonNullViolation(
             @PK Integer id,
             @Nonnull String name,
             @Nonnull @Persist(updatable = false) LocalDate birthDate,
             @Nonnull @FK @Persist(updatable = false) @DbColumn("type_id") PetType petType,
-            @Nonnull @FK Lazy<Owner, Integer> owner
+            @Nonnull @FK Ref<Owner> owner
     ) implements Entity<Integer> {}
 
     @Test
-    public void testSelectLazyNullViolation() {
+    public void testSelectRefNullViolation() {
         var e = assertThrows(PersistenceException.class, () -> {
             try (var query = ORM(dataSource).query(RAW."""
-                    SELECT \{select(PetWithLazyNonNullViolation.class)}
-                    FROM \{table(PetWithLazyNonNullViolation.class, "p")}
+                    SELECT \{select(PetWithRefNonNullViolation.class)}
+                    FROM \{table(PetWithRefNonNullViolation.class, "p")}
                       INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
                     WHERE p.name IN (\{param("Sly")})""").prepare()) {
-                query.getSingleResult(PetWithLazyNonNullViolation.class);
+                query.getSingleResult(PetWithRefNonNullViolation.class);
             }
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
@@ -649,20 +649,20 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Builder(toBuilder = true)
     @DbTable("vet_specialty")
-    public record VetSpecialtyLazyPk(
+    public record VetSpecialtyRefPk(
             // PK does not reflect the database, but suffices for the test case.
-            @PK @FK @DbColumn("vet_id") Lazy<Vet, Integer> id,
-            @Nonnull @FK Specialty specialty) implements Entity<Lazy<Vet, Integer>> {
+            @PK @FK @DbColumn("vet_id") Ref<Vet> id,
+            @Nonnull @FK Specialty specialty) implements Entity<Ref<Vet>> {
     }
 
     @Test
-    public void testSelectWhereLazyPk() {
+    public void testSelectWhereRefPk() {
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
             ORM(dataSource).query(RAW."""
-                    SELECT \{VetSpecialtyLazyPk.class}
-                    FROM \{VetSpecialtyLazyPk.class}
-                    WHERE \{where(Lazy.of(Vet.builder().id(1).build()))}""")
-                .getResultStream(VetSpecialtyLazyPk.class);
+                    SELECT \{VetSpecialtyRefPk.class}
+                    FROM \{VetSpecialtyRefPk.class}
+                    WHERE \{where(Ref.of(Vet.builder().id(1).build()))}""")
+                .getResultStream(VetSpecialtyRefPk.class);
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }

@@ -22,6 +22,7 @@ import st.orm.FK;
 import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.Query;
+import st.orm.Ref;
 import st.orm.Version;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
@@ -40,6 +41,7 @@ import st.orm.template.impl.Elements.Table;
 import st.orm.template.impl.Elements.TemplateExpression;
 import st.orm.template.impl.Elements.Unsafe;
 import st.orm.template.impl.Elements.Where;
+import st.orm.template.impl.TableMapper.Mapping;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -226,7 +228,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
                 return values;
             }
             String searchPath = rootTable != primaryTable && path != null && path.isEmpty() ? null : path;
-            TableMapper.Mapping mapping = tableMapper.getMapping(record.getClass(), searchPath == null ? null : rootTable, searchPath);
+            Mapping mapping = tableMapper.getMapping(record.getClass(), searchPath == null ? null : rootTable, searchPath);
             String a = mapping.alias();
             if (mapping.primaryKey()) {
                 for (var component : mapping.components()) {
@@ -451,6 +453,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
                     case Table t -> parts.add(new TableProcessor(templateProcessor).process(t).get());
                     case Alias a -> parts.add(new AliasProcessor(templateProcessor).process(a).get());
                     case Param p -> parts.add(new ParamProcessor(templateProcessor).process(p).get());
+                    case Ref<?> r -> parts.add(getObjectExpressionString(r));
                     case Record r -> parts.add(getObjectExpressionString(r));
                     case Class<?> c when c.isRecord() -> //noinspection unchecked
                             parts.add(dialectTemplate."\{aliasMapper.getAlias(root((Class<? extends Record>) c), CASCADE, template.dialect())}");
@@ -578,21 +581,23 @@ final class WhereProcessor implements ElementProcessor<Where> {
         int size = 0;
         List<Map<String, Object>> multiValues = new ArrayList<>();
         for (var o : getObjectIterable(object)) {
-            if (o == null) {
+            if (o == null || o instanceof Ref<?> ref && ref.isNull()) {
                 parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), null));
                 size++;
                 continue;
             }
-            Class<?> elementType = o.getClass();
+            Object v = o instanceof Ref<?> ref ? ref.id() : o;
+            Class<?> elementType = v.getClass();
             Map<String, Object> valueMap;
             if (metamodel == null) {
-                if ((pkType != null && (pkType == elementType || (pkType.isPrimitive() && isPrimitiveCompatible(o, pkType))))) {
-                    valueMap = getValues(o, rootTable, alias);
+                if ((pkType != null && (pkType == elementType || (pkType.isPrimitive() && isPrimitiveCompatible(v, pkType))))) {
+                    valueMap = getValues(v, rootTable, alias);
                     if (valueMap.isEmpty()) {
                         throw new SqlTemplateException(STR."Failed to find primary key field for \{rootTable.getSimpleName()} table.");
                     }
                 } else if (elementType.isRecord()) {
-                    valueMap = getValues((Record) o, null, primaryTable.table(), rootTable, alias, versionAware.getPlain());
+                    assert v instanceof Record;
+                    valueMap = getValues((Record) v, null, primaryTable.table(), rootTable, alias, versionAware.getPlain());
                     if (valueMap.isEmpty()) {
                         throw new SqlTemplateException(STR."Failed to find \{o.getClass().getSimpleName()} record on \{rootTable.getSimpleName()} table graph.");
                     }
@@ -601,12 +606,13 @@ final class WhereProcessor implements ElementProcessor<Where> {
                 }
             } else {
                 if (elementType.isRecord()) {
-                    valueMap = getValues((Record) o, path, primaryTable.table(), rootTable, alias, versionAware.getPlain());
+                    assert v instanceof Record;
+                    valueMap = getValues((Record) v, path, primaryTable.table(), rootTable, alias, versionAware.getPlain());
                     if (valueMap.isEmpty()) {
                         throw new SqlTemplateException(STR."Failed to find field for \{o.getClass().getSimpleName()} argument on \{rootTable.getSimpleName()} table graph.");
                     }
                 } else {
-                    valueMap = getValues(o, path, primaryTable.table(), rootTable);
+                    valueMap = getValues(v, path, primaryTable.table(), rootTable);
                     if (valueMap.isEmpty()) {
                         throw new SqlTemplateException(STR."Failed to find field for \{o.getClass().getSimpleName()} argument on \{rootTable.getSimpleName()} table at path '\{path}'.");
                     }

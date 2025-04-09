@@ -16,6 +16,7 @@
 package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Ref;
 import st.orm.template.Model;
 import st.orm.spi.Orderable.AfterAny;
 import st.orm.template.QueryBuilder;
@@ -53,6 +54,27 @@ public class DefaultQueryBuilderProviderImpl implements QueryBuilderProvider {
                                                                        boolean subquery,
                                                                        @Nonnull Supplier<Model<T, ID>> modelSupplier) {
         return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, template, subquery, modelSupplier);
+    }
+
+    /**
+     * Creates a query builder for the specified table and select type using the given {@code template}.
+     *
+     * @param queryTemplate provides the template logic for the query builder.
+     * @param fromType the table to select from.
+     * @param refType the type that is selected as ref.
+     * @param pkType the primary key type of the table.
+     * @param modelSupplier a supplier that creates the model when needed.
+     * @return the query builder.
+     * @param <T> the table type to select from.
+     * @param <ID> the primary key type.
+     */
+    @Override
+    public <T extends Record, R extends Record, ID> QueryBuilder<T, Ref<R>, ID> selectRefFrom(@Nonnull QueryTemplate queryTemplate,
+                                                                                              @Nonnull Class<T> fromType,
+                                                                                              @Nonnull Class<R> refType,
+                                                                                              @Nonnull Class<?> pkType,
+                                                                                              @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+        return new SelectBuilderImpl<>(queryTemplate, fromType, refType, pkType, modelSupplier);
     }
 
     /**

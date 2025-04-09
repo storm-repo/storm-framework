@@ -18,7 +18,7 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.FK;
-import st.orm.Lazy;
+import st.orm.Ref;
 import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.spi.ORMConverter;
@@ -130,8 +130,8 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
                 if (!columnFilter.test(column)) {
                     continue;
                 }
-                if (Lazy.class.isAssignableFrom(component.getType())) {
-                    if (!processLazyComponent(record, component, column, parentNullable, callback)) {
+                if (Ref.class.isAssignableFrom(component.getType())) {
+                    if (!processRefComponent(record, component, column, parentNullable, callback)) {
                         return false;
                     }
                     continue;
@@ -174,21 +174,21 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
         return true;
     }
 
-    private boolean processLazyComponent(@Nullable Record record,
-                                         @Nonnull RecordComponent component,
-                                         @Nonnull Column column,
-                                         boolean parentNullable,
-                                         @Nonnull BiFunction<Column, Object, Boolean> callback) throws Throwable {
+    private boolean processRefComponent(@Nullable Record record,
+                                        @Nonnull RecordComponent component,
+                                        @Nonnull Column column,
+                                        boolean parentNullable,
+                                        @Nonnull BiFunction<Column, Object, Boolean> callback) throws Throwable {
         if (!REFLECTION.isAnnotationPresent(component, FK.class)) {
-            throw new SqlTemplateException(STR."Lazy component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is not a foreign key.");
+            throw new SqlTemplateException(STR."Ref component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is not a foreign key.");
         }
         var id = ofNullable(record == null
                 ? null
-                : (Lazy<?, ?>) REFLECTION.invokeComponent(component, record))
-                .map(Lazy::id)
+                : (Ref<?>) REFLECTION.invokeComponent(component, record))
+                .map(Ref::id)
                 .orElse(null);
         if (id == null && !parentNullable && REFLECTION.isNonnull(component)) {
-            throw new SqlTemplateException(STR."Nonnull Lazy component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
+            throw new SqlTemplateException(STR."Nonnull Ref component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
         }
         return callback.apply(column, id);
     }

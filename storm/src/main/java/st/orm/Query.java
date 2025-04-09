@@ -149,6 +149,23 @@ public interface Query {
     }
 
     /**
+     * Execute a SELECT query and return the resulting rows as a list of ref instances.
+     *
+     * <p>Each element in the list represents a row in the result, where the columns of the row are mapped to the
+     * constructor arguments primary key type.</p>
+     *
+     * @param type the type of the results that are being referenced.
+     * @return the result list.
+     * @throws PersistenceException if the query fails.
+     * @since 1.3
+     */
+    default <T extends Record> List<Ref<T>> getRefList(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
+        try (var stream = getRefStream(type, pkType)) {
+            return stream.toList();
+        }
+    }
+
+    /**
      * Execute a SELECT query and return the resulting rows as a stream of row instances.
      *
      * <p>Each element in the stream represents a row in the result, where the columns of the row corresponds to the
@@ -208,6 +225,25 @@ public interface Query {
      *                              connectivity.
      */
     <T> Stream<T> getResultStream(@Nonnull Class<T> type);
+
+    /**
+     * Execute a SELECT query and return the resulting rows as a stream of ref instances.
+     *
+     * <p>Each element in the stream represents a row in the result, where the columns of the row are mapped to the
+     * constructor arguments primary key type.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only be invoked
+     * when the query is intended to run. Since the stream holds resources open while in use, it must be closed after
+     * usage to prevent resource leaks. As the stream is AutoCloseable, it is recommended to use it within a
+     * try-with-resources block.</p>
+     *
+     * @param type the type of the results that are being referenced.
+     * @param pkType the primary key type.
+     * @return a stream of ref instances.
+     * @throws PersistenceException if the query fails.
+     * @since 1.3
+     */
+    <T extends Record> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType);
 
     /**
      * Execute a SELECT query and return the resulting rows as a stream of row instances.

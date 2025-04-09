@@ -16,10 +16,11 @@
 package st.orm.kotlin.spi;
 
 import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import kotlin.reflect.KClass;
 import kotlin.sequences.Sequence;
 import kotlin.sequences.SequencesKt;
-import st.orm.Lazy;
+import org.jetbrains.annotations.NotNull;
+import st.orm.Ref;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KBatchCallback;
@@ -33,6 +34,8 @@ import st.orm.kotlin.template.impl.KORMTemplateImpl;
 import st.orm.kotlin.template.impl.KQueryBuilderImpl;
 import st.orm.repository.Entity;
 import st.orm.repository.EntityRepository;
+import st.orm.spi.ORMReflection;
+import st.orm.spi.Providers;
 import st.orm.template.impl.ModelImpl;
 
 import java.util.Iterator;
@@ -48,6 +51,7 @@ import static kotlin.sequences.SequencesKt.sequenceOf;
 /**
  */
 public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> implements KEntityRepository<E, ID> {
+    private final static ORMReflection REFLECTION = Providers.getORMReflection();
     private final EntityRepository<E, ID> entityRepository;
 
     public KEntityRepositoryImpl(@Nonnull EntityRepository<E, ID> entityRepository) {
@@ -75,25 +79,54 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
     }
 
     /**
-     * Creates a new lazy entity instance with the specified entity.
+     * Creates a new ref entity instance with the specified primary key.
      *
-     * @param entity the entity.
-     * @return a lazy entity instance.
+     * <p>This method creates a lightweight reference that encapsulates only the primary key of an entity,
+     * without loading the full entity data into memory. The complete record can be fetched on demand by invoking
+     * {@link Ref#fetch()}, which will trigger a separate database call.</p>
+     *
+     * @param id the primary key of the entity.
+     * @return a ref entity instance containing only the primary key.
+     * @since 1.3
      */
     @Override
-    public Lazy<E, ID> lazy(@Nullable E entity) {
-        return entityRepository.lazy(entity);
+    public Ref<E> ref(@Nonnull ID id) {
+        return entityRepository.ref(id);
     }
 
     /**
-     * Creates a new lazy entity instance with the specified primary key.
+     * Creates a new ref entity instance for the specified entity.
      *
-     * @param id the primary key of the entity.
-     * @return a lazy entity instance.
+     * <p>This method wraps a fully loaded entity in a lightweight reference. Although the complete entity is provided,
+     * the returned ref retains only the primary key for identification. In this case, calling {@link Ref#fetch()} will
+     * return the full entity (which is already loaded), ensuring a consistent API for accessing entity records on
+     * demand. This approach supports lazy-loading scenarios where only the identifier is needed initially.</p>
+     *
+     * @param entity the entity to wrap in a ref.
+     * @return a ref entity instance containing the primary key of the provided entity.
+     * @since 1.3
      */
     @Override
-    public Lazy<E, ID> lazy(@Nullable ID id) {
-        return entityRepository.lazy(id);
+    public Ref<E> ref(@Nonnull E entity) {
+        return entityRepository.ref(entity);
+    }
+
+    /**
+     * Unloads the given entity from memory by converting it into a lightweight ref containing only its primary key.
+     *
+     * <p>This method discards the full entity data and returns a ref that encapsulates just the primary key. The actual
+     * record is not retained in memory, but can be retrieved on demand by calling {@link Ref#fetch()}, which will
+     * trigger a new database call. This approach is particularly useful when you need to minimize memory usage while
+     * keeping the option to re-fetch the complete record later.</p>
+     *
+     * @param entity the entity to unload into a lightweight ref.
+     * @return a ref containing only the primary key of the entity, allowing the full record to be fetched again when
+     * needed.
+     * @since 1.3
+     */
+    @Override
+    public Ref<E> unload(@Nonnull E entity) {
+        return entityRepository.unload(entity);
     }
 
     /**
@@ -134,8 +167,25 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * @param <R> the result type of the query.
      */
     @Override
-    public <R> KQueryBuilder<E, R, ID> select(@Nonnull Class<R> selectType) {
-        return new KQueryBuilderImpl<>(entityRepository.select(selectType));
+    public <R> KQueryBuilder<E, R, ID> select(@Nonnull KClass<R> selectType) {
+        //noinspection unchecked
+        return new KQueryBuilderImpl<>(entityRepository.select((Class<R>) REFLECTION.getType(selectType)));
+    }
+
+    /**
+     * Creates a new query builder for selecting refs to entities of the type managed by this repository.
+     *
+     * <p>This method is typically used when you only need the primary keys of the entities initially, and you want to
+     * defer fetching the full data until it is actually required. The query builder will return ref instances that
+     * encapsulate the primary key. To retrieve the full entity, call {@link Ref#fetch()}, which will perform an
+     * additional database query on demand.</p>
+     *
+     * @return a new query builder for selecting refs to entities.
+     * @since 1.3
+     */
+    @Override
+    public KQueryBuilder<E, Ref<E>, ID> selectRef() {
+        return new KQueryBuilderImpl<>(entityRepository.selectRef());
     }
 
     /**
@@ -147,8 +197,27 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * @param <R> the result type of the query.
      */
     @Override
-    public <R> KQueryBuilder<E, R, ID> select(@Nonnull Class<R> selectType, @Nonnull StringTemplate template) {
-        return new KQueryBuilderImpl<>(entityRepository.select(selectType, template));
+    public <R> KQueryBuilder<E, R, ID> select(@Nonnull KClass<R> selectType, @Nonnull StringTemplate template) {
+        //noinspection unchecked
+        return new KQueryBuilderImpl<>(entityRepository.select((Class<R>) REFLECTION.getType(selectType), template));
+    }
+
+    /**
+     * Creates a new query builder for selecting refs to entities of the type managed by this repository.
+     *
+     * <p>This method is typically used when you only need the primary keys of the entities initially, and you want to
+     * defer fetching the full data until it is actually required. The query builder will return ref instances that
+     * encapsulate the primary key. To retrieve the full entity, call {@link Ref#fetch()}, which will perform an
+     * additional database query on demand.</p>
+     *
+     * @param refType the type that is selected as ref.
+     * @return a new query builder for selecting refs to entities.
+     * @since 1.3
+     */
+    @Override
+    public <R extends Record & Entity<?>> KQueryBuilder<E, Ref<R>, ID> selectRef(@NotNull KClass<R> refType) {
+        //noinspection unchecked
+        return new KQueryBuilderImpl<>(entityRepository.selectRef((Class<R>) REFLECTION.getType(refType)));
     }
 
     /**

@@ -15,18 +15,10 @@
  */
 package st.orm.kotlin.repository;
 
-import jakarta.annotation.Nonnull;
-import st.orm.FK;
-import st.orm.PK;
-import st.orm.PersistenceException;
 import st.orm.repository.Entity;
 import st.orm.repository.EntityRepository;
 
-import java.lang.reflect.RecordComponent;
-import java.util.stream.Stream;
-
-import static st.orm.spi.Providers.getORMConverter;
-import static st.orm.spi.Providers.getORMReflection;
+import static st.orm.kotlin.spi.KEntityHelper.getId;
 
 /**
  * Optional marker interface for record-based entities.
@@ -38,33 +30,15 @@ import static st.orm.spi.Providers.getORMReflection;
  */
 public interface KEntity<ID> extends Entity<ID> {
 
-    @SuppressWarnings("unchecked")
-    private Stream<RecordComponent> getPkComponents(@Nonnull Class<? extends Record> componentType) {
-        var reflection = getORMReflection();
-        return Stream.of(componentType.getRecordComponents())
-                .flatMap(c -> reflection.isAnnotationPresent(c, PK.class)
-                        ? Stream.of(c)
-                        : c.getType().isRecord() && !reflection.isAnnotationPresent(c, FK.class) && getORMConverter(c).isEmpty()
-                            ? getPkComponents((Class<? extends Record>) c.getType())        // @Inline is implicitly assumed.
-                            : Stream.empty());
-    }
-
     /**
      * Returns the primary key of the entity.
      *
-     * The primary key can be any type, such as a {@code Integer} or {@code Long}, but compound keys are also supported.
+     * <p>The primary key can be any type, such as a {@code Integer} or {@code Long}, but records representing compound
+     * keys are also supported.</p>
      *
      * @return the primary key of the entity.
      */
-    @SuppressWarnings("unchecked")
     default ID id() {
-        var pkComponent = getPkComponents((Class<? extends Record>) getClass()).findFirst().orElseThrow(() -> new IllegalStateException(STR."No primary key found for \{getClass().getSimpleName()}."));
-        try {
-            return (ID) getORMReflection().invokeComponent(pkComponent, this);
-        } catch (PersistenceException e) {
-            throw e;
-        } catch (Throwable t) {
-            throw new PersistenceException(t);
-        }
+        return getId(this);
     }
 }

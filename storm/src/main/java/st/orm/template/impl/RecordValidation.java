@@ -18,7 +18,7 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import st.orm.FK;
 import st.orm.Inline;
-import st.orm.Lazy;
+import st.orm.Ref;
 import st.orm.PK;
 import st.orm.repository.Entity;
 import st.orm.repository.Projection;
@@ -81,8 +81,8 @@ final class RecordValidation {
                 }
             }
             for (var pkComponent : pkComponents) {
-                if (Lazy.class.isAssignableFrom(pkComponent.getType())) {
-                    return STR."Primary key must not be lazy: \{recordType.getSimpleName()}.";
+                if (Ref.class.isAssignableFrom(pkComponent.getType())) {
+                    return STR."Primary key must not be a Ref: \{recordType.getSimpleName()}.";
                 }
             }
             if (pkComponents.size() > 1) {
@@ -96,7 +96,7 @@ final class RecordValidation {
                     if (REFLECTION.isAnnotationPresent(fkComponent, Inline.class)) {
                         return STR."Foreign key must not be inlined: \{fkComponent.getType().getSimpleName()} \{fkComponent.getName()}.";
                     }
-                } else if (!Lazy.class.isAssignableFrom(fkComponent.getType())) {
+                } else if (!Ref.class.isAssignableFrom(fkComponent.getType())) {
                     return STR."Foreign key must be a record: \{fkComponent.getType().getSimpleName()} \{fkComponent.getName()}.";
                 }
             }

@@ -19,6 +19,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.PersistenceException;
 import st.orm.Query;
+import st.orm.Ref;
 import st.orm.template.Model;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryTemplate;
@@ -29,7 +30,10 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static java.lang.StringTemplate.RAW;
+import static java.util.Objects.requireNonNull;
+import static st.orm.Templates.SelectMode.PK;
 import static st.orm.Templates.from;
+import static st.orm.Templates.select;
 
 /**
  * A query builder for SELECT queries.
@@ -46,6 +50,8 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
     private final Integer limit;
     private final Integer offset;
     private final boolean subquery;
+    private final Class<? extends Record> refType;
+    private final Class<?> pkType;
 
     public SelectBuilderImpl(@Nonnull QueryTemplate queryTemplate,
                              @Nonnull Class<T> fromType,
@@ -53,7 +59,16 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
                              @Nonnull StringTemplate selectTemplate,
                              boolean subquery,
                              @Nonnull Supplier<Model<T, ID>> modelSupplier) {
-        this(queryTemplate, fromType, selectType, false, List.of(), List.of(), null, null, RAW."", selectTemplate, List.of(), subquery, modelSupplier);
+        this(queryTemplate, fromType, selectType, false, List.of(), List.of(), null, null, RAW."", selectTemplate, List.of(), subquery, null, null, modelSupplier);
+    }
+
+    public SelectBuilderImpl(@Nonnull QueryTemplate queryTemplate,
+                             @Nonnull Class<T> fromType,
+                             @Nonnull Class<? extends Record> refType,
+                             @Nonnull Class<?> pkType,
+                             @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+        //noinspection unchecked
+        this(queryTemplate, fromType, (Class<R>) Ref.class, false, List.of(), List.of(), null, null, RAW."", RAW."\{select(refType, PK)}", List.of(), false, requireNonNull(refType), requireNonNull(pkType), modelSupplier);
     }
 
     private SelectBuilderImpl(@Nonnull QueryTemplate ormTemplate,
@@ -68,6 +83,8 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
                               @Nonnull StringTemplate selectTemplate,
                               @Nonnull List<StringTemplate> templates,
                               boolean subquery,
+                              @Nullable Class<? extends Record> refType,
+                              @Nullable Class<?> pkType,
                               @Nonnull Supplier<Model<T, ID>> modelSupplier) {
         super(ormTemplate, fromType, join, where, templates, modelSupplier);
         this.forLock = forLock;
@@ -77,6 +94,8 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
         this.limit = limit;
         this.offset = offset;
         this.subquery = subquery;
+        this.refType = refType;
+        this.pkType = pkType;
     }
 
     /**
@@ -108,7 +127,8 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
                                     @Nonnull List<Join> join,
                                     @Nonnull List<Where> where,
                                     @Nonnull List<StringTemplate> templates) {
-        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset, forLock, selectTemplate, templates, subquery, modelSupplier);
+        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset, forLock,
+                selectTemplate, templates, subquery, refType, pkType, modelSupplier);
     }
 
     /**
@@ -128,7 +148,8 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
      */
     @Override
     public QueryBuilder<T, R, ID> distinct() {
-        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, true, join, where, limit, offset, forLock, selectTemplate, templates, subquery, modelSupplier);
+        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, true, join, where, limit, offset, forLock,
+                selectTemplate, templates, subquery, refType, pkType, modelSupplier);
     }
 
     private StringTemplate toStringTemplate() {
@@ -190,7 +211,8 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
      */
     @Override
     public QueryBuilder<T, R, ID> offset(int offset) {
-        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset, forLock, selectTemplate, templates, subquery, modelSupplier);
+        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset, forLock,
+                selectTemplate, templates, subquery, refType, pkType, modelSupplier);
     }
 
     /**
@@ -202,7 +224,8 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
      */
     @Override
     public QueryBuilder<T, R, ID> limit(int limit) {
-        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset, forLock, selectTemplate, templates, subquery, modelSupplier);
+        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset, forLock,
+                selectTemplate, templates, subquery, refType, pkType, modelSupplier);
     }
 
     /**
@@ -242,7 +265,8 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
      */
     @Override
     public QueryBuilder<T, R, ID> forLock(@Nonnull StringTemplate template) {
-        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset, template, selectTemplate, templates, subquery, modelSupplier);
+        return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset,
+                template, selectTemplate, templates, subquery, refType, pkType, modelSupplier);
     }
 
     /**
@@ -272,10 +296,16 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
      *
      * @return a stream of results.
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
-     *                              connectivity.
+     * connectivity.
      */
     @Override
     public Stream<R> getResultStream() {
-        return build().getResultStream(selectType);
+        Query query = build();
+        if (refType != null) {
+            assert pkType != null : "Primary key type must be specified for ref queries.";
+            //noinspection unchecked
+            return (Stream<R>) query.getRefStream(refType, pkType);
+        }
+        return query.getResultStream(selectType);
     }
 }

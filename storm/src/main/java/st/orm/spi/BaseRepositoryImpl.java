@@ -16,8 +16,7 @@
 package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
-import st.orm.Lazy;
+import st.orm.Ref;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.template.Column;
@@ -89,13 +88,18 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
     }
 
     /**
-     * Creates a new lazy entity instance with the specified primary key.
+     * Creates a new ref entity instance with the specified primary key.
+     *
+     * <p>This method creates a lightweight reference that encapsulates only the primary key of an entity,
+     * without loading the full entity data into memory. The complete record can be fetched on demand by invoking
+     * {@link Ref#fetch()}, which will trigger a separate database call.</p>
      *
      * @param id the primary key of the entity.
-     * @return a lazy entity instance.
+     * @return a ref entity instance containing only the primary key.
+     * @since 1.3
      */
-    public Lazy<E, ID> lazy(@Nullable ID id) {
-        return ormTemplate.lazy(model.type(), id);
+    public Ref<E> ref(@Nonnull ID id) {
+        return ormTemplate.ref(model.type(), id);
     }
 
     /**

@@ -100,9 +100,9 @@ public interface Column {
     boolean version();
 
     /**
-     * Determines if the column is lazily fetched.
+     * Determines if the column is a ref column.
      *
-     * @return true if it is lazily loaded, false otherwise.
+     * @return if the column is a ref column, false otherwise.
      */
-    boolean lazy();
+    boolean ref();
 }

@@ -21,6 +21,7 @@ import st.orm.NonUniqueResultException;
 import st.orm.PersistenceException;
 import st.orm.PreparedQuery;
 import st.orm.Query;
+import st.orm.Ref;
 import st.orm.ResultCallback;
 import st.orm.template.impl.Elements.ObjectExpression;
 
@@ -273,6 +274,15 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
         public abstract PredicateBuilder<T, R, ID> filter(@Nonnull ID id);
 
         /**
+         * Adds a condition to the WHERE clause that matches the specified primary key of the table, expressed by a ref.
+         *
+         * @param ref the ref to match.
+         * @return the predicate builder.
+         * @since 1.3
+         */
+        public abstract PredicateBuilder<T, R, ID> filter(@Nonnull Ref<T> ref);
+
+        /**
          * Adds a condition to the WHERE clause that matches the specified record.
          *
          * @param record the record to match.
@@ -300,6 +310,15 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
         public abstract PredicateBuilder<T, R, ID> filterIds(@Nonnull Iterable<? extends ID> it);
 
         /**
+         * Adds a condition to the WHERE clause that matches the specified primary keys of the table, expressed by a ref.
+         *
+         * @param it the ids to match.
+         * @return the predicate builder.
+         * @since 1.3
+         */
+        public abstract PredicateBuilder<T, R, ID> filterRefs(@Nonnull Iterable<? extends Ref<T>> it);
+
+        /**
          * Adds a condition to the WHERE clause that matches the specified records.
          *
          * @param it the records to match.
@@ -320,12 +339,24 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
          * the related tables in the table graph.
          *
+         * @param path the path to the object in the table graph.
          * @param record the records to match.
          * @return the predicate builder.
          */
         public final <V extends Record> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, @Nonnull V record) {
             return filter(path, EQUALS, record);
         }
+
+        /**
+         * Adds a condition to the WHERE clause that matches the specified ref. The record can represent any of
+         * the related tables in the table graph.
+         *
+         * @param path the path to the object in the table graph.
+         * @param ref the ref to match.
+         * @return the predicate builder.
+         * @since 1.3
+         */
+        public abstract <V extends Record> PredicateBuilder<T, R, ID> filter(@Nonnull Metamodel<T, V> path, @Nonnull Ref<V> ref);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
@@ -342,6 +373,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * Adds a condition to the WHERE clause that matches the specified records. The records can represent any of
          * the related tables in the table graph.
          *
+         * @param path the path to the object in the table graph.
          * @param it the records to match.
          * @return the predicate builder.
          */
@@ -350,9 +382,21 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
         }
 
         /**
+         * Adds a condition to the WHERE clause that matches the specified refs. The refs can represent any of
+         * the related tables in the table graph.
+         *
+         * @param path the path to the ref in the table graph.
+         * @param it the refs to match.
+         * @return the predicate builder.
+         * @since 1.3
+         */
+        public abstract <V extends Record> PredicateBuilder<T, R, ID> filterRefs(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<? extends Ref<V>> it);
+
+        /**
          * Adds a condition to the WHERE clause that matches the specified records. The records can represent any of
          * the related tables in the table graph or manually added joins.
          *
+         * @param path the path to the object in the table graph.
          * @param it the records to match.
          * @return the predicate builder.
          */
@@ -490,6 +534,17 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     }
 
     /**
+     * Adds a WHERE clause that matches the specified primary key of the table, expressed by a ref.
+     *
+     * @param ref the ref to match.
+     * @return the query builder.
+     * @since 1.3
+     */
+    public final QueryBuilder<T, R, ID> where(@Nonnull Ref<T> ref) {
+        return where(predicate -> predicate.filter(ref));
+    }
+
+    /**
      * Adds a WHERE clause that matches the specified record.
      *
      * @param record the record to match.
@@ -523,6 +578,17 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     }
 
     /**
+     * Adds a WHERE clause that matches the specified primary keys of the table, expressed by a ref.
+     *
+     * @param it refs to match.
+     * @return the query builder.
+     * @since 1.3
+     */
+    public final QueryBuilder<T, R, ID> whereRefs(@Nonnull Iterable<? extends Ref<T>> it) {
+        return where(predicate -> predicate.filterRefs(it));
+    }
+
+    /**
      * Adds WHERE clause that matches the specified record. The record can represent any of the related tables in the
      * table graph.
      *
@@ -547,6 +613,19 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     }
 
     /**
+     * Adds WHERE clause that matches the specified ref. The ref can represent any of the related tables in the
+     * table graph.
+     *
+     * @param path the path to the object in the table graph.
+     * @param ref the ref to match.
+     * @return the predicate builder.
+     * @since 1.3
+     */
+    public final <V extends Record> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull Ref<V> ref) {
+        return where(predicate -> predicate.filter(path, ref));
+    }
+
+    /**
      * Adds a WHERE clause that matches the specified records. The records can represent any of the related tables in
      * the table graph.
      *
@@ -556,6 +635,19 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      */
     public final <V extends Record> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<V> it) {
         return where(path, IN, it);
+    }
+
+    /**
+     * Adds a WHERE clause that matches the specified records. The records can represent any of the related tables in
+     * the table graph.
+     *
+     * @param path the path to the object in the table graph.
+     * @param it the records to match.
+     * @return the predicate builder.
+     * @since 1.3
+     */
+    public final <V extends Record> QueryBuilder<T, R, ID> whereRefs(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
+        return where(predicate -> predicate.filterRefs(path, it));
     }
 
     /**

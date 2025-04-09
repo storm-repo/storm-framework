@@ -19,7 +19,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.BindVars;
 import st.orm.FK;
-import st.orm.Lazy;
+import st.orm.Ref;
 import st.orm.PK;
 import st.orm.Query;
 import st.orm.repository.ProjectionQuery;
@@ -90,7 +90,7 @@ import static st.orm.template.ResolveScope.CASCADE;
 import static st.orm.template.ResolveScope.INNER;
 import static st.orm.template.impl.RecordReflection.getColumnName;
 import static st.orm.template.impl.RecordReflection.getForeignKey;
-import static st.orm.template.impl.RecordReflection.getLazyRecordType;
+import static st.orm.template.impl.RecordReflection.getRefRecordType;
 import static st.orm.template.impl.RecordReflection.getPkComponents;
 import static st.orm.template.impl.RecordReflection.isTypePresent;
 import static st.orm.template.impl.RecordReflection.mapForeignKeys;
@@ -829,15 +829,15 @@ public final class SqlTemplateImpl implements SqlTemplate {
             var copy = copyOf(list);
             String pkPath = toPathString(copy);
             if (REFLECTION.isAnnotationPresent(component, FK.class)) {
-                if (Lazy.class.isAssignableFrom(component.getType())) {
-                    // No join needed for lazy components, but we will map the table, so we can query the lazy component.
+                if (Ref.class.isAssignableFrom(component.getType())) {
+                    // No join needed for ref components, but we will map the table, so we can query the ref component.
                     String fromAlias;
                     if (fkName == null) {
                         fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, null, dialect);    // Use local resolve mode to prevent shadowing.
                     } else {
                         fromAlias = fkName;
                     }
-                    tableMapper.mapForeignKey(recordType, getLazyRecordType(component), fromAlias, component, rootTable, fkPath);
+                    tableMapper.mapForeignKey(recordType, getRefRecordType(component), fromAlias, component, rootTable, fkPath);
                     continue;
                 }
                 if (!component.getType().isRecord()) {
@@ -845,7 +845,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 }
                 Class<? extends Record> componentType = (Class<? extends Record>) component.getType();
                 if (componentType == recordType) {
-                    throw new SqlTemplateException(STR."Self-referencing FK annotation is not allowed: \{recordType.getSimpleName()}. FK must be marked as Lazy.");
+                    throw new SqlTemplateException(STR."Self-referencing FK annotation is not allowed: \{recordType.getSimpleName()}. FK must be marked as Ref.");
                 }
                 // We may detect that the component is already by present by checking
                 // aliasMap.containsKey(componentType), but we'll handle duplicate joins later to detect such issues

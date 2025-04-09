@@ -34,16 +34,16 @@ import static st.orm.template.impl.ObjectMapperFactory.getObjectMapper;
  */
 final class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
 
-    private final LazyFactory lazyFactory;
+    private final RefFactory refFactory;
     private final PreparedStatement statement;
     private final BindVarsHandle bindVarsHandle;
 
-    public PreparedQueryImpl(@Nonnull LazyFactory lazyFactory,
+    public PreparedQueryImpl(@Nonnull RefFactory refFactory,
                              @Nonnull PreparedStatement statement,
                              @Nullable BindVarsHandle bindVarsHandle,
                              boolean versionAware) {
-        super(lazyFactory, _ -> statement, bindVarsHandle, versionAware);
-        this.lazyFactory = lazyFactory;
+        super(refFactory, _ -> statement, bindVarsHandle, versionAware);
+        this.refFactory = refFactory;
         this.statement = statement;
         this.bindVarsHandle = bindVarsHandle;
     }
@@ -90,7 +90,7 @@ final class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
             boolean close = true;
             try {
                 int columnCount = resultSet.getMetaData().getColumnCount();
-                var mapper = getObjectMapper(columnCount, type, lazyFactory)
+                var mapper = getObjectMapper(columnCount, type, refFactory)
                         .orElseThrow(() -> new PersistenceException(STR."No suitable constructor found for \{type}."));
                 close = false;
                 return MonitoredResource.wrap(

@@ -16,6 +16,7 @@
 package st.orm.spi;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Ref;
 import st.orm.template.Model;
 import st.orm.repository.Projection;
 import st.orm.repository.ProjectionRepository;
@@ -34,5 +35,16 @@ public final class ProjectionRepositoryImpl<P extends Record & Projection<ID>, I
     public ProjectionRepositoryImpl(@Nonnull ORMTemplate ormTemplate,
                                     @Nonnull Model<P, ID> model) {
         super(ormTemplate, model);
+    }
+
+    /**
+     * Creates a new ref projection instance with the specified projection.
+     *
+     * @param projection the projection.
+     * @return a ref projection instance.
+     */
+    @Override
+    public Ref<P> ref(@Nonnull P projection, @Nonnull ID id) {
+        return ormTemplate.ref(projection, id);
     }
 }

@@ -16,9 +16,8 @@
 package st.orm.kotlin.repository;
 
 import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import kotlin.sequences.Sequence;
-import st.orm.Lazy;
+import st.orm.Ref;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KResultCallback;
@@ -36,19 +35,27 @@ import java.util.List;
 public interface KProjectionRepository<P extends Record & Projection<ID>, ID> extends KRepository {
 
     /**
+     * Creates a new ref projection instance with the specified primary key.
+     *
+     * @param id the primary key of the projection.
+     * @return a ref projection instance.
+     */
+    Ref<P> ref(@Nonnull ID id);
+
+    /**
+     * Creates a new ref projection instance with the specified projection.
+     *
+     * @param projection the projection.
+     * @return a ref projection instance.
+     */
+    Ref<P> ref(@Nonnull P projection, @Nonnull ID id);
+
+    /**
      * Returns the projection model associated with this repository.
      *
      * @return the projection model.
      */
     KModel<P, ID> model();
-
-    /**
-     * Creates a new lazy projection instance with the specified primary key.
-     *
-     * @param id the primary key of the projection.
-     * @return a lazy projection instance.
-     */
-    Lazy<P, ID> lazy(@Nullable ID id);
 
     // Query builder methods.
 
