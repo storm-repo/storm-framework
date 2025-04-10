@@ -588,7 +588,7 @@ Hybrid::
 +
 [source,java]
 ----
-List<User> users = ORM(dataSource).entity(UserRole.class)
+List<Ref<User>> users = ORM(dataSource).entity(UserRole.class)
     .selectRef(User.class)
     .where(RAW."\{role}")
     .getResultList();
@@ -647,7 +647,9 @@ record GroupedByCity(Ref<City> city, long count) {}
 ----
 
 The following example demonstrates how to select the primary key of the `City` entity using `SelectMode.PK` and map it
-directly to a `Ref<City>` within the `GroupedByCity` record.
+directly to a `Ref<City>` within the `GroupedByCity` record. The results are then collected into a map, where the key is
+the `Ref<City>` and the value is the count of users in that city. This map can be used to efficiently access the count
+of users for each city without loading the entire entity graph.
 
 [tabs]
 ====
@@ -655,29 +657,32 @@ ORM::
 +
 [source,java]
 ----
-List<GroupedByCity> counts = ORM(dataSource).entity(User.class)
+Map<Ref<City>, Long> counts = ORM(dataSource).entity(User.class)
         .select(GroupedByCity.class, RAW."\{select(City.class, SelectMode.PK)}, COUNT(*)")
         .groupBy(User_.city)
-        .getResultList();
+        .getResultList().stream()
+            .collect(toMap(GroupedByCity::city, GroupedByCity::count));
 ----
 SQL Template::
 +
 [source,java]
 ----
-List<GroupedByCity> counts = ORM(dataSource).query(RAW."""
+Map<Ref<City>, Long> counts = ORM(dataSource).query(RAW."""
         SELECT \{select(City.class, SelectMode.PK)}, COUNT(*)
         FROM \{User.class}
         GROUP BY \{User_.city}""")
-    .getResultList(GroupedByCity.class);
+    .getResultList(GroupedByCity.class).stream()
+        .collect(toMap(GroupedByCity::city, GroupedByCity::count));
 ----
 Hybrid::
 +
 [source,java]
 ----
-List<GroupedByCity> counts = ORM(dataSource).entity(User.class)
+Map<Ref<City>, Long> counts = ORM(dataSource).entity(User.class)
     .select(GroupedByCity.class, RAW."\{select(City.class, SelectMode.PK)}, COUNT(*)")
     .groupBy(RAW."\{User_.city}")
-    .getResultList();
+    .getResultList()
+        .collect(toMap(GroupedByCity::city, GroupedByCity::count));
 ----
 ====
 
