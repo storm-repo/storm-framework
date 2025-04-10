@@ -27,6 +27,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.RecordComponent;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -191,6 +192,15 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
         return component.isAnnotationPresent(PK.class)
                 || (JAVAX_NONNULL != null && component.isAnnotationPresent(JAVAX_NONNULL))
                 || (JAKARTA_NONNULL != null && component.isAnnotationPresent(JAKARTA_NONNULL));
+    }
+
+    @Override
+    public List<Class<?>> getPermittedSubclasses(@Nonnull Class<?> sealedClass) {
+        Class<?>[] classes = sealedClass.getPermittedSubclasses();
+        if (classes == null) {
+            return List.of();
+        }
+        return List.of(classes);
     }
 
     @Override

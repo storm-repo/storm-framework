@@ -44,6 +44,8 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
+import static java.util.stream.Collectors.toList;
+
 public final class KORMReflectionImpl implements ORMReflection {
     private final static Map<ComponentCacheKey, Parameter> COMPONENT_PARAMETER_CACHE = new ConcurrentHashMap<>();
     private final static Map<ComponentCacheKey, Boolean> COMPONENT_NONNULL_CACHE = new ConcurrentHashMap<>();
@@ -225,6 +227,13 @@ public final class KORMReflectionImpl implements ORMReflection {
                 return defaultReflection.isNonnull(component);
             }
         });
+    }
+
+    @Override
+    public List<Class<?>> getPermittedSubclasses(@Nonnull Class<?> sealedClass) {
+        return JvmClassMappingKt.getKotlinClass(sealedClass).getSealedSubclasses().stream()
+                .map(JvmClassMappingKt::getJavaClass)
+                .collect(toList());
     }
 
     @Override

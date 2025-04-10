@@ -22,6 +22,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.RecordComponent;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -101,6 +102,14 @@ public interface ORMReflection {
      * @return true if the specified component has a non-null annotation, false otherwise.
      */
     boolean isNonnull(@Nonnull RecordComponent component);
+
+    /**
+     * Returns the permitted subclasses of the specified sealed class.
+     *
+     * @param sealedClass the sealed class to get the permitted subclasses for.
+     * @return a list of permitted subclasses of the specified sealed class.
+     */
+    List<Class<?>> getPermittedSubclasses(@Nonnull Class<?> sealedClass);
 
     Object invokeComponent(@Nonnull RecordComponent component, @Nonnull Object record) throws Throwable;
 

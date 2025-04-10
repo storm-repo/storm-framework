@@ -1,5 +1,6 @@
 package st.orm.json;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
@@ -25,10 +26,12 @@ import javax.sql.DataSource;
 import java.util.List;
 import java.util.Map;
 
+import static com.fasterxml.jackson.annotation.JsonTypeInfo.Id.NAME;
 import static java.lang.StringTemplate.RAW;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.Templates.ORM;
 import static st.orm.Templates.alias;
 import static st.orm.template.SqlInterceptor.consume;
@@ -182,5 +185,42 @@ public class JsonIntegrationTest {
         } catch (PersistenceException _) {
             // H2 Does not support JSON_OBJECTAGG. We only check the expected SQL.
         }
+    }
+
+    // No need to specify the sub types here, as we're automatically registering the implementations of the sealed interface.
+
+    // @JsonSubTypes({
+    //         @JsonSubTypes.Type(value = PersonA.class, name = "A"),
+    //         @JsonSubTypes.Type(value = PersonB.class, name = "B")
+    // })
+
+    @JsonTypeInfo(use = NAME)
+    public sealed interface PolymorphicPerson permits PersonA, PersonB {}
+
+    // The type name is automatically derived from the class name, so the annotation is not needed.
+
+    // @JsonTypeName("A")
+    public record PersonA(String firstName, String lastName) implements PolymorphicPerson {}
+
+    // @JsonTypeName("B")
+    public record PersonB(String firstName, String lastName) implements PolymorphicPerson {}
+
+    @Builder(toBuilder = true)
+    @DbTable("owner")
+    public record OwnerWithPolymorphicPerson(
+            @PK Integer id,
+            @Nonnull @Json PolymorphicPerson person,
+            @Nonnull @Json Address address,
+            @Nullable String telephone
+    ) implements Entity<Integer> {
+    }
+
+    @Test
+    public void testPolymorphic() {
+        var ORM = ORM(dataSource);
+        var query = ORM.query(RAW."SELECT id, JSON_OBJECT('@type' VALUE 'PersonA', 'firstName' VALUE first_name, 'lastName' VALUE last_name) AS person, address, telephone FROM owner");
+        var owner = query.getResultList(OwnerWithPolymorphicPerson.class);
+        assertEquals(10, owner.size());
+        assertTrue(owner.stream().allMatch(x -> x.person instanceof PersonA));
     }
 }
