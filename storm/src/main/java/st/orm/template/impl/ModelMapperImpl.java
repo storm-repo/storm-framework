@@ -17,7 +17,6 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.EnumType;
 import st.orm.FK;
 import st.orm.DbEnum;
 import st.orm.Ref;
@@ -31,7 +30,6 @@ import st.orm.template.SqlTemplateException;
 
 import java.lang.reflect.RecordComponent;
 import java.util.LinkedHashMap;
-import java.util.Optional;
 import java.util.SequencedMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
