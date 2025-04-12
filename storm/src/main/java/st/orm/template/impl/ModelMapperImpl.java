@@ -17,7 +17,9 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.EnumType;
 import st.orm.FK;
+import st.orm.DbEnum;
 import st.orm.Ref;
 import st.orm.PK;
 import st.orm.PersistenceException;
@@ -29,6 +31,7 @@ import st.orm.template.SqlTemplateException;
 
 import java.lang.reflect.RecordComponent;
 import java.util.LinkedHashMap;
+import java.util.Optional;
 import java.util.SequencedMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -37,6 +40,7 @@ import java.util.function.Predicate;
 
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
+import static st.orm.EnumType.NAME;
 import static st.orm.spi.Providers.getORMConverter;
 import static st.orm.spi.Providers.getORMReflection;
 
@@ -256,6 +260,15 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
                     : REFLECTION.invokeComponent(component, record);
             if (o == null && !parentNullable && REFLECTION.isNonnull(component)) {
                 throw new SqlTemplateException(STR."Nonnull component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
+            }
+            if (o instanceof Enum<?> e) {
+                return callback.apply(column,
+                        switch (ofNullable(REFLECTION.getAnnotation(component, DbEnum.class))
+                                .map(DbEnum::value)
+                                .orElse(NAME)) {
+                    case NAME -> e.name();
+                    case ORDINAL -> e.ordinal();
+                });
             }
             return callback.apply(column, o);
         }

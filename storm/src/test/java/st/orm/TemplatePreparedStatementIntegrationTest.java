@@ -767,7 +767,7 @@ public class TemplatePreparedStatementIntegrationTest {
     public void testUpdateSetWhereWithAlias() {
         var update = petRepository.findById(1).toBuilder()
                 .name("Leona")
-                .type(PetType.builder().id(2).build())
+                .type(PetType.builder().id(1).build())
                 .build();
         try (var query = ORM(dataSource).query(RAW."""
                 UPDATE \{update(Pet.class, "p")}
@@ -784,7 +784,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 WHERE \{where(update)}""").prepare()) {
             var result = query.getSingleResult(Pet.class);
             assertEquals("Leona", result.name());
-            assertEquals(1, result.type().id());
+            assertEquals(0, result.type().id());
         }
     }
 
@@ -847,7 +847,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 WHERE \{where(Pet.builder().id(1).build())}""").prepare()) {
             var result = query.getSingleResult(Pet.class);
             assertEquals("Leo", result.name());
-            assertEquals(1, result.type().id());
+            assertEquals(0, result.type().id());
         }
     }
 

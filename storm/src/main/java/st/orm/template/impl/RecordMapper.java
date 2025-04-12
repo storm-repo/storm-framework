@@ -17,6 +17,8 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.EnumType;
+import st.orm.DbEnum;
 import st.orm.Ref;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
@@ -29,10 +31,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 import static java.lang.System.arraycopy;
 import static java.util.Collections.addAll;
 import static java.util.Optional.empty;
+import static java.util.Optional.ofNullable;
+import static st.orm.EnumType.NAME;
 import static st.orm.spi.Providers.getORMConverter;
 import static st.orm.template.impl.ObjectMapperFactory.construct;
 import static st.orm.template.impl.RecordReflection.getRefPkType;
@@ -187,6 +192,8 @@ final class RecordMapper {
      */
     private record AdaptArgumentsResult(Object[] arguments, int offset) {}
 
+    private static final Pattern INT_PATTERN = Pattern.compile("\\d+");
+
     /**
      * Adapts the specified arguments to match the parameter types of the constructor.
      *
@@ -236,6 +243,24 @@ final class RecordMapper {
                     arg = interner.intern(construct(recordConstructor, result.arguments(), argsIndex + i));
                 }
                 currentIndex = result.offset();
+            } else if (paramType.isEnum()) {
+                EnumType type = ofNullable(REFLECTION.getAnnotation(component, DbEnum.class))
+                        .map(DbEnum::value)
+                        .orElse(NAME);
+                Object v = switch (type) {
+                    case NAME -> args[currentIndex++];
+                    case ORDINAL -> {
+                        Object o = args[currentIndex++];
+                        if (o == null) {
+                            yield null;
+                        }
+                        if (o instanceof String s && INT_PATTERN.matcher(s).matches()) {
+                            yield Integer.parseInt(s);
+                        }
+                        throw new SqlTemplateException(STR."Invalid ordinal value '\{o}' for enum \{paramType.getName()}.");
+                    }
+                };
+                arg = EnumMapper.getFactory(1, paramType).orElseThrow().newInstance(new Object[] { v });
             } else if (Ref.class.isAssignableFrom(paramType)) {
                 Object pk = args[currentIndex++];
                 arg = pk == null ? Ref.ofNull() : refFactory.create(getRefRecordType(recordComponents[i]), pk);

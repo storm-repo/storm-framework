@@ -30,7 +30,9 @@ import st.orm.template.PreparedStatementTemplate;
 import st.orm.template.Sql;
 import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplate.BatchListener;
+import st.orm.template.SqlTemplate.NamedParameter;
 import st.orm.template.SqlTemplate.Parameter;
+import st.orm.template.SqlTemplate.PositionalParameter;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.TableAliasResolver;
 import st.orm.template.TableNameResolver;
@@ -236,7 +238,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         for (var parameter : parameters) {
             var dbValue = parameter.dbValue();
             switch (parameter) {
-                case SqlTemplate.PositionalParameter p -> {
+                case PositionalParameter p -> {
                     switch (dbValue) {
                         case null      -> preparedStatement.setObject(p.position(), null);
                         case Short s   -> preparedStatement.setShort(p.position(), s);
@@ -250,11 +252,12 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                         case java.sql.Date d -> preparedStatement.setDate(p.position(), d);
                         case java.sql.Time t -> preparedStatement.setTime(p.position(), t);
                         case java.sql.Timestamp t -> preparedStatement.setTimestamp(p.position(), t);
+                        // Always write enums as String. Ordinal option is handled at the ORM level.
                         case Enum<?> e -> preparedStatement.setString(p.position(), e.name());
                         default -> preparedStatement.setObject(p.position(), dbValue);
                     }
                 }
-                case SqlTemplate.NamedParameter _ -> throw new SQLException("Named parameters not supported for PreparedStatement.");
+                case NamedParameter _ -> throw new SQLException("Named parameters not supported for PreparedStatement.");
             }
         }
     }

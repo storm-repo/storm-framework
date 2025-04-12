@@ -19,6 +19,7 @@ import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
 import st.orm.PersistenceException;
 import st.orm.template.SqlTemplate;
+import st.orm.template.SqlTemplate.PositionalParameter;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.impl.Elements.Set;
 
@@ -98,7 +99,7 @@ final class SetProcessor implements ElementProcessor<Set> {
             var column = entry.getKey();
             if (!column.version()) {
                 args.add(dialectTemplate."\{primaryTable.alias().isEmpty() ? "" : STR."\{primaryTable.alias()}."}\{column.qualifiedName(template.dialect())} = ?");
-                parameters.add(new SqlTemplate.PositionalParameter(parameterPosition.getAndIncrement(), entry.getValue()));
+                parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), entry.getValue()));
                 args.add(", ");
             } else {
                 var versionString = getVersionString(column.qualifiedName(template.dialect()), column.type(), primaryTable.alias());
@@ -143,7 +144,7 @@ final class SetProcessor implements ElementProcessor<Set> {
                     return ModelMapper.of(modelBuilder.build(record, false))
                             .map(record, column -> !column.primaryKey() && column.updatable() && !column.version())
                             .values().stream()
-                            .map(o -> new SqlTemplate.PositionalParameter(position.getAndIncrement(), o))
+                            .map(o -> new PositionalParameter(position.getAndIncrement(), o))
                             .toList();
                 } catch (SqlTemplateException ex) {
                     // BindVars works at the abstraction level of the ORM, so we throw a PersistenceException here.

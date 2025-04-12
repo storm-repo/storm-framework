@@ -11,6 +11,7 @@ import st.orm.model.Owner;
 import st.orm.model.Pet;
 import st.orm.model.PetType;
 import st.orm.model.PetTypeEnum;
+import st.orm.template.SqlTemplateException;
 
 import javax.sql.DataSource;
 import java.time.LocalDate;
@@ -19,6 +20,7 @@ import java.util.Objects;
 
 import static java.lang.StringTemplate.RAW;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static st.orm.Templates.ORM;
 
@@ -115,6 +117,19 @@ public class PlainPreparedStatementIntegrationTest {
              var stream = query.getResultStream(Pet.class)) {
             assertEquals(13, stream.map(Pet::type).filter(Objects::isNull).count());
         }
+    }
+
+    @Test
+    public void testSelectPetTypedWithLocalRecordAndEnumNullNonnull() {
+        record Pet(int id, String name, LocalDate birthDate, @Nonnull PetTypeEnum type) {}
+        PersistenceException e = assertThrows(PersistenceException.class, () -> {
+            var query = ORM(dataSource).query(RAW."""
+                SELECT p.id, p.name, p.birth_date, NULL pet_type
+                FROM pet p
+                  INNER JOIN pet_type pt ON p.type_id = pt.id""");
+            query.getResultList(Pet.class);
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
 
     @Test

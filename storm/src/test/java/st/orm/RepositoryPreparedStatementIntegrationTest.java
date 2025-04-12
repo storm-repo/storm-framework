@@ -17,6 +17,7 @@ import st.orm.model.Pet;
 import st.orm.model.PetOwnerRef;
 import st.orm.model.PetOwnerRef_;
 import st.orm.model.PetOwnerRecursion;
+import st.orm.model.PetTypeEnum;
 import st.orm.model.PetWithNullableOwnerRef;
 import st.orm.model.PetWithNullableOwnerRef_;
 import st.orm.model.Pet_;
@@ -54,6 +55,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static st.orm.EnumType.ORDINAL;
 import static st.orm.Templates.ORM;
 import static st.orm.Templates.alias;
 import static st.orm.Templates.column;
@@ -1230,5 +1232,47 @@ public class RepositoryPreparedStatementIntegrationTest {
                     .append(RAW."AND 3 = \{3}")
                     .getResultList();
         }
+    }
+
+    /**
+     * Simple business object representing a pet.
+     */
+    @Builder(toBuilder = true)
+    @DbTable("pet")
+    public record PetWithEnum(
+            @PK Integer id,
+            @Nonnull String name,
+            @Nonnull LocalDate birthDate,
+            @Nonnull @DbEnum(ORDINAL) @DbColumn("type_id") PetTypeEnum type,
+            @Nullable @FK Owner owner
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void testOrdinalEnumSelect() {
+        var pets = ORM(dataSource).entity(PetWithEnum.class)
+                .select()
+                .getResultList();
+        assertEquals(13, pets.size());
+    }
+
+    /**
+     * Simple business object representing a pet.
+     */
+    @Builder(toBuilder = true)
+    @DbTable("pet")
+    public record PetWithIntEnum(
+            @PK Integer id,
+            @Nonnull String name,
+            @Nonnull LocalDate birthDate,
+            @DbColumn("type_id") int type,
+            @Nullable @FK Owner owner
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void testIntEnumSelect() {
+        var pets = ORM(dataSource).entity(PetWithIntEnum.class)
+                .select()
+                .getResultList();
+        assertEquals(13, pets.size());
     }
 }

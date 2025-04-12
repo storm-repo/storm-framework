@@ -32,6 +32,8 @@ import st.orm.template.JpaTemplate;
 import st.orm.template.ORMTemplate;
 import st.orm.template.Sql;
 import st.orm.template.SqlTemplate;
+import st.orm.template.SqlTemplate.NamedParameter;
+import st.orm.template.SqlTemplate.PositionalParameter;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.TableAliasResolver;
 import st.orm.template.TableNameResolver;
@@ -90,7 +92,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         for (var parameter : parameters) {
             var dbValue = parameter.dbValue();
             switch (parameter) {
-                case SqlTemplate.PositionalParameter p -> {
+                case PositionalParameter p -> {
                     switch (dbValue) {
                         case null -> query.setParameter(p.position(), null);
                         case java.sql.Date d -> query.setParameter(p.position(), d, DATE);
@@ -99,7 +101,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
                         default -> query.setParameter(p.position(), dbValue);
                     }
                 }
-                case SqlTemplate.NamedParameter n -> {
+                case NamedParameter n -> {
                     switch (dbValue) {
                         case null -> query.setParameter(n.name(), null);
                         case java.sql.Date d -> query.setParameter(n.name(), d, DATE);

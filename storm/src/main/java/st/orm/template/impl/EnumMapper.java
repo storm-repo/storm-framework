@@ -17,6 +17,7 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.PersistenceException;
+import st.orm.template.SqlTemplateException;
 
 import java.util.Optional;
 
@@ -43,7 +44,7 @@ final class EnumMapper {
             throw new PersistenceException(STR."Type must be an enum: \{type.getName()}.");
         }
         if (columnCount == 1) {
-            return Optional.of(new ObjectMapper<T>() {
+            return Optional.of(new ObjectMapper<>() {
                 @Override
                 public Class<?>[] getParameterTypes() {
                     return new Class<?>[] { type };
@@ -51,11 +52,41 @@ final class EnumMapper {
 
                 @SuppressWarnings("unchecked")
                 @Override
-                public T newInstance(@Nonnull Object[] args) {
-                    return (T) args[0];
+                public T newInstance(@Nonnull Object[] args) throws SqlTemplateException {
+                    Object arg = args[0];
+                    if (arg == null) {
+                        return null;
+                    }
+                    if (arg instanceof String s) {
+                        return (T) getEnumFromName(type, s);
+                    }
+                    if (arg instanceof Integer n) {
+                        return (T) getEnumFromOrdinal(type, n);
+                    }
+                    throw new SqlTemplateException(STR."Invalid value '\{arg}' for enum \{type.getName()}.");
                 }
             });
         }
         return empty();
+    }
+
+    private static Enum<?> getEnumFromName(@Nonnull Class<?> enumType, @Nonnull String name)
+            throws SqlTemplateException {
+        try {
+            //noinspection unchecked,rawtypes
+            return Enum.valueOf((Class<? extends Enum>) enumType, name);
+        } catch (IllegalArgumentException e) {
+            throw new SqlTemplateException(STR."No enum constant \{enumType.getName()} for value '\{name}'.", e);
+        }
+    }
+
+    private static Enum<?> getEnumFromOrdinal(@Nonnull Class<?> enumType, @Nonnull Integer ordinal)
+            throws SqlTemplateException {
+        Enum<?>[] enumConstants = (Enum<?>[]) enumType.getEnumConstants();
+        if (ordinal >= 0 && ordinal < enumConstants.length) {
+            return enumConstants[ordinal];
+        } else {
+            throw new SqlTemplateException(STR."Invalid ordinal '\{ordinal}' for enum \{enumType.getName()}.");
+        }
     }
 }

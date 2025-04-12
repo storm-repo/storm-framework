@@ -33,7 +33,6 @@ import java.util.stream.Stream;
 
 import static java.lang.Integer.toHexString;
 import static java.lang.System.identityHashCode;
-import static java.util.Optional.ofNullable;
 import static java.util.stream.Stream.generate;
 import static st.orm.template.impl.ObjectMapperFactory.getObjectMapper;
 
@@ -315,7 +314,6 @@ class QueryImpl implements Query {
      * @param mapper      mapper to use for creating instances.
      * @return the next row from the ResultSet or null if no more rows are available.
      */
-    @SuppressWarnings({"rawtypes", "unchecked"})
     protected <T> T readNext(@Nonnull ResultSet resultSet, int columnCount, @Nonnull ObjectMapper<T> mapper) {
         try {
             if (!resultSet.next()) {
@@ -342,15 +340,7 @@ class QueryImpl implements Query {
                         case Class<?> c when c == Byte.TYPE -> resultSet.getByte(i + 1);
                         case Class<?> c when c == Boolean.TYPE -> resultSet.getBoolean(i + 1);
                         case Class<?> c when c == String.class -> resultSet.getString(i + 1);
-                        case Class<?> c when c.isEnum() -> ofNullable(resultSet.getString(i + 1))
-                                .map(s -> {
-                                    try {
-                                        return Enum.valueOf((Class<? extends Enum>) c, s);
-                                    } catch (IllegalArgumentException e) {
-                                        throw new PersistenceException(STR."No enum constant \{c.getName()} for value '\{s}'.");
-                                    }
-                                })
-                                .orElse(null);
+                        case Class<?> c when c.isEnum() -> resultSet.getString(i + 1);  // Enum is read as string and taken care of by object mapper.
                         default -> resultSet.getObject(i + 1, types[i]);
                     };
                     if (resultSet.wasNull()) {
