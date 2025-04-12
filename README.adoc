@@ -64,10 +64,10 @@ Storm entities are defined using Java record classes. By default, Storm automati
 entity fields directly to corresponding database columns. This approach simplifies development, as explicit annotations
 or mappings are not required for standard naming conventions.
 
-Consider the following example, where two entities — City and User — are defined:
+Consider the following example, where two entities are defined:
 
-* The City entity maps directly to the columns: id, name, and population.
-* The User entity maps directly to the columns: id, email, birth_date, street, postal_code and city_id.
+* The `City` entity maps directly to the columns: `id`, `name`, and `population`.
+* The `User` entity maps directly to the columns: `id`, `email`, `birth_date`, `street`, `postal_code` and `city_id`.
 
 When an entity references another entity, Storm applies a default naming convention to handle foreign keys. For
 instance, the city field in the User entity automatically maps to the city_id column in the database, creating a foreign
@@ -95,28 +95,66 @@ operations.
 ==== Nullability
 
 In Storm, all fields are nullable by default, except for the primary key field, which is always non-nullable. To
-explicitly mark a field as non-nullable, use the `@Nonnull` annotation. Storm automatically validates nullability
-constraints when reading from or writing to the database, throwing an exception if a non-nullable field is found to be
-`null`.
+explicitly mark a field as non-nullable, use the `@Nonnull` annotation. When a non-nullable field is of a primitive
+wrapper type (e.g., `Integer`, `Long`), it can alternatively be specified as its primitive counterpart (`int`, `long`),
+inherently enforcing non-nullability.
 
-Additionally, it's beneficial to use the optional `@Nullable` annotation, as it enables automatic null-checking support
+Storm automatically validates nullability constraints when interacting with the database, throwing an exception if a
+non-nullable field is found to be `null`.
+
+Additionally, it is beneficial to use the optional `@Nullable` annotation, as it enables automatic null-checking support
 within your IDE.
 
-[source,java,indent=0]
+[source,java]
 ----
 record User(@PK int id,
             @Nonnull String email,
             @Nonnull LocalDate birthDate,
             @Nonnull String street,
-            @Nullable String postalCode,
+            String postalCode,
             @Nullable @FK City city
 ) implements Entity<User, Integer> {}
 ----
 
 In this example, the fields `id`, `email`, `birthDate`, and `street` are marked as non-nullable, whereas the
-`postalCode` and `city` fields remain nullable. Consequently, the relationship between the `User` and `City` entities
+`postalCode` and `city` fields are nullable. Consequently, the relationship between the `User` and `City` entities
 results in a left join, accommodating potential `null` values for the `city` field. Conversely, a non-nullable foreign
 key would lead to an inner join, ensuring the referenced entity must always exist.
+
+==== Enumerations
+
+Storm provides built-in support for enumerations, simplifying how predefined sets of values are handled in entities. By
+default, enumerations (`enum` types) are stored in the database using their names. However, Storm allows you to customize
+this persistence behavior using the `@DbEnum` annotation, enabling storage as either the enum's `NAME` (default) or
+`ORDINAL` (integer index). This flexibility facilitates seamless integration with existing database schemas or preferred
+storage formats.
+
+[source,java]
+----
+enum RoleType {
+    USER,
+    ADMIN
+}
+
+record Role(@PK int id,
+            @Nonnull String name,
+            @Nonnull RoleType type
+) implements Entity<Integer> {}
+----
+
+In this example, the RoleType enumeration values (`USER` and `ADMIN`) are persisted directly by their names
+("USER" and "ADMIN") in the database.
+
+[source,java]
+----
+record Role(@PK int id,
+            @Nonnull String name,
+            @Nonnull @DbEnum(ORDINAL) RoleType type
+) implements Entity<Integer> {}
+----
+
+In the second example, `@DbEnum(ORDINAL)` instructs Storm to persist the RoleType enumeration using its ordinal value
+(integer index) instead of its name.
 
 ==== Naming Conventions
 
@@ -233,13 +271,11 @@ the relationship can be defined using the `@FK` annotation. For example, conside
 
 [source,java,indent=0]
 ----
-record Role(@PK Integer id, String name) implements Entity<Integer> {}
-
 record UserRolePk(int userId, int roleId) {}
 
 record UserRole(@PK UserRolePk userRolePk,
-                @FK User user,
-                @FK Role role
+                @Nonnull @FK User user,
+                @Nonnull @FK Role role
 ) implements Entity<UserRolePk> {}
 ----
 
