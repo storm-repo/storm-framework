@@ -776,7 +776,7 @@ ORM::
 +
 [source,java]
 ----
-try (Stream<User> users = userRepository.select()) {
+try (Stream<User> users = userRepository.selectAll()) {
     List<Integer> userIds = users.map(User::id).toList();
     ...
 }
