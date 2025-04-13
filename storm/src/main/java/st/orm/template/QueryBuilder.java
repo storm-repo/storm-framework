@@ -509,7 +509,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param predicate the predicate to add.
          * @return the predicate builder.
          */
-        PredicateBuilder<T, R, ID> and(@Nonnull PredicateBuilder<T, R, ID> predicate);
+        PredicateBuilder<T, R, ID> and(@Nonnull PredicateBuilder<?, ?, ?> predicate);
 
         /**
          * Adds a predicate to the WHERE clause using an OR condition.
@@ -520,7 +520,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param predicate the predicate to add.
          * @return the predicate builder.
          */
-        PredicateBuilder<T, R, ID> or(@Nonnull PredicateBuilder<T, R, ID> predicate);
+        PredicateBuilder<T, R, ID> or(@Nonnull PredicateBuilder<?, ?, ?> predicate);
     }
 
     /**

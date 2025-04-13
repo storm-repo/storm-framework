@@ -593,7 +593,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @param predicate the predicate to add.
          * @return the predicate builder.
          */
-        KPredicateBuilder<T, R, ID> and(@Nonnull KPredicateBuilder<T, R, ID> predicate);
+        KPredicateBuilder<T, R, ID> and(@Nonnull KPredicateBuilder<?, ?, ?> predicate);
 
         /**
          * Adds a predicate to the WHERE clause using an OR condition.
@@ -604,7 +604,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @param predicate the predicate to add.
          * @return the predicate builder.
          */
-        KPredicateBuilder<T, R, ID> or(@Nonnull KPredicateBuilder<T, R, ID> predicate);
+        KPredicateBuilder<T, R, ID> or(@Nonnull KPredicateBuilder<?, ?, ?> predicate);
     }
 
     /**

@@ -51,22 +51,19 @@ public interface KSubqueryTemplate {
      * @param <T> the table type.
      * @param <R> the select type.
      */
-    default <T extends Record, R extends Record> KQueryBuilder<T, R, ?> subquery(@Nonnull KClass<T> fromType,
+    default <T extends Record, R extends Record> KQueryBuilder<T, ?, ?> subquery(@Nonnull KClass<T> fromType,
                                                                                  @Nonnull KClass<R> selectType) {
-        return subquery(fromType, selectType, RAW."\{selectType}");
+        return subquery(fromType, RAW."\{selectType}");
     }
 
     /**
      * Create a subquery for the given table and select type using the given template.
      *
      * @param fromType the table to create the subquery for.
-     * @param selectType the type to select.
      * @param template the template to use for the subquery.
      * @return the subquery builder.
      * @param <T> the table type.
-     * @param <R> the select type.
      */
-    <T extends Record, R> KQueryBuilder<T, R, ?> subquery(@Nonnull KClass<T> fromType,
-                                                          @Nonnull KClass<R> selectType,
+    <T extends Record> KQueryBuilder<T, ?, ?> subquery(@Nonnull KClass<T> fromType,
                                                           @Nonnull StringTemplate template);
 }

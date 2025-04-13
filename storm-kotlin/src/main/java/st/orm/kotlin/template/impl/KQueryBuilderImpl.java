@@ -322,13 +322,13 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> and(@Nonnull KPredicateBuilder<TX, RX, IDX> predicate) {
-            return new KPredicateBuilderImpl<>(predicateBuilder.and(((KPredicateBuilderImpl<TX, RX, IDX>) predicate).predicateBuilder));
+        public KPredicateBuilder<TX, RX, IDX> and(@Nonnull KPredicateBuilder<?, ?, ?> predicate) {
+            return new KPredicateBuilderImpl<>(predicateBuilder.and(((KPredicateBuilderImpl<?, ?, ?>) predicate).predicateBuilder));
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> or(@Nonnull KPredicateBuilder<TX, RX, IDX> predicate) {
-            return new KPredicateBuilderImpl<>(predicateBuilder.or(((KPredicateBuilderImpl<TX, RX, IDX>) predicate).predicateBuilder));
+        public KPredicateBuilder<TX, RX, IDX> or(@Nonnull KPredicateBuilder<?, ?, ?> predicate) {
+            return new KPredicateBuilderImpl<>(predicateBuilder.or(((KPredicateBuilderImpl<?, ?, ?>) predicate).predicateBuilder));
         }
     }
 
@@ -340,9 +340,9 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
         }
 
         @Override
-        public <T extends Record, R> KQueryBuilder<T, R, ?> subquery(@Nonnull KClass<T> fromType, @Nonnull KClass<R> selectType, @Nonnull StringTemplate template) {
+        public <T extends Record> KQueryBuilder<T, ?, ?> subquery(@Nonnull KClass<T> fromType, @Nonnull StringTemplate template) {
             //noinspection unchecked
-            return new KQueryBuilderImpl<>(whereBuilder.subquery((Class<T>) REFLECTION.getRecordType(fromType), (Class<R>) REFLECTION.getType(selectType), template));
+            return new KQueryBuilderImpl<>(whereBuilder.subquery((Class<T>) REFLECTION.getRecordType(fromType), template));
         }
 
         @Override

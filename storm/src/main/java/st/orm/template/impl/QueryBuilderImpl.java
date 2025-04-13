@@ -333,20 +333,20 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> and(@Nonnull PredicateBuilder<TX, RX, IDX> predicate) {
+            public PredicateBuilder<TX, RX, IDX> and(@Nonnull PredicateBuilder<?, ?, ?> predicate) {
                 add(RAW_AND, predicate);
                 return this;
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> or(@Nonnull PredicateBuilder<TX, RX, IDX> predicate) {
+            public PredicateBuilder<TX, RX, IDX> or(@Nonnull PredicateBuilder<?, ?, ?> predicate) {
                 add(RAW_OR, predicate);
                 return this;
             }
 
-            private void add(@Nonnull StringTemplate operator, @Nonnull PredicateBuilder<TX, RX, IDX> predicate) {
+            private void add(@Nonnull StringTemplate operator, @Nonnull PredicateBuilder<?, ?, ?> predicate) {
                 templates.add(operator);
-                var list = ((PredicateBuilderImpl<TX, RX, IDX>) predicate).templates;
+                var list = ((PredicateBuilderImpl<?, ?, ?>) predicate).templates;
                 if (list.size() > 1) {
                     templates.add(RAW_OPEN);
                 }
@@ -363,8 +363,8 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
         class WhereBuilderImpl<TX extends Record, RX, IDX> extends WhereBuilder<TX, RX, IDX> {
 
             @Override
-            public <F extends Record, S> QueryBuilder<F, S, ?> subquery(@Nonnull Class<F> fromType, @Nonnull Class<S> selectType, @Nonnull StringTemplate template) {
-                return queryTemplate.subquery(fromType, selectType, template);
+            public <F extends Record> QueryBuilder<F, ?, ?> subquery(@Nonnull Class<F> fromType, @Nonnull StringTemplate template) {
+                return queryTemplate.subquery(fromType, template);
             }
 
             @Override
