@@ -243,7 +243,7 @@ public class MetamodelImpl<T extends Record, E> implements Metamodel<T, E> {
 
     @Override
     public String toString() {
-        return STR."Metamodel{table=\{componentType}, path='\{path}', component='\{component}'}";
+        return STR."Metamodel{root=\{root().getSimpleName()}, type=\{componentType.getSimpleName()}, path='\{path}', component='\{component}'}";
     }
 
     private static class SimpleMetamodel<T extends Record, E> implements Metamodel<T, E> {
@@ -305,7 +305,7 @@ public class MetamodelImpl<T extends Record, E> implements Metamodel<T, E> {
 
         @Override
         public String toString() {
-            return STR."Metamodel{table=\{componentType}, path='\{path}', component='\{component}'}";
+            return STR."Metamodel{root=\{rootTable.getSimpleName()}, type=\{componentType.getSimpleName()}, path='\{path}', component='\{component}'}";
         }
     }
 }

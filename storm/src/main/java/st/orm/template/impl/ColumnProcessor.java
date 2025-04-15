@@ -67,7 +67,8 @@ final class ColumnProcessor implements ElementProcessor<Column> {
                 throw new SqlTemplateException(STR."Nested metamodel \{metamodel} is not the primary table \{primaryTable.table()}.");
             }
         }
-        String alias = aliasMapper.getAlias(column.metamodel(), column.scope(), template.dialect());
+        String alias = aliasMapper.getAlias(column.metamodel(), column.scope(), template.dialect(),
+                () -> new SqlTemplateException(STR."Table for Column not found at \{metamodel}."));
         RecordComponent component = getRecordComponent(metamodel.root(), column.metamodel().componentPath());
         ColumnName columnName;
         if (REFLECTION.isAnnotationPresent(component, FK.class)) {

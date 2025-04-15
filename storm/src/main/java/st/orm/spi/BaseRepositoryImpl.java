@@ -290,7 +290,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      *                              connectivity.
      */
     public Stream<E> select(@Nonnull Stream<ID> ids, int batchSize) {
-        return slice(ids, batchSize, batch -> select().whereIds(batch).getResultStream()); // Stream returned by getResultStream is closed by the batch operation.
+        return slice(ids, batchSize, batch -> select().whereId(batch).getResultStream()); // Stream returned by getResultStream is closed by the batch operation.
     }
 
     /**
@@ -325,7 +325,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
     public long count(@Nonnull Stream<ID> ids, int batchSize) {
         return slice(ids, batchSize)
                 .mapToLong(slice -> select(Long.class, RAW."COUNT(*)")
-                        .whereIds(slice)
+                        .whereId(slice)
                         .getSingleResult())
                 .sum();
     }

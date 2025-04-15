@@ -368,11 +368,6 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> expression(@Nonnull StringTemplate template) {
-                return new PredicateBuilderImpl<>(template);
-            }
-
-            @Override
             public PredicateBuilder<TX, RX, IDX> exists(@Nonnull QueryBuilder<?, ?, ?> subquery) {
                 return new PredicateBuilderImpl<>(RAW."EXISTS (\{subquery})");
             }
@@ -383,67 +378,92 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull IDX id) {
+            public PredicateBuilder<TX, RX, IDX> isId(@Nonnull IDX id) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(EQUALS, id)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull Ref<TX> ref) {
+            public PredicateBuilder<TX, RX, IDX> isRef(@Nonnull Ref<TX> ref) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(EQUALS, ref)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull TX record) {
+            public PredicateBuilder<TX, RX, IDX> hasRef(@Nonnull Ref<? extends Record> ref) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(EQUALS, ref)}");
+            }
+
+            @Override
+            public PredicateBuilder<TX, RX, IDX> is(@Nonnull TX record) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(EQUALS, record)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> filterAny(@Nonnull Record record) {
+            public PredicateBuilder<TX, RX, IDX> has(@Nonnull Record record) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(EQUALS, record)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> filterIds(@Nonnull Iterable<? extends IDX> it) {
+            public PredicateBuilder<TX, RX, IDX> isId(@Nonnull Iterable<? extends IDX> it) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(IN, it)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> filterRefs(@Nonnull Iterable<? extends Ref<TX>> it) {
+            public PredicateBuilder<TX, RX, IDX> isRef(@Nonnull Iterable<? extends Ref<TX>> it) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(IN, it)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> filter(@Nonnull Iterable<? extends TX> it) {
+            public PredicateBuilder<TX, RX, IDX> hasRef(@Nonnull Iterable<? extends Ref<? extends Record>> it) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(IN, it)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> filterAny(@Nonnull Iterable<? extends Record> it) {
+            public PredicateBuilder<TX, RX, IDX> is(@Nonnull Iterable<? extends TX> it) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(IN, it)}");
             }
 
             @Override
-            public <V extends Record> PredicateBuilder<TX, RX, IDX> filter(@Nonnull Metamodel<TX, V> path, @Nonnull Ref<V> ref) {
+            public PredicateBuilder<TX, RX, IDX> has(@Nonnull Iterable<? extends Record> it) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(IN, it)}");
+            }
+
+            @Override
+            public <V extends Record> PredicateBuilder<TX, RX, IDX> when(@Nonnull Metamodel<TX, V> path, @Nonnull Ref<V> ref) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(path, EQUALS, ref)}");
             }
 
             @Override
-            public <V> PredicateBuilder<TX, RX, IDX> filter(@Nonnull Metamodel<TX, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
-                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(path, operator, it)}");
+            public <V extends Record> PredicateBuilder<TX, RX, IDX> whenAny(@Nonnull Metamodel<?, V> path, @Nonnull Ref<V> ref) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(path, EQUALS, ref)}");
             }
 
             @Override
-            public <V extends Record> PredicateBuilder<TX, RX, IDX> filterRefs(@Nonnull Metamodel<TX, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
+            public <V extends Record> PredicateBuilder<TX, RX, IDX> whenRef(@Nonnull Metamodel<TX, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(path, IN, it)}");
             }
 
             @Override
-            public <V> PredicateBuilder<TX, RX, IDX> filterAny(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
+            public <V extends Record> PredicateBuilder<TX, RX, IDX> whenAnyRef(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(path, IN, it)}");
+            }
+
+            @Override
+            public <V> PredicateBuilder<TX, RX, IDX> when(@Nonnull Metamodel<TX, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(path, operator, it)}");
             }
 
             @Override
-            protected <V> PredicateBuilder<TX, RX, IDX> filterImpl(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull V[] o) {
+            public <V> PredicateBuilder<TX, RX, IDX> whenAny(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
+                return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(path, operator, it)}");
+            }
+
+            @Override
+            public PredicateBuilder<TX, RX, IDX> when(@Nonnull StringTemplate template) {
+                return new PredicateBuilderImpl<>(template);
+            }
+
+            @Override
+            protected <V> PredicateBuilder<TX, RX, IDX> whenImpl(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull V[] o) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(path, operator, o)}");
             }
 

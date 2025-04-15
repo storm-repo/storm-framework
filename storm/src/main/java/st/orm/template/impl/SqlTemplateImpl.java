@@ -106,6 +106,7 @@ import static st.orm.template.impl.SqlParser.getSqlMode;
 import static st.orm.template.impl.SqlParser.hasWhereClause;
 import static st.orm.template.impl.SqlParser.removeComments;
 import static st.orm.template.impl.SqlTemplateProcessor.current;
+import static st.orm.template.impl.SqlTemplateProcessor.subqueryLevel;
 
 /**
  * The sql template implementation that is responsible for generating SQL queries.
@@ -833,7 +834,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     // No join needed for ref components, but we will map the table, so we can query the ref component.
                     String fromAlias;
                     if (fkName == null) {
-                        fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, null, dialect);    // Use local resolve mode to prevent shadowing.
+                        fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, dialect,
+                                () -> new SqlTemplateException(STR."Table \{recordType.getSimpleName()} for From not found at \{fkPath}."));    // Use local resolve mode to prevent shadowing.
                     } else {
                         fromAlias = fkName;
                     }
@@ -852,7 +854,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 // in a unified way (auto join vs manual join).
                 String fromAlias;
                 if (fkName == null) {
-                    fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, componentType, dialect);    // Use local resolve mode to prevent shadowing.
+                    fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, componentType, dialect,
+                            () -> new SqlTemplateException(STR."Table \{recordType.getSimpleName()} for From not found at path \{fkPath}."));   // Use local resolve mode to prevent shadowing.
                 } else {
                     fromAlias = fkName;
                 }
@@ -880,7 +883,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 Class<? extends Record> componentType = (Class<? extends Record>) component.getType();
                 String fromAlias;
                 if (fkName == null) {
-                    fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, componentType, dialect);    // Use local resolve mode to prevent shadowing.
+                    fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, componentType, dialect,
+                            () -> new SqlTemplateException(STR."Table \{recordType.getSimpleName()} for From not found at path \{fkPath}."));   // Use local resolve mode to prevent shadowing.
                 } else {
                     fromAlias = fkName;
                 }
@@ -964,18 +968,18 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public Sql process(@Nonnull StringTemplate template) throws SqlTemplateException {
-        return process(template, current().isPresent());
+        return process(template, subqueryLevel());
     }
 
     /**
      * Processes the specified {@code stringTemplate} and returns the resulting SQL and parameters.
      *
      * @param template the string template to process.
-     * @param nested whether the call is nested.
+     * @param level subquery level, or {@code 0} if not a subquery.
      * @return the resulting SQL and parameters.
      * @throws SqlTemplateException if an error occurs while processing the input.
      */
-    private Sql process(@Nonnull StringTemplate template, boolean nested) throws SqlTemplateException {
+    private Sql process(@Nonnull StringTemplate template, int level) throws SqlTemplateException {
         var fragments = template.fragments();
         var values = template.values();
         Sql generated;
@@ -1046,9 +1050,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
             }
             validateParameters(parameters);
             String sql = String.join("", parts);
-            if (nested && !sql.startsWith("\n") && sql.contains("\n")) {
+            if (level > 0 && !sql.startsWith("\n") && sql.contains("\n")) {
                 //noinspection StringTemplateMigration
-                sql = "\n" + sql.indent(2);
+                sql = "\n" + sql.indent(level * 2);
             }
             generated = new SqlImpl(sql, parameters, ofNullable(bindVariables.get()),
                     generatedKeys, versionAware.getPlain(), checkSafety(sql, sqlMode));
@@ -1056,8 +1060,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
             assert fragments.size() == 1;
             generated = new SqlImpl(fragments.getFirst(), List.of(), empty(), List.of(), false, checkSafety(fragments.getFirst(), sqlMode));
         }
-        if (!nested) {
-            // Don't intercept nested calls.
+        if (level == 0) {
+            // Don't intercept subquery calls.
             SqlInterceptorManager.intercept(generated);
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.fine(STR."Generated SQL:\n\{generated.statement()}");

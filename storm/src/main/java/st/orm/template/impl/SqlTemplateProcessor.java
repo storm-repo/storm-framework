@@ -50,6 +50,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static java.lang.ScopedValue.callWhere;
+import static java.lang.String.join;
 import static java.util.Optional.ofNullable;
 
 /**
@@ -71,6 +73,7 @@ record SqlTemplateProcessor(
         @Nullable PrimaryTable primaryTable
 ) implements ElementProcessor<Element> {
     private static final ScopedValue<SqlTemplateProcessor> CURRENT_PROCESSOR = ScopedValue.newInstance();
+    private static final ScopedValue<Integer> SUBQUERY_LEVEL = ScopedValue.newInstance();
 
     /**
      * Returns the current processor of the calling thread.
@@ -79,6 +82,13 @@ record SqlTemplateProcessor(
      */
     static Optional<SqlTemplateProcessor> current() {
         return ofNullable(CURRENT_PROCESSOR.orElse(null));
+    }
+
+    /**
+     * Returns the subquery level of the calling thread.
+     */
+    static int subqueryLevel() {
+        return SUBQUERY_LEVEL.orElse(0);
     }
 
     /**
@@ -140,7 +150,7 @@ record SqlTemplateProcessor(
         if (!args.isEmpty()) {
             args.removeLast();    // Remove last ", " element.
         }
-        return String.join("", args);
+        return join("", args);
     }
 
     /**
@@ -188,7 +198,7 @@ record SqlTemplateProcessor(
      * @return the SQL statement.
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
-    String parse(@Nonnull StringTemplate stringTemplate, boolean correlate) throws SqlTemplateException {
+    String parseSubquery(@Nonnull StringTemplate stringTemplate, boolean correlate) throws SqlTemplateException {
         Callable<String> callable = () -> {
             Sql sql = template.process(stringTemplate);
             for (var parameter : sql.parameters()) {
@@ -199,11 +209,14 @@ record SqlTemplateProcessor(
             }
             return sql.statement();
         };
+        Callable<String> scopedCallable = () -> {
+            int currentLevel = SUBQUERY_LEVEL.isBound() ? SUBQUERY_LEVEL.get() : 0;
+            return callWhere(SUBQUERY_LEVEL, currentLevel + 1, () -> correlate
+                    ? callWhere(CURRENT_PROCESSOR, this, callable)
+                    : callable.call());
+        };
         try {
-            if (correlate) {
-                return ScopedValue.callWhere(CURRENT_PROCESSOR, this, callable);
-            }
-            return callable.call();
+            return scopedCallable.call();
         } catch (SqlTemplateException e) {
             throw e;
         } catch (Exception e) {

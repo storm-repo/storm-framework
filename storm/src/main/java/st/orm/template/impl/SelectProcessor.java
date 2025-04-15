@@ -100,6 +100,12 @@ final class SelectProcessor implements ElementProcessor<Select> {
     // base.
     //
 
+    private void checkAlias(@Nonnull String alias, @Nonnull Class<?> type) throws SqlTemplateException {
+        if (alias.isEmpty()) {
+            throw new SqlTemplateException(STR."Table \{type.getSimpleName()} not found in table graph.");
+        }
+    }
+
     /**
      * Returns the columns of a record type as a SQL string. Each element of the resulting list is a column.
      *
@@ -128,23 +134,17 @@ final class SelectProcessor implements ElementProcessor<Select> {
             var converter = getORMConverter(component).orElse(null);
             if (converter != null) {
                 if (mode != SelectMode.PK) {
+                    checkAlias(alias, type);
                     converter.getColumns(c -> getColumnName(c, template.columnNameResolver())).forEach(name -> {
-                        if (!alias.isEmpty()) {
-                            columns.add(dialectTemplate."\{alias}.\{name}");
-                        } else {
-                            columns.add(dialectTemplate."\{name}");
-                        }
+                        columns.add(dialectTemplate."\{alias}.\{name}");
                         columns.add(", ");
                     });
                 }
             } else if (fk && (mode != SelectMode.NESTED || ref)) {   // Use foreign key column if not nested or if ref.
                 if (mode != SelectMode.PK) {
+                    checkAlias(alias, type);
                     var name = getForeignKey(component, template.foreignKeyResolver());
-                    if (!alias.isEmpty()) {
-                        columns.add(dialectTemplate."\{alias}.\{name}");
-                    } else {
-                        columns.add(dialectTemplate."\{name}");
-                    }
+                    columns.add(dialectTemplate."\{alias}.\{name}");
                     columns.add(", ");
                 }
             } else if (component.getType().isRecord()) {
@@ -169,12 +169,9 @@ final class SelectProcessor implements ElementProcessor<Select> {
                     throw new SqlTemplateException(STR."Ref component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is not a foreign key.");
                 }
                 if (mode != SelectMode.PK || pk) {
+                    checkAlias(alias, type);
                     var name = getColumnName(component, template.columnNameResolver());
-                    if (!alias.isEmpty()) {
-                        columns.add(dialectTemplate."\{alias}.\{name}");
-                    } else {
-                        columns.add(dialectTemplate."\{name}");
-                    }
+                    columns.add(dialectTemplate."\{alias}.\{name}");
                     columns.add(", ");
                 }
             }
@@ -218,7 +215,7 @@ final class SelectProcessor implements ElementProcessor<Select> {
                     return resolvedAlias.get();
                 }
                 return aliasMapper.findAlias(type, null, INNER)
-                        .orElseThrow(() -> new SqlTemplateException(STR."Alias not found for \{type.getSimpleName()} at path \{p}."));
+                        .orElseThrow(() -> new SqlTemplateException(STR."Table \{type.getSimpleName()} for column not found at \{p}."));
             }
             if (REFLECTION.isAnnotationPresent(lastComponent, PK.class)) {
                 return alias;
@@ -229,7 +226,8 @@ final class SelectProcessor implements ElementProcessor<Select> {
             }
         }
         // Fallback for records without annotations.
-        return aliasMapper.getAlias(root(type), INNER, dialect);
+        return aliasMapper.getAlias(root(type), INNER, dialect, () ->
+                new SqlTemplateException(STR."Table \{type.getSimpleName()} for column not found."));
     }
 
     /**

@@ -33,6 +33,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.SequencedCollection;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
@@ -199,9 +200,29 @@ final class AliasMapper {
     public String getAlias(@Nonnull Metamodel<?, ?> metamodel,
                            @Nonnull ResolveScope scope,
                            @Nonnull SqlDialect dialect) throws SqlTemplateException {
+        return getAlias(metamodel, scope, dialect,
+                () -> new SqlTemplateException(STR."Alias for table not found at \{metamodel}."));
+    }
+
+    /**
+     * Returns the alias for the table at the specified path.
+     *
+     * <p>Note that the alias returned is safe for use in SQL and does not require escaping.</p>
+     *
+     * @param metamodel the metamodel of the table to get the alias for.
+     * @param scope the scope to resolve the alias in.
+     * @param dialect the SQL dialect to use in case the alias is based on table name and potentially requires escaping.
+     * @param exceptionSupplier the exception supplier to use in case the alias could not be resolved.
+     * @return the alias for the table at the specified path.
+     * @throws SqlTemplateException if the alias could not be resolved.
+     */
+    public String getAlias(@Nonnull Metamodel<?, ?> metamodel,
+                           @Nonnull ResolveScope scope,
+                           @Nonnull SqlDialect dialect,
+                           @Nonnull Supplier<SqlTemplateException> exceptionSupplier) throws SqlTemplateException {
         var table = metamodel.table();
         String path = table.componentPath();
-        return getAlias(table.componentType(), path.isEmpty() ? null : path, scope, null, dialect);
+        return getAlias(table.componentType(), path.isEmpty() ? null : path, scope, null, dialect, exceptionSupplier);
     }
 
     /**
@@ -231,6 +252,27 @@ final class AliasMapper {
      * @param table the table to get the alias for.
      * @param path the path of the table (optional).
      * @param scope the scope to resolve the alias in.
+     * @param dialect the SQL dialect to use in case the alias is based on table name and potentially requires escaping.
+     * @param exceptionSupplier the exception supplier to use in case the alias could not be resolved.
+     * @return the alias for the table at the specified path.
+     * @throws SqlTemplateException if the alias could not be resolved.
+     */
+    public String getAlias(@Nonnull Class<? extends Record> table,
+                           @Nullable String path,
+                           @Nonnull ResolveScope scope,
+                           @Nonnull SqlDialect dialect,
+                           @Nonnull Supplier<SqlTemplateException> exceptionSupplier) throws SqlTemplateException {
+        return getAlias(table, path, scope, null, dialect, exceptionSupplier);
+    }
+
+    /**
+     * Returns the alias for the table at the specified path.
+     *
+     * <p>Note that the alias returned is safe for use in SQL and does not require escaping.</p>
+     *
+     * @param table the table to get the alias for.
+     * @param path the path of the table (optional).
+     * @param scope the scope to resolve the alias in.
      * @param autoJoinTable the table that is auto-joined to the specified table (optional).
      * @param dialect the SQL dialect to use in case the alias is based on table name and potentially requires escaping.
      * @return the alias for the table at the specified path.
@@ -241,18 +283,44 @@ final class AliasMapper {
                            @Nonnull ResolveScope scope,
                            @Nullable Class<? extends Record> autoJoinTable,
                            @Nonnull SqlDialect dialect) throws SqlTemplateException {
+        return getAlias(table, path, scope, autoJoinTable, dialect,
+                () -> path != null
+                        ? new SqlTemplateException(STR."Alias for \{table.getSimpleName()} not found at path: '\{path}'.")
+                        : new SqlTemplateException(STR."Alias for \{table.getSimpleName()} not found."));
+    }
+
+    /**
+     * Returns the alias for the table at the specified path.
+     *
+     * <p>Note that the alias returned is safe for use in SQL and does not require escaping.</p>
+     *
+     * @param table the table to get the alias for.
+     * @param path the path of the table (optional).
+     * @param scope the scope to resolve the alias in.
+     * @param autoJoinTable the table that is auto-joined to the specified table (optional).
+     * @param dialect the SQL dialect to use in case the alias is based on table name and potentially requires escaping.
+     * @param exceptionSupplier the exception supplier to use in case the alias could not be resolved.
+     * @return the alias for the table at the specified path.
+     * @throws SqlTemplateException if the alias could not be resolved.
+     */
+    public String getAlias(@Nonnull Class<? extends Record> table,
+                           @Nullable String path,
+                           @Nonnull ResolveScope scope,
+                           @Nullable Class<? extends Record> autoJoinTable,
+                           @Nonnull SqlDialect dialect,
+                           @Nonnull Supplier<SqlTemplateException> exceptionSupplier) throws SqlTemplateException {
         var result = findAlias(table, path, scope, autoJoinTable);
         if (result.isPresent()) {
             return result.get();
         }
         if (path != null) {
-            throw new SqlTemplateException(STR."Alias for \{table.getSimpleName()} not found at path: '\{path}'.");
+            throw exceptionSupplier.get();
         }
         if (exists(table, scope)) {
             // Table is registered, but alias could not be resolved (due to empty registration). Revert to full table name.
             return getTableName(table, tableNameResolver).getQualifiedName(dialect);
         }
-        throw new SqlTemplateException(STR."Alias for \{table.getSimpleName()} not found.");
+        throw exceptionSupplier.get();
     }
 
     public Optional<String> findAlias(@Nonnull Class<? extends Record> table,

@@ -346,11 +346,6 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> expression(@Nonnull StringTemplate template) throws PersistenceException {
-            return new KPredicateBuilderImpl<>(whereBuilder.expression(template));
-        }
-
-        @Override
         public KPredicateBuilder<TX, RX, IDX> exists(@Nonnull KQueryBuilder<?, ?, ?> subquery) {
             return new KPredicateBuilderImpl<>(whereBuilder.exists(((KQueryBuilderImpl<?, ?, ?>) subquery).builder));
         }
@@ -361,68 +356,93 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull IDX id) {
-            return new KPredicateBuilderImpl<>(whereBuilder.filter(id));
+        public KPredicateBuilder<TX, RX, IDX> isId(@Nonnull IDX id) {
+            return new KPredicateBuilderImpl<>(whereBuilder.isId(id));
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull Ref<TX> ref) {
-            return new KPredicateBuilderImpl<>(whereBuilder.filter(ref));
+        public KPredicateBuilder<TX, RX, IDX> isRef(@Nonnull Ref<TX> ref) {
+            return new KPredicateBuilderImpl<>(whereBuilder.isRef(ref));
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull TX record) {
-            return new KPredicateBuilderImpl<>(whereBuilder.filter(record));
+        public KPredicateBuilder<TX, RX, IDX> hasRef(@Nonnull Ref<? extends Record> ref) {
+            return new KPredicateBuilderImpl<>(whereBuilder.hasRef(ref));
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> filterAny(@Nonnull Record record) {
-            return new KPredicateBuilderImpl<>(whereBuilder.filterAny(record));
+        public KPredicateBuilder<TX, RX, IDX> is(@Nonnull TX record) {
+            return new KPredicateBuilderImpl<>(whereBuilder.is(record));
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> filterIds(@Nonnull Iterable<? extends IDX> it) {
-            return new KPredicateBuilderImpl<>(whereBuilder.filterIds(it));
+        public KPredicateBuilder<TX, RX, IDX> has(@Nonnull Record record) {
+            return new KPredicateBuilderImpl<>(whereBuilder.has(record));
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> filterRefs(@Nonnull Iterable<? extends Ref<TX>> it) {
-            return new KPredicateBuilderImpl<>(whereBuilder.filterRefs(it));
+        public KPredicateBuilder<TX, RX, IDX> isId(@Nonnull Iterable<? extends IDX> it) {
+            return new KPredicateBuilderImpl<>(whereBuilder.isId(it));
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull Iterable<? extends TX> it) {
-            return new KPredicateBuilderImpl<>(whereBuilder.filter(it));
+        public KPredicateBuilder<TX, RX, IDX> isRef(@Nonnull Iterable<? extends Ref<TX>> it) {
+            return new KPredicateBuilderImpl<>(whereBuilder.isRef(it));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> hasRef(@Nonnull Iterable<? extends Ref<? extends Record>> it) {
+            return new KPredicateBuilderImpl<>(whereBuilder.hasRef(it));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> is(@Nonnull Iterable<? extends TX> it) {
+            return new KPredicateBuilderImpl<>(whereBuilder.is(it));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> has(@Nonnull Iterable<? extends Record> it) {
+            return new KPredicateBuilderImpl<>(whereBuilder.has(it));
         }
 
         @Override
         public <V extends Record> KPredicateBuilder<TX, RX, IDX> filter(@Nonnull Metamodel<TX, V> path, @Nonnull Ref<V> ref) {
-            return new KPredicateBuilderImpl<>(whereBuilder.filter(path, ref));
+            return new KPredicateBuilderImpl<>(whereBuilder.when(path, ref));
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> filterAny(@Nonnull Iterable<? extends Record> it) {
-            return new KPredicateBuilderImpl<>(whereBuilder.filterAny(it));
+        public <V extends Record> KPredicateBuilder<TX, RX, IDX> filterAny(@Nonnull Metamodel<?, V> path, @Nonnull Ref<V> ref) {
+            return new KPredicateBuilderImpl<>(whereBuilder.whenAny(path, ref));
         }
 
         @Override
-        public <V extends Record> KPredicateBuilder<TX, RX, IDX> filterRefs(@Nonnull Metamodel<TX, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
-            return new KPredicateBuilderImpl<>(whereBuilder.filterRefs(path, it));
+        public <V extends Record> KPredicateBuilder<TX, RX, IDX> filterRef(@Nonnull Metamodel<TX, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
+            return new KPredicateBuilderImpl<>(whereBuilder.whenRef(path, it));
+        }
+
+        @Override
+        public <V extends Record> KPredicateBuilder<TX, RX, IDX> whenAnyRef(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
+            return new KPredicateBuilderImpl<>(whereBuilder.whenAnyRef(path, it));
         }
 
         @Override
         public <V> KPredicateBuilder<TX, RX, IDX> filter(@Nonnull Metamodel<TX, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
-            return new KPredicateBuilderImpl<>(whereBuilder.filter(path, operator, it));
+            return new KPredicateBuilderImpl<>(whereBuilder.when(path, operator, it));
         }
 
         @Override
         public <V> KPredicateBuilder<TX, RX, IDX> filterAny(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull Iterable<? extends V> it) {
-            return new KPredicateBuilderImpl<>(whereBuilder.filterAny(path, operator, it));
+            return new KPredicateBuilderImpl<>(whereBuilder.whenAny(path, operator, it));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> filter(@Nonnull StringTemplate template) throws PersistenceException {
+            return new KPredicateBuilderImpl<>(whereBuilder.when(template));
         }
 
         @Override
         protected <V> KPredicateBuilder<TX, RX, IDX> filterImpl(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull V[] o) {
-            return new KPredicateBuilderImpl<>(whereBuilder.filterAny(path, operator, o));
+            return new KPredicateBuilderImpl<>(whereBuilder.whenAny(path, operator, o));
         }
     }
 

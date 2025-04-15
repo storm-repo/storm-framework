@@ -39,6 +39,6 @@ final class SubqueryProcessor implements ElementProcessor<Subquery> {
      */
     @Override
     public ElementResult process(@Nonnull Subquery subquery) throws SqlTemplateException {
-        return new ElementResult(templateProcessor.parse(subquery.template(), subquery.correlate()));
+        return new ElementResult(templateProcessor.parseSubquery(subquery.template(), subquery.correlate()));
     }
 }
