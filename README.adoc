@@ -367,8 +367,8 @@ ORM::
 ----
 List<User> users = ORM(dataSource).entity(User.class)
         .select()
-        .where(it -> it.filter(User_.city, EQUALS, city)
-                .and(it.filter(User_.birthDate, LESS_THAN, LocalDate.of(2000, 1, 1))))
+        .where(it -> it.when(User_.city, EQUALS, city)
+                .and(it.when(User_.birthDate, LESS_THAN, LocalDate.of(2000, 1, 1))))
         .getResultList();
 ----
 SQL Template::
