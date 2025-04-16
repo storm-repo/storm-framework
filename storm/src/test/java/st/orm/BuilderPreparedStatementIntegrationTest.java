@@ -96,7 +96,7 @@ public class BuilderPreparedStatementIntegrationTest {
         var list = ORM(dataSource)
                 .selectFrom(Pet.class)
                 .innerJoin(Visit.class).on(Pet.class)
-                .where(it -> it.has(Visit.builder().id(1).build()))
+                .where(it -> it.whenAny(Visit.builder().id(1).build()))
                 .getResultList();
          assertEquals(1, list.size());
          assertEquals(7, list.getFirst().id());
@@ -108,7 +108,7 @@ public class BuilderPreparedStatementIntegrationTest {
             ORM(dataSource)
                     .selectFrom(Pet.class)
                     .innerJoin(Visit.class).on(Pet.class)
-                    .where(it -> it.has(Vet.builder().id(1).build()))
+                    .where(it -> it.whenAny(Vet.builder().id(1).build()))
                     .getResultStream()
                     .count();
         });
@@ -164,7 +164,7 @@ public class BuilderPreparedStatementIntegrationTest {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
                 .typed(Integer.class)
-                .where(it -> it.isId(1).or(it.isId(2)))
+                .where(it -> it.whenId(1).or(it.whenId(2)))
                 .getResultList();
         assertEquals(2, list.size());
     }
@@ -223,7 +223,7 @@ public class BuilderPreparedStatementIntegrationTest {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
                 .typed(Integer.class)
-                .where(it -> it.isId(1).or(it.when(RAW."\{Vet.class}.id = 2")))
+                .where(it -> it.whenId(1).or(it.when(RAW."\{Vet.class}.id = 2")))
                 .getResultList();
         assertEquals(2, list.size());
     }
@@ -242,7 +242,7 @@ public class BuilderPreparedStatementIntegrationTest {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
                 .typed(Integer.class)
-                .where(it -> it.isId(1).or(
+                .where(it -> it.whenId(1).or(
                         it.when(template(ctx -> STR."\{ctx.invoke(Vet.class)}.id = \{ctx.invoke(2)}"))))
                 .getResultList();
         assertEquals(2, list.size());

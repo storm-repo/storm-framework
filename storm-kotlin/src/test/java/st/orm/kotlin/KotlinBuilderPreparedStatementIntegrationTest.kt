@@ -46,7 +46,7 @@ open class KotlinBuilderPreparedStatementIntegrationTest {
     fun testBuilderWithWhere() {
         val list = ORM(dataSource)
             .selectFrom(Vet::class)
-            .where { it.isId(1).or(it.isId(2)) }
+            .where { it.filterId(1).or(it.filterId(2)) }
             .resultList
         Assertions.assertEquals(2, list.size)
     }
@@ -73,7 +73,7 @@ open class KotlinBuilderPreparedStatementIntegrationTest {
     fun testBuilderWithWhereTemplateFunctionAfterOr() {
         val list = ORM(dataSource)
             .selectFrom(Vet::class)
-            .where { it.isId(1).or(it.filter {"${it(Vet::class)}.id = ${it(2)}"}) }
+            .where { it.filterId(1).or(it.filter {"${it(Vet::class)}.id = ${it(2)}"}) }
             .resultList
         Assertions.assertEquals(2, list.size)
     }

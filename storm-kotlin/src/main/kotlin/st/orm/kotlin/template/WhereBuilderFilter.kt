@@ -22,6 +22,90 @@ import st.orm.template.QueryBuilder.PredicateBuilder
 import st.orm.template.QueryBuilder.WhereBuilder
 
 /**
+ * Adds a condition to the WHERE clause that matches the specified primary key of the table.
+ *
+ * @param id the id to match.
+ * @return the predicate builder.
+ */
+fun <T : Record, R, ID> WhereBuilder<T, R, ID>.filterId(id: ID): PredicateBuilder<T, R, ID> = this.whenId(id)
+
+/**
+ * Adds a condition to the WHERE clause that matches the specified primary key of the table, expressed by a ref.
+ *
+ * @param ref the ref to match.
+ * @return the predicate builder.
+ */
+fun <T : Record, R, ID> WhereBuilder<T, R, ID>.filterRef(ref: Ref<T>): PredicateBuilder<T, R, ID> = this.whenRef(ref)
+
+/**
+ * Adds a condition to the WHERE clause that matches the specified primary key of the table, expressed by a ref.
+ * The ref can represent any of the related tables in the table graph or manually added joins.
+ *
+ * @param ref the ref to match.
+ * @return the predicate builder.
+ */
+fun <T : Record, R, ID> WhereBuilder<T, R, ID>.filterAnyRef(ref: Ref<out Record>): PredicateBuilder<T, R, ID> = this.whenAnyRef(ref)
+
+/**
+ * Adds a condition to the WHERE clause that matches the specified record.
+ *
+ * @param record the record to match.
+ * @return the predicate builder.
+ */
+fun <T : Record, R, ID> WhereBuilder<T, R, ID>.filter(record: T): PredicateBuilder<T, R, ID> = this.`when`(record)
+
+/**
+ * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of the
+ * related tables in the table graph or manually added joins.
+ *
+ * @param record the record to match.
+ * @return the predicate builder.
+ */
+fun <T : Record, R, ID> WhereBuilder<T, R, ID>.filterAny(record: Record): PredicateBuilder<T, R, ID> = this.whenAny(record)
+
+/**
+ * Adds a condition to the WHERE clause that matches the specified primary keys of the table.
+ *
+ * @param ids the ids to match.
+ * @return the predicate builder.
+ */
+fun <T : Record, R, ID> WhereBuilder<T, R, ID>.filterId(ids: Iterable<ID>): PredicateBuilder<T, R, ID> = this.whenId(ids)
+
+/**
+ * Adds a condition to the WHERE clause that matches the specified primary keys of the table, expressed by a ref.
+ *
+ * @param refs the ids to match.
+ * @return the predicate builder.
+ */
+fun <T : Record, R, ID> WhereBuilder<T, R, ID>.filterRef(refs: Iterable<Ref<T>>): PredicateBuilder<T, R, ID> = this.whenRef(refs)
+
+/**
+ * Adds a condition to the WHERE clause that matches the specified primary keys of the table, expressed by a ref.
+ * The ref can represent any of the related tables in the table graph or manually added joins.
+ *
+ * @param refs the refs to match.
+ * @return the predicate builder.
+ */
+fun <T : Record, R, ID> WhereBuilder<T, R, ID>.filterAnyRef(refs: Iterable<Ref<out Record>>): PredicateBuilder<T, R, ID> = this.whenAnyRef(refs)
+
+/**
+ * Adds a condition to the WHERE clause that matches the specified records.
+ *
+ * @param records the records to match.
+ * @return the predicate builder.
+ */
+fun <T : Record, R, ID> WhereBuilder<T, R, ID>.filter(records: Iterable<T>): PredicateBuilder<T, R, ID> = this.`when`(records)
+
+/**
+ * Adds a condition to the WHERE clause that matches the specified records. The record can represent any of the
+ * related tables in the table graph or manually added joins.
+ *
+ * @param records the records to match.
+ * @return the query builder.
+ */
+fun <T : Record, R, ID> WhereBuilder<T, R, ID>.filterAny(records: Iterable<Record>): PredicateBuilder<T, R, ID> = this.whenAny(records)
+
+/**
  * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
  * the related tables in the table graph.
  *

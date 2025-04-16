@@ -325,7 +325,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @param id the id to match.
          * @return the predicate builder.
          */
-        public abstract KPredicateBuilder<T, R, ID> isId(@Nonnull ID id);
+        public abstract KPredicateBuilder<T, R, ID> filterId(@Nonnull ID id);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified primary key of the table, expressed by a ref.
@@ -334,7 +334,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          * @since 1.3
          */
-        public abstract KPredicateBuilder<T, R, ID> isRef(@Nonnull Ref<T> ref);
+        public abstract KPredicateBuilder<T, R, ID> filterRef(@Nonnull Ref<T> ref);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified primary key of the table, expressed by a ref.
@@ -344,7 +344,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          * @since 1.3
          */
-        public abstract KPredicateBuilder<T, R, ID> hasRef(@Nonnull Ref<? extends Record> ref);
+        public abstract KPredicateBuilder<T, R, ID> filterAnyRef(@Nonnull Ref<? extends Record> ref);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified record.
@@ -352,7 +352,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @param record the record to match.
          * @return the predicate builder.
          */
-        public abstract KPredicateBuilder<T, R, ID> is(@Nonnull T record);
+        public abstract KPredicateBuilder<T, R, ID> filter(@Nonnull T record);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of the
@@ -362,7 +362,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          * @since 1.2
          */
-        public abstract KPredicateBuilder<T, R, ID> has(@Nonnull Record record);
+        public abstract KPredicateBuilder<T, R, ID> filterAny(@Nonnull Record record);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified primary keys of the table.
@@ -371,7 +371,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          * @since 1.2
          */
-        public abstract KPredicateBuilder<T, R, ID> isId(@Nonnull Iterable<? extends ID> it);
+        public abstract KPredicateBuilder<T, R, ID> filterId(@Nonnull Iterable<? extends ID> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified primary keys of the table, expressed by a ref.
@@ -380,7 +380,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          * @since 1.3
          */
-        public abstract KPredicateBuilder<T, R, ID> isRef(@Nonnull Iterable<? extends Ref<T>> it);
+        public abstract KPredicateBuilder<T, R, ID> filterRef(@Nonnull Iterable<? extends Ref<T>> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
@@ -405,7 +405,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          * @since 1.3
          */
-        public abstract KPredicateBuilder<T, R, ID> hasRef(@Nonnull Iterable<? extends Ref<? extends Record>> it);
+        public abstract KPredicateBuilder<T, R, ID> filterAnyRef(@Nonnull Iterable<? extends Ref<? extends Record>> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified records.
@@ -413,7 +413,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @param it the records to match.
          * @return the predicate builder.
          */
-        public abstract KPredicateBuilder<T, R, ID> is(@Nonnull Iterable<? extends T> it);
+        public abstract KPredicateBuilder<T, R, ID> filter(@Nonnull Iterable<? extends T> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified records. The record can represent any of the
@@ -422,7 +422,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @param it the records to match.
          * @return the query builder.
          */
-        public abstract KPredicateBuilder<T, R, ID> has(@Nonnull Iterable<? extends Record> it);
+        public abstract KPredicateBuilder<T, R, ID> filterAny(@Nonnull Iterable<? extends Record> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
@@ -489,7 +489,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          * @since 1.3
          */
-        public abstract <V extends Record> KPredicateBuilder<T, R, ID> whenAnyRef(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<? extends Ref<V>> it);
+        public abstract <V extends Record> KPredicateBuilder<T, R, ID> filterAnyRef(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<? extends Ref<V>> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified records. The records can represent any of
@@ -655,7 +655,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     public final KQueryBuilder<T, R, ID> where(@Nonnull ID id) {
-        return where(predicate -> predicate.isId(id));
+        return where(predicate -> predicate.filterId(id));
     }
 
     /**
@@ -666,7 +666,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @since 1.3
      */
     public final KQueryBuilder<T, R, ID> where(@Nonnull Ref<T> ref) {
-        return where(predicate -> predicate.isRef(ref));
+        return where(predicate -> predicate.filterRef(ref));
     }
 
     /**
@@ -676,7 +676,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     public final KQueryBuilder<T, R, ID> where(@Nonnull T record) {
-        return where(predicate -> predicate.is(record));
+        return where(predicate -> predicate.filter(record));
     }
 
     /**
@@ -687,7 +687,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @since 1.2
      */
     public final KQueryBuilder<T, R, ID> whereId(@Nonnull Iterable<? extends ID> it) {
-        return where(predicate -> predicate.isId(it));
+        return where(predicate -> predicate.filterId(it));
     }
 
     /**
@@ -698,7 +698,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @since 1.3
      */
     public final KQueryBuilder<T, R, ID> whereRef(@Nonnull Iterable<? extends Ref<T>> it) {
-        return where(predicate -> predicate.isRef(it));
+        return where(predicate -> predicate.filterRef(it));
     }
 
     /**
@@ -758,7 +758,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     public final KQueryBuilder<T, R, ID> where(@Nonnull Iterable<? extends T> it) {
-        return where(predicate -> predicate.is(it));
+        return where(predicate -> predicate.filter(it));
     }
 
     /**

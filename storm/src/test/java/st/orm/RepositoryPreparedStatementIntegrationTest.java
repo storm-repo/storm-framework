@@ -460,7 +460,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetsWithoutPath() {
         var e = assertThrows(PersistenceException.class, () -> {
             var owner = ORM(dataSource).selectFrom(Owner.class).getResultList().getFirst();
-            ORM(dataSource).entity(VisitWithTwoPets.class).select().where(it -> it.has(owner)).getResultList();
+            ORM(dataSource).entity(VisitWithTwoPets.class).select().where(it -> it.whenAny(owner)).getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
@@ -566,7 +566,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
         try (var _ = consume(sql::setPlain)) {
-            var visits = ORM(dataSource).entity(VisitWithTwoPetsOneRef.class).select().where(it -> it.has(owner)).getResultList();
+            var visits = ORM(dataSource).entity(VisitWithTwoPetsOneRef.class).select().where(it -> it.whenAny(owner)).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
         }
@@ -687,7 +687,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetsOneRefPetWithoutPath() {
         var e = assertThrows(PersistenceException.class, () -> {
             var pet = ORM(dataSource).entity(PetOwnerRef.class).select().append(RAW."LIMIT 1").getSingleResult();
-            ORM(dataSource).entity(VisitWithTwoPetsOneRef.class).select().where(it -> it.has(pet)).getResultList();
+            ORM(dataSource).entity(VisitWithTwoPetsOneRef.class).select().where(it -> it.whenAny(pet)).getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
@@ -754,7 +754,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetRefsWithoutPath() {
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
             var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
-            ORM(dataSource).entity(VisitWithTwoPetRefs.class).select().where(it -> it.has(owner)).getResultList();
+            ORM(dataSource).entity(VisitWithTwoPetRefs.class).select().where(it -> it.whenAny(owner)).getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
@@ -796,7 +796,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         Owner owner = Owner.builder().id(1).build();
         var pets = ORM(dataSource).entity(Pet.class)
                 .select()
-                .where(it -> it.has(owner))
+                .where(it -> it.whenAny(owner))
                 .getResultList();
         assertEquals(1, pets.size());
     }
@@ -806,7 +806,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         Owner owner = Owner.builder().id(1).build();
         var pets = ORM(dataSource).entity(PetWithNullableOwnerRef.class)
                 .select()
-                .where(it -> it.has(owner))
+                .where(it -> it.whenAny(owner))
                 .getResultList();
         assertEquals(1, pets.size());
     }
@@ -818,7 +818,7 @@ public class RepositoryPreparedStatementIntegrationTest {
             ORM(dataSource).entity(PetWithNullableOwnerRef.class)
                     .select()
                     .innerJoin(Owner.class).on(PetWithNullableOwnerRef.class)
-                    .where(it -> it.has(owner))
+                    .where(it -> it.whenAny(owner))
                     .getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
@@ -893,14 +893,14 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void deleteByPet() {
         var repo = ORM(dataSource).entity(Visit.class);
-        repo.delete().where(it -> it.has(Pet.builder().id(1).build())).executeUpdate();
+        repo.delete().where(it -> it.whenAny(Pet.builder().id(1).build())).executeUpdate();
         assertEquals(12, repo.select().getResultCount());
     }
 
     @Test
     public void deleteByOwner() {
         var repo = ORM(dataSource).entity(Visit.class);
-        repo.delete().where(it -> it.has(Owner.builder().id(1).build())).executeUpdate();
+        repo.delete().where(it -> it.whenAny(Owner.builder().id(1).build())).executeUpdate();
         assertEquals(12, repo.select().getResultCount());
     }
 
@@ -946,7 +946,7 @@ public class RepositoryPreparedStatementIntegrationTest {
                 .entity(Pet.class)
                 .select()
                 .innerJoin(Visit.class).on(Pet.class)
-                .where(it -> it.has(Visit.builder().id(1).build()))
+                .where(it -> it.whenAny(Visit.builder().id(1).build()))
                 .getResultList();
         assertEquals(1, list.size());
         assertEquals(7, list.getFirst().id());
@@ -959,7 +959,7 @@ public class RepositoryPreparedStatementIntegrationTest {
                 .select()
                 .innerJoin(Visit.class).on(Pet.class)
                 .innerJoin(RAW."SELECT * FROM \{Pet.class}", "x").on(RAW."\{Pet.class}.id = x.id")    // Join just for the sake of testing multiple joins.
-                .where(it -> it.has(Visit.builder().id(1).build()))
+                .where(it -> it.whenAny(Visit.builder().id(1).build()))
                 .getResultList();
         assertEquals(1, list.size());
         assertEquals(7, list.getFirst().id());
@@ -972,7 +972,7 @@ public class RepositoryPreparedStatementIntegrationTest {
                     .entity(Pet.class)
                     .select()
                     .innerJoin(Visit.class).on(Pet.class)
-                    .where(it -> it.has(Vet.builder().id(1).build()))
+                    .where(it -> it.whenAny(Vet.builder().id(1).build()))
                     .getResultCount();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());

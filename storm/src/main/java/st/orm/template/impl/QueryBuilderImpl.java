@@ -378,52 +378,52 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> isId(@Nonnull IDX id) {
+            public PredicateBuilder<TX, RX, IDX> whenId(@Nonnull IDX id) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(EQUALS, id)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> isRef(@Nonnull Ref<TX> ref) {
+            public PredicateBuilder<TX, RX, IDX> whenRef(@Nonnull Ref<TX> ref) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(EQUALS, ref)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> hasRef(@Nonnull Ref<? extends Record> ref) {
+            public PredicateBuilder<TX, RX, IDX> whenAnyRef(@Nonnull Ref<? extends Record> ref) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(EQUALS, ref)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> is(@Nonnull TX record) {
+            public PredicateBuilder<TX, RX, IDX> when(@Nonnull TX record) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(EQUALS, record)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> has(@Nonnull Record record) {
+            public PredicateBuilder<TX, RX, IDX> whenAny(@Nonnull Record record) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(EQUALS, record)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> isId(@Nonnull Iterable<? extends IDX> it) {
+            public PredicateBuilder<TX, RX, IDX> whenId(@Nonnull Iterable<? extends IDX> it) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(IN, it)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> isRef(@Nonnull Iterable<? extends Ref<TX>> it) {
+            public PredicateBuilder<TX, RX, IDX> whenRef(@Nonnull Iterable<? extends Ref<TX>> it) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(IN, it)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> hasRef(@Nonnull Iterable<? extends Ref<? extends Record>> it) {
+            public PredicateBuilder<TX, RX, IDX> whenAnyRef(@Nonnull Iterable<? extends Ref<? extends Record>> it) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(IN, it)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> is(@Nonnull Iterable<? extends TX> it) {
+            public PredicateBuilder<TX, RX, IDX> when(@Nonnull Iterable<? extends TX> it) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(IN, it)}");
             }
 
             @Override
-            public PredicateBuilder<TX, RX, IDX> has(@Nonnull Iterable<? extends Record> it) {
+            public PredicateBuilder<TX, RX, IDX> whenAny(@Nonnull Iterable<? extends Record> it) {
                 return new PredicateBuilderImpl<>(RAW."\{new ObjectExpression(IN, it)}");
             }
 
