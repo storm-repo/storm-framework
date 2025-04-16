@@ -221,14 +221,14 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * A predicate that always evaluates to true.
          */
         public final PredicateBuilder<T, R, ID> TRUE() {
-            return when(RAW."TRUE");
+            return where(RAW."TRUE");
         }
 
         /**
          * A predicate that always evaluates to false.
          */
         public final PredicateBuilder<T, R, ID> FALSE() {
-            return when(RAW."FALSE");
+            return where(RAW."FALSE");
         }
 
         /**
@@ -263,7 +263,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param id the id to match.
          * @return the predicate builder.
          */
-        public abstract PredicateBuilder<T, R, ID> whenId(@Nonnull ID id);
+        public abstract PredicateBuilder<T, R, ID> whereId(@Nonnull ID id);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified primary key of the table, expressed by a ref.
@@ -272,7 +272,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          * @since 1.3
          */
-        public abstract PredicateBuilder<T, R, ID> whenRef(@Nonnull Ref<T> ref);
+        public abstract PredicateBuilder<T, R, ID> whereRef(@Nonnull Ref<T> ref);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified primary key of the table, expressed by a ref.
@@ -282,7 +282,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          * @since 1.3
          */
-        public abstract PredicateBuilder<T, R, ID> whenAnyRef(@Nonnull Ref<? extends Record> ref);
+        public abstract PredicateBuilder<T, R, ID> whereAnyRef(@Nonnull Ref<? extends Record> ref);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified record.
@@ -290,7 +290,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param record the record to match.
          * @return the predicate builder.
          */
-        public abstract PredicateBuilder<T, R, ID> when(@Nonnull T record);
+        public abstract PredicateBuilder<T, R, ID> where(@Nonnull T record);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of the
@@ -300,7 +300,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          * @since 1.2
          */
-        public abstract PredicateBuilder<T, R, ID> whenAny(@Nonnull Record record);
+        public abstract PredicateBuilder<T, R, ID> whereAny(@Nonnull Record record);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified primary keys of the table.
@@ -309,7 +309,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          * @since 1.2
          */
-        public abstract PredicateBuilder<T, R, ID> whenId(@Nonnull Iterable<? extends ID> it);
+        public abstract PredicateBuilder<T, R, ID> whereId(@Nonnull Iterable<? extends ID> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified primary keys of the table, expressed by a ref.
@@ -318,7 +318,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          * @since 1.3
          */
-        public abstract PredicateBuilder<T, R, ID> whenRef(@Nonnull Iterable<? extends Ref<T>> it);
+        public abstract PredicateBuilder<T, R, ID> whereRef(@Nonnull Iterable<? extends Ref<T>> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified primary keys of the table, expressed by a ref.
@@ -328,7 +328,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          * @since 1.3
          */
-        public abstract PredicateBuilder<T, R, ID> whenAnyRef(@Nonnull Iterable<? extends Ref<? extends Record>> it);
+        public abstract PredicateBuilder<T, R, ID> whereAnyRef(@Nonnull Iterable<? extends Ref<? extends Record>> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified records.
@@ -336,7 +336,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param it the records to match.
          * @return the predicate builder.
          */
-        public abstract PredicateBuilder<T, R, ID> when(@Nonnull Iterable<? extends T> it);
+        public abstract PredicateBuilder<T, R, ID> where(@Nonnull Iterable<? extends T> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified records. The record can represent any of the
@@ -345,7 +345,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param it the records to match.
          * @return the query builder.
          */
-        public abstract PredicateBuilder<T, R, ID> whenAny(@Nonnull Iterable<? extends Record> it);
+        public abstract PredicateBuilder<T, R, ID> whereAny(@Nonnull Iterable<? extends Record> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
@@ -355,8 +355,8 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param record the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> PredicateBuilder<T, R, ID> when(@Nonnull Metamodel<T, V> path, @Nonnull V record) {
-            return when(path, EQUALS, record);
+        public final <V extends Record> PredicateBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull V record) {
+            return where(path, EQUALS, record);
         }
 
         /**
@@ -366,8 +366,8 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param record the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> PredicateBuilder<T, R, ID> whenAny(@Nonnull Metamodel<?, V> path, @Nonnull V record) {
-            return whenAny(path, EQUALS, record);
+        public final <V extends Record> PredicateBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull V record) {
+            return whereAny(path, EQUALS, record);
         }
 
         /**
@@ -379,7 +379,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          * @since 1.3
          */
-        public abstract <V extends Record> PredicateBuilder<T, R, ID> when(@Nonnull Metamodel<T, V> path, @Nonnull Ref<V> ref);
+        public abstract <V extends Record> PredicateBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull Ref<V> ref);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified ref. The record can represent any of
@@ -390,7 +390,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          * @since 1.3
          */
-        public abstract <V extends Record> PredicateBuilder<T, R, ID> whenAny(@Nonnull Metamodel<?, V> path, @Nonnull Ref<V> ref);
+        public abstract <V extends Record> PredicateBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull Ref<V> ref);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified refs. The refs can represent any of
@@ -401,7 +401,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          * @since 1.3
          */
-        public abstract <V extends Record> PredicateBuilder<T, R, ID> whenRef(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<? extends Ref<V>> it);
+        public abstract <V extends Record> PredicateBuilder<T, R, ID> whereRef(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<? extends Ref<V>> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified refs. The refs can represent any of
@@ -412,7 +412,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @return the predicate builder.
          * @since 1.3
          */
-        public abstract <V extends Record> PredicateBuilder<T, R, ID> whenAnyRef(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<? extends Ref<V>> it);
+        public abstract <V extends Record> PredicateBuilder<T, R, ID> whereAnyRef(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<? extends Ref<V>> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified records. The records can represent any of
@@ -422,8 +422,8 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param it the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> PredicateBuilder<T, R, ID> when(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<V> it) {
-            return when(path, IN, it);
+        public final <V extends Record> PredicateBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<V> it) {
+            return where(path, IN, it);
         }
 
         /**
@@ -434,8 +434,8 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param it the records to match.
          * @return the predicate builder.
          */
-        public final <V extends Record> PredicateBuilder<T, R, ID> whenAny(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<V> it) {
-            return whenAny(path, IN, it);
+        public final <V extends Record> PredicateBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<V> it) {
+            return whereAny(path, IN, it);
         }
 
         /**
@@ -450,9 +450,9 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param <V> the type of the object that the metamodel represents.
          * @since 1.2
          */
-        public abstract <V> PredicateBuilder<T, R, ID> when(@Nonnull Metamodel<T, V> path,
-                                                            @Nonnull Operator operator,
-                                                            @Nonnull Iterable<? extends V> it);
+        public abstract <V> PredicateBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
+                                                             @Nonnull Operator operator,
+                                                             @Nonnull Iterable<? extends V> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
@@ -466,9 +466,9 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param <V> the type of the object that the metamodel represents.
          * @since 1.2
          */
-        public abstract <V> PredicateBuilder<T, R, ID> whenAny(@Nonnull Metamodel<?, V> path,
-                                                               @Nonnull Operator operator,
-                                                               @Nonnull Iterable<? extends V> it);
+        public abstract <V> PredicateBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path,
+                                                                @Nonnull Operator operator,
+                                                                @Nonnull Iterable<? extends V> it);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
@@ -483,10 +483,10 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @since 1.2
          */
         @SafeVarargs
-        public final <V> PredicateBuilder<T, R, ID> when(@Nonnull Metamodel<T, V> path,
-                                                         @Nonnull Operator operator,
-                                                         @Nonnull V... o) {
-            return whenImpl(path, operator, o);
+        public final <V> PredicateBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
+                                                          @Nonnull Operator operator,
+                                                          @Nonnull V... o) {
+            return whereImpl(path, operator, o);
         }
 
         /**
@@ -502,10 +502,10 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @since 1.2
          */
         @SafeVarargs
-        public final <V> PredicateBuilder<T, R, ID> whenAny(@Nonnull Metamodel<?, V> path,
-                                                            @Nonnull Operator operator,
-                                                            @Nonnull V... o) {
-            return whenImpl(path, operator, o);
+        public final <V> PredicateBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path,
+                                                             @Nonnull Operator operator,
+                                                             @Nonnull V... o) {
+            return whereImpl(path, operator, o);
         }
 
         /**
@@ -514,7 +514,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param template the expression to add.
          * @return the predicate builder.
          */
-        public abstract PredicateBuilder<T, R, ID> when(@Nonnull StringTemplate template);
+        public abstract PredicateBuilder<T, R, ID> where(@Nonnull StringTemplate template);
 
         /**
          * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
@@ -528,9 +528,9 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param <V> the type of the object that the metamodel represents.
          * @since 1.2
          */
-        protected abstract <V> PredicateBuilder<T, R, ID> whenImpl(@Nonnull Metamodel<?, V> path,
-                                                                   @Nonnull Operator operator,
-                                                                   @Nonnull V[] o);
+        protected abstract <V> PredicateBuilder<T, R, ID> whereImpl(@Nonnull Metamodel<?, V> path,
+                                                                    @Nonnull Operator operator,
+                                                                    @Nonnull V[] o);
     }
 
     /**
@@ -572,7 +572,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     public final QueryBuilder<T, R, ID> where(@Nonnull ID id) {
-        return where(predicate -> predicate.whenId(id));
+        return where(predicate -> predicate.whereId(id));
     }
 
     /**
@@ -583,7 +583,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @since 1.3
      */
     public final QueryBuilder<T, R, ID> where(@Nonnull Ref<T> ref) {
-        return where(predicate -> predicate.whenRef(ref));
+        return where(predicate -> predicate.whereRef(ref));
     }
 
     /**
@@ -593,7 +593,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     public final QueryBuilder<T, R, ID> where(@Nonnull T record) {
-        return where(predicate -> predicate.when(record));
+        return where(predicate -> predicate.where(record));
     }
 
     /**
@@ -604,7 +604,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @since 1.2
      */
     public final QueryBuilder<T, R, ID> whereId(@Nonnull Iterable<? extends ID> it) {
-        return where(predicate -> predicate.whenId(it));
+        return where(predicate -> predicate.whereId(it));
     }
 
     /**
@@ -615,7 +615,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @since 1.3
      */
     public final QueryBuilder<T, R, ID> whereRef(@Nonnull Iterable<? extends Ref<T>> it) {
-        return where(predicate -> predicate.whenRef(it));
+        return where(predicate -> predicate.whereRef(it));
     }
 
     /**
@@ -640,7 +640,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @since 1.3
      */
     public final <V extends Record> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull Ref<V> ref) {
-        return where(predicate -> predicate.when(path, ref));
+        return where(predicate -> predicate.where(path, ref));
     }
 
     /**
@@ -665,7 +665,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @since 1.3
      */
     public final <V extends Record> QueryBuilder<T, R, ID> whereRef(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
-        return where(predicate -> predicate.whenRef(path, it));
+        return where(predicate -> predicate.whereRef(path, it));
     }
 
     /**
@@ -675,7 +675,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     public final QueryBuilder<T, R, ID> where(@Nonnull Iterable<? extends T> it) {
-        return where(predicate -> predicate.when(it));
+        return where(predicate -> predicate.where(it));
     }
 
     /**
@@ -692,7 +692,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     public final <V> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
                                                   @Nonnull Operator operator,
                                                   @Nonnull Iterable<? extends V> it) {
-        return where(predicate -> predicate.when(path, operator, it));
+        return where(predicate -> predicate.where(path, operator, it));
     }
 
     /**
@@ -710,7 +710,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     public final <V> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
                                                   @Nonnull Operator operator,
                                                   @Nonnull V... o) {
-        return where(predicate -> predicate.when(path, operator, o));
+        return where(predicate -> predicate.where(path, operator, o));
     }
 
     /**
@@ -720,7 +720,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     public final QueryBuilder<T, R, ID> where(@Nonnull StringTemplate template) {
-        return where(it -> it.when(template));
+        return where(it -> it.where(template));
     }
 
     /**

@@ -51,7 +51,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
         val list = ORM(dataSource).entity(Pet::class)
             .select()
             .innerJoin(Visit::class).on(Pet::class)
-            .where { it.filterAny(Visit(1, null, null, null)) }
+            .where { it.whereAny(Visit(1, null, null, null)) }
             .resultList
         assertEquals(1, list.size)
         assertEquals(7, list[0].id)
