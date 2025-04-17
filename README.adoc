@@ -645,7 +645,7 @@ List<Ref<User>> users = ...;
 List<Role> roles = ORM(dataSource).entity(UserRole.class)
         .select(Role.class)
         .distinct()
-        .whereRefs(UserRole_.user, users)
+        .whereRef(UserRole_.user, users)
         .getResultList();
 ----
 SQL Template::
