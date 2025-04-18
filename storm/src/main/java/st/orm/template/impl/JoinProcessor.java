@@ -120,13 +120,13 @@ final class JoinProcessor implements ElementProcessor<Join> {
                     }
                 }
                 case TableTarget _ -> throw new SqlTemplateException("Unsupported source type.");   // Should not happen. See Join validation logic.
-                case TemplateTarget ts -> templateProcessor.parseSubquery(ts.template(), true);   // On-clause is correlated.
+                case TemplateTarget ts -> templateProcessor.parse(ts.template(), true);   // On-clause is correlated.
             };
             return switch (join) {
                 case Join(TableSource ts, var alias, _, _, _) ->
                         dialectTemplate."\n\{join.type().sql()} \{getTableName(ts.table(), tableNameResolver)} \{aliasMapper.useAlias(ts.table(), alias, INNER)} ON \{on}";
                 case Join(TemplateSource ts, var alias, _, _, _) -> {
-                    var source = templateProcessor.parseSubquery(ts.template(), false);   // Source is not correlated.
+                    var source = templateProcessor.parse(ts.template(), false);   // Source is not correlated.
                     yield dialectTemplate."\n\{join.type().sql()} (\{source}) \{alias} ON \{on}";
                 }
             };
@@ -135,7 +135,7 @@ final class JoinProcessor implements ElementProcessor<Join> {
             case Join(TableSource ts, var alias, _, _, _) ->
                     dialectTemplate."\n\{join.type().sql()} \{getTableName(ts.table(), tableNameResolver)}\{alias.isEmpty() ? "" : STR." \{alias}"}";
             case Join(TemplateSource ts, var alias, _, _, _) -> {
-                var source = templateProcessor.parseSubquery(ts.template(), false);   // Source is not correlated.
+                var source = templateProcessor.parse(ts.template(), false);   // Source is not correlated.
                 yield dialectTemplate."\n\{join.type().sql()} (\{source})\{alias.isEmpty() ? "" : STR." \{alias}"}";
             }
         };

@@ -52,7 +52,7 @@ final class FromProcessor implements ElementProcessor<From> {
             case From(TableSource ts, _, _) ->
                     dialectTemplate."\{getTableName(ts.table(), template.tableNameResolver())}\{from.alias().isEmpty() ? "" : STR." \{from.alias()}"}";
             case From(TemplateSource ts, _, _) ->
-                    STR."(\{templateProcessor.parseSubquery(ts.template(), false)})\{from.alias().isEmpty() ? "" : STR." \{from.alias()}"}";    // From-clause is not correlated.
+                    STR."(\{templateProcessor.parse(ts.template(), false)})\{from.alias().isEmpty() ? "" : STR." \{from.alias()}"}";    // From-clause is not correlated.
         });
     }
 }

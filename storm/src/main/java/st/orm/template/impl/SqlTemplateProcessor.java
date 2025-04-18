@@ -73,7 +73,7 @@ record SqlTemplateProcessor(
         @Nullable PrimaryTable primaryTable
 ) implements ElementProcessor<Element> {
     private static final ScopedValue<SqlTemplateProcessor> CURRENT_PROCESSOR = ScopedValue.newInstance();
-    private static final ScopedValue<Integer> SUBQUERY_LEVEL = ScopedValue.newInstance();
+    private static final ScopedValue<Boolean> SUBQUERY = ScopedValue.newInstance();
 
     /**
      * Returns the current processor of the calling thread.
@@ -85,10 +85,12 @@ record SqlTemplateProcessor(
     }
 
     /**
-     * Returns the subquery level of the calling thread.
+     * Return true if we're in the context of a subquery.
+     *
+     * @return true if we're in the context of a subquery.
      */
-    static int subqueryLevel() {
-        return SUBQUERY_LEVEL.orElse(0);
+    static boolean isSubquery() {
+        return SUBQUERY.isBound();
     }
 
     /**
@@ -198,7 +200,8 @@ record SqlTemplateProcessor(
      * @return the SQL statement.
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
-    String parseSubquery(@Nonnull StringTemplate stringTemplate, boolean correlate) throws SqlTemplateException {
+    String parse(@Nonnull StringTemplate stringTemplate, boolean correlate)
+            throws SqlTemplateException {
         Callable<String> callable = () -> {
             Sql sql = template.process(stringTemplate);
             for (var parameter : sql.parameters()) {
@@ -209,12 +212,9 @@ record SqlTemplateProcessor(
             }
             return sql.statement();
         };
-        Callable<String> scopedCallable = () -> {
-            int currentLevel = SUBQUERY_LEVEL.isBound() ? SUBQUERY_LEVEL.get() : 0;
-            return callWhere(SUBQUERY_LEVEL, currentLevel + 1, () -> correlate
-                    ? callWhere(CURRENT_PROCESSOR, this, callable)
-                    : callable.call());
-        };
+        Callable<String> scopedCallable = () -> callWhere(SUBQUERY, true, () -> correlate
+                ? callWhere(CURRENT_PROCESSOR, this, callable)
+                : callable.call());
         try {
             return scopedCallable.call();
         } catch (SqlTemplateException e) {

@@ -106,7 +106,7 @@ import static st.orm.template.impl.SqlParser.getSqlMode;
 import static st.orm.template.impl.SqlParser.hasWhereClause;
 import static st.orm.template.impl.SqlParser.removeComments;
 import static st.orm.template.impl.SqlTemplateProcessor.current;
-import static st.orm.template.impl.SqlTemplateProcessor.subqueryLevel;
+import static st.orm.template.impl.SqlTemplateProcessor.isSubquery;
 
 /**
  * The sql template implementation that is responsible for generating SQL queries.
@@ -968,18 +968,18 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public Sql process(@Nonnull StringTemplate template) throws SqlTemplateException {
-        return process(template, subqueryLevel());
+        return process(template, isSubquery());
     }
 
     /**
      * Processes the specified {@code stringTemplate} and returns the resulting SQL and parameters.
      *
      * @param template the string template to process.
-     * @param level subquery level, or {@code 0} if not a subquery.
+     * @param subquery whether the call is the context of a subquery.
      * @return the resulting SQL and parameters.
      * @throws SqlTemplateException if an error occurs while processing the input.
      */
-    private Sql process(@Nonnull StringTemplate template, int level) throws SqlTemplateException {
+    private Sql process(@Nonnull StringTemplate template, boolean subquery) throws SqlTemplateException {
         var fragments = template.fragments();
         var values = template.values();
         Sql generated;
@@ -1050,9 +1050,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
             }
             validateParameters(parameters);
             String sql = String.join("", parts);
-            if (level > 0 && !sql.startsWith("\n") && sql.contains("\n")) {
+            if (subquery && !sql.startsWith("\n") && sql.contains("\n")) {
                 //noinspection StringTemplateMigration
-                sql = "\n" + sql.indent(level * 2);
+                sql = "\n" + sql.indent(2);
             }
             generated = new SqlImpl(sql, parameters, ofNullable(bindVariables.get()),
                     generatedKeys, versionAware.getPlain(), checkSafety(sql, sqlMode));
@@ -1060,7 +1060,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             assert fragments.size() == 1;
             generated = new SqlImpl(fragments.getFirst(), List.of(), empty(), List.of(), false, checkSafety(fragments.getFirst(), sqlMode));
         }
-        if (level == 0) {
+        if (!subquery) {
             // Don't intercept subquery calls.
             SqlInterceptorManager.intercept(generated);
             if (LOGGER.isLoggable(Level.FINE)) {
