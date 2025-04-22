@@ -174,7 +174,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
      */
     @Override
     public E upsertAndFetch(@Nonnull E entity) {
-        return select(upsertAndFetchId(entity));
+        return getById(upsertAndFetchId(entity));
     }
 
     /**
@@ -210,7 +210,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
      */
     @Override
     public List<E> upsertAndFetch(@Nonnull Iterable<E> entities) {
-        return select(upsertAndFetchIds(entities));
+        return findAllById(upsertAndFetchIds(entities));
     }
 
     /**
@@ -335,7 +335,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
 
     protected void upsertAndFetch(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> querySupplier, @Nullable BatchCallback<E> callback) {
         upsertAndFetchIds(batch, querySupplier, callback == null ? null : ids -> {
-            try (var stream = select(ids)) {
+            try (var stream = findAllById(ids)) {
                 callback.process(stream);
             }
         });

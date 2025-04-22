@@ -376,7 +376,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
         /**
          * Adds a condition to the WHERE clause that matches the specified primary keys of the table, expressed by a ref.
          *
-         * @param it the ids to match.
+         * @param it the refs to match.
          * @return the predicate builder.
          * @since 1.3
          */

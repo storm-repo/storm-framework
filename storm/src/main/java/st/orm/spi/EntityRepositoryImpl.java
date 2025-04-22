@@ -246,7 +246,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
      */
     @Override
     public E insertAndFetch(@Nonnull E entity) {
-        return select(insertAndFetchId(entity));
+        return getById(insertAndFetchId(entity));
     }
 
     /**
@@ -293,7 +293,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
     @Override
     public E updateAndFetch(@Nonnull E entity) {
         update(entity);
-        return select(entity.id());
+        return getById(entity.id());
     }
 
     private PersistenceException upsertNotAvailable() {
@@ -501,7 +501,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
      */
     @Override
     public List<E> insertAndFetch(@Nonnull Iterable<E> entities) {
-        return select(insertAndFetchIds(entities));
+        return findAllById(insertAndFetchIds(entities));
     }
 
     /**
@@ -539,7 +539,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
     @Override
     public List<E> updateAndFetch(@Nonnull Iterable<E> entities) {
         update(entities);
-        return select(StreamSupport.stream(entities.spliterator(), false).map(Entity::id).toList());
+        return findAllById(StreamSupport.stream(entities.spliterator(), false).map(Entity::id).toList());
     }
 
     /**
@@ -769,7 +769,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
      */
     @Override
     public void insertAndFetch(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<E> callback) {
-        insertAndFetchIds(entities, batchSize, ids -> callback.process(select(ids)));
+        insertAndFetchIds(entities, batchSize, ids -> callback.process(findAllById(ids)));
     }
 
     /**
@@ -883,7 +883,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
 
     protected void updateAndFetch(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> query, @Nullable BatchCallback<E> callback) {
         updateAndFetchIds(batch, query, callback == null ? null : ids -> {
-            try (var stream = select(ids)) {
+            try (var stream = findAllById(ids)) {
                 callback.process(stream);
             }
         });

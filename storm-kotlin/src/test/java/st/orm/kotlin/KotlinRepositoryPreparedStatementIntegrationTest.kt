@@ -68,7 +68,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
     @Test
     fun testSelectAll() {
         val repository = ORM(dataSource).repository(KotlinPetRepository::class)
-        assertEquals(13, repository.selectAll { it.count() })
+        assertEquals(13, repository.select().resultList.size)
     }
 
     @Test

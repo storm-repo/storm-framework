@@ -45,7 +45,7 @@ public class ProjectionPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectByPk() {
-        assertEquals(1, ORM(dataSource).projection(OwnerView.class).select(1).id());
+        assertEquals(1, ORM(dataSource).projection(OwnerView.class).getById(1).id());
     }
 
     @Test
