@@ -7,7 +7,6 @@ import st.orm.kotlin.model.PetType;
 import st.orm.kotlin.model.Visit;
 import st.orm.repository.EntityRepository;
 
-import java.util.List;
 import java.util.stream.Stream;
 
 import static java.lang.StringTemplate.RAW;
@@ -17,16 +16,7 @@ import static st.orm.kotlin.KTemplates.where;
 
 public interface PetRepository extends EntityRepository<Pet, Integer> {
 
-    default List<Pet> findAll() {
-        return orm().query(RAW."""
-                SELECT \{Templates.select(Pet.class)}
-                FROM \{table(Pet.class, "p")}
-                  INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
-                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id""")
-            .getResultList(Pet.class);
-    }
-
-    default Pet findById1(int id) {
+    default Pet getById1(int id) {
         return orm().query(RAW."""
                 SELECT \{Templates.select(Pet.class)}
                 FROM \{table(Pet.class, "p")}
@@ -36,7 +26,7 @@ public interface PetRepository extends EntityRepository<Pet, Integer> {
             .getSingleResult(Pet.class);
     }
 
-    default Pet findById2(int id) {
+    default Pet getById2(int id) {
         return orm().query(RAW."""
                 SELECT \{Pet.class}
                 FROM \{Pet.class}
@@ -44,15 +34,15 @@ public interface PetRepository extends EntityRepository<Pet, Integer> {
             .getSingleResult(Pet.class);
     }
 
-    default Pet findById3(int id) {
+    default Pet getById3(int id) {
         return orm().selectFrom(Pet.class).append(RAW."WHERE \{where(Stream.of(id))}").getSingleResult();
     }
 
-    default Stream<Pet> findByOwnerFirstName(String firstName) {
+    default Stream<Pet> getByOwnerFirstName(String firstName) {
         return orm().selectFrom(Pet.class).append(RAW."WHERE \{alias(Owner.class)}.first_name = \{firstName}").getResultStream();
     }
 
-    default Stream<Pet> findByOwnerCity(String city) {
+    default Stream<Pet> getByOwnerCity(String city) {
         return orm().selectFrom(Pet.class).append(RAW."WHERE \{alias(Owner.class)}.city = \{city}").getResultStream();
     }
 

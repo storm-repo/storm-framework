@@ -281,7 +281,7 @@ public class MariaDBEntityRepositoryTest {
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
                 WHERE (id, version) IN ((?, ?))""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
-        var entity = repo.select(1);
+        var entity = repo.getById(1);
         var first = new AtomicBoolean(false);
         try (var _ = SqlInterceptor.consume(sql -> {
             if (!first.getAndSet(true)) {
@@ -314,7 +314,7 @@ public class MariaDBEntityRepositoryTest {
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
                 WHERE id = ? AND version = ?""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
-        var entities = repo.select(List.of(1, 2));
+        var entities = repo.findAllById(List.of(1, 2));
         var first = new AtomicBoolean(false);
         try (var _ = SqlInterceptor.consume(sql -> {
             if (!first.getAndSet(true)) {
@@ -430,7 +430,7 @@ public class MariaDBEntityRepositoryTest {
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
                 WHERE (id, version) IN ((?, ?))""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
-        var entity = repo.select(1);
+        var entity = repo.getById(1);
         var first = new AtomicBoolean(false);
         try (var _ = SqlInterceptor.consume(sql -> {
             if (!first.getAndSet(true)) {
@@ -447,7 +447,7 @@ public class MariaDBEntityRepositoryTest {
             }
         })) {
             repo.upsert(entity.toBuilder().lastName("Smith").build());
-            var update = repo.select(1);
+            var update = repo.getById(1);
             assertEquals("Betty", update.firstName());
             assertEquals("Smith", update.lastName());
             assertEquals("638 Cardinal Ave.", update.address().address());
@@ -464,7 +464,7 @@ public class MariaDBEntityRepositoryTest {
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
                 WHERE (id, version) IN ((?, ?))""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
-        var entity = repo.select(1);
+        var entity = repo.getById(1);
         var first = new AtomicBoolean(false);
         try (var _ = SqlInterceptor.consume(sql -> {
             if (!first.getAndSet(true)) {
@@ -498,7 +498,7 @@ public class MariaDBEntityRepositoryTest {
                 VALUES (?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), first_name = VALUES(first_name), last_name = VALUES(last_name), address = VALUES(address), city = VALUES(city), telephone = VALUES(telephone), version = version + 1""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
-        var entity = repo.select(1);
+        var entity = repo.getById(1);
         var first = new AtomicBoolean(false);
         try (var _ = SqlInterceptor.consume(sql -> {
             if (!first.getAndSet(true)) {
@@ -532,7 +532,7 @@ public class MariaDBEntityRepositoryTest {
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
                 WHERE id = ? AND version = ?""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
-        var entities = repo.select(List.of(1, 2));
+        var entities = repo.findAllById(List.of(1, 2));
         var first = new AtomicBoolean(false);
         try (var _ = SqlInterceptor.consume(sql -> {
             if (!first.getAndSet(true)) {
@@ -545,7 +545,7 @@ public class MariaDBEntityRepositoryTest {
             repo.upsert(
                     entities.stream().map(entity -> entity.toBuilder().lastName("Smith").build()).toList()
             );
-            var updates = repo.select(List.of(1, 2)).stream().sorted(Comparator.comparingInt(Entity::id)).toList();
+            var updates = repo.findAllById(List.of(1, 2)).stream().sorted(Comparator.comparingInt(Entity::id)).toList();
             assertEquals(2, updates.size());
             assertEquals("Betty", updates.getFirst().firstName());
             assertEquals("Smith", updates.getFirst().lastName());

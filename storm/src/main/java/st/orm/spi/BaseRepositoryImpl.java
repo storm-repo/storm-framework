@@ -26,6 +26,7 @@ import st.orm.template.ORMTemplate;
 import st.orm.template.QueryBuilder;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -144,23 +145,6 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
     }
 
     /**
-     * Retrieves an entity based on its primary key.
-     *
-     * <p>This method performs a lookup in the database, returning the corresponding entity if it exists.</p>
-     *
-     * @param id the primary key of the entity to retrieve.
-     * @return the entity associated with the provided primary key. The returned entity encapsulates all relevant data
-     * as mapped by the entity model.
-     * @throws NoResultException if no entity is found matching the given primary key, indicating that there's no
-     *                           corresponding data in the database.
-     * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
-     *                              connectivity problems or query execution errors.
-     */
-    public E select(@Nonnull ID id) {
-        return select().where(id).getSingleResult();
-    }
-
-    /**
      * Returns the number of entities in the database of the entity type supported by this repository.
      *
      * @return the total number of entities in the database as a long value.
@@ -182,8 +166,89 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @return true if an entity with the specified primary key exists, false otherwise.
      * @throws PersistenceException if there is an underlying database issue during the count operation.
      */
-    public boolean exists(@Nonnull ID id) {
-        return count(Stream.of(id)) > 0;
+    public boolean existsById(@Nonnull ID id) {
+        return countById(Stream.of(id)) > 0;
+    }
+
+    /**
+     * Checks if an entity with the specified primary key exists in the database.
+     *
+     * <p>This method determines the presence of an entity by checking if the count of entities with the given primary
+     * key is greater than zero. It leverages the {@code selectCount} method, which performs a count operation on the
+     * database.</p>
+     *
+     * @param ref the primary key of the entity to check for existence.
+     * @return true if an entity with the specified primary key exists, false otherwise.
+     * @throws PersistenceException if there is an underlying database issue during the count operation.
+     */
+    public boolean existsByRef(@Nonnull Ref<E> ref) {
+        return countByRef(Stream.of(ref)) > 0;
+    }
+
+    // Singular findBy methods.
+
+    /**
+     * Retrieves an entity based on its primary key.
+     *
+     * <p>This method performs a lookup in the database, returning the corresponding entity if it exists.</p>
+     *
+     * @param id the primary key of the entity to retrieve.
+     * @return the entity associated with the provided primary key. The returned entity encapsulates all relevant data
+     * as mapped by the entity model.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
+     *                              connectivity problems or query execution errors.
+     */
+    public Optional<E> findById(@Nonnull ID id) {
+        return select().where(id).getOptionalResult();
+    }
+
+    /**
+     * Retrieves an entity based on its primary key, expressed by a ref.
+     *
+     * <p>This method performs a lookup in the database, returning the corresponding entity if it exists.</p>
+     *
+     * @param ref the ref to match.
+     * @return the entity associated with the provided primary key. The returned entity encapsulates all relevant data
+     * as mapped by the entity model.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
+     *                              connectivity problems or query execution errors.
+     */
+    public Optional<E> findByRef(@Nonnull Ref<E> ref) {
+        return select().where(ref).getOptionalResult();
+    }
+
+    /**
+     * Retrieves an entity based on its primary key.
+     *
+     * <p>This method performs a lookup in the database, returning the corresponding entity if it exists.</p>
+     *
+     * @param id the primary key of the entity to retrieve.
+     * @return the entity associated with the provided primary key. The returned entity encapsulates all relevant data
+     * as mapped by the entity model.
+     * @throws NoResultException if no entity is found matching the given primary key, indicating that there's no
+     *                           corresponding data in the database.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
+     *                              connectivity problems or query execution errors.
+     */
+    public E getById(@Nonnull ID id) {
+        return select().where(id).getSingleResult();
+    }
+
+    /**
+     * Retrieves an entity based on its primary key, expressed by a ref.
+     *
+     * <p>This method performs a lookup in the database, returning the corresponding entity if it exists.</p>
+     *
+     * @param ref the ref to match.
+     * @return the entity associated with the provided primary key. The returned entity encapsulates all relevant data
+     * as mapped by the entity model.
+     * @throws NoResultException if no entity is found matching the given primary key, indicating that there's no
+     *                           corresponding data in the database.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
+     *                              connectivity problems or query execution errors.
+     */
+    public E getByRef(@Nonnull Ref<E> ref) {
+        return select().where(ref).getSingleResult();
     }
 
     // List based methods.
@@ -203,8 +268,29 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @throws PersistenceException if the selection operation fails due to database issues, such as connectivity
      *         problems or invalid input parameters.
      */
-    public List<E> select(@Nonnull Iterable<ID> ids) {
-        try (var stream = select(toStream(ids))) {
+    public List<E> findAllById(@Nonnull Iterable<ID> ids) {
+        try (var stream = findAllById(toStream(ids))) {
+            return stream.toList();
+        }
+    }
+
+    /**
+     * Retrieves a list of entities based on their primary keys.
+     *
+     * <p>This method retrieves entities matching the provided IDs in batches, consolidating them into a single list.
+     * The batch-based retrieval minimizes database overhead, allowing efficient handling of larger collections of IDs.
+     * Note that the order of entities in the returned list is not guaranteed to match the order of IDs in the input
+     * collection, as the database may not preserve insertion order during retrieval.</p>
+     *
+     * @param refs the primary keys of the entities to retrieve, represented as an iterable collection.
+     * @return a list of entities corresponding to the provided primary keys. Entities are returned without any
+     *         guarantee of order alignment with the input list. If an ID does not correspond to any entity in the
+     *         database, no corresponding entity will be included in the returned list.
+     * @throws PersistenceException if the selection operation fails due to database issues, such as connectivity
+     *         problems or invalid input parameters.
+     */
+    public List<E> findAllByRef(@Nonnull Iterable<Ref<E>> refs) {
+        try (var stream = findAllByRef(toStream(refs))) {
             return stream.toList();
         }
     }
@@ -228,7 +314,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    public Stream<E> selectAll() {
+    public Stream<E> findAll() {
         return select().getResultStream();
     }
 
@@ -257,8 +343,37 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    public Stream<E> select(@Nonnull Stream<ID> ids) {
-        return select(ids, defaultSliceSize);
+    public Stream<E> findAllById(@Nonnull Stream<ID> ids) {
+        return findAllById(ids, defaultSliceSize);
+    }
+
+    /**
+     * Retrieves a stream of entities based on their primary keys.
+     *
+     * <p>This method executes queries in batches, depending on the number of primary keys in the specified ids stream.
+     * This optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities.
+     * The batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
+     * recommended to use it within a try-with-resources block.</p>
+     *
+     * @param refs a stream of refs to retrieve from the repository.
+     * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
+     *         not guaranteed to match the order of ids in the input stream. If an id does not correspond to any entity
+     *         in the database, it will simply be skipped, and no corresponding entity will be included in the returned
+     *         stream. If the same entity is requested multiple times, it may be included in the stream multiple times
+     *         if it is part of a separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    public Stream<E> findAllByRef(@Nonnull Stream<Ref<E>> refs) {
+        return findAllByRef(refs, defaultSliceSize);
     }
 
     /**
@@ -289,8 +404,40 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    public Stream<E> select(@Nonnull Stream<ID> ids, int batchSize) {
+    public Stream<E> findAllById(@Nonnull Stream<ID> ids, int batchSize) {
         return slice(ids, batchSize, batch -> select().whereId(batch).getResultStream()); // Stream returned by getResultStream is closed by the batch operation.
+    }
+
+    /**
+     * Retrieves a stream of entities based on their primary keys.
+     *
+     * <p>This method executes queries in batches, with the batch size determined by the provided parameter. This
+     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities. The
+     * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
+     * recommended to use it within a try-with-resources block.</p>
+     *
+     * @param refs a stream of refs to retrieve from the repository.
+     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     *                  batches used to execute the selection operation. A larger batch size can improve performance,
+     *                  especially when dealing with large sets of primary keys.
+     * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
+     * not guaranteed to match the order of ids in the input stream. If an id does not correspond to any entity in the
+     * database, it will simply be skipped, and no corresponding entity will be included in the returned stream. If the
+     * same entity is requested multiple times, it may be included in the stream multiple times if it is part of a
+     * separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    public Stream<E> findAllByRef(@Nonnull Stream<Ref<E>> refs, int batchSize) {
+        return slice(refs, batchSize, batch -> select().whereRef(batch).getResultStream()); // Stream returned by getResultStream is closed by the batch operation.
     }
 
     /**
@@ -304,8 +451,8 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @return the total count of entities matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    public long count(@Nonnull Stream<ID> ids) {
-        return count(ids, defaultSliceSize);
+    public long countById(@Nonnull Stream<ID> ids) {
+        return countById(ids, defaultSliceSize);
     }
 
     /**
@@ -322,10 +469,47 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @return the total count of entities matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    public long count(@Nonnull Stream<ID> ids, int batchSize) {
+    public long countById(@Nonnull Stream<ID> ids, int batchSize) {
         return slice(ids, batchSize)
-                .mapToLong(slice -> select(Long.class, RAW."COUNT(*)")
+                .mapToLong(slice -> selectCount()
                         .whereId(slice)
+                        .getSingleResult())
+                .sum();
+    }
+
+    /**
+     * Counts the number of entities identified by the provided stream of refs using the default batch size.
+     *
+     * <p>This method calculates the total number of entities that match the provided primary keys. The counting
+     * is performed in batches, which helps optimize performance and manage database load when dealing with
+     * large sets of IDs.</p>
+     *
+     * @param refs a stream of refs for which to count matching entities.
+     * @return the total count of entities matching the provided IDs.
+     * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
+     */
+    public long countByRef(@Nonnull Stream<Ref<E>> refs) {
+        return countByRef(refs, defaultSliceSize);
+    }
+
+    /**
+     * Counts the number of entities identified by the provided stream of refs, with the counting process divided into
+     * batches of the specified size.
+     *
+     * <p>This method performs the counting operation in batches, specified by the {@code batchSize} parameter. This
+     * batching approach is particularly useful for efficiently handling large volumes of IDs, reducing the overhead on
+     * the database and improving performance.</p>
+     *
+     * @param refs a stream of IDs for which to count matching entities.
+     * @param batchSize the size of the batches to use for the counting operation. A larger batch size can improve
+     *                  performance but may also increase the load on the database.
+     * @return the total count of entities matching the provided IDs.
+     * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
+     */
+    public long countByRef(@Nonnull Stream<Ref<E>> refs, int batchSize) {
+        return slice(refs, batchSize)
+                .mapToLong(slice -> selectCount()
+                        .whereRef(slice)
                         .getSingleResult())
                 .sum();
     }

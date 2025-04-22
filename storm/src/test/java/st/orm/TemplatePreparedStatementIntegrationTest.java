@@ -109,7 +109,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectPetWithJoinsMetamodel() {
-        var visit = ORM(dataSource).entity(Visit.class).select(1);
+        var visit = ORM(dataSource).entity(Visit.class).getById(1);
         Pet pet = ORM(dataSource).query(RAW."""
                 SELECT \{Pet.class}
                 FROM \{Pet.class}
@@ -680,7 +680,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWherePathRecord() {
-        var owner = ORM(dataSource).entity(Owner.class).select(3);
+        var owner = ORM(dataSource).entity(Owner.class).getById(3);
         var pets = ORM(dataSource).query(RAW."""
                 SELECT \{Pet.class}
                 FROM \{Pet.class}
@@ -692,7 +692,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWhereSubPathPk() {
-        var owner = ORM(dataSource).entity(Owner.class).select(3);
+        var owner = ORM(dataSource).entity(Owner.class).getById(3);
         var pets = ORM(dataSource).query(RAW."""
                 SELECT \{Pet.class}
                 FROM \{Pet.class}

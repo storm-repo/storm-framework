@@ -17,16 +17,7 @@ import static st.orm.Templates.where;
 
 public interface PetRepository extends EntityRepository<Pet, Integer> {
 
-    default List<Pet> findAll() {
-        return orm().query(RAW."""
-                SELECT \{Templates.select(Pet.class)})
-                FROM \{table(Pet.class, "p")}
-                  INNER JOIN \{table(PetType.class, "pt")} ON p.type_id = pt.id
-                  LEFT OUTER JOIN \{table(Owner.class, "o")} ON p.owner_id = o.id""")
-            .getResultList(Pet.class);
-    }
-
-    default Pet findById1(int id) {
+    default Pet getById1(int id) {
         return orm().query(RAW."""
                 SELECT \{Pet.class}
                 FROM \{table(Pet.class, "p")}
@@ -37,7 +28,7 @@ public interface PetRepository extends EntityRepository<Pet, Integer> {
             .getSingleResult(Pet.class);
     }
 
-    default Pet findById2(int id) {
+    default Pet getById2(int id) {
         return orm().query(RAW."""
                 SELECT \{Pet.class}
                 FROM \{Pet.class}
@@ -45,7 +36,7 @@ public interface PetRepository extends EntityRepository<Pet, Integer> {
             .getSingleResult(Pet.class);
     }
 
-    default Pet findById3(int id) {
+    default Pet getById3(int id) {
         return orm().selectFrom(Pet.class).append(RAW."WHERE \{where(id)}").getSingleResult();
     }
 

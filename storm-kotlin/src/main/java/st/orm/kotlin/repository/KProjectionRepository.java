@@ -26,6 +26,7 @@ import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.repository.Projection;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Provides a generic interface with CRUD operations for projections.
@@ -95,21 +96,6 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
     // Base methods.
 
     /**
-     * Retrieves a projection based on its primary key.
-     *
-     * <p>This method performs a lookup in the database, returning the corresponding projection if it exists.</p>
-     *
-     * @param id the primary key of the projection to retrieve.
-     * @return the projection associated with the provided primary key. The returned projection encapsulates all relevant data
-     * as mapped by the projection model.
-     * @throws NoResultException if no projection is found matching the given primary key, indicating that there's no
-     *                           corresponding data in the database.
-     * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
-     *                              connectivity problems or query execution errors.
-     */
-    P select(@Nonnull ID id);
-
-    /**
      * Returns the number of projections in the database of the projection type supported by this repository.
      *
      * @return the total number of projections in the database as a long value.
@@ -129,36 +115,114 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
      * @return true if a projection with the specified primary key exists, false otherwise.
      * @throws PersistenceException if there is an underlying database issue during the count operation.
      */
-    boolean exists(@Nonnull ID id);
+    boolean existsById(@Nonnull ID id);
+
+    /**
+     * Checks if a projection with the specified primary key exists in the database.
+     *
+     * <p>This method determines the presence of a projection by checking if the count of projections with the given primary
+     * key is greater than zero. It leverages the {@code selectCount} method, which performs a count operation on the
+     * database.</p>
+     *
+     * @param ref the primary key of the projection to check for existence.
+     * @return true if a projection with the specified primary key exists, false otherwise.
+     * @throws PersistenceException if there is an underlying database issue during the count operation.
+     */
+    boolean existsByRef(@Nonnull Ref<P> ref);
+
+    // Singular findBy methods.
+
+    /**
+     * Retrieves a projection based on its primary key.
+     *
+     * <p>This method performs a lookup in the database, returning the corresponding projection if it exists.</p>
+     *
+     * @param id the primary key of the projection to retrieve.
+     * @return the projection associated with the provided primary key. The returned projection encapsulates all relevant data
+     * as mapped by the projection model.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
+     *                              connectivity problems or query execution errors.
+     */
+    Optional<P> findById(@Nonnull ID id);
+
+    /**
+     * Retrieves a projection based on its primary key.
+     *
+     * <p>This method performs a lookup in the database, returning the corresponding projection if it exists.</p>
+     *
+     * @param ref the ref to match.
+     * @return the projection associated with the provided primary key. The returned projection encapsulates all relevant data
+     * as mapped by the projection model.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
+     *                              connectivity problems or query execution errors.
+     */
+    Optional<P> findByRef(@Nonnull Ref<P> ref);
+
+    /**
+     * Retrieves a projection based on its primary key.
+     *
+     * <p>This method performs a lookup in the database, returning the corresponding projection if it exists.</p>
+     *
+     * @param id the primary key of the projection to retrieve.
+     * @return the projection associated with the provided primary key. The returned projection encapsulates all relevant data
+     * as mapped by the projection model.
+     * @throws NoResultException if no projection is found matching the given primary key, indicating that there's no
+     *                           corresponding data in the database.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
+     *                              connectivity problems or query execution errors.
+     */
+    P getById(@Nonnull ID id);
+
+    /**
+     * Retrieves a projection based on its primary key.
+     *
+     * <p>This method performs a lookup in the database, returning the corresponding projection if it exists.</p>
+     *
+     * @param ref the ref to match.
+     * @return the projection associated with the provided primary key. The returned projection encapsulates all relevant data
+     * as mapped by the projection model.
+     * @throws NoResultException if no projection is found matching the given primary key, indicating that there's no
+     *                           corresponding data in the database.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
+     *                              connectivity problems or query execution errors.
+     */
+    P getByRef(@Nonnull Ref<P> ref);
 
     // List based methods.
 
     /**
-     * Retrieves a stream of projections based on their primary keys.
+     * Retrieves a list of projections based on their primary keys.
      *
-     * <p>This method executes queries in batches, depending on the number of primary keys in the specified ids stream.
-     * This optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve projections.
-     * The batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     * <p>This method retrieves projections matching the provided IDs in batches, consolidating them into a single list.
+     * The batch-based retrieval minimizes database overhead, allowing efficient handling of larger collections of IDs.
+     * Note that the order of projections in the returned list is not guaranteed to match the order of IDs in the input
+     * collection, as the database may not preserve insertion order during retrieval.</p>
      *
-     * <p>The resulting stream is lazily loaded, meaning that the projections are only retrieved from the database as they
-     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
-     * dealing with large volumes of projections.</p>
-     *
-     * <p>Note that calling this method does trigger the execution of the underlying
-     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
-     *
-     * @param ids a stream of projection IDs to retrieve from the repository.
-     * @return a stream of projections corresponding to the provided primary keys. The order of projections in the stream is
-     *         not guaranteed to match the order of ids in the input stream. If an id does not correspond to any projection
-     *         in the database, it will simply be skipped, and no corresponding projection will be included in the returned
-     *         stream. If the same projection is requested multiple times, it may be included in the stream multiple times
-     *         if it is part of a separate batch.
-     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
-     *                              connectivity.
+     * @param ids the primary keys of the projections to retrieve, represented as an iterable collection.
+     * @return a list of projections corresponding to the provided primary keys. Projections are returned without any
+     *         guarantee of order alignment with the input list. If an ID does not correspond to any projection in the
+     *         database, no corresponding projection will be included in the returned list.
+     * @throws PersistenceException if the selection operation fails due to database issues, such as connectivity
+     *         problems or invalid input parameters.
      */
-    List<P> select(@Nonnull Iterable<ID> ids);
+    List<P> findAllById(@Nonnull Iterable<ID> ids);
+
+    /**
+     * Retrieves a list of projections based on their primary keys.
+     *
+     * <p>This method retrieves projections matching the provided IDs in batches, consolidating them into a single list.
+     * The batch-based retrieval minimizes database overhead, allowing efficient handling of larger collections of IDs.
+     * Note that the order of projections in the returned list is not guaranteed to match the order of IDs in the input
+     * collection, as the database may not preserve insertion order during retrieval.</p>
+     *
+     * @param refs the primary keys of the projections to retrieve, represented as an iterable collection.
+     * @return a list of projections corresponding to the provided primary keys. Projections are returned without any
+     *         guarantee of order alignment with the input list. If an ID does not correspond to any projection in the
+     *         database, no corresponding projection will be included in the returned list.
+     * @throws PersistenceException if the selection operation fails due to database issues, such as connectivity
+     *         problems or invalid input parameters.
+     */
+    List<P> findAllByRef(@Nonnull Iterable<Ref<P>> refs);
 
     // Sequence based methods.
 
@@ -176,7 +240,7 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
      * @return the result produced by the callback's processing of the projection sequence.
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
-    <R> R selectAll(@Nonnull KResultCallback<P, R> callback);
+    <R> R findAll(@Nonnull KResultCallback<P, R> callback);
 
     /**
      * Processes a sequence of projections corresponding to the provided IDs using the specified callback.
@@ -193,7 +257,7 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
      * @return the result produced by the callback's processing of the projection sequence.
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
-    <R> R select(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<P, R> callback);
+    <R> R findAllById(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<P, R> callback);
 
     /**
      * Retrieves a sequence of projections based on their primary keys.
@@ -218,7 +282,49 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    <R> R select(@Nonnull Sequence<ID> ids, int batchSize, @Nonnull KResultCallback<P, R> callback);
+    <R> R findAllById(@Nonnull Sequence<ID> ids, int batchSize, @Nonnull KResultCallback<P, R> callback);
+
+    /**
+     * Processes a sequence of projections corresponding to the provided refs using the specified callback.
+     * This method retrieves projections matching the given IDs and applies the callback to process the results,
+     * returning the outcome produced by the callback.
+     *
+     * <p>This method is designed for efficient data handling by only retrieving specified projections as needed.
+     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * resources after processing to prevent resource leaks.</p>
+     *
+     * @param refs a sequence of refs to retrieve from the repository.
+     * @param callback a {@link KResultCallback} defining how to process the sequence of projections and produce a result.
+     * @param <R> the type of result produced by the callback after processing the projections.
+     * @return the result produced by the callback's processing of the projection sequence.
+     * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
+     */
+    <R> R findAllByRef(@Nonnull Sequence<Ref<P>> refs, @Nonnull KResultCallback<P, R> callback);
+
+    /**
+     * Retrieves a sequence of projections based on their primary keys.
+     *
+     * <p>This method executes queries in batches, with the batch size determined by the provided parameter. This
+     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve projections. The
+     * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>This method is designed for efficient data handling by only retrieving specified projections as needed.
+     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * resources after processing to prevent resource leaks.</p>
+     *
+     * @param refs a sequence of refs to retrieve from the repository.
+     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
+     *                  dealing with large sets of primary keys.
+     * @return a sequence of projections corresponding to the provided primary keys. The order of projections in the sequence is
+     * not guaranteed to match the order of ids in the input sequence. If an id does not correspond to any projection in the
+     * database, it will simply be skipped, and no corresponding projection will be included in the returned sequence. If the
+     * same projection is requested multiple times, it may be included in the sequence multiple times if it is part of a
+     * separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    <R> R findAllByRef(@Nonnull Sequence<Ref<P>> refs, int batchSize, @Nonnull KResultCallback<P, R> callback);
 
     /**
      * Counts the number of projections identified by the provided sequence of IDs using the default batch size.
@@ -231,7 +337,7 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
      * @return the total count of projections matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    long count(@Nonnull Sequence<ID> ids);
+    long countById(@Nonnull Sequence<ID> ids);
 
     /**
      * Counts the number of projections identified by the provided sequence of IDs, with the counting process divided into
@@ -247,5 +353,34 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
      * @return the total count of projections matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    long count(@Nonnull Sequence<ID> ids, int batchSize);
+    long countById(@Nonnull Sequence<ID> ids, int batchSize);
+
+    /**
+     * Counts the number of projections identified by the provided sequence of IDs using the default batch size.
+     *
+     * <p>This method calculates the total number of projections that match the provided primary keys. The counting
+     * is performed in batches, which helps optimize performance and manage database load when dealing with
+     * large sets of IDs.</p>
+     *
+     * @param refs a sequence of refs for which to count matching projections.
+     * @return the total count of projections matching the provided IDs.
+     * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
+     */
+    long countByRef(@Nonnull Sequence<Ref<P>> refs);
+
+    /**
+     * Counts the number of projections identified by the provided sequence of IDs, with the counting process divided into
+     * batches of the specified size.
+     *
+     * <p>This method performs the counting operation in batches, specified by the {@code batchSize} parameter. This
+     * batching approach is particularly useful for efficiently handling large volumes of IDs, reducing the overhead on
+     * the database and improving performance.</p>
+     *
+     * @param refs a sequence of refs for which to count matching projections.
+     * @param batchSize the size of the batches to use for the counting operation. A larger batch size can improve
+     *                  performance but may also increase the load on the database.
+     * @return the total count of projections matching the provided IDs.
+     * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
+     */
+    long countByRef(@Nonnull Sequence<Ref<P>> refs, int batchSize);
 }

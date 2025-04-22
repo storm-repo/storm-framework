@@ -18,8 +18,8 @@ package st.orm.kotlin.repository;
 import jakarta.annotation.Nonnull;
 import kotlin.reflect.KClass;
 import kotlin.sequences.Sequence;
-import st.orm.Ref;
 import st.orm.NoResultException;
+import st.orm.Ref;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KBatchCallback;
 import st.orm.kotlin.KResultCallback;
@@ -28,6 +28,7 @@ import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.repository.Entity;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Provides a generic interface with CRUD operations for entities.
@@ -155,21 +156,6 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
     // Base methods.
 
     /**
-     * Retrieves an entity based on its primary key.
-     *
-     * <p>This method performs a lookup in the database, returning the corresponding entity if it exists.</p>
-     *
-     * @param id the primary key of the entity to retrieve.
-     * @return the entity associated with the provided primary key. The returned entity encapsulates all relevant data
-     * as mapped by the entity model.
-     * @throws NoResultException if no entity is found matching the given primary key, indicating that there's no
-     *                           corresponding data in the database.
-     * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
-     *                              connectivity problems or query execution errors.
-     */
-    E select(@Nonnull ID id);
-
-    /**
      * Returns the number of entities in the database of the entity type supported by this repository.
      *
      * @return the total number of entities in the database as a long value.
@@ -189,7 +175,20 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * @return true if an entity with the specified primary key exists, false otherwise.
      * @throws PersistenceException if there is an underlying database issue during the count operation.
      */
-    boolean exists(@Nonnull ID id);
+    boolean existsById(@Nonnull ID id);
+
+    /**
+     * Checks if an entity with the specified primary key exists in the database.
+     *
+     * <p>This method determines the presence of an entity by checking if the count of entities with the given primary
+     * key is greater than zero. It leverages the {@code selectCount} method, which performs a count operation on the
+     * database.</p>
+     *
+     * @param ref the primary key of the entity to check for existence, expressed as a ref.
+     * @return true if an entity with the specified primary key exists, false otherwise.
+     * @throws PersistenceException if there is an underlying database issue during the count operation.
+     */
+    boolean existsByRef(@Nonnull Ref<E> ref);
 
     /**
      * Inserts an entity into the database.
@@ -353,6 +352,64 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      */
     void deleteAll();
 
+    // Singular findBy methods.
+
+    /**
+     * Retrieves an entity based on its primary key.
+     *
+     * <p>This method performs a lookup in the database, returning the corresponding entity if it exists.</p>
+     *
+     * @param id the primary key of the entity to retrieve.
+     * @return the entity associated with the provided primary key. The returned entity encapsulates all relevant data
+     * as mapped by the entity model.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
+     *                              connectivity problems or query execution errors.
+     */
+    Optional<E> findById(@Nonnull ID id);
+
+    /**
+     * Retrieves an entity based on its primary key, expressed by a ref.
+     *
+     * <p>This method performs a lookup in the database, returning the corresponding entity if it exists.</p>
+     *
+     * @param ref the ref to match.
+     * @return the entity associated with the provided primary key. The returned entity encapsulates all relevant data
+     * as mapped by the entity model.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
+     *                              connectivity problems or query execution errors.
+     */
+    Optional<E> findByRef(@Nonnull Ref<E> ref);
+
+    /**
+     * Retrieves an entity based on its primary key.
+     *
+     * <p>This method performs a lookup in the database, returning the corresponding entity if it exists.</p>
+     *
+     * @param id the primary key of the entity to retrieve.
+     * @return the entity associated with the provided primary key. The returned entity encapsulates all relevant data
+     * as mapped by the entity model.
+     * @throws NoResultException if no entity is found matching the given primary key, indicating that there's no
+     *                           corresponding data in the database.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
+     *                              connectivity problems or query execution errors.
+     */
+    E getById(@Nonnull ID id);
+
+    /**
+     * Retrieves an entity based on its primary key, expressed by a ref.
+     *
+     * <p>This method performs a lookup in the database, returning the corresponding entity if it exists.</p>
+     *
+     * @param ref the ref to match.
+     * @return the entity associated with the provided primary key. The returned entity encapsulates all relevant data
+     * as mapped by the entity model.
+     * @throws NoResultException if no entity is found matching the given primary key, indicating that there's no
+     *                           corresponding data in the database.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues, such as
+     *                              connectivity problems or query execution errors.
+     */
+    E getByRef(@Nonnull Ref<E> ref);
+
     // List based methods.
 
     /**
@@ -370,7 +427,24 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * @throws PersistenceException if the selection operation fails due to database issues, such as connectivity
      *         problems or invalid input parameters.
      */
-    List<E> select(@Nonnull Iterable<ID> ids);
+    List<E> findAllById(@Nonnull Iterable<ID> ids);
+
+    /**
+     * Retrieves a list of entities based on their primary keys.
+     *
+     * <p>This method retrieves entities matching the provided IDs in batches, consolidating them into a single list.
+     * The batch-based retrieval minimizes database overhead, allowing efficient handling of larger collections of IDs.
+     * Note that the order of entities in the returned list is not guaranteed to match the order of IDs in the input
+     * collection, as the database may not preserve insertion order during retrieval.</p>
+     *
+     * @param refs the primary keys of the entities to retrieve, represented as an iterable collection.
+     * @return a list of entities corresponding to the provided primary keys. Entities are returned without any
+     *         guarantee of order alignment with the input list. If an ID does not correspond to any entity in the
+     *         database, no corresponding entity will be included in the returned list.
+     * @throws PersistenceException if the selection operation fails due to database issues, such as connectivity
+     *         problems or invalid input parameters.
+     */
+    List<E> findAllByRef(@Nonnull Iterable<Ref<E>> refs);
 
     /**
      * Inserts a collection of entities into the database in batches.
@@ -539,7 +613,7 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * @return the result produced by the callback's processing of the entity sequence.
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
-    <R> R selectAll(@Nonnull KResultCallback<E, R> callback);
+    <R> R findAll(@Nonnull KResultCallback<E, R> callback);
 
     /**
      * Processes a sequence of entities corresponding to the provided IDs using the specified callback.
@@ -556,7 +630,7 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * @return the result produced by the callback's processing of the entity sequence.
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
-    <R> R select(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<E, R> callback);
+    <R> R findAll(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<E, R> callback);
 
     /**
      * Retrieves a sequence of entities based on their primary keys.
@@ -581,7 +655,32 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    <R> R select(@Nonnull Sequence<ID> ids, int batchSize, @Nonnull KResultCallback<E, R> callback);
+    <R> R findAllById(@Nonnull Sequence<ID> ids, int batchSize, @Nonnull KResultCallback<E, R> callback);
+
+    /**
+     * Retrieves a sequence of entities based on their primary keys.
+     *
+     * <p>This method executes queries in batches, with the batch size determined by the provided parameter. This
+     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities. The
+     * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>This method is designed for efficient data handling by only retrieving specified entities as needed.
+     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * resources after processing to prevent resource leaks.</p>
+     *
+     * @param refs a sequence of entity refs to retrieve from the repository.
+     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
+     *                  dealing with large sets of primary keys.
+     * @return a sequence of entities corresponding to the provided primary keys. The order of entities in the sequence is
+     * not guaranteed to match the order of refs in the input sequence. If an id does not correspond to any entity in the
+     * database, it will simply be skipped, and no corresponding entity will be included in the returned sequence. If the
+     * same entity is requested multiple times, it may be included in the sequence multiple times if it is part of a
+     * separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    <R> R findAllByRef(@Nonnull Sequence<Ref<E>> refs, int batchSize, @Nonnull KResultCallback<E, R> callback);
 
     /**
      * Counts the number of entities identified by the provided sequence of IDs using the default batch size.
@@ -594,7 +693,7 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * @return the total count of entities matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    long count(@Nonnull Sequence<ID> ids);
+    long countById(@Nonnull Sequence<ID> ids);
 
     /**
      * Counts the number of entities identified by the provided sequence of IDs, with the counting process divided into
@@ -610,7 +709,36 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * @return the total count of entities matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    long count(@Nonnull Sequence<ID> ids, int batchSize);
+    long countById(@Nonnull Sequence<ID> ids, int batchSize);
+
+    /**
+     * Counts the number of entities identified by the provided sequence of refs using the default batch size.
+     *
+     * <p>This method calculates the total number of entities that match the provided primary keys. The counting
+     * is performed in batches, which helps optimize performance and manage database load when dealing with
+     * large sets of IDs.</p>
+     *
+     * @param refs a sequence of refs for which to count matching entities.
+     * @return the total count of entities matching the provided IDs.
+     * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
+     */
+    long countByRef(@Nonnull Sequence<Ref<E>> refs);
+
+    /**
+     * Counts the number of entities identified by the provided sequence of refs, with the counting process divided into
+     * batches of the specified size.
+     *
+     * <p>This method performs the counting operation in batches, specified by the {@code batchSize} parameter. This
+     * batching approach is particularly useful for efficiently handling large volumes of IDs, reducing the overhead on
+     * the database and improving performance.</p>
+     *
+     * @param refs a sequence of refs for which to count matching entities.
+     * @param batchSize the size of the batches to use for the counting operation. A larger batch size can improve
+     *                  performance but may also increase the load on the database.
+     * @return the total count of entities matching the provided IDs.
+     * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
+     */
+    long countByRef(@Nonnull Sequence<Ref<E>> refs, int batchSize);
 
     /**
      * Inserts entities in a batch mode to optimize performance and reduce database load.

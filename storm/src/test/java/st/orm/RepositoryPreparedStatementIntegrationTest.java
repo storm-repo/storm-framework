@@ -232,10 +232,10 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testUpdateList() {
         var repository = ORM(dataSource).entity(Vet.class);
-        try (var stream1 = repository.selectAll()) {
+        try (var stream1 = repository.findAll()) {
             var list1 = stream1.toList();
             repository.update(list1);
-            try (var stream2 = repository.selectAll()) {
+            try (var stream2 = repository.findAll()) {
                 var list2 = stream2.toList();
                 assertEquals(list1, list2);
             }
@@ -246,13 +246,13 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectList() {
         var repository = ORM(dataSource).entity(Vet.class);
         var list = repository.select().getResultList();
-        var list2 = repository.select(list.stream().map(Vet::id).toList());
+        var list2 = repository.findAllById(list.stream().map(Vet::id).toList());
         assertEquals(list, list2);
     }
 
     @Test
     public void testSelectFetchRef() {
-        var visit = ORM(dataSource).entity(VisitWithNullablePetRef.class).select(1);
+        var visit = ORM(dataSource).entity(VisitWithNullablePetRef.class).getById(1);
         //noinspection DataFlowIssue
         var pet = visit.pet().fetch();
         assertFalse(visit.pet().isNull());
@@ -314,7 +314,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testWhereWithOperatorAndRecord() {
         var e = assertThrows(PersistenceException.class, () -> {
-            var owner = ORM(dataSource).entity(Owner.class).select(1);
+            var owner = ORM(dataSource).entity(Owner.class).getById(1);
             ORM(dataSource).entity(Pet.class).select()
                     .where(RAW."\{Pet_.owner} = \{owner}")
                     .getResultList();
@@ -346,7 +346,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     void testUpdatePetWithNull() {
         var e = assertThrows(PersistenceException.class, () -> {
             var repository = ORM(dataSource).entity(Visit.class);
-            var visit = repository.select(1);
+            var visit = repository.getById(1);
             //noinspection DataFlowIssue
             repository.update(new Visit(visit.id(), visit.visitDate(), visit.description(), null, Instant.now()));
         });
@@ -377,7 +377,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     void testUpdatePetRefWithNull() {
         var e = assertThrows(PersistenceException.class, () -> {
             var repository = ORM(dataSource).entity(VisitWithNonnullPetRef.class);
-            var visit = repository.select(1);
+            var visit = repository.getById(1);
             //noinspection DataFlowIssue
             repository.update(new VisitWithNonnullPetRef(visit.id(), visit.visitDate(), visit.description(), null));
         });
@@ -409,7 +409,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     void testUpdateNullablePetRefWithNull() {
         var e = assertThrows(PersistenceException.class, () -> {
             var repository = ORM(dataSource).entity(VisitWithNullablePetRef.class);
-            var visit = repository.select(1);
+            var visit = repository.getById(1);
             repository.update(visit.toBuilder().pet(Ref.ofNull()).build());
         });
         assertInstanceOf(SQLIntegrityConstraintViolationException.class, e.getCause());
@@ -420,7 +420,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var visitRepository = ORM(dataSource).entity(VisitWithNullablePetRef.class);
         VisitWithNullablePetRef visit = new VisitWithNullablePetRef(0, LocalDate.now(), "test", Ref.of(Pet.builder().id(1).build()), Instant.now());
         var id = visitRepository.insertAndFetchId(visit);
-        var visitFromDb = visitRepository.select(id);
+        var visitFromDb = visitRepository.getById(id);
         assertEquals(id, visitFromDb.id());
         //noinspection DataFlowIssue
         assertFalse(visitFromDb.pet().isNull());
@@ -429,7 +429,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectNullOwnerRef() {
-        try (var stream = ORM(dataSource).entity(PetWithNullableOwnerRef.class).selectAll()) {
+        try (var stream = ORM(dataSource).entity(PetWithNullableOwnerRef.class).findAll()) {
             var pet = stream.filter(p -> p.name().equals("Sly")).findFirst().orElseThrow();
             assertTrue(pet.owner().isNull());
             assertNull(pet.owner().fetch());
@@ -729,7 +729,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWithTwoPetsOneRefOtherPetWithPath() {
-        var pet = ORM(dataSource).entity(PetOwnerRef.class).select(1);
+        var pet = ORM(dataSource).entity(PetOwnerRef.class).getById(1);
         AtomicReference<Sql> sql = new AtomicReference<>();
         try (var _ = consume(sql::setPlain)) {
             var visits = ORM(dataSource).entity(VisitWithTwoPetsOneRef.class).select().where(VisitWithTwoPetsOneRef_.pet2, EQUALS, pet).getResultList();
@@ -847,22 +847,22 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testCustomRepo1() {
         var repo = ORM(dataSource).repository(PetRepository.class);
-        var pet = repo.select(1);
-        assertEquals(pet, repo.findById1(1));
+        var pet = repo.getById(1);
+        assertEquals(pet, repo.getById1(1));
     }
 
     @Test
     public void testCustomRepo2() {
         var repo = ORM(dataSource).repository(PetRepository.class);
-        var pet = repo.select(1);
-        assertEquals(pet, repo.findById2(1));
+        var pet = repo.getById(1);
+        assertEquals(pet, repo.getById2(1));
     }
 
     @Test
     public void testCustomRepo3() {
         var repo = ORM(dataSource).repository(PetRepository.class);
-        var pet = repo.select(1);
-        assertEquals(pet, repo.findById3(1));
+        var pet = repo.getById(1);
+        assertEquals(pet, repo.getById3(1));
     }
 
     @Test
@@ -914,7 +914,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void deleteBatch() {
         var repo = ORM(dataSource).entity(Visit.class);
-        try (var stream = repo.selectAll()) {
+        try (var stream = repo.findAll()) {
             repo.delete(stream);
         }
         assertEquals(0, repo.count());
@@ -1029,7 +1029,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var list = ORM(dataSource).entity(Pet.class).select().where(template(it -> STR."\{it.invoke(Pet.class)}.id = 7")).getResultList();
         assertEquals(1, list.size());
         assertEquals(7, list.getFirst().id());
-        ORM(dataSource).entity(Pet.class).count(list.stream().map(Pet::id));
+        ORM(dataSource).entity(Pet.class).countById(list.stream().map(Pet::id));
     }
 
     @Test
@@ -1059,7 +1059,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void updateOwnerIntegerVersion() {
         var repo = ORM(dataSource).entity(Owner.class);
-        Owner owner = repo.select(1);
+        Owner owner = repo.getById(1);
         Owner modifiedOwner = owner.toBuilder().address(owner.address().toBuilder().address("Test Street").build()).build();
         Owner updatedOwner = repo.updateAndFetch(modifiedOwner);
         repo.update(updatedOwner);
@@ -1068,7 +1068,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testUpdateOwnerWrongIntegerVersion() {
         var repo = ORM(dataSource).entity(Owner.class);
-        Owner owner = repo.select(1);
+        Owner owner = repo.getById(1);
         Owner modifiedOwner = owner.toBuilder().address(owner.address().toBuilder().address("Test Street").build()).build();
         repo.update(modifiedOwner);
         assertThrows(OptimisticLockException.class, () -> repo.update(modifiedOwner));
