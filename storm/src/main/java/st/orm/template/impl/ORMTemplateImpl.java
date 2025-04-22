@@ -34,7 +34,6 @@ import st.orm.template.SqlTemplateException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -246,7 +245,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
             } catch (InvocationTargetException e) {
                 try {
                     throw e.getTargetException();
-                } catch (SQLException | PersistenceException ex) {
+                } catch (Exception ex) {
                     Sql sql = lastSql.getPlain();
                     if (sql != null && ex.getSuppressed().length == 0) {
                         ex.addSuppressed(new SqlTemplateException(STR."""

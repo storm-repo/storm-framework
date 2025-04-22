@@ -367,8 +367,8 @@ ORM::
 ----
 List<User> users = ORM(dataSource).entity(User.class)
         .select()
-        .where(it -> it.filter(User_.city, EQUALS, city)
-                .and(it.filter(User_.birthDate, LESS_THAN, LocalDate.of(2000, 1, 1))))
+        .where(it -> it.when(User_.city, EQUALS, city)
+                .and(it.when(User_.birthDate, LESS_THAN, LocalDate.of(2000, 1, 1))))
         .getResultList();
 ----
 SQL Template::
@@ -645,7 +645,7 @@ List<Ref<User>> users = ...;
 List<Role> roles = ORM(dataSource).entity(UserRole.class)
         .select(Role.class)
         .distinct()
-        .whereRefs(UserRole_.user, users)
+        .whereRef(UserRole_.user, users)
         .getResultList();
 ----
 SQL Template::
@@ -776,7 +776,7 @@ ORM::
 +
 [source,java]
 ----
-try (Stream<User> users = userRepository.select()) {
+try (Stream<User> users = userRepository.selectAll()) {
     List<Integer> userIds = users.map(User::id).toList();
     ...
 }

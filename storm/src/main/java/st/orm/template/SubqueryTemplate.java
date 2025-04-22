@@ -16,7 +16,6 @@
 package st.orm.template;
 
 import jakarta.annotation.Nonnull;
-import st.orm.Templates;
 
 import static java.lang.StringTemplate.RAW;
 import static st.orm.Templates.SelectMode.FLAT;
@@ -40,7 +39,7 @@ public interface SubqueryTemplate {
      * @param <T> the table type to select from.
      * @return the subquery builder.
      */
-    default <T extends Record> QueryBuilder<T, T, ?> subquery(@Nonnull Class<T> fromType) {
+    default <T extends Record> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType) {
         return subquery(fromType, fromType);
     }
 
@@ -53,22 +52,19 @@ public interface SubqueryTemplate {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    default <T extends Record, R extends Record> QueryBuilder<T, R, ?> subquery(@Nonnull Class<T> fromType,
+    default <T extends Record, R extends Record> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType,
                                                                                 @Nonnull Class<R> selectType) {
-        return subquery(fromType, selectType, RAW."\{select(selectType, FLAT)}");
+        return subquery(fromType, RAW."\{select(selectType, FLAT)}");
     }
 
     /**
      * Create a subquery for the given table and select type using the given {@code template}.
      *
      * @param fromType the table to create the subquery for.
-     * @param selectType the type to select.
      * @param template the select clause template.
      * @return the subquery builder.
      * @param <T> the table type to select from.
-     * @param <R> the result type.
      */
-    <T extends Record, R> QueryBuilder<T, R, ?> subquery(@Nonnull Class<T> fromType,
-                                                         @Nonnull Class<R> selectType,
-                                                         @Nonnull StringTemplate template);
+    <T extends Record> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType,
+                                                      @Nonnull StringTemplate template);
 }

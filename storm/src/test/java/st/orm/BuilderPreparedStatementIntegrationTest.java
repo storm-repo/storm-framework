@@ -96,7 +96,7 @@ public class BuilderPreparedStatementIntegrationTest {
         var list = ORM(dataSource)
                 .selectFrom(Pet.class)
                 .innerJoin(Visit.class).on(Pet.class)
-                .whereAny(Visit.builder().id(1).build())
+                .where(it -> it.whereAny(Visit.builder().id(1).build()))
                 .getResultList();
          assertEquals(1, list.size());
          assertEquals(7, list.getFirst().id());
@@ -108,7 +108,7 @@ public class BuilderPreparedStatementIntegrationTest {
             ORM(dataSource)
                     .selectFrom(Pet.class)
                     .innerJoin(Visit.class).on(Pet.class)
-                    .whereAny(Vet.builder().id(1).build())
+                    .where(it -> it.whereAny(Vet.builder().id(1).build()))
                     .getResultStream()
                     .count();
         });
@@ -164,7 +164,7 @@ public class BuilderPreparedStatementIntegrationTest {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
                 .typed(Integer.class)
-                .where(it -> it.filter(1).or(it.filter(2)))
+                .where(it -> it.whereId(1).or(it.whereId(2)))
                 .getResultList();
         assertEquals(2, list.size());
     }
@@ -223,7 +223,7 @@ public class BuilderPreparedStatementIntegrationTest {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
                 .typed(Integer.class)
-                .where(it -> it.filter(1).or(it.expression(RAW."\{Vet.class}.id = 2")))
+                .where(it -> it.whereId(1).or(it.where(RAW."\{Vet.class}.id = 2")))
                 .getResultList();
         assertEquals(2, list.size());
     }
@@ -232,7 +232,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithWhereTemplateFunction() {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
-                .where(it -> it.expression(template(_ -> "1 = 1")))
+                .where(it -> it.where(template(_ -> "1 = 1")))
                 .getResultList();
         assertEquals(6, list.size());
     }
@@ -242,8 +242,8 @@ public class BuilderPreparedStatementIntegrationTest {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)
                 .typed(Integer.class)
-                .where(it -> it.filter(1).or(
-                        it.expression(template(ctx -> STR."\{ctx.invoke(Vet.class)}.id = \{ctx.invoke(2)}"))))
+                .where(it -> it.whereId(1).or(
+                        it.where(template(ctx -> STR."\{ctx.invoke(Vet.class)}.id = \{ctx.invoke(2)}"))))
                 .getResultList();
         assertEquals(2, list.size());
     }

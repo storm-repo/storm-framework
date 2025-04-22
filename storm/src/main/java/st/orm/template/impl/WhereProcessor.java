@@ -345,10 +345,14 @@ final class WhereProcessor implements ElementProcessor<Where> {
                 for (var component : components) {
                     if (component.getName().equals(name)) {
                         String searchPath = Stream.of(parts).limit(depth - inlineDepth).collect(joining("."));
+                        String alias;
                         if (recordType != primaryTable && searchPath.isEmpty()) {
-                            searchPath = null;
+                            alias = aliasMapper.getAlias(recordType, null, INNER, template.dialect(),
+                                    () -> new SqlTemplateException(STR."Table \{recordType.getSimpleName()} not found at \{searchPath}."));
+                        } else {
+                            alias = aliasMapper.getAlias(recordType, searchPath, INNER, template.dialect(),
+                                    () -> new SqlTemplateException(STR."Table \{recordType.getSimpleName()} not found at \{searchPath}."));
                         }
-                        String alias = aliasMapper.getAlias(recordType, searchPath, INNER, template.dialect());
                         if (REFLECTION.isAnnotationPresent(component, FK.class)) {
                             values.put(dialectTemplate."\{alias.isEmpty() ? "" : STR."\{alias}."}\{getForeignKey(component, template.foreignKeyResolver())}", value);
                         } else {
@@ -574,7 +578,8 @@ final class WhereProcessor implements ElementProcessor<Where> {
         } else {
             rootTable = metamodel.root();
             path = metamodel.componentPath();
-            alias = aliasMapper.getAlias(rootTable, null, INNER, template.dialect());
+            alias = aliasMapper.getAlias(rootTable, null, INNER, template.dialect(),
+                    () -> new SqlTemplateException(STR."Table \{rootTable.getSimpleName()} not found."));
             pkType = null;  // PKs only supported when using primaryTable directly.
         }
         String column = null;

@@ -19,6 +19,8 @@ import jakarta.annotation.Nonnull;
 import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.impl.Elements.From;
+import st.orm.template.impl.Elements.TableSource;
+import st.orm.template.impl.Elements.TemplateSource;
 
 import static st.orm.template.impl.RecordReflection.getTableName;
 
@@ -47,9 +49,9 @@ final class FromProcessor implements ElementProcessor<From> {
     @Override
     public ElementResult process(@Nonnull From from) throws SqlTemplateException {
         return new ElementResult(switch (from) {
-            case From(Elements.TableSource ts, _, _) ->
+            case From(TableSource ts, _, _) ->
                     dialectTemplate."\{getTableName(ts.table(), template.tableNameResolver())}\{from.alias().isEmpty() ? "" : STR." \{from.alias()}"}";
-            case From(Elements.TemplateSource ts, _, _) ->
+            case From(TemplateSource ts, _, _) ->
                     STR."(\{templateProcessor.parse(ts.template(), false)})\{from.alias().isEmpty() ? "" : STR." \{from.alias()}"}";    // From-clause is not correlated.
         });
     }

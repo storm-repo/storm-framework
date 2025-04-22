@@ -158,15 +158,13 @@ class QueryTemplateImpl implements QueryTemplate {
      * Create a subquery for the given table and select type using the given {@code template}.
      *
      * @param fromType the table to create the subquery for.
-     * @param selectType the type to select.
      * @param template the select clause template.
      * @return the subquery builder.
      * @param <T> the table type to select from.
-     * @param <R> the result type.
      */
     @Override
-    public <T extends Record, R> QueryBuilder<T, R, ?> subquery(@Nonnull Class<T> fromType, @Nonnull Class<R> selectType, @Nonnull StringTemplate template) {
-        return Providers.selectFrom(this, fromType, selectType, template, true, modelBuilder.supplier(fromType, true));
+    public <T extends Record> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType, @Nonnull StringTemplate template) {
+        return Providers.selectFrom(this, fromType, Void.class, template, true, modelBuilder.supplier(fromType, true));
     }
 
     /**
