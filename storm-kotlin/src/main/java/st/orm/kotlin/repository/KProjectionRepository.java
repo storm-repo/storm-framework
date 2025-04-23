@@ -191,6 +191,19 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
     // List based methods.
 
     /**
+     * Returns a list of all projections of the type supported by this repository. Each element in the list represents
+     * a projection in the database, encapsulating all relevant data as mapped by the projection model.
+     *
+     * <p><strong>Please note:</strong> loading all projections into memory at once can be very memory-intensive if
+     * your table is large.</p>
+     *
+     * @return a stream of all entities of the type supported by this repository.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    List<P> findAll();
+
+    /**
      * Retrieves a list of projections based on their primary keys.
      *
      * <p>This method retrieves projections matching the provided IDs in batches, consolidating them into a single list.

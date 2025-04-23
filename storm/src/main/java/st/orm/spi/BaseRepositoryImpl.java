@@ -254,6 +254,21 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
     // List based methods.
 
     /**
+     * Returns a list of all entities of the type supported by this repository. Each element in the list represents
+     * an entity in the database, encapsulating all relevant data as mapped by the entity model.
+     *
+     * <p><strong>Please note:</strong> loading all entities into memory at once can be very memory-intensive if your
+     * table is large.</p>
+     *
+     * @return a stream of all entities of the type supported by this repository.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    public List<E> findAll() {
+        return select().getResultList();
+    }
+
+    /**
      * Retrieves a list of entities based on their primary keys.
      *
      * <p>This method retrieves entities matching the provided IDs in batches, consolidating them into a single list.
@@ -269,7 +284,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      *         problems or invalid input parameters.
      */
     public List<E> findAllById(@Nonnull Iterable<ID> ids) {
-        try (var stream = findAllById(toStream(ids))) {
+        try (var stream = selectAllById(toStream(ids))) {
             return stream.toList();
         }
     }
@@ -290,7 +305,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      *         problems or invalid input parameters.
      */
     public List<E> findAllByRef(@Nonnull Iterable<Ref<E>> refs) {
-        try (var stream = findAllByRef(toStream(refs))) {
+        try (var stream = selectAllByRef(toStream(refs))) {
             return stream.toList();
         }
     }
@@ -314,7 +329,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    public Stream<E> findAll() {
+    public Stream<E> selectAll() {
         return select().getResultStream();
     }
 
@@ -343,8 +358,8 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    public Stream<E> findAllById(@Nonnull Stream<ID> ids) {
-        return findAllById(ids, defaultSliceSize);
+    public Stream<E> selectAllById(@Nonnull Stream<ID> ids) {
+        return selectAllById(ids, defaultSliceSize);
     }
 
     /**
@@ -372,8 +387,8 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    public Stream<E> findAllByRef(@Nonnull Stream<Ref<E>> refs) {
-        return findAllByRef(refs, defaultSliceSize);
+    public Stream<E> selectAllByRef(@Nonnull Stream<Ref<E>> refs) {
+        return selectAllByRef(refs, defaultSliceSize);
     }
 
     /**
@@ -404,7 +419,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    public Stream<E> findAllById(@Nonnull Stream<ID> ids, int batchSize) {
+    public Stream<E> selectAllById(@Nonnull Stream<ID> ids, int batchSize) {
         return slice(ids, batchSize, batch -> select().whereId(batch).getResultStream()); // Stream returned by getResultStream is closed by the batch operation.
     }
 
@@ -436,7 +451,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    public Stream<E> findAllByRef(@Nonnull Stream<Ref<E>> refs, int batchSize) {
+    public Stream<E> selectAllByRef(@Nonnull Stream<Ref<E>> refs, int batchSize) {
         return slice(refs, batchSize, batch -> select().whereRef(batch).getResultStream()); // Stream returned by getResultStream is closed by the batch operation.
     }
 
