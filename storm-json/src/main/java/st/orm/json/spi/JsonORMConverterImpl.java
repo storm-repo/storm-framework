@@ -59,6 +59,7 @@ public class JsonORMConverterImpl implements ORMConverter {
                 .orElse(null);
         this.mapper = OBJECT_MAPPER.computeIfAbsent(new CacheKey(type, json), key -> {
             var mapper = new ObjectMapper();
+            mapper.findAndRegisterModules();
             if (!json.failOnUnknown()) {
                 mapper.disable(FAIL_ON_UNKNOWN_PROPERTIES);
             }
