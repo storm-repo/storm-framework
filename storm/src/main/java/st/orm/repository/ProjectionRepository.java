@@ -198,6 +198,19 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
     // List based methods.
 
     /**
+     * Returns a list of all projections of the type supported by this repository. Each element in the list represents
+     * a projection in the database, encapsulating all relevant data as mapped by the projection model.
+     *
+     * <p><strong>Please note:</strong> loading all projections into memory at once can be very memory-intensive if
+     * your table is large.</p>
+     *
+     * @return a stream of all entities of the type supported by this repository.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    List<P> findAll();
+
+    /**
      * Retrieves a list of projections based on their primary keys.
      *
      * <p>This method retrieves projections matching the provided IDs in batches, consolidating them into a single list.
@@ -262,7 +275,7 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<P> findAll();
+    Stream<P> selectAll();
 
     /**
      * Processes a stream of all projections of the type supported by this repository using the specified callback.
@@ -278,8 +291,8 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @return the result produced by the callback's processing of the projection stream.
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
-    default <R> R findAll(@Nonnull ResultCallback<P, R> callback) {
-        try (var stream = findAll()) {
+    default <R> R selectAll(@Nonnull ResultCallback<P, R> callback) {
+        try (var stream = selectAll()) {
             return callback.process(stream);
         }
     }
@@ -309,7 +322,7 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<P> findAllById(@Nonnull Stream<ID> ids);
+    Stream<P> selectAllById(@Nonnull Stream<ID> ids);
 
     /**
      * Processes a stream of projections corresponding to the provided IDs using the specified callback.
@@ -326,8 +339,8 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @return the result produced by the callback's processing of the projection stream.
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
-    default <R> R findAllById(@Nonnull Stream<ID> ids, @Nonnull ResultCallback<P, R> callback) {
-        try (var stream = findAllById(ids)) {
+    default <R> R selectAllById(@Nonnull Stream<ID> ids, @Nonnull ResultCallback<P, R> callback) {
+        try (var stream = selectAllById(ids)) {
             return callback.process(stream);
         }
     }
@@ -357,7 +370,7 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<P> findAllByRef(@Nonnull Stream<Ref<P>> refs);
+    Stream<P> selectAllByRef(@Nonnull Stream<Ref<P>> refs);
 
     /**
      * Processes a stream of projections corresponding to the provided IDs using the specified callback.
@@ -374,8 +387,8 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @return the result produced by the callback's processing of the projection stream.
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
-    default <R> R findAllByRef(@Nonnull Stream<Ref<P>> refs, @Nonnull ResultCallback<P, R> callback) {
-        try (var stream = findAllByRef(refs)) {
+    default <R> R selectAllByRef(@Nonnull Stream<Ref<P>> refs, @Nonnull ResultCallback<P, R> callback) {
+        try (var stream = selectAllByRef(refs)) {
             return callback.process(stream);
         }
     }
@@ -408,7 +421,7 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<P> findAllById(@Nonnull Stream<ID> ids, int batchSize);
+    Stream<P> selectAllById(@Nonnull Stream<ID> ids, int batchSize);
 
     /**
      * Retrieves a stream of projections based on their primary keys.
@@ -437,8 +450,8 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    default <R> R findAllById(@Nonnull Stream<ID> ids, int batchSize, @Nonnull ResultCallback<P, R> callback) {
-        try (var stream = findAllById(ids, batchSize)) {
+    default <R> R selectAllById(@Nonnull Stream<ID> ids, int batchSize, @Nonnull ResultCallback<P, R> callback) {
+        try (var stream = selectAllById(ids, batchSize)) {
             return callback.process(stream);
         }
     }
@@ -471,7 +484,7 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<P> findAllByRef(@Nonnull Stream<Ref<P>> refs, int batchSize);
+    Stream<P> selectAllByRef(@Nonnull Stream<Ref<P>> refs, int batchSize);
 
     /**
      * Retrieves a stream of projections based on their primary keys.
@@ -500,8 +513,8 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    default <R> R findAllByRef(@Nonnull Stream<Ref<P>> refs, int batchSize, @Nonnull ResultCallback<P, R> callback) {
-        try (var stream = findAllByRef(refs, batchSize)) {
+    default <R> R selectAllByRef(@Nonnull Stream<Ref<P>> refs, int batchSize, @Nonnull ResultCallback<P, R> callback) {
+        try (var stream = selectAllByRef(refs, batchSize)) {
             return callback.process(stream);
         }
     }

@@ -717,7 +717,7 @@ Hybrid::
 Map<Ref<City>, Long> counts = ORM(dataSource).entity(User.class)
     .select(GroupedByCity.class, RAW."\{select(City.class, SelectMode.PK)}, COUNT(*)")
     .groupBy(RAW."\{User_.city}")
-    .getResultList()
+    .getResultList().stream()
         .collect(toMap(GroupedByCity::city, GroupedByCity::count));
 ----
 ====
@@ -776,7 +776,7 @@ ORM::
 +
 [source,java]
 ----
-try (Stream<User> users = userRepository.findAll()) {
+try (Stream<User> users = userRepository.selectAll()) {
     List<Integer> userIds = users.map(User::id).toList();
     ...
 }

@@ -769,7 +769,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
      */
     @Override
     public void insertAndFetch(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<E> callback) {
-        insertAndFetchIds(entities, batchSize, ids -> callback.process(findAllById(ids)));
+        insertAndFetchIds(entities, batchSize, ids -> callback.process(selectAllById(ids)));
     }
 
     /**
@@ -883,7 +883,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
 
     protected void updateAndFetch(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> query, @Nullable BatchCallback<E> callback) {
         updateAndFetchIds(batch, query, callback == null ? null : ids -> {
-            try (var stream = findAllById(ids)) {
+            try (var stream = selectAllById(ids)) {
                 callback.process(stream);
             }
         });

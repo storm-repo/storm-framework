@@ -74,7 +74,7 @@ open class KotlinRepositoryPreparedStatementIntegrationTest {
     @Test
     fun testFindAll() {
         val repository = ORM(dataSource).repository(KotlinPetRepository::class)
-        repository.findAll().let {
+        repository.getAll().let {
             assertEquals(1, it.first().id())
             assertEquals(13, it.size)
         }

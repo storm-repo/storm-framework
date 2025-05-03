@@ -42,7 +42,6 @@ import java.util.stream.StreamSupport;
 
 import static java.util.Objects.requireNonNull;
 import static java.util.Spliterators.spliteratorUnknownSize;
-import static kotlin.sequences.SequencesKt.sequenceOf;
 
 /**
  */
@@ -267,6 +266,21 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
     // List based methods.
 
     /**
+     * Returns a list of all projections of the type supported by this repository. Each element in the list represents
+     * a projection in the database, encapsulating all relevant data as mapped by the projection model.
+     *
+     * <p><strong>Please note:</strong> loading all projections into memory at once can be very memory-intensive if
+     * your table is large.</p>
+     *
+     * @return a stream of all entities of the type supported by this repository.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    public List<P> findAll() {
+        return projectionRepository.findAll();
+    }
+
+    /**
      * Retrieves a list of projections based on their primary keys.
      *
      * <p>This method retrieves projections matching the provided IDs in batches, consolidating them into a single list.
@@ -324,7 +338,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      */
     @Override
     public <R> R findAll(@Nonnull KResultCallback<P, R> callback) {
-        return projectionRepository.findAll(stream -> callback.process(toSequence(stream)));
+        return projectionRepository.selectAll(stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -344,7 +358,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      */
     @Override
     public <R> R findAllById(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<P, R> callback) {
-        return projectionRepository.findAllById(toStream(ids), stream -> callback.process(toSequence(stream)));
+        return projectionRepository.selectAllById(toStream(ids), stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -372,7 +386,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      */
     @Override
     public <R> R findAllById(@Nonnull Sequence<ID> ids, int batchSize, @Nonnull KResultCallback<P, R> callback) {
-        return projectionRepository.findAllById(toStream(ids), batchSize, stream -> callback.process(toSequence(stream)));
+        return projectionRepository.selectAllById(toStream(ids), batchSize, stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -392,7 +406,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      */
     @Override
     public <R> R findAllByRef(@Nonnull Sequence<Ref<P>> refs, @Nonnull KResultCallback<P, R> callback) {
-        return projectionRepository.findAllByRef(toStream(refs), stream -> callback.process(toSequence(stream)));
+        return projectionRepository.selectAllByRef(toStream(refs), stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -420,7 +434,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      */
     @Override
     public <R> R findAllByRef(@Nonnull Sequence<Ref<P>> refs, int batchSize, @Nonnull KResultCallback<P, R> callback) {
-        return projectionRepository.findAllByRef(toStream(refs), batchSize, stream -> callback.process(toSequence(stream)));
+        return projectionRepository.selectAllByRef(toStream(refs), batchSize, stream -> callback.process(toSequence(stream)));
     }
 
     /**

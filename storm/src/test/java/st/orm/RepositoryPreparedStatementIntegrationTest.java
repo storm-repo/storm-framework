@@ -232,10 +232,10 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testUpdateList() {
         var repository = ORM(dataSource).entity(Vet.class);
-        try (var stream1 = repository.findAll()) {
+        try (var stream1 = repository.selectAll()) {
             var list1 = stream1.toList();
             repository.update(list1);
-            try (var stream2 = repository.findAll()) {
+            try (var stream2 = repository.selectAll()) {
                 var list2 = stream2.toList();
                 assertEquals(list1, list2);
             }
@@ -429,7 +429,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectNullOwnerRef() {
-        try (var stream = ORM(dataSource).entity(PetWithNullableOwnerRef.class).findAll()) {
+        try (var stream = ORM(dataSource).entity(PetWithNullableOwnerRef.class).selectAll()) {
             var pet = stream.filter(p -> p.name().equals("Sly")).findFirst().orElseThrow();
             assertTrue(pet.owner().isNull());
             assertNull(pet.owner().fetch());
@@ -914,7 +914,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void deleteBatch() {
         var repo = ORM(dataSource).entity(Visit.class);
-        try (var stream = repo.findAll()) {
+        try (var stream = repo.selectAll()) {
             repo.delete(stream);
         }
         assertEquals(0, repo.count());

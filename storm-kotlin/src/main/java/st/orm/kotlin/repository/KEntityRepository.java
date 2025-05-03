@@ -413,6 +413,19 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
     // List based methods.
 
     /**
+     * Returns a list of all entities of the type supported by this repository. Each element in the list represents
+     * an entity in the database, encapsulating all relevant data as mapped by the entity model.
+     *
+     * <p><strong>Please note:</strong> loading all entities into memory at once can be very memory-intensive if your
+     * table is large.</p>
+     *
+     * @return a stream of all entities of the type supported by this repository.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    List<E> findAll();
+
+    /**
      * Retrieves a list of entities based on their primary keys.
      *
      * <p>This method retrieves entities matching the provided IDs in batches, consolidating them into a single list.
@@ -613,7 +626,7 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * @return the result produced by the callback's processing of the entity sequence.
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
-    <R> R findAll(@Nonnull KResultCallback<E, R> callback);
+    <R> R selectAll(@Nonnull KResultCallback<E, R> callback);
 
     /**
      * Processes a sequence of entities corresponding to the provided IDs using the specified callback.
@@ -630,7 +643,7 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * @return the result produced by the callback's processing of the entity sequence.
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
-    <R> R findAll(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<E, R> callback);
+    <R> R selectAll(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<E, R> callback);
 
     /**
      * Retrieves a sequence of entities based on their primary keys.
@@ -655,7 +668,7 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    <R> R findAllById(@Nonnull Sequence<ID> ids, int batchSize, @Nonnull KResultCallback<E, R> callback);
+    <R> R selectAllById(@Nonnull Sequence<ID> ids, int batchSize, @Nonnull KResultCallback<E, R> callback);
 
     /**
      * Retrieves a sequence of entities based on their primary keys.
@@ -680,7 +693,7 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    <R> R findAllByRef(@Nonnull Sequence<Ref<E>> refs, int batchSize, @Nonnull KResultCallback<E, R> callback);
+    <R> R selectAllByRef(@Nonnull Sequence<Ref<E>> refs, int batchSize, @Nonnull KResultCallback<E, R> callback);
 
     /**
      * Counts the number of entities identified by the provided sequence of IDs using the default batch size.

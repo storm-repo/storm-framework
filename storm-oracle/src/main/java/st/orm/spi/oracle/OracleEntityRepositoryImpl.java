@@ -586,7 +586,7 @@ public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> exten
 
     protected void insertAndFetch(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> querySupplier, @Nullable BatchCallback<E> callback) {
         insertAndFetchIds(batch, querySupplier, callback == null ? null : ids -> {
-            try (var stream = findAllById(ids)) {
+            try (var stream = selectAllById(ids)) {
                 callback.process(stream);
             }
         });
@@ -594,7 +594,7 @@ public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> exten
 
     protected void upsertAndFetch(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> querySupplier, @Nullable BatchCallback<E> callback) {
         upsertAndFetchIds(batch, querySupplier, callback == null ? null : ids -> {
-            try (var stream = findAllById(ids)) {
+            try (var stream = selectAllById(ids)) {
                 callback.process(stream);
             }
         });

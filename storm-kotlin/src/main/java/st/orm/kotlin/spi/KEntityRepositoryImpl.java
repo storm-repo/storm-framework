@@ -560,6 +560,21 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
     // List based methods.
 
     /**
+     * Returns a list of all entities of the type supported by this repository. Each element in the list represents
+     * an entity in the database, encapsulating all relevant data as mapped by the entity model.
+     *
+     * <p><strong>Please note:</strong> loading all entities into memory at once can be very memory-intensive if your
+     * table is large.</p>
+     *
+     * @return a stream of all entities of the type supported by this repository.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    public List<E> findAll() {
+        return entityRepository.findAll();
+    }
+
+    /**
      * Retrieves a list of entities based on their primary keys.
      *
      * <p>This method retrieves entities matching the provided IDs in batches, consolidating them into a single list.
@@ -771,8 +786,8 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
     @Override
-    public <R> R findAll(@Nonnull KResultCallback<E, R> callback) {
-        return entityRepository.findAll(stream -> callback.process(toSequence(stream)));
+    public <R> R selectAll(@Nonnull KResultCallback<E, R> callback) {
+        return entityRepository.selectAll(stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -791,8 +806,8 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
     @Override
-    public <R> R findAll(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<E, R> callback) {
-        return entityRepository.findAllById(toStream(ids), stream -> callback.process(toSequence(stream)));
+    public <R> R selectAll(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<E, R> callback) {
+        return entityRepository.selectAllById(toStream(ids), stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -819,8 +834,8 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      *                              connectivity.
      */
     @Override
-    public <R> R findAllById(@Nonnull Sequence<ID> ids, int batchSize, @Nonnull KResultCallback<E, R> callback) {
-        return entityRepository.findAllById(toStream(ids), batchSize, stream -> callback.process(toSequence(stream)));
+    public <R> R selectAllById(@Nonnull Sequence<ID> ids, int batchSize, @Nonnull KResultCallback<E, R> callback) {
+        return entityRepository.selectAllById(toStream(ids), batchSize, stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -847,8 +862,8 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      *                              connectivity.
      */
     @Override
-    public <R> R findAllByRef(@Nonnull Sequence<Ref<E>> refs, int batchSize, @Nonnull KResultCallback<E, R> callback) {
-        return entityRepository.findAllByRef(toStream(refs), batchSize, stream -> callback.process(toSequence(stream)));
+    public <R> R selectAllByRef(@Nonnull Sequence<Ref<E>> refs, int batchSize, @Nonnull KResultCallback<E, R> callback) {
+        return entityRepository.selectAllByRef(toStream(refs), batchSize, stream -> callback.process(toSequence(stream)));
     }
 
     /**
