@@ -16,11 +16,14 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.PersistenceException;
 import st.orm.template.Sql;
 
 import java.lang.ScopedValue.Carrier;
+import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 import java.util.IdentityHashMap;
-import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -29,6 +32,7 @@ import java.util.function.UnaryOperator;
 
 import static java.lang.ScopedValue.newInstance;
 import static java.util.Collections.newSetFromMap;
+import static java.util.Collections.synchronizedList;
 
 /**
  * Manages SQL interceptors.
@@ -40,7 +44,7 @@ public final class SqlInterceptorManager {
     private static final ReadWriteLock LOCK = new ReentrantReadWriteLock();
     private static final Set<Object> GLOBAL_OPERATORS = newSetFromMap(new IdentityHashMap<>());
 
-    private static final ScopedValue<Set<UnaryOperator<Sql>>> LOCAL_OPERATORS = newInstance();
+    private static final ScopedValue<List<UnaryOperator<Sql>>> LOCAL_OPERATORS = newInstance();
 
     private SqlInterceptorManager() {
     }
@@ -103,35 +107,35 @@ public final class SqlInterceptorManager {
     }
 
     /**
-     * Create a new scoped interceptor that applies an operator to SQL statements processed by the current thread and 
+     * Create a new scoped interceptor that applies an operator to SQL statements processed by the current thread and
      * any child threads.
-     * 
+     *
      * <p>This interceptor is scoped to the current thread context and propagates only to its child threads.
-     * It is isolated from sibling threads, meaning changes made to the interceptor set will not affect other threads 
+     * It is isolated from sibling threads, meaning changes made to the interceptor set will not affect other threads
      * that share the same parent scope.</p>
      *
      * @param operator the operator to apply to each SQL statement.
      * @return a {@link Carrier} that binds the interceptor to the current thread's scoped context.
      */
     public static Carrier intercept(@Nonnull UnaryOperator<Sql> operator) {
-        var operators = new LinkedHashSet<>(LOCAL_OPERATORS.orElse(Set.of()));
+        var operators = synchronizedList(new ArrayList<>(LOCAL_OPERATORS.orElse(List.of())));
         operators.addFirst(operator);
         return ScopedValue.where(LOCAL_OPERATORS, operators);
     }
 
     /**
-     * Create a new scoped interceptor that applies an operator to SQL statements processed by the current thread and 
+     * Create a new scoped interceptor that applies an operator to SQL statements processed by the current thread and
      * any child threads.
      *
      * <p>This interceptor is scoped to the current thread context and propagates only to its child threads.
-     * It is isolated from sibling threads, meaning changes made to the interceptor set will not affect other threads 
+     * It is isolated from sibling threads, meaning changes made to the interceptor set will not affect other threads
      * that share the same parent scope.</p>
      *
      * @param observer the observer to invoke with each SQL statement.
      * @return a {@link Carrier} that binds the interceptor to the current thread's scoped context.
      */
     public static Carrier intercept(@Nonnull Consumer<Sql> observer) {
-        var operators = new LinkedHashSet<>(LOCAL_OPERATORS.orElse(Set.of()));
+        var operators = synchronizedList(new ArrayList<>(LOCAL_OPERATORS.orElse(List.of())));
         operators.addFirst(sql -> {
             observer.accept(sql);
             return sql;
@@ -150,8 +154,12 @@ public final class SqlInterceptorManager {
         Sql adjusted = sql;
         // The local operators are not protected by a lock, but that is fine since they are locally scoped. However,
         // they must not modify the local operators from the accept/apply method.
-        for (var operator : LOCAL_OPERATORS.orElse(Set.of())) {
-            adjusted = operator.apply(adjusted);
+        try {
+            for (var operator : LOCAL_OPERATORS.orElse(List.of())) {
+                adjusted = operator.apply(adjusted);
+            }
+        } catch (ConcurrentModificationException e) {
+            throw new PersistenceException("Registering interceptors from within their execution scope is not allowed.");
         }
         LOCK.readLock().lock();
         try {
