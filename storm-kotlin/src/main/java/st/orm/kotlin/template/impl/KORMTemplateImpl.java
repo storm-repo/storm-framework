@@ -35,7 +35,6 @@ import st.orm.template.SqlTemplateException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -44,7 +43,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static java.lang.System.identityHashCode;
 import static java.lang.reflect.Proxy.newProxyInstance;
 import static java.util.Optional.empty;
-import static st.orm.template.SqlInterceptor.consume;
+import static st.orm.template.SqlInterceptor.observeThrowing;
 
 public final class KORMTemplateImpl extends KQueryTemplateImpl implements KORMTemplate {
     private final static ORMReflection REFLECTION = Providers.getORMReflection();
@@ -183,18 +182,20 @@ public final class KORMTemplateImpl extends KQueryTemplateImpl implements KORMTe
     private  <T extends KRepository> T wrapRepository(@Nonnull T repository) {
         return (T) newProxyInstance(repository.getClass().getClassLoader(), getAllInterfaces(repository.getClass()).toArray(new Class[0]), (_, method, args) -> {
             var lastSql = new AtomicReference<Sql>();
-            try (var _ = consume(lastSql::setPlain)) {
-                try {
-                    return method.invoke(repository, args);
-                } catch (Exception | Error e) {
-                    throw e;
-                } catch (Throwable e) {
-                    throw new PersistenceException(e);
-                }
+            try {
+                return observeThrowing(lastSql::setPlain, () -> {
+                    try {
+                        return method.invoke(repository, args);
+                    } catch (Exception | Error e) {
+                        throw e;
+                    } catch (Throwable e) {
+                        throw new PersistenceException(e);
+                    }
+                });
             } catch (InvocationTargetException e) {
                 try {
                     throw e.getTargetException();
-                } catch (SQLException | PersistenceException ex) {
+                } catch (Exception ex) {
                     Sql sql = lastSql.getPlain();
                     if (sql != null && ex.getSuppressed().length == 0) {
                         ex.addSuppressed(new SqlTemplateException(STR."""

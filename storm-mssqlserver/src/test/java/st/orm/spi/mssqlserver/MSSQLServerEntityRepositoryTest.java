@@ -40,6 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.util.AssertionErrors.assertNull;
 import static st.orm.template.Operator.EQUALS;
 import static st.orm.template.Operator.GREATER_THAN_OR_EQUAL;
+import static st.orm.template.SqlInterceptor.observe;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
@@ -95,9 +96,7 @@ public class MSSQLServerEntityRepositoryTest {
                 SELECT TOP 2 o.id, o.first_name, o.last_name, o.address, o.city, o.telephone, o.version
                 FROM owner o""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
-        try (var _ = SqlInterceptor.consume(sql -> {
-            assertEquals(expectedSql, sql.statement());
-        })) {
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
             var entities = repo.select().limit(2).getResultList();
             assertEquals(2, entities.size());
             assertEquals("Betty", entities.getFirst().firstName());
@@ -112,7 +111,7 @@ public class MSSQLServerEntityRepositoryTest {
             assertEquals("Madison", entities.getLast().address().city());
             assertEquals("6085551023", entities.getLast().telephone());
             assertEquals(0, entities.getLast().version());
-        }
+        });
     }
 
     @Test
@@ -123,9 +122,7 @@ public class MSSQLServerEntityRepositoryTest {
                 ORDER BY o.id
                 OFFSET 1 ROWS FETCH NEXT 2 ROWS ONLY""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
-        try (var _ = SqlInterceptor.consume(sql -> {
-            assertEquals(expectedSql, sql.statement());
-        })) {
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
             var entities = repo.select().orderBy(Metamodel.of(Owner.class, "id")).offset(1).limit(2).getResultList();
             assertEquals(2, entities.size());
             assertEquals("George", entities.getFirst().firstName());
@@ -140,7 +137,7 @@ public class MSSQLServerEntityRepositoryTest {
             assertEquals("McFarland", entities.getLast().address().city());
             assertEquals("6085558763", entities.getLast().telephone());
             assertEquals(0, entities.getLast().version());
-        }
+        });
     }
 
     @Test
@@ -151,9 +148,7 @@ public class MSSQLServerEntityRepositoryTest {
                 ORDER BY o.id
                 OFFSET 1 ROWS""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
-        try (var _ = SqlInterceptor.consume(sql -> {
-            assertEquals(expectedSql, sql.statement());
-        })) {
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
             var entities = repo.select().orderBy(Metamodel.of(Owner.class, "id")).offset(1).getResultList();
             assertEquals(9, entities.size());
             assertEquals("George", entities.getFirst().firstName());
@@ -161,7 +156,7 @@ public class MSSQLServerEntityRepositoryTest {
             assertEquals("110 W. Liberty St.", entities.getFirst().address().address());
             assertEquals("Madison", entities.getFirst().address().city());
             assertEquals("6085551023", entities.getFirst().telephone());
-        }
+        });
     }
 
     @Test
@@ -171,7 +166,7 @@ public class MSSQLServerEntityRepositoryTest {
                 VALUES (?, ?)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
         var first = new AtomicBoolean(false);
-        try (var _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of("id"));
@@ -179,12 +174,12 @@ public class MSSQLServerEntityRepositoryTest {
                 assertEquals("John", sql.parameters().get(0).dbValue());
                 assertEquals("Doe", sql.parameters().get(1).dbValue());
             }
-        })) {
+        }, () -> {
             var entity = repo.insertAndFetch(Vet.builder().firstName("John").lastName("Doe").build());
             assertTrue(entity.id() > 0);
             assertEquals("John", entity.firstName());
             assertEquals("Doe", entity.lastName());
-        }
+        });
     }
 
     @Test
@@ -194,7 +189,7 @@ public class MSSQLServerEntityRepositoryTest {
                 VALUES (?, ?, ?, ?, ?, ?)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var first = new AtomicBoolean(false);
-        try (var _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of("id"));
@@ -202,7 +197,7 @@ public class MSSQLServerEntityRepositoryTest {
                 assertEquals("John", sql.parameters().get(0).dbValue());
                 assertEquals("Doe", sql.parameters().get(1).dbValue());
             }
-        })) {
+        }, () -> {
             var entity = repo.insertAndFetch(Owner.builder().firstName("John").lastName("Doe").address(Address.builder().address("243 Acalanes Dr").city("Sunnyvale").build()).build());
             assertTrue(entity.id() > 0);
             assertEquals("John", entity.firstName());
@@ -211,7 +206,7 @@ public class MSSQLServerEntityRepositoryTest {
             assertEquals("Sunnyvale", entity.address().city());
             assertNull("telephone", entity.telephone());
             assertEquals(0, entity.version());
-        }
+        });
     }
 
     @Test
@@ -221,14 +216,14 @@ public class MSSQLServerEntityRepositoryTest {
                 VALUES (?, ?, ?, ?, ?, ?)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var first = new AtomicBoolean(false);
-        try (var _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of("id"));
                 assertFalse(sql.versionAware());
                 assertFalse(sql.bindVariables().isPresent());      // Using actual values in case of Sql Server as batch mode is not supported in combination with generated keys.
             }
-        })) {
+        }, () -> {
             var entities = repo.insertAndFetch(List.of(
                     Owner.builder().firstName("John").lastName("Doe").address(Address.builder().address("243 Acalanes Dr").city("Sunnyvale").build()).build(),
                     Owner.builder().firstName("Jane").lastName("Doe").address(Address.builder().address("243 Acalanes Dr").city("Sunnyvale").build()).build()
@@ -246,7 +241,7 @@ public class MSSQLServerEntityRepositoryTest {
             assertEquals("Sunnyvale", entities.getLast().address().city());
             assertNull("telephone", entities.getLast().telephone());
             assertEquals(0, entities.getLast().version());
-        }
+        });
     }
 
     @Test
@@ -256,14 +251,14 @@ public class MSSQLServerEntityRepositoryTest {
                 VALUES (?, ?)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
         var first = new AtomicBoolean(false);
-        try (var _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of("id"));
                 assertFalse(sql.versionAware());
                 assertFalse(sql.bindVariables().isPresent());      // Using actual values in case of Sql Server as batch mode is not supported in combination with generated keys.
             }
-        })) {
+        }, () -> {
             var entities = repo.insertAndFetch(List.of(
                     Vet.builder().firstName("John").lastName("Doe").build(),
                     Vet.builder().firstName("Jane").lastName("Doe").build()
@@ -273,7 +268,7 @@ public class MSSQLServerEntityRepositoryTest {
             assertEquals("Doe", entities.getFirst().lastName());
             assertEquals("Jane", entities.getLast().firstName());
             assertEquals("Doe", entities.getLast().lastName());
-        }
+        });
     }
 
     @Test
@@ -285,7 +280,7 @@ public class MSSQLServerEntityRepositoryTest {
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entity = repo.getById(1);
         var first = new AtomicBoolean(false);
-        try (var _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of());
@@ -298,7 +293,7 @@ public class MSSQLServerEntityRepositoryTest {
                 assertEquals(1, sql.parameters().get(5).dbValue());
                 assertEquals(0, sql.parameters().get(6).dbValue());
             }
-        })) {
+        }, () -> {
             var update = repo.updateAndFetch(entity.toBuilder().lastName("Smith").build());
             assertEquals("Betty", update.firstName());
             assertEquals("Smith", update.lastName());
@@ -306,7 +301,7 @@ public class MSSQLServerEntityRepositoryTest {
             assertEquals("Sun Prairie", update.address().city());
             assertEquals("6085551749", update.telephone());
             assertEquals(1, update.version());
-        }
+        });
     }
 
     @Test
@@ -318,14 +313,14 @@ public class MSSQLServerEntityRepositoryTest {
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entities = repo.findAllById(List.of(1, 2));
         var first = new AtomicBoolean(false);
-        try (var _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of());
                 assertTrue(sql.versionAware());
                 assertTrue(sql.bindVariables().isPresent());
             }
-        })) {
+        }, () -> {
             var updates = repo.updateAndFetch(
                     entities.stream().map(entity -> entity.toBuilder().lastName("Smith").build()).toList()
             ).stream().sorted(Comparator.comparingInt(Entity::id)).toList();
@@ -342,7 +337,7 @@ public class MSSQLServerEntityRepositoryTest {
             assertEquals("Madison", updates.getLast().address().city());
             assertEquals("6085551023", updates.getLast().telephone());
             assertEquals(1, updates.getLast().version());
-        }
+        });
     }
 
     @Test
@@ -353,14 +348,14 @@ public class MSSQLServerEntityRepositoryTest {
                 WHERE id = ?""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
         var first = new AtomicBoolean(false);
-        try (var _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of());
                 assertFalse(sql.versionAware());
                 assertTrue(sql.bindVariables().isPresent());
             }
-        })) {
+        }, () -> {
             var entities = repo.upsertAndFetch(List.of(
                     Vet.builder().id(1).firstName("John").lastName("Doe").build(),
                     Vet.builder().id(2).firstName("Jane").lastName("Doe").build()
@@ -370,7 +365,7 @@ public class MSSQLServerEntityRepositoryTest {
             assertEquals("Doe", entities.getFirst().lastName());
             assertEquals("Jane", entities.getLast().firstName());
             assertEquals("Doe", entities.getLast().lastName());
-        }
+        });
     }
 
     @Test
@@ -380,15 +375,13 @@ public class MSSQLServerEntityRepositoryTest {
                 INSERT INTO vet (first_name, last_name)
                 VALUES (?, ?)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
-        try (SqlInterceptor _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             assertEquals(expectedSql, sql.statement());
             assertEquals(sql.generatedKeys(), List.of("id"));
             assertFalse(sql.versionAware());
             assertEquals("John", sql.parameters().get(0).dbValue());
             assertEquals("Doe", sql.parameters().get(1).dbValue());
-        })) {
-            repo.upsert(Vet.builder().firstName("John").lastName("Doe").build());
-        }
+        }, () -> repo.upsert(Vet.builder().firstName("John").lastName("Doe").build()));
         var entity = repo.select().where(Metamodel.of(Vet.class, "firstName"), EQUALS, "John").getSingleResult();
         repo.upsert(entity.toBuilder().lastName("Smith").build());
         var updated = repo.select().where(Metamodel.of(Vet.class, "firstName"), EQUALS, "John").getSingleResult();
@@ -404,16 +397,14 @@ public class MSSQLServerEntityRepositoryTest {
                 INSERT INTO vet (first_name, last_name)
                 VALUES (?, ?)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Vet.class);
-        try (SqlInterceptor _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             assertEquals(expectedSql, sql.statement());
             assertEquals(sql.generatedKeys(), List.of("id"));
             assertFalse(sql.versionAware());
             assertTrue(sql.bindVariables().isPresent());
-        })) {
-            repo.upsert(List.of(
-                    Vet.builder().firstName("John").lastName("Doe").build(),
-                    Vet.builder().firstName("Jane").lastName("Doe").build()));
-        }
+        }, () -> repo.upsert(List.of(
+                Vet.builder().firstName("John").lastName("Doe").build(),
+                Vet.builder().firstName("Jane").lastName("Doe").build())));
         var entities = repo.select().where(Metamodel.of(Vet.class, "lastName"), EQUALS, "Doe").getResultList();
         repo.upsert(entities.stream().map(entity -> entity.toBuilder().lastName("Smith").build()).toList());
         var updated = repo.select().where(Metamodel.of(Vet.class, "lastName"), EQUALS, "Smith").getResultList();
@@ -432,7 +423,7 @@ public class MSSQLServerEntityRepositoryTest {
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entity = repo.getById(1);
         var first = new AtomicBoolean(false);
-        try (var _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of());
@@ -445,7 +436,7 @@ public class MSSQLServerEntityRepositoryTest {
                 assertEquals(1, sql.parameters().get(5).dbValue());
                 assertEquals(0, sql.parameters().get(6).dbValue());
             }
-        })) {
+        }, () -> {
             repo.upsert(entity.toBuilder().lastName("Smith").build());
             var update = repo.getById(1);
             assertEquals("Betty", update.firstName());
@@ -454,7 +445,7 @@ public class MSSQLServerEntityRepositoryTest {
             assertEquals("Sun Prairie", update.address().city());
             assertEquals("6085551749", update.telephone());
             assertEquals(1, update.version());
-        }
+        });
     }
 
     @Test
@@ -466,7 +457,7 @@ public class MSSQLServerEntityRepositoryTest {
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entity = repo.getById(1);
         var first = new AtomicBoolean(false);
-        try (var _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of());
@@ -479,7 +470,7 @@ public class MSSQLServerEntityRepositoryTest {
                 assertEquals(1, sql.parameters().get(5).dbValue());
                 assertEquals(0, sql.parameters().get(6).dbValue());
             }
-        })) {
+        }, () -> {
             var update = repo.upsertAndFetch(entity.toBuilder().lastName("Smith").build());
             assertEquals("Betty", update.firstName());
             assertEquals("Smith", update.lastName());
@@ -487,7 +478,7 @@ public class MSSQLServerEntityRepositoryTest {
             assertEquals("Sun Prairie", update.address().city());
             assertEquals("6085551749", update.telephone());
             assertEquals(1, update.version());
-        }
+        });
     }
 
     @Test
@@ -499,7 +490,7 @@ public class MSSQLServerEntityRepositoryTest {
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entity = repo.getById(1);
         var first = new AtomicBoolean(false);
-        try (var _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of("id"));
@@ -510,7 +501,7 @@ public class MSSQLServerEntityRepositoryTest {
                 assertEquals("Sun Prairie", sql.parameters().get(3).dbValue());
                 assertEquals("6085551749", sql.parameters().get(4).dbValue());
             }
-        })) {
+        }, () -> {
             var insert = repo.upsertAndFetch(entity.toBuilder()
                     .id(0)  // Default value.
                     .lastName("Smith").build());
@@ -521,7 +512,7 @@ public class MSSQLServerEntityRepositoryTest {
             assertEquals("Sun Prairie", insert.address().city());
             assertEquals("6085551749", insert.telephone());
             assertEquals(0, insert.version());
-        }
+        });
     }
 
     @Test
@@ -533,14 +524,14 @@ public class MSSQLServerEntityRepositoryTest {
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entities = repo.findAllById(List.of(1, 2));
         var first = new AtomicBoolean(false);
-        try (var _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of());
                 assertTrue(sql.versionAware());
                 assertTrue(sql.bindVariables().isPresent());
             }
-        })) {
+        }, () -> {
             repo.upsert(
                     entities.stream().map(entity -> entity.toBuilder().lastName("Smith").build()).toList()
             );
@@ -558,7 +549,7 @@ public class MSSQLServerEntityRepositoryTest {
             assertEquals("Madison", updates.getLast().address().city());
             assertEquals("6085551023", updates.getLast().telephone());
             assertEquals(1, updates.getLast().version());
-        }
+        });
     }
 
     @Builder(toBuilder = true)
@@ -576,15 +567,13 @@ public class MSSQLServerEntityRepositoryTest {
                 INSERT INTO pet_type (name, description)
                 VALUES (?, ?)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetType.class);
-        try (SqlInterceptor _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             assertEquals(expectedSql, sql.statement());
             assertEquals(sql.generatedKeys(), List.of("id"));
             assertFalse(sql.versionAware());
             assertEquals("dragon", sql.parameters().get(0).dbValue());
             assertEquals("description", sql.parameters().get(1).dbValue());
-        })) {
-            repo.upsert(PetType.builder().name("dragon").description("description").build());
-        }
+        }, () -> repo.upsert(PetType.builder().name("dragon").description("description").build()));
         var entity = repo.select().where(Metamodel.of(PetType.class, "name"), EQUALS, "dragon").getSingleResult();
         assertEquals("description", entity.description());
         var e = assertThrows(PersistenceException.class, () -> repo.upsert(PetType.builder().name("dragon").description("description").build()));
@@ -609,15 +598,13 @@ public class MSSQLServerEntityRepositoryTest {
                 	INSERT (id, name)
                 	VALUES (src.id, src.name);""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Specialty.class);
-        try (SqlInterceptor _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             assertEquals(expectedSql, sql.statement());
             assertEquals(sql.generatedKeys(), List.of());
             assertFalse(sql.versionAware());
             assertEquals(4, sql.parameters().get(0).dbValue());
             assertEquals("anaesthetics", sql.parameters().get(1).dbValue());
-        })) {
-            repo.upsert(Specialty.builder().id(4).name("anaesthetics").build());
-        }
+        }, () -> repo.upsert(Specialty.builder().id(4).name("anaesthetics").build()));
         var entity = repo.select().where(Metamodel.of(Specialty.class, "name"), EQUALS, "anaesthetics").getSingleResult();
         repo.upsert(entity.toBuilder().name("anaesthetist").build());
         var updated = repo.select().where(Metamodel.of(Specialty.class, "name"), EQUALS, "anaesthetist").getSingleResult();
@@ -638,7 +625,7 @@ public class MSSQLServerEntityRepositoryTest {
                 	VALUES (src.id, src.name);""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Specialty.class);
         var first = new AtomicBoolean(false);
-        try (var _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of());
@@ -646,12 +633,12 @@ public class MSSQLServerEntityRepositoryTest {
                 assertEquals(4, sql.parameters().get(0).dbValue());
                 assertEquals("anaesthetics", sql.parameters().get(1).dbValue());
             }
-        })) {
+        }, () -> {
             var entity = repo.upsertAndFetch(Specialty.builder().id(4).name("anaesthetics").build());
             var updated = repo.upsertAndFetch(entity.toBuilder().name("anaesthetist").build());
             assertEquals(entity.id(), updated.id());
             assertEquals("anaesthetist", updated.name());
-        }
+        });
     }
 
     @Test
@@ -666,16 +653,14 @@ public class MSSQLServerEntityRepositoryTest {
                 	INSERT (id, name)
                 	VALUES (src.id, src.name);""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Specialty.class);
-        try (SqlInterceptor _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             assertEquals(expectedSql, sql.statement());
             assertEquals(sql.generatedKeys(), List.of());
             assertFalse(sql.versionAware());
             assertTrue(sql.bindVariables().isPresent());
-        })) {
-            repo.upsert(List.of(
-                    Specialty.builder().id(4).name("anaesthetics").build(),
-                    Specialty.builder().id(5).name("nurse").build()));
-        }
+        }, () -> repo.upsert(List.of(
+                Specialty.builder().id(4).name("anaesthetics").build(),
+                Specialty.builder().id(5).name("nurse").build())));
         var entities = repo.select().where(Metamodel.of(Specialty.class, "id"), GREATER_THAN_OR_EQUAL, 4).getResultList();
         repo.upsert(entities.stream().map(e -> e.toBuilder().name(STR."\{e.name()}s").build()).toList());
         var updated = repo.select().where(Metamodel.of(Specialty.class, "id"), GREATER_THAN_OR_EQUAL, 4).getResultList();
@@ -696,21 +681,21 @@ public class MSSQLServerEntityRepositoryTest {
                 	VALUES (src.id, src.name);""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Specialty.class);
         var first = new AtomicBoolean(false);
-        try (var _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of());
                 assertFalse(sql.versionAware());
                 assertTrue(sql.bindVariables().isPresent());
             }
-        })) {
+        }, () -> {
             var entities = repo.upsertAndFetch(List.of(
                     Specialty.builder().id(4).name("anaesthetics").build(),
                     Specialty.builder().id(5).name("nurse").build()));
             var updated = repo.upsertAndFetch(entities.stream().map(e -> e.toBuilder().name(STR."\{e.name()}s").build()).toList());
             assertEquals(2, updated.size());
             assertTrue(updated.stream().allMatch(entity -> entity.name().endsWith("s")));
-        }
+        });
     }
 
     @Builder(toBuilder = true)
@@ -737,7 +722,7 @@ public class MSSQLServerEntityRepositoryTest {
                 VALUES (?, ?)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(VetSpecialty.class);
         var first = new AtomicBoolean(false);
-        try (var _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of());
@@ -745,11 +730,11 @@ public class MSSQLServerEntityRepositoryTest {
                 assertEquals(1, sql.parameters().get(0).dbValue());
                 assertEquals(2, sql.parameters().get(1).dbValue());
             }
-        })) {
+        }, () -> {
             var entity = repo.insertAndFetch(VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(1).specialtyId(2).build()).build());
             assertEquals(1, entity.id().vetId());
             assertEquals(2, entity.id().specialtyId());
-        }
+        });
     }
 
     @Test
@@ -759,14 +744,14 @@ public class MSSQLServerEntityRepositoryTest {
                 VALUES (?, ?)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(VetSpecialty.class);
         var first = new AtomicBoolean(false);
-        try (var _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of());
                 assertFalse(sql.versionAware());
                 assertFalse(sql.bindVariables().isPresent());   // Using actual values in case of Sql Server as batch mode is not supported in combination with generated keys.
             }
-        })) {
+        }, () -> {
             var entities = repo.insertAndFetch(List.of(
                     VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(1).specialtyId(2).build()).build(),
                     VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(6).specialtyId(3).build()).build()
@@ -776,7 +761,7 @@ public class MSSQLServerEntityRepositoryTest {
             assertEquals(2, entities.getFirst().id().specialtyId());
             assertEquals(6, entities.getLast().id().vetId());
             assertEquals(3, entities.getLast().id().specialtyId());
-        }
+        });
     }
 
     @Test
@@ -790,14 +775,14 @@ public class MSSQLServerEntityRepositoryTest {
                 	VALUES (src.vet_id, src.specialty_id);""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(VetSpecialty.class);
         var first = new AtomicBoolean(false);
-        try (var _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of());
                 assertFalse(sql.versionAware());
                 assertTrue(sql.bindVariables().isPresent());
             }
-        })) {
+        }, () -> {
             var entities = repo.upsertAndFetch(List.of(
                     VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(1).specialtyId(2).build()).vet(Vet.builder().id(1).build()).specialty(Specialty.builder().id(2).build()).build(),
                     VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(6).specialtyId(3).build()).vet(Vet.builder().id(6).build()).specialty(Specialty.builder().id(3).build()).build()
@@ -807,7 +792,7 @@ public class MSSQLServerEntityRepositoryTest {
             assertEquals(2, entities.getFirst().id().specialtyId());
             assertEquals(6, entities.getLast().id().vetId());
             assertEquals(3, entities.getLast().id().specialtyId());
-        }
+        });
     }
 
     @Test
@@ -821,14 +806,14 @@ public class MSSQLServerEntityRepositoryTest {
                 	VALUES (src.vet_id, src.specialty_id);""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(VetSpecialty.class);
         var first = new AtomicBoolean(false);
-        try (var _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
                 assertEquals(sql.generatedKeys(), List.of());
                 assertFalse(sql.versionAware());
                 assertTrue(sql.bindVariables().isPresent());
             }
-        })) {
+        }, () -> {
             var entities = repo.upsertAndFetch(List.of(
                     VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(2).specialtyId(1).build()).vet(Vet.builder().id(1).build()).specialty(Specialty.builder().id(1).build()).build(),
                     VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(3).specialtyId(2).build()).vet(Vet.builder().id(3).build()).specialty(Specialty.builder().id(2).build()).build()
@@ -838,6 +823,6 @@ public class MSSQLServerEntityRepositoryTest {
             assertEquals(1, entities.getFirst().id().specialtyId());
             assertEquals(3, entities.getLast().id().vetId());
             assertEquals(2, entities.getLast().id().specialtyId());
-        }
+        });
     }
 }

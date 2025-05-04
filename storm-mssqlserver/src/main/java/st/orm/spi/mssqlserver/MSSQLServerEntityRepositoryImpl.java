@@ -221,14 +221,14 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         }
         validateUpsert(entity);
         var versionAware = new AtomicBoolean();
-        try (var _ = intercept(sql -> sql.versionAware(versionAware.getPlain()))) {
+        intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
             // Note: SQL Server’s MERGE syntax does not require a FROM DUAL clause.
             var query = ormTemplate.query(flatten(RAW."""
-                    MERGE INTO \{model.type()} t
-                    USING (\{mergeSelect(entity)}) src
-                    ON (\{mergeOn()})\{mergeUpdate(versionAware)}\{mergeInsert()};"""));
-            query.executeUpdate();
-        }
+                MERGE INTO \{model.type()} t
+                USING (\{mergeSelect(entity)}) src
+                ON (\{mergeOn()})\{mergeUpdate(versionAware)}\{mergeInsert()};"""));
+                query.executeUpdate();
+        });
     }
 
     /**
@@ -396,12 +396,12 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
     protected PreparedQuery prepareUpsertQuery() {
         var bindVars = ormTemplate.createBindVars();
         var versionAware = new AtomicBoolean();
-        try (var _ = intercept(sql -> sql.versionAware(versionAware.getPlain()))) {
-            return ormTemplate.query(flatten(RAW."""
+        return intercept(sql -> sql.versionAware(versionAware.getPlain()), () ->
+                ormTemplate.query(flatten(RAW."""
                     MERGE INTO \{model.type()} t
                     USING (\{mergeSelect(bindVars)}) src
-                    ON (\{mergeOn()})\{mergeUpdate(versionAware)}\{mergeInsert()};""")).prepare();
-        }
+                    ON (\{mergeOn()})\{mergeUpdate(versionAware)}\{mergeInsert()};""")
+                ).prepare());
     }
 
     protected void insertAndFetchIds(@Nonnull List<E> batch,

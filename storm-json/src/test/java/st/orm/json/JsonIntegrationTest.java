@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.Templates.ORM;
 import static st.orm.Templates.alias;
-import static st.orm.template.SqlInterceptor.consume;
+import static st.orm.template.SqlInterceptor.observe;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
@@ -175,16 +175,18 @@ public class JsonIntegrationTest {
                 INNER JOIN vet_specialty vs ON vs.vet_id = v.id
                 INNER JOIN specialty s ON s.id = vs.specialty_id
                 GROUP BY v.id""";
-        try (var _ = consume(sql -> assertEquals(expectedSql, sql.statement()))) {
-            ORM(dataSource).selectFrom(Vet.class, SpecialtyNamesByVet.class, RAW."""
-                        \{Vet.class}, JSON_OBJECTAGG(\{Specialty.class})""")
-                    .innerJoin(VetSpecialty.class).on(Vet.class)
-                    .innerJoin(Specialty.class).on(VetSpecialty.class)
-                    .append(RAW."GROUP BY \{Vet.class}.id")
-                    .getResultList();
-        } catch (PersistenceException _) {
-            // H2 Does not support JSON_OBJECTAGG. We only check the expected SQL.
-        }
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            try {
+                ORM(dataSource).selectFrom(Vet.class, SpecialtyNamesByVet.class, RAW."""
+                            \{Vet.class}, JSON_OBJECTAGG(\{Specialty.class})""")
+                        .innerJoin(VetSpecialty.class).on(Vet.class)
+                        .innerJoin(Specialty.class).on(VetSpecialty.class)
+                        .append(RAW."GROUP BY \{Vet.class}.id")
+                        .getResultList();
+            } catch (PersistenceException _) {
+                // H2 Does not support JSON_OBJECTAGG. We only check the expected SQL.
+            }
+        });
     }
 
     // No need to specify the sub types here, as we're automatically registering the implementations of the sealed interface.

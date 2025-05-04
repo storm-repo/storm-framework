@@ -45,7 +45,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm</artifactId>
-    <version>1.3.2</version>
+    <version>1.3.3</version>
     <scope>compile</scope>
 </dependency>
 ----
@@ -53,7 +53,7 @@ Gradle::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm:1.3.2'
+implementation 'st.orm:storm:1.3.3'
 ----
 ====
 
@@ -846,7 +846,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-oracle</artifactId>
-    <version>1.3.2</version>
+    <version>1.3.3</version>
     <scope>runtime</scope>
 </dependency>
 ----
@@ -854,7 +854,7 @@ Gradle::
 +
 [source,groovy]
 ----
-runtimeOnly 'st.orm:storm-oracle:1.3.2'
+runtimeOnly 'st.orm:storm-oracle:1.3.3'
 ----
 ====
 
@@ -876,7 +876,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-metamodel-processor</artifactId>
-    <version>1.3.2</version>
+    <version>1.3.3</version>
     <scope>provided</scope>
 </dependency>
 ----
@@ -884,7 +884,7 @@ Gradle::
 +
 [source,groovy]
 ----
-annotationProcessor 'st.orm:storm-metamodel-processor:1.3.2'
+annotationProcessor 'st.orm:storm-metamodel-processor:1.3.3'
 ----
 ====
 
@@ -952,7 +952,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-json</artifactId>
-    <version>1.3.2</version>
+    <version>1.3.3</version>
     <scope>compile</scope>
 </dependency>
 ----
@@ -960,7 +960,7 @@ Gradle::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-json:1.3.2'
+implementation 'st.orm:storm-json:1.3.3'
 ----
 ====
 
@@ -1039,7 +1039,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-spring</artifactId>
-    <version>1.3.2</version>
+    <version>1.3.3</version>
     <scope>compile</scope>
 </dependency>
 ----
@@ -1047,7 +1047,7 @@ Gradle::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-spring:1.3.2'
+implementation 'st.orm:storm-spring:1.3.3'
 ----
 ====
 

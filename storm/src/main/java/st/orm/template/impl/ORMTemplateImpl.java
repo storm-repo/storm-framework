@@ -44,7 +44,7 @@ import static java.lang.System.identityHashCode;
 import static java.lang.reflect.Proxy.newProxyInstance;
 import static st.orm.spi.Providers.getEntityRepository;
 import static st.orm.spi.Providers.getProjectionRepository;
-import static st.orm.template.SqlInterceptor.consume;
+import static st.orm.template.SqlInterceptor.observeThrowing;
 
 public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTemplate {
 
@@ -234,14 +234,16 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     private  <T extends Repository> T wrapRepository(@Nonnull T repository) {
         return (T) newProxyInstance(repository.getClass().getClassLoader(), getAllInterfaces(repository.getClass()).toArray(new Class[0]), (_, method, args) -> {
             var lastSql = new AtomicReference<Sql>();
-            try (var _ = consume(lastSql::setPlain)) {
-                try {
-                    return method.invoke(repository, args);
-                } catch (Exception | Error e) {
-                    throw e;
-                } catch (Throwable e) {
-                    throw new PersistenceException(e);
-                }
+            try {
+                return observeThrowing(lastSql::setPlain, () -> {
+                    try {
+                        return method.invoke(repository, args);
+                    } catch (Exception | Error e) {
+                        throw e;
+                    } catch (Throwable e) {
+                        throw new PersistenceException(e);
+                    }
+                });
             } catch (InvocationTargetException e) {
                 try {
                     throw e.getTargetException();

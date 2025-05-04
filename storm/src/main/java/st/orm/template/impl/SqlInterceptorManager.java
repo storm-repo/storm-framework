@@ -17,17 +17,17 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.template.Sql;
-import st.orm.template.SqlInterceptor;
 
+import java.lang.ScopedValue.Carrier;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
-import java.util.SequencedSet;
 import java.util.Set;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
+import static java.lang.ScopedValue.newInstance;
 import static java.util.Collections.newSetFromMap;
 
 /**
@@ -40,8 +40,7 @@ public final class SqlInterceptorManager {
     private static final ReadWriteLock LOCK = new ReentrantReadWriteLock();
     private static final Set<Object> GLOBAL_OPERATORS = newSetFromMap(new IdentityHashMap<>());
 
-    private static final ThreadLocal<SequencedSet<UnaryOperator<Sql>>> LOCAL_OPERATORS =
-            ThreadLocal.withInitial(LinkedHashSet::new);
+    private static final ScopedValue<Set<UnaryOperator<Sql>>> LOCAL_OPERATORS = newInstance();
 
     private SqlInterceptorManager() {
     }
@@ -62,109 +61,96 @@ public final class SqlInterceptorManager {
 
 
     /**
-     * Register a global consumer that will be called for all SQL statements.
+     * Register a global observer that will be called for all SQL statements.
      *
-     * @param consumer the consumer to call for each SQL statement.
+     * @param observer the observer to call for each SQL statement.
      */
-    public static void registerGlobalConsumer(@Nonnull Consumer<Sql> consumer) {
+    public static void registerGlobalObserver(@Nonnull Consumer<Sql> observer) {
         LOCK.writeLock().lock();
         try {
-            GLOBAL_OPERATORS.add(consumer);
+            GLOBAL_OPERATORS.add(observer);
         } finally {
             LOCK.writeLock().unlock();
         }
     }
 
     /**
-     * Unregister a global consumer.
+     * Unregister a global observer.
      *
-     * @param consumer the consumer to unregister.
+     * @param observer the observer to unregister.
      */
-    public static void unregisterGlobalConsumer(@Nonnull UnaryOperator<Sql> consumer) {
+    public static void unregisterGlobalObserver(@Nonnull UnaryOperator<Sql> observer) {
         LOCK.writeLock().lock();
         try {
-            GLOBAL_OPERATORS.remove(consumer);
+            GLOBAL_OPERATORS.remove(observer);
         } finally {
             LOCK.writeLock().unlock();
         }
     }
 
     /**
-     * Unregister a global interceptor.
+     * Unregister a global observer.
      *
-     * @param consumer the consumer to unregister.
+     * @param observer the observer to unregister.
      */
-    public static void unregisterGlobalConsumer(@Nonnull Consumer<Sql> consumer) {
+    public static void unregisterGlobalObserver(@Nonnull Consumer<Sql> observer) {
         LOCK.writeLock().lock();
         try {
-            GLOBAL_OPERATORS.remove(consumer);
+            GLOBAL_OPERATORS.remove(observer);
         } finally {
             LOCK.writeLock().unlock();
         }
     }
 
     /**
-     * Create a new interceptor that will be called for SQL statements processed by the current thread. The interceptor
-     * must be closed when it is no longer needed. It is recommended to use a try-with-resources block to ensure that
-     * the interceptor is closed.
+     * Create a new scoped interceptor that applies an operator to SQL statements processed by the current thread and 
+     * any child threads.
+     * 
+     * <p>This interceptor is scoped to the current thread context and propagates only to its child threads.
+     * It is isolated from sibling threads, meaning changes made to the interceptor set will not affect other threads 
+     * that share the same parent scope.</p>
      *
-     * @param operator the operator to call for each SQL statement.
-     * @return the interceptor.
+     * @param operator the operator to apply to each SQL statement.
+     * @return a {@link Carrier} that binds the interceptor to the current thread's scoped context.
      */
-    public static SqlInterceptor create(@Nonnull UnaryOperator<Sql> operator) {
-        class SqlInterceptorImpl implements SqlInterceptor, UnaryOperator<Sql> {
-            @Override
-            public Sql apply(Sql sql) {
-                return operator.apply(sql);
-            }
-
-            @Override
-            public void close() {
-                LOCAL_OPERATORS.get().remove(this);
-            }
-        }
-        var interceptor = new SqlInterceptorImpl();
-        LOCAL_OPERATORS.get().addFirst(interceptor);
-        return MonitoredResource.wrap(interceptor);
+    public static Carrier intercept(@Nonnull UnaryOperator<Sql> operator) {
+        var operators = new LinkedHashSet<>(LOCAL_OPERATORS.orElse(Set.of()));
+        operators.addFirst(operator);
+        return ScopedValue.where(LOCAL_OPERATORS, operators);
     }
 
     /**
-     * Create a new interceptor that will be called for SQL statements processed by the current thread. The interceptor
-     * must be closed when it is no longer needed. It is recommended to use a try-with-resources block to ensure that
-     * the interceptor is closed.
+     * Create a new scoped interceptor that applies an operator to SQL statements processed by the current thread and 
+     * any child threads.
      *
-     * @param consumer the consumer to call for each SQL statement.
-     * @return the interceptor.
+     * <p>This interceptor is scoped to the current thread context and propagates only to its child threads.
+     * It is isolated from sibling threads, meaning changes made to the interceptor set will not affect other threads 
+     * that share the same parent scope.</p>
+     *
+     * @param observer the observer to invoke with each SQL statement.
+     * @return a {@link Carrier} that binds the interceptor to the current thread's scoped context.
      */
-    public static SqlInterceptor create(@Nonnull Consumer<Sql> consumer) {
-        class SqlInterceptorImpl implements SqlInterceptor, UnaryOperator<Sql> {
-            @Override
-            public Sql apply(Sql sql) {
-                consumer.accept(sql);
-                return sql;
-            }
-
-            @Override
-            public void close() {
-                LOCAL_OPERATORS.get().remove(this);
-            }
-        }
-        var interceptor = new SqlInterceptorImpl();
-        LOCAL_OPERATORS.get().addFirst(interceptor);
-        return MonitoredResource.wrap(interceptor);
+    public static Carrier intercept(@Nonnull Consumer<Sql> observer) {
+        var operators = new LinkedHashSet<>(LOCAL_OPERATORS.orElse(Set.of()));
+        operators.addFirst(sql -> {
+            observer.accept(sql);
+            return sql;
+        });
+        return ScopedValue.where(LOCAL_OPERATORS, operators);
     }
 
     /**
      * Intercepts the specified SQL statement by calling all globally and locally registered interceptors.
      *
      * @param sql the SQL statement to intercept.
+     * @return the adjusted SQL statement.
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
-    static void intercept(@Nonnull Sql sql) {
+    static Sql intercept(@Nonnull Sql sql) {
         Sql adjusted = sql;
-        // The local operators are not protected by a lock, but that is fine since they are thread-local. They should
-        // however not modify the local operators from the accept method.
-        for (var operator : LOCAL_OPERATORS.get()) {
+        // The local operators are not protected by a lock, but that is fine since they are locally scoped. However,
+        // they must not modify the local operators from the accept/apply method.
+        for (var operator : LOCAL_OPERATORS.orElse(Set.of())) {
             adjusted = operator.apply(adjusted);
         }
         LOCK.readLock().lock();
@@ -179,5 +165,6 @@ public final class SqlInterceptorManager {
         } finally {
             LOCK.readLock().unlock();
         }
+        return adjusted;
     }
 }
