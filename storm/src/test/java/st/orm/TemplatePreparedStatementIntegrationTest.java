@@ -61,7 +61,7 @@ import static st.orm.template.Operator.BETWEEN;
 import static st.orm.template.Operator.EQUALS;
 import static st.orm.template.ResolveScope.INNER;
 import static st.orm.template.ResolveScope.OUTER;
-import static st.orm.template.SqlInterceptor.consume;
+import static st.orm.template.SqlInterceptor.observe;
 import static st.orm.template.TemplateFunction.template;
 
 @ExtendWith(SpringExtension.class)
@@ -350,15 +350,16 @@ public class TemplatePreparedStatementIntegrationTest {
                 DELETE x
                 FROM visit x
                 WHERE x.id = ?""";
-        try (var _ = consume(sql -> assertEquals(expectedSql, sql.statement()));
-             var _ = ORM(dataSource).query(RAW."""
-                DELETE \{Visit.class}
-                FROM \{from(Visit.class, "x", true)}
-                WHERE \{where(Visit.builder().id(1).build())}""").prepare()) {
-            Assertions.fail("Should not reach here");
-        } catch (PersistenceException _) {
-            // Not supported in H2.
-        }
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            try (var _ = ORM(dataSource).query(RAW."""
+                    DELETE \{Visit.class}
+                    FROM \{from(Visit.class, "x", true)}
+                    WHERE \{where(Visit.builder().id(1).build())}""").prepare()) {
+                Assertions.fail("Should not reach here");
+            } catch (PersistenceException _) {
+                // Not supported in H2.
+            }
+        });
     }
 
     @Test
@@ -376,15 +377,16 @@ public class TemplatePreparedStatementIntegrationTest {
             DELETE v
             FROM visit v
             WHERE v.id = ?""";
-        try (var _ = consume(sql -> assertEquals(expectedSql, sql.statement()));
-             var _ = ORM(dataSource).query(RAW."""
-                DELETE \{Visit.class}
-                FROM \{Visit.class}
-                WHERE \{where(Visit.builder().id(1).build())}""").prepare()) {
-            Assertions.fail("Should not reach here");
-        } catch (PersistenceException _) {
-            // Delete statements with alias are supported by many databases, but not by H2.
-        }
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            try (var _ = ORM(dataSource).query(RAW."""
+                    DELETE \{Visit.class}
+                    FROM \{Visit.class}
+                    WHERE \{where(Visit.builder().id(1).build())}""").prepare()) {
+                Assertions.fail("Should not reach here");
+            } catch (PersistenceException _) {
+                // Delete statements with alias are supported by many databases, but not by H2.
+            }
+        });
     }
 
     @Test
@@ -406,15 +408,16 @@ public class TemplatePreparedStatementIntegrationTest {
                 DELETE f
                 FROM visit f
                 WHERE f.id = ?""";
-        try (var _ = consume(sql -> assertEquals(expectedSql, sql.statement()));
-             var query = ORM(dataSource).query(RAW."""
-                DELETE \{Visit.class}
-                FROM \{from(Visit.class, "f", false)}
-                WHERE \{where(Visit.builder().id(1).build())}""").prepare()) {
-            Assertions.fail("Should not reach here");
-        } catch (PersistenceException _) {
-            // Delete statements with alias are supported by many databases, but not by H2.
-        }
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            try (var _ = ORM(dataSource).query(RAW."""
+                    DELETE \{Visit.class}
+                    FROM \{from(Visit.class, "f", false)}
+                    WHERE \{where(Visit.builder().id(1).build())}""").prepare()) {
+                Assertions.fail("Should not reach here");
+            } catch (PersistenceException _) {
+                // Delete statements with alias are supported by many databases, but not by H2.
+            }
+        });
     }
 
     @Test
@@ -424,15 +427,16 @@ public class TemplatePreparedStatementIntegrationTest {
             FROM visit v
             INNER JOIN pet p ON v.pet_id = p.id
             WHERE p.owner_id = ?""";
-        try (var _ = consume(sql -> assertEquals(expectedSql, sql.statement()));
-             var _ = ORM(dataSource).query(RAW."""
-                DELETE \{Visit.class}
-                FROM \{from(Visit.class, true)}
-                WHERE \{where(Owner.builder().id(1).build())}""").prepare()) {
-            Assertions.fail("Should not reach here");
-        } catch (PersistenceException _) {
-            // Not supported in H2.
-        }
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            try (var _ = ORM(dataSource).query(RAW."""
+                    DELETE \{Visit.class}
+                    FROM \{from(Visit.class, true)}
+                    WHERE \{where(Owner.builder().id(1).build())}""").prepare()) {
+                Assertions.fail("Should not reach here");
+            } catch (PersistenceException _) {
+                // Not supported in H2.
+            }
+        });
     }
 
     @Test
@@ -836,19 +840,18 @@ public class TemplatePreparedStatementIntegrationTest {
                 INNER JOIN owner o ON p.owner_id = o.id
                 INNER JOIN city c ON o.city_id = c.id
                 WHERE p.id = ?""";
-        try (var _ = SqlInterceptor.consume(sql -> {
-            assertEquals(expectedSql, sql.statement());
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+             try (var query = ORM(dataSource).query(RAW."""
+                    SELECT \{Pet.class}
+                    FROM \{Pet.class}
+                    INNER JOIN \{table(Owner.class, "o")} ON \{Pet.class}.owner_id = o.id
+                    INNER JOIN \{table(City.class, "c")} ON o.city_id = c.id
+                    WHERE \{where(Pet.builder().id(1).build())}""").prepare()){
+                var result = query.getSingleResult(Pet.class);
+                assertEquals("Leo", result.name());
+                assertEquals(0, result.type().id());
+            }
         });
-             var query = ORM(dataSource).query(RAW."""
-                SELECT \{Pet.class}
-                FROM \{Pet.class}
-                INNER JOIN \{table(Owner.class, "o")} ON \{Pet.class}.owner_id = o.id
-                INNER JOIN \{table(City.class, "c")} ON o.city_id = c.id
-                WHERE \{where(Pet.builder().id(1).build())}""").prepare()) {
-            var result = query.getSingleResult(Pet.class);
-            assertEquals("Leo", result.name());
-            assertEquals(0, result.type().id());
-        }
     }
 
     @Test

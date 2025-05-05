@@ -1062,7 +1062,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         }
         if (!subquery) {
             // Don't intercept subquery calls.
-            SqlInterceptorManager.intercept(generated);
+            generated = SqlInterceptorManager.intercept(generated);
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.fine(STR."Generated SQL:\n\{generated.statement()}");
             } else if (LOGGER.isLoggable(Level.FINEST)) {

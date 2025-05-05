@@ -35,7 +35,6 @@ import st.orm.repository.Entity;
 import st.orm.repository.PetRepository;
 import st.orm.template.Metamodel;
 import st.orm.template.Sql;
-import st.orm.template.SqlInterceptor;
 import st.orm.template.SqlTemplate.PositionalParameter;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.impl.DefaultJoinType;
@@ -69,7 +68,7 @@ import static st.orm.template.Operator.IN;
 import static st.orm.template.Operator.IS_NULL;
 import static st.orm.template.ResolveScope.INNER;
 import static st.orm.template.ResolveScope.OUTER;
-import static st.orm.template.SqlInterceptor.consume;
+import static st.orm.template.SqlInterceptor.observe;
 import static st.orm.template.TemplateFunction.template;
 
 @ExtendWith(SpringExtension.class)
@@ -530,27 +529,27 @@ public class RepositoryPreparedStatementIntegrationTest {
         var orm = ORM(dataSource);
         var owner = orm.entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = consume(sql::setPlain)) {
+        observe(sql::setPlain, () -> {
             var visits = orm.entity(VisitWithTwoPets.class)
                     .select()
                     .where(it -> it.where(VisitWithTwoPets_.pet1.owner, EQUALS, owner)
                             .or(it.where(VisitWithTwoPets_.pet2.owner, EQUALS, owner))).getResultList();
             assertEquals(2, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
-        }
+        });
     }
 
     @Test
     public void testSelectWithTwoPetsWithMultipleParametersTemplate() {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = consume(sql::setPlain)) {
+        observe(sql::setPlain, () -> {
             var visits = ORM(dataSource).entity(VisitWithTwoPets.class)
                     .select()
                     .where(it -> it.where(RAW."\{VisitWithTwoPets_.pet1.owner} = \{owner.id()} OR \{VisitWithTwoPets_.pet2.owner} = \{owner.id()}")).getResultList();
             assertEquals(2, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
-        }
+        });
     }
 
     @Test
@@ -565,31 +564,31 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetsOneRefWithoutPath() throws Exception {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = consume(sql::setPlain)) {
+        observe(sql::setPlain, () -> {
             var visits = ORM(dataSource).entity(VisitWithTwoPetsOneRef.class).select().where(it -> it.whereAny(owner)).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
-        }
+        });
     }
 
     @Test
     public void testSelectWithTwoPetsOneRefWithoutPathTemplate() {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = consume(sql::setPlain)) {
+        observe(sql::setPlain, () -> {
             var visits = ORM(dataSource).entity(VisitWithTwoPetsOneRef.class)
                     .select()
                     .where(it -> it.where(RAW."\{PetOwnerRef.class}.owner_id = \{owner.id()}")).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
-        }
+        });
     }
 
     @Test
     public void testSelectWithTwoPetsOneRefWithRootPathTemplateMetamodel() {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = consume(sql::setPlain)) {
+        observe(sql::setPlain, () -> {
             var list = ORM(dataSource).entity(VisitWithTwoPetsOneRef.class)
                     .select()
                     .where(it -> it.where(RAW."\{PetOwnerRef_.owner} = \{owner.id()}")).getResultList();
@@ -598,7 +597,7 @@ public class RepositoryPreparedStatementIntegrationTest {
             assertEquals(owner.id(), list.getFirst().pet1().owner().id());
             //noinspection DataFlowIssue
             assertEquals(owner.id(), list.getLast().pet1().owner().id());
-        }
+        });
     }
 
     @Test
@@ -606,11 +605,11 @@ public class RepositoryPreparedStatementIntegrationTest {
         var e = assertThrows(PersistenceException.class, () -> {
             var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
             AtomicReference<Sql> sql = new AtomicReference<>();
-            try (var _ = consume(sql::setPlain)) {
+            observe(sql::setPlain, () -> {
                 ORM(dataSource).entity(VisitWithTwoPetsOneRef.class)
                         .select()
                         .where(it -> it.where(RAW."\{Pet_.owner} = \{owner.id()}")).getResultList();
-            }
+            });
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
@@ -620,11 +619,11 @@ public class RepositoryPreparedStatementIntegrationTest {
         var e = assertThrows(PersistenceException.class, () -> {
             var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
             AtomicReference<Sql> sql = new AtomicReference<>();
-            try (var _ = consume(sql::setPlain)) {
+            observe(sql::setPlain, () -> {
                 ORM(dataSource).entity(VisitWithTwoPetsOneRef.class)
                         .select()
                         .where(it -> it.whereAny(PetOwnerRef_.owner, owner)).getResultList();
-            }
+            });
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
@@ -633,7 +632,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetsOneRefWithRootPathMetamodelTemplate() {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = consume(sql::setPlain)) {
+        observe(sql::setPlain, () -> {
             var list = ORM(dataSource).entity(VisitWithTwoPetsOneRef.class)
                     .select()
                     .where(RAW."\{PetOwnerRef_.owner} = \{owner.id()}").getResultList();
@@ -642,7 +641,7 @@ public class RepositoryPreparedStatementIntegrationTest {
             assertEquals(owner.id(), list.getFirst().pet1().owner().id());
             //noinspection DataFlowIssue
             assertEquals(owner.id(), list.getLast().pet1().owner().id());
-        }
+        });
     }
 
     @Test
@@ -650,11 +649,11 @@ public class RepositoryPreparedStatementIntegrationTest {
         var e = assertThrows(PersistenceException.class, () -> {
             var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
             AtomicReference<Sql> sql = new AtomicReference<>();
-            try (var _ = consume(sql::setPlain)) {
+            observe(sql::setPlain, () -> {
                 ORM(dataSource).entity(VisitWithTwoPetsOneRef.class)
                         .select()
                         .where(RAW."\{Pet_.owner} = \{owner.id()}").getResultList();
-            }
+            });
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
@@ -663,24 +662,24 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetsOneRefWithPath() {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = consume(sql::setPlain)) {
+        observe(sql::setPlain, () -> {
             var visits = ORM(dataSource).entity(VisitWithTwoPetsOneRef.class).select().where(VisitWithTwoPetsOneRef_.pet1.owner, EQUALS, owner).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
-        }
+        });
     }
 
     @Test
     public void testSelectWithTwoPetsOneRefWithPathTemplate() {
         var owner = ORM(dataSource).entity(Owner.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = consume(sql::setPlain)) {
+        observe(sql::setPlain, () -> {
             var visits = ORM(dataSource).entity(VisitWithTwoPetsOneRef.class)
                     .select()
                     .where(it -> it.where(RAW."\{VisitWithTwoPetsOneRef_.pet1.owner} = \{owner.id()}")).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
-        }
+        });
     }
 
     @Test
@@ -706,11 +705,11 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithTwoPetsOneRefPetWithPath() {
         var pet = ORM(dataSource).entity(PetOwnerRef.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = consume(sql::setPlain)) {
+        observe(sql::setPlain, () -> {
             var visits = ORM(dataSource).entity(VisitWithTwoPetsOneRef.class).select().where(VisitWithTwoPetsOneRef_.pet1, EQUALS, pet).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
-        }
+        });
     }
 
     @Test
@@ -718,36 +717,36 @@ public class RepositoryPreparedStatementIntegrationTest {
         var ORM = ORM(dataSource);
         var pet = ORM.entity(PetOwnerRef.class).select().append(RAW."LIMIT 1").getSingleResult();
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = consume(sql::setPlain)) {
+        observe(sql::setPlain, () -> {
             var visits = ORM.entity(VisitWithTwoPetsOneRef.class)
                     .select()
                     .where(it -> it.where(RAW."\{VisitWithTwoPetsOneRef_.pet1} = \{pet.id()}")).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
-        }
+        });
     }
 
     @Test
     public void testSelectWithTwoPetsOneRefOtherPetWithPath() {
         var pet = ORM(dataSource).entity(PetOwnerRef.class).getById(1);
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = consume(sql::setPlain)) {
+        observe(sql::setPlain, () -> {
             var visits = ORM(dataSource).entity(VisitWithTwoPetsOneRef.class).select().where(VisitWithTwoPetsOneRef_.pet2, EQUALS, pet).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
-        }
+        });
     }
 
     @Test
     public void testSelectWithTwoPetsOneRefOtherPetWithPathTemplateMetamodel() {
         AtomicReference<Sql> sql = new AtomicReference<>();
-        try (var _ = consume(sql::setPlain)) {
+        observe(sql::setPlain, () -> {
             var visits = ORM(dataSource).entity(VisitWithTwoPetsOneRef.class)
                     .select()
                     .where(it -> it.where(RAW."\{VisitWithTwoPetsOneRef_.pet2} = \{1}")).getResultList();
             assertEquals(1, sql.getPlain().parameters().size());
             assertEquals(2, visits.size());
-        }
+        });
     }
 
     @Test
@@ -1051,9 +1050,9 @@ public class RepositoryPreparedStatementIntegrationTest {
             WHERE o.id = ?
             FOR UPDATE""";
         var repo = ORM(dataSource).entity(Owner.class);
-        try (var _ = SqlInterceptor.consume(sql -> assertEquals(expectedSql, sql.statement()))) {
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
             repo.select().forUpdate().where(1).getSingleResult();
-        }
+        });
     }
 
     @Test
@@ -1182,7 +1181,7 @@ public class RepositoryPreparedStatementIntegrationTest {
               FROM owner o1
               WHERE o1.id = ?
             ) AND 3 = ?""";
-        try (var _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             assertEquals(expectedSql, sql.statement());
             assertTrue(sql.parameters().get(0) instanceof PositionalParameter(int position, Object dbValue)
                     && position == 1 && Integer.valueOf(1).equals(dbValue));
@@ -1190,16 +1189,15 @@ public class RepositoryPreparedStatementIntegrationTest {
                     && position == 2 && Integer.valueOf(2).equals(dbValue));
             assertTrue(sql.parameters().get(2) instanceof PositionalParameter(int position, Object dbValue)
                     && position == 3 && Integer.valueOf(3).equals(dbValue));
-        })) {
+        }, () -> {
             var orm = ORM(dataSource);
             orm.entity(Owner.class)
                     .select()
                     .where(it -> it.where(RAW."\{alias(Owner.class, INNER)}.id = \{1}")
                             .and(it.where(RAW."EXISTS (\{it.subquery(Owner.class).where(RAW."\{alias(Owner.class, INNER)}.id = \{2}")})"))
-                            .and(it.where(RAW."3 = \{3}"))
-                    )
+                            .and(it.where(RAW."3 = \{3}")))
                     .getResultList();
-        }
+        });
     }
 
     @Test
@@ -1215,7 +1213,7 @@ public class RepositoryPreparedStatementIntegrationTest {
               WHERE o1.id = ?
             )
             AND 3 = ?""";
-        try (var _ = SqlInterceptor.consume(sql -> {
+        observe(sql -> {
             assertEquals(expectedSql, sql.statement());
             assertTrue(sql.parameters().get(0) instanceof PositionalParameter(int position, Object dbValue)
                     && position == 1 && Integer.valueOf(1).equals(dbValue));
@@ -1223,7 +1221,7 @@ public class RepositoryPreparedStatementIntegrationTest {
                     && position == 2 && Integer.valueOf(2).equals(dbValue));
             assertTrue(sql.parameters().get(2) instanceof PositionalParameter(int position, Object dbValue)
                     && position == 3 && Integer.valueOf(3).equals(dbValue));
-        })) {
+        }, () -> {
             var orm = ORM(dataSource);
             orm.entity(Owner.class)
                     .select()
@@ -1231,7 +1229,7 @@ public class RepositoryPreparedStatementIntegrationTest {
                     .append(RAW."AND EXISTS (\{orm.subquery(Owner.class).where(RAW."\{alias(Owner.class, INNER)}.id = \{2}")})")
                     .append(RAW."AND 3 = \{3}")
                     .getResultList();
-        }
+        });
     }
 
     /**

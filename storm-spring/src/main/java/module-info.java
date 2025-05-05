@@ -8,5 +8,7 @@ module storm.spring {
     requires spring.boot;
     requires jakarta.annotation;
     requires org.reflections;
+    requires spring.core;
+    requires spring.aop;
     exports st.orm.spring;
 }
