@@ -102,6 +102,11 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
     }
 
     @Override
+    public <A extends Annotation> A[] getAnnotations(@Nonnull RecordComponent component, @Nonnull Class<A> annotationType) {
+        return component.getAnnotationsByType(annotationType);
+    }
+
+    @Override
     public <A extends Annotation> A getAnnotation(@Nonnull Class<?> type, @Nonnull Class<A> annotationType) {
         return type.getAnnotation(annotationType);
     }

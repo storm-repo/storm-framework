@@ -97,9 +97,8 @@ public final class KORMReflectionImpl implements ORMReflection {
         }
     }
 
-    @Override
-    public <A extends Annotation> A getAnnotation(@Nonnull RecordComponent component, @Nonnull Class<A> annotationType) {
-        var parameter = COMPONENT_PARAMETER_CACHE.computeIfAbsent(new ComponentCacheKey(component), k -> {
+    private Parameter getParameter(@Nonnull RecordComponent component) {
+        return COMPONENT_PARAMETER_CACHE.computeIfAbsent(new ComponentCacheKey(component), k -> {
             //noinspection unchecked
             Class<? extends Record> recordType = (Class<? extends Record>) component.getDeclaringRecord();
             var recordComponents = recordType.getRecordComponents();
@@ -113,7 +112,16 @@ public final class KORMReflectionImpl implements ORMReflection {
             }
             throw new IllegalArgumentException(STR."No parameter found for component: \{component.getName()} for record type: \{component.getDeclaringRecord().getSimpleName()}.");
         });
-        return parameter.getAnnotation(annotationType);
+    }
+
+    @Override
+    public <A extends Annotation> A getAnnotation(@Nonnull RecordComponent component, @Nonnull Class<A> annotationType) {
+        return getParameter(component).getAnnotation(annotationType);
+    }
+
+    @Override
+    public <A extends Annotation> A[] getAnnotations(@Nonnull RecordComponent component, @Nonnull Class<A> annotationType) {
+        return getParameter(component).getAnnotationsByType(annotationType);
     }
 
     @Override

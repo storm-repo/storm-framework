@@ -37,14 +37,38 @@ public interface Sql {
     String statement();
 
     /**
+     * Returns a new instance of the SQL statement with the given statement.
+     *
+     * @param statement the new SQL statement.
+     * @return a new instance of the SQL statement with the given statement.
+     */
+    Sql statement(@Nonnull String statement);
+
+    /**
      * The parameters that were used to generate the SQL.
      */
     List<Parameter> parameters();
 
     /**
+     * Returns a new instance of the SQL statement with the given parameters.
+     *
+     * @param parameters the new parameters.
+     * @return a new instance of the SQL statement with the given parameters.
+     */
+    Sql parameters(@Nonnull List<Parameter> parameters);
+
+    /**
      * A bind variables object that can be used to add bind variables to a batch, if available.
      */
     Optional<BindVariables> bindVariables();
+
+    /**
+     * Returns a new instance of the SQL statement with the given bind variables.
+     *
+     * @param bindVariables the new bind variables
+     * @return a new instance of the SQL statement with the given bind variables
+     */
+    Sql bindVariables(@Nullable BindVariables bindVariables);
 
     /**
      * The primary key that have been auto generated as part of in insert statement.

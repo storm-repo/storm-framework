@@ -14,6 +14,7 @@ module storm {
     requires jakarta.persistence;
     requires jakarta.annotation;
     requires java.compiler;
+    requires org.jetbrains.annotations;
     provides st.orm.spi.ORMReflectionProvider with st.orm.spi.DefaultORMReflectionProviderImpl;
     provides st.orm.spi.EntityRepositoryProvider with st.orm.spi.DefaultEntityRepositoryProviderImpl;
     provides st.orm.spi.ProjectionRepositoryProvider with st.orm.spi.DefaultProjectionRepositoryProviderImpl;

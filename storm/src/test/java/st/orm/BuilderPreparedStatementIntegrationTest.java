@@ -170,6 +170,17 @@ public class BuilderPreparedStatementIntegrationTest {
     }
 
     @Test
+    public void testBuilderWithWhereNullRef() {
+        PersistenceException e = assertThrows(PersistenceException.class, () -> {
+            ORM(dataSource)
+                    .selectFrom(Vet.class)
+                    .where(Ref.ofNull())
+                    .getResultList();
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+    }
+
+    @Test
     public void testBuilderWithWhereEmpty() {
         var list = ORM(dataSource)
                 .selectFrom(Vet.class)

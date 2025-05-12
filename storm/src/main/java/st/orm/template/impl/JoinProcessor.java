@@ -16,6 +16,10 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
+import st.orm.template.ColumnNameResolver;
+import st.orm.template.ForeignKeyResolver;
+import st.orm.template.SqlDialect;
 import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.impl.Elements.TableSource;
@@ -23,20 +27,18 @@ import st.orm.template.impl.Elements.TableTarget;
 import st.orm.template.impl.Elements.TemplateSource;
 import st.orm.template.impl.Elements.TemplateTarget;
 
-import java.util.function.Supplier;
+import java.lang.reflect.RecordComponent;
 
 import static st.orm.template.Metamodel.root;
 import static st.orm.template.ResolveScope.INNER;
 import static st.orm.template.impl.RecordReflection.findComponent;
-import static st.orm.template.impl.RecordReflection.getColumnName;
 import static st.orm.template.impl.RecordReflection.getFkComponents;
-import static st.orm.template.impl.RecordReflection.getForeignKey;
-import static st.orm.template.impl.RecordReflection.getPkComponents;
+import static st.orm.template.impl.RecordReflection.getForeignKeys;
+import static st.orm.template.impl.RecordReflection.getPkComponent;
+import static st.orm.template.impl.RecordReflection.getPrimaryKeys;
 import static st.orm.template.impl.RecordReflection.getTableName;
+import static st.orm.template.impl.RecordValidation.validateRecordType;
 
-/**
- * A processor for a join element of a template.
- */
 final class JoinProcessor implements ElementProcessor<Join> {
 
     private final SqlTemplateProcessor templateProcessor;
@@ -63,81 +65,92 @@ final class JoinProcessor implements ElementProcessor<Join> {
     @Override
     public ElementResult process(@Nonnull Join join) throws SqlTemplateException {
         if (join.autoJoin() && join.source() instanceof TableSource(var table)) {
-            return new ElementResult(() -> {
-                if (!tableUse.isReferencedTable(table)) {
-                    return "";
-                }
-                return getJoinString(join);
-            });
+            return new ElementResult(() -> tableUse.isReferencedTable(table) ? getJoinString(join) : "");
         }
         return new ElementResult(getJoinString(join));
     }
 
-    /**
-     * Returns the SQL string for a join element.
-     *
-     * @param join the join element.
-     * @return the SQL string for the join element.
-     * @throws SqlTemplateException if the template does not comply to the specification.
-     */
-    private String getJoinString(Join join) throws SqlTemplateException {
+    private String getJoinString(@Nonnull Join join) throws SqlTemplateException {
+        var dialect = template.dialect();
         var columnNameResolver = template.columnNameResolver();
         var foreignKeyResolver = template.foreignKeyResolver();
         var tableNameResolver = template.tableNameResolver();
-        var dialect = template.dialect();
-        if (join.type().hasOnClause()) {
-            String on = switch (join.target()) {
-                case TableTarget(var toTable) when join.source() instanceof TableSource(var fromTable) -> {
-                    var leftComponents = getFkComponents(fromTable).toList();
-                    var rightComponents = getFkComponents(toTable).toList();
-                    var leftComponent = findComponent(leftComponents, toTable);
-                    Supplier<SqlTemplateException> exception = () -> new SqlTemplateException(STR."Failed to join \{fromTable.getSimpleName()} with \{toTable.getSimpleName()}.");
-                    Supplier<SqlTemplateException> aliasException = () -> new SqlTemplateException(STR."Table \{toTable.getSimpleName()} for Join not found.");
-                    if (leftComponent.isPresent()) {
-                        // Joins foreign key of left table to primary key of right table.
-                        var fk = getForeignKey(leftComponent.get(), foreignKeyResolver);
-                        var pk = getColumnName(getPkComponents(toTable).findFirst().orElseThrow(exception), columnNameResolver);
-                        yield dialectTemplate."\{aliasMapper.getAlias(root(fromTable), INNER, dialect)}.\{fk} = \{aliasMapper.getAlias(toTable, null, INNER, dialect, aliasException)}.\{pk}";
-                    } else {
-                        var rightComponent = findComponent(rightComponents, fromTable);
-                        if (rightComponent.isPresent()) {
-                            // Joins foreign key of right table to primary key of left table.
-                            var fk = getForeignKey(rightComponent.get(), foreignKeyResolver);
-                            var pk = getColumnName(getPkComponents(fromTable).findFirst().orElseThrow(exception), columnNameResolver);
-                            yield dialectTemplate."\{aliasMapper.getAlias(root(fromTable), INNER, dialect)}.\{pk} = \{aliasMapper.getAlias(toTable, null, INNER, dialect, aliasException)}.\{fk}";
-                        } else {
-                            // Joins foreign keys of two compound primary keys.
-                            leftComponent = leftComponents.stream()
-                                    .filter(f -> rightComponents.stream().anyMatch(r -> r.getType().equals(f.getType())))
-                                    .findFirst();
-                            rightComponent = rightComponents.stream()
-                                    .filter(f -> leftComponents.stream().anyMatch(l -> l.getType().equals(f.getType())))
-                                    .findFirst();
-                            var fk = getForeignKey(leftComponent.orElseThrow(exception), foreignKeyResolver);
-                            var pk = getForeignKey(rightComponent.orElseThrow(exception), foreignKeyResolver);
-                            yield dialectTemplate."\{aliasMapper.getAlias(root(fromTable), INNER, dialect)}.\{fk} = \{aliasMapper.getAlias(toTable, null, INNER, dialect, aliasException)}.\{pk}";
-                        }
-                    }
-                }
-                case TableTarget _ -> throw new SqlTemplateException("Unsupported source type.");   // Should not happen. See Join validation logic.
-                case TemplateTarget ts -> templateProcessor.parse(ts.template(), true);   // On-clause is correlated.
-            };
-            return switch (join) {
-                case Join(TableSource ts, var alias, _, _, _) ->
-                        dialectTemplate."\n\{join.type().sql()} \{getTableName(ts.table(), tableNameResolver)} \{aliasMapper.useAlias(ts.table(), alias, INNER)} ON \{on}";
-                case Join(TemplateSource ts, var alias, _, _, _) -> {
-                    var source = templateProcessor.parse(ts.template(), false);   // Source is not correlated.
-                    yield dialectTemplate."\n\{join.type().sql()} (\{source}) \{alias} ON \{on}";
-                }
-            };
-        }
-        return switch (join) {
-            case Join(TableSource ts, var alias, _, _, _) ->
-                    dialectTemplate."\n\{join.type().sql()} \{getTableName(ts.table(), tableNameResolver)}\{alias.isEmpty() ? "" : STR." \{alias}"}";
-            case Join(TemplateSource ts, var alias, _, _, _) -> {
-                var source = templateProcessor.parse(ts.template(), false);   // Source is not correlated.
-                yield dialectTemplate."\n\{join.type().sql()} (\{source})\{alias.isEmpty() ? "" : STR." \{alias}"}";
+        String joinType = join.type().sql();
+        String onClause = join.type().hasOnClause() ? switch (join.target()) {
+            case TableTarget(var toTable) when join.source() instanceof TableSource(var fromTable) ->
+                    buildJoinCondition(fromTable, join.sourceAlias(), toTable, join.targetAlias(),
+                            columnNameResolver, foreignKeyResolver, dialect);
+            case TemplateTarget ts -> templateProcessor.parse(ts.template(), true);
+            default -> throw new SqlTemplateException("Unsupported join target.");
+        } : "";
+        return switch (join.source()) {
+            case TableSource ts -> {
+                var table = getTableName(ts.table(), tableNameResolver);
+                var alias = aliasMapper.useAlias(ts.table(), join.sourceAlias(), INNER);
+                yield dialectTemplate."\n\{joinType} \{table} \{alias}\{onClause.isEmpty() ? "" : STR." ON \{onClause}"}";
+            }
+            case TemplateSource ts -> {
+                var source = templateProcessor.parse(ts.template(), false);
+                var alias = join.sourceAlias();
+                yield dialectTemplate."\n\{joinType} (\{source}) \{alias}\{onClause.isEmpty() ? "" : STR." ON \{onClause}"}";
             }
         };
+    }
+
+    private String buildJoinCondition(
+            @Nonnull Class<? extends Record> fromTable,
+            @Nonnull String alias,
+            @Nonnull Class<? extends Record> toTable,
+            @Nullable String toAlias,
+            @Nonnull ColumnNameResolver columnNameResolver,
+            @Nonnull ForeignKeyResolver foreignKeyResolver,
+            @Nonnull SqlDialect dialect
+    ) throws SqlTemplateException {
+        var rightComponent = findComponent(getFkComponents(toTable).toList(), fromTable);
+        if (rightComponent.isPresent()) {
+            validateRecordType(fromTable, true);
+            // Joins foreign key of right table to the primary key of left table.
+            return buildJoinCondition(fromTable, alias, toTable, toAlias, rightComponent.get(),
+                    getPkComponent(fromTable).orElseThrow(), columnNameResolver, foreignKeyResolver, dialect);
+        }
+        var leftComponent = findComponent(getFkComponents(fromTable).toList(), toTable);
+        if (leftComponent.isPresent()) {
+            validateRecordType(toTable, true);
+            // Joins foreign key of left table to the primary key of right table.
+            return buildJoinCondition(toTable, toAlias, fromTable, alias, leftComponent.get(),
+                    getPkComponent(toTable).orElseThrow(), columnNameResolver, foreignKeyResolver, dialect);
+        }
+        throw new SqlTemplateException(
+                STR."Failed to join \{fromTable.getSimpleName()} with \{toTable.getSimpleName()}. No matching foreign key found.");
+    }
+
+    @SuppressWarnings("DuplicatedCode")
+    private String buildJoinCondition(
+            @Nonnull Class<? extends Record> fromTable,
+            @Nullable String fromAlias,
+            @Nonnull Class<? extends Record> toTable,
+            @Nullable String toAlias,
+            @Nonnull RecordComponent left,
+            @Nonnull RecordComponent right,
+            @Nonnull ColumnNameResolver columnNameResolver,
+            @Nonnull ForeignKeyResolver foreignKeyResolver,
+            @Nonnull SqlDialect dialect
+    ) throws SqlTemplateException {
+        fromAlias = fromAlias == null ? aliasMapper.getAlias(root(fromTable), INNER, dialect) : fromAlias;
+        toAlias = toAlias == null ? aliasMapper.getAlias(toTable, null, INNER, dialect,
+                () -> new SqlTemplateException(STR."Table alias missing for: \{toTable.getSimpleName()}")) : toAlias;
+        var fkColumns = getForeignKeys(left, foreignKeyResolver, columnNameResolver);
+        var pkColumns = getPrimaryKeys(right, columnNameResolver);
+        if (fkColumns.size() != pkColumns.size()) {
+            throw new SqlTemplateException("Mismatch in PK/FK columns between tables.");
+        }
+        StringBuilder joinCondition = new StringBuilder();
+        for (int i = 0; i < fkColumns.size(); i++) {
+            if (i > 0) {
+                joinCondition.append(" AND ");
+            }
+            joinCondition.append(dialectTemplate."\{toAlias}.\{fkColumns.get(i)} = \{fromAlias}.\{pkColumns.get(i)}");
+        }
+        return joinCondition.toString();
     }
 }

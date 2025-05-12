@@ -28,7 +28,6 @@ import java.util.Objects;
 import java.util.stream.Stream;
 
 import static java.util.Comparator.comparingInt;
-import static java.util.List.copyOf;
 import static java.util.stream.Collectors.groupingBy;
 import static st.orm.template.impl.SqlTemplateImpl.multiplePathsFoundException;
 
@@ -39,15 +38,11 @@ final class TableMapper {
     record Mapping(
             @Nonnull Class<? extends Record> source,
             @Nonnull String alias,
-            @Nonnull List<RecordComponent> components,
+            @Nonnull RecordComponent component,
             boolean primaryKey,
             @Nullable Class<? extends Record> rootTable,
             @Nullable String pkPath
-    ) {
-        Mapping {
-            components = copyOf(components); // Defensive copy.
-        }
-    }
+    ) {}
 
     private final TableUse tableUse;
     private final Map<Class<? extends Record>, List<Mapping>> mappings;
@@ -85,11 +80,11 @@ final class TableMapper {
             @Nonnull Class<? extends Record> source,
             @Nonnull Class<? extends Record> target,
             @Nonnull String alias,
-            @Nonnull List<RecordComponent> components,
+            @Nonnull RecordComponent component,
             @Nonnull Class<? extends Record> rootTable,
             @Nullable String path) {
         mappings.computeIfAbsent(target, _ -> new ArrayList<>())
-                .add(new Mapping(source, alias, components, true, rootTable, getPath(components, path)));
+                .add(new Mapping(source, alias, component, true, rootTable, getPath(component, path)));
     }
 
     public void mapForeignKey(
@@ -100,20 +95,17 @@ final class TableMapper {
             @Nonnull Class<? extends Record> rootTable,
             @Nullable String path) {
         mappings.computeIfAbsent(target, _ -> new ArrayList<>())
-                .add(new Mapping(source, alias, List.of(component), false, rootTable, getPath(List.of(component), path)));
+                .add(new Mapping(source, alias, component, false, rootTable, getPath(component, path)));
     }
 
-    private static String getPath(@Nonnull List<RecordComponent> components, @Nullable String path) {
+    private static String getPath(@Nonnull RecordComponent component, @Nullable String path) {
         if (path == null) {
             return null;
         }
-        if (components.size() != 1) {
-            return null;
-        }
         if (path.isEmpty()) {
-            return components.getFirst().getName();
+            return component.getName();
         }
-        return STR."\{path}.\{components.getFirst().getName()}";
+        return STR."\{path}.\{component.getName()}";
     }
 
     /**

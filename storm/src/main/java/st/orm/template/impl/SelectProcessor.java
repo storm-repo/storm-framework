@@ -38,7 +38,7 @@ import static st.orm.spi.Providers.getORMConverter;
 import static st.orm.template.Metamodel.root;
 import static st.orm.template.ResolveScope.INNER;
 import static st.orm.template.impl.RecordReflection.getColumnName;
-import static st.orm.template.impl.RecordReflection.getForeignKey;
+import static st.orm.template.impl.RecordReflection.getForeignKeys;
 import static st.orm.template.impl.SqlTemplateImpl.toPathString;
 
 /**
@@ -143,9 +143,10 @@ final class SelectProcessor implements ElementProcessor<Select> {
             } else if (fk && (mode != SelectMode.NESTED || ref)) {   // Use foreign key column if not nested or if ref.
                 if (mode != SelectMode.PK) {
                     checkAlias(alias, type);
-                    var name = getForeignKey(component, template.foreignKeyResolver());
-                    columns.add(dialectTemplate."\{alias}.\{name}");
-                    columns.add(", ");
+                    getForeignKeys(component, template.foreignKeyResolver(), template.columnNameResolver()).forEach(name -> {
+                        columns.add(dialectTemplate."\{alias}.\{name}");
+                        columns.add(", ");
+                    });
                 }
             } else if (component.getType().isRecord()) {
                 if (mode != SelectMode.PK || pk) {

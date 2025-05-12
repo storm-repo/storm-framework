@@ -91,13 +91,11 @@ public final class Elements {
         }
     }
 
-    public sealed interface Source {
-    }
+    public sealed interface Source {}
     public record TableSource(@Nonnull Class<? extends Record> table) implements Source {}
     public record TemplateSource(@Nonnull StringTemplate template) implements Source {}
 
-    public sealed interface Target {
-    }
+    public sealed interface Target {}
     public record TableTarget(@Nonnull Class<? extends Record> table) implements Target {}
     public record TemplateTarget(@Nonnull StringTemplate template) implements Target {}
 

@@ -18,7 +18,7 @@ package st.orm.spring;
 import jakarta.annotation.Nonnull;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.beans.factory.config.BeanPostProcessor;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 import st.orm.kotlin.repository.KRepository;
 import st.orm.repository.Repository;
 
@@ -26,7 +26,7 @@ import java.util.Set;
 
 import static java.util.Arrays.stream;
 
-@Configuration
+@Component
 public class RepositoryProxyingPostProcessor implements BeanPostProcessor {
 
     private final Set<Class<?>> repositoryInterfaces = Set.of(

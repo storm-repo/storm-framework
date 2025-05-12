@@ -26,7 +26,7 @@ import st.orm.template.impl.Elements.Column;
 import java.lang.reflect.RecordComponent;
 
 import static st.orm.template.impl.RecordReflection.getColumnName;
-import static st.orm.template.impl.RecordReflection.getForeignKey;
+import static st.orm.template.impl.RecordReflection.getForeignKeys;
 import static st.orm.template.impl.RecordReflection.getRecordComponent;
 
 /**
@@ -72,7 +72,11 @@ final class ColumnProcessor implements ElementProcessor<Column> {
         RecordComponent component = getRecordComponent(metamodel.root(), column.metamodel().componentPath());
         ColumnName columnName;
         if (REFLECTION.isAnnotationPresent(component, FK.class)) {
-            columnName = getForeignKey(component, template.foreignKeyResolver());
+            var columnNames = getForeignKeys(component, template.foreignKeyResolver(), template.columnNameResolver());
+            if (columnNames.size() != 1) {
+                throw new SqlTemplateException(STR."Column \{component} is not a single foreign key.");
+            }
+            columnName = columnNames.getFirst();
         } else {
             columnName = getColumnName(component, template.columnNameResolver());
         }
