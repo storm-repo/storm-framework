@@ -23,6 +23,7 @@ import kotlin.reflect.KCallable;
 import kotlin.reflect.KClass;
 import kotlin.reflect.KType;
 import st.orm.PK;
+import st.orm.Ref;
 import st.orm.spi.DefaultORMReflectionImpl;
 import st.orm.spi.ORMReflection;
 
@@ -214,6 +215,11 @@ public final class KORMReflectionImpl implements ORMReflection {
     @Override
     public boolean isNonnull(@Nonnull RecordComponent component) {
         return COMPONENT_NONNULL_CACHE.computeIfAbsent(new ComponentCacheKey(component), k -> {
+            Class<?> declaringClass = component.getDeclaringRecord();
+            boolean isKotlinClass = declaringClass.isAnnotationPresent(Metadata.class);
+            if (!isKotlinClass) {
+                return defaultReflection.isNonnull(component);
+            }
             // In Kotlin, the default is nonnull, so we need to check if the component is nullable.
             if (isNullable(component)) {
                 return false;
@@ -222,7 +228,7 @@ public final class KORMReflectionImpl implements ORMReflection {
                 return true;
             }
             try {
-                KClass<?> kClass = JvmClassMappingKt.getKotlinClass(component.getDeclaringRecord());
+                KClass<?> kClass = JvmClassMappingKt.getKotlinClass(declaringClass);
                 var nullable = kClass.getMembers().stream()
                         .filter(member -> member.getName().equals(k.componentName())
                                 && member.getParameters().size() == 1)
@@ -230,6 +236,9 @@ public final class KORMReflectionImpl implements ORMReflection {
                         .map(KType::isMarkedNullable)
                         .findAny()
                         .orElse(false);
+                if (!nullable && Ref.class.isAssignableFrom(component.getType())) {
+                    return false;
+                }
                 return !nullable;
             } catch (Exception e) {
                 return defaultReflection.isNonnull(component);

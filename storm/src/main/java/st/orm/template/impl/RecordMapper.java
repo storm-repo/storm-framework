@@ -219,6 +219,7 @@ final class RecordMapper {
             Object arg;
             var component = recordComponents[i];
             var converter = getORMConverter(component).orElse(null);
+            boolean nonnull = REFLECTION.isNonnull(component);
             if (converter != null) {
                 Object[] argsCopy = new Object[converter.getParameterCount()];
                 arraycopy(args, currentIndex, argsCopy, 0, argsCopy.length);
@@ -230,9 +231,9 @@ final class RecordMapper {
                         .orElseThrow(() -> new SqlTemplateException(STR."No canonical constructor found for record type: \{paramType.getSimpleName()}."));
                 Class<?>[] recordParamTypes = recordConstructor.getParameterTypes();
                 // Recursively adapt arguments for nested records, updating currentIndex after processing.
-                nullable |= !REFLECTION.isNonnull(component);
+                nullable |= !nonnull;
                 AdaptArgumentsResult result = adaptArguments(recordParamTypes, recordConstructor, args, currentIndex, refFactory, nullable, interner);
-                if (Arrays.stream(args, currentIndex, result.offset()).allMatch(a -> a == null || (a instanceof Ref<?> l && l.isNull()))
+                if (Arrays.stream(args, currentIndex, result.offset()).allMatch(a -> a == null || (a instanceof Ref<?> r && r.isNull()))
                         && nullable) {   // Only apply null if resulting component is marked as nullable.
                     arg = null;
                 } else {
@@ -257,7 +258,7 @@ final class RecordMapper {
                         if (o instanceof String s && INT_PATTERN.matcher(s).matches()) {
                             yield Integer.parseInt(s);
                         }
-                        throw new SqlTemplateException(STR."Invalid ordinal value '\{o}' for enum \{paramType.getName()}.");
+                        throw new SqlTemplateException(STR."Argument for ordinal enum component \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()} is not valid.");
                     }
                 };
                 arg = EnumMapper.getFactory(1, paramType).orElseThrow().newInstance(new Object[] { v });
@@ -266,6 +267,13 @@ final class RecordMapper {
                 arg = pk == null ? Ref.ofNull() : refFactory.create(getRefRecordType(recordComponents[i]), pk);
             } else {
                 arg = args[currentIndex++];
+            }
+            if (!nullable && nonnull) {
+                if (arg == null) {
+                    throw new SqlTemplateException(STR."Argument for nonnull component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
+                } else if (arg instanceof Ref<?> r && r.isNull()) {
+                    throw new SqlTemplateException(STR."Argument for nonnull Ref component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
+                }
             }
             adaptedArgs[i] = arg;
         }
