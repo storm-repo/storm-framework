@@ -828,7 +828,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    public final <V> QueryBuilder<T, R, ID> having(@Nonnull StringTemplate template) {
+    public final QueryBuilder<T, R, ID> having(@Nonnull StringTemplate template) {
         return append(StringTemplate.combine(RAW."HAVING ", template));
     }
 
@@ -843,16 +843,17 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
         return orderBy(RAW."\{path}");
     }
 
+
     /**
-     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
+     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph. The results are
+     * sorted in descending order.
      *
      * @param path the path to order by.
-     * @param ascending whether to order in ascending order.
      * @return the query builder.
      * @since 1.2
      */
-    public final QueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?> path, boolean ascending) {
-        return orderBy(StringTemplate.combine(RAW."\{path}", StringTemplate.of(STR." \{ascending ? "ASC" : "DESC"}")));
+    public final QueryBuilder<T, R, ID> orderByDescending(@Nonnull Metamodel<T, ?> path) {
+        return orderBy(RAW."\{path} DESC");
     }
 
     /**
