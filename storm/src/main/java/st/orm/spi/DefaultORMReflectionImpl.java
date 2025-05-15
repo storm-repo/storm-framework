@@ -195,6 +195,7 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
     @Override
     public boolean isNonnull(@Nonnull RecordComponent component) {
         return component.isAnnotationPresent(PK.class)
+                || component.getType().isPrimitive()
                 || (JAVAX_NONNULL != null && component.isAnnotationPresent(JAVAX_NONNULL))
                 || (JAKARTA_NONNULL != null && component.isAnnotationPresent(JAKARTA_NONNULL));
     }

@@ -23,7 +23,6 @@ import kotlin.reflect.KCallable;
 import kotlin.reflect.KClass;
 import kotlin.reflect.KType;
 import st.orm.PK;
-import st.orm.Ref;
 import st.orm.spi.DefaultORMReflectionImpl;
 import st.orm.spi.ORMReflection;
 
@@ -208,6 +207,7 @@ public final class KORMReflectionImpl implements ORMReflection {
 
     private boolean isNullable(@Nonnull RecordComponent component) {
         return !isAnnotationPresent(component, PK.class)
+                && !component.getType().isPrimitive()
                 && ((JAVAX_NULLABLE != null && isAnnotationPresent(component, JAVAX_NULLABLE))
                 || (JAKARTA_NULLABLE != null && isAnnotationPresent(component, JAKARTA_NULLABLE)));
     }
@@ -229,17 +229,13 @@ public final class KORMReflectionImpl implements ORMReflection {
             }
             try {
                 KClass<?> kClass = JvmClassMappingKt.getKotlinClass(declaringClass);
-                var nullable = kClass.getMembers().stream()
+                return !kClass.getMembers().stream()
                         .filter(member -> member.getName().equals(k.componentName())
                                 && member.getParameters().size() == 1)
                         .map(KCallable::getReturnType)
                         .map(KType::isMarkedNullable)
                         .findAny()
                         .orElse(false);
-                if (!nullable && Ref.class.isAssignableFrom(component.getType())) {
-                    return false;
-                }
-                return !nullable;
             } catch (Exception e) {
                 return defaultReflection.isNonnull(component);
             }

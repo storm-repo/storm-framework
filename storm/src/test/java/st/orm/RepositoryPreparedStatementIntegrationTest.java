@@ -499,6 +499,33 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
+    public void testSelectWithWrapperNullOwner() {
+        record Wrapper(Pet pet) {}
+        var wrapper = ORM(dataSource)
+                .selectFrom(Pet.class, Wrapper.class)
+                .where(Pet_.id, EQUALS, 13)
+                .getSingleResult();
+        assertEquals(13, wrapper.pet().id());
+        assertNull(wrapper.pet().owner());
+    }
+
+    @Test
+    public void testSelectWithNonnullWrapperNullOwner() {
+        record OwnerWrapper(@Nullable @FK Owner owner) {}
+        record Pet(
+                @PK Integer id,
+                @Nonnull OwnerWrapper owner
+        ) implements Entity<Integer> {}
+        record Wrapper(Pet pet) {}
+        var wrapper = ORM(dataSource)
+                .selectFrom(Pet.class, Wrapper.class)
+                .where(RAW."\{Pet.class}.id = \{13}")
+                .getSingleResult();
+        assertEquals(13, wrapper.pet().id());
+        assertNull(wrapper.pet().owner().owner());
+    }
+
+    @Test
     public void testSelectWithTwoPetsWithoutPath() {
         var e = assertThrows(PersistenceException.class, () -> {
             var owner = ORM(dataSource).selectFrom(Owner.class).getResultList().getFirst();

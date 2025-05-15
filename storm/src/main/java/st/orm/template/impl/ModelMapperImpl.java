@@ -215,7 +215,7 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
         if (columnFilter.test(column)) {
             // Only raise an exception if the column is actually requested.
             if (id == null && !parentNullable && REFLECTION.isNonnull(component)) {
-                throw new SqlTemplateException(STR."Nonnull Ref component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
+                throw new SqlTemplateException(STR."Non-null Ref component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
             }
             return callback.apply(column, id);
         }
@@ -240,7 +240,7 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
         if (columnFilter.test(column)) {
             // Only raise an exception if the column is actually requested.
             if (id == null && !parentNullable && REFLECTION.isNonnull(component)) {
-                throw new SqlTemplateException(STR."Nonnull foreign key component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
+                throw new SqlTemplateException(STR."Non-null foreign key component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
             }
             return callback.apply(column, id);
         }
@@ -274,7 +274,7 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
         if (columnFilter.test(column)) {
             // Only raise an exception if the column is actually requested.
             if (o == null && !isPrimaryKey && !parentNullable && REFLECTION.isNonnull(component)) {
-                throw new SqlTemplateException(STR."Nonnull component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
+                throw new SqlTemplateException(STR."Non-null component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
             }
             if (o instanceof Enum<?> e) {
                 return callback.apply(column,
