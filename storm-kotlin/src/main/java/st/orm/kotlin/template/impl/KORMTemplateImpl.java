@@ -17,7 +17,6 @@ package st.orm.kotlin.template.impl;
 
 import jakarta.annotation.Nonnull;
 import kotlin.reflect.KClass;
-import st.orm.PersistenceException;
 import st.orm.kotlin.repository.KEntityRepository;
 import st.orm.kotlin.repository.KProjectionRepository;
 import st.orm.kotlin.repository.KRepository;
@@ -29,8 +28,6 @@ import st.orm.repository.Projection;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.ORMTemplate;
-import st.orm.template.Sql;
-import st.orm.template.SqlTemplateException;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
@@ -38,12 +35,10 @@ import java.lang.reflect.Type;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static java.lang.System.identityHashCode;
 import static java.lang.reflect.Proxy.newProxyInstance;
 import static java.util.Optional.empty;
-import static st.orm.template.SqlInterceptor.observeThrowing;
 
 public final class KORMTemplateImpl extends KQueryTemplateImpl implements KORMTemplate {
     private final static ORMReflection REFLECTION = Providers.getORMReflection();
@@ -83,7 +78,7 @@ public final class KORMTemplateImpl extends KQueryTemplateImpl implements KORMTe
                 .orElse(null);
         KRepository repository = createRepository();
         //noinspection unchecked
-        return wrapRepository((R) newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {
+        return (R) newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {
             try {
                 if (method.getName().equals("hashCode") && method.getParameterCount() == 0) {
                     return identityHashCode(proxy);
@@ -113,7 +108,7 @@ public final class KORMTemplateImpl extends KQueryTemplateImpl implements KORMTe
             } catch (InvocationTargetException e) {
                 throw e.getTargetException();
             }
-        }));
+        });
     }
 
     @Override
@@ -176,35 +171,5 @@ public final class KORMTemplateImpl extends KQueryTemplateImpl implements KORMTe
             // Move to the superclass and repeat the process
             clazz = clazz.getSuperclass();
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private  <T extends KRepository> T wrapRepository(@Nonnull T repository) {
-        return (T) newProxyInstance(repository.getClass().getClassLoader(), getAllInterfaces(repository.getClass()).toArray(new Class[0]), (_, method, args) -> {
-            var lastSql = new AtomicReference<Sql>();
-            try {
-                return observeThrowing(lastSql::setPlain, () -> {
-                    try {
-                        return method.invoke(repository, args);
-                    } catch (Exception | Error e) {
-                        throw e;
-                    } catch (Throwable e) {
-                        throw new PersistenceException(e);
-                    }
-                });
-            } catch (InvocationTargetException e) {
-                try {
-                    throw e.getTargetException();
-                } catch (Exception ex) {
-                    Sql sql = lastSql.getPlain();
-                    if (sql != null && ex.getSuppressed().length == 0) {
-                        ex.addSuppressed(new SqlTemplateException(STR."""
-                            Last SQL statement:
-                            \{sql.statement()}"""));
-                    }
-                    throw ex;
-                }
-            }
-        });
     }
 }

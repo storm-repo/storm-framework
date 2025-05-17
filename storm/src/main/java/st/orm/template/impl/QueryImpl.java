@@ -42,24 +42,28 @@ class QueryImpl implements Query {
     private final BindVarsHandle bindVarsHandle;
     private final boolean versionAware;
     private final boolean safe;
+    private final Function<Throwable, PersistenceException> exceptionTransformer;
 
     QueryImpl(@Nonnull RefFactory refFactory,
               @Nonnull Function<Boolean, PreparedStatement> statement,
               @Nullable BindVarsHandle bindVarsHandle,
-              boolean versionAware) {
-        this(refFactory, statement, bindVarsHandle, versionAware, false);
+              boolean versionAware,
+              @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
+        this(refFactory, statement, bindVarsHandle, versionAware, false, exceptionTransformer);
     }
 
     QueryImpl(@Nonnull RefFactory refFactory,
               @Nonnull Function<Boolean, PreparedStatement> statement,
               @Nullable BindVarsHandle bindVarsHandle,
               boolean versionAware,
-              boolean safe) {
+              boolean safe,
+              @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
         this.refFactory = refFactory;
         this.statement = statement;
         this.bindVarsHandle = bindVarsHandle;
         this.versionAware = versionAware;
         this.safe = safe;
+        this.exceptionTransformer = exceptionTransformer;
     }
 
     /**
@@ -76,7 +80,7 @@ class QueryImpl implements Query {
      */
     @Override
     public PreparedQuery prepare() {
-        return MonitoredResource.wrap(new PreparedQueryImpl(refFactory, statement.apply(safe), bindVarsHandle, versionAware));
+        return MonitoredResource.wrap(new PreparedQueryImpl(refFactory, statement.apply(safe), bindVarsHandle, versionAware, exceptionTransformer));
     }
 
     /**
@@ -88,7 +92,7 @@ class QueryImpl implements Query {
      */
     @Override
     public Query safe() {
-        return new QueryImpl(refFactory, statement, bindVarsHandle, versionAware, true);
+        return new QueryImpl(refFactory, statement, bindVarsHandle, versionAware, true, exceptionTransformer);
     }
 
     private PreparedStatement getStatement() {
@@ -143,7 +147,7 @@ class QueryImpl implements Query {
                 }
             }
         } catch (SQLException e) {
-            throw new PersistenceException(e);
+            throw exceptionTransformer.apply(e);
         }
     }
 
@@ -187,7 +191,7 @@ class QueryImpl implements Query {
                 }
             }
         } catch (SQLException e) {
-            throw new PersistenceException(e);
+            throw exceptionTransformer.apply(e);
         }
     }
 
@@ -256,7 +260,7 @@ class QueryImpl implements Query {
                 }
             }
         } catch (SQLException e) {
-            throw new PersistenceException(e);
+            throw exceptionTransformer.apply(e);
         }
     }
 
@@ -280,7 +284,7 @@ class QueryImpl implements Query {
                 }
             }
         } catch (SQLException e) {
-            throw new PersistenceException(e);
+            throw exceptionTransformer.apply(e);
         }
     }
 

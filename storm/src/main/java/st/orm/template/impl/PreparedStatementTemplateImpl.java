@@ -50,6 +50,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import static st.orm.template.SqlTemplate.PS;
+import static st.orm.template.impl.ExceptionHelper.getExceptionTransformer;
 
 public final class PreparedStatementTemplateImpl implements PreparedStatementTemplate, QueryFactory {
 
@@ -333,7 +334,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                 } catch (SQLException e) {
                     throw new PersistenceException(e);
                 }
-            }, bindVariables == null ? null : bindVariables.getHandle(), sql.versionAware());
+            }, bindVariables == null ? null : bindVariables.getHandle(), sql.versionAware(), getExceptionTransformer(sql));
         } catch (SqlTemplateException e) {
             throw new PersistenceException(e);
         }
