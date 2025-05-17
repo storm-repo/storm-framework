@@ -113,7 +113,7 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
      */
     @Override
     public String escape(@Nonnull String name) {
-        return STR."`\{name}`";
+        return STR."`\{name.replace("`", "``")}`";
     }
 
     /**

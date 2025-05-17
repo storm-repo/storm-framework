@@ -104,7 +104,6 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
 
     @Override
     public String escape(@Nonnull String name) {
-        // Oracle uses double quotes to escape identifiers.
         return STR."\"\{name.replace("\"", "\"\"")}\"";
     }
 

@@ -31,6 +31,9 @@ import static st.orm.template.Operator.EQUALS;
 
 public class DefaultSqlDialect implements SqlDialect {
 
+    private static final boolean ANSI_ESCAPING = System.getProperty("st.orm.ansiEscaping", "false")
+            .equalsIgnoreCase("true");
+
     /**
      * Returns the name of the SQL dialect.
      *
@@ -136,7 +139,11 @@ public class DefaultSqlDialect implements SqlDialect {
      */
     @Override
     public String escape(@Nonnull String name) {
-        return STR."\"\{name}\"";
+        if (ANSI_ESCAPING) {
+            // Escape identifier for ANSI SQL by wrapping it in double quotes and doubling any embedded double quotes.
+            return STR."\"\{name.replace("\"", "\"\"")}\"";
+        }
+        return name;
     }
 
     private static final Pattern SINGLE_LINE_COMMENT_PATTERN = Pattern.compile("(--|#).*?(\\n|$)");

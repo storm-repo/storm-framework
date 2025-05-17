@@ -98,7 +98,7 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
      */
     @Override
     public String escape(@Nonnull String name) {
-        return STR."\"\{name}\"";
+        return STR."\"\{name.replace("\"", "\"\"")}\"";
     }
 
     /**
