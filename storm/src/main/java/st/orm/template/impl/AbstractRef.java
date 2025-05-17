@@ -61,6 +61,6 @@ public abstract class AbstractRef<T extends Record> implements Ref<T> {
 
     @Override
     public String toString() {
-        return STR."Ref[pk=\{id()}]";
+        return STR."Ref(\{id()})";
     }
 }
