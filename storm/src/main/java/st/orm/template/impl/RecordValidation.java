@@ -18,8 +18,8 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import st.orm.FK;
 import st.orm.Inline;
-import st.orm.Ref;
 import st.orm.PK;
+import st.orm.Ref;
 import st.orm.repository.Entity;
 import st.orm.repository.Projection;
 import st.orm.repository.ProjectionQuery;
@@ -29,9 +29,10 @@ import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplate.Parameter;
 import st.orm.template.SqlTemplate.PositionalParameter;
 import st.orm.template.SqlTemplateException;
-import st.orm.template.impl.SqlParser.SqlMode;
 
 import java.lang.reflect.RecordComponent;
+import java.math.BigInteger;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -39,19 +40,19 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static java.util.Optional.empty;
 import static st.orm.spi.Providers.getORMConverter;
-import static st.orm.template.impl.RecordReflection.getFkComponents;
-import static st.orm.template.impl.RecordReflection.getPkComponents;
-import static st.orm.template.impl.SqlParser.SqlMode.SELECT;
-import static st.orm.template.impl.SqlParser.SqlMode.UNDEFINED;
+import static st.orm.template.impl.RecordReflection.getPkComponent;
+import static st.orm.template.impl.RecordReflection.getRefRecordType;
 
 /**
  * Helper class for validating record types and named parameters.
  */
+@SuppressWarnings("ALL")
 final class RecordValidation {
 
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
@@ -59,78 +60,139 @@ final class RecordValidation {
     private RecordValidation() {
     }
 
-    record TypeValidationKey(@Nonnull SqlMode sqlMode, @Nonnull Class<? extends Record> recordType) {}
+    record TypeValidationKey(@Nonnull Class<? extends Record> type, boolean requirePrimaryKey) {}
     private static final Map<TypeValidationKey, String> VALIDATE_RECORD_TYPE_CACHE = new ConcurrentHashMap<>();
 
     /**
-     * Validates whether the specified record type is valid for the given SQL mode.
+     * Checks if the provided type is a valid primary key type.
+     *
+     * <p>Note that floating point types are prohibited as primary keys.</p>
+     *
+     * @param type the type to check.
+     * @return true if the type is a valid primary key type, false otherwise.
+     */
+    private static boolean isValidPrimaryKeyType(@Nonnull Class<?> type) {
+        if (!(type == boolean.class || type == Boolean.class
+                || type == int.class || type == Integer.class
+                || type == long.class || type == Long.class
+                || type == short.class || type == Short.class
+                || type == String.class
+                || type == UUID.class
+                || type == BigInteger.class
+                || type.isEnum())) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Validates the provided record type for ORM mapping.
+     *
+     * @param type the record type to validate.
+     * @param requirePrimaryKey true if a primary key is required, false otherwise.
+     * @param duplicates a set to track duplicate record types to ensure no cycles.
+     * @return an empty string if the record type is valid, otherwise an error message.
+     */
+    private static String validate(@Nonnull Class<? extends Record> type, boolean requirePrimaryKey, Set<Class<?>> duplicates) {
+        if (!duplicates.add(type)) {
+            return "";
+        }
+        boolean pkFound = false;
+        for (var component : type.getRecordComponents()) {
+            if (getORMConverter(component).isPresent()) {
+                for (var annotation : List.of(PK.class, FK.class, Inline.class)) {
+                    if (REFLECTION.isAnnotationPresent(component, annotation)) {
+                        return STR."Converted component must not be @\{annotation.getSimpleName()}: \{type.getSimpleName()}.\{component.getName()}.";
+                    }
+                }
+                continue;
+            }
+            if (REFLECTION.isAnnotationPresent(component, PK.class)) {
+                if (pkFound) {
+                    return STR."Multiple primary keys found: \{type.getSimpleName()}.";
+                }
+                pkFound = true;
+                if (component.getType().isRecord()) {
+                    if (!REFLECTION.isAnnotationPresent(component, FK.class)) {
+                        for (var nestedComponent : component.getType().getRecordComponents()) {
+                            if (!isValidPrimaryKeyType(nestedComponent.getType())) {
+                                return STR."Invalid primary key type \{type.getSimpleName()}.\{component.getName()}.\{nestedComponent.getName()}.";
+                            }
+                        }
+                    }
+                } else if (!isValidPrimaryKeyType(component.getType())) {
+                    return STR."Invalid primary key type: \{type.getSimpleName()}.\{component.getName()}.";
+                }
+            }
+            if (REFLECTION.isAnnotationPresent(component, FK.class)) {
+                if (REFLECTION.isAnnotationPresent(component, Inline.class)) {
+                    return STR."Foreign key must not be inlined: \{type.getSimpleName()}.\{component.getName()}.";
+                }
+                Class<? extends Record> fkType;
+                if (component.getType().isRecord()) {
+                    fkType = (Class<? extends Record>) component.getType();
+                } else if (Ref.class.isAssignableFrom(component.getType())) {
+                    try {
+                        fkType = getRefRecordType(component);
+                    } catch (SqlTemplateException e) {
+                        return e.getMessage();
+                    }
+                } else {
+                    return STR."Foreign key must either be a record or a Ref: \{type.getSimpleName()}.\{component.getName()}.";
+                }
+                String message = validate(fkType, true, duplicates);
+                if (!message.isEmpty()) {
+                    return message;
+                }
+            }
+            if (REFLECTION.isAnnotationPresent(component, Inline.class)) {
+                if (!component.getType().isRecord()) {
+                    return STR."Inlined component must be a record: \{type.getSimpleName()}.\{component.getName()}.";
+                }
+            }
+            if (component.getType().isRecord()) {
+                if (!REFLECTION.isAnnotationPresent(component, FK.class)) {
+                    if (Entity.class.isAssignableFrom(component.getType())) {
+                        return STR."Entity component of must be marked as @FK or @Inline: \{type.getSimpleName()}.\{component.getName()}.";
+                    }
+                    if (Projection.class.isAssignableFrom(component.getType())) {
+                        return STR."Projection component of must be marked as @FK or @Inline: \{type.getSimpleName()}.\{component.getName()}.";
+                    }
+                    if (getPkComponent((Class<? extends Record>) component.getType()).isPresent()) {
+                        return STR."Inlined component must not have a primary key: \{type.getSimpleName()}.\{component.getName()}.";
+                    }
+                }
+            }
+        }
+        if (requirePrimaryKey && !pkFound) {
+            return STR."No primary key found for \{type.getSimpleName()}.";
+        }
+        ProjectionQuery projectionQuery = REFLECTION.getAnnotation(type, ProjectionQuery.class);
+        if (projectionQuery != null) {
+            if (!Projection.class.isAssignableFrom(type)) {
+                return STR."ProjectionQuery must only be used on records implementing Projection: \{type.getSimpleName()}";
+            }
+            if (projectionQuery.value().isEmpty()) {
+                return STR."ProjectionQuery must specify a query: \{type.getSimpleName()}";
+            }
+        }
+        return "";
+    }
+
+    /**
+     * Validates whether the specified record type is valid for ORM mapping.
+     *
+     * <p>The results of this validation are cached.</p>
      *
      * @param recordType the record type to validate.
-     * @param sqlMode    the SQL mode to validate against.
-     * @throws SqlTemplateException if the record type is invalid for the given SQL mode.
+     * @param requirePrimaryKey true if a primary key is required, false otherwise.
+     * @throws SqlTemplateException if the record type is invalid for ORM mapping.
      */
-    @SuppressWarnings("unchecked")
-    static void validateRecordType(@Nonnull Class<? extends Record> recordType, @Nonnull SqlMode sqlMode)
+    static void validateRecordType(@Nonnull Class<? extends Record> recordType, boolean requirePrimaryKey)
             throws SqlTemplateException {
-        String message = VALIDATE_RECORD_TYPE_CACHE.computeIfAbsent(new TypeValidationKey(sqlMode, recordType), _ -> {
+        String message = VALIDATE_RECORD_TYPE_CACHE.computeIfAbsent(new TypeValidationKey(recordType, requirePrimaryKey), _ -> {
             // Note that this result can be cached as we're inspecting types.
-            var pkComponents = getPkComponents(recordType).toList();
-            if (pkComponents.isEmpty()) {
-                if (sqlMode != SELECT && sqlMode != UNDEFINED) {
-                    return STR."No primary key found for record \{recordType.getSimpleName()}.";
-                }
-            }
-            for (var pkComponent : pkComponents) {
-                if (Ref.class.isAssignableFrom(pkComponent.getType())) {
-                    return STR."Primary key must not be a Ref: \{recordType.getSimpleName()}.";
-                }
-            }
-            if (pkComponents.size() > 1) {
-                return STR."Multiple primary keys found for record \{recordType.getSimpleName()}.";
-            }
-            for (var fkComponent : getFkComponents(recordType).toList()) {
-                if (fkComponent.getType().isRecord()) {
-                    if (getPkComponents((Class<? extends Record>) fkComponent.getType()).anyMatch(pk -> pk.getType().isRecord())) {
-                        return STR."Foreign key must not specify a compound primary key: \{fkComponent.getType().getSimpleName()} \{fkComponent.getName()}.";
-                    }
-                    if (REFLECTION.isAnnotationPresent(fkComponent, Inline.class)) {
-                        return STR."Foreign key must not be inlined: \{fkComponent.getType().getSimpleName()} \{fkComponent.getName()}.";
-                    }
-                } else if (!Ref.class.isAssignableFrom(fkComponent.getType())) {
-                    return STR."Foreign key must be a record: \{fkComponent.getType().getSimpleName()} \{fkComponent.getName()}.";
-                }
-            }
-            for (var component : recordType.getRecordComponents()) {
-                if (getORMConverter(component).isPresent()) {
-                    for (var annotation : List.of(PK.class, FK.class, Inline.class)) {
-                        if (REFLECTION.isAnnotationPresent(component, annotation)) {
-                            return STR."Converted component must not be @\{annotation.getSimpleName()}: \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}.";
-                        }
-                    }
-                } else if (component.getType().isRecord()) {
-                    if (!REFLECTION.isAnnotationPresent(component, FK.class) && !REFLECTION.isAnnotationPresent(component, Inline.class)) {
-                        // Accidentally inlining entities can have unexpected side effects.
-                        if (Entity.class.isAssignableFrom(component.getType())) {
-                            return STR."Entity must be marked as @FK or @Inline: \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}.";
-                        }
-                        if (Projection.class.isAssignableFrom(component.getType())) {
-                            return STR."Projection must be marked as @FK or @Inline: \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}.";
-                        }
-                    }
-                } else if (REFLECTION.isAnnotationPresent(component, Inline.class)) {
-                    return STR."Inlined component must be a record: \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}.";
-                }
-            }
-            ProjectionQuery projectionQuery = REFLECTION.getAnnotation(recordType, ProjectionQuery.class);
-            if (projectionQuery != null) {
-                if (!Projection.class.isAssignableFrom(recordType)) {
-                    return STR."ProjectionQuery must only be used on records implementing Projection: \{recordType.getSimpleName()}";
-                }
-                if (projectionQuery.value().isEmpty()) {
-                    return STR."ProjectionQuery must specify a query: \{recordType.getSimpleName()}";
-                }
-            }
-            return "";
+            return validate(recordType, requirePrimaryKey, new HashSet<>());
         });
         if (!message.isEmpty()) {
             throw new SqlTemplateException(message);
@@ -284,6 +346,12 @@ final class RecordValidation {
         }
     }
 
+    /**
+     * Validates that there is only one WHERE clause in the SQL template.
+     *
+     * @param elements the list of SQL template elements to validate.
+     * @throws SqlTemplateException if multiple WHERE clauses are found.
+     */
     static void validateWhere(@Nonnull List<Element> elements) throws SqlTemplateException {
         if (elements.stream().filter(Elements.Where.class::isInstance).count() > 1) {
             throw new SqlTemplateException("Multiple Where elements found.");

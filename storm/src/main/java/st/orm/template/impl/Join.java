@@ -16,9 +16,12 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import st.orm.template.JoinType;
 import st.orm.template.impl.Elements.Source;
 import st.orm.template.impl.Elements.Target;
+import st.orm.template.impl.Elements.TemplateSource;
+import st.orm.template.impl.Elements.TemplateTarget;
 
 import static java.util.Objects.requireNonNull;
 
@@ -26,25 +29,36 @@ import static java.util.Objects.requireNonNull;
  * A join element of a template.
  *
  * @param source the source of the join.
- * @param alias the alias of the join.
+ * @param sourceAlias the alias of the join.
  * @param target the target of the join.
  * @param type the type of the join.
  * @param autoJoin whether the join must be automatically generated.
  */
 record Join(
         @Nonnull Source source,
-        @Nonnull String alias,
+        @Nonnull String sourceAlias,
         @Nonnull Target target,
+        @Nullable String targetAlias,
         @Nonnull JoinType type,
         boolean autoJoin
 ) implements Element {
     Join {
         requireNonNull(source, "source");
-        requireNonNull(alias, "alias");
+        requireNonNull(sourceAlias, "alias");
         requireNonNull(target, "target");
         requireNonNull(type, "type");
-        if (source instanceof Elements.TemplateSource && !(target instanceof Elements.TemplateTarget)) {
+        if (source instanceof TemplateSource && !(target instanceof TemplateTarget)) {
             throw new IllegalArgumentException("TemplateSource must be used in combination with TemplateTarget.");
         }
+    }
+
+    Join (
+            @Nonnull Source source,
+            @Nonnull String sourceAlias,
+            @Nonnull Target target,
+            @Nonnull JoinType type,
+            boolean autoJoin
+    ) {
+        this(source, sourceAlias, target, null, type, autoJoin);
     }
 }

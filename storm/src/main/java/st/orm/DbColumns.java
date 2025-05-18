@@ -15,7 +15,6 @@
  */
 package st.orm;
 
-import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
@@ -24,31 +23,13 @@ import static java.lang.annotation.ElementType.RECORD_COMPONENT;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
- * Specifies the name for the column, table or view.
+ * Annotation for specifying multiple database column names, e.g., for compound keys.
+ *
+ * @since 1.3
  */
 @Target({RECORD_COMPONENT, PARAMETER})
 @Retention(RUNTIME)
-@Repeatable(DbColumns.class)
-public @interface DbColumn {
-
-    /**
-     * The database column name.
-     * Acts as an alias for {@link #name()}.
-     */
-    String value() default "";
-
-    /**
-     * The database column name.
-     * Acts as an alias for {@link #value()}.
-     */
-    String name() default "";
-
-    /**
-     * True to force escaping the column name.
-     *
-     * <p>Note that the column name is automatically escaped if it contains special characters or is a reserved
-     * keyword.</p>
-     */
-    boolean escape() default false;
+public @interface DbColumns {
+    DbColumn[] value();
 }
 

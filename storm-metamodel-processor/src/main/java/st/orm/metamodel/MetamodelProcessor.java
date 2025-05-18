@@ -130,7 +130,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
         String className = extractNameIfRef(typeMirror.toString());
         className = getBoxedTypeName(className);
         if (className.startsWith(packageName)) {
-            String simpleName = className.substring(packageName.length() + 1);
+            String simpleName = packageName.isEmpty() ? className : className.substring(packageName.length() + 1);
             if (!simpleName.contains(".")) {
                 return simpleName;
             }
@@ -399,12 +399,10 @@ public final class MetamodelProcessor extends AbstractProcessor {
         String metaInterfaceName = recordName + "_";
         try {
             JavaFileObject fileObject = processingEnv.getFiler()
-                    .createSourceFile(packageName + "." + metaInterfaceName, recordElement);
+                    .createSourceFile((packageName.isEmpty() ? "" : packageName + ".") + metaInterfaceName, recordElement);
             try (Writer writer = fileObject.openWriter()) {
                 writer.write(String.format("""
-                    package %s;
-
-                    import st.orm.template.Metamodel;
+                    %simport st.orm.template.Metamodel;
                     import javax.annotation.processing.Generated;
 
                     /**
@@ -415,7 +413,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     @Generated("%s")
                     public interface %s extends Metamodel<%s, %s> {
                     %s
-                    }""", packageName, recordName, getClass().getName(), metaInterfaceName, recordName, recordName, buildInterfaceFields(recordElement, packageName)));
+                    }""", (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n"), recordName, getClass().getName(), metaInterfaceName, recordName, recordName, buildInterfaceFields(recordElement, packageName)));
             }
         } catch (Exception e) {
             processingEnv.getMessager().printMessage(ERROR, "Failed to process " + metaInterfaceName + ". Error: " + e + ".");
@@ -492,12 +490,10 @@ public final class MetamodelProcessor extends AbstractProcessor {
         String metaClassName = recordName + "Metamodel";
         try {
             JavaFileObject fileObject = processingEnv.getFiler()
-                    .createSourceFile(packageName + "." + metaClassName, recordElement);
+                    .createSourceFile((packageName.isEmpty() ? "" : packageName + ".") + metaClassName, recordElement);
             try (Writer writer = fileObject.openWriter()) {
                 writer.write(String.format("""
-                    package %s;
-
-                    import st.orm.template.Metamodel;
+                    %simport st.orm.template.Metamodel;
                     import st.orm.template.impl.MetamodelImpl;
                     import javax.annotation.processing.Generated;
 
@@ -527,7 +523,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                             String componentBase = inline ? component.isEmpty() ? "" : component + "." : "";
                     %s
                         }
-                    }""", packageName, recordName, getClass().getName(), metaClassName, recordName, buildClassFields(recordElement, packageName, recordName),
+                    }""", (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n"), recordName, getClass().getName(), metaClassName, recordName, buildClassFields(recordElement, packageName, recordName),
                         metaClassName, recordName, metaClassName, metaClassName, metaClassName, recordName, initClassFields(recordElement, packageName)));
             }
         } catch (Exception e) {

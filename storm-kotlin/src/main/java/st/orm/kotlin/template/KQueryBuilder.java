@@ -939,7 +939,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    public final <V> KQueryBuilder<T, R, ID> having(@Nonnull StringTemplate template) {
+    public final KQueryBuilder<T, R, ID> having(@Nonnull StringTemplate template) {
         return append(StringTemplate.combine(RAW."HAVING ", template));
     }
 
@@ -950,7 +950,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    public final <V> KQueryBuilder<T, R, ID> having(@Nonnull TemplateFunction function) {
+    public final KQueryBuilder<T, R, ID> having(@Nonnull TemplateFunction function) {
         return having(TemplateFunction.template(function));
     }
 
@@ -966,15 +966,15 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     }
 
     /**
-     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
+     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph. The results are
+     * sorted in descending order.
      *
      * @param path the path to order by.
-     * @param ascending whether to order in ascending order.
      * @return the query builder.
      * @since 1.2
      */
-    public final KQueryBuilder<T, R, ID> orderBy(@Nonnull Metamodel<T, ?> path, boolean ascending) {
-        return orderBy(RAW."\{path} \{ascending ? "ASC" : "DESC"}");
+    public final KQueryBuilder<T, R, ID> orderByDescending(@Nonnull Metamodel<T, ?> path) {
+        return orderBy(RAW."\{path} DESC");
     }
 
     /**

@@ -173,7 +173,7 @@ public class JsonIntegrationTest {
                 SELECT v.id, v.first_name, v.last_name, JSON_OBJECTAGG(s.id, s.name)
                 FROM vet v
                 INNER JOIN vet_specialty vs ON vs.vet_id = v.id
-                INNER JOIN specialty s ON s.id = vs.specialty_id
+                INNER JOIN specialty s ON vs.specialty_id = s.id 
                 GROUP BY v.id""";
         observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
             try {

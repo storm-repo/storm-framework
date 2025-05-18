@@ -16,7 +16,7 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
-import st.orm.spi.Name;
+import  st.orm.spi.Name;
 import st.orm.template.SqlDialect;
 import st.orm.template.Column;
 

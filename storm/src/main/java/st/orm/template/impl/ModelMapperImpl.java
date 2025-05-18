@@ -19,8 +19,8 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.FK;
 import st.orm.DbEnum;
-import st.orm.Ref;
 import st.orm.PK;
+import st.orm.Ref;
 import st.orm.PersistenceException;
 import st.orm.spi.ORMConverter;
 import st.orm.spi.ORMReflection;
@@ -49,6 +49,7 @@ import static st.orm.spi.Providers.getORMReflection;
  * @param <ID> the primary key type.
  * @since 1.2
  */
+@SuppressWarnings("DuplicatedCode")
 final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> {
     private static final ORMReflection REFLECTION = getORMReflection();
 
@@ -105,6 +106,14 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
         return values;
     }
 
+    /**
+     * Maps the values from the given record to a set of columns.
+     *
+     * @param record the record to map.
+     * @param columnFilter the filter to determine which columns to include.
+     * @param callback the callback to process each column and value.
+     * @throws SqlTemplateException if an error occurs while extracting the values.
+     */
     private void map(@Nonnull Record record, @Nonnull Predicate<Column> columnFilter, @Nonnull BiFunction<Column, Object, Boolean> callback) throws SqlTemplateException {
         if (record.getClass() != model.type()) {
             throw new SqlTemplateException(STR."Record type not supported: \{record.getClass().getSimpleName()}. Expected: \{model.type().getSimpleName()}.");
@@ -112,6 +121,19 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
         map(record, model.type(), false, false, new AtomicInteger(), columnFilter, callback);
     }
 
+    /**
+     * Maps the values from the given record to a set of columns.
+     *
+     * @param record the record to map.
+     * @param recordClass the record class to map.
+     * @param lookupForeignKey whether to lookup foreign keys.
+     * @param parentNullable whether the parent is nullable.
+     * @param index the index of the column to map.
+     * @param columnFilter the filter to determine which columns to include.
+     * @param callback the callback to process each column and value.
+     * @return {@code true} if we will continue mapping, {@code false} otherwise.
+     * @throws SqlTemplateException if an error occurs while extracting the values.
+     */
     private boolean map(@Nullable Record record,
                         @Nonnull Class<? extends Record> recordClass,
                         boolean lookupForeignKey,
@@ -128,22 +150,17 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
                     }
                     continue;
                 }
-                Column column = model.columns().get(index.getAndIncrement());
-                if (!columnFilter.test(column)) {
-                    continue;
-                }
                 if (Ref.class.isAssignableFrom(component.getType())) {
-                    if (!processRefComponent(record, component, column, parentNullable, callback)) {
+                    if (!processRefComponent(record, component, parentNullable, index, columnFilter, callback)) {
                         return false;
                     }
                     continue;
                 }
                 if (lookupForeignKey) {
-                    return processLookupForeignKey(record, recordClass, component, column, parentNullable, index, columnFilter, callback);
-                } else {
-                    if (!processDefaultComponent(record, component, column, parentNullable, index, columnFilter, callback)) {
-                        return false;
-                    }
+                    return processLookupForeignKey(record, recordClass, component, parentNullable, index, columnFilter, callback);
+                }
+                if (!processComponent(record, component, parentNullable, index, columnFilter, callback)) {
+                    return false;
                 }
             }
             return true;
@@ -178,8 +195,9 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
 
     private boolean processRefComponent(@Nullable Record record,
                                         @Nonnull RecordComponent component,
-                                        @Nonnull Column column,
                                         boolean parentNullable,
+                                        @Nonnull AtomicInteger index,
+                                        @Nonnull Predicate<Column> columnFilter,
                                         @Nonnull BiFunction<Column, Object, Boolean> callback) throws Throwable {
         if (!REFLECTION.isAnnotationPresent(component, FK.class)) {
             throw new SqlTemplateException(STR."Ref component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is not a foreign key.");
@@ -189,86 +207,86 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
                 : (Ref<?>) REFLECTION.invokeComponent(component, record))
                 .map(Ref::id)
                 .orElse(null);
-        if (id == null && !parentNullable && REFLECTION.isNonnull(component)) {
-            throw new SqlTemplateException(STR."Nonnull Ref component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
+        if (component.getType().isRecord()) {
+            //noinspection unchecked
+            return map((Record) id, (Class<? extends Record>) component.getType(), true, parentNullable || !REFLECTION.isNonnull(component), index, columnFilter, callback);
         }
-        return callback.apply(column, id);
+        Column column = model.columns().get(index.getAndIncrement());
+        if (columnFilter.test(column)) {
+            // Only raise an exception if the column is actually requested.
+            if (id == null && !parentNullable && REFLECTION.isNonnull(component)) {
+                throw new SqlTemplateException(STR."Non-null Ref component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
+            }
+            return callback.apply(column, id);
+        }
+        return true;
     }
 
     private boolean processLookupForeignKey(@Nullable Record record,
                                             @Nonnull Class<? extends Record> recordClass,
                                             @Nonnull RecordComponent component,
-                                            @Nonnull Column column,
                                             boolean parentNullable,
                                             @Nonnull AtomicInteger index,
                                             @Nonnull Predicate<Column> columnFilter,
                                             @Nonnull BiFunction<Column, Object, Boolean> callback) throws Throwable {
-        if (record == null) {
-            return callback.apply(column, null);
+        var id = record == null
+                ? null
+                : REFLECTION.invokeComponent(component, record);
+        if (component.getType().isRecord()) {
+            //noinspection unchecked
+            return map((Record) id, (Class<? extends Record>) component.getType(), false, parentNullable || !REFLECTION.isNonnull(component), index, columnFilter, callback);
         }
-        if (component.getType().isRecord() && !REFLECTION.isAnnotationPresent(component, FK.class)) {
-            var r = (Record) REFLECTION.invokeComponent(component, record);
-            if (r == null) {
-                return true;
+        Column column = model.columns().get(index.getAndIncrement());
+        if (columnFilter.test(column)) {
+            // Only raise an exception if the column is actually requested.
+            if (id == null && !parentNullable && REFLECTION.isNonnull(component)) {
+                throw new SqlTemplateException(STR."Non-null foreign key component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
             }
-            index.decrementAndGet(); // Reset index.
-            if (!map(r, recordClass, true, parentNullable || !REFLECTION.isNonnull(component), index, columnFilter, callback)) {
-                return false;
-            }
-        }
-        if (REFLECTION.isAnnotationPresent(component, PK.class)) {
-            var value = REFLECTION.invokeComponent(component, record);
-            return callback.apply(column, value);   // We found the PK for the foreign key. Exit early.
+            return callback.apply(column, id);
         }
         return true;
     }
 
-    private boolean processDefaultComponent(@Nullable Record record,
-                                            @Nonnull RecordComponent component,
-                                            @Nonnull Column column,
-                                            boolean parentNullable,
-                                            @Nonnull AtomicInteger index,
-                                            @Nonnull Predicate<Column> columnFilter,
-                                            @Nonnull BiFunction<Column, Object, Boolean> callback) throws Throwable {
+    private boolean processComponent(@Nullable Record record,
+                                     @Nonnull RecordComponent component,
+                                     boolean parentNullable,
+                                     @Nonnull AtomicInteger index,
+                                     @Nonnull Predicate<Column> columnFilter,
+                                     @Nonnull BiFunction<Column, Object, Boolean> callback) throws Throwable {
+        boolean isPrimaryKey = REFLECTION.isAnnotationPresent(component, PK.class);
         boolean isForeignKey = REFLECTION.isAnnotationPresent(component, FK.class);
         boolean isRecord = component.getType().isRecord();
         if (isForeignKey && !isRecord) {
             throw new SqlTemplateException(STR."Foreign key component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is not a record.");
         }
-        if (isForeignKey || isRecord) {
+        if (isRecord) {
             Record r = record == null
                     ? null
                     : (Record) REFLECTION.invokeComponent(component, record);
-            if (r == null) {
-                if (!parentNullable && REFLECTION.isNonnull(component)) {
-                    String compType = isForeignKey ? "foreign key " : "";
-                    throw new SqlTemplateException(STR."Nonnull \{compType}component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
-                }
-                if (isForeignKey) {
-                    // Skipping rest, as we're only interested in the foreign key.
-                    return callback.apply(column, null);
-                }
-            }
-            index.decrementAndGet(); // Reset index for nested mapping.
             //noinspection unchecked
-            return map(r, (Class<? extends Record>) component.getType(), isForeignKey, parentNullable || !REFLECTION.isNonnull(component), index, columnFilter, callback);
-        } else {
-            Object o = record == null
-                    ? null
-                    : REFLECTION.invokeComponent(component, record);
-            if (o == null && !parentNullable && REFLECTION.isNonnull(component)) {
-                throw new SqlTemplateException(STR."Nonnull component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
+            return map(r, (Class<? extends Record>) component.getType(), isForeignKey,
+                    parentNullable || isPrimaryKey || !REFLECTION.isNonnull(component), index, columnFilter, callback);
+        }
+        Object o = record == null
+                ? null
+                : REFLECTION.invokeComponent(component, record);
+        Column column = model.columns().get(index.getAndIncrement());
+        if (columnFilter.test(column)) {
+            // Only raise an exception if the column is actually requested.
+            if (o == null && !isPrimaryKey && !parentNullable && REFLECTION.isNonnull(component)) {
+                throw new SqlTemplateException(STR."Non-null component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
             }
             if (o instanceof Enum<?> e) {
                 return callback.apply(column,
                         switch (ofNullable(REFLECTION.getAnnotation(component, DbEnum.class))
                                 .map(DbEnum::value)
                                 .orElse(NAME)) {
-                    case NAME -> e.name();
-                    case ORDINAL -> e.ordinal();
-                });
+                            case NAME -> e.name();
+                            case ORDINAL -> e.ordinal();
+                        });
             }
             return callback.apply(column, o);
         }
+        return true;
     }
 }

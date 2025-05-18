@@ -28,7 +28,6 @@ import st.orm.spi.Provider;
 import st.orm.spi.Providers;
 import st.orm.spi.QueryFactory;
 import st.orm.template.ORMTemplate;
-import st.orm.template.Sql;
 import st.orm.template.SqlTemplateException;
 
 import java.lang.reflect.InvocationTargetException;
@@ -37,14 +36,12 @@ import java.lang.reflect.Type;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 import static java.lang.System.identityHashCode;
 import static java.lang.reflect.Proxy.newProxyInstance;
 import static st.orm.spi.Providers.getEntityRepository;
 import static st.orm.spi.Providers.getProjectionRepository;
-import static st.orm.template.SqlInterceptor.observeThrowing;
 
 public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTemplate {
 
@@ -67,7 +64,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     @Override
     public <T extends Record & Entity<ID>, ID> EntityRepository<T, ID> entity(@Nonnull Class<T> type) {
         try {
-            return wrapRepository(getEntityRepository(this, modelBuilder.build(type, true), providerFilter == null ? _ -> true : providerFilter));
+            return getEntityRepository(this, modelBuilder.build(type, true), providerFilter == null ? _ -> true : providerFilter);
         } catch (SqlTemplateException e) {
             throw new PersistenceException(e);
         }
@@ -84,7 +81,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     @Override
     public <T extends Record & Projection<ID>, ID> ProjectionRepository<T, ID> projection(@Nonnull Class<T> type) {
         try {
-            return wrapRepository(getProjectionRepository(this, modelBuilder.build(type, false), providerFilter == null ? _ -> true : providerFilter));
+            return getProjectionRepository(this, modelBuilder.build(type, false), providerFilter == null ? _ -> true : providerFilter);
         } catch (SqlTemplateException e) {
             throw new PersistenceException(e);
         }
@@ -103,7 +100,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
         EntityRepository<?, ?> entityRepository = createEntityRepository(type).orElse(null);
         ProjectionRepository<?, ?> projectionRepository = createProjectionRepository(type).orElse(null);
         Repository repository = createRepository();
-        return wrapRepository((R) newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {
+        return (R) newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {
             try {
                 if (method.getName().equals("hashCode") && method.getParameterCount() == 0) {
                     return identityHashCode(proxy);
@@ -139,7 +136,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
             } catch (InvocationTargetException e) {
                 throw e.getTargetException();
             }
-        }));
+        });
     }
 
     private <T extends Record & Entity<ID>, ID> Optional<EntityRepository<T, ID>> createEntityRepository(@Nonnull Class<?> type) {
@@ -228,35 +225,5 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
             // Move to the superclass and repeat the process
             clazz = clazz.getSuperclass();
         }
-    }
-
-    @SuppressWarnings({"unchecked", "DuplicatedCode"})
-    private  <T extends Repository> T wrapRepository(@Nonnull T repository) {
-        return (T) newProxyInstance(repository.getClass().getClassLoader(), getAllInterfaces(repository.getClass()).toArray(new Class[0]), (_, method, args) -> {
-            var lastSql = new AtomicReference<Sql>();
-            try {
-                return observeThrowing(lastSql::setPlain, () -> {
-                    try {
-                        return method.invoke(repository, args);
-                    } catch (Exception | Error e) {
-                        throw e;
-                    } catch (Throwable e) {
-                        throw new PersistenceException(e);
-                    }
-                });
-            } catch (InvocationTargetException e) {
-                try {
-                    throw e.getTargetException();
-                } catch (Exception ex) {
-                    Sql sql = lastSql.getPlain();
-                    if (sql != null && ex.getSuppressed().length == 0) {
-                        ex.addSuppressed(new SqlTemplateException(STR."""
-                            Last SQL statement:
-                            \{sql.statement()}"""));
-                    }
-                    throw ex;
-                }
-            }
-        });
     }
 }

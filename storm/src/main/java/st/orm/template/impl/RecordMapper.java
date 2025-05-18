@@ -125,10 +125,11 @@ final class RecordMapper {
             @SuppressWarnings("unchecked")
             @Override
             public T newInstance(@Nonnull Object[] args) throws SqlTemplateException {
+                var constructorComponents = RECORD_COMPONENT_CACHE.computeIfAbsent(constructor.getDeclaringClass(), Class::getRecordComponents);
                 // Adapt arguments for records recursively.
                 Object[] adaptedArgs = adaptArguments(
                         constructor.getParameterTypes(),
-                        constructor,
+                        constructorComponents,
                         args,
                         0,
                         refFactory,
@@ -194,31 +195,37 @@ final class RecordMapper {
 
     private static final Pattern INT_PATTERN = Pattern.compile("\\d+");
 
+    private static boolean isArgNull(@Nullable Object arg) {
+        return arg == null || (arg instanceof Ref<?> r && r.isNull());
+    }
+
     /**
      * Adapts the specified arguments to match the parameter types of the constructor.
      *
      * @param parameterTypes the parameter types of the constructor.
+     * @param components the constructor to adapt the arguments for.
      * @param args the arguments to adapt.
      * @param argsIndex the index of the first argument to adapt.
-     * @param nullable whether the record is nullable.
+     * @param parentNullable whether the record is nullable.
      * @return the adapted arguments.
      * @throws SqlTemplateException if an error occurred while creating the adapted arguments.
      */
     private static AdaptArgumentsResult adaptArguments(@Nonnull Class<?>[] parameterTypes,
-                                                       @Nonnull Constructor<?> constructor,
+                                                       @Nonnull RecordComponent[] components,
                                                        @Nonnull Object[] args,
                                                        int argsIndex,
                                                        @Nonnull RefFactory refFactory,
-                                                       boolean nullable,
+                                                       boolean parentNullable,
                                                        @Nonnull WeakInterner interner) throws SqlTemplateException {
         Object[] adaptedArgs = new Object[parameterTypes.length];
         int currentIndex = argsIndex;
-        var recordComponents = RECORD_COMPONENT_CACHE.computeIfAbsent(constructor.getDeclaringClass(), Class::getRecordComponents);
         for (int i = 0; i < parameterTypes.length; i++) {
             Class<?> paramType = parameterTypes[i];
             Object arg;
-            var component = recordComponents[i];
+            var component = components[i];
             var converter = getORMConverter(component).orElse(null);
+            boolean nonnull = REFLECTION.isNonnull(component);
+            boolean nullable = parentNullable || !nonnull;
             if (converter != null) {
                 Object[] argsCopy = new Object[converter.getParameterCount()];
                 arraycopy(args, currentIndex, argsCopy, 0, argsCopy.length);
@@ -230,17 +237,34 @@ final class RecordMapper {
                         .orElseThrow(() -> new SqlTemplateException(STR."No canonical constructor found for record type: \{paramType.getSimpleName()}."));
                 Class<?>[] recordParamTypes = recordConstructor.getParameterTypes();
                 // Recursively adapt arguments for nested records, updating currentIndex after processing.
-                nullable |= !REFLECTION.isNonnull(component);
-                AdaptArgumentsResult result = adaptArguments(recordParamTypes, recordConstructor, args, currentIndex, refFactory, nullable, interner);
-                if (Arrays.stream(args, currentIndex, result.offset()).allMatch(a -> a == null || (a instanceof Ref<?> l && l.isNull()))
-                        && nullable) {   // Only apply null if resulting component is marked as nullable.
-                    arg = null;
-                } else {
-                    // Using the weak interner to use canonical instances of nested records. The interner uses weak
-                    // references to allow interning being used even in the event of (infinite) result streams. If the
-                    // caller keeps the records the interner will reuse those same records. If the caller discards the
-                    // records the interner will not keep track of them and new instances will be outputted.
-                    arg = interner.intern(construct(recordConstructor, result.arguments(), argsIndex + i));
+                var recordComponents = RECORD_COMPONENT_CACHE.computeIfAbsent(recordConstructor.getDeclaringClass(), Class::getRecordComponents);
+                AdaptArgumentsResult result = adaptArguments(recordParamTypes, recordComponents, args, currentIndex, refFactory, nullable, interner);
+                if (!nonnull && Arrays.stream(args, currentIndex, result.offset()).allMatch(RecordMapper::isArgNull)) {
+                    // All elements are null and the record is nullable, so we can set the argument to null.
+                    arg = Ref.class.isAssignableFrom(paramType) ? Ref.ofNull() : null;
+                } else{
+                    RecordComponent nullViolation = null;
+                    Object[] recordArgs = result.arguments();
+                    for (int j = 0; j < recordArgs.length; j++) {
+                        if (isArgNull(recordArgs[j]) && REFLECTION.isNonnull(recordComponents[j])) {
+                            nullViolation = recordComponents[j];
+                            break;
+                        }
+                    }
+                    if (nullViolation != null) {
+                        // One of the arguments is null while the component is non-nullable.
+                        if (!nullable) {
+                            throw new SqlTemplateException(STR."Argument for non-null component '\{nullViolation.getDeclaringRecord().getSimpleName()}.\{nullViolation.getName()}' is null.");
+                        }
+                        // One of the parent elements is nullable.
+                        arg = Ref.class.isAssignableFrom(paramType) ? Ref.ofNull() : null;
+                    } else {
+                        // Using the weak interner to use canonical instances of nested records. The interner uses weak
+                        // references to allow interning being used even in the event of (infinite) result streams. If the
+                        // caller keeps the records the interner will reuse those same records. If the caller discards the
+                        // records the interner will not keep track of them and new instances will be outputted.
+                        arg = interner.intern(construct(recordConstructor, result.arguments(), argsIndex + i));
+                    }
                 }
                 currentIndex = result.offset();
             } else if (paramType.isEnum()) {
@@ -257,15 +281,18 @@ final class RecordMapper {
                         if (o instanceof String s && INT_PATTERN.matcher(s).matches()) {
                             yield Integer.parseInt(s);
                         }
-                        throw new SqlTemplateException(STR."Invalid ordinal value '\{o}' for enum \{paramType.getName()}.");
+                        throw new SqlTemplateException(STR."Argument for ordinal enum component \{component.getDeclaringRecord().getSimpleName()}.\{component.getName()} is not valid.");
                     }
                 };
                 arg = EnumMapper.getFactory(1, paramType).orElseThrow().newInstance(new Object[] { v });
             } else if (Ref.class.isAssignableFrom(paramType)) {
                 Object pk = args[currentIndex++];
-                arg = pk == null ? Ref.ofNull() : refFactory.create(getRefRecordType(recordComponents[i]), pk);
+                arg = pk == null ? Ref.ofNull() : refFactory.create(getRefRecordType(components[i]), pk);
             } else {
                 arg = args[currentIndex++];
+            }
+            if (!nullable && isArgNull(arg)) {
+                throw new SqlTemplateException(STR."Argument for non-null component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
             }
             adaptedArgs[i] = arg;
         }

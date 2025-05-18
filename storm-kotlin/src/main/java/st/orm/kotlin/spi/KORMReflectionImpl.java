@@ -97,9 +97,8 @@ public final class KORMReflectionImpl implements ORMReflection {
         }
     }
 
-    @Override
-    public <A extends Annotation> A getAnnotation(@Nonnull RecordComponent component, @Nonnull Class<A> annotationType) {
-        var parameter = COMPONENT_PARAMETER_CACHE.computeIfAbsent(new ComponentCacheKey(component), k -> {
+    private Parameter getParameter(@Nonnull RecordComponent component) {
+        return COMPONENT_PARAMETER_CACHE.computeIfAbsent(new ComponentCacheKey(component), k -> {
             //noinspection unchecked
             Class<? extends Record> recordType = (Class<? extends Record>) component.getDeclaringRecord();
             var recordComponents = recordType.getRecordComponents();
@@ -113,7 +112,16 @@ public final class KORMReflectionImpl implements ORMReflection {
             }
             throw new IllegalArgumentException(STR."No parameter found for component: \{component.getName()} for record type: \{component.getDeclaringRecord().getSimpleName()}.");
         });
-        return parameter.getAnnotation(annotationType);
+    }
+
+    @Override
+    public <A extends Annotation> A getAnnotation(@Nonnull RecordComponent component, @Nonnull Class<A> annotationType) {
+        return getParameter(component).getAnnotation(annotationType);
+    }
+
+    @Override
+    public <A extends Annotation> A[] getAnnotations(@Nonnull RecordComponent component, @Nonnull Class<A> annotationType) {
+        return getParameter(component).getAnnotationsByType(annotationType);
     }
 
     @Override
@@ -199,6 +207,7 @@ public final class KORMReflectionImpl implements ORMReflection {
 
     private boolean isNullable(@Nonnull RecordComponent component) {
         return !isAnnotationPresent(component, PK.class)
+                && !component.getType().isPrimitive()
                 && ((JAVAX_NULLABLE != null && isAnnotationPresent(component, JAVAX_NULLABLE))
                 || (JAKARTA_NULLABLE != null && isAnnotationPresent(component, JAKARTA_NULLABLE)));
     }
@@ -206,6 +215,11 @@ public final class KORMReflectionImpl implements ORMReflection {
     @Override
     public boolean isNonnull(@Nonnull RecordComponent component) {
         return COMPONENT_NONNULL_CACHE.computeIfAbsent(new ComponentCacheKey(component), k -> {
+            Class<?> declaringClass = component.getDeclaringRecord();
+            boolean isKotlinClass = declaringClass.isAnnotationPresent(Metadata.class);
+            if (!isKotlinClass) {
+                return defaultReflection.isNonnull(component);
+            }
             // In Kotlin, the default is nonnull, so we need to check if the component is nullable.
             if (isNullable(component)) {
                 return false;
@@ -214,15 +228,14 @@ public final class KORMReflectionImpl implements ORMReflection {
                 return true;
             }
             try {
-                KClass<?> kClass = JvmClassMappingKt.getKotlinClass(component.getDeclaringRecord());
-                var nullable = kClass.getMembers().stream()
+                KClass<?> kClass = JvmClassMappingKt.getKotlinClass(declaringClass);
+                return !kClass.getMembers().stream()
                         .filter(member -> member.getName().equals(k.componentName())
                                 && member.getParameters().size() == 1)
                         .map(KCallable::getReturnType)
                         .map(KType::isMarkedNullable)
                         .findAny()
                         .orElse(false);
-                return !nullable;
             } catch (Exception e) {
                 return defaultReflection.isNonnull(component);
             }

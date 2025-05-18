@@ -24,11 +24,9 @@ import st.orm.model.Visit;
 import st.orm.model.Visit_;
 import st.orm.repository.Entity;
 import st.orm.repository.spring.PetRepository;
-import st.orm.template.SqlInterceptor;
 import st.orm.template.SqlTemplateException;
 
 import javax.sql.DataSource;
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -140,7 +138,7 @@ public class TemplatePreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testSelectPetWithRecord() throws SQLException  {
+    public void testSelectPetWithRecord() {
         record Owner(String firstName, String lastName, String telephone) {}
         record Pet(String name, LocalDate birthDate, Owner owner) {}
         String nameFilter = "%y%";
@@ -197,7 +195,6 @@ public class TemplatePreparedStatementIntegrationTest {
                     .count());
         }
     }
-
 
     @Test
     public void testSelectPetWithInParamsArray() {
@@ -571,7 +568,7 @@ public class TemplatePreparedStatementIntegrationTest {
     @Test
     public void testWithoutInline() {
         record Owner(
-                Integer id,
+                @PK Integer id,
                 String firstName,
                 String lastName,
                 Address address,
@@ -825,6 +822,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 WHERE \{where(Pet.builder().id(1).build())}""").prepare()) {
             var result = query.getSingleResult(Pet.class);
             assertEquals("Leona", result.name());
+            assertEquals(LocalDate.of(2020, 9, 7), result.birthDate());
             assertEquals(2, result.type().id());
         }
     }
@@ -906,6 +904,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 WHERE \{where(update)}""").prepare()) {
             var result = query.getSingleResult(PetWithoutPersist.class);
             assertEquals("Leona", result.name());
+            assertEquals(LocalDate.of(2020, 9, 7), result.birthDate());
             assertEquals(2, result.petType().id());
         }
     }

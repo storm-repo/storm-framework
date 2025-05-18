@@ -19,18 +19,18 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.BindVars;
 import st.orm.FK;
-import st.orm.Ref;
 import st.orm.PK;
 import st.orm.Query;
+import st.orm.Ref;
 import st.orm.repository.ProjectionQuery;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
-import st.orm.template.SqlDialect;
 import st.orm.template.ColumnNameResolver;
 import st.orm.template.ForeignKeyResolver;
 import st.orm.template.JoinType;
 import st.orm.template.Metamodel;
 import st.orm.template.Sql;
+import st.orm.template.SqlDialect;
 import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.TableAliasResolver;
@@ -47,6 +47,8 @@ import st.orm.template.impl.Elements.Source;
 import st.orm.template.impl.Elements.Subquery;
 import st.orm.template.impl.Elements.Table;
 import st.orm.template.impl.Elements.TableSource;
+import st.orm.template.impl.Elements.TableTarget;
+import st.orm.template.impl.Elements.Target;
 import st.orm.template.impl.Elements.TemplateSource;
 import st.orm.template.impl.Elements.TemplateTarget;
 import st.orm.template.impl.Elements.Unsafe;
@@ -88,10 +90,10 @@ import static st.orm.spi.Providers.getORMConverter;
 import static st.orm.spi.Providers.getSqlDialect;
 import static st.orm.template.ResolveScope.CASCADE;
 import static st.orm.template.ResolveScope.INNER;
-import static st.orm.template.impl.RecordReflection.getColumnName;
-import static st.orm.template.impl.RecordReflection.getForeignKey;
+import static st.orm.template.impl.RecordReflection.getForeignKeys;
+import static st.orm.template.impl.RecordReflection.getPkComponent;
+import static st.orm.template.impl.RecordReflection.getPrimaryKeys;
 import static st.orm.template.impl.RecordReflection.getRefRecordType;
-import static st.orm.template.impl.RecordReflection.getPkComponents;
 import static st.orm.template.impl.RecordReflection.isTypePresent;
 import static st.orm.template.impl.RecordReflection.mapForeignKeys;
 import static st.orm.template.impl.RecordValidation.validateParameters;
@@ -101,6 +103,7 @@ import static st.orm.template.impl.RecordValidation.validateWhere;
 import static st.orm.template.impl.SqlParser.SqlMode.DELETE;
 import static st.orm.template.impl.SqlParser.SqlMode.INSERT;
 import static st.orm.template.impl.SqlParser.SqlMode.SELECT;
+import static st.orm.template.impl.SqlParser.SqlMode.UNDEFINED;
 import static st.orm.template.impl.SqlParser.SqlMode.UPDATE;
 import static st.orm.template.impl.SqlParser.getSqlMode;
 import static st.orm.template.impl.SqlParser.hasWhereClause;
@@ -746,20 +749,22 @@ public final class SqlTemplateImpl implements SqlTemplate {
             } else if (element instanceof Join j) {
                 String path = ""; // Use "" for custom join, as they for their own root.
                 // Move custom join to list of (auto) joins to allow proper ordering of inner and outer joins.
-                if (j instanceof Join(TableSource ts, _, _, _, _)) {
+                if (j instanceof Join(TableSource ts, _, _, _, _, _)) {
                     String alias;
-                    if (j.alias().isEmpty()) {
+                    if (j.sourceAlias().isEmpty()) {
                         alias = aliasMapper.generateAlias(ts.table(), null, dialect);
                     } else {
-                        alias = j.alias();
-                        aliasMapper.setAlias(ts.table(), j.alias(), null);
+                        alias = j.sourceAlias();
+                        aliasMapper.setAlias(ts.table(), j.sourceAlias(), null);
                     }
                     var projectionQuery = REFLECTION.getAnnotation(ts.table(), ProjectionQuery.class);
                     Source source = projectionQuery != null
                             ? new TemplateSource(StringTemplate.of(projectionQuery.value()))
                             : ts;
                     customJoins.add(new Join(source, alias, j.target(), j.type(), false));
-                    tableMapper.mapPrimaryKey(fromTable, ts.table(), alias, getPkComponents(ts.table()).toList(), ts.table(), path);
+                    tableMapper.mapPrimaryKey(fromTable, ts.table(), alias, getPkComponent(ts.table())
+                            .orElseThrow(() -> new SqlTemplateException(STR."No primary key found for table \{ts.table().getSimpleName()}.")),
+                            ts.table(), path);
                     // Make the FKs of the join also available for mapping.
                     mapForeignKeys(tableMapper, alias, ts.table(), ts.table(), path);
                 } else {
@@ -787,10 +792,10 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 replacementElements.addAll(joins);
             } else {
                 for (var join : joins) {
-                    if (join instanceof Join(TableSource(var joinTable), _, _, _, var autoJoin) &&
+                    if (join instanceof Join(TableSource(var joinTable), _, _, _, _, var autoJoin) &&
                             joinTable == select.table() && join.type().isOuter()) {
                         // If join is part of the select table and is an outer join, replace it with an inner join.
-                        replacementElements.add(new Join(new TableSource(joinTable), join.alias(), join.target(), DefaultJoinType.INNER, autoJoin));
+                        replacementElements.add(new Join(new TableSource(joinTable), join.sourceAlias(), join.target(), DefaultJoinType.INNER, autoJoin));
                     } else {
                         replacementElements.add(join);
                     }
@@ -808,14 +813,15 @@ public final class SqlTemplateImpl implements SqlTemplate {
                               @Nonnull AliasMapper aliasMapper,
                               @Nonnull TableMapper tableMapper,
                               @Nonnull List<Join> joins) throws SqlTemplateException {
-        addAutoJoins(recordType, rootTable, List.of(), aliasMapper, tableMapper, joins, null, false);
+        addAutoJoins(recordType, recordType, rootTable, List.of(), aliasMapper, tableMapper, joins, null, false);
         joins.addAll(customJoins);
         // Move outer joins to the end of the list to ensure proper filtering across multiple databases.
         joins.sort(comparing(join -> join.type().isOuter()));
     }
 
     @SuppressWarnings("unchecked")
-    private void addAutoJoins(@Nonnull Class<? extends Record> recordType,
+    private void addAutoJoins(@Nonnull Class<? extends Record> table,
+                              @Nonnull Class<? extends Record> recordType,
                               @Nonnull Class<? extends Record> rootTable,
                               @Nonnull List<RecordComponent> path,
                               @Nonnull AliasMapper aliasMapper,
@@ -860,21 +866,22 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     fromAlias = fkName;
                 }
                 String alias = aliasMapper.generateAlias(componentType, pkPath, recordType, dialect);
-                tableMapper.mapForeignKey(recordType, componentType, fromAlias, component, rootTable, fkPath);
-                var pkComponent = getPkComponents(componentType).findFirst()    // We only support single primary keys for FK fields.
-                        .orElseThrow(() -> new SqlTemplateException(STR."No primary key found for entity \{componentType.getSimpleName()}."));
-                var pkColumnName = getColumnName(pkComponent, modelBuilder.columnNameResolver());
+                tableMapper.mapForeignKey(table, componentType, fromAlias, component, rootTable, fkPath);
                 // We will only make primary keys available for mapping if the table is not part of the entity graph,
                 // because the entities can already be resolved by their foreign keys.
                 //  tableMapper.mapPrimaryKey(componentType, alias, List.of(pkComponent), pkPath);
                 boolean effectiveOuterJoin = outerJoin || !REFLECTION.isNonnull(component);
                 JoinType joinType = effectiveOuterJoin ? DefaultJoinType.LEFT : DefaultJoinType.INNER;
                 ProjectionQuery query = REFLECTION.getAnnotation(componentType, ProjectionQuery.class);
-                Source source = query != null
-                        ? new TemplateSource(StringTemplate.of(query.value()))
-                        : new TableSource(componentType);
-                joins.add(new Join(source, alias, new TemplateTarget(StringTemplate.of(dialectTemplate."\{fromAlias}.\{getForeignKey(component, modelBuilder.foreignKeyResolver())} = \{alias}.\{pkColumnName}")), joinType, true));
-                addAutoJoins(componentType, rootTable, copy, aliasMapper, tableMapper, joins, alias, effectiveOuterJoin);
+                Source source = query == null
+                        ? new TableSource(componentType)
+                        : new TemplateSource(StringTemplate.of(query.value()));
+                Target target = query == null
+                        ? new TableTarget(table)
+                        : getTemplateTarget(fromAlias, alias, component, getPkComponent(componentType).orElseThrow(
+                                () -> new SqlTemplateException(STR."Failed to find primary key for table \{componentType.getSimpleName()}")));
+                joins.add(new Join(source, alias, target, fromAlias, joinType, true));
+                addAutoJoins(componentType, componentType, rootTable, copy, aliasMapper, tableMapper, joins, alias, effectiveOuterJoin);
             } else if (component.getType().isRecord()) {
                 if (REFLECTION.isAnnotationPresent(component, PK.class) || getORMConverter(component).isPresent()) {
                     continue;
@@ -888,9 +895,29 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 } else {
                     fromAlias = fkName;
                 }
-                addAutoJoins(componentType, rootTable, copy, aliasMapper, tableMapper, joins, fromAlias, outerJoin);
+                addAutoJoins(table, componentType, rootTable, copy, aliasMapper, tableMapper, joins, fromAlias, outerJoin);
             }
         }
+    }
+
+    @SuppressWarnings("DuplicatedCode")
+    private TemplateTarget getTemplateTarget(@Nonnull String fromAlias,
+                                             @Nonnull String toAlias,
+                                             @Nonnull RecordComponent fromComponent,
+                                             @Nonnull RecordComponent toComponent) throws SqlTemplateException {
+        var foreignKeys = getForeignKeys(fromComponent, foreignKeyResolver(), columnNameResolver());
+        var primaryKeys = getPrimaryKeys(toComponent, columnNameResolver());
+        if (foreignKeys.size() != primaryKeys.size()) {
+            throw new SqlTemplateException("Mismatch between foreign keys and primary keys count.");
+        }
+        StringBuilder joinCondition = new StringBuilder();
+        for (int i = 0; i < foreignKeys.size(); i++) {
+            if (i > 0) {
+                joinCondition.append(" AND ");
+            }
+            joinCondition.append(dialectTemplate."\{fromAlias}.\{foreignKeys.get(i)} = \{toAlias}.\{primaryKeys.get(i)}");
+        }
+        return new TemplateTarget(StringTemplate.of(joinCondition.toString()));
     }
 
     private void addTableAliases(@Nonnull List<Element> elements,
@@ -996,7 +1023,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             assert values.size() == elements.size();
             Optional<PrimaryTable> primaryTable = getPrimaryTable(unwrappedElements, aliasMapper);
             if (primaryTable.isPresent()) {
-                validateRecordType(primaryTable.get().table(), sqlMode);
+                validateRecordType(primaryTable.get().table(), sqlMode != SELECT && sqlMode != UNDEFINED);
             }
             validateWhere(unwrappedElements);
             List<String> parts = new ArrayList<>();

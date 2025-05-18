@@ -30,7 +30,7 @@ import org.springframework.beans.factory.support.AutowireCandidateResolver;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 import st.orm.kotlin.repository.KRepository;
 import st.orm.kotlin.template.KORMTemplate;
 import st.orm.repository.EntityRepository;
@@ -47,7 +47,7 @@ import java.util.stream.Stream;
  * A {@link BeanFactoryPostProcessor} that scans the specified base packages for repository interfaces and registers
  * them as beans in the bean factory. This allows repository interfaces to be autowired by the ORM framework.
  */
-@Configuration
+@Component
 public class RepositoryBeanFactoryPostProcessor implements BeanFactoryPostProcessor {
 
     /**

@@ -24,6 +24,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static java.util.stream.Stream.generate;
@@ -41,8 +42,9 @@ final class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
     public PreparedQueryImpl(@Nonnull RefFactory refFactory,
                              @Nonnull PreparedStatement statement,
                              @Nullable BindVarsHandle bindVarsHandle,
-                             boolean versionAware) {
-        super(refFactory, _ -> statement, bindVarsHandle, versionAware);
+                             boolean versionAware,
+                             @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
+        super(refFactory, _ -> statement, bindVarsHandle, versionAware, exceptionTransformer);
         this.refFactory = refFactory;
         this.statement = statement;
         this.bindVarsHandle = bindVarsHandle;

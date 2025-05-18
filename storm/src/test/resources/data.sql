@@ -14,13 +14,14 @@ create table pet_type (id integer, name varchar(255), primary key (id));
 create table specialty (id integer auto_increment, name varchar(255), primary key (id));
 create table vet (id integer auto_increment, first_name varchar(255), last_name varchar(255), primary key (id));
 create table vet_specialty (vet_id integer, specialty_id integer not null, primary key (vet_id, specialty_id));
-create table visit (id integer auto_increment, visit_date date, description varchar(255), pet_id integer not null, "timestamp" timestamp default CURRENT_TIMESTAMP, primary key (id));
+create table visit (id integer auto_increment, visit_date date, description varchar(255), vet_id integer null, specialty_id integer null, pet_id integer not null, "timestamp" timestamp default CURRENT_TIMESTAMP, primary key (id));
 alter table owner add constraint owner_city_fk foreign key (city_id) references city (id);
 alter table pet add constraint pet_owner_fk foreign key (owner_id) references owner (id);
 alter table pet add constraint pet_pet_type_fk foreign key (type_id) references pet_type (id);
 alter table vet_specialty add constraint vet_specialty_specialty_fk foreign key (specialty_id) references specialty (id);
 alter table vet_specialty add constraint vet_specialty_vet_fk foreign key (vet_id) references vet (id);
 alter table visit add constraint visit_pet_fk foreign key (pet_id) references pet (id);
+alter table visit add constraint visit_vet_specialty_fk foreign key (vet_id, specialty_id) references vet_specialty (vet_id, specialty_id);
 create view owner_view as select * from owner;
 create view visit_view as select visit_date, description, pet_id, "timestamp" from visit;
 
@@ -81,7 +82,7 @@ INSERT INTO pet (name, birth_date, owner_id , type_id) VALUES ('Sly', '2022-06-0
 
 INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-01', 'rabies shot', 7);
 INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-02', 'rabies shot', 8);
-INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-03', 'neutered', 8);
+INSERT INTO visit (visit_date, description, pet_id, vet_id, specialty_id) VALUES ('2023-01-03', 'neutered', 8, 3, 2);
 INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-04', 'spayed', 1);
 INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-04', 'spayed', 2);
 INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-06', 'spayed', 3);

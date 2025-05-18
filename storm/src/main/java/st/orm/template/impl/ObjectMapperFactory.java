@@ -140,10 +140,10 @@ public final class ObjectMapperFactory {
                 Class<?> paramType = parameterTypes[i];
                 if (arg == null || (arg instanceof Ref<?> l && l.isNull())) {
                     if (isNonnull(parameters[i])) {
-                        throw new SqlTemplateException(STR."Nonnull argument of \{constructor.getDeclaringClass().getSimpleName()} (\{parameters[i].getName()}) is NULL at position \{offset + i + 1}.");
+                        throw new SqlTemplateException(STR."Non-null argument of \{constructor.getDeclaringClass().getSimpleName()} (\{parameters[i].getName()}) is null at position \{offset + i + 1}.");
                     }
                     if (paramType.isPrimitive()) {
-                        throw new SqlTemplateException(STR."Primitive argument of \{constructor.getDeclaringClass().getSimpleName()} (\{parameters[i].getName()}) is NULL at position \{offset + i + 1}.");
+                        throw new SqlTemplateException(STR."Primitive argument of \{constructor.getDeclaringClass().getSimpleName()} (\{parameters[i].getName()}) is null at position \{offset + i + 1}.");
                     }
                 }
             }

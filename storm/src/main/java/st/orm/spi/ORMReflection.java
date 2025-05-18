@@ -78,6 +78,17 @@ public interface ORMReflection {
     <A extends Annotation> A getAnnotation(@Nonnull RecordComponent component, @Nonnull Class<A> annotationType);
 
     /**
+     * Returns the annotations of the specified type for the specified record component, supporting repeatable
+     * annotations.
+     *
+     * @param component the record component to get the annotation from.
+     * @param annotationType the annotation type to get.
+     * @return the annotation of the specified type for the specified record component, or {@code null} if not present.
+     * @param <A> the annotation type.
+     */
+    <A extends Annotation> A[] getAnnotations(@Nonnull RecordComponent component, @Nonnull Class<A> annotationType);
+
+    /**
      * Returns the annotation of the specified type for the specified type, if present.
      *
      * @param type the type to get the annotation from.

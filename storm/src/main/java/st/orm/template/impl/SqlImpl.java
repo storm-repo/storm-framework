@@ -19,6 +19,8 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.template.Sql;
 import st.orm.template.SqlTemplate;
+import st.orm.template.SqlTemplate.BindVariables;
+import st.orm.template.SqlTemplate.Parameter;
 
 import java.util.List;
 import java.util.Optional;
@@ -38,8 +40,8 @@ import static java.util.Optional.ofNullable;
  */
 record SqlImpl(
         @Nonnull String statement,
-        @Nonnull List<SqlTemplate.Parameter> parameters,
-        @Nonnull Optional<SqlTemplate.BindVariables> bindVariables,
+        @Nonnull List<Parameter> parameters,
+        @Nonnull Optional<BindVariables> bindVariables,
         @Nonnull List<String> generatedKeys,
         boolean versionAware,
         @Nonnull Optional<String> unsafeWarning
@@ -47,6 +49,39 @@ record SqlImpl(
     public SqlImpl {
         parameters = copyOf(parameters);
         generatedKeys = copyOf(generatedKeys);
+    }
+
+    /**
+     * Returns a new instance of the SQL statement with the given statement.
+     *
+     * @param statement the new SQL statement.
+     * @return a new instance of the SQL statement with the given statement.
+     */
+    @Override
+    public Sql statement(@Nonnull String statement) {
+        return new SqlImpl(statement, parameters, bindVariables, generatedKeys, versionAware, unsafeWarning);
+    }
+
+    /**
+     * Returns a new instance of the SQL statement with the given parameters.
+     *
+     * @param parameters the new parameters.
+     * @return a new instance of the SQL statement with the given parameters.
+     */
+    @Override
+    public Sql parameters(@Nonnull List<Parameter> parameters) {
+        return new SqlImpl(statement, parameters, bindVariables, generatedKeys, versionAware, unsafeWarning);
+    }
+
+    /**
+     * Returns a new instance of the SQL statement with the given bind variables.
+     *
+     * @param bindVariables the new bind variables
+     * @return a new instance of the SQL statement with the given bind variables
+     */
+    @Override
+    public Sql bindVariables(@Nullable SqlTemplate.BindVariables bindVariables) {
+        return new SqlImpl(statement, parameters, ofNullable(bindVariables), generatedKeys, versionAware, unsafeWarning);
     }
 
     /**

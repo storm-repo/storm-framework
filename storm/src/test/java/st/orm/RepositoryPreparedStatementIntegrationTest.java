@@ -3,6 +3,7 @@ package st.orm;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
+import org.h2.jdbc.JdbcSQLSyntaxErrorException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,17 +15,20 @@ import st.orm.model.City;
 import st.orm.model.Owner;
 import st.orm.model.Owner_;
 import st.orm.model.Pet;
+import st.orm.model.PetOwnerRecursion;
 import st.orm.model.PetOwnerRef;
 import st.orm.model.PetOwnerRef_;
-import st.orm.model.PetOwnerRecursion;
 import st.orm.model.PetTypeEnum;
 import st.orm.model.PetWithNullableOwnerRef;
 import st.orm.model.PetWithNullableOwnerRef_;
 import st.orm.model.Pet_;
+import st.orm.model.Specialty;
 import st.orm.model.Vet;
 import st.orm.model.VetSpecialty;
 import st.orm.model.VetSpecialtyPK;
 import st.orm.model.Visit;
+import st.orm.model.VisitWithCompoundFK;
+import st.orm.model.VisitWithCompoundFK_;
 import st.orm.model.VisitWithTwoPetRefs;
 import st.orm.model.VisitWithTwoPets;
 import st.orm.model.VisitWithTwoPetsOneRef;
@@ -130,9 +134,48 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
+    public void testSelectByColumnRefIsNull() {
+        assertEquals(1, ORM(dataSource).entity(PetWithNullableOwnerRef.class).select().where(PetWithNullableOwnerRef_.owner, IS_NULL).getResultCount());
+    }
+
+    @Test
     public void testSelectByColumnEqualsNull() {
-        // Note that id = NULL results in false.
-        assertEquals(0, ORM(dataSource).entity(Pet.class).select().where(Pet_.owner, EQUALS, (Owner) null).getResultCount());
+        PersistenceException e = assertThrows(PersistenceException.class, () -> {
+            ORM(dataSource).entity(Pet.class).select().where(Pet_.owner, EQUALS, (Owner) null).getResultCount();
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+    }
+
+    @Test
+    public void testSelectByColumnRefEqualsNull() {
+        PersistenceException e = assertThrows(PersistenceException.class, () -> {
+            ORM(dataSource).entity(PetWithNullableOwnerRef.class).select().where(PetWithNullableOwnerRef_.owner, EQUALS, (Owner) null).getResultCount();
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+    }
+
+    @Test
+    public void testSelectByColumnEqualsId() {
+        assertEquals(1, ORM(dataSource).entity(Pet.class).select().where(Pet_.owner.id, EQUALS, 1).getResultCount());
+    }
+
+    @Test
+    public void testSelectByColumnRecord() {
+        assertEquals(1, ORM(dataSource).entity(Pet.class).select().where(Pet_.owner, EQUALS, Owner.builder().id(1).build()).getResultCount());
+    }
+
+    @Test
+    public void testSelectByColumnRef() {
+        assertEquals(1, ORM(dataSource).entity(Pet.class).select().where(Pet_.owner, Ref.of(Owner.builder().id(1).build())).getResultCount());
+    }
+
+    @Test
+    public void testSelectByColumnNullRef() {
+        PersistenceException e = assertThrows(PersistenceException.class, () -> {
+            ORM(dataSource).entity(Pet.class).select().where(Pet_.owner, Ref.ofNull()).getResultCount();
+        });
+        assertInstanceOf(SqlTemplateException.class, e.getCause());
+
     }
 
     @Test
@@ -453,6 +496,33 @@ public class RepositoryPreparedStatementIntegrationTest {
                 .selectFrom(Pet.class, Wrapper.class)
                 .getResultList();
         assertEquals(13, pets.size());
+    }
+
+    @Test
+    public void testSelectWithWrapperNullOwner() {
+        record Wrapper(Pet pet) {}
+        var wrapper = ORM(dataSource)
+                .selectFrom(Pet.class, Wrapper.class)
+                .where(Pet_.id, EQUALS, 13)
+                .getSingleResult();
+        assertEquals(13, wrapper.pet().id());
+        assertNull(wrapper.pet().owner());
+    }
+
+    @Test
+    public void testSelectWithNonnullWrapperNullOwner() {
+        record OwnerWrapper(@Nullable @FK Owner owner) {}
+        record Pet(
+                @PK Integer id,
+                @Nonnull OwnerWrapper owner
+        ) implements Entity<Integer> {}
+        record Wrapper(Pet pet) {}
+        var wrapper = ORM(dataSource)
+                .selectFrom(Pet.class, Wrapper.class)
+                .where(RAW."\{Pet.class}.id = \{13}")
+                .getSingleResult();
+        assertEquals(13, wrapper.pet().id());
+        assertNull(wrapper.pet().owner().owner());
     }
 
     @Test
@@ -1272,5 +1342,114 @@ public class RepositoryPreparedStatementIntegrationTest {
                 .select()
                 .getResultList();
         assertEquals(13, pets.size());
+    }
+
+    @Test
+    public void testSelectCompoundFK() {
+        var repository = ORM(dataSource).entity(VisitWithCompoundFK.class);
+        var visit = repository.getById(3);
+        assertEquals(3, visit.vetSpecialty().vet().id());
+        assertEquals(2, visit.vetSpecialty().specialty().id());
+    }
+
+    @Test
+    public void testInsertCompoundFK() {
+        var repository = ORM(dataSource).entity(VisitWithCompoundFK.class);
+        VisitWithCompoundFK visit = new VisitWithCompoundFK(0, LocalDate.now(), "test", Pet.builder().id(1).build(), VetSpecialty.builder().id(new VetSpecialtyPK(3, 2)).build(), Instant.now());
+        repository.insert(visit);
+    }
+
+    @Test
+    public void testUpdateCompoundFK() {
+        var repository = ORM(dataSource).entity(VisitWithCompoundFK.class);
+        var visit = repository.getById(3);
+        visit = visit.toBuilder().vetSpecialty(null).build();
+        repository.update(visit);
+        repository.getById(3);
+        assertNull(visit.vetSpecialty());
+    }
+
+    @Test
+    public void testSekectWhereCompoundFK() {
+        var repository = ORM(dataSource).entity(VisitWithCompoundFK.class);
+        var visit = repository.select().where(VisitWithCompoundFK_.vetSpecialty, VetSpecialty.builder().id(new VetSpecialtyPK(3, 2)).build()).getSingleResult();
+        assertEquals(3, visit.vetSpecialty().vet().id());
+        assertEquals(2, visit.vetSpecialty().specialty().id());
+    }
+
+    @DbTable("visit")
+    public record VisitWithDbColumns(
+            @PK Integer id,
+            @Nonnull LocalDate visitDate,
+            @Nullable String description,
+            @Nonnull @FK Pet pet,
+            @Nullable @FK @DbColumn(name = "test1") @DbColumn(name = "test2") VetSpecialty vetSpecialty,
+            @Version Instant timestamp
+    ) implements Entity<Integer> {
+    }
+
+    @Test
+    public void testSelectCompoundFKDbColumns() {
+        String expectedSql = """
+                SELECT vwdc.id, vwdc.visit_date, vwdc.description, p.id, p.name, p.birth_date, pt.id, pt.name, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version, vs.vet_id, vs.specialty_id, v.id, v.first_name, v.last_name, s.id, s.name, vwdc."timestamp"
+                FROM visit vwdc
+                INNER JOIN pet p ON vwdc.pet_id = p.id
+                INNER JOIN pet_type pt ON p.type_id = pt.id
+                LEFT JOIN owner o ON p.owner_id = o.id
+                LEFT JOIN city c ON o.city_id = c.id
+                LEFT JOIN vet_specialty vs ON vwdc.test1 = vs.vet_id AND vwdc.test2 = vs.specialty_id
+                LEFT JOIN vet v ON vs.vet_id = v.id
+                LEFT JOIN specialty s ON vs.specialty_id = s.id
+                WHERE vwdc.id = ?""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            var e = assertThrows(PersistenceException.class, () -> {
+                var repository = ORM(dataSource).entity(VisitWithDbColumns.class);
+                repository.getById(1);
+            });
+            assertInstanceOf(JdbcSQLSyntaxErrorException.class, e.getCause());
+        });
+    }
+
+    @DbTable("vet_specialty")
+    public record VetSpecialtyDbColumns(
+            @Nonnull @PK(autoGenerated = false) @DbColumn(name = "test1") @DbColumn(name = "test2") VetSpecialtyPK id,  // Implicitly @Inlined
+            @Nonnull @Persist(insertable = false) @FK("test3") Vet vet,
+            @Nonnull @Persist(insertable = false) @FK("test4") Specialty specialty) implements Entity<VetSpecialtyPK> {
+        public VetSpecialtyDbColumns(@Nonnull VetSpecialtyPK pk) {
+            //noinspection DataFlowIssue
+            this(pk, null, null);
+        }
+    }
+    @DbTable("visit")
+    public record VisitWithNestedDbColumns(
+            @PK Integer id,
+            @Nonnull LocalDate visitDate,
+            @Nullable String description,
+            @Nonnull @FK Pet pet,
+            @Nullable @FK VetSpecialtyDbColumns vetSpecialty,
+            @Version Instant timestamp
+    ) implements Entity<Integer> {
+    }
+
+    @Test
+    public void testSelectCompoundFKNestedDbColumns() {
+        String expectedSql = """
+                SELECT vwndc.id, vwndc.visit_date, vwndc.description, p.id, p.name, p.birth_date, pt.id, pt.name, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version, vsdc.vet_id, vsdc.specialty_id, v.id, v.first_name, v.last_name, s.id, s.name, vwndc."timestamp"
+                FROM visit vwndc
+                INNER JOIN pet p ON vwndc.pet_id = p.id
+                INNER JOIN pet_type pt ON p.type_id = pt.id
+                LEFT JOIN owner o ON p.owner_id = o.id
+                LEFT JOIN city c ON o.city_id = c.id
+                LEFT JOIN vet_specialty vsdc ON vwndc.vet_id = vsdc.test1 AND vwndc.specialty_id = vsdc.test2
+                LEFT JOIN vet v ON vsdc.test3 = v.id
+                LEFT JOIN specialty s ON vsdc.test4 = s.id
+                WHERE vwndc.id = ?""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            var e = assertThrows(PersistenceException.class, () -> {
+                var repository = ORM(dataSource).entity(VisitWithNestedDbColumns.class);
+                repository.getById(1);
+            });
+            assertInstanceOf(JdbcSQLSyntaxErrorException.class, e.getCause());
+        });
     }
 }
