@@ -18,6 +18,8 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import st.orm.Ref;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * Default {@link Ref} implementation.
  *
@@ -30,9 +32,9 @@ final class RefImpl<T extends Record, ID> extends AbstractRef<T> {
     private final ID pk;
 
     RefImpl(@Nonnull LazySupplier<T> supplier, @Nonnull Class<T> type, @Nonnull ID pk) {
-        this.supplier = supplier;
-        this.pk = pk;
-        this.type = type;
+        this.supplier = requireNonNull(supplier, "supplier");
+        this.type = requireNonNull(type, "type");
+        this.pk = requireNonNull(pk, "pk");
     }
 
     /**

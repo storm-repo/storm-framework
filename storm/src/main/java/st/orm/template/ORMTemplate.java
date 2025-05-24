@@ -22,7 +22,7 @@ import st.orm.repository.RepositoryLookup;
 
 /**
  * <p>The {@code ORMTemplate} is the primary interface that extends the {@code QueryTemplate} and
- * {@code RepositoryLooking} interfaces, providing both the SQL Template engine and ORM repository logic.
+ * {@code RepositoryLooking} interfaces, providing access to both the SQL Template engine and ORM logic.
  *
  * @see Templates
  * @see EntityRepository

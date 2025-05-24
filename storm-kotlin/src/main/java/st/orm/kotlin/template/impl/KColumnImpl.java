@@ -81,7 +81,7 @@ public record KColumnImpl(
     }
 
     /**
-     * Gets the qualified name of the column including escape characters where necessary.
+     * Gets the qualified name of the column, including escape characters where necessary.
      *
      * @param dialect the SQL dialect.
      * @return the qualified column name.

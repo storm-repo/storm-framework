@@ -25,7 +25,7 @@ import static java.lang.annotation.ElementType.TYPE;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
- * Marks an annotation type to represented as the specified type in the {@code Metamodel}.
+ * Marks an annotation type to be represented as the specified type in the {@code Metamodel}.
  *
  * @since 1.2
  */

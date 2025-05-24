@@ -26,7 +26,7 @@ import static st.orm.EnumType.NAME;
 /**
  * Specifies how an enum should be mapped when reading or writing to a column.
  *
- * <p>By default, enums are mapped using their {@link Enum#name()} value.  Use {@code @DbEnum(EnumType.ORDINAL)}
+ * <p>By default, enums are mapped using their {@link Enum#name()} value. Use {@code @DbEnum(EnumType.ORDINAL)}
  * to explicitly indicate that the enum's ordinal value should be used instead.</p>
  */
 @Target({RECORD_COMPONENT, PARAMETER})
