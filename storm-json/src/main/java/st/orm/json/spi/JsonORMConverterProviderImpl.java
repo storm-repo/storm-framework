@@ -28,9 +28,21 @@ import java.util.Optional;
 
 import static java.util.Optional.empty;
 
+/**
+ * Provides an ORM converter for JSON annotated record components.
+ *
+ * <p>This implementation retrieves the {@link Json} annotation from the record component and creates a
+ * {@link JsonORMConverterImpl} if the annotation is present.</p>
+ */
 public class JsonORMConverterProviderImpl implements ORMConverterProvider {
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
+    /**
+     * Retrieves the converter for the specified record component.
+     *
+     * @param component the record component for which to get the converter
+     * @return an Optional containing the ORMConverter if available, or empty if not supported.
+     */
     @Override
     public Optional<ORMConverter> getConverter(@Nonnull RecordComponent component) {
         Json json = REFLECTION.getAnnotation(component, Json.class);

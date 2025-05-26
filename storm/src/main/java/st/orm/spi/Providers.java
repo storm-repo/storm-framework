@@ -80,13 +80,13 @@ public final class Providers {
             // Prefetch all providers to prevent race conditions in case of parallel execution.
             return (List<S>) PROVIDER_CACHE.computeIfAbsent(key, _ -> {
                     if (contextClassLoader != null) {
-                        // Try context class loader first.
+                        // Try the context class loader first.
                         List<S> list = toUnmodifiableList(load(providerClass, contextClassLoader));
                         if (!list.isEmpty()) {
                             return list;
                         }
                     }
-                    // Revert to providers class loader.
+                    // Revert to the providers' class loader.
                     return toUnmodifiableList(load(providerClass, providersClassloader));
                 });
         };
@@ -122,7 +122,6 @@ public final class Providers {
     public static Optional<ORMConverter> getORMConverter(@Nonnull RecordComponent component) {
         return ORM_CONVERTERS.computeIfAbsent(new ComponentKey(component.getDeclaringRecord(), component.getName()), _ ->
                 Orderable.sort(ORM_CONVERTER_PROVIDERS.get().stream())
-                        .filter(p -> p.isSupported(component))
                         .map(p -> p.getConverter(component))
                         .filter(Optional::isPresent)
                         .map(Optional::get)

@@ -39,9 +39,14 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES;
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
+import static java.util.Objects.requireNonNull;
 import static java.util.Optional.empty;
 
-public class JsonORMConverterImpl implements ORMConverter {
+/**
+ * Implementation of {@link ORMConverter} that converts JSON fields to and from the database. It uses Jackson for JSON
+ * serialization and deserialization.
+ */
+public final class JsonORMConverterImpl implements ORMConverter {
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
     private static final Map<CacheKey, ObjectMapper> OBJECT_MAPPER = new ConcurrentHashMap<>();
 
@@ -51,13 +56,15 @@ public class JsonORMConverterImpl implements ORMConverter {
 
     record CacheKey(Class<?> sealedType, Json json) {}
 
-    public JsonORMConverterImpl(@Nonnull RecordComponent component, @Nonnull TypeReference<?> typeReference, @Nonnull Json json) {
-        this.component = component;
-        this.typeReference = typeReference;
+    public JsonORMConverterImpl(@Nonnull RecordComponent component,
+                                @Nonnull TypeReference<?> typeReference,
+                                @Nonnull Json json) {
+        this.component = requireNonNull(component, "component");
+        this.typeReference = requireNonNull(typeReference, "typeReference");
         var type = getRawType(typeReference.getType())
                 .filter(Class::isSealed)
                 .orElse(null);
-        this.mapper = OBJECT_MAPPER.computeIfAbsent(new CacheKey(type, json), key -> {
+        this.mapper = OBJECT_MAPPER.computeIfAbsent(new CacheKey(type, requireNonNull(json, "json")), key -> {
             var mapper = new ObjectMapper();
             mapper.findAndRegisterModules();
             if (!json.failOnUnknown()) {
@@ -93,36 +100,71 @@ public class JsonORMConverterImpl implements ORMConverter {
                 .toArray(NamedType[]::new);
     }
 
+    /**
+     * Returns the number of parameters in the SQL template.
+     *
+     * <p><strong>Note:</strong> the count must match the parameter as returned by {@link #getParameterTypes()}.</p>
+     *
+     * @return the number of parameters.
+     */
     @Override
     public int getParameterCount() {
+        // The number of parameters is always 1 for this implementation, as it only handles a single JSON field.
         return 1;
     }
 
+    /**
+     * Returns the types of the parameters in the SQL template.
+     *
+     * @return a list of parameter types.
+     */
     @Override
     public List<Class<?>> getParameterTypes() {
         return List.of(String.class);
     }
 
-    @Override
-    public Object convert(@Nonnull Object[] args) throws SqlTemplateException {
-        try {
-            Object arg = args[0];
-            return arg == null ? null : mapper.readValue((String) args[0], typeReference);
-        } catch (JsonProcessingException e) {
-            throw new SqlTemplateException(e);
-        }
-    }
-
+    /**
+     * Returns the names of the columns that will be used in the SQL template.
+     *
+     * <p><strong>Note:</strong> the names must match the parameters as returned by {@link #getParameterTypes()}.</p>
+     *
+     * @return a list of column names.
+     */
     @Override
     public List<Name> getColumns(@Nonnull NameResolver nameResolver) throws SqlTemplateException {
         return List.of(nameResolver.getName(component));
     }
 
+    /**
+     * Converts the given record to a list of values that can be used in the SQL template.
+     *
+     * <p><strong>Note:</strong> the values must match the parameters as returned by {@link #getParameterTypes()}.</p>
+     *
+     * @param record the record to convert.
+     * @return the values to be used in the SQL template.
+     */
     @Override
-    public List<Object> getValues(@Nullable Record record) throws SqlTemplateException {
+    public List<Object> toDatabase(@Nullable Record record) throws SqlTemplateException {
         try {
             return List.of(mapper.writeValueAsString(record == null ? null : REFLECTION.invokeComponent(component, record)));
         } catch (Throwable e) {
+            throw new SqlTemplateException(e);
+        }
+    }
+
+    /**
+     * Converts the given values to an object that is used in the object model.
+     *
+     * @param values the arguments to convert. The arguments match the parameters as returned by getParameterTypes().
+     * @return the converted object.
+     * @throws SqlTemplateException if an error occurs during conversion.
+     */
+    @Override
+    public Object fromDatabase(@Nonnull Object[] values) throws SqlTemplateException {
+        try {
+            Object value = values[0];
+            return value == null ? null : mapper.readValue((String) values[0], typeReference);
+        } catch (JsonProcessingException e) {
             throw new SqlTemplateException(e);
         }
     }

@@ -20,11 +20,19 @@ import jakarta.annotation.Nonnull;
 import java.lang.reflect.RecordComponent;
 import java.util.Optional;
 
+/**
+ * Provides pluggable ORM converter logic for record components.
+ *
+ * <p>Implementations can provide custom converters for specific record components, allowing for flexible data
+ * transformation and mapping.</p>
+ */
 public interface ORMConverterProvider extends Provider {
 
-    default boolean isSupported(@Nonnull RecordComponent component) {
-        return true;
-    }
-
+    /**
+     * Retrieves the converter for the specified record component.
+     *
+     * @param component the record component for which to get the converter
+     * @return an Optional containing the ORMConverter if available, or empty if not supported.
+     */
     Optional<ORMConverter> getConverter(@Nonnull RecordComponent component);
 }

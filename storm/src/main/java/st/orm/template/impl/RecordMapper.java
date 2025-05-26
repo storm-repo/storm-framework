@@ -229,7 +229,7 @@ final class RecordMapper {
             if (converter != null) {
                 Object[] argsCopy = new Object[converter.getParameterCount()];
                 arraycopy(args, currentIndex, argsCopy, 0, argsCopy.length);
-                arg = converter.convert(argsCopy);
+                arg = converter.fromDatabase(argsCopy);
                 currentIndex += argsCopy.length;
             } else if (paramType.isRecord()) {
                 //noinspection unchecked
