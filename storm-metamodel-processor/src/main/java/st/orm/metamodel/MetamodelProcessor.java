@@ -128,6 +128,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
 
     private static String getTypeName(TypeMirror typeMirror, String packageName) {
         String className = extractNameIfRef(typeMirror.toString());
+        className = className.replaceAll("@\\S+\\s+", "");  // Erase any annotations.
         className = getBoxedTypeName(className);
         if (className.startsWith(packageName)) {
             String simpleName = packageName.isEmpty() ? className : className.substring(packageName.length() + 1);

@@ -30,6 +30,12 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 @Target({RECORD_COMPONENT, PARAMETER})
 @Retention(RUNTIME)
 public @interface DbColumns {
+
+    /**
+     * The array of database column names.
+     *
+     * @return the array of {@link DbColumn} annotations
+     */
     DbColumn[] value();
 }
 

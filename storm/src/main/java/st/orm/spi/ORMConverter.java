@@ -22,21 +22,69 @@ import st.orm.template.SqlTemplateException;
 import java.lang.reflect.RecordComponent;
 import java.util.List;
 
+/**
+ * Interface for converting ORM parameters to SQL parameters.
+ */
 public interface ORMConverter {
 
+    /**
+     * Interface for resolving names of record components.
+     */
     interface NameResolver {
+
+        /**
+         * Gets the column name of the given record component.
+         *
+         * @param component the record component to resolve.
+         * @return the name of the column.
+         * @throws SqlTemplateException if an error occurs while resolving the name.
+         */
         Name getName(@Nonnull RecordComponent component) throws SqlTemplateException;
     }
 
+    /**
+     * Returns the number of parameters in the SQL template.
+     *
+     * <p><strong>Note:</strong> the count must match the parameter as returned by {@link #getParameterTypes()}.</p>
+     *
+     * @return the number of parameters.
+     */
     default int getParameterCount() throws SqlTemplateException {
         return getParameterTypes().size();
     }
 
+    /**
+     * Returns the types of the parameters in the SQL template.
+     *
+     * @return a list of parameter types.
+     */
     List<Class<?>> getParameterTypes() throws SqlTemplateException;
 
-    Object convert(@Nonnull Object[] args) throws SqlTemplateException;
-
+    /**
+     * Returns the names of the columns that will be used in the SQL template.
+     *
+     * <p><strong>Note:</strong> the names must match the parameters as returned by {@link #getParameterTypes()}.</p>
+     *
+     * @return a list of column names.
+     */
     List<Name> getColumns(@Nonnull NameResolver nameResolver) throws SqlTemplateException;
 
-    List<Object> getValues(@Nullable Record record) throws SqlTemplateException;
+    /**
+     * Converts the given record to a list of values that can be used in the SQL template.
+     *
+     * <p><strong>Note:</strong> the values must match the parameters as returned by {@link #getParameterTypes()}.</p>
+     *
+     * @param record the record to convert.
+     * @return the values to be used in the SQL template.
+     */
+    List<Object> toDatabase(@Nullable Record record) throws SqlTemplateException;
+
+    /**
+     * Converts the given values to an object that is used in the object model.
+     *
+     * @param values the arguments to convert. The arguments match the parameter types as returned by getParameterTypes().
+     * @return the converted object.
+     * @throws SqlTemplateException if an error occurs during conversion.
+     */
+    Object fromDatabase(@Nonnull Object[] values) throws SqlTemplateException;
 }

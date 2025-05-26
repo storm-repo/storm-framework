@@ -43,7 +43,7 @@ public interface Metamodel<T extends Record, E> {
      * Creates a new metamodel for the given root table and path.
      *
      * <p>This method is typically used to manually create a metamodel for a component of a record, which can be useful
-     * in cases where the metamodel can not be generated automatically, for example local records.</p>
+     * in cases where the metamodel cannot be generated automatically, for example, local records.</p>
      *
      * @param table the root table to create the metamodel for.
      * @param path a dot separated path starting from the root table.

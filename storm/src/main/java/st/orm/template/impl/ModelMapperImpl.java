@@ -177,7 +177,7 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
                                                   @Nonnull AtomicInteger index,
                                                   @Nonnull Predicate<Column> columnFilter,
                                                   @Nonnull BiFunction<Column, Object, Boolean> callback) throws Throwable {
-        var values = converter.getValues(record);
+        var values = converter.toDatabase(record);
         int expected = converter.getParameterCount();
         if (values.size() != expected) {
             throw new SqlTemplateException(STR."Converter returned \{values.size()} values for component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}', but expected \{expected}.");

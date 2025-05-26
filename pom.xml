@@ -12,7 +12,7 @@
     </properties>
     <groupId>st.orm</groupId>
     <artifactId>storm-framework</artifactId>
-    <version>1.3.4</version>
+    <version>1.3.5</version>
     <packaging>pom</packaging>
     <name>Storm Framework</name>
     <description>A SQL Template and ORM framework, focusing on modernizing and simplifying database programming.</description>

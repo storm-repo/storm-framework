@@ -16,9 +16,12 @@
 package st.orm;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import st.orm.repository.Entity;
 import st.orm.repository.Projection;
 import st.orm.template.impl.AbstractRef;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Ref records are used to represent reference to records, allowing them to be fetched from the database. This can be
@@ -74,6 +77,17 @@ public interface Ref<T extends Record> {
     }
 
     /**
+     * Creates a ref instance with the specified {@code entity}, if non-null, otherwise returns a null ref instance.
+     *
+     * @param entity the entity to wrap in a ref, or null if no entity is provided.
+     * @return ref instance.
+     * @param <E> record type.
+     */
+    static <E extends Record & Entity<?>> Ref<E> ofNullable(@Nullable E entity) {
+        return entity == null ? ofNull() : of(entity);
+    }
+
+    /**
      * Creates a fully loaded ref instance that wraps the given entity.
      *
      * <p>This method creates a ref for an entity that is already fully loaded. The returned ref
@@ -112,6 +126,22 @@ public interface Ref<T extends Record> {
         };
     }
 
+
+    /**
+     * Creates a ref instance with the specified {@code projection} and {@code id}, if both non-null, otherwise returns
+     * a null ref instance.
+     *
+     * @param projection the projection to wrap in a ref, or null if no projection is provided.
+     * @param id the primary key of the projection, or null if no primary key is provided.
+     * @return ref instance.
+     * @param <P> the type of the projection.
+     * @param <ID> the type of the primary key.
+     */
+
+    static <P extends Record & Projection<ID>, ID> Ref<P> ofNullable(@Nullable P projection, @Nullable ID id)  {
+        return projection == null || id == null ? ofNull() : of(projection, id);
+    }
+
     /**
      * Creates a fully loaded ref instance that wraps the given projection along with its primary key.
      *
@@ -121,11 +151,13 @@ public interface Ref<T extends Record> {
      *
      * @param projection the fully loaded projection to wrap in a ref.
      * @param id the primary key of the projection.
-     * @param <P> the type of the projection, which must extend {@link Record} and implement {@link Projection}.
+     * @param <P> the type of the projection.
      * @param <ID> the type of the primary key.
      * @return a fully loaded ref instance for the provided projection.
      */
     static <P extends Record & Projection<ID>, ID> Ref<P> of(@Nonnull P projection, @Nonnull ID id) {
+        requireNonNull(projection, "Projection cannot be null.");
+        requireNonNull(id, "ID cannot be null.");
         return new AbstractRef<>() {
             @Override
             protected boolean isFetched() {

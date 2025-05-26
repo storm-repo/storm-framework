@@ -702,7 +702,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     }
 
     /**
-     * Adds WHERE clause that matches the specified record. The record can represent any of the related tables in the
+     * Adds a WHERE clause that matches the specified record. The record can represent any of the related tables in the
      * table graph.
      *
      * @param path the path to the object in the table graph.
@@ -714,7 +714,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     }
 
     /**
-     * Adds WHERE clause that matches the specified ref. The ref can represent any of the related tables in the
+     * Adds a WHERE clause that matches the specified ref. The ref can represent any of the related tables in the
      * table graph.
      *
      * @param path the path to the object in the table graph.
