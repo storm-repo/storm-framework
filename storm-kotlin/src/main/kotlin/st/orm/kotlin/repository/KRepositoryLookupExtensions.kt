@@ -4,7 +4,15 @@ import st.orm.repository.Entity
 import st.orm.repository.Projection
 
 /**
- * Extensions for [KRepositoryLookup] to provide convenient access to repositories.
+ * Extensions for [KRepositoryLookup] to provide convenient access to entity repositories.
+ */
+inline fun <reified T, ID> KRepositoryLookup.typedEntity(): KEntityRepository<T, ID>
+        where T : Record, T : Entity<ID> {
+    return entity(T::class.java)
+}
+
+/**
+ * Extensions for [KRepositoryLookup] to provide convenient access to entity repositories.
  */
 inline fun <reified T> KRepositoryLookup.entity(): KEntityRepository<T, *>
         where T : Record, T : Entity<*> {
@@ -13,6 +21,14 @@ inline fun <reified T> KRepositoryLookup.entity(): KEntityRepository<T, *>
     val method = this::class.java.getMethod("entity", Class::class.java)
     @Suppress("UNCHECKED_CAST")
     return method.invoke(this, T::class.java) as KEntityRepository<T, *>
+}
+
+/**
+ * Extensions for [KRepositoryLookup] to provide convenient access to projection repositories.
+ */
+inline fun <reified T, ID> KRepositoryLookup.typedProjection(): KProjectionRepository<T, ID>
+        where T : Record, T : Projection<ID> {
+    return projection(T::class.java)
 }
 
 /**

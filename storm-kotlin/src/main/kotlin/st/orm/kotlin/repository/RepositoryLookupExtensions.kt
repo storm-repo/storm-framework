@@ -8,9 +8,18 @@ import st.orm.repository.Repository
 import st.orm.repository.RepositoryLookup
 
 /**
- * Extensions for [RepositoryLookup] to provide convenient access to repositories.
+ * Extensions for [RepositoryLookup] to provide convenient access to entity repositories.
  */
-inline fun <reified T> RepositoryLookup.entity(): EntityRepository<T, *> where T : Record, T : Entity<*> {
+inline fun <reified T, ID> RepositoryLookup.typedEntity(): EntityRepository<T, ID>
+        where T : Record, T : Entity<ID> {
+    return entity(T::class.java)
+}
+
+/**
+ * Extensions for [RepositoryLookup] to provide convenient access to entity repositories.
+ */
+inline fun <reified T> RepositoryLookup.entity(): EntityRepository<T, *>
+        where T : Record, T : Entity<*> {
     // Use reflection to prevent the need for the ID parameter. The compiler takes care of the type-safety but is
     // unable to infer the type of the ID parameter at compile time.
     val method = this::class.java.getMethod("entity", Class::class.java)
@@ -21,7 +30,16 @@ inline fun <reified T> RepositoryLookup.entity(): EntityRepository<T, *> where T
 /**
  * Extensions for [RepositoryLookup] to provide convenient access to projection repositories.
  */
-inline fun <reified T> RepositoryLookup.projection(): ProjectionRepository<T, *> where T : Record, T : Projection<*> {
+inline fun <reified T, ID> RepositoryLookup.typedProjection(): ProjectionRepository<T, ID>
+        where T : Record, T : Projection<ID> {
+    return projection(T::class.java)
+}
+
+/**
+ * Extensions for [RepositoryLookup] to provide convenient access to projection repositories.
+ */
+inline fun <reified T> RepositoryLookup.projection(): ProjectionRepository<T, *>
+            where T : Record, T : Projection<*> {
     // Use reflection to prevent the need for the ID parameter. The compiler takes care of the type-safety but is
     // unable to infer the type of the ID parameter at compile time.
     val method = this::class.java.getMethod("entity", Class::class.java)

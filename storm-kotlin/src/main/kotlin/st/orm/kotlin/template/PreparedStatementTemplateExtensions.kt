@@ -1,4 +1,4 @@
-package st.orm.kotline.template
+package st.orm.kotlin.template
 
 import st.orm.kotlin.template.KORMTemplate
 import st.orm.template.PreparedStatementTemplate

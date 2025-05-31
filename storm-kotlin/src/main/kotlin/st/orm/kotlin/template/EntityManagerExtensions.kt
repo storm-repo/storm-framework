@@ -1,4 +1,4 @@
-package st.orm.kotline.template
+package st.orm.kotlin.template
 
 import jakarta.persistence.EntityManager
 import st.orm.kotlin.KTemplates
