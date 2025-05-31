@@ -10,6 +10,26 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>storm-mariadb</artifactId>
+    <name>Storm MariaDB</name>
+    <description>MariaDB extensions for Storm.</description>
+    <url>https://github.com/storm-repo/storm-framework</url>
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+    <developers>
+        <developer>
+            <name>Leon van Zantvoort</name>
+            <email>storm@zantvoort.biz</email>
+        </developer>
+    </developers>
+    <scm>
+        <connection>scm:git:git://github.com/storm-repo/storm-framework.git</connection>
+        <developerConnection>scm:git:ssh://github.com/storm-repo/storm-framework.git</developerConnection>
+        <url>https://github.com/storm-repo/storm-framework/</url>
+    </scm>
     <build>
         <plugins>
             <plugin>
