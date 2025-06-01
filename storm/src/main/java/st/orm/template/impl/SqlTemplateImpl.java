@@ -633,7 +633,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
             String path = "";   // Use "" because it's the root table.
             String alias;
             if (update.alias().isEmpty()) {
-                alias = aliasMapper.generateAlias(table, path, dialect);
+                // Use empty alias as some database don't support aliases in update statements.
+                alias = "";
             } else {
                 alias = update.alias();
                 aliasMapper.setAlias(table, alias, path);

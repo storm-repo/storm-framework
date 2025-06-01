@@ -67,8 +67,15 @@ final class ColumnProcessor implements ElementProcessor<Column> {
                 throw new SqlTemplateException(STR."Nested metamodel \{metamodel} is not the primary table \{primaryTable.table()}.");
             }
         }
-        String alias = aliasMapper.getAlias(column.metamodel(), column.scope(), template.dialect(),
-                () -> new SqlTemplateException(STR."Table for Column not found at \{metamodel}."));
+        String alias;
+        if (primaryTable != null && primaryTable.table() == metamodel.root() && metamodel.path().isEmpty()) {
+            // This check allows the alias of the primary table to be left empty, which can be useful in some cases like
+            // update statements.
+            alias = primaryTable.alias();
+        } else{
+            alias = aliasMapper.getAlias(column.metamodel(), column.scope(), template.dialect(),
+                    () -> new SqlTemplateException(STR."Table for Column not found at \{metamodel}."));
+        }
         RecordComponent component = getRecordComponent(metamodel.root(), column.metamodel().componentPath());
         ColumnName columnName;
         if (REFLECTION.isAnnotationPresent(component, FK.class)) {
@@ -80,6 +87,6 @@ final class ColumnProcessor implements ElementProcessor<Column> {
         } else {
             columnName = getColumnName(component, template.columnNameResolver());
         }
-        return new ElementResult(dialectTemplate."\{alias}.\{columnName}");
+        return new ElementResult(dialectTemplate."\{alias.isEmpty() ? "" : STR."\{alias}."}\{columnName}");
     }
 }

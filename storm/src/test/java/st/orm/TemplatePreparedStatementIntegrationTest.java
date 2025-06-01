@@ -748,6 +748,23 @@ public class TemplatePreparedStatementIntegrationTest {
     }
 
     @Test
+    public void testSingleUpdateMetamodel() {
+        var update = Pet.builder().id(1).build();
+        try (var query = ORM(dataSource).query(RAW."""
+                UPDATE \{Pet.class}
+                SET \{Pet_.name} = \{"Leona"}
+                WHERE \{where(update)}""").prepare()) {
+            assertEquals(1, query.executeUpdate());
+        }
+        try (var query = ORM(dataSource).query(RAW."""
+                SELECT COUNT(*)
+                FROM \{Pet.class}
+                WHERE \{Pet_.name} = \{"Leona"}""").prepare()) {
+            assertEquals(1, query.getSingleResult(Long.class));
+        }
+    }
+
+    @Test
     public void testUpdateSetWhere() {
         var update = new Pet(1, "Leona", LocalDate.now(), PetType.builder().id(1).build(), Owner.builder().id(1).build());
         try (var query = ORM(dataSource).query(RAW."""
