@@ -359,29 +359,6 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
     }
 
     /**
-     * Deletes an entity from the database based on its primary key.
-     *
-     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database.</p>
-     *
-     * @param id the primary key of the entity to delete.
-     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
-     *                              being found in the database, violations of database constraints, connectivity
-     *                              issues, or if the entity parameter is null.
-     */
-    @Override
-    public void delete(@Nonnull ID id) {
-        // Don't use query builder to prevent WHERE IN clause.
-        int result = ormTemplate.query(RAW."""
-                DELETE FROM \{model.type()}
-                WHERE \{id}""")
-            .executeUpdate();
-        if (result != 1) {
-            throw new PersistenceException("Delete failed.");
-        }
-    }
-
-    /**
      * Deletes an entity from the database.
      *
      * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
@@ -400,6 +377,29 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         int result = ormTemplate.query(RAW."""
                 DELETE FROM \{model.type()}
                 WHERE \{entity}""")
+                .executeUpdate();
+        if (result != 1) {
+            throw new PersistenceException("Delete failed.");
+        }
+    }
+
+    /**
+     * Deletes an entity from the database based on its primary key.
+     *
+     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
+     * deletion exists in the database.</p>
+     *
+     * @param id the primary key of the entity to delete.
+     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
+     *                              being found in the database, violations of database constraints, connectivity
+     *                              issues, or if the entity parameter is null.
+     */
+    @Override
+    public void deleteById(@Nonnull ID id) {
+        // Don't use query builder to prevent WHERE IN clause.
+        int result = ormTemplate.query(RAW."""
+                DELETE FROM \{model.type()}
+                WHERE \{id}""")
             .executeUpdate();
         if (result != 1) {
             throw new PersistenceException("Delete failed.");
@@ -419,7 +419,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
      *                              issues, or if the entity parameter is null.
      */
     @Override
-    public void delete(@Nonnull Ref<E> ref) {
+    public void deleteByRef(@Nonnull Ref<E> ref) {
         // Don't use query builder to prevent WHERE IN clause.
         int result = ormTemplate.query(RAW."""
                 DELETE FROM \{model.type()}
