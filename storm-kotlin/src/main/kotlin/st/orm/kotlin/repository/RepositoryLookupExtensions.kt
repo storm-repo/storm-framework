@@ -1,11 +1,31 @@
+/*
+ * Copyright 2024 - 2025 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package st.orm.kotlin.repository
 
+import st.orm.Ref
 import st.orm.repository.Entity
 import st.orm.repository.EntityRepository
 import st.orm.repository.Projection
 import st.orm.repository.ProjectionRepository
 import st.orm.repository.Repository
 import st.orm.repository.RepositoryLookup
+import st.orm.template.Metamodel
+import st.orm.template.Operator.EQUALS
+import st.orm.template.Operator.IN
+import kotlin.jvm.optionals.getOrNull
 
 /**
  * Extensions for [RepositoryLookup] to provide convenient access to entity repositories.
@@ -53,3 +73,237 @@ inline fun <reified T> RepositoryLookup.projection(): ProjectionRepository<T, *>
 inline fun <reified R : Repository> RepositoryLookup.repository(): R {
     return repository(R::class.java)
 }
+
+/**
+ * Retrieves all entities or projections of type [T] from the repository.
+ *
+ * @return List containing all entities or projections.
+ */
+inline fun <reified T> RepositoryLookup.findAll(): List<T>
+        where T : Record = when {   // T is just a Record to support both Entity and Projection types without clashing.
+        Entity::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("entity", Class::class.java)
+            @Suppress("UNCHECKED_CAST")
+            (method.invoke(this, T::class.java) as EntityRepository<T, *>).findAll()
+        }
+        Projection::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("projection", Class::class.java)
+            @Suppress("UNCHECKED_CAST")
+            (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).findAll()
+        }
+        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+    }
+
+/**
+ * Retrieves all entities of type [T] from the repository.
+ *
+ * @return List containing all entities.
+ */
+inline fun <reified T> RepositoryLookup.findAllEntities(): List<T>
+        where T : Record, T : Entity<*> =
+    entity<T>().findAll()
+
+/**
+ * Retrieves an optional entity of type [T] based on a single field and its value.
+ * Returns null if no matching entity is found.
+ *
+ * @param field Metamodel reference of the entity field.
+ * @param value The value to match against.
+ * @return An optional entity, or null if none found.
+ */
+inline fun <reified T, V> RepositoryLookup.findEntityBy(field: Metamodel<T, V>, value: V): T?
+        where T : Record, T : Entity<*> =
+    entity<T>().select().where(field, EQUALS, value).optionalResult.getOrNull()
+
+/**
+ * Retrieves entities of type [T] matching a single field and a single value.
+ * Returns an empty list if no entities are found.
+ *
+ * @param field Metamodel reference of the entity field.
+ * @param value The value to match against.
+ * @return List of matching entities.
+ */
+inline fun <reified T, V> RepositoryLookup.findAllEntitiesBy(field: Metamodel<T, V>, value: V): List<T>
+        where T : Record, T : Entity<*> =
+    entity<T>().select().where(field, EQUALS, value).resultList
+
+/**
+ * Retrieves entities of type [T] matching a single field against multiple values.
+ * Returns an empty list if no entities are found.
+ *
+ * @param field Metamodel reference of the entity field.
+ * @param values Iterable of values to match against.
+ * @return List of matching entities.
+ */
+inline fun <reified T, V> RepositoryLookup.findAllEntitiesBy(field: Metamodel<T, V>, values: Iterable<V>): List<T>
+        where T : Record, T : Entity<*> =
+    entity<T>().select().where(field, IN, values).resultList
+
+/**
+ * Retrieves exactly one entity of type [T] based on a single field and its value.
+ * Throws an exception if no entity or more than one entity is found.
+ *
+ * @param field Metamodel reference of the entity field.
+ * @param value The value to match against.
+ * @return The matching entity.
+ * @throws st.orm.NoResultException if there is no result.
+ * @throws st.orm.NonUniqueResultException if more than one result.
+ */
+inline fun <reified T, V> RepositoryLookup.getEntityBy(field: Metamodel<T, V>, value: V): T
+        where T : Record, T : Entity<*> =
+    entity<T>().select().where(field, EQUALS, value).singleResult
+
+/**
+ * Retrieves all projections of type [T] from the repository.
+ *
+ * @return List containing all projections.
+ */
+inline fun <reified T> RepositoryLookup.findAllProjections(): List<T>
+        where T : Record, T : Projection<*> =
+    projection<T>().findAll()
+
+/**
+ * Retrieves an optional projection of type [T] based on a single field and its value.
+ * Returns null if no matching projection is found.
+ *
+ * @param field Metamodel reference of the projection field.
+ * @param value The value to match against.
+ * @return An optional projection, or null if none found.
+ */
+inline fun <reified T, V> RepositoryLookup.findProjectionBy(field: Metamodel<T, V>, value: V): T?
+        where T : Record, T : Projection<*> =
+    projection<T>().select().where(field, EQUALS, value).optionalResult.getOrNull()
+
+/**
+ * Retrieves projections of type [T] matching a single field and a single value.
+ * Returns an empty list if no projections are found.
+ *
+ * @param field Metamodel reference of the projection field.
+ * @param value The value to match against.
+ * @return List of matching projections.
+ */
+inline fun <reified T, V> RepositoryLookup.findAllProjectionsBy(field: Metamodel<T, V>, value: V): List<T>
+        where T : Record, T : Projection<*> =
+    projection<T>().select().where(field, EQUALS, value).resultList
+
+/**
+ * Retrieves projections of type [T] matching a single field against multiple values.
+ * Returns an empty list if no projections are found.
+ *
+ * @param field Metamodel reference of the projection field.
+ * @param values Iterable of values to match against.
+ * @return List of matching projections.
+ */
+inline fun <reified T, V> RepositoryLookup.findAllProjectionsBy(field: Metamodel<T, V>, values: Iterable<V>): List<T>
+        where T : Record, T : Projection<*> =
+    projection<T>().select().where(field, IN, values).resultList
+
+/**
+ * Retrieves exactly one projection of type [T] based on a single field and its value.
+ * Throws an exception if no projection or more than one projection is found.
+ *
+ * @param field Metamodel reference of the projection field.
+ * @param value The value to match against.
+ * @return The matching projection.
+ * @throws st.orm.NoResultException if there is no result.
+ * @throws st.orm.NonUniqueResultException if more than one result.
+ */
+inline fun <reified T, V> RepositoryLookup.getProjectionBy(field: Metamodel<T, V>, value: V): T
+        where T : Record, T : Projection<*> =
+    projection<T>().select().where(field, EQUALS, value).singleResult
+
+/**
+ * Inserts an entity of type [T] into the repository.
+ *
+ * @param entity The entity to insert.
+ * @return The inserted entity after fetching from the database.
+ */
+inline infix fun <reified T> RepositoryLookup.insert(entity: T): T
+        where T : Record, T : Entity<*> =
+    entity<T>().insertAndFetch(entity)
+
+/**
+ * Inserts multiple entities of type [T] into the repository.
+ *
+ * @param entity Iterable collection of entities to insert.
+ * @return List of inserted entities after fetching from the database.
+ */
+inline infix fun <reified T> RepositoryLookup.insert(entity: Iterable<T>): List<T>
+        where T : Record, T : Entity<*> =
+    entity<T>().insertAndFetch(entity)
+
+/**
+ * Upserts (inserts or updates) an entity of type [T] into the repository.
+ *
+ * @param entity The entity to upsert.
+ * @return The upserted entity after fetching from the database.
+ */
+inline infix fun <reified T> RepositoryLookup.upsert(entity: T): T
+        where T : Record, T : Entity<*> =
+    entity<T>().upsertAndFetch(entity)
+
+/**
+ * Upserts (inserts or updates) multiple entities of type [T] into the repository.
+ *
+ * @param entity Iterable collection of entities to upsert.
+ * @return List of upserted entities after fetching from the database.
+ */
+inline infix fun <reified T> RepositoryLookup.upsert(entity: Iterable<T>): List<T>
+        where T : Record, T : Entity<*> =
+    entity<T>().upsertAndFetch(entity)
+
+/**
+ * Deletes an entity of type [T] from the repository.
+ *
+ * @param entity The entity to delete.
+ */
+inline infix fun <reified T> RepositoryLookup.delete(entity: T)
+        where T : Record, T : Entity<*> =
+    entity<T>().delete(entity)
+
+/**
+ * Deletes multiple entities of type [T] from the repository.
+ *
+ * @param entity List of entities to delete.
+ */
+inline infix fun <reified T> RepositoryLookup.delete(entity: List<T>)
+        where T : Record, T : Entity<*> =
+    entity<T>().delete(entity)
+
+/**
+ * Deletes an entity of type [T] from the repository.
+ *
+ * @param ref The entity to delete.
+ */
+inline infix fun <reified T> RepositoryLookup.delete(ref: Ref<T>)
+        where T : Record, T : Entity<*> =
+    entity<T>().delete(ref)
+
+/**
+ * Deletes multiple entities of type [T] from the repository.
+ *
+ * @param refs List of entities to delete.
+ */
+inline infix fun <reified T> RepositoryLookup.delete(refs: Iterable<Ref<T>>)
+        where T : Record, T : Entity<*> =
+    entity<T>().deleteByRef(refs)
+
+/**
+ * Updates an entity of type [T] in the repository.
+ *
+ * @param entity The entity to update.
+ * @return The updated entity after fetching from the database.
+ */
+inline infix fun <reified T> RepositoryLookup.update(entity: T): T
+        where T : Record, T : Entity<*> =
+    entity<T>().updateAndFetch(entity)
+
+/**
+ * Updates multiple entities of type [T] in the repository.
+ *
+ * @param entity Iterable collection of entities to update.
+ * @return List of updated entities after fetching from the database.
+ */
+inline infix fun <reified T> RepositoryLookup.update(entity: Iterable<T>): List<T>
+        where T : Record, T : Entity<*> =
+    entity<T>().updateAndFetch(entity)

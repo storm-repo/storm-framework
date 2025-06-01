@@ -990,6 +990,15 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
+    public void deleteRefBatch() {
+        var repo = ORM(dataSource).entity(Visit.class);
+        try (var stream = repo.selectAll().map(Ref::of)) {
+            repo.deleteByRef(stream);
+        }
+        assertEquals(0, repo.count());
+    }
+
+    @Test
     public void testBuilder() {
         var list = ORM(dataSource).entity(Pet.class)
                 .select()

@@ -341,6 +341,20 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
     void delete(@Nonnull E entity);
 
     /**
+     * Deletes an entity from the database.
+     *
+     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
+     * deletion exists in the database and is correctly identified by its primary key.</p>
+     *
+     * @param ref the entity to delete. The entity must exist in the database and should be correctly identified by
+     *            its ref.
+     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
+     *                              being found in the database, violations of database constraints, connectivity
+     *                              issues, or if the entity parameter is null.
+     */
+    void delete(@Nonnull Ref<E> ref);
+
+    /**
      * Deletes all entities from the database.
      *
      * <p>This method performs a bulk deletion operation, removing all instances of the entities managed by this
@@ -609,6 +623,20 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      *                              or constraints violations.
      */
     void delete(@Nonnull Iterable<E> entities);
+
+    /**
+     * Deletes a collection of entities from the database in batches.
+     *
+     * <p>This method processes the provided entities in batches to optimize performance when handling larger collections,
+     * reducing database overhead. For each entity in the collection, the method removes the corresponding record from
+     * the database, if it exists. Batch processing ensures efficient handling of deletions, particularly for large data sets.</p>
+     *
+     * @param refs an iterable collection of entities to be deleted. Each entity in the collection must be non-null
+     *             and represent a valid database record for deletion.
+     * @throws PersistenceException if the deletion operation fails due to database issues, such as connectivity problems
+     *                              or constraints violations.
+     */
+    void deleteByRef(@Nonnull Iterable<Ref<E>> refs);
 
     // Sequence based methods.
 
@@ -1066,4 +1094,37 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      *                              or constraints violations.
      */
     void delete(@Nonnull Sequence<E> entities, int batchSize);
+
+    /**
+     * Deletes a sequence of entities from the database in batches.
+     *
+     * <p>This method processes the provided sequence of entities in batches to optimize performance for larger
+     * data sets, reducing database overhead during deletion. For each entity in the sequence, the method removes
+     * the corresponding record from the database, if it exists. Batch processing allows efficient handling
+     * of deletions, particularly for large collections of entities.</p>
+     *
+     * @param refs a sequence of entities to be deleted. Each entity in the sequence must be non-null and represent
+     *             a valid database record for deletion.
+     * @throws PersistenceException if the deletion operation fails due to database issues, such as connectivity problems
+     *                              or constraints violations.
+     */
+    void deleteByRef(@Nonnull Sequence<Ref<E>> refs);
+
+    /**
+     * Deletes a sequence of entities from the database in configurable batch sizes.
+     *
+     * <p>This method processes the provided sequence of entities in batches, with the size of each batch specified
+     * by the `batchSize` parameter. This allows for control over the number of entities deleted in each database
+     * operation, optimizing performance and memory usage based on system requirements. For each entity in the
+     * sequence, the method removes the corresponding record from the database, if it exists.</p>
+     *
+     * @param refs a sequence of entities to be deleted. Each entity in the sequence must be non-null and represent
+     *              valid database record for deletion.
+     * @param batchSize the number of entities to process in each batch. Larger batch sizes may improve performance
+     *                  but require more memory, while smaller batch sizes may reduce memory usage but increase
+     *                  the number of database operations.
+     * @throws PersistenceException if the deletion operation fails due to database issues, such as connectivity problems
+     *                              or constraints violations.
+     */
+    void deleteByRef(@Nonnull Sequence<Ref<E>> refs, int batchSize);
 }
