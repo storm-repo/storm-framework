@@ -16,11 +16,16 @@
 package st.orm.kotlin.repository
 
 import st.orm.Ref
+import st.orm.kotlin.template.KQueryBuilder
 import st.orm.repository.Entity
+import st.orm.repository.EntityRepository
 import st.orm.repository.Projection
+import st.orm.repository.ProjectionRepository
+import st.orm.repository.RepositoryLookup
 import st.orm.template.Metamodel
 import st.orm.template.Operator.EQUALS
 import st.orm.template.Operator.IN
+import st.orm.template.QueryBuilder
 import kotlin.jvm.optionals.getOrNull
 
 /**
@@ -239,6 +244,35 @@ inline fun <reified T, V> KRepositoryLookup.getRefBy(field: Metamodel<T, V>, val
     entity<T>().selectRef().where(field, EQUALS, value).singleResult
 
 /**
+ * Creates a query builder to select records of type [T].
+ *
+ * [T] must be either an Entity or Projection type.
+ *
+ * @return A [QueryBuilder] for selecting records of type [T].
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T> KRepositoryLookup.select(): KQueryBuilder<T, T, *>
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select()
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select()
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Creates a query builder to select references of entity records of type [T].
+ *
+ * @return A [QueryBuilder] for selecting references of entity records of type [T].
+ */
+inline fun <reified T> KRepositoryLookup.selectRef(): KQueryBuilder<T, Ref<T>, *>
+        where T : Record, T: Entity<*> = entity<T>().selectRef()
+
+/**
  * Inserts an entity of type [T] into the KRepository.
  *
  * @param entity The entity to insert.
@@ -277,6 +311,15 @@ inline infix fun <reified T> KRepositoryLookup.upsert(entity: T): T
 inline infix fun <reified T> KRepositoryLookup.upsert(entity: Iterable<T>): List<T>
         where T : Record, T : Entity<*> =
     entity<T>().upsertAndFetch(entity)
+
+/**
+ * Creates a query builder to delete records of type [T].
+ *
+ * @return A [QueryBuilder] for deleting records of type [T].
+ */
+inline fun <reified T> KRepositoryLookup.delete(): KQueryBuilder<T, *, *>
+        where T : Record, T: Entity<*> =
+    entity<T>().delete()
 
 /**
  * Deletes an entity of type [T] from the KRepository.
