@@ -67,14 +67,15 @@ public class MetamodelImpl<T extends Record, E> implements Metamodel<T, E> {
      * @param <E> the record component type of the designated component.
      * @throws PersistenceException if the metamodel cannot be created for the root rootTable and path.
      */
+    @SuppressWarnings("unchecked")
     public static <T extends Record, E> Metamodel<T, E> of(@Nonnull Class<T> rootTable, @Nonnull String path) {
-        Class<?> componentType;
+        Class<E> componentType;
         String effectivePath;
         String effectiveComponent;
         Metamodel<T, ? extends Record> tableModel;
         boolean isColumn = false;
         if (path.isEmpty()) {
-            componentType = rootTable;
+            componentType = (Class<E>) rootTable;
             effectivePath = "";
             effectiveComponent = "";
             tableModel = null;
@@ -82,14 +83,15 @@ public class MetamodelImpl<T extends Record, E> implements Metamodel<T, E> {
             try {
                 RecordComponent component = getRecordComponent(rootTable, path);
                 if (Ref.class.isAssignableFrom(component.getType())) {
-                    effectivePath = path.substring(0, path.lastIndexOf('.')); // Remove last component.
+                    int index = path.lastIndexOf('.');
+                    effectivePath = index == -1 ? "" : path.substring(0, path.lastIndexOf('.')); // Remove last component.
                     effectiveComponent = component.getName();
-                    componentType = getRefRecordType(component);
+                    componentType = (Class<E>) getRefRecordType(component);
                     isColumn = true;
                 } else {
                     effectivePath = path;
                     effectiveComponent = component.getName();
-                    componentType = component.getType();
+                    componentType = (Class<E>) component.getType();
                     if (!component.getType().isRecord() ||
                             REFLECTION.isAnnotationPresent(component, FK.class)) {
                         isColumn = true;
@@ -246,66 +248,22 @@ public class MetamodelImpl<T extends Record, E> implements Metamodel<T, E> {
         return STR."Metamodel{root=\{root().getSimpleName()}, type=\{componentType.getSimpleName()}, path='\{path}', component='\{component}'}";
     }
 
-    private static class SimpleMetamodel<T extends Record, E> implements Metamodel<T, E> {
-        private final Class<T> rootTable;
-        private final String path;
-        private final Class<?> componentType;
-        private final String component;
-        private final boolean isColumn;
-        private final Metamodel<T, ? extends Record> tableModel;
+    private record SimpleMetamodel<T extends Record, E>(@Nonnull Class<T> root,
+                                                        @Nonnull String path,
+                                                        @Nonnull Class<E> componentType,
+                                                        @Nonnull String component,
+                                                        boolean isColumn,
+                                                        @Nullable Metamodel<T, ? extends Record> table) implements Metamodel<T, E> {
 
-        public SimpleMetamodel(@Nonnull Class<T> rootTable,
-                               @Nonnull String path,
-                               @Nonnull Class<?> componentType,
-                               @Nonnull String component,
-                               boolean isColumn,
-                               @Nullable Metamodel<T, ? extends Record> tableModel) {
-            if (!rootTable.isRecord()) {
-                throw new PersistenceException(STR."Table must be a record type: \{rootTable.getSimpleName()}.");
+        public SimpleMetamodel {
+            if (!root.isRecord()) {
+                throw new PersistenceException(STR."Table must be a record type: \{root.getSimpleName()}.");
             }
-            this.rootTable = rootTable;
-            this.path = path;
-            this.componentType = componentType;
-            this.component = component;
-            this.isColumn = isColumn;
-            //noinspection unchecked
-            this.tableModel = tableModel == null ? (Metamodel<T, ? extends Record>) (Object) this : tableModel;
-        }
-
-        @Override
-        public boolean isColumn() {
-            return isColumn;
-        }
-
-        @Override
-        public Class<T> root() {
-            return rootTable;
-        }
-
-        @Override
-        public Metamodel<T, ? extends Record> table() {
-            return tableModel;
-        }
-
-        @Override
-        public String path() {
-            return path;
-        }
-
-        @Override
-        public Class<E> componentType() {
-            //noinspection unchecked
-            return (Class<E>) componentType;
-        }
-
-        @Override
-        public String component() {
-            return component;
         }
 
         @Override
         public String toString() {
-            return STR."Metamodel{root=\{rootTable.getSimpleName()}, type=\{componentType.getSimpleName()}, path='\{path}', component='\{component}'}";
+            return STR."Metamodel{root=\{root.getSimpleName()}, type=\{componentType.getSimpleName()}, path='\{path}', component='\{component}'}";
         }
     }
 }

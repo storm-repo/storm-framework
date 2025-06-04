@@ -17,9 +17,7 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
-import st.orm.PersistenceException;
 import st.orm.template.SqlTemplate;
-import st.orm.template.SqlTemplate.PositionalParameter;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.impl.Elements.Set;
 
@@ -45,8 +43,6 @@ final class SetProcessor implements ElementProcessor<Set> {
     private final SqlDialectTemplate dialectTemplate;
     private final ModelBuilder modelBuilder;
     private final PrimaryTable primaryTable;
-    private final List<SqlTemplate.Parameter> parameters;
-    private final AtomicInteger parameterPosition;
     private final AtomicBoolean versionAware;
 
     SetProcessor(@Nonnull SqlTemplateProcessor templateProcessor) {
@@ -55,8 +51,6 @@ final class SetProcessor implements ElementProcessor<Set> {
         this.dialectTemplate = templateProcessor.dialectTemplate();
         this.modelBuilder = templateProcessor.modelBuilder();
         this.primaryTable = templateProcessor.primaryTable();
-        this.parameters = templateProcessor.parameters();
-        this.parameterPosition = templateProcessor.parameterPosition();
         this.versionAware = templateProcessor.versionAware();
     }
 
@@ -98,8 +92,7 @@ final class SetProcessor implements ElementProcessor<Set> {
         for (var entry : mapped.entrySet()) {
             var column = entry.getKey();
             if (!column.version()) {
-                args.add(dialectTemplate."\{primaryTable.alias().isEmpty() ? "" : STR."\{primaryTable.alias()}."}\{column.qualifiedName(template.dialect())} = ?");
-                parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), entry.getValue()));
+                args.add(dialectTemplate."\{primaryTable.alias().isEmpty() ? "" : STR."\{primaryTable.alias()}."}\{column.qualifiedName(template.dialect())} = \{templateProcessor.bindParameter(entry.getValue())}");
                 args.add(", ");
             } else {
                 var versionString = getVersionString(column.qualifiedName(template.dialect()), column.type(), primaryTable.alias());
@@ -123,35 +116,31 @@ final class SetProcessor implements ElementProcessor<Set> {
      */
     private ElementResult getBindVarsString(@Nonnull BindVars bindVars) throws SqlTemplateException {
         if (bindVars instanceof BindVarsImpl vars) {
-            templateProcessor.setBindVars(vars);
-            AtomicInteger parameterCount = new AtomicInteger();
+            AtomicInteger bindVarsCount = new AtomicInteger();
             String bindVarsString = modelBuilder.build(primaryTable.table(), false)
                     .columns().stream()
                     .filter(column -> !column.primaryKey() && column.updatable())
                     .map(column -> {
                         if (!column.version()) {
-                            parameterCount.incrementAndGet();
+                            bindVarsCount.incrementAndGet();
                             return STR."\{primaryTable.alias().isEmpty() ? "" : STR."\{primaryTable.alias()}."}\{column.qualifiedName(template.dialect())} = ?";
                         }
                         versionAware.setPlain(true);
                         return getVersionString(column.qualifiedName(template.dialect()), column.type(), primaryTable.alias());
                     })
                     .collect(joining(", "));
-            final int fixedParameterPosition = parameterPosition.get();
+            var parameterFactory = templateProcessor.setBindVars(vars, bindVarsCount.getPlain());
             vars.addParameterExtractor(record -> {
                 try {
-                    AtomicInteger position = new AtomicInteger(fixedParameterPosition);
-                    return ModelMapper.of(modelBuilder.build(record, false))
+                    ModelMapper.of(modelBuilder.build(record, false))
                             .map(record, column -> !column.primaryKey() && column.updatable() && !column.version())
-                            .values().stream()
-                            .map(o -> new PositionalParameter(position.getAndIncrement(), o))
-                            .toList();
+                            .values()
+                            .forEach(parameterFactory::bind);
+                    return parameterFactory.getParameters();
                 } catch (SqlTemplateException ex) {
-                    // BindVars works at the abstraction level of the ORM, so we throw a PersistenceException here.
-                    throw new PersistenceException(ex);
+                    throw new UncheckedSqlTemplateException(ex);
                 }
             });
-            parameterPosition.setPlain(parameterPosition.get() + parameterCount.getPlain());
             return new ElementResult(bindVarsString);
         }
         throw new SqlTemplateException("Unsupported BindVars type.");

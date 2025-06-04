@@ -18,14 +18,10 @@ package st.orm.kotlin.repository
 import st.orm.Ref
 import st.orm.kotlin.template.KQueryBuilder
 import st.orm.repository.Entity
-import st.orm.repository.EntityRepository
 import st.orm.repository.Projection
-import st.orm.repository.ProjectionRepository
-import st.orm.repository.RepositoryLookup
 import st.orm.template.Metamodel
 import st.orm.template.Operator.EQUALS
 import st.orm.template.Operator.IN
-import st.orm.template.QueryBuilder
 import kotlin.jvm.optionals.getOrNull
 
 /**
@@ -72,8 +68,9 @@ inline fun <reified T> KRepositoryLookup.projection(): KProjectionRepository<T, 
  * Extensions for [KRepositoryLookup] to provide convenient access to repositories.
  */
 inline fun <reified R : KRepository> KRepositoryLookup.repository(): R {
-    return repository(R::class)
+    return repository(R::class.java)
 }
+
 /**
  * Retrieves all records of type [T] from the repository.
  *
@@ -91,6 +88,27 @@ inline fun <reified T> KRepositoryLookup.findAll(): List<T>
     Projection::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("projection", Class::class.java)
         (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).findAll()
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Retrieves all records of type [T] from the repository.
+ *
+ * [T] must be either an Entity or Projection type.
+ *
+ * @return List containing all records.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T> KRepositoryLookup.findAllRef(): List<Ref<T>>
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef().resultList
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef().resultList
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
@@ -120,6 +138,30 @@ inline fun <reified T, V> KRepositoryLookup.findBy(field: Metamodel<T, V>, value
 }
 
 /**
+ * Retrieves an optional record of type [T] based on a single field and its value.
+ * Returns null if no matching record is found.
+ *
+ * [T] must be either an Entity or Projection type.
+ *
+ * @param field Metamodel reference of the record field.
+ * @param value The value to match against.
+ * @return An optional record, or null if none found.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> KRepositoryLookup.findBy(field: Metamodel<T, V>, value: Ref<V>): T?
+        where T : Record, V : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select().where(field, value).optionalResult.getOrNull()
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select().where(field, value).optionalResult.getOrNull()
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
  * Retrieves records of type [T] matching a single field and a single value.
  * Returns an empty list if no records are found.
  *
@@ -144,6 +186,30 @@ inline fun <reified T, V> KRepositoryLookup.findAllBy(field: Metamodel<T, V>, va
 }
 
 /**
+ * Retrieves records of type [T] matching a single field and a single value.
+ * Returns an empty list if no records are found.
+ *
+ * [T] must be either an Entity or Projection type.
+ *
+ * @param field Metamodel reference of the record field.
+ * @param value The value to match against.
+ * @return List of matching records.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> KRepositoryLookup.findAllBy(field: Metamodel<T, V>, value: Ref<V>): List<T>
+        where T : Record, V : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select().where(field, value).resultList
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select().where(field, value).resultList
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
  * Retrieves records of type [T] matching a single field against multiple values.
  * Returns an empty list if no records are found.
  *
@@ -163,6 +229,30 @@ inline fun <reified T, V> KRepositoryLookup.findAllBy(field: Metamodel<T, V>, va
     Projection::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("projection", Class::class.java)
         (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select().where(field, IN, values).resultList
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Retrieves records of type [T] matching a single field against multiple values.
+ * Returns an empty list if no records are found.
+ *
+ * [T] must be either an Entity or Projection type.
+ *
+ * @param field Metamodel reference of the record field.
+ * @param values Iterable of values to match against.
+ * @return List of matching records.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> KRepositoryLookup.findAllByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): List<T>
+        where T : Record, V : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select().whereRef(field, values).resultList
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select().whereRef(field, values).resultList
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
@@ -194,6 +284,32 @@ inline fun <reified T, V> KRepositoryLookup.getBy(field: Metamodel<T, V>, value:
 }
 
 /**
+ * Retrieves exactly one record of type [T] based on a single field and its value.
+ * Throws an exception if no record or more than one record is found.
+ *
+ * [T] must be either an Entity or Projection type.
+ *
+ * @param field Metamodel reference of the record field.
+ * @param value The value to match against.
+ * @return The matching record.
+ * @throws st.orm.NoResultException if there is no result.
+ * @throws st.orm.NonUniqueResultException if more than one result.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> KRepositoryLookup.getBy(field: Metamodel<T, V>, value: Ref<V>): T
+        where T : Record, V : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select().where(field, value).singleResult
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select().where(field, value).singleResult
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
  * Retrieves an optional entity of type [T] based on a single field and its value.
  * Returns null if no matching entity is found.
  *
@@ -201,9 +317,41 @@ inline fun <reified T, V> KRepositoryLookup.getBy(field: Metamodel<T, V>, value:
  * @param value The value to match against.
  * @return An optional entity, or null if none found.
  */
+@Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.findRefBy(field: Metamodel<T, V>, value: V): Ref<T>
-        where T : Record, T : Entity<*> =
-    entity<T>().selectRef().where(field, EQUALS, value).optionalResult.orElse(Ref.ofNull<T>())
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef().where(field, EQUALS, value).optionalResult.orElse(Ref.ofNull<T>())
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef().where(field, EQUALS, value).optionalResult.orElse(Ref.ofNull<T>())
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Retrieves an optional entity of type [T] based on a single field and its value.
+ * Returns null if no matching entity is found.
+ *
+ * @param field Metamodel reference of the entity field.
+ * @param value The value to match against.
+ * @return An optional entity, or null if none found.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> KRepositoryLookup.findRefBy(field: Metamodel<T, V>, value: Ref<V>): Ref<T>
+        where T : Record, V : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef().where(field, value).optionalResult.orElse(Ref.ofNull<T>())
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef().where(field, value).optionalResult.orElse(Ref.ofNull<T>())
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
 
 /**
  * Retrieves entities of type [T] matching a single field and a single value.
@@ -213,9 +361,41 @@ inline fun <reified T, V> KRepositoryLookup.findRefBy(field: Metamodel<T, V>, va
  * @param value The value to match against.
  * @return List of matching entities.
  */
+@Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.findAllRefBy(field: Metamodel<T, V>, value: V): List<Ref<T>>
-        where T : Record, T : Entity<*> =
-    entity<T>().selectRef().where(field, EQUALS, value).resultList
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef().where(field, EQUALS, value).resultList
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef().where(field, EQUALS, value).resultList
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Retrieves entities of type [T] matching a single field and a single value.
+ * Returns an empty list if no entities are found.
+ *
+ * @param field Metamodel reference of the entity field.
+ * @param value The value to match against.
+ * @return List of matching entities.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> KRepositoryLookup.findAllRefBy(field: Metamodel<T, V>, value: Ref<V>): List<Ref<T>>
+        where T : Record, V : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef().where(field, value).resultList
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef().where(field, value).resultList
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
 
 /**
  * Retrieves entities of type [T] matching a single field against multiple values.
@@ -225,9 +405,41 @@ inline fun <reified T, V> KRepositoryLookup.findAllRefBy(field: Metamodel<T, V>,
  * @param values Iterable of values to match against.
  * @return List of matching entities.
  */
+@Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.findAllRefBy(field: Metamodel<T, V>, values: Iterable<V>): List<Ref<T>>
-        where T : Record, T : Entity<*> =
-    entity<T>().selectRef().where(field, IN, values).resultList
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef().where(field, IN, values).resultList
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef().where(field, IN, values).resultList
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Retrieves entities of type [T] matching a single field against multiple values.
+ * Returns an empty list if no entities are found.
+ *
+ * @param field Metamodel reference of the entity field.
+ * @param values Iterable of values to match against.
+ * @return List of matching entities.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> KRepositoryLookup.findAllRefByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): List<Ref<T>>
+        where T : Record, V : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef().whereRef(field, values).resultList
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef().whereRef(field, values).resultList
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
 
 /**
  * Retrieves exactly one entity of type [T] based on a single field and its value.
@@ -239,16 +451,50 @@ inline fun <reified T, V> KRepositoryLookup.findAllRefBy(field: Metamodel<T, V>,
  * @throws st.orm.NoResultException if there is no result.
  * @throws st.orm.NonUniqueResultException if more than one result.
  */
+@Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.getRefBy(field: Metamodel<T, V>, value: V): Ref<T>
-        where T : Record, T : Entity<*> =
-    entity<T>().selectRef().where(field, EQUALS, value).singleResult
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef().where(field, EQUALS, value).singleResult
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef().where(field, EQUALS, value).singleResult
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Retrieves exactly one entity of type [T] based on a single field and its value.
+ * Throws an exception if no entity or more than one entity is found.
+ *
+ * @param field Metamodel reference of the entity field.
+ * @param value The value to match against.
+ * @return The matching entity.
+ * @throws st.orm.NoResultException if there is no result.
+ * @throws st.orm.NonUniqueResultException if more than one result.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> KRepositoryLookup.getRefBy(field: Metamodel<T, V>, value: Ref<V>): Ref<T>
+        where T : Record, V : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef().where(field, value).singleResult
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef().where(field, value).singleResult
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
 
 /**
  * Creates a query builder to select records of type [T].
  *
  * [T] must be either an Entity or Projection type.
  *
- * @return A [QueryBuilder] for selecting records of type [T].
+ * @return A [KQueryBuilder] for selecting records of type [T].
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> KRepositoryLookup.select(): KQueryBuilder<T, T, *>
@@ -267,13 +513,24 @@ inline fun <reified T> KRepositoryLookup.select(): KQueryBuilder<T, T, *>
 /**
  * Creates a query builder to select references of entity records of type [T].
  *
- * @return A [QueryBuilder] for selecting references of entity records of type [T].
+ * @return A [KQueryBuilder] for selecting references of entity records of type [T].
  */
+@Suppress("UNCHECKED_CAST")
 inline fun <reified T> KRepositoryLookup.selectRef(): KQueryBuilder<T, Ref<T>, *>
-        where T : Record, T: Entity<*> = entity<T>().selectRef()
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef()
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef()
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
 
 /**
- * Inserts an entity of type [T] into the KRepository.
+ * Inserts an entity of type [T] into the repository.
  *
  * @param entity The entity to insert.
  * @return The inserted entity after fetching from the database.
@@ -283,7 +540,7 @@ inline infix fun <reified T> KRepositoryLookup.insert(entity: T): T
     entity<T>().insertAndFetch(entity)
 
 /**
- * Inserts multiple entities of type [T] into the KRepository.
+ * Inserts multiple entities of type [T] into the repository.
  *
  * @param entity Iterable collection of entities to insert.
  * @return List of inserted entities after fetching from the database.
@@ -293,7 +550,7 @@ inline infix fun <reified T> KRepositoryLookup.insert(entity: Iterable<T>): List
     entity<T>().insertAndFetch(entity)
 
 /**
- * Upserts (inserts or updates) an entity of type [T] into the KRepository.
+ * Upserts (inserts or updates) an entity of type [T] into the repository.
  *
  * @param entity The entity to upsert.
  * @return The upserted entity after fetching from the database.
@@ -303,7 +560,7 @@ inline infix fun <reified T> KRepositoryLookup.upsert(entity: T): T
     entity<T>().upsertAndFetch(entity)
 
 /**
- * Upserts (inserts or updates) multiple entities of type [T] into the KRepository.
+ * Upserts (inserts or updates) multiple entities of type [T] into the repository.
  *
  * @param entity Iterable collection of entities to upsert.
  * @return List of upserted entities after fetching from the database.
@@ -315,14 +572,14 @@ inline infix fun <reified T> KRepositoryLookup.upsert(entity: Iterable<T>): List
 /**
  * Creates a query builder to delete records of type [T].
  *
- * @return A [QueryBuilder] for deleting records of type [T].
+ * @return A [KQueryBuilder] for deleting records of type [T].
  */
 inline fun <reified T> KRepositoryLookup.delete(): KQueryBuilder<T, *, *>
         where T : Record, T: Entity<*> =
     entity<T>().delete()
 
 /**
- * Deletes an entity of type [T] from the KRepository.
+ * Deletes an entity of type [T] from the repository.
  *
  * @param entity The entity to delete.
  */
@@ -331,7 +588,7 @@ inline infix fun <reified T> KRepositoryLookup.delete(entity: T)
     entity<T>().delete(entity)
 
 /**
- * Deletes multiple entities of type [T] from the KRepository.
+ * Deletes multiple entities of type [T] from the repository.
  *
  * @param entity List of entities to delete.
  */
@@ -340,7 +597,7 @@ inline infix fun <reified T> KRepositoryLookup.delete(entity: Iterable<T>)
     entity<T>().delete(entity)
 
 /**
- * Deletes an entity of type [T] from the KRepository.
+ * Deletes an entity of type [T] from the repository.
  *
  * @param ref The entity to delete.
  */
@@ -349,7 +606,7 @@ inline infix fun <reified T> KRepositoryLookup.deleteByRef(ref: Ref<T>)
     entity<T>().deleteByRef(ref)
 
 /**
- * Deletes multiple entities of type [T] from the KRepository.
+ * Deletes multiple entities of type [T] from the repository.
  *
  * @param refs List of entities to delete.
  */
@@ -358,7 +615,7 @@ inline infix fun <reified T> KRepositoryLookup.deleteByRef(refs: Iterable<Ref<T>
     entity<T>().deleteByRef(refs)
 
 /**
- * Updates an entity of type [T] in the KRepository.
+ * Updates an entity of type [T] in the repository.
  *
  * @param entity The entity to update.
  * @return The updated entity after fetching from the database.
@@ -368,7 +625,7 @@ inline infix fun <reified T> KRepositoryLookup.update(entity: T): T
     entity<T>().updateAndFetch(entity)
 
 /**
- * Updates multiple entities of type [T] in the KRepository.
+ * Updates multiple entities of type [T] in the repository.
  *
  * @param entity Iterable collection of entities to update.
  * @return List of updated entities after fetching from the database.

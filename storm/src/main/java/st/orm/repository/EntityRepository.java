@@ -278,7 +278,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @return a new query builder for selecting refs to entities.
      * @since 1.3
      */
-    <R extends Record & Entity<?>> QueryBuilder<E, Ref<R>, ID> selectRef(@Nonnull Class<R> refType);
+    <R extends Record> QueryBuilder<E, Ref<R>, ID> selectRef(@Nonnull Class<R> refType);
 
     /**
      * Creates a new query builder for delete entities of the type managed by this repository.
@@ -336,6 +336,22 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      *                              including database constraints violations, connectivity issues, or if the entity parameter is null.
      */
     void insert(@Nonnull E entity);
+
+    /**
+     * Inserts an entity into the database.
+     *
+     * <p>This method adds a new entity to the database. It ensures that the entity is persisted according to the defined
+     * database constraints and entity model. It's critical for the entity to be fully initialized as per the entity
+     * model requirements.</p>
+     *
+     * @param entity the entity to insert. The entity must satisfy all model constraints.
+     * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
+     *                           provided primary key value. Use this flag only when intentionally providing the primary
+     *                           key value (e.g., migrations, data exports).
+     * @throws PersistenceException if the insert operation fails. This can happen due to a variety of reasons,
+     *                              including database constraints violations, connectivity issues, or if the entity parameter is null.
+     */
+    void insert(@Nonnull E entity, boolean ignoreAutoGenerate);
 
     /**
      * Inserts an entity into the database and returns its primary key.
@@ -620,6 +636,23 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      *                              problems, constraints violations, or invalid entity data.
      */
     void insert(@Nonnull Iterable<E> entities);
+
+    /**
+     * Inserts a collection of entities into the database in batches.
+     *
+     * <p>This method processes the provided entities in batches, optimizing insertion for larger collections by
+     * reducing database overhead. Batch processing helps ensure that even large numbers of entities can be
+     * inserted efficiently and minimizes potential memory and performance issues.</p>
+     *
+     * @param entities an iterable collection of entities to be inserted. Each entity in the collection must
+     *                 be non-null and contain valid data for insertion.
+     * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
+     *                           provided primary key value. Use this flag only when intentionally providing the primary
+     *                           key value (e.g., migrations, data exports).
+     * @throws PersistenceException if the insertion operation fails due to database issues, such as connectivity
+     *                              problems, constraints violations, or invalid entity data.
+     */
+    void insert(@Nonnull Iterable<E> entities, boolean ignoreAutoGenerate);
 
     /**
      * Inserts a collection of entities into the database in batches.
@@ -1120,6 +1153,22 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
     void insert(@Nonnull Stream<E> entities);
 
     /**
+     * Inserts entities in a batch mode to optimize performance and reduce database load.
+     *
+     * <p>For large volumes of entities, this method processes the inserts in multiple batches to ensure efficient
+     * handling and minimize the impact on database resources. This structured approach facilitates the management of
+     * large-scale insert operations.</p>
+     *
+     * @param entities the entities to insert. Must not be null.
+     * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
+     *                           provided primary key value. Use this flag only when intentionally providing the primary
+     *                           key value (e.g., migrations, data exports).
+     * @throws PersistenceException if the insert fails due to database constraints, connectivity issues, or if the
+     *                              entities parameter is null.
+     */
+    void insert(@Nonnull Stream<E> entities, boolean ignoreAutoGenerate);
+
+    /**
      * Inserts a stream of entities into the database, with the insertion process divided into batches of the specified
      * size.
      *
@@ -1135,6 +1184,26 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      *                              constraints, connectivity issues, or if any entity in the stream is null.
      */
     void insert(@Nonnull Stream<E> entities, int batchSize);
+
+    /**
+     * Inserts a stream of entities into the database, with the insertion process divided into batches of the specified
+     * size.
+     *
+     * <p>This method inserts entities provided in a stream and uses the specified batch size for the insertion
+     * operation.  Batching the inserts can greatly enhance performance by minimizing the number of database
+     * interactions, especially useful when dealing with large volumes of data.</p>
+     *
+     * @param entities a stream of entities to insert. Each entity must not be null and must conform to the model
+     *                 constraints.
+     * @param batchSize the size of the batches to use for the insertion operation. A larger batch size can improve
+     *                  performance but may also increase the load on the database.
+     * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
+     *                           provided primary key value. Use this flag only when intentionally providing the primary
+     *                           key value (e.g., migrations, data exports).
+     * @throws PersistenceException if there is an error during the insertion operation, such as a violation of database
+     *                              constraints, connectivity issues, or if any entity in the stream is null.
+     */
+    void insert(@Nonnull Stream<E> entities, int batchSize, boolean ignoreAutoGenerate);
 
     /**
      * Inserts a stream of entities into the database using the default batch size and returns a stream of their

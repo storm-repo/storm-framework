@@ -68,6 +68,19 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
     KQueryBuilder<P, P, ID> select();
 
     /**
+     * Creates a new query builder for selecting refs to projections of the type managed by this repository.
+     *
+     * <p>This method is typically used when you only need the primary keys of the projections initially, and you want to
+     * defer fetching the full data until it is actually required. The query builder will return ref instances that
+     * encapsulate the primary key. To retrieve the full projection, call {@link Ref#fetch()}, which will perform an
+     * additional database query on demand.</p>
+     *
+     * @return a new query builder for selecting refs to projections.
+     * @since 1.3
+     */
+    KQueryBuilder<P, Ref<P>, ID> selectRef();
+
+    /**
      * Creates a new query builder for the projection type managed by this repository.
      *
      * @return a new query builder for the projection type.
@@ -82,6 +95,20 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
      * @param <R> the result type of the query.
      */
     <R> KQueryBuilder<P, R, ID> select(@Nonnull Class<R> selectType);
+
+    /**
+     * Creates a new query builder for selecting refs to projections of the type managed by this repository.
+     *
+     * <p>This method is typically used when you only need the primary keys of the projections initially, and you want to
+     * defer fetching the full data until it is actually required. The query builder will return ref instances that
+     * encapsulate the primary key. To retrieve the full projection, call {@link Ref#fetch()}, which will perform an
+     * additional database query on demand.</p>
+     *
+     * @param refType the type that is selected as ref.
+     * @return a new query builder for selecting refs to projections.
+     * @since 1.3
+     */
+    <R extends Record> KQueryBuilder<P, Ref<R>, ID> selectRef(@Nonnull Class<R> refType);
 
     /**
      * Creates a new query builder for the custom {@code selectType} and custom {@code template} for the select clause.

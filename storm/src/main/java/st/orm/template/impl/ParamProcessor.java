@@ -50,12 +50,12 @@ final class ParamProcessor implements ElementProcessor<Param> {
             if (template.positionalOnly()) {
                 throw new SqlTemplateException("Named parameters not supported.");
             }
-            return new ElementResult(templateProcessor.registerParam(param.name(), param.dbValue()));
+            return new ElementResult(templateProcessor.bindParameter(param.name(), param.dbValue()));
         }
         if (template.positionalOnly()) {
-            return new ElementResult(templateProcessor.registerParam(param.dbValue()));
+            return new ElementResult(templateProcessor.bindParameter(param.dbValue()));
         }
         String name = STR."_p\{nameIndex.getAndIncrement()}";
-        return new ElementResult(templateProcessor.registerParam(name, param.dbValue()));
+        return new ElementResult(templateProcessor.bindParameter(name, param.dbValue()));
     }
 }

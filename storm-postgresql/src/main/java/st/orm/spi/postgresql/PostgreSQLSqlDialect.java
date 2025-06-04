@@ -24,7 +24,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -139,13 +139,15 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
      * Builds a multi-value IN clause for PostgreSQL.
      *
      * @param values the (multi) values to use in the IN clause.
-     * @param parameterConsumer the consumer for the parameters.
+     * @param parameterFunction the function responsible for binding the parameters to the SQL template and returning
+     *                          the string representation of the parameter, which is either a '?' placeholder or a
+     *                          literal value.
      * @return the string representing the multi-value IN clause.
      * @throws SqlTemplateException if the values are incompatible.
      */
     @Override
     public String multiValueIn(@Nonnull List<Map<String, Object>> values,
-                               @Nonnull Consumer<Object> parameterConsumer) throws SqlTemplateException {
+                               @Nonnull Function<Object, String> parameterFunction) throws SqlTemplateException {
         if (values.isEmpty()) {
             throw new SqlTemplateException("Multi-value IN clause requires at least one value.");
         }
@@ -154,7 +156,7 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
             throw new SqlTemplateException("Multi-value IN clause requires at least two columns.");
         }
         if (!supportsMultiValueTuples()) {
-            return super.multiValueIn(values, parameterConsumer);
+            return super.multiValueIn(values, parameterFunction);
         }
         StringBuilder in = new StringBuilder("(")
                 .append(String.join(", ", columns))
@@ -168,10 +170,7 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
             }
             in.append(columns.stream()
                     .map(row::get)
-                    .map(value -> {
-                        parameterConsumer.accept(value);
-                        return "?";
-                    })
+                    .map(parameterFunction)
                     .collect(joining(", ")))
               .append("), (");
         }

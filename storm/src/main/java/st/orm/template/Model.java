@@ -18,7 +18,9 @@ package st.orm.template;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
+import java.lang.reflect.RecordComponent;
 import java.util.List;
+import java.util.Optional;
 import java.util.SequencedMap;
 
 /**
@@ -72,8 +74,23 @@ public interface Model<E extends Record, ID> {
     List<Column> columns();
 
     /**
-     * Returns {code true} if the specified primary key represents a default value, {@code false} otherwise.
+     * Returns the primary key component for the given record. The optional is empty if the record does not have a
+     * primary key.
      *
+     * @return an {@link Optional} containing the primary key component if it exists.
+     * @since 1.3
+     */
+    Optional<RecordComponent> primaryKeyComponent();
+
+    /**
+     * Returns the foreign keys for the given record.
+     *
+     * @return a list of foreign key components for the given record.
+     * @since 1.3
+     */
+    List<RecordComponent> foreignKeyComponents();
+
+    /**
      * <p>This method is used to check if the primary key of the entity is a default value. This is useful when
      * determining if the entity is new or has been persisted before.</p>
      *
@@ -82,6 +99,16 @@ public interface Model<E extends Record, ID> {
      * @since 1.2
      */
     boolean isDefaultPrimaryKey(@Nullable ID pk);
+
+    /**
+     * Extracts the value for the specified record component from the given record.
+     *
+     * @param component the record component to extract the value for.
+     * @param record the record to extract the value from.
+     * @return the value for the specified record component from the given record.
+     * @since 1.3
+     */
+    Object getValue(@Nonnull RecordComponent component, @Nonnull E record);
 
     /**
      * Extracts the value for the specified column from the given record.
@@ -101,4 +128,12 @@ public interface Model<E extends Record, ID> {
      * @since 1.2
      */
     SequencedMap<Column, Object> getValues(@Nonnull E record);
+
+    /**
+     * Returns the metamodel for the column.
+     *
+     * @return the metamodel for the column.
+     * @since 1.3
+     */
+    Metamodel<E, ?> getMetamodel(@Nonnull Column column);
 }

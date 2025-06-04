@@ -128,24 +128,27 @@ public final class SqlTemplateImpl implements SqlTemplate {
     private final boolean positionalOnly;
     private final boolean expandCollection;
     private final boolean supportRecords;
+    private final boolean inlineParameters;
     private final ModelBuilder modelBuilder;
     private final TableAliasResolver tableAliasResolver;
     private final SqlDialect dialect;
     private final SqlDialectTemplate dialectTemplate;
 
     public SqlTemplateImpl(boolean positionalOnly, boolean expandCollection, boolean supportRecords) {
-        this(positionalOnly, expandCollection, supportRecords, ModelBuilder.newInstance(), TableAliasResolver.DEFAULT, getSqlDialect());
+        this(positionalOnly, expandCollection, supportRecords, false, ModelBuilder.newInstance(), TableAliasResolver.DEFAULT, getSqlDialect());
     }
 
     public SqlTemplateImpl(boolean positionalOnly,
                            boolean expandCollection,
                            boolean supportRecords,
+                           boolean inlineParameters,
                            @Nonnull ModelBuilder modelBuilder,
                            @Nonnull TableAliasResolver tableAliasResolver,
                            @Nonnull SqlDialect dialect) {
         this.positionalOnly = positionalOnly;
         this.expandCollection = expandCollection;
         this.supportRecords = supportRecords;
+        this.inlineParameters = inlineParameters;
         this.modelBuilder = requireNonNull(modelBuilder);
         this.tableAliasResolver = requireNonNull(tableAliasResolver);
         this.dialect = requireNonNull(dialect);
@@ -181,7 +184,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withTableNameResolver(@Nonnull TableNameResolver tableNameResolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, dialect);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, dialect);
     }
 
     /**
@@ -202,7 +205,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder, tableAliasResolver, dialect);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, dialect);
     }
 
     /**
@@ -223,7 +226,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withColumnNameResolver(@Nonnull ColumnNameResolver columnNameResolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, dialect);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, dialect);
     }
 
     /**
@@ -244,7 +247,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withForeignKeyResolver(@Nonnull ForeignKeyResolver foreignKeyResolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, dialect);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, dialect);
     }
 
     /**
@@ -265,7 +268,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplate withDialect(@Nonnull SqlDialect dialect) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder, tableAliasResolver, dialect);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, dialect);
     }
 
     /**
@@ -287,7 +290,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withSupportRecords(boolean supportRecords) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder, tableAliasResolver, dialect);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, dialect);
     }
 
     /**
@@ -298,6 +301,32 @@ public final class SqlTemplateImpl implements SqlTemplate {
     @Override
     public boolean supportRecords() {
         return supportRecords;
+    }
+
+    /**
+     * Returns a new SQL template instance configured to inline parameters directly into the SQL string,
+     * rather than using bind variables.
+     *
+     * @param inlineParameters if true, parameters will be inlined as literals into the SQL. If false, parameters are
+     *                         passed via bind variables (default behavior).
+     * @return a new SqlTemplate instance configured with the specified parameter handling.
+     * @since 1.3
+     */
+    @Override
+    public SqlTemplate withInlineParameters(boolean inlineParameters) {
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, dialect);
+    }
+
+    /**
+     * Indicates whether the SQL parameters should be inlined directly as literals into the SQL string,
+     * or whether bind variables should be used.
+     *
+     * @return true if parameters are inlined as literals; false if using bind variables.
+     * @since 1.3
+     */
+    @Override
+    public boolean inlineParameters() {
+        return inlineParameters;
     }
 
     /**

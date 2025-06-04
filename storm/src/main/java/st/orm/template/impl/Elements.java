@@ -44,13 +44,20 @@ public final class Elements {
         }
     }
 
-    public record Insert(@Nonnull Class<? extends Record> table) implements Element {
+    public record Insert(@Nonnull Class<? extends Record> table, boolean ignoreAutoGenerate) implements Element {
+        public Insert(@Nonnull Class<? extends Record> table) {
+            this(table, false);
+        }
         public Insert {
             requireNonNull(table, "table");
         }
     }
 
-    public record Values(@Nullable Iterable<? extends Record> records, @Nullable BindVars bindVars) implements Element {}
+    public record Values(@Nullable Iterable<? extends Record> records, @Nullable BindVars bindVars, boolean ignoreAutoGenerate) implements Element {
+        public Values(@Nullable Iterable<? extends Record> records, @Nullable BindVars bindVars) {
+            this(records, bindVars, false);
+        }
+    }
 
     public record Update(@Nonnull Class<? extends Record> table, @Nonnull String alias) implements Element {
         public Update {

@@ -207,7 +207,7 @@ public interface Ref<T extends Record> {
      * @param <ID> the id type.
      * @param <P> the projection type.
      */
-    static <ID, P extends Record & Entity<ID>> ID projectionId(@Nonnull Ref<P> ref) {
+    static <ID, P extends Record & Projection<ID>> ID projectionId(@Nonnull Ref<P> ref) {
         //noinspection unchecked
         return (ID) ref.id();
     }

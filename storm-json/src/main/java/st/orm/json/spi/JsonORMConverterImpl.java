@@ -39,6 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES;
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
+import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.empty;
 
@@ -146,7 +147,8 @@ public final class JsonORMConverterImpl implements ORMConverter {
     @Override
     public List<Object> toDatabase(@Nullable Record record) throws SqlTemplateException {
         try {
-            return List.of(mapper.writeValueAsString(record == null ? null : REFLECTION.invokeComponent(component, record)));
+            Object o = record == null ? null : REFLECTION.invokeComponent(component, record);
+            return singletonList(o == null ? null : mapper.writeValueAsString(o));
         } catch (Throwable e) {
             throw new SqlTemplateException(e);
         }

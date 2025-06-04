@@ -18,12 +18,16 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.PersistenceException;
+import st.orm.template.Metamodel;
 import st.orm.template.SqlDialect;
 import st.orm.template.Column;
 import st.orm.template.Model;
 import st.orm.template.SqlTemplateException;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.RecordComponent;
 import java.util.List;
+import java.util.Optional;
 import java.util.SequencedMap;
 
 import static java.util.List.copyOf;
@@ -43,13 +47,19 @@ public record ModelImpl<E extends Record, ID>(
         @Nonnull TableName tableName,
         @Nonnull Class<E> type,
         @Nonnull Class<ID> primaryKeyType,
-        @Nonnull List<Column> columns) implements Model<E, ID> {
+        @Nonnull List<Column> columns,
+        @Nonnull List<Metamodel<E, ?>> metamodels,
+        @Nonnull Optional<RecordComponent> primaryKeyComponent,
+        @Nonnull List<RecordComponent> foreignKeyComponents) implements Model<E, ID> {
 
     public ModelImpl {
         requireNonNull(tableName, "tableName");
         requireNonNull(type, "type");
         requireNonNull(primaryKeyType, "primaryKeyType");
         columns = copyOf(columns); // Defensive copy.
+        metamodels = copyOf(metamodels); // Defensive copy.
+        foreignKeyComponents = copyOf(foreignKeyComponents); // Defensive copy.
+        assert columns.size() == metamodels.size() : "Columns and metamodels must have the same size";
     }
 
     /**
@@ -98,6 +108,29 @@ public record ModelImpl<E extends Record, ID>(
     }
 
     /**
+     * Extracts the value for the specified record component from the given record.
+     *
+     * @param component the record component to extract the value for.
+     * @param record the record to extract the value from.
+     * @return the value for the specified record component from the given record.
+     * @since 1.3
+     */
+    @Override
+    public Object getValue(@Nonnull RecordComponent component, @Nonnull E record) {
+        try {
+            try {
+                return component.getAccessor().invoke(record);
+            } catch (InvocationTargetException e) {
+                throw e.getTargetException();
+            }
+        } catch (PersistenceException e) {
+            throw e;
+        } catch (Throwable t) {
+            throw new PersistenceException(t);
+        }
+    }
+
+    /**
      * Extracts the values from the given record and maps them to the columns of the entity or projection.
      *
      * @param record the record to extract the values from.
@@ -130,5 +163,24 @@ public record ModelImpl<E extends Record, ID>(
         } catch (SqlTemplateException e) {
             throw new PersistenceException(e);
         }
+    }
+
+    /**
+     * Returns the metamodel for the column.
+     *
+     * @return the metamodel for the column.
+     * @throws PersistenceException if the column is unknown or does not match the model's columns.
+     * @since 1.3
+     */
+    @Override
+    public Metamodel<E, ?> getMetamodel(@Nonnull Column column) {
+        int index = column.index();
+        if (index < 1 || index > columns.size()) {
+            throw new PersistenceException(STR."Unknown column \{column}");
+        }
+        if (!column.equals(columns.get(index - 1))) {
+            throw new PersistenceException(STR."Column \{column} does not match the model's column at index \{index}.");
+        }
+        return metamodels.get(column.index() - 1);
     }
 }

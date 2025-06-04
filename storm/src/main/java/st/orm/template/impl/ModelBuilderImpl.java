@@ -99,6 +99,6 @@ record ModelBuilderImpl(
     @Override
     public <T extends Record, ID> Model<T, ID> build(@Nonnull Class<T> type, boolean requirePrimaryKey)
             throws SqlTemplateException {
-        return ModelFactory.create(this, type, requirePrimaryKey);
+        return ModelFactory.getModel(this, type, requirePrimaryKey);
     }
 }

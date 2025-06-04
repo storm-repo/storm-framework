@@ -63,10 +63,14 @@ final class BindVarsImpl implements BindVars, BindVariables {
             if (recordListener != null) {
                 recordListener.onRecord(record);
             }
-            var positionalParameters = parameterExtractors.stream()
-                    .flatMap(pe -> pe.apply(record).stream())
-                    .toList();
-            batchListener.onBatch(positionalParameters);
+            try {
+                var positionalParameters = parameterExtractors.stream()
+                        .flatMap(pe -> pe.apply(record).stream())
+                        .toList();
+                batchListener.onBatch(positionalParameters);
+            } catch (UncheckedSqlTemplateException e) {
+                throw new PersistenceException(e.getCause());
+            }
         };
     }
 
@@ -99,6 +103,14 @@ final class BindVarsImpl implements BindVars, BindVariables {
         this.batchListener = listener;
     }
 
+    /**
+     * Registers a function that extracts positional parameters from a record.
+     *
+     * <p>Note that the {@code parameterExtractor} function may raise an {@code UncheckedSqlTemplateException} if
+     * the record does not comply with the expected format or if there are issues.</p>
+     *
+     * @param parameterExtractor the function that extracts positional parameters from a record.
+     */
     void addParameterExtractor(@Nonnull Function<Record, List<PositionalParameter>> parameterExtractor) {
         parameterExtractors.add(parameterExtractor);
     }

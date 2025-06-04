@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 import static java.util.stream.Collectors.joining;
@@ -210,20 +210,21 @@ public class DefaultSqlDialect implements SqlDialect {
      * Returns a string for the given column name.
      *
      * @param values the (multi) values to use in the IN clause.
-     * @param parameterConsumer the consumer for the parameters.
+     * @param parameterFunction the function responsible for binding the parameters to the SQL template and returning
+     *                          the string representation of the parameter, which is either a '?' placeholder or a
+     *                          literal value.
      * @return the string that represents the multi value IN clause.
      * @throws SqlTemplateException if the values are incompatible.
      * @since 1.2
      */
     @Override
     public String multiValueIn(@Nonnull List<Map<String, Object>> values,
-                               @Nonnull Consumer<Object> parameterConsumer) throws SqlTemplateException {
+                               @Nonnull Function<Object, String> parameterFunction) throws SqlTemplateException {
         List<String> args = new ArrayList<>();
         for (var valueMap : values) {
-            args.add(STR."(\{valueMap.keySet().stream()
-                    .map(k -> EQUALS.format(k, 1))  // We can safely use EQUALS here.
+            args.add(STR."(\{valueMap.entrySet().stream()
+                    .map(entry -> EQUALS.format(entry.getKey(), parameterFunction.apply(entry.getValue())))  // We can safely use EQUALS here.
                     .collect(joining(" AND "))})");
-            valueMap.values().forEach(parameterConsumer);
             args.add(" OR ");
         }
         if (!args.isEmpty()) {

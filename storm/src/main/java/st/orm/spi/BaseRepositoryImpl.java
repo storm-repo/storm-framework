@@ -35,6 +35,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.Spliterator.ORDERED;
 import static java.util.Spliterators.spliteratorUnknownSize;
 import static st.orm.spi.Providers.selectFrom;
+import static st.orm.spi.Providers.selectRefFrom;
 import static st.orm.template.QueryBuilder.slice;
 
 /**
@@ -131,6 +132,20 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
     public <R> QueryBuilder<E, R, ID> select(@Nonnull Class<R> selectType) {
         return select(selectType, RAW."\{selectType}");
     }
+    /**
+     * Creates a new query builder for selecting refs to entities of the type managed by this repository.
+     *
+     * <p>This method is typically used when you only need the primary keys of the entities initially, and you want to
+     * defer fetching the full data until it is actually required. The query builder will return ref instances that
+     * encapsulate the primary key. To retrieve the full entity, call {@link Ref#fetch()}, which will perform an
+     * additional database query on demand.</p>
+     *
+     * @return a new query builder for selecting refs to entities.
+     * @since 1.3
+     */
+    public QueryBuilder<E, Ref<E>, ID> selectRef() {
+        return selectRefFrom(ormTemplate, model.type(), model.type(), model.primaryKeyType(), () -> model);
+    }
 
     /**
      * Creates a new query builder for the custom {@code selectType} and custom {@code template} for the select clause.
@@ -142,6 +157,24 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      */
     public <R> QueryBuilder<E, R, ID> select(@Nonnull Class<R> selectType, @Nonnull StringTemplate template) {
         return selectFrom(ormTemplate, model().type(), selectType, template, false, () -> model);
+    }
+
+
+    /**
+     * Creates a new query builder for selecting refs to entities of the type managed by this repository.
+     *
+     * <p>This method is typically used when you only need the primary keys of the entities initially, and you want to
+     * defer fetching the full data until it is actually required. The query builder will return ref instances that
+     * encapsulate the primary key. To retrieve the full entity, call {@link Ref#fetch()}, which will perform an
+     * additional database query on demand.</p>
+     *
+     * @param refType the type that is selected as ref.
+     * @return a new query builder for selecting refs to entities.
+     * @since 1.3
+     */
+    public <R extends Record> QueryBuilder<E, Ref<R>, ID> selectRef(@Nonnull Class<R> refType) {
+        var pkType = ormTemplate.model(refType, true).primaryKeyType();
+        return selectRefFrom(ormTemplate, model.type(), refType, pkType, () -> model);
     }
 
     /**

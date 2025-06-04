@@ -18,6 +18,7 @@ package st.orm.kotlin.spi;
 import jakarta.annotation.Nonnull;
 import kotlin.sequences.Sequence;
 import kotlin.sequences.SequencesKt;
+import org.jetbrains.annotations.NotNull;
 import st.orm.Ref;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
@@ -31,6 +32,8 @@ import st.orm.kotlin.template.impl.KORMTemplateImpl;
 import st.orm.kotlin.template.impl.KQueryBuilderImpl;
 import st.orm.repository.Projection;
 import st.orm.repository.ProjectionRepository;
+import st.orm.spi.ORMReflection;
+import st.orm.spi.Providers;
 import st.orm.template.impl.ModelImpl;
 
 import java.util.Iterator;
@@ -46,6 +49,7 @@ import static java.util.Spliterators.spliteratorUnknownSize;
 /**
  */
 public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, ID> implements KProjectionRepository<P, ID> {
+    private final static ORMReflection REFLECTION = Providers.getORMReflection();
     private final ProjectionRepository<P, ID> projectionRepository;
 
     public KProjectionRepositoryImpl(@Nonnull ProjectionRepository<P, ID> projectionRepository) {
@@ -104,6 +108,11 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
         return new KQueryBuilderImpl<>(projectionRepository.select());
     }
 
+    @Override
+    public KQueryBuilder<P, Ref<P>, ID> selectRef() {
+        return new KQueryBuilderImpl<>(projectionRepository.selectRef());
+    }
+
     /**
      * Creates a new query builder for the projection type managed by this repository.
      *
@@ -124,6 +133,12 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
     @Override
     public <R> KQueryBuilder<P, R, ID> select(@Nonnull Class<R> selectType) {
         return new KQueryBuilderImpl<>(projectionRepository.select(selectType));
+    }
+
+    @Override
+    public <R extends Record> KQueryBuilder<P, Ref<R>, ID> selectRef(@NotNull Class<R> refType) {
+        //noinspection unchecked
+        return new KQueryBuilderImpl<>(projectionRepository.selectRef((Class<R>) REFLECTION.getType(refType)));
     }
 
     /**

@@ -16,19 +16,16 @@
 package st.orm.kotlin.spi;
 
 import jakarta.annotation.Nonnull;
-import st.orm.FK;
 import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.kotlin.repository.KEntity;
 import st.orm.spi.ORMReflection;
 
 import java.lang.reflect.RecordComponent;
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Stream;
 
-import static st.orm.spi.Providers.getORMConverter;
 import static st.orm.spi.Providers.getORMReflection;
 
 public final class KEntityHelper {
@@ -51,7 +48,9 @@ public final class KEntityHelper {
 
     private static RecordComponent getPkComponent(@Nonnull Class<? extends Record> componentType) {
         return PK_CACHE.computeIfAbsent(componentType, _ -> {
-            var pkComponents = extractPkComponents(componentType);
+            var pkComponents = Stream.of(componentType.getRecordComponents())
+                    .filter(c -> REFLECTION.isAnnotationPresent(c, PK.class))
+                    .toList();
             if (pkComponents.isEmpty()) {
                 throw new PersistenceException(STR."No primary key found for \{componentType.getSimpleName()}.");
             }
@@ -60,15 +59,5 @@ public final class KEntityHelper {
             }
             return pkComponents.getFirst();
         });
-    }
-
-    private static List<RecordComponent> extractPkComponents(@Nonnull Class<? extends Record> componentType) {
-        //noinspection unchecked
-        return Stream.of(componentType.getRecordComponents())
-                .flatMap(c -> REFLECTION.isAnnotationPresent(c, PK.class)
-                        ? Stream.of(c)
-                        : c.getType().isRecord() && !REFLECTION.isAnnotationPresent(c, FK.class) && getORMConverter(c).isEmpty()
-                        ? extractPkComponents((Class<? extends Record>) c.getType()).stream()        // @Inline is implicitly assumed.
-                        : Stream.empty()).toList();
     }
 }

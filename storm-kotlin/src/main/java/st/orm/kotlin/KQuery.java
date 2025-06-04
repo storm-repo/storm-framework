@@ -22,7 +22,6 @@ import kotlin.sequences.SequencesKt;
 import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
 import st.orm.PersistenceException;
-import st.orm.Query;
 
 import java.util.List;
 import java.util.Optional;

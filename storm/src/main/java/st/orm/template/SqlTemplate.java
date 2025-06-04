@@ -170,6 +170,26 @@ public interface SqlTemplate {
     boolean expandCollection();
 
     /**
+     * Returns a new SQL template instance configured to inline parameters directly into the SQL string,
+     * rather than using bind variables.
+     *
+     * @param inlineParameters if true, parameters will be inlined as literals into the SQL. If false, parameters are
+     *                         passed via bind variables (default behavior).
+     * @return a new SqlTemplate instance configured with the specified parameter handling.
+     * @since 1.3
+     */
+    SqlTemplate withInlineParameters(boolean inlineParameters);
+
+    /**
+     * Indicates whether the SQL parameters should be inlined directly as literals into the SQL string,
+     * or whether bind variables should be used.
+     *
+     * @return true if parameters are inlined as literals; false if using bind variables.
+     * @since 1.3
+     */
+    boolean inlineParameters();
+
+    /**
      * Returns a new SQL template with support for records enabled or disabled.
      *
      * @param supportRecords {@code true} if the template should support records, {@code false} otherwise.
