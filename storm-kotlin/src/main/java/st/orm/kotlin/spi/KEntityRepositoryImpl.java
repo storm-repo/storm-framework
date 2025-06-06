@@ -24,6 +24,7 @@ import st.orm.Ref;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KBatchCallback;
 import st.orm.kotlin.KResultCallback;
+import st.orm.kotlin.repository.CloseableSequence;
 import st.orm.kotlin.repository.KEntityRepository;
 import st.orm.kotlin.template.KModel;
 import st.orm.kotlin.template.KORMTemplate;
@@ -845,6 +846,27 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
     // Sequence based methods. These methods operate in multiple batches.
 
     /**
+     * Returns a sequence of all entities of the type supported by this repository. Each element in the sequence represents
+     * an entity in the database, encapsulating all relevant data as mapped by the entity model.
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @return a sequence of all entities of the type supported by this repository.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    @Override
+    public CloseableSequence<E> selectAll() {
+        return CloseableSequence.from(entityRepository.selectAll());
+    }
+
+    /**
      * Processes a sequence of all entities of the type supported by this repository using the specified callback.
      * This method retrieves the entities and applies the provided callback to process them, returning the
      * result produced by the callback.
@@ -864,6 +886,34 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
     }
 
     /**
+     * Retrieves a sequence of entities based on their primary keys.
+     *
+     * <p>This method executes queries in batches, depending on the number of primary keys in the specified ids sequence.
+     * This optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities.
+     * The batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @param ids a sequence of entity IDs to retrieve from the repository.
+     * @return a sequence of entities corresponding to the provided primary keys. The order of entities in the sequence is
+     *         not guaranteed to match the order of ids in the input sequence. If an id does not correspond to any entity
+     *         in the database, it will simply be skipped, and no corresponding entity will be included in the returned
+     *         sequence. If the same entity is requested multiple times, it may be included in the sequence multiple times
+     *         if it is part of a separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */    @Override
+    public CloseableSequence<E> selectAllById(@Nonnull Sequence<ID> ids) {
+        return CloseableSequence.from( entityRepository.selectAllById(toStream(ids)));
+    }
+
+    /**
      * Processes a sequence of entities corresponding to the provided IDs using the specified callback.
      * This method retrieves entities matching the given IDs and applies the callback to process the results,
      * returning the outcome produced by the callback.
@@ -879,8 +929,40 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
     @Override
-    public <R> R selectAll(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<E, R> callback) {
+    public <R> R selectAllById(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<E, R> callback) {
         return entityRepository.selectAllById(toStream(ids), stream -> callback.process(toSequence(stream)));
+    }
+
+    /**
+     * Retrieves a sequence of entities based on their primary keys.
+     *
+     * <p>This method executes queries in batches, with the batch size determined by the provided parameter. This
+     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities. The
+     * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @param refs a sequence of refs to retrieve from the repository.
+     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
+     *                  dealing with large sets of primary keys.
+     * @return a sequence of entities corresponding to the provided primary keys. The order of entities in the sequence is
+     * not guaranteed to match the order of refs in the input sequence. If an id does not correspond to any entity in the
+     * database, it will simply be skipped, and no corresponding entity will be included in the returned sequence. If the
+     * same entity is requested multiple times, it may be included in the sequence multiple times if it is part of a
+     * separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    @Override
+    public CloseableSequence<E> selectAllByRef(@Nonnull Sequence<Ref<E>> refs, int batchSize) {
+        return CloseableSequence.from( entityRepository.selectAllByRef(toStream(refs), batchSize));
     }
 
     /**
@@ -909,6 +991,83 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
     @Override
     public <R> R selectAllById(@Nonnull Sequence<ID> ids, int batchSize, @Nonnull KResultCallback<E, R> callback) {
         return entityRepository.selectAllById(toStream(ids), batchSize, stream -> callback.process(toSequence(stream)));
+    }
+
+    /**
+     * Retrieves a sequence of entities based on their primary keys.
+     *
+     * <p>This method executes queries in batches, with the batch size determined by the provided parameter. This
+     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities. The
+     * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @param ids a sequence of entity IDs to retrieve from the repository.
+     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
+     *                  dealing with large sets of primary keys.
+     * @return a sequence of entities corresponding to the provided primary keys. The order of entities in the sequence is
+     * not guaranteed to match the order of refs in the input sequence. If an id does not correspond to any entity in the
+     * database, it will simply be skipped, and no corresponding entity will be included in the returned sequence. If the
+     * same entity is requested multiple times, it may be included in the sequence multiple times if it is part of a
+     * separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    @Override
+    public CloseableSequence<E> selectAllById(@Nonnull Sequence<ID> ids, int batchSize) {
+        return CloseableSequence.from( entityRepository.selectAllById(toStream(ids), batchSize));
+    }
+
+    /**
+     * Retrieves a sequence of entities based on their primary keys.
+     *
+     * <p>This method executes queries in batches, depending on the number of primary keys in the specified ids sequence.
+     * This optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities.
+     * The batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>This method is designed for efficient data handling by only retrieving specified entities as needed.
+     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * resources after processing to prevent resource leaks.</p>
+     *
+     * @param refs a sequence of refs to retrieve from the repository.
+     * @return a sequence of entities corresponding to the provided primary keys. The order of entities in the sequence is
+     *         not guaranteed to match the order of ids in the input sequence. If an id does not correspond to any entity
+     *         in the database, it will simply be skipped, and no corresponding entity will be included in the returned
+     *         sequence. If the same entity is requested multiple times, it may be included in the sequence multiple times
+     *         if it is part of a separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    @Override
+    public CloseableSequence<E> selectAllByRef(@Nonnull Sequence<Ref<E>> refs) {
+        return CloseableSequence.from( entityRepository.selectAllByRef(toStream(refs)));
+    }
+
+    /**
+     * Processes a sequence of entities corresponding to the provided refs using the specified callback.
+     * This method retrieves entities matching the given IDs and applies the callback to process the results,
+     * returning the outcome produced by the callback.
+     *
+     * <p>This method is designed for efficient data handling by only retrieving specified entities as needed.
+     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * resources after processing to prevent resource leaks.</p>
+     *
+     * @param refs a sequence of refs to retrieve from the repository.
+     * @param callback a {@link KResultCallback} defining how to process the sequence of entities and produce a result.
+     * @param <R> the type of result produced by the callback after processing the entities.
+     * @return the result produced by the callback's processing of the projection sequence.
+     * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
+     */
+    @Override
+    public <R> R selectAllByRef(@Nonnull Sequence<Ref<E>> refs, @Nonnull KResultCallback<E, R> callback) {
+        return entityRepository.selectAllByRef(toStream(refs), stream -> callback.process(toSequence(stream)));
     }
 
     /**

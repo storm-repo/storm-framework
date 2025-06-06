@@ -1220,10 +1220,12 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @throws PersistenceException if the query fails.
      */
     public final R getSingleResult() {
-        return getResultStream()
-                .reduce((_, _) -> {
-                    throw new NonUniqueResultException("Expected single result, but found more than one.");
-                }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
+        try (var stream = getResultStream()) {
+            return stream
+                    .reduce((_, _) -> {
+                        throw new NonUniqueResultException("Expected single result, but found more than one.");
+                    }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
+        }
     }
 
     /**
@@ -1234,10 +1236,11 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @throws PersistenceException if the query fails.
      */
     public final Optional<R> getOptionalResult() {
-        return getResultStream()
-                .reduce((_, _) -> {
-                    throw new NonUniqueResultException("Expected single result, but found more than one.");
-                });
+        try (var stream = getResultStream()) {
+            return stream.reduce((_, _) -> {
+                throw new NonUniqueResultException("Expected single result, but found more than one.");
+            });
+        }
     }
 
     /**

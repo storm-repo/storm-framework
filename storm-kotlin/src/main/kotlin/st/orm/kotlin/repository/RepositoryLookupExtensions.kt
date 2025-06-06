@@ -26,6 +26,7 @@ import st.orm.template.Metamodel
 import st.orm.template.Operator.EQUALS
 import st.orm.template.Operator.IN
 import st.orm.template.QueryBuilder
+import java.util.stream.Stream
 import kotlin.jvm.optionals.getOrNull
 
 /**
@@ -101,6 +102,27 @@ inline fun <reified T> RepositoryLookup.findAll(): List<T>
  *
  * [T] must be either an Entity or Projection type.
  *
+ * @return Stream containing all records.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T> RepositoryLookup.selectAll(): Stream<T>
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).selectAll()
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).selectAll()
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Retrieves all records of type [T] from the repository.
+ *
+ * [T] must be either an Entity or Projection type.
+ *
  * @return List containing all records.
  */
 @Suppress("UNCHECKED_CAST")
@@ -113,6 +135,27 @@ inline fun <reified T> RepositoryLookup.findAllRef(): List<Ref<T>>
     Projection::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("projection", Class::class.java)
         (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).selectRef().resultList
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Retrieves all records of type [T] from the repository.
+ *
+ * [T] must be either an Entity or Projection type.
+ *
+ * @return Stream containing all records.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T> RepositoryLookup.selectAllRef(): Stream<Ref<T>>
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).selectRef().resultStream
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).selectRef().resultStream
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
@@ -191,6 +234,30 @@ inline fun <reified T, V> RepositoryLookup.findAllBy(field: Metamodel<T, V>, val
 
 /**
  * Retrieves records of type [T] matching a single field and a single value.
+ * Returns an empty stream if no records are found.
+ *
+ * [T] must be either an Entity or Projection type.
+ *
+ * @param field Metamodel reference of the record field.
+ * @param value The value to match against.
+ * @return Stream of matching records.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> RepositoryLookup.selectAllBy(field: Metamodel<T, V>, value: V): Stream<T>
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).select().where(field, EQUALS, value).resultStream
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).select().where(field, EQUALS, value).resultStream
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Retrieves records of type [T] matching a single field and a single value.
  * Returns an empty list if no records are found.
  *
  * [T] must be either an Entity or Projection type.
@@ -209,6 +276,30 @@ inline fun <reified T, V> RepositoryLookup.findAllBy(field: Metamodel<T, V>, val
     Projection::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("projection", Class::class.java)
         (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).select().where(field, value).resultList
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Retrieves records of type [T] matching a single field and a single value.
+ * Returns an empty stream if no records are found.
+ *
+ * [T] must be either an Entity or Projection type.
+ *
+ * @param field Metamodel reference of the record field.
+ * @param value The value to match against.
+ * @return Stream of matching records.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> RepositoryLookup.selectAllBy(field: Metamodel<T, V>, value: Ref<V>): Stream<T>
+        where T : Record, V : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).select().where(field, value).resultStream
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).select().where(field, value).resultStream
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
@@ -239,6 +330,30 @@ inline fun <reified T, V> RepositoryLookup.findAllBy(field: Metamodel<T, V>, val
 
 /**
  * Retrieves records of type [T] matching a single field against multiple values.
+ * Returns an empty stream if no records are found.
+ *
+ * [T] must be either an Entity or Projection type.
+ *
+ * @param field Metamodel reference of the record field.
+ * @param values Iterable of values to match against.
+ * @return Stream of matching records.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> RepositoryLookup.selectAllBy(field: Metamodel<T, V>, values: Iterable<V>): Stream<T>
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).select().where(field, IN, values).resultStream
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).select().where(field, IN, values).resultStream
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Retrieves records of type [T] matching a single field against multiple values.
  * Returns an empty list if no records are found.
  *
  * [T] must be either an Entity or Projection type.
@@ -257,6 +372,30 @@ inline fun <reified T, V> RepositoryLookup.findAllByRef(field: Metamodel<T, V>, 
     Projection::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("projection", Class::class.java)
         (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).select().whereRef(field, values).resultList
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Retrieves records of type [T] matching a single field against multiple values.
+ * Returns an empty stream if no records are found.
+ *
+ * [T] must be either an Entity or Projection type.
+ *
+ * @param field Metamodel reference of the record field.
+ * @param values Iterable of values to match against.
+ * @return Stream of matching records.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> RepositoryLookup.selectAllByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): Stream<T>
+        where T : Record, V : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).select().whereRef(field, values).resultStream
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).select().whereRef(field, values).resultStream
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
@@ -381,6 +520,28 @@ inline fun <reified T, V> RepositoryLookup.findAllRefBy(field: Metamodel<T, V>, 
 
 /**
  * Retrieves entities of type [T] matching a single field and a single value.
+ * Returns an empty stream if no entities are found.
+ *
+ * @param field Metamodel reference of the entity field.
+ * @param value The value to match against.
+ * @return Stream of matching entities.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> RepositoryLookup.selectAllRefBy(field: Metamodel<T, V>, value: V): Stream<Ref<T>>
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).selectRef().where(field, EQUALS, value).resultStream
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).selectRef().where(field, EQUALS, value).resultStream
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Retrieves entities of type [T] matching a single field and a single value.
  * Returns an empty list if no entities are found.
  *
  * @param field Metamodel reference of the entity field.
@@ -397,6 +558,28 @@ inline fun <reified T, V> RepositoryLookup.findAllRefBy(field: Metamodel<T, V>, 
     Projection::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("projection", Class::class.java)
         (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).selectRef().where(field, value).resultList
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Retrieves entities of type [T] matching a single field and a single value.
+ * Returns an empty stream if no entities are found.
+ *
+ * @param field Metamodel reference of the entity field.
+ * @param value The value to match against.
+ * @return Stream of matching entities.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> RepositoryLookup.selectAllRefBy(field: Metamodel<T, V>, value: Ref<V>): Stream<Ref<T>>
+        where T : Record, V : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).selectRef().where(field, value).resultStream
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).selectRef().where(field, value).resultStream
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
@@ -425,6 +608,28 @@ inline fun <reified T, V> RepositoryLookup.findAllRefBy(field: Metamodel<T, V>, 
 
 /**
  * Retrieves entities of type [T] matching a single field against multiple values.
+ * Returns an empty stream if no entities are found.
+ *
+ * @param field Metamodel reference of the entity field.
+ * @param values Iterable of values to match against.
+ * @return Stream of matching entities.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> RepositoryLookup.selectAllRefBy(field: Metamodel<T, V>, values: Iterable<V>): Stream<Ref<T>>
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).selectRef().where(field, IN, values).resultStream
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).selectRef().where(field, IN, values).resultStream
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Retrieves entities of type [T] matching a single field against multiple values.
  * Returns an empty list if no entities are found.
  *
  * @param field Metamodel reference of the entity field.
@@ -441,6 +646,28 @@ inline fun <reified T, V> RepositoryLookup.findAllRefByRef(field: Metamodel<T, V
     Projection::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("projection", Class::class.java)
         (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).selectRef().whereRef(field, values).resultList
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Retrieves entities of type [T] matching a single field against multiple values.
+ * Returns an empty stream if no entities are found.
+ *
+ * @param field Metamodel reference of the entity field.
+ * @param values Iterable of values to match against.
+ * @return Stream of matching entities.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> RepositoryLookup.selectAllRefByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): Stream<Ref<T>>
+        where T : Record, V : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).selectRef().whereRef(field, values).resultStream
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).selectRef().whereRef(field, values).resultStream
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }

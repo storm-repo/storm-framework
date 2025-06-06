@@ -674,6 +674,24 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
     // Sequence based methods.
 
     /**
+     * Returns a sequence of all entities of the type supported by this repository. Each element in the sequence represents
+     * an entity in the database, encapsulating all relevant data as mapped by the entity model.
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @return a sequence of all entities of the type supported by this repository.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    CloseableSequence<E> selectAll();
+    
+    /**
      * Processes a sequence of all entities of the type supported by this repository using the specified callback.
      * This method retrieves the entities and applies the provided callback to process them, returning the
      * result produced by the callback.
@@ -690,6 +708,32 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
     <R> R selectAll(@Nonnull KResultCallback<E, R> callback);
 
     /**
+     * Retrieves a sequence of entities based on their primary keys.
+     *
+     * <p>This method executes queries in batches, depending on the number of primary keys in the specified ids sequence.
+     * This optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities.
+     * The batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @param ids a sequence of entity IDs to retrieve from the repository.
+     * @return a sequence of entities corresponding to the provided primary keys. The order of entities in the sequence is
+     *         not guaranteed to match the order of ids in the input sequence. If an id does not correspond to any entity
+     *         in the database, it will simply be skipped, and no corresponding entity will be included in the returned
+     *         sequence. If the same entity is requested multiple times, it may be included in the sequence multiple times
+     *         if it is part of a separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    CloseableSequence<E> selectAllById(@Nonnull Sequence<ID> ids);
+
+    /**
      * Processes a sequence of entities corresponding to the provided IDs using the specified callback.
      * This method retrieves entities matching the given IDs and applies the callback to process the results,
      * returning the outcome produced by the callback.
@@ -704,7 +748,79 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * @return the result produced by the callback's processing of the entity sequence.
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
-    <R> R selectAll(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<E, R> callback);
+    <R> R selectAllById(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<E, R> callback);
+
+    /**
+     * Retrieves a sequence of entities based on their primary keys.
+     *
+     * <p>This method executes queries in batches, depending on the number of primary keys in the specified ids sequence.
+     * This optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities.
+     * The batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @param refs a sequence of refs to retrieve from the repository.
+     * @return a sequence of entities corresponding to the provided primary keys. The order of entities in the sequence is
+     *         not guaranteed to match the order of ids in the input sequence. If an id does not correspond to any entity
+     *         in the database, it will simply be skipped, and no corresponding entity will be included in the returned
+     *         sequence. If the same entity is requested multiple times, it may be included in the sequence multiple times
+     *         if it is part of a separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    CloseableSequence<E> selectAllByRef(@Nonnull Sequence<Ref<E>> refs);
+    
+    /**
+     * Processes a sequence of entities corresponding to the provided refs using the specified callback.
+     * This method retrieves entities matching the given IDs and applies the callback to process the results,
+     * returning the outcome produced by the callback.
+     *
+     * <p>This method is designed for efficient data handling by only retrieving specified entities as needed.
+     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * resources after processing to prevent resource leaks.</p>
+     *
+     * @param refs a sequence of refs to retrieve from the repository.
+     * @param callback a {@link KResultCallback} defining how to process the sequence of entities and produce a result.
+     * @param <R> the type of result produced by the callback after processing the entities.
+     * @return the result produced by the callback's processing of the projection sequence.
+     * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
+     */
+    <R> R selectAllByRef(@Nonnull Sequence<Ref<E>> refs, @Nonnull KResultCallback<E, R> callback);
+
+    /**
+     * Retrieves a sequence of entities based on their primary keys.
+     *
+     * <p>This method executes queries in batches, with the batch size determined by the provided parameter. This
+     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities. The
+     * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @param ids a sequence of entity IDs to retrieve from the repository.
+     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
+     *                  dealing with large sets of primary keys.
+     * @return a sequence of entities corresponding to the provided primary keys. The order of entities in the sequence is
+     * not guaranteed to match the order of refs in the input sequence. If an id does not correspond to any entity in the
+     * database, it will simply be skipped, and no corresponding entity will be included in the returned sequence. If the
+     * same entity is requested multiple times, it may be included in the sequence multiple times if it is part of a
+     * separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    CloseableSequence<E> selectAllById(@Nonnull Sequence<ID> ids, int batchSize);
 
     /**
      * Retrieves a sequence of entities based on their primary keys.
@@ -722,7 +838,7 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
      *                  dealing with large sets of primary keys.
      * @return a sequence of entities corresponding to the provided primary keys. The order of entities in the sequence is
-     * not guaranteed to match the order of ids in the input sequence. If an id does not correspond to any entity in the
+     * not guaranteed to match the order of refs in the input sequence. If an id does not correspond to any entity in the
      * database, it will simply be skipped, and no corresponding entity will be included in the returned sequence. If the
      * same entity is requested multiple times, it may be included in the sequence multiple times if it is part of a
      * separate batch.
@@ -730,6 +846,35 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      *                              connectivity.
      */
     <R> R selectAllById(@Nonnull Sequence<ID> ids, int batchSize, @Nonnull KResultCallback<E, R> callback);
+    
+    /**
+     * Retrieves a sequence of entities based on their primary keys.
+     *
+     * <p>This method executes queries in batches, with the batch size determined by the provided parameter. This
+     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities. The
+     * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @param refs a sequence of refs to retrieve from the repository.
+     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
+     *                  dealing with large sets of primary keys.
+     * @return a sequence of entities corresponding to the provided primary keys. The order of entities in the sequence is
+     * not guaranteed to match the order of refs in the input sequence. If an id does not correspond to any entity in the
+     * database, it will simply be skipped, and no corresponding entity will be included in the returned sequence. If the
+     * same entity is requested multiple times, it may be included in the sequence multiple times if it is part of a
+     * separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    CloseableSequence<E> selectAllByRef(@Nonnull Sequence<Ref<E>> refs, int batchSize);
 
     /**
      * Retrieves a sequence of entities based on their primary keys.

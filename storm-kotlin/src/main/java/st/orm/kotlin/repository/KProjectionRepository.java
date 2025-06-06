@@ -267,6 +267,24 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
     // Sequence based methods.
 
     /**
+     * Returns a sequence of all projections of the type supported by this repository. Each element in the sequence represents
+     * a projection in the database, encapsulating all relevant data as mapped by the projection model.
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @return a sequence of all projections of the type supported by this repository.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    CloseableSequence<P> selectAll();
+
+    /**
      * Processes a sequence of all projections of the type supported by this repository using the specified callback.
      * This method retrieves the projections and applies the provided callback to process them, returning the
      * result produced by the callback.
@@ -280,7 +298,33 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
      * @return the result produced by the callback's processing of the projection sequence.
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
-    <R> R findAll(@Nonnull KResultCallback<P, R> callback);
+    <R> R selectAll(@Nonnull KResultCallback<P, R> callback);
+
+    /**
+     * Retrieves a sequence of projections based on their primary keys.
+     *
+     * <p>This method executes queries in batches, depending on the number of primary keys in the specified ids sequence.
+     * This optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve projections.
+     * The batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @param ids a sequence of projection IDs to retrieve from the repository.
+     * @return a sequence of projections corresponding to the provided primary keys. The order of projections in the sequence is
+     *         not guaranteed to match the order of ids in the input sequence. If an id does not correspond to any projection
+     *         in the database, it will simply be skipped, and no corresponding projection will be included in the returned
+     *         sequence. If the same projection is requested multiple times, it may be included in the sequence multiple times
+     *         if it is part of a separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    CloseableSequence<P> selectAllById(@Nonnull Sequence<ID> ids);
 
     /**
      * Processes a sequence of projections corresponding to the provided IDs using the specified callback.
@@ -297,7 +341,33 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
      * @return the result produced by the callback's processing of the projection sequence.
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
-    <R> R findAllById(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<P, R> callback);
+    <R> R selectAllById(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<P, R> callback);
+
+    /**
+     * Retrieves a sequence of projections based on their primary keys.
+     *
+     * <p>This method executes queries in batches, depending on the number of primary keys in the specified ids sequence.
+     * This optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve projections.
+     * The batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @param refs a sequence of refs to retrieve from the repository.
+     * @return a sequence of projections corresponding to the provided primary keys. The order of projections in the sequence is
+     *         not guaranteed to match the order of ids in the input sequence. If an id does not correspond to any projection
+     *         in the database, it will simply be skipped, and no corresponding projection will be included in the returned
+     *         sequence. If the same projection is requested multiple times, it may be included in the sequence multiple times
+     *         if it is part of a separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    CloseableSequence<P> selectAllByRef(@Nonnull Sequence<Ref<P>> refs);
 
     /**
      * Retrieves a sequence of projections based on their primary keys.
@@ -322,8 +392,37 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    <R> R findAllById(@Nonnull Sequence<ID> ids, int batchSize, @Nonnull KResultCallback<P, R> callback);
+    <R> R selectAllById(@Nonnull Sequence<ID> ids, int batchSize, @Nonnull KResultCallback<P, R> callback);
 
+    /**
+     * Retrieves a sequence of projections based on their primary keys.
+     *
+     * <p>This method executes queries in batches, with the batch size determined by the provided parameter. This
+     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve projections. The
+     * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @param ids a sequence of projection IDs to retrieve from the repository.
+     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
+     *                  dealing with large sets of primary keys.
+     * @return a sequence of projections corresponding to the provided primary keys. The order of projections in the sequence is
+     * not guaranteed to match the order of ids in the input sequence. If an id does not correspond to any projection in the
+     * database, it will simply be skipped, and no corresponding projection will be included in the returned sequence. If the
+     * same projection is requested multiple times, it may be included in the sequence multiple times if it is part of a
+     * separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    CloseableSequence<P> selectAllById(@Nonnull Sequence<ID> ids, int batchSize);
+    
     /**
      * Processes a sequence of projections corresponding to the provided refs using the specified callback.
      * This method retrieves projections matching the given IDs and applies the callback to process the results,
@@ -339,8 +438,37 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
      * @return the result produced by the callback's processing of the projection sequence.
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
-    <R> R findAllByRef(@Nonnull Sequence<Ref<P>> refs, @Nonnull KResultCallback<P, R> callback);
+    <R> R selectAllByRef(@Nonnull Sequence<Ref<P>> refs, @Nonnull KResultCallback<P, R> callback);
 
+    /**
+     * Retrieves a sequence of projections based on their primary keys.
+     *
+     * <p>This method executes queries in batches, with the batch size determined by the provided parameter. This
+     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve projections. The
+     * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @param refs a sequence of refs to retrieve from the repository.
+     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
+     *                  dealing with large sets of primary keys.
+     * @return a sequence of projections corresponding to the provided primary keys. The order of projections in the sequence is
+     * not guaranteed to match the order of refs in the input sequence. If an id does not correspond to any projection in the
+     * database, it will simply be skipped, and no corresponding projection will be included in the returned sequence. If the
+     * same projection is requested multiple times, it may be included in the sequence multiple times if it is part of a
+     * separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    CloseableSequence<P> selectAllByRef(@Nonnull Sequence<Ref<P>> refs, int batchSize);
+    
     /**
      * Retrieves a sequence of projections based on their primary keys.
      *
@@ -364,7 +492,7 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    <R> R findAllByRef(@Nonnull Sequence<Ref<P>> refs, int batchSize, @Nonnull KResultCallback<P, R> callback);
+    <R> R selectAllByRef(@Nonnull Sequence<Ref<P>> refs, int batchSize, @Nonnull KResultCallback<P, R> callback);
 
     /**
      * Counts the number of projections identified by the provided sequence of IDs using the default batch size.

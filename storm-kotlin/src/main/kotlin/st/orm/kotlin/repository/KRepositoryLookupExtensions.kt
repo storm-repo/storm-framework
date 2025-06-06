@@ -97,6 +97,30 @@ inline fun <reified T> KRepositoryLookup.findAll(): List<T>
  *
  * [T] must be either an Entity or Projection type.
  *
+ * @return Stream containing all records.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T> KRepositoryLookup.selectAll(): CloseableSequence<T>
+        where T : Record = CloseableSequence.from(
+    when {
+        Entity::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("entity", Class::class.java)
+            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select().resultStream
+        }
+
+        Projection::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("projection", Class::class.java)
+            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select().resultStream
+        }
+
+        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+    })
+
+/**
+ * Retrieves all records of type [T] from the repository.
+ *
+ * [T] must be either an Entity or Projection type.
+ *
  * @return List containing all records.
  */
 @Suppress("UNCHECKED_CAST")
@@ -112,6 +136,30 @@ inline fun <reified T> KRepositoryLookup.findAllRef(): List<Ref<T>>
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
+
+/**
+ * Retrieves all records of type [T] from the repository.
+ *
+ * [T] must be either an Entity or Projection type.
+ *
+ * @return Stream containing all records.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T> KRepositoryLookup.selectAllRef(): CloseableSequence<Ref<T>>
+        where T : Record = CloseableSequence.from(
+    when {
+        Entity::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("entity", Class::class.java)
+            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef().resultStream
+        }
+
+        Projection::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("projection", Class::class.java)
+            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef().resultStream
+        }
+
+        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+    })
 
 /**
  * Retrieves an optional record of type [T] based on a single field and its value.
@@ -187,6 +235,35 @@ inline fun <reified T, V> KRepositoryLookup.findAllBy(field: Metamodel<T, V>, va
 
 /**
  * Retrieves records of type [T] matching a single field and a single value.
+ * Returns an empty stream if no records are found.
+ *
+ * [T] must be either an Entity or Projection type.
+ *
+ * @param field Metamodel reference of the record field.
+ * @param value The value to match against.
+ * @return Stream of matching records.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> KRepositoryLookup.selectAllBy(field: Metamodel<T, V>, value: V): CloseableSequence<T>
+        where T : Record = CloseableSequence.from(
+    when {
+        Entity::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("entity", Class::class.java)
+            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select()
+                .where(field, EQUALS, value).resultStream
+        }
+
+        Projection::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("projection", Class::class.java)
+            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select()
+                .where(field, EQUALS, value).resultStream
+        }
+
+        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+    })
+
+/**
+ * Retrieves records of type [T] matching a single field and a single value.
  * Returns an empty list if no records are found.
  *
  * [T] must be either an Entity or Projection type.
@@ -208,6 +285,33 @@ inline fun <reified T, V> KRepositoryLookup.findAllBy(field: Metamodel<T, V>, va
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
+
+/**
+ * Retrieves records of type [T] matching a single field and a single value.
+ * Returns an empty stream if no records are found.
+ *
+ * [T] must be either an Entity or Projection type.
+ *
+ * @param field Metamodel reference of the record field.
+ * @param value The value to match against.
+ * @return Stream of matching records.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> KRepositoryLookup.selectAllBy(field: Metamodel<T, V>, value: Ref<V>): CloseableSequence<T>
+        where T : Record, V : Record = CloseableSequence.from(
+    when {
+        Entity::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("entity", Class::class.java)
+            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select()
+                .where(field, value).resultStream
+        }
+        Projection::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("projection", Class::class.java)
+            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select()
+                .where(field, value).resultStream
+        }
+        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+    })
 
 /**
  * Retrieves records of type [T] matching a single field against multiple values.
@@ -235,6 +339,33 @@ inline fun <reified T, V> KRepositoryLookup.findAllBy(field: Metamodel<T, V>, va
 
 /**
  * Retrieves records of type [T] matching a single field against multiple values.
+ * Returns an empty stream if no records are found.
+ *
+ * [T] must be either an Entity or Projection type.
+ *
+ * @param field Metamodel reference of the record field.
+ * @param values Iterable of values to match against.
+ * @return Stream of matching records.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> KRepositoryLookup.selectAllBy(field: Metamodel<T, V>, values: Iterable<V>): CloseableSequence<T>
+        where T : Record = CloseableSequence.from(
+    when {
+        Entity::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("entity", Class::class.java)
+            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select()
+                .where(field, IN, values).resultStream
+        }
+        Projection::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("projection", Class::class.java)
+            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select()
+                .where(field, IN, values).resultStream
+        }
+        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+    })
+
+/**
+ * Retrieves records of type [T] matching a single field against multiple values.
  * Returns an empty list if no records are found.
  *
  * [T] must be either an Entity or Projection type.
@@ -256,6 +387,33 @@ inline fun <reified T, V> KRepositoryLookup.findAllByRef(field: Metamodel<T, V>,
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
+
+/**
+ * Retrieves records of type [T] matching a single field against multiple values.
+ * Returns an empty stream if no records are found.
+ *
+ * [T] must be either an Entity or Projection type.
+ *
+ * @param field Metamodel reference of the record field.
+ * @param values Iterable of values to match against.
+ * @return Stream of matching records.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> KRepositoryLookup.selectAllByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): CloseableSequence<T>
+        where T : Record, V : Record = CloseableSequence.from(
+    when {
+        Entity::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("entity", Class::class.java)
+            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select()
+                .whereRef(field, values).resultStream
+        }
+        Projection::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("projection", Class::class.java)
+            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select()
+                .whereRef(field, values).resultStream
+        }
+        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+    })
 
 /**
  * Retrieves exactly one record of type [T] based on a single field and its value.
@@ -377,6 +535,31 @@ inline fun <reified T, V> KRepositoryLookup.findAllRefBy(field: Metamodel<T, V>,
 
 /**
  * Retrieves entities of type [T] matching a single field and a single value.
+ * Returns an empty stream if no entities are found.
+ *
+ * @param field Metamodel reference of the entity field.
+ * @param value The value to match against.
+ * @return Stream of matching entities.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> KRepositoryLookup.selectAllRefBy(field: Metamodel<T, V>, value: V): CloseableSequence<Ref<T>>
+        where T : Record = CloseableSequence.from(
+    when {
+        Entity::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("entity", Class::class.java)
+            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef()
+                .where(field, EQUALS, value).resultStream
+        }
+        Projection::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("projection", Class::class.java)
+            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef()
+                .where(field, EQUALS, value).resultStream
+        }
+        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+    })
+
+/**
+ * Retrieves entities of type [T] matching a single field and a single value.
  * Returns an empty list if no entities are found.
  *
  * @param field Metamodel reference of the entity field.
@@ -396,6 +579,31 @@ inline fun <reified T, V> KRepositoryLookup.findAllRefBy(field: Metamodel<T, V>,
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
+
+/**
+ * Retrieves entities of type [T] matching a single field and a single value.
+ * Returns an empty stream if no entities are found.
+ *
+ * @param field Metamodel reference of the entity field.
+ * @param value The value to match against.
+ * @return Stream of matching entities.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> KRepositoryLookup.selectAllRefBy(field: Metamodel<T, V>, value: Ref<V>): CloseableSequence<Ref<T>>
+        where T : Record, V : Record = CloseableSequence.from(
+    when {
+        Entity::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("entity", Class::class.java)
+            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef()
+                .where(field, value).resultStream
+        }
+        Projection::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("projection", Class::class.java)
+            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef()
+                .where(field, value).resultStream
+        }
+        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+    })
 
 /**
  * Retrieves entities of type [T] matching a single field against multiple values.
@@ -421,6 +629,31 @@ inline fun <reified T, V> KRepositoryLookup.findAllRefBy(field: Metamodel<T, V>,
 
 /**
  * Retrieves entities of type [T] matching a single field against multiple values.
+ * Returns an empty stream if no entities are found.
+ *
+ * @param field Metamodel reference of the entity field.
+ * @param values Iterable of values to match against.
+ * @return Stream of matching entities.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> KRepositoryLookup.selectAllRefBy(field: Metamodel<T, V>, values: Iterable<V>): CloseableSequence<Ref<T>>
+        where T : Record = CloseableSequence.from(
+    when {
+        Entity::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("entity", Class::class.java)
+            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef()
+                .where(field, IN, values).resultStream
+        }
+        Projection::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("projection", Class::class.java)
+            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef()
+                .where(field, IN, values).resultStream
+        }
+        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+    })
+
+/**
+ * Retrieves entities of type [T] matching a single field against multiple values.
  * Returns an empty list if no entities are found.
  *
  * @param field Metamodel reference of the entity field.
@@ -440,6 +673,31 @@ inline fun <reified T, V> KRepositoryLookup.findAllRefByRef(field: Metamodel<T, 
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
+
+/**
+ * Retrieves entities of type [T] matching a single field against multiple values.
+ * Returns an empty stream if no entities are found.
+ *
+ * @param field Metamodel reference of the entity field.
+ * @param values Iterable of values to match against.
+ * @return Stream of matching entities.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> KRepositoryLookup.selectAllRefByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): CloseableSequence<Ref<T>>
+        where T : Record, V : Record = CloseableSequence.from(
+    when {
+        Entity::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("entity", Class::class.java)
+            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef()
+                .whereRef(field, values).resultStream
+        }
+        Projection::class.java.isAssignableFrom(T::class.java) -> {
+            val method = this::class.java.getMethod("projection", Class::class.java)
+            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef()
+                .whereRef(field, values).resultStream
+        }
+        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+    })
 
 /**
  * Retrieves exactly one entity of type [T] based on a single field and its value.
@@ -633,3 +891,40 @@ inline infix fun <reified T> KRepositoryLookup.update(entity: T): T
 inline infix fun <reified T> KRepositoryLookup.update(entity: Iterable<T>): List<T>
         where T : Record, T : Entity<*> =
     entity<T>().updateAndFetch(entity)
+
+/**
+ * Ensures that the sequence is closed after use, thereby preventing resource leaks.
+ *
+ * Important: This method closes the underlying resources only if the sequence is fully consumed.
+ * Operations such as `take`, `drop`, or other partial-consuming operations will prevent automatic closure,
+ * resulting in potential resource leaks. If partial consumption is necessary, manually manage sequence closure.
+ *
+ * Usage example:
+ * ```kotlin
+ * myCloseableSequence.closing().forEach { println(it) }
+ * // The underlying resources are closed automatically.
+ * ```
+ *
+ * @return A standard [Sequence] that automatically closes the underlying resources upon complete iteration.
+ */
+fun <T> CloseableSequence<T>.closing(): Sequence<T> = sequence {
+        use { sequence -> // ensure close after sequence completion.
+            for (item in sequence) yield(item)
+        }
+    }
+
+/**
+ * Yields all elements from the given [CloseableSequence] into this [SequenceScope].
+ *
+ * Once the inner sequence is fully iterated, its [close()][CloseableSequence.close] method
+ * will be called automatically. If iteration stops before consuming every element
+ * (for example, using `take(n)`), the caller must close the sequence manually to avoid leaks.
+ *
+ * @receiver The [SequenceScope] into which elements are yielded.
+ * @param closeable The [CloseableSequence] whose elements should be produced.
+ */
+suspend fun <T> SequenceScope<T>.yieldClosing(closeableSequence: CloseableSequence<T>) {
+    closeableSequence.use { yielded ->
+        yieldAll(yielded)
+    }
+}
