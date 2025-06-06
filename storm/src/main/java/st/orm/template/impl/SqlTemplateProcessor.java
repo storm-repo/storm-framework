@@ -172,20 +172,23 @@ record SqlTemplateProcessor(
             case Short s   -> s.toString();
             case Integer i -> i.toString();
             case Long l    -> l.toString();
-            case Float f   -> // Avoid scientific notation if you prefer plain format:
-                    f.toString();
-            case Double d  -> // Avoid scientific notation if you prefer plain format:
-                    d.toString();
+            case Float f   -> f.toString();
+            case Double d  -> d.toString();
             case Byte b    -> b.toString();
             case Boolean b -> b ? "TRUE" : "FALSE";
-            case String s  -> STR."'\{s.replace("'", "''")}'";
-            case java.sql.Date d -> STR."'\{d.toString()}'";
-            case java.sql.Time t -> STR."'\{t.toString()}'";
-            case java.sql.Timestamp t -> STR."'\{t.toString()}'";
-            // Always write enums as String. Ordinal option is handled at the ORM level.
-            case Enum<?> e -> STR."'\{e.name().replace("'", "''")}'";
+            case String s  -> // First double every backslash, then double single-quotes.
+                    STR."'\{s.replace("\\", "\\\\")
+                            .replace("'", "''")}'";
+            case java.sql.Date d       -> STR."'\{d}'";
+            case java.sql.Time t       -> STR."'\{t}'";
+            case java.sql.Timestamp t  -> STR."'\{t}'";
+            case Enum<?> e -> STR."'\{e.name()
+                    .replace("\\", "\\\\")
+                    .replace("'", "''")}'";
             default -> {
-                String str = dbValue.toString().replace("'", "''");
+                String str = dbValue.toString()
+                        .replace("\\", "\\\\")
+                        .replace("'", "''");
                 yield STR."'\{str}'";
             }
         };

@@ -26,6 +26,7 @@ import st.orm.Ref;
 import st.orm.kotlin.KPreparedQuery;
 import st.orm.kotlin.KQuery;
 import st.orm.kotlin.KResultCallback;
+import st.orm.kotlin.repository.CloseableSequence;
 import st.orm.template.JoinType;
 import st.orm.template.Metamodel;
 import st.orm.template.Operator;
@@ -1165,6 +1166,24 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      *                              connectivity.
      */
     public abstract Stream<R> getResultStream();
+
+    /**
+     * Executes the query and returns a stream of results.
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @return a stream of results.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     *                              connectivity.
+     * @since 1.3
+     */
+    public abstract CloseableSequence<R> getResultSequence();
 
     /**
      * Executes the query and returns a stream of using the specified callback. This method retrieves the records and

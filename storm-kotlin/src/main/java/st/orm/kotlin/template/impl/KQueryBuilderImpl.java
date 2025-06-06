@@ -20,6 +20,7 @@ import kotlin.reflect.KClass;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.kotlin.KQuery;
+import st.orm.kotlin.repository.CloseableSequence;
 import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
@@ -169,6 +170,27 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
     @Override
     public Stream<R> getResultStream() {
         return builder.getResultStream();
+    }
+
+    /**
+     * Executes the query and returns a stream of results.
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @return a stream of results.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     *                              connectivity.
+     * @since 1.3
+     */
+    @Override
+    public CloseableSequence<R> getResultSequence() {
+        return CloseableSequence.from(getResultStream());
     }
 
     /**

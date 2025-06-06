@@ -22,6 +22,7 @@ import kotlin.sequences.SequencesKt;
 import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
 import st.orm.PersistenceException;
+import st.orm.kotlin.repository.CloseableSequence;
 
 import java.util.List;
 import java.util.Optional;
@@ -178,6 +179,26 @@ public interface KQuery {
      * <p>Each element in the stream represents a row in the result, where the columns of the row corresponds to the
      * order of values in the row array.</p>
      *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>     *
+     * @return a stream of results.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     *                              connectivity.
+     * @since 1.3
+     */
+    CloseableSequence<Object[]> getResultSequence();
+
+    /**
+     * Execute a SELECT query and return the resulting rows as a stream of row instances.
+     *
+     * <p>Each element in the stream represents a row in the result, where the columns of the row corresponds to the
+     * order of values in the row array.</p>
+     *
      * <p>This method ensures efficient handling of large data sets by loading entities only as needed.
      * It also manages lifecycle of the callback stream, automatically closing the stream after processing to prevent
      * resource leaks.</p>
@@ -210,6 +231,27 @@ public interface KQuery {
      *                              connectivity.
      */
     <T> Stream<T> getResultStream(@Nonnull KClass<T> type);
+
+    /**
+     * Execute a SELECT query and return the resulting rows as a stream of row instances.
+     *
+     * <p>Each element in the stream represents a row in the result, where the columns of the row are mapped to the
+     * constructor arguments of the specified {@code type}.</p>
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p>Note that calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @return a stream of results.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     *                              connectivity.
+     * @since 1.3
+     */
+    <T> CloseableSequence<T> getResultSequence(@Nonnull KClass<T> type);
 
     /**
      * Execute a SELECT query and return the resulting rows as a stream of row instances.

@@ -101,20 +101,17 @@ inline fun <reified T> KRepositoryLookup.findAll(): List<T>
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> KRepositoryLookup.selectAll(): CloseableSequence<T>
-        where T : Record = CloseableSequence.from(
-    when {
-        Entity::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("entity", Class::class.java)
-            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select().resultStream
-        }
-
-        Projection::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("projection", Class::class.java)
-            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select().resultStream
-        }
-
-        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
-    })
+        where T : Record =  when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select().resultSequence
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select().resultSequence
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
 
 /**
  * Retrieves all records of type [T] from the repository.
@@ -146,20 +143,17 @@ inline fun <reified T> KRepositoryLookup.findAllRef(): List<Ref<T>>
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> KRepositoryLookup.selectAllRef(): CloseableSequence<Ref<T>>
-        where T : Record = CloseableSequence.from(
-    when {
-        Entity::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("entity", Class::class.java)
-            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef().resultStream
-        }
-
-        Projection::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("projection", Class::class.java)
-            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef().resultStream
-        }
-
-        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
-    })
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef().resultSequence
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef().resultSequence
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
 
 /**
  * Retrieves an optional record of type [T] based on a single field and its value.
@@ -245,22 +239,19 @@ inline fun <reified T, V> KRepositoryLookup.findAllBy(field: Metamodel<T, V>, va
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.selectAllBy(field: Metamodel<T, V>, value: V): CloseableSequence<T>
-        where T : Record = CloseableSequence.from(
-    when {
-        Entity::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("entity", Class::class.java)
-            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select()
-                .where(field, EQUALS, value).resultStream
-        }
-
-        Projection::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("projection", Class::class.java)
-            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select()
-                .where(field, EQUALS, value).resultStream
-        }
-
-        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
-    })
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select()
+            .where(field, EQUALS, value).resultSequence
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select()
+            .where(field, EQUALS, value).resultSequence
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
 
 /**
  * Retrieves records of type [T] matching a single field and a single value.
@@ -298,20 +289,19 @@ inline fun <reified T, V> KRepositoryLookup.findAllBy(field: Metamodel<T, V>, va
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.selectAllBy(field: Metamodel<T, V>, value: Ref<V>): CloseableSequence<T>
-        where T : Record, V : Record = CloseableSequence.from(
-    when {
-        Entity::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("entity", Class::class.java)
-            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select()
-                .where(field, value).resultStream
-        }
-        Projection::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("projection", Class::class.java)
-            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select()
-                .where(field, value).resultStream
-        }
-        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
-    })
+        where T : Record, V : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select()
+            .where(field, value).resultSequence
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select()
+            .where(field, value).resultSequence
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
 
 /**
  * Retrieves records of type [T] matching a single field against multiple values.
@@ -349,20 +339,19 @@ inline fun <reified T, V> KRepositoryLookup.findAllBy(field: Metamodel<T, V>, va
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.selectAllBy(field: Metamodel<T, V>, values: Iterable<V>): CloseableSequence<T>
-        where T : Record = CloseableSequence.from(
-    when {
-        Entity::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("entity", Class::class.java)
-            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select()
-                .where(field, IN, values).resultStream
-        }
-        Projection::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("projection", Class::class.java)
-            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select()
-                .where(field, IN, values).resultStream
-        }
-        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
-    })
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select()
+            .where(field, IN, values).resultSequence
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select()
+            .where(field, IN, values).resultSequence
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
 
 /**
  * Retrieves records of type [T] matching a single field against multiple values.
@@ -400,20 +389,19 @@ inline fun <reified T, V> KRepositoryLookup.findAllByRef(field: Metamodel<T, V>,
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.selectAllByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): CloseableSequence<T>
-        where T : Record, V : Record = CloseableSequence.from(
-    when {
-        Entity::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("entity", Class::class.java)
-            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select()
-                .whereRef(field, values).resultStream
-        }
-        Projection::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("projection", Class::class.java)
-            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select()
-                .whereRef(field, values).resultStream
-        }
-        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
-    })
+        where T : Record, V : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).select()
+            .whereRef(field, values).resultSequence
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).select()
+            .whereRef(field, values).resultSequence
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
 
 /**
  * Retrieves exactly one record of type [T] based on a single field and its value.
@@ -543,20 +531,19 @@ inline fun <reified T, V> KRepositoryLookup.findAllRefBy(field: Metamodel<T, V>,
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.selectAllRefBy(field: Metamodel<T, V>, value: V): CloseableSequence<Ref<T>>
-        where T : Record = CloseableSequence.from(
-    when {
-        Entity::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("entity", Class::class.java)
-            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef()
-                .where(field, EQUALS, value).resultStream
-        }
-        Projection::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("projection", Class::class.java)
-            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef()
-                .where(field, EQUALS, value).resultStream
-        }
-        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
-    })
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef()
+            .where(field, EQUALS, value).resultSequence
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef()
+            .where(field, EQUALS, value).resultSequence
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
 
 /**
  * Retrieves entities of type [T] matching a single field and a single value.
@@ -590,20 +577,19 @@ inline fun <reified T, V> KRepositoryLookup.findAllRefBy(field: Metamodel<T, V>,
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.selectAllRefBy(field: Metamodel<T, V>, value: Ref<V>): CloseableSequence<Ref<T>>
-        where T : Record, V : Record = CloseableSequence.from(
-    when {
-        Entity::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("entity", Class::class.java)
-            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef()
-                .where(field, value).resultStream
-        }
-        Projection::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("projection", Class::class.java)
-            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef()
-                .where(field, value).resultStream
-        }
-        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
-    })
+        where T : Record, V : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef()
+            .where(field, value).resultSequence
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef()
+            .where(field, value).resultSequence
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
 
 /**
  * Retrieves entities of type [T] matching a single field against multiple values.
@@ -637,20 +623,19 @@ inline fun <reified T, V> KRepositoryLookup.findAllRefBy(field: Metamodel<T, V>,
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.selectAllRefBy(field: Metamodel<T, V>, values: Iterable<V>): CloseableSequence<Ref<T>>
-        where T : Record = CloseableSequence.from(
-    when {
-        Entity::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("entity", Class::class.java)
-            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef()
-                .where(field, IN, values).resultStream
-        }
-        Projection::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("projection", Class::class.java)
-            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef()
-                .where(field, IN, values).resultStream
-        }
-        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
-    })
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef()
+            .where(field, IN, values).resultSequence
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef()
+            .where(field, IN, values).resultSequence
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
 
 /**
  * Retrieves entities of type [T] matching a single field against multiple values.
@@ -684,20 +669,19 @@ inline fun <reified T, V> KRepositoryLookup.findAllRefByRef(field: Metamodel<T, 
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.selectAllRefByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): CloseableSequence<Ref<T>>
-        where T : Record, V : Record = CloseableSequence.from(
-    when {
-        Entity::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("entity", Class::class.java)
-            (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef()
-                .whereRef(field, values).resultStream
-        }
-        Projection::class.java.isAssignableFrom(T::class.java) -> {
-            val method = this::class.java.getMethod("projection", Class::class.java)
-            (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef()
-                .whereRef(field, values).resultStream
-        }
-        else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
-    })
+        where T : Record, V : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectRef()
+            .whereRef(field, values).resultSequence
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectRef()
+            .whereRef(field, values).resultSequence
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
 
 /**
  * Retrieves exactly one entity of type [T] based on a single field and its value.
