@@ -34,6 +34,7 @@ import static java.util.Objects.requireNonNull;
  */
 public final class RefFactoryImpl implements RefFactory {
     private final QueryTemplate template;
+    private final WeakInterner interner;
 
     public RefFactoryImpl(@Nonnull QueryFactory factory,
                           @Nonnull ModelBuilder modelBuilder,
@@ -43,6 +44,7 @@ public final class RefFactoryImpl implements RefFactory {
 
     public RefFactoryImpl(@Nonnull QueryTemplate template) {
         this.template = requireNonNull(template, "template");
+        this.interner = new WeakInterner();
     }
 
     /**
@@ -99,6 +101,7 @@ public final class RefFactoryImpl implements RefFactory {
      * @param <ID> primary key type.
      */
     private <T extends Record, ID> Ref<T> create(@Nonnull LazySupplier<T> supplier, @Nonnull Class<T> type, @Nonnull ID pk) {
-        return new RefImpl<>(supplier, type, pk);
+        // Use the interner to reuse the same ref to reduce fetch calls for the same entity.
+        return interner.intern(new RefImpl<>(supplier, type, pk));
     }
 }

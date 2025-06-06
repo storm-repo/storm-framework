@@ -47,6 +47,8 @@ import javax.sql.DataSource;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -838,6 +840,22 @@ public class RepositoryPreparedStatementIntegrationTest {
                     .getResultList();
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
+    }
+
+    @Test
+    public void testInternerRecord() {
+        var pets = ORM(dataSource).entity(Pet.class).select().getResultList();
+        var owners = Collections.newSetFromMap(new IdentityHashMap<>());
+        owners.addAll(pets.stream().map(Pet::owner).toList());
+        assertEquals(11, owners.size());
+    }
+
+    @Test
+    public void testInternerRef() {
+        var pets = ORM(dataSource).entity(PetOwnerRef.class).select().getResultList();
+        var owners = Collections.newSetFromMap(new IdentityHashMap<>());
+        owners.addAll(pets.stream().map(PetOwnerRef::owner).toList());
+        assertEquals(11, owners.size());
     }
 
     @Test
