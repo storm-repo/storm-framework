@@ -155,6 +155,7 @@ public interface Query {
      * constructor arguments primary key type.</p>
      *
      * @param type the type of the results that are being referenced.
+     * @param pkType the primary key type.
      * @return the result list.
      * @throws PersistenceException if the query fails.
      * @since 1.3

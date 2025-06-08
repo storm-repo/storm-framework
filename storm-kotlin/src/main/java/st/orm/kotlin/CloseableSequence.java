@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.kotlin.repository;
+package st.orm.kotlin;
 
 import jakarta.annotation.Nonnull;
 import kotlin.sequences.Sequence;
@@ -25,10 +25,9 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * A {@link Sequence} that holds resources requiring explicit closure.
- * <p>
- * Callers of {@link CloseableSequence} must ensure they explicitly invoke {@link #close()}
- * when the sequence is no longer needed, to release any underlying resources.
- * </p>
+ *
+ * <p>Callers of {@link CloseableSequence} must ensure they explicitly invoke {@link #close()}
+ * when the sequence is no longer needed, to release any underlying resources.</p>
  *
  * @param <T> The type of elements in the sequence.
  * @since 1.3

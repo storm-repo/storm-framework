@@ -22,7 +22,7 @@ import st.orm.Ref;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KResultCallback;
-import st.orm.kotlin.repository.CloseableSequence;
+import st.orm.kotlin.CloseableSequence;
 import st.orm.kotlin.template.KModel;
 import st.orm.kotlin.repository.KProjectionRepository;
 import st.orm.kotlin.template.KORMTemplate;

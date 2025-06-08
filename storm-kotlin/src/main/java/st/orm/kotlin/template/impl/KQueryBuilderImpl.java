@@ -20,7 +20,7 @@ import kotlin.reflect.KClass;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.kotlin.KQuery;
-import st.orm.kotlin.repository.CloseableSequence;
+import st.orm.kotlin.CloseableSequence;
 import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;

@@ -17,8 +17,6 @@ package st.orm.kotlin.template;
 
 import jakarta.annotation.Nonnull;
 import kotlin.reflect.KClass;
-import kotlin.sequences.Sequence;
-import kotlin.sequences.SequencesKt;
 import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
 import st.orm.PersistenceException;
@@ -26,7 +24,7 @@ import st.orm.Ref;
 import st.orm.kotlin.KPreparedQuery;
 import st.orm.kotlin.KQuery;
 import st.orm.kotlin.KResultCallback;
-import st.orm.kotlin.repository.CloseableSequence;
+import st.orm.kotlin.CloseableSequence;
 import st.orm.template.JoinType;
 import st.orm.template.Metamodel;
 import st.orm.template.Operator;
@@ -1200,8 +1198,8 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * connectivity.
      */
     public final <X> X getResult(@Nonnull KResultCallback<R, X> callback) {
-        try (Stream<R> stream = getResultStream()) {
-            return callback.process(toSequence(stream));
+        try (var sequence = getResultSequence()) {
+            return callback.process(sequence);
         }
     }
 
@@ -1296,9 +1294,5 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      */
     public static <X> Stream<List<X>> slice(@Nonnull Stream<X> stream, int size) {
         return QueryBuilder.slice(stream, size);
-    }
-
-    private <X> Sequence<X> toSequence(@Nonnull Stream<X> stream) {
-        return SequencesKt.asSequence(stream.iterator());
     }
 }

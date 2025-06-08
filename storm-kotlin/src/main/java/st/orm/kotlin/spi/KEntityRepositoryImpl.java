@@ -24,7 +24,7 @@ import st.orm.Ref;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KBatchCallback;
 import st.orm.kotlin.KResultCallback;
-import st.orm.kotlin.repository.CloseableSequence;
+import st.orm.kotlin.CloseableSequence;
 import st.orm.kotlin.repository.KEntityRepository;
 import st.orm.kotlin.template.KModel;
 import st.orm.kotlin.template.KORMTemplate;
@@ -910,7 +910,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      *                              connectivity.
      */    @Override
     public CloseableSequence<E> selectAllById(@Nonnull Sequence<ID> ids) {
-        return CloseableSequence.from( entityRepository.selectAllById(toStream(ids)));
+        return CloseableSequence.from(entityRepository.selectAllById(toStream(ids)));
     }
 
     /**
@@ -962,7 +962,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      */
     @Override
     public CloseableSequence<E> selectAllByRef(@Nonnull Sequence<Ref<E>> refs, int batchSize) {
-        return CloseableSequence.from( entityRepository.selectAllByRef(toStream(refs), batchSize));
+        return CloseableSequence.from(entityRepository.selectAllByRef(toStream(refs), batchSize));
     }
 
     /**
@@ -1022,7 +1022,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      */
     @Override
     public CloseableSequence<E> selectAllById(@Nonnull Sequence<ID> ids, int batchSize) {
-        return CloseableSequence.from( entityRepository.selectAllById(toStream(ids), batchSize));
+        return CloseableSequence.from(entityRepository.selectAllById(toStream(ids), batchSize));
     }
 
     /**
@@ -1047,7 +1047,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      */
     @Override
     public CloseableSequence<E> selectAllByRef(@Nonnull Sequence<Ref<E>> refs) {
-        return CloseableSequence.from( entityRepository.selectAllByRef(toStream(refs)));
+        return CloseableSequence.from(entityRepository.selectAllByRef(toStream(refs)));
     }
 
     /**
