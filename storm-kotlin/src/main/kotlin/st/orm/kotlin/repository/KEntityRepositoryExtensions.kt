@@ -55,9 +55,9 @@ fun <T, ID, V> KEntityRepository<T, ID>.selectAllRef(): CloseableSequence<Ref<T>
  * Retrieves an optional entity of type [T] based on a single field and its value.
  * Returns null if no matching entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
- * @return An optional entity, or null if none found.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return an optional entity, or null if none found.
  */
 fun <T, ID, V> KEntityRepository<T, ID>.findBy(field: Metamodel<T, V>, value: V): T?
         where T : Record, T : Entity<ID> = 
@@ -67,9 +67,9 @@ fun <T, ID, V> KEntityRepository<T, ID>.findBy(field: Metamodel<T, V>, value: V)
  * Retrieves an optional entity of type [T] based on a single field and its value.
  * Returns null if no matching entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
- * @return An optional entity, or null if none found.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return an optional entity, or null if none found.
  */
 fun <T, ID, V> KEntityRepository<T, ID>.findBy(field: Metamodel<T, V>, value: Ref<V>): T?
         where T : Record, T : Entity<ID>, V : Record =
@@ -79,9 +79,9 @@ fun <T, ID, V> KEntityRepository<T, ID>.findBy(field: Metamodel<T, V>, value: Re
  * Retrieves entities of type [T] matching a single field and a single value.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
- * @return List of matching entities.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return list of matching entities.
  */
 fun <T, ID, V> KEntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, value: V): List<T>
         where T : Record, T : Entity<ID> =
@@ -99,8 +99,8 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, value:
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return a sequence of matching entities.
  */
 fun <T, ID, V> KEntityRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, value: V): CloseableSequence<T>
@@ -111,8 +111,8 @@ fun <T, ID, V> KEntityRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, valu
  * Retrieves entities of type [T] matching a single field and a single value.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return a list of matching entities.
  */
 fun <T, ID, V> KEntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, value: Ref<V>): List<T>
@@ -131,8 +131,8 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, value:
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return a sequence of matching entities.
  */
 fun <T, ID, V> KEntityRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, value: Ref<V>): CloseableSequence<T>
@@ -143,9 +143,9 @@ fun <T, ID, V> KEntityRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, valu
  * Retrieves entities of type [T] matching a single field against multiple values.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
- * @return List of matching entities.
+ * @return list of matching entities.
  */
 fun <T, ID, V> KEntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, values: Iterable<V>): List<T>
         where T : Record, T : Entity<ID> =
@@ -163,7 +163,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, values
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
- * @param field Metamodel reference of the entity field.
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
  * @return at sequence of matching entities.
  */
@@ -175,7 +175,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, valu
  * Retrieves entities of type [T] matching a single field against multiple values.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
  * @return a list of matching entities.
  */
@@ -187,7 +187,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllByRef(field: Metamodel<T, V>, val
  * Retrieves entities of type [T] matching a single field against multiple values.
  * Returns an empty sequence if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
  * @return a sequence of matching entities.
  */
@@ -199,8 +199,8 @@ fun <T, ID, V> KEntityRepository<T, ID>.selectAllByRef(field: Metamodel<T, V>, v
  * Retrieves exactly one entity of type [T] based on a single field and its value.
  * Throws an exception if no entity or more than one entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return the matching entity.
  * @throws st.orm.NoResultException if there is no result.
  * @throws st.orm.NonUniqueResultException if more than one result.
@@ -213,8 +213,8 @@ fun <T, ID, V> KEntityRepository<T, ID>.getBy(field: Metamodel<T, V>, value: V):
  * Retrieves exactly one entity of type [T] based on a single field and its value.
  * Throws an exception if no entity or more than one entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return the matching entity.
  * @throws st.orm.NoResultException if there is no result.
  * @throws st.orm.NonUniqueResultException if more than one result.
@@ -227,8 +227,8 @@ fun <T, ID, V> KEntityRepository<T, ID>.getBy(field: Metamodel<T, V>, value: Ref
  * Retrieves an optional entity of type [T] based on a single field and its value.
  * Returns null if no matching entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return an optional entity, or null if none found.
  */
 fun <T, ID, V> KEntityRepository<T, ID>.findRefBy(field: Metamodel<T, V>, value: V): Ref<T>
@@ -239,8 +239,8 @@ fun <T, ID, V> KEntityRepository<T, ID>.findRefBy(field: Metamodel<T, V>, value:
  * Retrieves an optional entity of type [T] based on a single field and its value.
  * Returns null if no matching entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return an optional entity, or null if none found.
  */
 fun <T, ID, V> KEntityRepository<T, ID>.findRefBy(field: Metamodel<T, V>, value: Ref<V>): Ref<T>
@@ -251,8 +251,8 @@ fun <T, ID, V> KEntityRepository<T, ID>.findRefBy(field: Metamodel<T, V>, value:
  * Retrieves entities of type [T] matching a single field and a single value.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return a list of matching entities.
  */
 fun <T, ID, V> KEntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, value: V): List<Ref<T>>
@@ -271,8 +271,8 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, val
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return a sequence of matching entities.
  */
 fun <T, ID, V> KEntityRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, value: V): CloseableSequence<Ref<T>>
@@ -283,8 +283,8 @@ fun <T, ID, V> KEntityRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, v
  * Retrieves entities of type [T] matching a single field and a single value.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return a list of matching entities.
  */
 fun <T, ID, V> KEntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, value: Ref<V>): List<Ref<T>>
@@ -303,8 +303,8 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, val
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return a sequence of matching entities.
  */
 fun <T, ID, V> KEntityRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, value: Ref<V>): CloseableSequence<Ref<T>>
@@ -315,7 +315,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, v
  * Retrieves entities of type [T] matching a single field against multiple values.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
  * @return a list of matching entities.
  */
@@ -335,7 +335,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, val
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
- * @param field Metamodel reference of the entity field.
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
  * @return a sequence of matching entities.
  */
@@ -347,7 +347,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, v
  * Retrieves entities of type [T] matching a single field against multiple values.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
  * @return a list of matching entities.
  */
@@ -368,7 +368,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllRefByRef(field: Metamodel<T, V>, 
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
- * @param field Metamodel reference of the entity field.
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
  * @return a sequence of matching entities.
  */
@@ -380,8 +380,8 @@ fun <T, ID, V> KEntityRepository<T, ID>.selectAllRefByRef(field: Metamodel<T, V>
  * Retrieves exactly one entity of type [T] based on a single field and its value.
  * Throws an exception if no entity or more than one entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return the matching entity.
  * @throws st.orm.NoResultException if there is no result.
  * @throws st.orm.NonUniqueResultException if more than one result.
@@ -394,8 +394,8 @@ fun <T, ID, V> KEntityRepository<T, ID>.getRefBy(field: Metamodel<T, V>, value: 
  * Retrieves exactly one entity of type [T] based on a single field and its value.
  * Throws an exception if no entity or more than one entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return the matching entity.
  * @throws st.orm.NoResultException if there is no result.
  * @throws st.orm.NonUniqueResultException if more than one result.
@@ -507,3 +507,104 @@ fun <T, ID> KEntityRepository<T, ID>.selectRef(
     predicate: KWhereBuilder<T, Ref<T>, ID>.() -> KPredicateBuilder<*, *, *>
 ): CloseableSequence<Ref<T>> where T : Record, T : Entity<ID> =
     selectRef().where(predicate).resultSequence
+
+/**
+ * Counts entities of type [T] matching the specified field and value.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return the count of matching entities.
+ */
+fun <T, ID, V> KEntityRepository<T, ID>.countBy(
+    field: Metamodel<T, V>,
+    value: V
+): Long where T : Record, T : Entity<ID> =
+    selectCount().where(field, EQUALS, value).singleResult
+
+/**
+ * Counts entities of type [T] matching the specified field and referenced value.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the referenced value to match against.
+ * @return the count of matching entities.
+ */
+fun <T, ID, V> KEntityRepository<T, ID>.countBy(
+    field: Metamodel<T, V>,
+    value: Ref<V>
+): Long where T : Record, T : Entity<ID>, V : Record =
+    selectCount().where(field, value).singleResult
+
+/**
+ * Counts entities of type [T] matching the specified predicate.
+ *
+ * @param predicate Lambda to build the WHERE clause.
+ * @return the count of matching entities.
+ */
+fun <T, ID> KEntityRepository<T, ID>.count(
+    predicate: KWhereBuilder<T, *, ID>.() -> KPredicateBuilder<*, *, *>
+): Long where T : Record, T : Entity<ID> =
+    selectCount().where(predicate).singleResult
+
+/**
+ * Deletes entities of type [T] matching the specified field and value.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return the number of entities deleted.
+ */
+fun <T, ID, V> KEntityRepository<T, ID>.deleteAllBy(
+    field: Metamodel<T, V>,
+    value: V
+): Int where T : Record, T : Entity<ID> =
+    delete().where(field, EQUALS, value).executeUpdate()
+
+/**
+ * Deletes entities of type [T] matching the specified field and referenced value.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the referenced value to match against.
+ * @return the number of entities deleted.
+ */
+fun <T, ID, V> KEntityRepository<T, ID>.deleteAllBy(
+    field: Metamodel<T, V>,
+    value: Ref<V>
+): Int where T : Record, T : Entity<ID>, V : Record =
+    delete().where(field, value).executeUpdate()
+
+/**
+ * Deletes entities of type [T] matching the specified field against multiple values.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param values Iterable of values to match against.
+ * @return the number of entities deleted.
+ */
+fun <T, ID, V> KEntityRepository<T, ID>.deleteAllBy(
+    field: Metamodel<T, V>,
+    values: Iterable<V>
+): Int where T : Record, T : Entity<ID> =
+    delete().where(field, IN, values).executeUpdate()
+
+/**
+ * Deletes entities of type [T] matching the specified field against multiple referenced values.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param values Iterable of referenced values to match against.
+ * @return the number of entities deleted.
+ */
+fun <T, ID, V> KEntityRepository<T, ID>.deleteAllByRef(
+    field: Metamodel<T, V>,
+    values: Iterable<Ref<V>>
+): Int where T : Record, T : Entity<ID>, V : Record =
+    delete().whereRef(field, values).executeUpdate()
+
+/**
+ * Deletes entities of type [T] matching the specified predicate.
+ *
+ * @param predicate Lambda to build the WHERE clause.
+ * @return the number of entities deleted.
+ */
+fun <T, ID> KEntityRepository<T, ID>.delete(
+    predicate: KWhereBuilder<T, *, ID>.() -> KPredicateBuilder<*, *, *>
+): Int where T : Record, T : Entity<ID> =
+    delete().where(predicate).executeUpdate()
+

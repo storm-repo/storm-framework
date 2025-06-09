@@ -23,10 +23,15 @@ import st.orm.kotlin.template.KQueryBuilder
 import st.orm.kotlin.template.KQueryBuilder.KPredicateBuilder
 import st.orm.kotlin.template.KQueryBuilder.KWhereBuilder
 import st.orm.repository.Entity
+import st.orm.repository.EntityRepository
 import st.orm.repository.Projection
+import st.orm.repository.ProjectionRepository
+import st.orm.repository.RepositoryLookup
 import st.orm.template.Metamodel
 import st.orm.template.Operator.EQUALS
 import st.orm.template.Operator.IN
+import st.orm.template.QueryBuilder.PredicateBuilder
+import st.orm.template.QueryBuilder.WhereBuilder
 import kotlin.jvm.optionals.getOrNull
 
 /**
@@ -81,7 +86,7 @@ inline fun <reified R : KRepository> KRepositoryLookup.repository(): R {
  *
  * [T] must be either an Entity or Projection type.
  *
- * @return List containing all records.
+ * @return list containing all records.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> KRepositoryLookup.findAll(): List<T>
@@ -102,7 +107,7 @@ inline fun <reified T> KRepositoryLookup.findAll(): List<T>
  *
  * [T] must be either an Entity or Projection type.
  *
- * @return Stream containing all records.
+ * @return stream containing all records.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> KRepositoryLookup.selectAll(): CloseableSequence<T>
@@ -123,7 +128,7 @@ inline fun <reified T> KRepositoryLookup.selectAll(): CloseableSequence<T>
  *
  * [T] must be either an Entity or Projection type.
  *
- * @return List containing all records.
+ * @return list containing all records.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> KRepositoryLookup.findAllRef(): List<Ref<T>>
@@ -144,7 +149,7 @@ inline fun <reified T> KRepositoryLookup.findAllRef(): List<Ref<T>>
  *
  * [T] must be either an Entity or Projection type.
  *
- * @return Stream containing all records.
+ * @return stream containing all records.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> KRepositoryLookup.selectAllRef(): CloseableSequence<Ref<T>>
@@ -166,9 +171,9 @@ inline fun <reified T> KRepositoryLookup.selectAllRef(): CloseableSequence<Ref<T
  *
  * [T] must be either an Entity or Projection type.
  *
- * @param field Metamodel reference of the record field.
- * @param value The value to match against.
- * @return An optional record, or null if none found.
+ * @param field metamodel reference of the record field.
+ * @param value the value to match against.
+ * @return an optional record, or null if none found.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.findBy(field: Metamodel<T, V>, value: V): T?
@@ -190,9 +195,9 @@ inline fun <reified T, V> KRepositoryLookup.findBy(field: Metamodel<T, V>, value
  *
  * [T] must be either an Entity or Projection type.
  *
- * @param field Metamodel reference of the record field.
- * @param value The value to match against.
- * @return An optional record, or null if none found.
+ * @param field metamodel reference of the record field.
+ * @param value the value to match against.
+ * @return an optional record, or null if none found.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.findBy(field: Metamodel<T, V>, value: Ref<V>): T?
@@ -214,9 +219,9 @@ inline fun <reified T, V> KRepositoryLookup.findBy(field: Metamodel<T, V>, value
  *
  * [T] must be either an Entity or Projection type.
  *
- * @param field Metamodel reference of the record field.
- * @param value The value to match against.
- * @return List of matching records.
+ * @param field metamodel reference of the record field.
+ * @param value the value to match against.
+ * @return list of matching records.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.findAllBy(field: Metamodel<T, V>, value: V): List<T>
@@ -238,9 +243,9 @@ inline fun <reified T, V> KRepositoryLookup.findAllBy(field: Metamodel<T, V>, va
  *
  * [T] must be either an Entity or Projection type.
  *
- * @param field Metamodel reference of the record field.
- * @param value The value to match against.
- * @return Stream of matching records.
+ * @param field metamodel reference of the record field.
+ * @param value the value to match against.
+ * @return stream of matching records.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.selectAllBy(field: Metamodel<T, V>, value: V): CloseableSequence<T>
@@ -264,9 +269,9 @@ inline fun <reified T, V> KRepositoryLookup.selectAllBy(field: Metamodel<T, V>, 
  *
  * [T] must be either an Entity or Projection type.
  *
- * @param field Metamodel reference of the record field.
- * @param value The value to match against.
- * @return List of matching records.
+ * @param field metamodel reference of the record field.
+ * @param value the value to match against.
+ * @return list of matching records.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.findAllBy(field: Metamodel<T, V>, value: Ref<V>): List<T>
@@ -288,9 +293,9 @@ inline fun <reified T, V> KRepositoryLookup.findAllBy(field: Metamodel<T, V>, va
  *
  * [T] must be either an Entity or Projection type.
  *
- * @param field Metamodel reference of the record field.
- * @param value The value to match against.
- * @return Stream of matching records.
+ * @param field metamodel reference of the record field.
+ * @param value the value to match against.
+ * @return stream of matching records.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.selectAllBy(field: Metamodel<T, V>, value: Ref<V>): CloseableSequence<T>
@@ -314,9 +319,9 @@ inline fun <reified T, V> KRepositoryLookup.selectAllBy(field: Metamodel<T, V>, 
  *
  * [T] must be either an Entity or Projection type.
  *
- * @param field Metamodel reference of the record field.
+ * @param field metamodel reference of the record field.
  * @param values Iterable of values to match against.
- * @return List of matching records.
+ * @return list of matching records.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.findAllBy(field: Metamodel<T, V>, values: Iterable<V>): List<T>
@@ -338,9 +343,9 @@ inline fun <reified T, V> KRepositoryLookup.findAllBy(field: Metamodel<T, V>, va
  *
  * [T] must be either an Entity or Projection type.
  *
- * @param field Metamodel reference of the record field.
+ * @param field metamodel reference of the record field.
  * @param values Iterable of values to match against.
- * @return Stream of matching records.
+ * @return stream of matching records.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.selectAllBy(field: Metamodel<T, V>, values: Iterable<V>): CloseableSequence<T>
@@ -364,9 +369,9 @@ inline fun <reified T, V> KRepositoryLookup.selectAllBy(field: Metamodel<T, V>, 
  *
  * [T] must be either an Entity or Projection type.
  *
- * @param field Metamodel reference of the record field.
+ * @param field metamodel reference of the record field.
  * @param values Iterable of values to match against.
- * @return List of matching records.
+ * @return list of matching records.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.findAllByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): List<T>
@@ -388,9 +393,9 @@ inline fun <reified T, V> KRepositoryLookup.findAllByRef(field: Metamodel<T, V>,
  *
  * [T] must be either an Entity or Projection type.
  *
- * @param field Metamodel reference of the record field.
+ * @param field metamodel reference of the record field.
  * @param values Iterable of values to match against.
- * @return Stream of matching records.
+ * @return stream of matching records.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.selectAllByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): CloseableSequence<T>
@@ -414,8 +419,8 @@ inline fun <reified T, V> KRepositoryLookup.selectAllByRef(field: Metamodel<T, V
  *
  * [T] must be either an Entity or Projection type.
  *
- * @param field Metamodel reference of the record field.
- * @param value The value to match against.
+ * @param field metamodel reference of the record field.
+ * @param value the value to match against.
  * @return The matching record.
  * @throws st.orm.NoResultException if there is no result.
  * @throws st.orm.NonUniqueResultException if more than one result.
@@ -440,8 +445,8 @@ inline fun <reified T, V> KRepositoryLookup.getBy(field: Metamodel<T, V>, value:
  *
  * [T] must be either an Entity or Projection type.
  *
- * @param field Metamodel reference of the record field.
- * @param value The value to match against.
+ * @param field metamodel reference of the record field.
+ * @param value the value to match against.
  * @return The matching record.
  * @throws st.orm.NoResultException if there is no result.
  * @throws st.orm.NonUniqueResultException if more than one result.
@@ -464,9 +469,9 @@ inline fun <reified T, V> KRepositoryLookup.getBy(field: Metamodel<T, V>, value:
  * Retrieves an optional entity of type [T] based on a single field and its value.
  * Returns null if no matching entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
- * @return An optional entity, or null if none found.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return an optional entity, or null if none found.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.findRefBy(field: Metamodel<T, V>, value: V): Ref<T>
@@ -486,9 +491,9 @@ inline fun <reified T, V> KRepositoryLookup.findRefBy(field: Metamodel<T, V>, va
  * Retrieves an optional entity of type [T] based on a single field and its value.
  * Returns null if no matching entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
- * @return An optional entity, or null if none found.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return an optional entity, or null if none found.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.findRefBy(field: Metamodel<T, V>, value: Ref<V>): Ref<T>
@@ -508,9 +513,9 @@ inline fun <reified T, V> KRepositoryLookup.findRefBy(field: Metamodel<T, V>, va
  * Retrieves entities of type [T] matching a single field and a single value.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
- * @return List of matching entities.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return list of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.findAllRefBy(field: Metamodel<T, V>, value: V): List<Ref<T>>
@@ -530,9 +535,9 @@ inline fun <reified T, V> KRepositoryLookup.findAllRefBy(field: Metamodel<T, V>,
  * Retrieves entities of type [T] matching a single field and a single value.
  * Returns an empty stream if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
- * @return Stream of matching entities.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return stream of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.selectAllRefBy(field: Metamodel<T, V>, value: V): CloseableSequence<Ref<T>>
@@ -554,9 +559,9 @@ inline fun <reified T, V> KRepositoryLookup.selectAllRefBy(field: Metamodel<T, V
  * Retrieves entities of type [T] matching a single field and a single value.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
- * @return List of matching entities.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return list of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.findAllRefBy(field: Metamodel<T, V>, value: Ref<V>): List<Ref<T>>
@@ -576,9 +581,9 @@ inline fun <reified T, V> KRepositoryLookup.findAllRefBy(field: Metamodel<T, V>,
  * Retrieves entities of type [T] matching a single field and a single value.
  * Returns an empty stream if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
- * @return Stream of matching entities.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return stream of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.selectAllRefBy(field: Metamodel<T, V>, value: Ref<V>): CloseableSequence<Ref<T>>
@@ -600,9 +605,9 @@ inline fun <reified T, V> KRepositoryLookup.selectAllRefBy(field: Metamodel<T, V
  * Retrieves entities of type [T] matching a single field against multiple values.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
- * @return List of matching entities.
+ * @return list of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.findAllRefBy(field: Metamodel<T, V>, values: Iterable<V>): List<Ref<T>>
@@ -622,9 +627,9 @@ inline fun <reified T, V> KRepositoryLookup.findAllRefBy(field: Metamodel<T, V>,
  * Retrieves entities of type [T] matching a single field against multiple values.
  * Returns an empty stream if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
- * @return Stream of matching entities.
+ * @return stream of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.selectAllRefBy(field: Metamodel<T, V>, values: Iterable<V>): CloseableSequence<Ref<T>>
@@ -646,9 +651,9 @@ inline fun <reified T, V> KRepositoryLookup.selectAllRefBy(field: Metamodel<T, V
  * Retrieves entities of type [T] matching a single field against multiple values.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
- * @return List of matching entities.
+ * @return list of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.findAllRefByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): List<Ref<T>>
@@ -668,9 +673,9 @@ inline fun <reified T, V> KRepositoryLookup.findAllRefByRef(field: Metamodel<T, 
  * Retrieves entities of type [T] matching a single field against multiple values.
  * Returns an empty stream if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
- * @return Stream of matching entities.
+ * @return stream of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> KRepositoryLookup.selectAllRefByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): CloseableSequence<Ref<T>>
@@ -692,8 +697,8 @@ inline fun <reified T, V> KRepositoryLookup.selectAllRefByRef(field: Metamodel<T
  * Retrieves exactly one entity of type [T] based on a single field and its value.
  * Throws an exception if no entity or more than one entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return The matching entity.
  * @throws st.orm.NoResultException if there is no result.
  * @throws st.orm.NonUniqueResultException if more than one result.
@@ -716,8 +721,8 @@ inline fun <reified T, V> KRepositoryLookup.getRefBy(field: Metamodel<T, V>, val
  * Retrieves exactly one entity of type [T] based on a single field and its value.
  * Throws an exception if no entity or more than one entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return The matching entity.
  * @throws st.orm.NoResultException if there is no result.
  * @throws st.orm.NonUniqueResultException if more than one result.
@@ -1129,6 +1134,73 @@ inline fun <reified T> KRepositoryLookup.selectRef(): KQueryBuilder<T, Ref<T>, *
 }
 
 /**
+ * Counts entities of type [T] matching the specified field and value.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return the count of matching entities.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> KRepositoryLookup.countBy(
+    field: Metamodel<T, V>,
+    value: V
+): Long where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectCount().where(field, EQUALS, value).singleResult
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectCount().where(field, EQUALS, value).singleResult
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Counts entities of type [T] matching the specified field and referenced value.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the referenced value to match against.
+ * @return the count of matching entities.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> KRepositoryLookup.countBy(
+    field: Metamodel<T, V>,
+    value: Ref<V>
+): Long where T : Record, V : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, *>).selectCount().where(field, value).singleResult
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, *>).selectCount().where(field, value).singleResult
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Counts entities of type [T] matching the specified predicate.
+ *
+ * @param predicate Lambda to build the WHERE clause.
+ * @return the count of matching entities.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, ID, V> KRepositoryLookup.count(
+    noinline predicate: KWhereBuilder<T, *, ID>.() -> KPredicateBuilder<*, *, *>
+): Long where T : Record, T : Entity<ID> = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as KEntityRepository<T, ID>).selectCount().where(predicate).singleResult
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as KProjectionRepository<T, ID>).selectCount().where(predicate).singleResult
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
  * Inserts an entity of type [T] into the repository.
  *
  * @param entity The entity to insert.
@@ -1142,7 +1214,7 @@ inline infix fun <reified T> KRepositoryLookup.insert(entity: T): T
  * Inserts multiple entities of type [T] into the repository.
  *
  * @param entity Iterable collection of entities to insert.
- * @return List of inserted entities after fetching from the database.
+ * @return list of inserted entities after fetching from the database.
  */
 inline infix fun <reified T> KRepositoryLookup.insert(entity: Iterable<T>): List<T>
         where T : Record, T : Entity<*> =
@@ -1162,7 +1234,7 @@ inline infix fun <reified T> KRepositoryLookup.upsert(entity: T): T
  * Upserts (inserts or updates) multiple entities of type [T] into the repository.
  *
  * @param entity Iterable collection of entities to upsert.
- * @return List of upserted entities after fetching from the database.
+ * @return list of upserted entities after fetching from the database.
  */
 inline infix fun <reified T> KRepositoryLookup.upsert(entity: Iterable<T>): List<T>
         where T : Record, T : Entity<*> =
@@ -1227,11 +1299,100 @@ inline infix fun <reified T> KRepositoryLookup.update(entity: T): T
  * Updates multiple entities of type [T] in the repository.
  *
  * @param entity Iterable collection of entities to update.
- * @return List of updated entities after fetching from the database.
+ * @return list of updated entities after fetching from the database.
  */
 inline infix fun <reified T> KRepositoryLookup.update(entity: Iterable<T>): List<T>
         where T : Record, T : Entity<*> =
     entity<T>().updateAndFetch(entity)
+
+/**
+ * Deletes entities of type [T] matching the specified ID field and its value.
+ *
+ * @param field metamodel reference of the ID field.
+ * @param value the ID value to match against.
+ * @return the number of entities deleted (0 or 1).
+ */
+inline fun <reified T, ID> KRepositoryLookup.deleteBy(
+    field: Metamodel<T, ID>,
+    value: ID
+): Int where T : Record, T : Entity<ID> =
+    entity<T>().delete().where(field, EQUALS, value).executeUpdate()
+
+/**
+ * Deletes entities of type [T] matching the specified ID field and its value.
+ *
+ * @param field metamodel reference of the ID field.
+ * @param value the ID value to match against.
+ * @return the number of entities deleted (0 or 1).
+ */
+inline fun <reified T> KRepositoryLookup.deleteBy(
+    field: Metamodel<T, T>,
+    value: Ref<T>
+): Int where T : Record, T : Entity<*> =
+    entity<T>().delete().where(value).executeUpdate()
+
+/**
+ * Deletes entities of type [T] matching the specified field and value.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return the number of entities deleted.
+ */
+inline fun <reified T, V> KRepositoryLookup.deleteAllBy(
+    field: Metamodel<T, V>,
+    value: V
+): Int where T : Record, T : Entity<*> =
+    entity<T>().delete().where(field, EQUALS, value).executeUpdate()
+
+/**
+ * Deletes entities of type [T] matching the specified field and referenced value.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the referenced value to match against.
+ * @return the number of entities deleted.
+ */
+inline fun <reified T, V> KRepositoryLookup.deleteAllBy(
+    field: Metamodel<T, V>,
+    value: Ref<V>
+): Int where T : Record, T : Entity<*>, V : Record =
+    entity<T>().delete().where(field, value).executeUpdate()
+
+/**
+ * Deletes entities of type [T] matching the specified field against multiple values.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param values Iterable of values to match against.
+ * @return the number of entities deleted.
+ */
+inline fun <reified T, V> KRepositoryLookup.deleteAllBy(
+    field: Metamodel<T, V>,
+    values: Iterable<V>
+): Int where T : Record, T : Entity<*> =
+    entity<T>().delete().where(field, IN, values).executeUpdate()
+
+/**
+ * Deletes entities of type [T] matching the specified field against multiple referenced values.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param values Iterable of referenced values to match against.
+ * @return the number of entities deleted.
+ */
+inline fun <reified T, V> KRepositoryLookup.deleteAllByRef(
+    field: Metamodel<T, V>,
+    values: Iterable<Ref<V>>
+): Int where T : Record, T : Entity<*>, V : Record =
+    entity<T>().delete().whereRef(field, values).executeUpdate()
+
+/**
+ * Deletes entities of type [T] matching the specified predicate.
+ *
+ * @param predicate Lambda to build the WHERE clause.
+ * @return the number of entities deleted.
+ */
+inline fun <reified T, ID> KRepositoryLookup.delete(
+    noinline predicate: KWhereBuilder<T, *, ID>.() -> KPredicateBuilder<*, *, *>
+): Int where T : Record, T : Entity<ID> =
+    entityWithId<T, ID>().delete().where(predicate).executeUpdate()
 
 /**
  * Ensures that the sequence is closed after use, thereby preventing resource leaks.
@@ -1262,10 +1423,10 @@ fun <T> CloseableSequence<T>.closing(): Sequence<T> = sequence {
  * (for example, using `take(n)`), the caller must close the sequence manually to avoid leaks.
  *
  * @receiver The [SequenceScope] into which elements are yielded.
- * @param closeable The [CloseableSequence] whose elements should be produced.
+ * @param sequence The [CloseableSequence] whose elements should be produced.
  */
-suspend fun <T> SequenceScope<T>.yieldClosing(closeableSequence: CloseableSequence<T>) {
-    closeableSequence.use { yielded ->
+suspend fun <T> SequenceScope<T>.yieldClosing(sequence: CloseableSequence<T>) {
+    sequence.use { yielded ->
         yieldAll(yielded)
     }
 }

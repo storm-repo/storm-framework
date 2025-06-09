@@ -58,21 +58,21 @@ fun <T, ID, V> EntityRepository<T, ID>.selectAllRef(): Stream<Ref<T>>
  * Retrieves an optional entity of type [T] based on a single field and its value.
  * Returns null if no matching entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
- * @return An optional entity, or null if none found.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return an optional entity, or null if none found.
  */
 fun <T, ID, V> EntityRepository<T, ID>.findBy(field: Metamodel<T, V>, value: V): T?
-        where T : Record, T : Entity<ID> = 
+        where T : Record, T : Entity<ID> =
     select().where(field, EQUALS, value).optionalResult.getOrNull()
 
 /**
  * Retrieves an optional entity of type [T] based on a single field and its value.
  * Returns null if no matching entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
- * @return An optional entity, or null if none found.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return an optional entity, or null if none found.
  */
 fun <T, ID, V> EntityRepository<T, ID>.findBy(field: Metamodel<T, V>, value: Ref<V>): T?
         where T : Record, T : Entity<ID>, V : Record =
@@ -82,9 +82,9 @@ fun <T, ID, V> EntityRepository<T, ID>.findBy(field: Metamodel<T, V>, value: Ref
  * Retrieves entities of type [T] matching a single field and a single value.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
- * @return List of matching entities.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return list of matching entities.
  */
 fun <T, ID, V> EntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, value: V): List<T>
         where T : Record, T : Entity<ID> =
@@ -101,9 +101,9 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, value: 
  * Note that calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
- * 
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return a stream of matching entities.
  */
 fun <T, ID, V> EntityRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, value: V): Stream<T>
@@ -114,8 +114,8 @@ fun <T, ID, V> EntityRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, value
  * Retrieves entities of type [T] matching a single field and a single value.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return a list of matching entities.
  */
 fun <T, ID, V> EntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, value: Ref<V>): List<T>
@@ -134,8 +134,8 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, value: 
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return a stream of matching entities.
  */
 fun <T, ID, V> EntityRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, value: Ref<V>): Stream<T>
@@ -146,9 +146,9 @@ fun <T, ID, V> EntityRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, value
  * Retrieves entities of type [T] matching a single field against multiple values.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
- * @return List of matching entities.
+ * @return list of matching entities.
  */
 fun <T, ID, V> EntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, values: Iterable<V>): List<T>
         where T : Record, T : Entity<ID> =
@@ -157,7 +157,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, values:
 /**
  * Retrieves entities of type [T] matching a single field against multiple values.
  * Returns an empty stream if no entities are found.
- * 
+ *
  * The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
@@ -166,7 +166,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, values:
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
- * @param field Metamodel reference of the entity field.
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
  * @return at stream of matching entities.
  */
@@ -178,7 +178,7 @@ fun <T, ID, V> EntityRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, value
  * Retrieves entities of type [T] matching a single field against multiple values.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
  * @return a list of matching entities.
  */
@@ -190,7 +190,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllByRef(field: Metamodel<T, V>, valu
  * Retrieves entities of type [T] matching a single field against multiple values.
  * Returns an empty stream if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
  * @return a stream of matching entities.
  */
@@ -202,8 +202,8 @@ fun <T, ID, V> EntityRepository<T, ID>.selectAllByRef(field: Metamodel<T, V>, va
  * Retrieves exactly one entity of type [T] based on a single field and its value.
  * Throws an exception if no entity or more than one entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return the matching entity.
  * @throws st.orm.NoResultException if there is no result.
  * @throws st.orm.NonUniqueResultException if more than one result.
@@ -216,8 +216,8 @@ fun <T, ID, V> EntityRepository<T, ID>.getBy(field: Metamodel<T, V>, value: V): 
  * Retrieves exactly one entity of type [T] based on a single field and its value.
  * Throws an exception if no entity or more than one entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return the matching entity.
  * @throws st.orm.NoResultException if there is no result.
  * @throws st.orm.NonUniqueResultException if more than one result.
@@ -230,8 +230,8 @@ fun <T, ID, V> EntityRepository<T, ID>.getBy(field: Metamodel<T, V>, value: Ref<
  * Retrieves an optional entity of type [T] based on a single field and its value.
  * Returns null if no matching entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return an optional entity, or null if none found.
  */
 fun <T, ID, V> EntityRepository<T, ID>.findRefBy(field: Metamodel<T, V>, value: V): Ref<T>
@@ -242,8 +242,8 @@ fun <T, ID, V> EntityRepository<T, ID>.findRefBy(field: Metamodel<T, V>, value: 
  * Retrieves an optional entity of type [T] based on a single field and its value.
  * Returns null if no matching entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return an optional entity, or null if none found.
  */
 fun <T, ID, V> EntityRepository<T, ID>.findRefBy(field: Metamodel<T, V>, value: Ref<V>): Ref<T>
@@ -254,8 +254,8 @@ fun <T, ID, V> EntityRepository<T, ID>.findRefBy(field: Metamodel<T, V>, value: 
  * Retrieves entities of type [T] matching a single field and a single value.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return a list of matching entities.
  */
 fun <T, ID, V> EntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, value: V): List<Ref<T>>
@@ -273,9 +273,9 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, valu
  * Note that calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
- * 
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return a stream of matching entities.
  */
 fun <T, ID, V> EntityRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, value: V): Stream<Ref<T>>
@@ -286,8 +286,8 @@ fun <T, ID, V> EntityRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, va
  * Retrieves entities of type [T] matching a single field and a single value.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return a list of matching entities.
  */
 fun <T, ID, V> EntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, value: Ref<V>): List<Ref<T>>
@@ -305,9 +305,9 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, valu
  * Note that calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
- * 
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return a stream of matching entities.
  */
 fun <T, ID, V> EntityRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, value: Ref<V>): Stream<Ref<T>>
@@ -318,7 +318,7 @@ fun <T, ID, V> EntityRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, va
  * Retrieves entities of type [T] matching a single field against multiple values.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
  * @return a list of matching entities.
  */
@@ -337,8 +337,8 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, valu
  * Note that calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
- * 
- * @param field Metamodel reference of the entity field.
+ *
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
  * @return a stream of matching entities.
  */
@@ -350,7 +350,7 @@ fun <T, ID, V> EntityRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, va
  * Retrieves entities of type [T] matching a single field against multiple values.
  * Returns an empty list if no entities are found.
  *
- * @param field Metamodel reference of the entity field.
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
  * @return a list of matching entities.
  */
@@ -370,12 +370,15 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllRefByRef(field: Metamodel<T, V>, v
  * Note that calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
- * 
- * @param field Metamodel reference of the entity field.
+ *
+ * @param field metamodel reference of the entity field.
  * @param values Iterable of values to match against.
  * @return a stream of matching entities.
  */
-fun <T, ID, V> EntityRepository<T, ID>.selectAllRefByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): Stream<Ref<T>>
+fun <T, ID, V> EntityRepository<T, ID>.selectAllRefByRef(
+    field: Metamodel<T, V>,
+    values: Iterable<Ref<V>>
+): Stream<Ref<T>>
         where T : Record, T : Entity<ID>, V : Record =
     selectRef().whereRef(field, values).resultStream
 
@@ -383,8 +386,8 @@ fun <T, ID, V> EntityRepository<T, ID>.selectAllRefByRef(field: Metamodel<T, V>,
  * Retrieves exactly one entity of type [T] based on a single field and its value.
  * Throws an exception if no entity or more than one entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return the matching entity.
  * @throws st.orm.NoResultException if there is no result.
  * @throws st.orm.NonUniqueResultException if more than one result.
@@ -397,8 +400,8 @@ fun <T, ID, V> EntityRepository<T, ID>.getRefBy(field: Metamodel<T, V>, value: V
  * Retrieves exactly one entity of type [T] based on a single field and its value.
  * Throws an exception if no entity or more than one entity is found.
  *
- * @param field Metamodel reference of the entity field.
- * @param value The value to match against.
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
  * @return the matching entity.
  * @throws st.orm.NoResultException if there is no result.
  * @throws st.orm.NonUniqueResultException if more than one result.
@@ -485,7 +488,7 @@ fun <T, ID> EntityRepository<T, ID>.getRef(
  * Note that calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
- * 
+ *
  * @return a stream of matching entities.
  */
 fun <T, ID> EntityRepository<T, ID>.select(
@@ -503,10 +506,111 @@ fun <T, ID> EntityRepository<T, ID>.select(
  * Note that calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
- * 
+ *
  * @return a stream of matching entities.
  */
 fun <T, ID> EntityRepository<T, ID>.selectRef(
     predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<*, *, *>
 ): Stream<Ref<T>> where T : Record, T : Entity<ID> =
     selectRef().where(predicate).resultStream
+
+/**
+ * Counts entities of type [T] matching the specified field and value.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return the count of matching entities.
+ */
+fun <T, ID, V> EntityRepository<T, ID>.countBy(
+    field: Metamodel<T, V>,
+    value: V
+): Long where T : Record, T : Entity<ID> =
+    selectCount().where(field, EQUALS, value).singleResult
+
+/**
+ * Counts entities of type [T] matching the specified field and referenced value.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the referenced value to match against.
+ * @return the count of matching entities.
+ */
+fun <T, ID, V> EntityRepository<T, ID>.countBy(
+    field: Metamodel<T, V>,
+    value: Ref<V>
+): Long where T : Record, T : Entity<ID>, V : Record =
+    selectCount().where(field, value).singleResult
+
+/**
+ * Counts entities of type [T] matching the specified predicate.
+ *
+ * @param predicate Lambda to build the WHERE clause.
+ * @return the count of matching entities.
+ */
+fun <T, ID> EntityRepository<T, ID>.count(
+    predicate: WhereBuilder<T, *, ID>.() -> PredicateBuilder<*, *, *>
+): Long where T : Record, T : Entity<ID> =
+    selectCount().where(predicate).singleResult
+
+/**
+ * Deletes entities of type [T] matching the specified field and value.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return the number of entities deleted.
+ */
+fun <T, ID, V> EntityRepository<T, ID>.deleteAllBy(
+    field: Metamodel<T, V>,
+    value: V
+): Int where T : Record, T : Entity<ID> =
+    delete().where(field, EQUALS, value).executeUpdate()
+
+/**
+ * Deletes entities of type [T] matching the specified field and referenced value.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the referenced value to match against.
+ * @return the number of entities deleted.
+ */
+fun <T, ID, V> EntityRepository<T, ID>.deleteAllBy(
+    field: Metamodel<T, V>,
+    value: Ref<V>
+): Int where T : Record, T : Entity<ID>, V : Record =
+    delete().where(field, value).executeUpdate()
+
+/**
+ * Deletes entities of type [T] matching the specified field against multiple values.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param values Iterable of values to match against.
+ * @return the number of entities deleted.
+ */
+fun <T, ID, V> EntityRepository<T, ID>.deleteAllBy(
+    field: Metamodel<T, V>,
+    values: Iterable<V>
+): Int where T : Record, T : Entity<ID> =
+    delete().where(field, IN, values).executeUpdate()
+
+/**
+ * Deletes entities of type [T] matching the specified field against multiple referenced values.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param values Iterable of referenced values to match against.
+ * @return the number of entities deleted.
+ */
+fun <T, ID, V> EntityRepository<T, ID>.deleteAllByRef(
+    field: Metamodel<T, V>,
+    values: Iterable<Ref<V>>
+): Int where T : Record, T : Entity<ID>, V : Record =
+    delete().whereRef(field, values).executeUpdate()
+
+/**
+ * Deletes entities of type [T] matching the specified predicate.
+ *
+ * @param predicate Lambda to build the WHERE clause.
+ * @return the number of entities deleted.
+ */
+fun <T, ID> EntityRepository<T, ID>.delete(
+    predicate: WhereBuilder<T, *, ID>.() -> PredicateBuilder<*, *, *>
+): Int where T : Record, T : Entity<ID> =
+    delete().where(predicate).executeUpdate()
+

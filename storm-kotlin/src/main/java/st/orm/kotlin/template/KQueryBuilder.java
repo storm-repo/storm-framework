@@ -1261,6 +1261,16 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     }
 
     /**
+     * Execute a DELETE statement.
+     *
+     * @return the number of rows impacted as result of the statement.
+     * @throws PersistenceException if the statement fails.
+     */
+    public final int executeUpdate() {
+        return build().executeUpdate();
+    }
+
+    /**
      * Performs the function in multiple slices, each containing up to {@code size} elements from the stream.
      *
      * @param stream the stream to batch.

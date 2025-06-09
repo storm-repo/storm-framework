@@ -57,9 +57,9 @@ fun <T, ID, V> KProjectionRepository<T, ID>.selectAllRef(): CloseableSequence<Re
  * Retrieves an optional projection of type [T] based on a single field and its value.
  * Returns null if no matching projection is found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
- * @return An optional projection, or null if none found.
+ * @return an optional projection, or null if none found.
  */
 fun <T, ID, V> KProjectionRepository<T, ID>.findBy(field: Metamodel<T, V>, value: V): T?
         where T : Record, T : Projection<ID> =
@@ -69,9 +69,9 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findBy(field: Metamodel<T, V>, value
  * Retrieves an optional projection of type [T] based on a single field and its value.
  * Returns null if no matching projection is found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
- * @return An optional projection, or null if none found.
+ * @return an optional projection, or null if none found.
  */
 fun <T, ID, V> KProjectionRepository<T, ID>.findBy(field: Metamodel<T, V>, value: Ref<V>): T?
         where T : Record, T : Projection<ID>, V : Record =
@@ -81,9 +81,9 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findBy(field: Metamodel<T, V>, value
  * Retrieves projections of type [T] matching a single field and a single value.
  * Returns an empty list if no projections are found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
- * @return List of matching projections.
+ * @return list of matching projections.
  */
 fun <T, ID, V> KProjectionRepository<T, ID>.findAllBy(field: Metamodel<T, V>, value: V): List<T>
         where T : Record, T : Projection<ID> =
@@ -101,7 +101,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findAllBy(field: Metamodel<T, V>, va
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return a sequence of matching projections.
  */
@@ -113,7 +113,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, 
  * Retrieves projections of type [T] matching a single field and a single value.
  * Returns an empty list if no projections are found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return a list of matching projections.
  */
@@ -133,7 +133,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findAllBy(field: Metamodel<T, V>, va
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return a sequence of matching projections.
  */
@@ -145,9 +145,9 @@ fun <T, ID, V> KProjectionRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, 
  * Retrieves projections of type [T] matching a single field against multiple values.
  * Returns an empty list if no projections are found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param values Iterable of values to match against.
- * @return List of matching projections.
+ * @return list of matching projections.
  */
 fun <T, ID, V> KProjectionRepository<T, ID>.findAllBy(field: Metamodel<T, V>, values: Iterable<V>): List<T>
         where T : Record, T : Projection<ID> =
@@ -165,7 +165,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findAllBy(field: Metamodel<T, V>, va
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param values Iterable of values to match against.
  * @return at sequence of matching projections.
  */
@@ -177,7 +177,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, 
  * Retrieves projections of type [T] matching a single field against multiple values.
  * Returns an empty list if no projections are found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param values Iterable of values to match against.
  * @return a list of matching projections.
  */
@@ -189,7 +189,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findAllByRef(field: Metamodel<T, V>,
  * Retrieves projections of type [T] matching a single field against multiple values.
  * Returns an empty sequence if no projections are found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param values Iterable of values to match against.
  * @return a sequence of matching projections.
  */
@@ -201,7 +201,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.selectAllByRef(field: Metamodel<T, V
  * Retrieves exactly one projection of type [T] based on a single field and its value.
  * Throws an exception if no projection or more than one projection is found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return the matching projection.
  * @throws st.orm.NoResultException if there is no result.
@@ -215,7 +215,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.getBy(field: Metamodel<T, V>, value:
  * Retrieves exactly one projection of type [T] based on a single field and its value.
  * Throws an exception if no projection or more than one projection is found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return the matching projection.
  * @throws st.orm.NoResultException if there is no result.
@@ -229,7 +229,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.getBy(field: Metamodel<T, V>, value:
  * Retrieves an optional projection of type [T] based on a single field and its value.
  * Returns null if no matching projection is found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return an optional projection, or null if none found.
  */
@@ -241,7 +241,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findRefBy(field: Metamodel<T, V>, va
  * Retrieves an optional projection of type [T] based on a single field and its value.
  * Returns null if no matching projection is found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return an optional projection, or null if none found.
  */
@@ -253,7 +253,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findRefBy(field: Metamodel<T, V>, va
  * Retrieves projections of type [T] matching a single field and a single value.
  * Returns an empty list if no projections are found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return a list of matching projections.
  */
@@ -273,7 +273,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>,
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return a sequence of matching projections.
  */
@@ -285,7 +285,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V
  * Retrieves projections of type [T] matching a single field and a single value.
  * Returns an empty list if no projections are found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return a list of matching projections.
  */
@@ -305,7 +305,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>,
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return a sequence of matching projections.
  */
@@ -317,7 +317,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V
  * Retrieves projections of type [T] matching a single field against multiple values.
  * Returns an empty list if no projections are found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param values Iterable of values to match against.
  * @return a list of matching projections.
  */
@@ -337,7 +337,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>,
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param values Iterable of values to match against.
  * @return a sequence of matching projections.
  */
@@ -349,7 +349,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V
  * Retrieves projections of type [T] matching a single field against multiple values.
  * Returns an empty list if no projections are found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param values Iterable of values to match against.
  * @return a list of matching projections.
  */
@@ -370,7 +370,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findAllRefByRef(field: Metamodel<T, 
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param values Iterable of values to match against.
  * @return a sequence of matching projections.
  */
@@ -382,7 +382,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.selectAllRefByRef(field: Metamodel<T
  * Retrieves exactly one projection of type [T] based on a single field and its value.
  * Throws an exception if no projection or more than one projection is found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return the matching projection.
  * @throws st.orm.NoResultException if there is no result.
@@ -396,7 +396,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.getRefBy(field: Metamodel<T, V>, val
  * Retrieves exactly one projection of type [T] based on a single field and its value.
  * Throws an exception if no projection or more than one projection is found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return the matching projection.
  * @throws st.orm.NoResultException if there is no result.
@@ -509,3 +509,40 @@ fun <T, ID> KProjectionRepository<T, ID>.selectRef(
     predicate: KWhereBuilder<T, Ref<T>, ID>.() -> KPredicateBuilder<*, *, *>
 ): CloseableSequence<Ref<T>> where T : Record, T : Projection<ID> =
     selectRef().where(predicate).resultSequence
+
+/**
+ * Counts projections of type [T] matching the specified field and value.
+ *
+ * @param field metamodel reference of the projection field.
+ * @param value the value to match against.
+ * @return the count of matching projections.
+ */
+fun <T, ID, V> KProjectionRepository<T, ID>.countBy(
+    field: Metamodel<T, V>,
+    value: V
+): Long where T : Record, T : Projection<ID> =
+    selectCount().where(field, EQUALS, value).singleResult
+
+/**
+ * Counts projections of type [T] matching the specified field and referenced value.
+ *
+ * @param field metamodel reference of the projection field.
+ * @param value the referenced value to match against.
+ * @return the count of matching projections.
+ */
+fun <T, ID, V> KProjectionRepository<T, ID>.countBy(
+    field: Metamodel<T, V>,
+    value: Ref<V>
+): Long where T : Record, T : Projection<ID>, V : Record =
+    selectCount().where(field, value).singleResult
+
+/**
+ * Counts projections of type [T] matching the specified predicate.
+ *
+ * @param predicate Lambda to build the WHERE clause.
+ * @return the count of matching projections.
+ */
+fun <T, ID> KProjectionRepository<T, ID>.count(
+    predicate: KWhereBuilder<T, *, ID>.() -> KPredicateBuilder<*, *, *>
+): Long where T : Record, T : Projection<ID> =
+    selectCount().where(predicate).singleResult

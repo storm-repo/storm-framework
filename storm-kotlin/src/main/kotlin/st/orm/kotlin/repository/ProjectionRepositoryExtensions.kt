@@ -58,9 +58,9 @@ fun <T, ID, V> ProjectionRepository<T, ID>.selectAllRef(): Stream<Ref<T>>
  * Retrieves an optional projection of type [T] based on a single field and its value.
  * Returns null if no matching projection is found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
- * @return An optional projection, or null if none found.
+ * @return an optional projection, or null if none found.
  */
 fun <T, ID, V> ProjectionRepository<T, ID>.findBy(field: Metamodel<T, V>, value: V): T?
         where T : Record, T : Projection<ID> = 
@@ -70,9 +70,9 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findBy(field: Metamodel<T, V>, value:
  * Retrieves an optional projection of type [T] based on a single field and its value.
  * Returns null if no matching projection is found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
- * @return An optional projection, or null if none found.
+ * @return an optional projection, or null if none found.
  */
 fun <T, ID, V> ProjectionRepository<T, ID>.findBy(field: Metamodel<T, V>, value: Ref<V>): T?
         where T : Record, T : Projection<ID>, V : Record =
@@ -82,9 +82,9 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findBy(field: Metamodel<T, V>, value:
  * Retrieves projections of type [T] matching a single field and a single value.
  * Returns an empty list if no projections are found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
- * @return List of matching projections.
+ * @return list of matching projections.
  */
 fun <T, ID, V> ProjectionRepository<T, ID>.findAllBy(field: Metamodel<T, V>, value: V): List<T>
         where T : Record, T : Projection<ID> =
@@ -102,7 +102,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllBy(field: Metamodel<T, V>, val
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return a stream of matching projections.
  */
@@ -114,7 +114,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, v
  * Retrieves projections of type [T] matching a single field and a single value.
  * Returns an empty list if no projections are found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return a list of matching projections.
  */
@@ -134,7 +134,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllBy(field: Metamodel<T, V>, val
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return a stream of matching projections.
  */
@@ -146,9 +146,9 @@ fun <T, ID, V> ProjectionRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, v
  * Retrieves projections of type [T] matching a single field against multiple values.
  * Returns an empty list if no projections are found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param values Iterable of values to match against.
- * @return List of matching projections.
+ * @return list of matching projections.
  */
 fun <T, ID, V> ProjectionRepository<T, ID>.findAllBy(field: Metamodel<T, V>, values: Iterable<V>): List<T>
         where T : Record, T : Projection<ID> =
@@ -166,7 +166,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllBy(field: Metamodel<T, V>, val
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param values Iterable of values to match against.
  * @return at stream of matching projections.
  */
@@ -178,7 +178,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, v
  * Retrieves projections of type [T] matching a single field against multiple values.
  * Returns an empty list if no projections are found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param values Iterable of values to match against.
  * @return a list of matching projections.
  */
@@ -190,7 +190,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllByRef(field: Metamodel<T, V>, 
  * Retrieves projections of type [T] matching a single field against multiple values.
  * Returns an empty stream if no projections are found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param values Iterable of values to match against.
  * @return a stream of matching projections.
  */
@@ -202,7 +202,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.selectAllByRef(field: Metamodel<T, V>
  * Retrieves exactly one projection of type [T] based on a single field and its value.
  * Throws an exception if no projection or more than one projection is found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return the matching projection.
  * @throws st.orm.NoResultException if there is no result.
@@ -216,7 +216,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.getBy(field: Metamodel<T, V>, value: 
  * Retrieves exactly one projection of type [T] based on a single field and its value.
  * Throws an exception if no projection or more than one projection is found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return the matching projection.
  * @throws st.orm.NoResultException if there is no result.
@@ -230,7 +230,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.getBy(field: Metamodel<T, V>, value: 
  * Retrieves an optional projection of type [T] based on a single field and its value.
  * Returns null if no matching projection is found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return an optional projection, or null if none found.
  */
@@ -242,7 +242,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findRefBy(field: Metamodel<T, V>, val
  * Retrieves an optional projection of type [T] based on a single field and its value.
  * Returns null if no matching projection is found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return an optional projection, or null if none found.
  */
@@ -254,7 +254,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findRefBy(field: Metamodel<T, V>, val
  * Retrieves projections of type [T] matching a single field and a single value.
  * Returns an empty list if no projections are found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return a list of matching projections.
  */
@@ -274,7 +274,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, 
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return a stream of matching projections.
  */
@@ -286,7 +286,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>
  * Retrieves projections of type [T] matching a single field and a single value.
  * Returns an empty list if no projections are found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return a list of matching projections.
  */
@@ -306,7 +306,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, 
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return a stream of matching projections.
  */
@@ -318,7 +318,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>
  * Retrieves projections of type [T] matching a single field against multiple values.
  * Returns an empty list if no projections are found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param values Iterable of values to match against.
  * @return a list of matching projections.
  */
@@ -338,7 +338,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, 
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param values Iterable of values to match against.
  * @return a stream of matching projections.
  */
@@ -350,7 +350,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>
  * Retrieves projections of type [T] matching a single field against multiple values.
  * Returns an empty list if no projections are found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param values Iterable of values to match against.
  * @return a list of matching projections.
  */
@@ -371,7 +371,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllRefByRef(field: Metamodel<T, V
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param values Iterable of values to match against.
  * @return a stream of matching projections.
  */
@@ -383,7 +383,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.selectAllRefByRef(field: Metamodel<T,
  * Retrieves exactly one projection of type [T] based on a single field and its value.
  * Throws an exception if no projection or more than one projection is found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return the matching projection.
  * @throws st.orm.NoResultException if there is no result.
@@ -397,7 +397,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.getRefBy(field: Metamodel<T, V>, valu
  * Retrieves exactly one projection of type [T] based on a single field and its value.
  * Throws an exception if no projection or more than one projection is found.
  *
- * @param field Metamodel reference of the projection field.
+ * @param field metamodel reference of the projection field.
  * @param value The value to match against.
  * @return the matching projection.
  * @throws st.orm.NoResultException if there is no result.
@@ -510,3 +510,40 @@ fun <T, ID> ProjectionRepository<T, ID>.selectRef(
     predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<*, *, *>
 ): Stream<Ref<T>> where T : Record, T : Projection<ID> =
     selectRef().where(predicate).resultStream
+
+/**
+ * Counts projections of type [T] matching the specified field and value.
+ *
+ * @param field metamodel reference of the projection field.
+ * @param value the value to match against.
+ * @return the count of matching projections.
+ */
+fun <T, ID, V> ProjectionRepository<T, ID>.countBy(
+    field: Metamodel<T, V>,
+    value: V
+): Long where T : Record, T : Projection<ID> =
+    selectCount().where(field, EQUALS, value).singleResult
+
+/**
+ * Counts projections of type [T] matching the specified field and referenced value.
+ *
+ * @param field metamodel reference of the projection field.
+ * @param value the referenced value to match against.
+ * @return the count of matching projections.
+ */
+fun <T, ID, V> ProjectionRepository<T, ID>.countByRef(
+    field: Metamodel<T, V>,
+    value: Ref<V>
+): Long where T : Record, T : Projection<ID>, V : Record =
+    selectCount().where(field, value).singleResult
+
+/**
+ * Counts projections of type [T] matching the specified predicate.
+ *
+ * @param predicate Lambda to build the WHERE clause.
+ * @return the count of matching projections.
+ */
+fun <T, ID> ProjectionRepository<T, ID>.count(
+    predicate: WhereBuilder<T, *, ID>.() -> PredicateBuilder<*, *, *>
+): Long where T : Record, T : Projection<ID> =
+    selectCount().where(predicate).singleResult
