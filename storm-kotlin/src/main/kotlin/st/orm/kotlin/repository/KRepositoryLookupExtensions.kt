@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@file:Suppress("unused")
+@file:Suppress("unused", "DuplicatedCode")
 
 package st.orm.kotlin.repository
 
@@ -23,15 +23,10 @@ import st.orm.kotlin.template.KQueryBuilder
 import st.orm.kotlin.template.KQueryBuilder.KPredicateBuilder
 import st.orm.kotlin.template.KQueryBuilder.KWhereBuilder
 import st.orm.repository.Entity
-import st.orm.repository.EntityRepository
 import st.orm.repository.Projection
-import st.orm.repository.ProjectionRepository
-import st.orm.repository.RepositoryLookup
 import st.orm.template.Metamodel
 import st.orm.template.Operator.EQUALS
 import st.orm.template.Operator.IN
-import st.orm.template.QueryBuilder.PredicateBuilder
-import st.orm.template.QueryBuilder.WhereBuilder
 import kotlin.jvm.optionals.getOrNull
 
 /**
