@@ -103,7 +103,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, value:
  * @param value the value to match against.
  * @return a sequence of matching entities.
  */
-fun <T, ID, V> KEntityRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, value: V): CloseableSequence<T>
+fun <T, ID, V> KEntityRepository<T, ID>.selectBy(field: Metamodel<T, V>, value: V): CloseableSequence<T>
         where T : Record, T : Entity<ID> =
     select().where(field, EQUALS, value).resultSequence
 
@@ -135,7 +135,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, value:
  * @param value the value to match against.
  * @return a sequence of matching entities.
  */
-fun <T, ID, V> KEntityRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, value: Ref<V>): CloseableSequence<T>
+fun <T, ID, V> KEntityRepository<T, ID>.selectBy(field: Metamodel<T, V>, value: Ref<V>): CloseableSequence<T>
         where T : Record, T : Entity<ID>, V : Record =
     select().where(field, value).resultSequence
 
@@ -167,7 +167,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, values
  * @param values Iterable of values to match against.
  * @return at sequence of matching entities.
  */
-fun <T, ID, V> KEntityRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, values: Iterable<V>): CloseableSequence<T>
+fun <T, ID, V> KEntityRepository<T, ID>.selectBy(field: Metamodel<T, V>, values: Iterable<V>): CloseableSequence<T>
         where T : Record, T : Entity<ID> =
     select().where(field, IN, values).resultSequence
 
@@ -191,7 +191,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllByRef(field: Metamodel<T, V>, val
  * @param values Iterable of values to match against.
  * @return a sequence of matching entities.
  */
-fun <T, ID, V> KEntityRepository<T, ID>.selectAllByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): CloseableSequence<T>
+fun <T, ID, V> KEntityRepository<T, ID>.selectByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): CloseableSequence<T>
         where T : Record, T : Entity<ID>, V : Record =
     select().whereRef(field, values).resultSequence
 
@@ -225,7 +225,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.getBy(field: Metamodel<T, V>, value: Ref
 
 /**
  * Retrieves an optional entity of type [T] based on a single field and its value.
- * Returns null if no matching entity is found.
+ * Returns a ref with a null value if no matching entity is found.
  *
  * @param field metamodel reference of the entity field.
  * @param value the value to match against.
@@ -237,7 +237,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findRefBy(field: Metamodel<T, V>, value:
 
 /**
  * Retrieves an optional entity of type [T] based on a single field and its value.
- * Returns null if no matching entity is found.
+ * Returns a ref with a null value if no matching entity is found.
  *
  * @param field metamodel reference of the entity field.
  * @param value the value to match against.
@@ -275,7 +275,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, val
  * @param value the value to match against.
  * @return a sequence of matching entities.
  */
-fun <T, ID, V> KEntityRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, value: V): CloseableSequence<Ref<T>>
+fun <T, ID, V> KEntityRepository<T, ID>.selectRefBy(field: Metamodel<T, V>, value: V): CloseableSequence<Ref<T>>
         where T : Record, T : Entity<ID> =
     selectRef().where(field, EQUALS, value).resultSequence
 
@@ -307,7 +307,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, val
  * @param value the value to match against.
  * @return a sequence of matching entities.
  */
-fun <T, ID, V> KEntityRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, value: Ref<V>): CloseableSequence<Ref<T>>
+fun <T, ID, V> KEntityRepository<T, ID>.selectRefBy(field: Metamodel<T, V>, value: Ref<V>): CloseableSequence<Ref<T>>
         where T : Record, T : Entity<ID>, V : Record =
     selectRef().where(field, value).resultSequence
 
@@ -339,7 +339,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, val
  * @param values Iterable of values to match against.
  * @return a sequence of matching entities.
  */
-fun <T, ID, V> KEntityRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, values: Iterable<V>): CloseableSequence<Ref<T>>
+fun <T, ID, V> KEntityRepository<T, ID>.selectRefBy(field: Metamodel<T, V>, values: Iterable<V>): CloseableSequence<Ref<T>>
         where T : Record, T : Entity<ID> =
     selectRef().where(field, IN, values).resultSequence
 
@@ -372,7 +372,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllRefByRef(field: Metamodel<T, V>, 
  * @param values Iterable of values to match against.
  * @return a sequence of matching entities.
  */
-fun <T, ID, V> KEntityRepository<T, ID>.selectAllRefByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): CloseableSequence<Ref<T>>
+fun <T, ID, V> KEntityRepository<T, ID>.selectRefByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): CloseableSequence<Ref<T>>
         where T : Record, T : Entity<ID>, V : Record =
     selectRef().whereRef(field, values).resultSequence
 
@@ -410,7 +410,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.getRefBy(field: Metamodel<T, V>, value: 
  * @return a list of matching entities.
  */
 fun <T, ID> KEntityRepository<T, ID>.findAll(
-    predicate: KWhereBuilder<T, T, ID>.() -> KPredicateBuilder<*, *, *>
+    predicate: KWhereBuilder<T, T, ID>.() -> KPredicateBuilder<T, *, *>
 ): List<T> where T : Record, T : Entity<ID> =
     select().where(predicate).resultList
 
@@ -419,10 +419,28 @@ fun <T, ID> KEntityRepository<T, ID>.findAll(
  *
  * @return a list of matching entities.
  */
+fun <T, ID> KEntityRepository<T, ID>.findAll(predicateBuilder: KPredicateBuilder<T, *, *>): List<T>
+        where T : Record, T : Entity<ID> =
+    select().where { predicateBuilder }.resultList
+
+/**
+ * Retrieves entities of type [T] matching the specified predicate.
+ *
+ * @return a list of matching entities.
+ */
 fun <T, ID> KEntityRepository<T, ID>.findAllRef(
-    predicate: KWhereBuilder<T, Ref<T>, ID>.() -> KPredicateBuilder<*, *, *>
+    predicate: KWhereBuilder<T, Ref<T>, ID>.() -> KPredicateBuilder<T, *, *>
 ): List<Ref<T>> where T : Record, T : Entity<ID> =
     selectRef().where(predicate).resultList
+
+/**
+ * Retrieves entities of type [T] matching the specified predicate.
+ *
+ * @return a list of matching entities.
+ */
+fun <T, ID> KEntityRepository<T, ID>.findAllRef(predicateBuilder: KPredicateBuilder<T, *, *>): List<Ref<T>>
+        where T : Record, T : Entity<ID> =
+    selectRef().where { predicateBuilder }.resultList
 
 /**
  * Retrieves an optional entity of type [T] matching the specified predicate.
@@ -431,7 +449,7 @@ fun <T, ID> KEntityRepository<T, ID>.findAllRef(
  * @return an optional entity, or null if none found.
  */
 fun <T, ID> KEntityRepository<T, ID>.find(
-    predicate: KWhereBuilder<T, T, ID>.() -> KPredicateBuilder<*, *, *>
+    predicate: KWhereBuilder<T, T, ID>.() -> KPredicateBuilder<T, *, *>
 ): T? where T : Record, T : Entity<ID> =
     select().where(predicate).optionalResult.getOrNull()
 
@@ -441,10 +459,30 @@ fun <T, ID> KEntityRepository<T, ID>.find(
  *
  * @return an optional entity, or null if none found.
  */
+fun <T, ID> KEntityRepository<T, ID>.find(predicateBuilder: KPredicateBuilder<T, *, *>): T?
+        where T : Record, T : Entity<ID> =
+    select().where { predicateBuilder }.optionalResult.getOrNull()
+
+/**
+ * Retrieves an optional entity of type [T] matching the specified predicate.
+ * Returns null if no matching entity is found.
+ *
+ * @return an optional entity, or null if none found.
+ */
 fun <T, ID> KEntityRepository<T, ID>.findRef(
-    predicate: KWhereBuilder<T, Ref<T>, ID>.() -> KPredicateBuilder<*, *, *>
+    predicate: KWhereBuilder<T, Ref<T>, ID>.() -> KPredicateBuilder<T, *, *>
 ): Ref<T> where T : Record, T : Entity<ID> =
     selectRef().where(predicate).optionalResult.orElse(Ref.ofNull())
+
+/**
+ * Retrieves an optional entity of type [T] matching the specified predicate.
+ * Returns a ref with a null value if no matching entity is found.
+ *
+ * @return an optional entity, or null if none found.
+ */
+fun <T, ID> KEntityRepository<T, ID>.findRef(predicateBuilder: KPredicateBuilder<T, *, *>): Ref<T>
+        where T : Record, T : Entity<ID> =
+    selectRef().where { predicateBuilder }.optionalResult.orElse(Ref.ofNull())
 
 /**
  * Retrieves a single entity of type [T] matching the specified predicate.
@@ -455,7 +493,7 @@ fun <T, ID> KEntityRepository<T, ID>.findRef(
  * @throws st.orm.NonUniqueResultException if more than one result.
  */
 fun <T, ID> KEntityRepository<T, ID>.get(
-    predicate: KWhereBuilder<T, T, ID>.() -> KPredicateBuilder<*, *, *>
+    predicate: KWhereBuilder<T, T, ID>.() -> KPredicateBuilder<T, *, *>
 ): T where T : Record, T : Entity<ID> =
     select().where(predicate).singleResult
 
@@ -467,10 +505,34 @@ fun <T, ID> KEntityRepository<T, ID>.get(
  * @throws st.orm.NoResultException if there is no result.
  * @throws st.orm.NonUniqueResultException if more than one result.
  */
+fun <T, ID> KEntityRepository<T, ID>.get(predicateBuilder: KPredicateBuilder<T, *, *>): T
+        where T : Record, T : Entity<ID> =
+    select().where { predicateBuilder }.singleResult
+
+/**
+ * Retrieves a single entity of type [T] matching the specified predicate.
+ * Throws an exception if no entity or more than one entity is found.
+ *
+ * @return the matching entity.
+ * @throws st.orm.NoResultException if there is no result.
+ * @throws st.orm.NonUniqueResultException if more than one result.
+ */
 fun <T, ID> KEntityRepository<T, ID>.getRef(
-    predicate: KWhereBuilder<T, Ref<T>, ID>.() -> KPredicateBuilder<*, *, *>
+    predicate: KWhereBuilder<T, Ref<T>, ID>.() -> KPredicateBuilder<T, *, *>
 ): Ref<T> where T : Record, T : Entity<ID> =
     selectRef().where(predicate).singleResult
+
+/**
+ * Retrieves a single entity of type [T] matching the specified predicate.
+ * Throws an exception if no entity or more than one entity is found.
+ *
+ * @return the matching entity.
+ * @throws st.orm.NoResultException if there is no result.
+ * @throws st.orm.NonUniqueResultException if more than one result.
+ */
+fun <T, ID> KEntityRepository<T, ID>.getRef(predicateBuilder: KPredicateBuilder<T, *, *>): Ref<T>
+        where T : Record, T : Entity<ID> =
+    selectRef().where { predicateBuilder }.singleResult
 
 /**
  * Retrieves entities of type [T] matching the specified predicate.
@@ -486,9 +548,26 @@ fun <T, ID> KEntityRepository<T, ID>.getRef(
  * @return a sequence of matching entities.
  */
 fun <T, ID> KEntityRepository<T, ID>.select(
-    predicate: KWhereBuilder<T, T, ID>.() -> KPredicateBuilder<*, *, *>
+    predicate: KWhereBuilder<T, T, ID>.() -> KPredicateBuilder<T, *, *>
 ): CloseableSequence<T> where T : Record, T : Entity<ID> =
     select().where(predicate).resultSequence
+
+/**
+ * Retrieves entities of type [T] matching the specified predicate.
+ *
+ * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+ * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
+ * dealing with large volumes of entities.
+ *
+ * Note that calling this method does trigger the execution of the underlying
+ * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+ * while in use, it must be closed after usage to prevent resource leaks.
+ *
+ * @return a sequence of matching entities.
+ */
+fun <T, ID> KEntityRepository<T, ID>.select(predicateBuilder: KPredicateBuilder<T, *, *>): CloseableSequence<T>
+        where T : Record, T : Entity<ID> =
+    select().where { predicateBuilder }.resultSequence
 
 /**
  * Retrieves entities of type [T] matching the specified predicate.
@@ -504,9 +583,26 @@ fun <T, ID> KEntityRepository<T, ID>.select(
  * @return a sequence of matching entities.
  */
 fun <T, ID> KEntityRepository<T, ID>.selectRef(
-    predicate: KWhereBuilder<T, Ref<T>, ID>.() -> KPredicateBuilder<*, *, *>
+    predicate: KWhereBuilder<T, Ref<T>, ID>.() -> KPredicateBuilder<T, *, *>
 ): CloseableSequence<Ref<T>> where T : Record, T : Entity<ID> =
     selectRef().where(predicate).resultSequence
+
+/**
+ * Retrieves entities of type [T] matching the specified predicate.
+ *
+ * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+ * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
+ * dealing with large volumes of entities.
+ *
+ * Note that calling this method does trigger the execution of the underlying
+ * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+ * while in use, it must be closed after usage to prevent resource leaks.
+ *
+ * @return a sequence of matching entities.
+ */
+fun <T, ID> KEntityRepository<T, ID>.selectRef(predicateBuilder: KPredicateBuilder<T, *, *>): CloseableSequence<Ref<T>>
+        where T : Record, T : Entity<ID> =
+    selectRef().where { predicateBuilder }.resultSequence
 
 /**
  * Counts entities of type [T] matching the specified field and value.
@@ -541,9 +637,19 @@ fun <T, ID, V> KEntityRepository<T, ID>.countBy(
  * @return the count of matching entities.
  */
 fun <T, ID> KEntityRepository<T, ID>.count(
-    predicate: KWhereBuilder<T, *, ID>.() -> KPredicateBuilder<*, *, *>
+    predicate: KWhereBuilder<T, *, ID>.() -> KPredicateBuilder<T, *, *>
 ): Long where T : Record, T : Entity<ID> =
     selectCount().where(predicate).singleResult
+
+/**
+ * Counts entities of type [T] matching the specified predicate.
+ *
+ * @param predicate Lambda to build the WHERE clause.
+ * @return the count of matching entities.
+ */
+fun <T, ID> KEntityRepository<T, ID>.count(predicateBuilder: KPredicateBuilder<T, *, *>): Long
+        where T : Record, T : Entity<ID> =
+    selectCount().where { predicateBuilder }.singleResult
 
 /**
  * Deletes entities of type [T] matching the specified field and value.
@@ -604,7 +710,17 @@ fun <T, ID, V> KEntityRepository<T, ID>.deleteAllByRef(
  * @return the number of entities deleted.
  */
 fun <T, ID> KEntityRepository<T, ID>.delete(
-    predicate: KWhereBuilder<T, *, ID>.() -> KPredicateBuilder<*, *, *>
+    predicate: KWhereBuilder<T, *, ID>.() -> KPredicateBuilder<T, *, *>
 ): Int where T : Record, T : Entity<ID> =
     delete().where(predicate).executeUpdate()
+
+/**
+ * Deletes entities of type [T] matching the specified predicate.
+ *
+ * @param predicate Lambda to build the WHERE clause.
+ * @return the number of entities deleted.
+ */
+fun <T, ID> KEntityRepository<T, ID>.delete(predicateBuilder: KPredicateBuilder<T, *, *>): Int
+        where T : Record, T : Entity<ID> =
+    delete().where { predicateBuilder }.executeUpdate()
 

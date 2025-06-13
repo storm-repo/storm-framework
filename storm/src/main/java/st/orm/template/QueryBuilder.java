@@ -551,7 +551,18 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param predicate the predicate to add.
          * @return the predicate builder.
          */
-        PredicateBuilder<T, R, ID> and(@Nonnull PredicateBuilder<?, ?, ?> predicate);
+        PredicateBuilder<T, R, ID> and(@Nonnull PredicateBuilder<T, ?, ?> predicate);
+
+        /**
+         * Adds a predicate to the WHERE clause using an AND condition.
+         *
+         * <p>This method combines the specified predicate with existing predicates using an AND operation, ensuring
+         * that all added conditions must be true.</p>
+         *
+         * @param predicate the predicate to add.
+         * @return the predicate builder.
+         */
+        PredicateBuilder<T, R, ID> andAny(@Nonnull PredicateBuilder<?, ?, ?> predicate);
 
         /**
          * Adds a predicate to the WHERE clause using an OR condition.
@@ -562,7 +573,18 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
          * @param predicate the predicate to add.
          * @return the predicate builder.
          */
-        PredicateBuilder<T, R, ID> or(@Nonnull PredicateBuilder<?, ?, ?> predicate);
+        PredicateBuilder<T, R, ID> or(@Nonnull PredicateBuilder<T, ?, ?> predicate);
+
+        /**
+         * Adds a predicate to the WHERE clause using an OR condition.
+         *
+         * <p>This method combines the specified predicate with existing predicates using an OR operation, allowing any
+         * of the added conditions to be true.</p>
+         *
+         * @param predicate the predicate to add.
+         * @return the predicate builder.
+         */
+        PredicateBuilder<T, R, ID> orAny(@Nonnull PredicateBuilder<?, ?, ?> predicate);
     }
 
     /**
@@ -729,7 +751,15 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param predicate the predicate to add.
      * @return the query builder.
      */
-    public abstract QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<?, ?, ?>> predicate);
+    public abstract QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<T, ?, ?>> predicate);
+
+    /**
+     * Adds a WHERE clause to the query using a {@link WhereBuilder}.
+     *
+     * @param predicate the predicate to add.
+     * @return the query builder.
+     */
+    public abstract QueryBuilder<T, R, ID> whereAny(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<?, ?, ?>> predicate);
 
     /**
      * Adds a GROUP BY clause to the query for field at the specified path in the table graph.
@@ -1015,7 +1045,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * applies the provided callback to process them, returning the result produced by the callback.
      *
      * <p>This method ensures efficient handling of large data sets by loading entities only as needed.
-     * It also manages lifecycle of the callback stream, automatically closing the stream after processing to prevent
+     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to prevent
      * resource leaks.</p>
      *
      * @param callback a {@link ResultCallback} defining how to process the stream of records and produce a result.

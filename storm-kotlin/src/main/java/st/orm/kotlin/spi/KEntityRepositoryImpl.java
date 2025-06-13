@@ -872,7 +872,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * result produced by the callback.
      *
      * <p>This method ensures efficient handling of large data sets by loading entities only as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param callback a {@link KResultCallback} defining how to process the sequence of entities and produce a result.
@@ -910,7 +910,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      *                              connectivity.
      */    @Override
     public CloseableSequence<E> selectAllById(@Nonnull Sequence<ID> ids) {
-        return CloseableSequence.from(entityRepository.selectAllById(toStream(ids)));
+        return CloseableSequence.from(entityRepository.selectById(toStream(ids)));
     }
 
     /**
@@ -919,7 +919,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * returning the outcome produced by the callback.
      *
      * <p>This method is designed for efficient data handling by only retrieving specified entities as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param ids a sequence of entity IDs to retrieve from the repository.
@@ -930,7 +930,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      */
     @Override
     public <R> R selectAllById(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<E, R> callback) {
-        return entityRepository.selectAllById(toStream(ids), stream -> callback.process(toSequence(stream)));
+        return entityRepository.selectById(toStream(ids), stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -962,7 +962,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      */
     @Override
     public CloseableSequence<E> selectAllByRef(@Nonnull Sequence<Ref<E>> refs, int batchSize) {
-        return CloseableSequence.from(entityRepository.selectAllByRef(toStream(refs), batchSize));
+        return CloseableSequence.from(entityRepository.selectByRef(toStream(refs), batchSize));
     }
 
     /**
@@ -973,7 +973,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
      *
      * <p>This method is designed for efficient data handling by only retrieving specified entities as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param ids a sequence of entity IDs to retrieve from the repository.
@@ -990,7 +990,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      */
     @Override
     public <R> R selectAllById(@Nonnull Sequence<ID> ids, int batchSize, @Nonnull KResultCallback<E, R> callback) {
-        return entityRepository.selectAllById(toStream(ids), batchSize, stream -> callback.process(toSequence(stream)));
+        return entityRepository.selectById(toStream(ids), batchSize, stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -1022,7 +1022,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      */
     @Override
     public CloseableSequence<E> selectAllById(@Nonnull Sequence<ID> ids, int batchSize) {
-        return CloseableSequence.from(entityRepository.selectAllById(toStream(ids), batchSize));
+        return CloseableSequence.from(entityRepository.selectById(toStream(ids), batchSize));
     }
 
     /**
@@ -1033,7 +1033,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * The batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
      *
      * <p>This method is designed for efficient data handling by only retrieving specified entities as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param refs a sequence of refs to retrieve from the repository.
@@ -1047,7 +1047,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      */
     @Override
     public CloseableSequence<E> selectAllByRef(@Nonnull Sequence<Ref<E>> refs) {
-        return CloseableSequence.from(entityRepository.selectAllByRef(toStream(refs)));
+        return CloseableSequence.from(entityRepository.selectByRef(toStream(refs)));
     }
 
     /**
@@ -1056,7 +1056,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * returning the outcome produced by the callback.
      *
      * <p>This method is designed for efficient data handling by only retrieving specified entities as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param refs a sequence of refs to retrieve from the repository.
@@ -1067,7 +1067,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      */
     @Override
     public <R> R selectAllByRef(@Nonnull Sequence<Ref<E>> refs, @Nonnull KResultCallback<E, R> callback) {
-        return entityRepository.selectAllByRef(toStream(refs), stream -> callback.process(toSequence(stream)));
+        return entityRepository.selectByRef(toStream(refs), stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -1078,7 +1078,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
      *
      * <p>This method is designed for efficient data handling by only retrieving specified entities as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param refs a sequence of entity refs to retrieve from the repository.
@@ -1095,7 +1095,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      */
     @Override
     public <R> R selectAllByRef(@Nonnull Sequence<Ref<E>> refs, int batchSize, @Nonnull KResultCallback<E, R> callback) {
-        return entityRepository.selectAllByRef(toStream(refs), batchSize, stream -> callback.process(toSequence(stream)));
+        return entityRepository.selectByRef(toStream(refs), batchSize, stream -> callback.process(toSequence(stream)));
     }
 
     /**

@@ -337,20 +337,30 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
     }
 
     static class KPredicateBuilderImpl<TX extends Record, RX, IDX> implements KPredicateBuilder<TX, RX, IDX> {
-        private final PredicateBuilder<TX, RX, IDX> predicateBuilder;
+        final PredicateBuilder<TX, RX, IDX> predicateBuilder;
 
-        private KPredicateBuilderImpl(@Nonnull PredicateBuilder<TX, RX, IDX> predicateBuilder) {
+        KPredicateBuilderImpl(@Nonnull PredicateBuilder<TX, RX, IDX> predicateBuilder) {
             this.predicateBuilder = predicateBuilder;
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> and(@Nonnull KPredicateBuilder<?, ?, ?> predicate) {
-            return new KPredicateBuilderImpl<>(predicateBuilder.and(((KPredicateBuilderImpl<?, ?, ?>) predicate).predicateBuilder));
+        public KPredicateBuilder<TX, RX, IDX> and(@Nonnull KPredicateBuilder<TX, ?, ?> predicate) {
+            return new KPredicateBuilderImpl<>(predicateBuilder.and(((KPredicateBuilderImpl<TX, ?, ?>) predicate).predicateBuilder));
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> or(@Nonnull KPredicateBuilder<?, ?, ?> predicate) {
-            return new KPredicateBuilderImpl<>(predicateBuilder.or(((KPredicateBuilderImpl<?, ?, ?>) predicate).predicateBuilder));
+        public KPredicateBuilder<TX, RX, IDX> andAny(@Nonnull KPredicateBuilder<?, ?, ?> predicate) {
+            return new KPredicateBuilderImpl<>(predicateBuilder.andAny(((KPredicateBuilderImpl<?, ?, ?>) predicate).predicateBuilder));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> or(@Nonnull KPredicateBuilder<TX, ?, ?> predicate) {
+            return new KPredicateBuilderImpl<>(predicateBuilder.or(((KPredicateBuilderImpl<TX, ?, ?>) predicate).predicateBuilder));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> orAny(@Nonnull KPredicateBuilder<?, ?, ?> predicate) {
+            return new KPredicateBuilderImpl<>(predicateBuilder.orAny(((KPredicateBuilderImpl<?, ?, ?>) predicate).predicateBuilder));
         }
     }
 
@@ -475,8 +485,22 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
      * @return the query builder.
      */
     @Override
-    public KQueryBuilder<T, R, ID> where(@Nonnull Function<KWhereBuilder<T, R, ID>, KPredicateBuilder<?, ?, ?>> predicate) {
+    public KQueryBuilder<T, R, ID> where(@Nonnull Function<KWhereBuilder<T, R, ID>, KPredicateBuilder<T, ?, ?>> predicate) {
         return new KQueryBuilderImpl<>(builder.where(whereBuilder -> {
+            var builder = predicate.apply(new KWhereBuilderImpl<>(whereBuilder));
+            return ((KPredicateBuilderImpl<T, ?, ?>) builder).predicateBuilder;
+        }));
+    }
+
+    /**
+     * Adds a WHERE clause to the query using a {@link QueryBuilder.WhereBuilder}.
+     *
+     * @param predicate the predicate to add.
+     * @return the query builder.
+     */
+    @Override
+    public KQueryBuilder<T, R, ID> whereAny(@Nonnull Function<KWhereBuilder<T, R, ID>, KPredicateBuilder<?, ?, ?>> predicate) {
+        return new KQueryBuilderImpl<>(builder.whereAny(whereBuilder -> {
             var builder = predicate.apply(new KWhereBuilderImpl<>(whereBuilder));
             return ((KPredicateBuilderImpl<?, ?, ?>) builder).predicateBuilder;
         }));

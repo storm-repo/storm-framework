@@ -291,7 +291,7 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
      * result produced by the callback.
      *
      * <p>This method ensures efficient handling of large data sets by loading projections only as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param callback a {@link KResultCallback} defining how to process the sequence of projections and produce a result.
@@ -333,7 +333,7 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
      * returning the outcome produced by the callback.
      *
      * <p>This method is designed for efficient data handling by only retrieving specified projections as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param ids a sequence of projection IDs to retrieve from the repository.
@@ -378,7 +378,7 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
      * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
      *
      * <p>This method is designed for efficient data handling by only retrieving specified projections as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param ids a sequence of projection IDs to retrieve from the repository.
@@ -430,7 +430,7 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
      * returning the outcome produced by the callback.
      *
      * <p>This method is designed for efficient data handling by only retrieving specified projections as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param refs a sequence of refs to retrieve from the repository.
@@ -478,7 +478,7 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
      * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
      *
      * <p>This method is designed for efficient data handling by only retrieving specified projections as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param refs a sequence of refs to retrieve from the repository.

@@ -105,7 +105,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findAllBy(field: Metamodel<T, V>, va
  * @param value The value to match against.
  * @return a sequence of matching projections.
  */
-fun <T, ID, V> KProjectionRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, value: V): CloseableSequence<T>
+fun <T, ID, V> KProjectionRepository<T, ID>.selectBy(field: Metamodel<T, V>, value: V): CloseableSequence<T>
         where T : Record, T : Projection<ID> =
     select().where(field, EQUALS, value).resultSequence
 
@@ -137,7 +137,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findAllBy(field: Metamodel<T, V>, va
  * @param value The value to match against.
  * @return a sequence of matching projections.
  */
-fun <T, ID, V> KProjectionRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, value: Ref<V>): CloseableSequence<T>
+fun <T, ID, V> KProjectionRepository<T, ID>.selectBy(field: Metamodel<T, V>, value: Ref<V>): CloseableSequence<T>
         where T : Record, T : Projection<ID>, V : Record =
     select().where(field, value).resultSequence
 
@@ -169,7 +169,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findAllBy(field: Metamodel<T, V>, va
  * @param values Iterable of values to match against.
  * @return at sequence of matching projections.
  */
-fun <T, ID, V> KProjectionRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, values: Iterable<V>): CloseableSequence<T>
+fun <T, ID, V> KProjectionRepository<T, ID>.selectBy(field: Metamodel<T, V>, values: Iterable<V>): CloseableSequence<T>
         where T : Record, T : Projection<ID> =
     select().where(field, IN, values).resultSequence
 
@@ -193,7 +193,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findAllByRef(field: Metamodel<T, V>,
  * @param values Iterable of values to match against.
  * @return a sequence of matching projections.
  */
-fun <T, ID, V> KProjectionRepository<T, ID>.selectAllByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): CloseableSequence<T>
+fun <T, ID, V> KProjectionRepository<T, ID>.selectByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): CloseableSequence<T>
         where T : Record, T : Projection<ID>, V : Record =
     select().whereRef(field, values).resultSequence
 
@@ -277,7 +277,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>,
  * @param value The value to match against.
  * @return a sequence of matching projections.
  */
-fun <T, ID, V> KProjectionRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, value: V): CloseableSequence<Ref<T>>
+fun <T, ID, V> KProjectionRepository<T, ID>.selectRefBy(field: Metamodel<T, V>, value: V): CloseableSequence<Ref<T>>
         where T : Record, T : Projection<ID> =
     selectRef().where(field, EQUALS, value).resultSequence
 
@@ -309,7 +309,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>,
  * @param value The value to match against.
  * @return a sequence of matching projections.
  */
-fun <T, ID, V> KProjectionRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, value: Ref<V>): CloseableSequence<Ref<T>>
+fun <T, ID, V> KProjectionRepository<T, ID>.selectRefBy(field: Metamodel<T, V>, value: Ref<V>): CloseableSequence<Ref<T>>
         where T : Record, T : Projection<ID>, V : Record =
     selectRef().where(field, value).resultSequence
 
@@ -341,7 +341,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>,
  * @param values Iterable of values to match against.
  * @return a sequence of matching projections.
  */
-fun <T, ID, V> KProjectionRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, values: Iterable<V>): CloseableSequence<Ref<T>>
+fun <T, ID, V> KProjectionRepository<T, ID>.selectRefBy(field: Metamodel<T, V>, values: Iterable<V>): CloseableSequence<Ref<T>>
         where T : Record, T : Projection<ID> =
     selectRef().where(field, IN, values).resultSequence
 
@@ -374,7 +374,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.findAllRefByRef(field: Metamodel<T, 
  * @param values Iterable of values to match against.
  * @return a sequence of matching projections.
  */
-fun <T, ID, V> KProjectionRepository<T, ID>.selectAllRefByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): CloseableSequence<Ref<T>>
+fun <T, ID, V> KProjectionRepository<T, ID>.selectRefByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): CloseableSequence<Ref<T>>
         where T : Record, T : Projection<ID>, V : Record =
     selectRef().whereRef(field, values).resultSequence
 
@@ -412,7 +412,7 @@ fun <T, ID, V> KProjectionRepository<T, ID>.getRefBy(field: Metamodel<T, V>, val
  * @return a list of matching projections.
  */
 fun <T, ID> KProjectionRepository<T, ID>.findAll(
-    predicate: KWhereBuilder<T, T, ID>.() -> KPredicateBuilder<*, *, *>
+    predicate: KWhereBuilder<T, T, ID>.() -> KPredicateBuilder<T, *, *>
 ): List<T> where T : Record, T : Projection<ID> =
     select().where(predicate).resultList
 
@@ -421,10 +421,28 @@ fun <T, ID> KProjectionRepository<T, ID>.findAll(
  *
  * @return a list of matching projections.
  */
+fun <T, ID> KProjectionRepository<T, ID>.findAll(predicateBuilder: KPredicateBuilder<T, *, *>): List<T>
+        where T : Record, T : Projection<ID> =
+    select().where { predicateBuilder }.resultList
+
+/**
+ * Retrieves projections of type [T] matching the specified predicate.
+ *
+ * @return a list of matching projections.
+ */
 fun <T, ID> KProjectionRepository<T, ID>.findAllRef(
-    predicate: KWhereBuilder<T, Ref<T>, ID>.() -> KPredicateBuilder<*, *, *>
+    predicate: KWhereBuilder<T, Ref<T>, ID>.() -> KPredicateBuilder<T, *, *>
 ): List<Ref<T>> where T : Record, T : Projection<ID> =
     selectRef().where(predicate).resultList
+
+/**
+ * Retrieves projections of type [T] matching the specified predicate.
+ *
+ * @return a list of matching projections.
+ */
+fun <T, ID> KProjectionRepository<T, ID>.findAllRef(predicateBuilder: KPredicateBuilder<T, *, *>): List<Ref<T>>
+        where T : Record, T : Projection<ID> =
+    selectRef().where { predicateBuilder }.resultList
 
 /**
  * Retrieves an optional projection of type [T] matching the specified predicate.
@@ -433,7 +451,7 @@ fun <T, ID> KProjectionRepository<T, ID>.findAllRef(
  * @return an optional projection, or null if none found.
  */
 fun <T, ID> KProjectionRepository<T, ID>.find(
-    predicate: KWhereBuilder<T, T, ID>.() -> KPredicateBuilder<*, *, *>
+    predicate: KWhereBuilder<T, T, ID>.() -> KPredicateBuilder<T, *, *>
 ): T? where T : Record, T : Projection<ID> =
     select().where(predicate).optionalResult.getOrNull()
 
@@ -443,10 +461,30 @@ fun <T, ID> KProjectionRepository<T, ID>.find(
  *
  * @return an optional projection, or null if none found.
  */
+fun <T, ID> KProjectionRepository<T, ID>.find(predicateBuilder: KPredicateBuilder<T, *, *>): T?
+        where T : Record, T : Projection<ID> =
+    select().where { predicateBuilder }.optionalResult.getOrNull()
+
+/**
+ * Retrieves an optional projection of type [T] matching the specified predicate.
+ * Returns null if no matching projection is found.
+ *
+ * @return an optional projection, or null if none found.
+ */
 fun <T, ID> KProjectionRepository<T, ID>.findRef(
-    predicate: KWhereBuilder<T, Ref<T>, ID>.() -> KPredicateBuilder<*, *, *>
+    predicate: KWhereBuilder<T, Ref<T>, ID>.() -> KPredicateBuilder<T, *, *>
 ): Ref<T> where T : Record, T : Projection<ID> =
     selectRef().where(predicate).optionalResult.orElse(Ref.ofNull())
+
+/**
+ * Retrieves an optional projection of type [T] matching the specified predicate.
+ * Returns null if no matching projection is found.
+ *
+ * @return an optional projection, or null if none found.
+ */
+fun <T, ID> KProjectionRepository<T, ID>.findRef(predicateBuilder: KPredicateBuilder<T, *, *>): Ref<T>
+        where T : Record, T : Projection<ID> =
+    selectRef().where { predicateBuilder }.optionalResult.orElse(Ref.ofNull())
 
 /**
  * Retrieves a single projection of type [T] matching the specified predicate.
@@ -457,7 +495,7 @@ fun <T, ID> KProjectionRepository<T, ID>.findRef(
  * @throws st.orm.NonUniqueResultException if more than one result.
  */
 fun <T, ID> KProjectionRepository<T, ID>.get(
-    predicate: KWhereBuilder<T, T, ID>.() -> KPredicateBuilder<*, *, *>
+    predicate: KWhereBuilder<T, T, ID>.() -> KPredicateBuilder<T, *, *>
 ): T where T : Record, T : Projection<ID> =
     select().where(predicate).singleResult
 
@@ -469,10 +507,34 @@ fun <T, ID> KProjectionRepository<T, ID>.get(
  * @throws st.orm.NoResultException if there is no result.
  * @throws st.orm.NonUniqueResultException if more than one result.
  */
+fun <T, ID> KProjectionRepository<T, ID>.get(predicateBuilder: KPredicateBuilder<T, *, *>): T
+        where T : Record, T : Projection<ID> =
+    select().where { predicateBuilder }.singleResult
+
+/**
+ * Retrieves a single projection of type [T] matching the specified predicate.
+ * Throws an exception if no projection or more than one projection is found.
+ *
+ * @return the matching projection.
+ * @throws st.orm.NoResultException if there is no result.
+ * @throws st.orm.NonUniqueResultException if more than one result.
+ */
 fun <T, ID> KProjectionRepository<T, ID>.getRef(
-    predicate: KWhereBuilder<T, Ref<T>, ID>.() -> KPredicateBuilder<*, *, *>
+    predicate: KWhereBuilder<T, Ref<T>, ID>.() -> KPredicateBuilder<T, *, *>
 ): Ref<T> where T : Record, T : Projection<ID> =
     selectRef().where(predicate).singleResult
+
+/**
+ * Retrieves a single projection of type [T] matching the specified predicate.
+ * Throws an exception if no projection or more than one projection is found.
+ *
+ * @return the matching projection.
+ * @throws st.orm.NoResultException if there is no result.
+ * @throws st.orm.NonUniqueResultException if more than one result.
+ */
+fun <T, ID> KProjectionRepository<T, ID>.getRef(predicateBuilder: KPredicateBuilder<T, *, *>): Ref<T>
+        where T : Record, T : Projection<ID> =
+    selectRef().where { predicateBuilder }.singleResult
 
 /**
  * Retrieves projections of type [T] matching the specified predicate.
@@ -488,7 +550,7 @@ fun <T, ID> KProjectionRepository<T, ID>.getRef(
  * @return a sequence of matching projections.
  */
 fun <T, ID> KProjectionRepository<T, ID>.select(
-    predicate: KWhereBuilder<T, T, ID>.() -> KPredicateBuilder<*, *, *>
+    predicate: KWhereBuilder<T, T, ID>.() -> KPredicateBuilder<T, *, *>
 ): CloseableSequence<T> where T : Record, T : Projection<ID> =
     select().where(predicate).resultSequence
 
@@ -505,10 +567,44 @@ fun <T, ID> KProjectionRepository<T, ID>.select(
  *
  * @return a sequence of matching projections.
  */
+fun <T, ID> KProjectionRepository<T, ID>.select(predicateBuilder: KPredicateBuilder<T, *, *>): CloseableSequence<T>
+        where T : Record, T : Projection<ID> =
+    select().where { predicateBuilder }.resultSequence
+
+/**
+ * Retrieves projections of type [T] matching the specified predicate.
+ *
+ * The resulting sequence is lazily loaded, meaning that the projections are only retrieved from the database as they
+ * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
+ * dealing with large volumes of projections.
+ *
+ * Note that calling this method does trigger the execution of the underlying
+ * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+ * while in use, it must be closed after usage to prevent resource leaks.
+ *
+ * @return a sequence of matching projections.
+ */
 fun <T, ID> KProjectionRepository<T, ID>.selectRef(
-    predicate: KWhereBuilder<T, Ref<T>, ID>.() -> KPredicateBuilder<*, *, *>
+    predicate: KWhereBuilder<T, Ref<T>, ID>.() -> KPredicateBuilder<T, *, *>
 ): CloseableSequence<Ref<T>> where T : Record, T : Projection<ID> =
     selectRef().where(predicate).resultSequence
+
+/**
+ * Retrieves projections of type [T] matching the specified predicate.
+ *
+ * The resulting sequence is lazily loaded, meaning that the projections are only retrieved from the database as they
+ * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
+ * dealing with large volumes of projections.
+ *
+ * Note that calling this method does trigger the execution of the underlying
+ * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+ * while in use, it must be closed after usage to prevent resource leaks.
+ *
+ * @return a sequence of matching projections.
+ */
+fun <T, ID> KProjectionRepository<T, ID>.selectRef(predicateBuilder: KPredicateBuilder<T, *, *>): CloseableSequence<Ref<T>>
+        where T : Record, T : Projection<ID> =
+    selectRef().where { predicateBuilder }.resultSequence
 
 /**
  * Counts projections of type [T] matching the specified field and value.
@@ -543,6 +639,16 @@ fun <T, ID, V> KProjectionRepository<T, ID>.countBy(
  * @return the count of matching projections.
  */
 fun <T, ID> KProjectionRepository<T, ID>.count(
-    predicate: KWhereBuilder<T, *, ID>.() -> KPredicateBuilder<*, *, *>
+    predicate: KWhereBuilder<T, *, ID>.() -> KPredicateBuilder<T, *, *>
 ): Long where T : Record, T : Projection<ID> =
     selectCount().where(predicate).singleResult
+
+/**
+ * Counts projections of type [T] matching the specified predicate.
+ *
+ * @param predicate Lambda to build the WHERE clause.
+ * @return the count of matching projections.
+ */
+fun <T, ID> KProjectionRepository<T, ID>.count(predicateBuilder: KPredicateBuilder<T, *, *>): Long
+        where T : Record, T : Projection<ID> =
+    selectCount().where { predicateBuilder }.singleResult

@@ -365,7 +365,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      * result produced by the callback.
      *
      * <p>This method ensures efficient handling of large data sets by loading projections only as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param callback a {@link KResultCallback} defining how to process the sequence of projections and produce a result.
@@ -404,7 +404,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      */
     @Override
     public CloseableSequence<P> selectAllById(@Nonnull Sequence<ID> ids) {
-        return CloseableSequence.from(projectionRepository.selectAllById(toStream(ids)));
+        return CloseableSequence.from(projectionRepository.selectById(toStream(ids)));
     }
 
     /**
@@ -413,7 +413,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      * returning the outcome produced by the callback.
      *
      * <p>This method is designed for efficient data handling by only retrieving specified projections as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param ids a sequence of projection IDs to retrieve from the repository.
@@ -424,7 +424,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      */
     @Override
     public <R> R selectAllById(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<P, R> callback) {
-        return projectionRepository.selectAllById(toStream(ids), stream -> callback.process(toSequence(stream)));
+        return projectionRepository.selectById(toStream(ids), stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -453,7 +453,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      */
     @Override
     public CloseableSequence<P> selectAllByRef(@Nonnull Sequence<Ref<P>> refs) {
-        return CloseableSequence.from(projectionRepository.selectAllByRef(toStream(refs)));
+        return CloseableSequence.from(projectionRepository.selectByRef(toStream(refs)));
     }
 
     /**
@@ -464,7 +464,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
      *
      * <p>This method is designed for efficient data handling by only retrieving specified projections as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param ids a sequence of projection IDs to retrieve from the repository.
@@ -481,7 +481,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      */
     @Override
     public <R> R selectAllById(@Nonnull Sequence<ID> ids, int batchSize, @Nonnull KResultCallback<P, R> callback) {
-        return projectionRepository.selectAllById(toStream(ids), batchSize, stream -> callback.process(toSequence(stream)));
+        return projectionRepository.selectById(toStream(ids), batchSize, stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -513,7 +513,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      */
     @Override
     public CloseableSequence<P> selectAllById(@Nonnull Sequence<ID> ids, int batchSize) {
-        return CloseableSequence.from(projectionRepository.selectAllById(toStream(ids), batchSize));
+        return CloseableSequence.from(projectionRepository.selectById(toStream(ids), batchSize));
     }
 
     /**
@@ -522,7 +522,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      * returning the outcome produced by the callback.
      *
      * <p>This method is designed for efficient data handling by only retrieving specified projections as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param refs a sequence of refs to retrieve from the repository.
@@ -533,7 +533,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      */
     @Override
     public <R> R selectAllByRef(@Nonnull Sequence<Ref<P>> refs, @Nonnull KResultCallback<P, R> callback) {
-        return projectionRepository.selectAllByRef(toStream(refs), stream -> callback.process(toSequence(stream)));
+        return projectionRepository.selectByRef(toStream(refs), stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -565,7 +565,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      */
     @Override
     public CloseableSequence<P> selectAllByRef(@Nonnull Sequence<Ref<P>> refs, int batchSize) {
-        return CloseableSequence.from(projectionRepository.selectAllByRef(toStream(refs), batchSize));
+        return CloseableSequence.from(projectionRepository.selectByRef(toStream(refs), batchSize));
     }
 
     /**
@@ -576,7 +576,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
      *
      * <p>This method is designed for efficient data handling by only retrieving specified projections as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param refs a sequence of refs to retrieve from the repository.
@@ -593,7 +593,7 @@ public final class KProjectionRepositoryImpl<P extends Record & Projection<ID>, 
      */
     @Override
     public <R> R selectAllByRef(@Nonnull Sequence<Ref<P>> refs, int batchSize, @Nonnull KResultCallback<P, R> callback) {
-        return projectionRepository.selectAllByRef(toStream(refs), batchSize, stream -> callback.process(toSequence(stream)));
+        return projectionRepository.selectByRef(toStream(refs), batchSize, stream -> callback.process(toSequence(stream)));
     }
 
     /**

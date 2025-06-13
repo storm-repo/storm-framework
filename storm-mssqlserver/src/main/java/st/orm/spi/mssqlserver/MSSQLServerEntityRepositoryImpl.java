@@ -448,7 +448,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
                                   @Nonnull Supplier<PreparedQuery> querySupplier,
                                   @Nullable BatchCallback<E> callback) {
         insertAndFetchIds(batch, querySupplier, callback == null ? null : ids -> {
-            try (var stream = selectAllById(ids)) {
+            try (var stream = selectById(ids)) {
                 callback.process(stream);
             }
         });
@@ -458,7 +458,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
                                   @Nonnull Supplier<PreparedQuery> querySupplier,
                                   @Nullable BatchCallback<E> callback) {
         upsertAndFetchIds(batch, querySupplier, callback == null ? null : ids -> {
-            try (var stream = selectAllById(ids)) {
+            try (var stream = selectById(ids)) {
                 callback.process(stream);
             }
         });

@@ -18,6 +18,8 @@
 package st.orm.kotlin.repository
 
 import st.orm.Ref
+import st.orm.kotlin.template.KQueryBuilder.KPredicateBuilder
+import st.orm.kotlin.template.impl.KPredicateBuilderFactory.bridge
 import st.orm.repository.Entity
 import st.orm.repository.EntityRepository
 import st.orm.template.Metamodel
@@ -106,7 +108,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, value: 
  * @param value the value to match against.
  * @return a stream of matching entities.
  */
-fun <T, ID, V> EntityRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, value: V): Stream<T>
+fun <T, ID, V> EntityRepository<T, ID>.selectBy(field: Metamodel<T, V>, value: V): Stream<T>
         where T : Record, T : Entity<ID> =
     select().where(field, EQUALS, value).resultStream
 
@@ -138,7 +140,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, value: 
  * @param value the value to match against.
  * @return a stream of matching entities.
  */
-fun <T, ID, V> EntityRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, value: Ref<V>): Stream<T>
+fun <T, ID, V> EntityRepository<T, ID>.selectBy(field: Metamodel<T, V>, value: Ref<V>): Stream<T>
         where T : Record, T : Entity<ID>, V : Record =
     select().where(field, value).resultStream
 
@@ -170,7 +172,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, values:
  * @param values Iterable of values to match against.
  * @return at stream of matching entities.
  */
-fun <T, ID, V> EntityRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, values: Iterable<V>): Stream<T>
+fun <T, ID, V> EntityRepository<T, ID>.selectBy(field: Metamodel<T, V>, values: Iterable<V>): Stream<T>
         where T : Record, T : Entity<ID> =
     select().where(field, IN, values).resultStream
 
@@ -194,7 +196,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllByRef(field: Metamodel<T, V>, valu
  * @param values Iterable of values to match against.
  * @return a stream of matching entities.
  */
-fun <T, ID, V> EntityRepository<T, ID>.selectAllByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): Stream<T>
+fun <T, ID, V> EntityRepository<T, ID>.selectByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): Stream<T>
         where T : Record, T : Entity<ID>, V : Record =
     select().whereRef(field, values).resultStream
 
@@ -228,7 +230,7 @@ fun <T, ID, V> EntityRepository<T, ID>.getBy(field: Metamodel<T, V>, value: Ref<
 
 /**
  * Retrieves an optional entity of type [T] based on a single field and its value.
- * Returns null if no matching entity is found.
+ * Returns a ref with a null value if no matching entity is found.
  *
  * @param field metamodel reference of the entity field.
  * @param value the value to match against.
@@ -240,7 +242,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findRefBy(field: Metamodel<T, V>, value: 
 
 /**
  * Retrieves an optional entity of type [T] based on a single field and its value.
- * Returns null if no matching entity is found.
+ * Returns a ref with a null value if no matching entity is found.
  *
  * @param field metamodel reference of the entity field.
  * @param value the value to match against.
@@ -278,7 +280,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, valu
  * @param value the value to match against.
  * @return a stream of matching entities.
  */
-fun <T, ID, V> EntityRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, value: V): Stream<Ref<T>>
+fun <T, ID, V> EntityRepository<T, ID>.selectRefBy(field: Metamodel<T, V>, value: V): Stream<Ref<T>>
         where T : Record, T : Entity<ID> =
     selectRef().where(field, EQUALS, value).resultStream
 
@@ -310,7 +312,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, valu
  * @param value the value to match against.
  * @return a stream of matching entities.
  */
-fun <T, ID, V> EntityRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, value: Ref<V>): Stream<Ref<T>>
+fun <T, ID, V> EntityRepository<T, ID>.selectRefBy(field: Metamodel<T, V>, value: Ref<V>): Stream<Ref<T>>
         where T : Record, T : Entity<ID>, V : Record =
     selectRef().where(field, value).resultStream
 
@@ -342,7 +344,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, valu
  * @param values Iterable of values to match against.
  * @return a stream of matching entities.
  */
-fun <T, ID, V> EntityRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, values: Iterable<V>): Stream<Ref<T>>
+fun <T, ID, V> EntityRepository<T, ID>.selectRefBy(field: Metamodel<T, V>, values: Iterable<V>): Stream<Ref<T>>
         where T : Record, T : Entity<ID> =
     selectRef().where(field, IN, values).resultStream
 
@@ -375,7 +377,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllRefByRef(field: Metamodel<T, V>, v
  * @param values Iterable of values to match against.
  * @return a stream of matching entities.
  */
-fun <T, ID, V> EntityRepository<T, ID>.selectAllRefByRef(
+fun <T, ID, V> EntityRepository<T, ID>.selectRefByRef(
     field: Metamodel<T, V>,
     values: Iterable<Ref<V>>
 ): Stream<Ref<T>>
@@ -416,7 +418,7 @@ fun <T, ID, V> EntityRepository<T, ID>.getRefBy(field: Metamodel<T, V>, value: R
  * @return a list of matching entities.
  */
 fun <T, ID> EntityRepository<T, ID>.findAll(
-    predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<*, *, *>
+    predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<T, *, *>
 ): List<T> where T : Record, T : Entity<ID> =
     select().where(predicate).resultList
 
@@ -425,10 +427,28 @@ fun <T, ID> EntityRepository<T, ID>.findAll(
  *
  * @return a list of matching entities.
  */
+fun <T, ID> EntityRepository<T, ID>.findAll(predicateBuilder: KPredicateBuilder<T, *, *>): List<T>
+        where T : Record, T : Entity<ID> =
+    select().where { bridge(predicateBuilder) }.resultList
+
+/**
+ * Retrieves entities of type [T] matching the specified predicate.
+ *
+ * @return a list of matching entities.
+ */
 fun <T, ID> EntityRepository<T, ID>.findAllRef(
-    predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<*, *, *>
+    predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<T, *, *>
 ): List<Ref<T>> where T : Record, T : Entity<ID> =
     selectRef().where(predicate).resultList
+
+/**
+ * Retrieves entities of type [T] matching the specified predicate.
+ *
+ * @return a list of matching entities.
+ */
+fun <T, ID> EntityRepository<T, ID>.findAllRef(predicateBuilder: KPredicateBuilder<T, *, *>): List<Ref<T>>
+        where T : Record, T : Entity<ID> =
+    selectRef().where { bridge(predicateBuilder) }.resultList
 
 /**
  * Retrieves an optional entity of type [T] matching the specified predicate.
@@ -437,7 +457,7 @@ fun <T, ID> EntityRepository<T, ID>.findAllRef(
  * @return an optional entity, or null if none found.
  */
 fun <T, ID> EntityRepository<T, ID>.find(
-    predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<*, *, *>
+    predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<T, *, *>
 ): T? where T : Record, T : Entity<ID> =
     select().where(predicate).optionalResult.getOrNull()
 
@@ -447,10 +467,30 @@ fun <T, ID> EntityRepository<T, ID>.find(
  *
  * @return an optional entity, or null if none found.
  */
+fun <T, ID> EntityRepository<T, ID>.find(predicateBuilder: KPredicateBuilder<T, *, *>): T?
+        where T : Record, T : Entity<ID> =
+    select().where { bridge(predicateBuilder) }.optionalResult.getOrNull()
+
+/**
+ * Retrieves an optional entity of type [T] matching the specified predicate.
+ * Returns a ref with a null value if no matching entity is found.
+ *
+ * @return an optional entity, or null if none found.
+ */
 fun <T, ID> EntityRepository<T, ID>.findRef(
-    predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<*, *, *>
+    predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<T, *, *>
 ): Ref<T> where T : Record, T : Entity<ID> =
     selectRef().where(predicate).optionalResult.orElse(Ref.ofNull())
+
+/**
+ * Retrieves an optional entity of type [T] matching the specified predicate.
+ * Returns a ref with a null value if no matching entity is found.
+ *
+ * @return an optional entity, or null if none found.
+ */
+fun <T, ID> EntityRepository<T, ID>.findRef(predicateBuilder: KPredicateBuilder<T, *, *>): Ref<T>
+        where T : Record, T : Entity<ID> =
+    selectRef().where { bridge(predicateBuilder) }.optionalResult.orElse(Ref.ofNull())
 
 /**
  * Retrieves a single entity of type [T] matching the specified predicate.
@@ -461,7 +501,7 @@ fun <T, ID> EntityRepository<T, ID>.findRef(
  * @throws st.orm.NonUniqueResultException if more than one result.
  */
 fun <T, ID> EntityRepository<T, ID>.get(
-    predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<*, *, *>
+    predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<T, *, *>
 ): T where T : Record, T : Entity<ID> =
     select().where(predicate).singleResult
 
@@ -473,10 +513,34 @@ fun <T, ID> EntityRepository<T, ID>.get(
  * @throws st.orm.NoResultException if there is no result.
  * @throws st.orm.NonUniqueResultException if more than one result.
  */
+fun <T, ID> EntityRepository<T, ID>.get(predicateBuilder: KPredicateBuilder<T, *, *>): T
+        where T : Record, T : Entity<ID> =
+    select().where { bridge(predicateBuilder) }.singleResult
+
+/**
+ * Retrieves a single entity of type [T] matching the specified predicate.
+ * Throws an exception if no entity or more than one entity is found.
+ *
+ * @return the matching entity.
+ * @throws st.orm.NoResultException if there is no result.
+ * @throws st.orm.NonUniqueResultException if more than one result.
+ */
 fun <T, ID> EntityRepository<T, ID>.getRef(
-    predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<*, *, *>
+    predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<T, *, *>
 ): Ref<T> where T : Record, T : Entity<ID> =
     selectRef().where(predicate).singleResult
+
+/**
+ * Retrieves a single entity of type [T] matching the specified predicate.
+ * Throws an exception if no entity or more than one entity is found.
+ *
+ * @return the matching entity.
+ * @throws st.orm.NoResultException if there is no result.
+ * @throws st.orm.NonUniqueResultException if more than one result.
+ */
+fun <T, ID> EntityRepository<T, ID>.getRef(predicateBuilder: KPredicateBuilder<T, *, *>): Ref<T>
+        where T : Record, T : Entity<ID> =
+    selectRef().where { bridge(predicateBuilder) }.singleResult
 
 /**
  * Retrieves entities of type [T] matching the specified predicate.
@@ -492,7 +556,7 @@ fun <T, ID> EntityRepository<T, ID>.getRef(
  * @return a stream of matching entities.
  */
 fun <T, ID> EntityRepository<T, ID>.select(
-    predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<*, *, *>
+    predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<T, *, *>
 ): Stream<T> where T : Record, T : Entity<ID> =
     select().where(predicate).resultStream
 
@@ -509,10 +573,44 @@ fun <T, ID> EntityRepository<T, ID>.select(
  *
  * @return a stream of matching entities.
  */
+fun <T, ID> EntityRepository<T, ID>.select(predicateBuilder: KPredicateBuilder<T, *, *>): Stream<T>
+        where T : Record, T : Entity<ID> =
+    select().where { bridge(predicateBuilder) }.resultStream
+
+/**
+ * Retrieves entities of type [T] matching the specified predicate.
+ *
+ * The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
+ * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+ * dealing with large volumes of entities.
+ *
+ * Note that calling this method does trigger the execution of the underlying
+ * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
+ * while in use, it must be closed after usage to prevent resource leaks.
+ *
+ * @return a stream of matching entities.
+ */
 fun <T, ID> EntityRepository<T, ID>.selectRef(
-    predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<*, *, *>
+    predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<T, *, *>
 ): Stream<Ref<T>> where T : Record, T : Entity<ID> =
     selectRef().where(predicate).resultStream
+
+/**
+ * Retrieves entities of type [T] matching the specified predicate.
+ *
+ * The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
+ * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+ * dealing with large volumes of entities.
+ *
+ * Note that calling this method does trigger the execution of the underlying
+ * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
+ * while in use, it must be closed after usage to prevent resource leaks.
+ *
+ * @return a stream of matching entities.
+ */
+fun <T, ID> EntityRepository<T, ID>.selectRef(predicateBuilder: KPredicateBuilder<T, *, *>): Stream<Ref<T>>
+        where T : Record, T : Entity<ID> =
+    selectRef().where { bridge(predicateBuilder) }.resultStream
 
 /**
  * Counts entities of type [T] matching the specified field and value.
@@ -547,9 +645,19 @@ fun <T, ID, V> EntityRepository<T, ID>.countBy(
  * @return the count of matching entities.
  */
 fun <T, ID> EntityRepository<T, ID>.count(
-    predicate: WhereBuilder<T, *, ID>.() -> PredicateBuilder<*, *, *>
+    predicate: WhereBuilder<T, *, ID>.() -> PredicateBuilder<T, *, *>
 ): Long where T : Record, T : Entity<ID> =
     selectCount().where(predicate).singleResult
+
+/**
+ * Counts entities of type [T] matching the specified predicate.
+ *
+ * @param predicateBuilder Lambda to build the WHERE clause.
+ * @return the count of matching entities.
+ */
+fun <T, ID> EntityRepository<T, ID>.count(predicateBuilder: KPredicateBuilder<T, *, *>): Long
+        where T : Record, T : Entity<ID> =
+    selectCount().where { bridge(predicateBuilder) }.singleResult
 
 /**
  * Deletes entities of type [T] matching the specified field and value.
@@ -610,7 +718,17 @@ fun <T, ID, V> EntityRepository<T, ID>.deleteAllByRef(
  * @return the number of entities deleted.
  */
 fun <T, ID> EntityRepository<T, ID>.delete(
-    predicate: WhereBuilder<T, *, ID>.() -> PredicateBuilder<*, *, *>
+    predicate: WhereBuilder<T, *, ID>.() -> PredicateBuilder<T, *, *>
 ): Int where T : Record, T : Entity<ID> =
     delete().where(predicate).executeUpdate()
+
+/**
+ * Deletes entities of type [T] matching the specified predicate.
+ *
+ * @param predicate Lambda to build the WHERE clause.
+ * @return the number of entities deleted.
+ */
+fun <T, ID> EntityRepository<T, ID>.delete(predicateBuilder: KPredicateBuilder<T, *, *>): Int
+        where T : Record, T : Entity<ID> =
+    delete().where { bridge(predicateBuilder) }.executeUpdate()
 

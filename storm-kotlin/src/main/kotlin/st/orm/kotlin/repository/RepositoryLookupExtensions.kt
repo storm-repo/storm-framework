@@ -18,6 +18,9 @@
 package st.orm.kotlin.repository
 
 import st.orm.Ref
+import st.orm.kotlin.template.KQueryBuilder
+import st.orm.kotlin.template.KQueryBuilder.KPredicateBuilder
+import st.orm.kotlin.template.impl.KPredicateBuilderFactory.bridge
 import st.orm.repository.*
 import st.orm.template.Metamodel
 import st.orm.template.Operator.EQUALS
@@ -242,7 +245,7 @@ inline fun <reified T, V> RepositoryLookup.findAllBy(field: Metamodel<T, V>, val
  * @return stream of matching records.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.selectAllBy(field: Metamodel<T, V>, value: V): Stream<T>
+inline fun <reified T, V> RepositoryLookup.selectBy(field: Metamodel<T, V>, value: V): Stream<T>
         where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
@@ -290,7 +293,7 @@ inline fun <reified T, V> RepositoryLookup.findAllBy(field: Metamodel<T, V>, val
  * @return stream of matching records.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.selectAllBy(field: Metamodel<T, V>, value: Ref<V>): Stream<T>
+inline fun <reified T, V> RepositoryLookup.selectBy(field: Metamodel<T, V>, value: Ref<V>): Stream<T>
         where T : Record, V : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
@@ -338,7 +341,7 @@ inline fun <reified T, V> RepositoryLookup.findAllBy(field: Metamodel<T, V>, val
  * @return stream of matching records.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.selectAllBy(field: Metamodel<T, V>, values: Iterable<V>): Stream<T>
+inline fun <reified T, V> RepositoryLookup.selectBy(field: Metamodel<T, V>, values: Iterable<V>): Stream<T>
         where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
@@ -386,7 +389,7 @@ inline fun <reified T, V> RepositoryLookup.findAllByRef(field: Metamodel<T, V>, 
  * @return stream of matching records.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.selectAllByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): Stream<T>
+inline fun <reified T, V> RepositoryLookup.selectByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): Stream<T>
         where T : Record, V : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
@@ -453,7 +456,7 @@ inline fun <reified T, V> RepositoryLookup.getBy(field: Metamodel<T, V>, value: 
 
 /**
  * Retrieves an optional entity of type [T] based on a single field and its value.
- * Returns null if no matching entity is found.
+ * Returns a ref with a null value if no matching entity is found.
  *
  * @param field metamodel reference of the entity field.
  * @param value the value to match against.
@@ -475,7 +478,7 @@ inline fun <reified T, V> RepositoryLookup.findRefBy(field: Metamodel<T, V>, val
 
 /**
  * Retrieves an optional entity of type [T] based on a single field and its value.
- * Returns null if no matching entity is found.
+ * Returns a ref with a null value if no matching entity is found.
  *
  * @param field metamodel reference of the entity field.
  * @param value the value to match against.
@@ -526,7 +529,7 @@ inline fun <reified T, V> RepositoryLookup.findAllRefBy(field: Metamodel<T, V>, 
  * @return stream of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.selectAllRefBy(field: Metamodel<T, V>, value: V): Stream<Ref<T>>
+inline fun <reified T, V> RepositoryLookup.selectRefBy(field: Metamodel<T, V>, value: V): Stream<Ref<T>>
         where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
@@ -570,7 +573,7 @@ inline fun <reified T, V> RepositoryLookup.findAllRefBy(field: Metamodel<T, V>, 
  * @return stream of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.selectAllRefBy(field: Metamodel<T, V>, value: Ref<V>): Stream<Ref<T>>
+inline fun <reified T, V> RepositoryLookup.selectRefBy(field: Metamodel<T, V>, value: Ref<V>): Stream<Ref<T>>
         where T : Record, V : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
@@ -614,7 +617,7 @@ inline fun <reified T, V> RepositoryLookup.findAllRefBy(field: Metamodel<T, V>, 
  * @return stream of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.selectAllRefBy(field: Metamodel<T, V>, values: Iterable<V>): Stream<Ref<T>>
+inline fun <reified T, V> RepositoryLookup.selectRefBy(field: Metamodel<T, V>, values: Iterable<V>): Stream<Ref<T>>
         where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
@@ -658,7 +661,7 @@ inline fun <reified T, V> RepositoryLookup.findAllRefByRef(field: Metamodel<T, V
  * @return stream of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.selectAllRefByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): Stream<Ref<T>>
+inline fun <reified T, V> RepositoryLookup.selectRefByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): Stream<Ref<T>>
         where T : Record, V : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
@@ -728,7 +731,7 @@ inline fun <reified T, V> RepositoryLookup.getRefBy(field: Metamodel<T, V>, valu
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.findAll(
-    noinline predicate: WhereBuilder<T, T, *>.() -> PredicateBuilder<*, *, *>
+    noinline predicate: WhereBuilder<T, T, *>.() -> PredicateBuilder<T, *, *>
 ): List<T> where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
@@ -742,29 +745,28 @@ inline fun <reified T> RepositoryLookup.findAll(
 }
 
 /**
- * Creates a query builder to select records of type [T].
+ * Retrieves all records of type [T] based on a predicate.
  *
  * [T] must be either an Entity or Projection type.
  *
  * @return A [QueryBuilder] for selecting records of type [T].
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, ID> RepositoryLookup.findAllWithId(
-    noinline predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<*, *, *>
-): List<T> where T : Record, T : Entity<ID> = when {
+inline fun <reified T> RepositoryLookup.findAll(predicateBuilder: PredicateBuilder<T, T, *>): List<T>
+        where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
-        (method.invoke(this, T::class.java) as EntityRepository<T, ID>).select().where(predicate).resultList
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).select().where { predicateBuilder }.resultList
     }
     Projection::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("projection", Class::class.java)
-        (method.invoke(this, T::class.java) as ProjectionRepository<T, ID>).select().where(predicate).resultList
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).select().where { predicateBuilder }.resultList
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
 
 /**
- * Creates a query builder to select records of type [T].
+ * Retrieves all records of type [T] based on a predicate.
  *
  * [T] must be either an Entity or Projection type.
  *
@@ -772,7 +774,7 @@ inline fun <reified T, ID> RepositoryLookup.findAllWithId(
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.findAllRef(
-    noinline predicate: WhereBuilder<T, Ref<T>, *>.() -> PredicateBuilder<*, *, *>
+    noinline predicate: WhereBuilder<T, Ref<T>, *>.() -> PredicateBuilder<T, *, *>
 ): List<Ref<T>> where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
@@ -786,29 +788,29 @@ inline fun <reified T> RepositoryLookup.findAllRef(
 }
 
 /**
- * Creates a query builder to select records of type [T].
+ * Retrieves all records of type [T] based on a predicate.
  *
  * [T] must be either an Entity or Projection type.
  *
  * @return A [QueryBuilder] for selecting records of type [T].
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, ID> RepositoryLookup.findAllRefWithId(
-    noinline predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<*, *, *>
-): List<Ref<T>> where T : Record, T : Entity<ID> = when {
+inline fun <reified T> RepositoryLookup.findAllRef(predicateBuilder: PredicateBuilder<T, T, *>): List<Ref<T>>
+        where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
-        (method.invoke(this, T::class.java) as EntityRepository<T, ID>).selectRef().where(predicate).resultList
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).selectRef().where { predicateBuilder }.resultList
     }
     Projection::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("projection", Class::class.java)
-        (method.invoke(this, T::class.java) as ProjectionRepository<T, ID>).selectRef().where(predicate).resultList
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).selectRef().where { predicateBuilder }.resultList
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
 
 /**
- * Creates a query builder to select records of type [T].
+ * Retrieves a single record of type [T] based on a predicate.
+ * Returns null if no record is found.
  *
  * [T] must be either an Entity or Projection type.
  *
@@ -816,7 +818,7 @@ inline fun <reified T, ID> RepositoryLookup.findAllRefWithId(
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.find(
-    noinline predicate: WhereBuilder<T, T, *>.() -> PredicateBuilder<*, *, *>
+    noinline predicate: WhereBuilder<T, T, *>.() -> PredicateBuilder<T, *, *>
 ): T? where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
@@ -830,29 +832,30 @@ inline fun <reified T> RepositoryLookup.find(
 }
 
 /**
- * Creates a query builder to select records of type [T].
+ * Retrieves a single record of type [T] based on a predicate.
+ * Returns null if no record is found.
  *
  * [T] must be either an Entity or Projection type.
  *
  * @return A [QueryBuilder] for selecting records of type [T].
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, ID> RepositoryLookup.findWithId(
-    noinline predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<*, *, *>
-): T? where T : Record, T : Entity<ID> = when {
+inline fun <reified T> RepositoryLookup.find(predicateBuilder: PredicateBuilder<T, T, *>): T?
+        where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
-        (method.invoke(this, T::class.java) as EntityRepository<T, ID>).select().where(predicate).optionalResult.getOrNull()
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).select().where { predicateBuilder }.optionalResult.getOrNull()
     }
     Projection::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("projection", Class::class.java)
-        (method.invoke(this, T::class.java) as ProjectionRepository<T, ID>).select().where(predicate).optionalResult.getOrNull()
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).select().where { predicateBuilder }.optionalResult.getOrNull()
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
 
 /**
- * Creates a query builder to select records of type [T].
+ * Retrieves a single record of type [T] based on a predicate.
+ * Returns null if no record is found.
  *
  * [T] must be either an Entity or Projection type.
  *
@@ -860,7 +863,7 @@ inline fun <reified T, ID> RepositoryLookup.findWithId(
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.findRef(
-    noinline predicate: WhereBuilder<T, Ref<T>, *>.() -> PredicateBuilder<*, *, *>
+    noinline predicate: WhereBuilder<T, Ref<T>, *>.() -> PredicateBuilder<T, *, *>
 ): Ref<T> where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
@@ -872,7 +875,6 @@ inline fun <reified T> RepositoryLookup.findRef(
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
-
 /**
  * Creates a query builder to select records of type [T].
  *
@@ -881,16 +883,15 @@ inline fun <reified T> RepositoryLookup.findRef(
  * @return A [QueryBuilder] for selecting records of type [T].
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, ID> RepositoryLookup.findRefWithId(
-    noinline predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<*, *, *>
-): Ref<T> where T : Record, T : Entity<ID> = when {
+inline fun <reified T> RepositoryLookup.findRef(predicateBuilder: PredicateBuilder<T, T, *>): Ref<T>
+        where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
-        (method.invoke(this, T::class.java) as EntityRepository<T, ID>).selectRef().where(predicate).optionalResult.orElse(Ref.ofNull())
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).selectRef().where { predicateBuilder }.optionalResult.orElse(Ref.ofNull())
     }
     Projection::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("projection", Class::class.java)
-        (method.invoke(this, T::class.java) as ProjectionRepository<T, ID>).selectRef().where(predicate).optionalResult.orElse(Ref.ofNull())
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).selectRef().where { predicateBuilder }.optionalResult.orElse(Ref.ofNull())
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
@@ -904,7 +905,7 @@ inline fun <reified T, ID> RepositoryLookup.findRefWithId(
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.get(
-    noinline predicate: WhereBuilder<T, T, *>.() -> PredicateBuilder<*, *, *>
+    noinline predicate: WhereBuilder<T, T, *>.() -> PredicateBuilder<T, *, *>
 ): T where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
@@ -922,19 +923,18 @@ inline fun <reified T> RepositoryLookup.get(
  *
  * [T] must be either an Entity or Projection type.
  *
- * @return A [QueryBuilder] for selecting records of type [T].
+ * @return A [KQueryBuilder] for selecting records of type [T].
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, ID> RepositoryLookup.getWithId(
-    noinline predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<*, *, *>
-): T where T : Record, T : Entity<ID> = when {
+inline fun <reified T> RepositoryLookup.get(predicateBuilder: KPredicateBuilder<T, T, *>): T
+        where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
-        (method.invoke(this, T::class.java) as EntityRepository<T, ID>).select().where(predicate).singleResult
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).select().where { bridge(predicateBuilder) }.singleResult
     }
     Projection::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("projection", Class::class.java)
-        (method.invoke(this, T::class.java) as ProjectionRepository<T, ID>).select().where(predicate).singleResult
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).select().where { bridge(predicateBuilder) }.singleResult
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
@@ -948,7 +948,7 @@ inline fun <reified T, ID> RepositoryLookup.getWithId(
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.getRef(
-    noinline predicate: WhereBuilder<T, Ref<T>, *>.() -> PredicateBuilder<*, *, *>
+    noinline predicate: WhereBuilder<T, Ref<T>, *>.() -> PredicateBuilder<T, *, *>
 ): Ref<T> where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
@@ -966,19 +966,18 @@ inline fun <reified T> RepositoryLookup.getRef(
  *
  * [T] must be either an Entity or Projection type.
  *
- * @return A [QueryBuilder] for selecting records of type [T].
+ * @return A [KQueryBuilder] for selecting records of type [T].
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, ID> RepositoryLookup.getRefWithId(
-    noinline predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<*, *, *>
-): Ref<T> where T : Record, T : Entity<ID> = when {
+inline fun <reified T> RepositoryLookup.getRef(predicateBuilder: KPredicateBuilder<T, Ref<T>, *>): Ref<T>
+        where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
-        (method.invoke(this, T::class.java) as EntityRepository<T, ID>).selectRef().where(predicate).singleResult
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).selectRef().where { bridge(predicateBuilder) }.singleResult
     }
     Projection::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("projection", Class::class.java)
-        (method.invoke(this, T::class.java) as ProjectionRepository<T, ID>).selectRef().where(predicate).singleResult
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).selectRef().where { bridge(predicateBuilder) }.singleResult
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
@@ -992,7 +991,7 @@ inline fun <reified T, ID> RepositoryLookup.getRefWithId(
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.select(
-    noinline predicate: WhereBuilder<T, T, *>.() -> PredicateBuilder<*, *, *>
+    noinline predicate: WhereBuilder<T, T, *>.() -> PredicateBuilder<T, *, *>
 ): Stream<T> where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
@@ -1010,19 +1009,18 @@ inline fun <reified T> RepositoryLookup.select(
  *
  * [T] must be either an Entity or Projection type.
  *
- * @return A [QueryBuilder] for selecting records of type [T].
+ * @return A [KQueryBuilder] for selecting records of type [T].
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, ID> RepositoryLookup.selectWithId(
-    noinline predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<*, *, *>
-): Stream<T> where T : Record, T : Entity<ID> = when {
+inline fun <reified T> RepositoryLookup.select(predicateBuilder: KPredicateBuilder<T, T, *>): Stream<T>
+        where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
-        (method.invoke(this, T::class.java) as EntityRepository<T, ID>).select().where(predicate).resultStream
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).select().where { bridge(predicateBuilder) }.resultStream
     }
     Projection::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("projection", Class::class.java)
-        (method.invoke(this, T::class.java) as ProjectionRepository<T, ID>).select().where(predicate).resultStream
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).select().where { bridge(predicateBuilder) }.resultStream
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
@@ -1036,7 +1034,7 @@ inline fun <reified T, ID> RepositoryLookup.selectWithId(
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.selectRef(
-    noinline predicate: WhereBuilder<T, Ref<T>, *>.() -> PredicateBuilder<*, *, *>
+    noinline predicate: WhereBuilder<T, Ref<T>, *>.() -> PredicateBuilder<T, *, *>
 ): Stream<Ref<T>> where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
@@ -1054,19 +1052,18 @@ inline fun <reified T> RepositoryLookup.selectRef(
  *
  * [T] must be either an Entity or Projection type.
  *
- * @return A [QueryBuilder] for selecting records of type [T].
+ * @return A [KQueryBuilder] for selecting records of type [T].
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, ID> RepositoryLookup.selectRefWithId(
-    noinline predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<*, *, *>
-): Stream<Ref<T>> where T : Record, T : Entity<ID> = when {
+inline fun <reified T> RepositoryLookup.selectRef(predicateBuilder: KPredicateBuilder<T, Ref<T>, *>): Stream<Ref<T>>
+        where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
-        (method.invoke(this, T::class.java) as EntityRepository<T, ID>).selectRef().where(predicate).resultStream
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).selectRef().where { bridge(predicateBuilder) }.resultStream
     }
     Projection::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("projection", Class::class.java)
-        (method.invoke(this, T::class.java) as ProjectionRepository<T, ID>).selectRef().where(predicate).resultStream
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).selectRef().where { bridge(predicateBuilder) }.resultStream
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
@@ -1164,16 +1161,36 @@ inline fun <reified T, V> RepositoryLookup.countBy(
  * @return the count of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, ID, V> RepositoryLookup.count(
-    noinline predicate: WhereBuilder<T, *, ID>.() -> PredicateBuilder<*, *, *>
-): Long where T : Record, T : Entity<ID> = when {
+inline fun <reified T, V> RepositoryLookup.count(
+    noinline predicate: WhereBuilder<T, *, *>.() -> PredicateBuilder<T, *, *>
+): Long where T : Record, T : Entity<*> = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
-        (method.invoke(this, T::class.java) as EntityRepository<T, ID>).selectCount().where(predicate).singleResult
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).selectCount().where(predicate).singleResult
     }
     Projection::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("projection", Class::class.java)
-        (method.invoke(this, T::class.java) as ProjectionRepository<T, ID>).selectCount().where(predicate).singleResult
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).selectCount().where(predicate).singleResult
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Counts entities of type [T] matching the specified predicate.
+ *
+ * @param predicateBuilder Lambda to build the WHERE clause.
+ * @return the count of matching entities.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> RepositoryLookup.count(predicateBuilder: KPredicateBuilder<T, *, *>): Long
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).selectCount().where { bridge(predicateBuilder) }.singleResult
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).selectCount().where { bridge(predicateBuilder) }.singleResult
     }
     else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
 }
@@ -1367,7 +1384,17 @@ inline fun <reified T, V> RepositoryLookup.deleteAllByRef(
  * @param predicate Lambda to build the WHERE clause.
  * @return the number of entities deleted.
  */
-inline fun <reified T, ID> RepositoryLookup.delete(
-    noinline predicate: WhereBuilder<T, *, ID>.() -> PredicateBuilder<*, *, *>
-): Int where T : Record, T : Entity<ID> =
-    entityWithId<T, ID>().delete().where(predicate).executeUpdate()
+inline fun <reified T> RepositoryLookup.delete(
+    noinline predicate: WhereBuilder<T, *, *>.() -> PredicateBuilder<T, *, *>
+): Int where T : Record, T : Entity<*> =
+    entity<T>().delete().where(predicate).executeUpdate()
+
+/**
+ * Deletes entities of type [T] matching the specified predicate.
+ *
+ * @param predicateBuilder Lambda to build the WHERE clause.
+ * @return the number of entities deleted.
+ */
+inline fun <reified T> RepositoryLookup.delete(predicateBuilder: PredicateBuilder<T, *, *>): Int
+        where T : Record, T : Entity<*> =
+    entity<T>().delete().where { predicateBuilder }.executeUpdate()

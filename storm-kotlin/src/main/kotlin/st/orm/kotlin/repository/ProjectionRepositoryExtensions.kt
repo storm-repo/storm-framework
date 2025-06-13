@@ -18,6 +18,8 @@
 package st.orm.kotlin.repository
 
 import st.orm.Ref
+import st.orm.kotlin.template.KQueryBuilder.KPredicateBuilder
+import st.orm.kotlin.template.impl.KPredicateBuilderFactory.bridge
 import st.orm.repository.Projection
 import st.orm.repository.ProjectionRepository
 import st.orm.template.Metamodel
@@ -106,7 +108,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllBy(field: Metamodel<T, V>, val
  * @param value The value to match against.
  * @return a stream of matching projections.
  */
-fun <T, ID, V> ProjectionRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, value: V): Stream<T>
+fun <T, ID, V> ProjectionRepository<T, ID>.selectBy(field: Metamodel<T, V>, value: V): Stream<T>
         where T : Record, T : Projection<ID> =
     select().where(field, EQUALS, value).resultStream
 
@@ -138,7 +140,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllBy(field: Metamodel<T, V>, val
  * @param value The value to match against.
  * @return a stream of matching projections.
  */
-fun <T, ID, V> ProjectionRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, value: Ref<V>): Stream<T>
+fun <T, ID, V> ProjectionRepository<T, ID>.selectBy(field: Metamodel<T, V>, value: Ref<V>): Stream<T>
         where T : Record, T : Projection<ID>, V : Record =
     select().where(field, value).resultStream
 
@@ -170,7 +172,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllBy(field: Metamodel<T, V>, val
  * @param values Iterable of values to match against.
  * @return at stream of matching projections.
  */
-fun <T, ID, V> ProjectionRepository<T, ID>.selectAllBy(field: Metamodel<T, V>, values: Iterable<V>): Stream<T>
+fun <T, ID, V> ProjectionRepository<T, ID>.selectBy(field: Metamodel<T, V>, values: Iterable<V>): Stream<T>
         where T : Record, T : Projection<ID> =
     select().where(field, IN, values).resultStream
 
@@ -194,7 +196,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllByRef(field: Metamodel<T, V>, 
  * @param values Iterable of values to match against.
  * @return a stream of matching projections.
  */
-fun <T, ID, V> ProjectionRepository<T, ID>.selectAllByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): Stream<T>
+fun <T, ID, V> ProjectionRepository<T, ID>.selectByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): Stream<T>
         where T : Record, T : Projection<ID>, V : Record =
     select().whereRef(field, values).resultStream
 
@@ -278,7 +280,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, 
  * @param value The value to match against.
  * @return a stream of matching projections.
  */
-fun <T, ID, V> ProjectionRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, value: V): Stream<Ref<T>>
+fun <T, ID, V> ProjectionRepository<T, ID>.selectRefBy(field: Metamodel<T, V>, value: V): Stream<Ref<T>>
         where T : Record, T : Projection<ID> =
     selectRef().where(field, EQUALS, value).resultStream
 
@@ -310,7 +312,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, 
  * @param value The value to match against.
  * @return a stream of matching projections.
  */
-fun <T, ID, V> ProjectionRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, value: Ref<V>): Stream<Ref<T>>
+fun <T, ID, V> ProjectionRepository<T, ID>.selectRefBy(field: Metamodel<T, V>, value: Ref<V>): Stream<Ref<T>>
         where T : Record, T : Projection<ID>, V : Record =
     selectRef().where(field, value).resultStream
 
@@ -342,7 +344,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, 
  * @param values Iterable of values to match against.
  * @return a stream of matching projections.
  */
-fun <T, ID, V> ProjectionRepository<T, ID>.selectAllRefBy(field: Metamodel<T, V>, values: Iterable<V>): Stream<Ref<T>>
+fun <T, ID, V> ProjectionRepository<T, ID>.selectRefBy(field: Metamodel<T, V>, values: Iterable<V>): Stream<Ref<T>>
         where T : Record, T : Projection<ID> =
     selectRef().where(field, IN, values).resultStream
 
@@ -375,7 +377,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllRefByRef(field: Metamodel<T, V
  * @param values Iterable of values to match against.
  * @return a stream of matching projections.
  */
-fun <T, ID, V> ProjectionRepository<T, ID>.selectAllRefByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): Stream<Ref<T>>
+fun <T, ID, V> ProjectionRepository<T, ID>.selectRefByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): Stream<Ref<T>>
         where T : Record, T : Projection<ID>, V : Record =
     selectRef().whereRef(field, values).resultStream
 
@@ -413,7 +415,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.getRefBy(field: Metamodel<T, V>, valu
  * @return a list of matching projections.
  */
 fun <T, ID> ProjectionRepository<T, ID>.findAll(
-    predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<*, *, *>
+    predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<T, *, *>
 ): List<T> where T : Record, T : Projection<ID> =
     select().where(predicate).resultList
 
@@ -422,10 +424,28 @@ fun <T, ID> ProjectionRepository<T, ID>.findAll(
  *
  * @return a list of matching projections.
  */
+fun <T, ID> ProjectionRepository<T, ID>.findAll(predicateBuilder: KPredicateBuilder<T, *, *>): List<T>
+        where T : Record, T : Projection<ID> =
+    select().where { bridge(predicateBuilder) }.resultList
+
+/**
+ * Retrieves projections of type [T] matching the specified predicate.
+ *
+ * @return a list of matching projections.
+ */
 fun <T, ID> ProjectionRepository<T, ID>.findAllRef(
-    predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<*, *, *>
+    predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<T, *, *>
 ): List<Ref<T>> where T : Record, T : Projection<ID> =
     selectRef().where(predicate).resultList
+
+/**
+ * Retrieves projections of type [T] matching the specified predicate.
+ *
+ * @return a list of matching projections.
+ */
+fun <T, ID> ProjectionRepository<T, ID>.findAllRef(predicateBuilder: KPredicateBuilder<T, *, *>): List<Ref<T>>
+        where T : Record, T : Projection<ID> =
+    selectRef().where { bridge(predicateBuilder) }.resultList
 
 /**
  * Retrieves an optional projection of type [T] matching the specified predicate.
@@ -434,7 +454,7 @@ fun <T, ID> ProjectionRepository<T, ID>.findAllRef(
  * @return an optional projection, or null if none found.
  */
 fun <T, ID> ProjectionRepository<T, ID>.find(
-    predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<*, *, *>
+    predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<T, *, *>
 ): T? where T : Record, T : Projection<ID> =
     select().where(predicate).optionalResult.getOrNull()
 
@@ -444,10 +464,30 @@ fun <T, ID> ProjectionRepository<T, ID>.find(
  *
  * @return an optional projection, or null if none found.
  */
+fun <T, ID> ProjectionRepository<T, ID>.find(predicateBuilder: KPredicateBuilder<T, *, *>): T?
+        where T : Record, T : Projection<ID> =
+    select().where { bridge(predicateBuilder) }.optionalResult.getOrNull()
+
+/**
+ * Retrieves an optional projection of type [T] matching the specified predicate.
+ * Returns null if no matching projection is found.
+ *
+ * @return an optional projection, or null if none found.
+ */
 fun <T, ID> ProjectionRepository<T, ID>.findRef(
-    predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<*, *, *>
+    predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<T, *, *>
 ): Ref<T> where T : Record, T : Projection<ID> =
     selectRef().where(predicate).optionalResult.orElse(Ref.ofNull())
+
+/**
+ * Retrieves an optional projection of type [T] matching the specified predicate.
+ * Returns null if no matching projection is found.
+ *
+ * @return an optional projection, or null if none found.
+ */
+fun <T, ID> ProjectionRepository<T, ID>.findRef(predicateBuilder: KPredicateBuilder<T, *, *>): Ref<T>
+        where T : Record, T : Projection<ID> =
+    selectRef().where { bridge(predicateBuilder) }.optionalResult.orElse(Ref.ofNull())
 
 /**
  * Retrieves a single projection of type [T] matching the specified predicate.
@@ -458,7 +498,7 @@ fun <T, ID> ProjectionRepository<T, ID>.findRef(
  * @throws st.orm.NonUniqueResultException if more than one result.
  */
 fun <T, ID> ProjectionRepository<T, ID>.get(
-    predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<*, *, *>
+    predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<T, *, *>
 ): T where T : Record, T : Projection<ID> =
     select().where(predicate).singleResult
 
@@ -470,10 +510,34 @@ fun <T, ID> ProjectionRepository<T, ID>.get(
  * @throws st.orm.NoResultException if there is no result.
  * @throws st.orm.NonUniqueResultException if more than one result.
  */
+fun <T, ID> ProjectionRepository<T, ID>.get(predicateBuilder: KPredicateBuilder<T, *, *>): T
+        where T : Record, T : Projection<ID> =
+    select().where { bridge(predicateBuilder) }.singleResult
+
+/**
+ * Retrieves a single projection of type [T] matching the specified predicate.
+ * Throws an exception if no projection or more than one projection is found.
+ *
+ * @return the matching projection.
+ * @throws st.orm.NoResultException if there is no result.
+ * @throws st.orm.NonUniqueResultException if more than one result.
+ */
 fun <T, ID> ProjectionRepository<T, ID>.getRef(
-    predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<*, *, *>
+    predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<T, *, *>
 ): Ref<T> where T : Record, T : Projection<ID> =
     selectRef().where(predicate).singleResult
+
+/**
+ * Retrieves a single projection of type [T] matching the specified predicate.
+ * Throws an exception if no projection or more than one projection is found.
+ *
+ * @return the matching projection.
+ * @throws st.orm.NoResultException if there is no result.
+ * @throws st.orm.NonUniqueResultException if more than one result.
+ */
+fun <T, ID> ProjectionRepository<T, ID>.getRef(predicateBuilder: KPredicateBuilder<T, *, *>): Ref<T>
+        where T : Record, T : Projection<ID> =
+    selectRef().where { bridge(predicateBuilder) }.singleResult
 
 /**
  * Retrieves projections of type [T] matching the specified predicate.
@@ -489,9 +553,26 @@ fun <T, ID> ProjectionRepository<T, ID>.getRef(
  * @return a stream of matching projections.
  */
 fun <T, ID> ProjectionRepository<T, ID>.select(
-    predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<*, *, *>
+    predicate: WhereBuilder<T, T, ID>.() -> PredicateBuilder<T, *, *>
 ): Stream<T> where T : Record, T : Projection<ID> =
     select().where(predicate).resultStream
+
+/**
+ * Retrieves projections of type [T] matching the specified predicate.
+ *
+ * The resulting stream is lazily loaded, meaning that the projections are only retrieved from the database as they
+ * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+ * dealing with large volumes of projections.
+ *
+ * Note that calling this method does trigger the execution of the underlying
+ * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
+ * while in use, it must be closed after usage to prevent resource leaks.
+ *
+ * @return a stream of matching projections.
+ */
+fun <T, ID> ProjectionRepository<T, ID>.select(predicateBuilder: KPredicateBuilder<T, *, *>): Stream<T>
+        where T : Record, T : Projection<ID> =
+    select().where { bridge(predicateBuilder) }.resultStream
 
 /**
  * Retrieves projections of type [T] matching the specified predicate.
@@ -507,9 +588,26 @@ fun <T, ID> ProjectionRepository<T, ID>.select(
  * @return a stream of matching projections.
  */
 fun <T, ID> ProjectionRepository<T, ID>.selectRef(
-    predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<*, *, *>
+    predicate: WhereBuilder<T, Ref<T>, ID>.() -> PredicateBuilder<T, *, *>
 ): Stream<Ref<T>> where T : Record, T : Projection<ID> =
     selectRef().where(predicate).resultStream
+
+/**
+ * Retrieves projections of type [T] matching the specified predicate.
+ *
+ * The resulting stream is lazily loaded, meaning that the projections are only retrieved from the database as they
+ * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+ * dealing with large volumes of projections.
+ *
+ * Note that calling this method does trigger the execution of the underlying
+ * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
+ * while in use, it must be closed after usage to prevent resource leaks.
+ *
+ * @return a stream of matching projections.
+ */
+fun <T, ID> ProjectionRepository<T, ID>.selectRef(predicateBuilder: KPredicateBuilder<T, *, *>): Stream<Ref<T>>
+        where T : Record, T : Projection<ID> =
+    selectRef().where { bridge(predicateBuilder) }.resultStream
 
 /**
  * Counts projections of type [T] matching the specified field and value.
@@ -544,6 +642,16 @@ fun <T, ID, V> ProjectionRepository<T, ID>.countByRef(
  * @return the count of matching projections.
  */
 fun <T, ID> ProjectionRepository<T, ID>.count(
-    predicate: WhereBuilder<T, *, ID>.() -> PredicateBuilder<*, *, *>
+    predicate: WhereBuilder<T, *, ID>.() -> PredicateBuilder<T, *, *>
 ): Long where T : Record, T : Projection<ID> =
     selectCount().where(predicate).singleResult
+
+/**
+ * Counts projections of type [T] matching the specified predicate.
+ *
+ * @param predicate Lambda to build the WHERE clause.
+ * @return the count of matching projections.
+ */
+fun <T, ID> ProjectionRepository<T, ID>.count(predicateBuilder: KPredicateBuilder<T, *, *>): Long
+        where T : Record, T : Projection<ID> =
+    selectCount().where { bridge(predicateBuilder) }.singleResult

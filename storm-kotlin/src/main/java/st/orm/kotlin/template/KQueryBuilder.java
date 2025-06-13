@@ -29,6 +29,7 @@ import st.orm.template.JoinType;
 import st.orm.template.Metamodel;
 import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
+import st.orm.template.QueryBuilder.PredicateBuilder;
 import st.orm.template.TemplateFunction;
 import st.orm.template.impl.Elements.ObjectExpression;
 
@@ -301,7 +302,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * to verify the presence of certain records in a related table or subquery.
          *
          * @param subquery the subquery to check for existence.
-         * @return the updated {@link QueryBuilder.PredicateBuilder} with the EXISTS condition applied.
+         * @return the updated {@link PredicateBuilder} with the EXISTS condition applied.
          */
         public abstract KPredicateBuilder<T, R, ID> exists(@Nonnull KQueryBuilder<?, ?, ?> subquery);
 
@@ -314,7 +315,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * to verify the absence of certain records in a related table or subquery.
          *
          * @param subquery the subquery to check for existence.
-         * @return the updated {@link QueryBuilder.PredicateBuilder} with the NOT EXISTS condition applied.
+         * @return the updated {@link PredicateBuilder} with the NOT EXISTS condition applied.
          */
         public abstract KPredicateBuilder<T, R, ID> notExists(@Nonnull KQueryBuilder<?, ?, ?> subquery);
 
@@ -633,7 +634,18 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @param predicate the predicate to add.
          * @return the predicate builder.
          */
-        KPredicateBuilder<T, R, ID> and(@Nonnull KPredicateBuilder<?, ?, ?> predicate);
+        KPredicateBuilder<T, R, ID> and(@Nonnull KPredicateBuilder<T, ?, ?> predicate);
+
+        /**
+         * Adds a predicate to the WHERE clause using an AND condition.
+         *
+         * <p>This method combines the specified predicate with existing predicates using an AND operation, ensuring
+         * that all added conditions must be true.</p>
+         *
+         * @param predicate the predicate to add.
+         * @return the predicate builder.
+         */
+        KPredicateBuilder<T, R, ID> andAny(@Nonnull KPredicateBuilder<?, ?, ?> predicate);
 
         /**
          * Adds a predicate to the WHERE clause using an OR condition.
@@ -644,7 +656,18 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
          * @param predicate the predicate to add.
          * @return the predicate builder.
          */
-        KPredicateBuilder<T, R, ID> or(@Nonnull KPredicateBuilder<?, ?, ?> predicate);
+        KPredicateBuilder<T, R, ID> or(@Nonnull KPredicateBuilder<T, ?, ?> predicate);
+
+        /**
+         * Adds a predicate to the WHERE clause using an OR condition.
+         *
+         * <p>This method combines the specified predicate with existing predicates using an OR operation, allowing any
+         * of the added conditions to be true.</p>
+         *
+         * @param predicate the predicate to add.
+         * @return the predicate builder.
+         */
+        KPredicateBuilder<T, R, ID> orAny(@Nonnull KPredicateBuilder<?, ?, ?> predicate);
     }
 
     /**
@@ -772,8 +795,8 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @since 1.2
      */
     public final <V> KQueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
-                                                  @Nonnull Operator operator,
-                                                  @Nonnull Iterable<? extends V> it) {
+                                                   @Nonnull Operator operator,
+                                                   @Nonnull Iterable<? extends V> it) {
         return where(predicate -> predicate.where(path, operator, it));
     }
 
@@ -790,8 +813,8 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      */
     @SafeVarargs
     public final <V> KQueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
-                                                  @Nonnull Operator operator,
-                                                  @Nonnull V... o) {
+                                                   @Nonnull Operator operator,
+                                                   @Nonnull V... o) {
         return where(predicate -> predicate.where(path, operator, o));
     }
 
@@ -829,7 +852,15 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @param predicate the predicate to add.
      * @return the query builder.
      */
-    public abstract KQueryBuilder<T, R, ID> where(@Nonnull Function<KWhereBuilder<T, R, ID>, KPredicateBuilder<?, ?, ?>> predicate);
+    public abstract KQueryBuilder<T, R, ID> where(@Nonnull Function<KWhereBuilder<T, R, ID>, KPredicateBuilder<T, ?, ?>> predicate);
+
+    /**
+     * Adds a WHERE clause to the query using a {@link QueryBuilder.WhereBuilder}.
+     *
+     * @param predicate the predicate to add.
+     * @return the query builder.
+     */
+    public abstract KQueryBuilder<T, R, ID> whereAny(@Nonnull Function<KWhereBuilder<T, R, ID>, KPredicateBuilder<?, ?, ?>> predicate);
 
     /**
      * Adds a GROUP BY clause to the query for field at the specified path in the table graph.
@@ -1188,7 +1219,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * applies the provided callback to process them, returning the result produced by the callback.
      *
      * <p>This method ensures efficient handling of large data sets by loading entities only as needed.
-     * It also manages lifecycle of the callback stream, automatically closing the stream after processing to prevent
+     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to prevent
      * resource leaks.</p>
      *
      * @param callback a {@link KResultCallback} defining how to process the stream of records and produce a result.

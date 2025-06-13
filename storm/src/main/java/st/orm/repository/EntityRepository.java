@@ -844,7 +844,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * result produced by the callback.
      *
      * <p>This method ensures efficient handling of large data sets by loading entities only as needed.
-     * It also manages lifecycle of the callback stream, automatically closing the stream after processing to prevent
+     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to prevent
      * resource leaks.</p>
      *
      * @param callback a {@link ResultCallback} defining how to process the stream of entities and produce a result.
@@ -883,7 +883,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<E> selectAllById(@Nonnull Stream<ID> ids);
+    Stream<E> selectById(@Nonnull Stream<ID> ids);
 
     /**
      * Processes a stream of entities corresponding to the provided IDs using the specified callback.
@@ -900,8 +900,8 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @return the result produced by the callback's processing of the entity stream.
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
-    default <R> R selectAllById(@Nonnull Stream<ID> ids, @Nonnull ResultCallback<E, R> callback) {
-        try (var stream = selectAllById(ids)) {
+    default <R> R selectById(@Nonnull Stream<ID> ids, @Nonnull ResultCallback<E, R> callback) {
+        try (var stream = selectById(ids)) {
             return callback.process(stream);
         }
     }
@@ -931,7 +931,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<E> selectAllByRef(@Nonnull Stream<Ref<E>> refs);
+    Stream<E> selectByRef(@Nonnull Stream<Ref<E>> refs);
 
     /**
      * Processes a stream of entities corresponding to the provided IDs using the specified callback.
@@ -948,8 +948,8 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @return the result produced by the callback's processing of the entity stream.
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
-    default <R> R selectAllByRef(@Nonnull Stream<Ref<E>> refs, @Nonnull ResultCallback<E, R> callback) {
-        try (var stream = selectAllByRef(refs)) {
+    default <R> R selectByRef(@Nonnull Stream<Ref<E>> refs, @Nonnull ResultCallback<E, R> callback) {
+        try (var stream = selectByRef(refs)) {
             return callback.process(stream);
         }
     }
@@ -982,7 +982,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<E> selectAllById(@Nonnull Stream<ID> ids, int batchSize);
+    Stream<E> selectById(@Nonnull Stream<ID> ids, int batchSize);
 
     /**
      * Retrieves a stream of entities based on their primary keys.
@@ -1012,8 +1012,8 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    default <R> R selectAllById(@Nonnull Stream<ID> ids, int batchSize, @Nonnull ResultCallback<E, R> callback) {
-        try (var stream = selectAllById(ids, batchSize)) {
+    default <R> R selectById(@Nonnull Stream<ID> ids, int batchSize, @Nonnull ResultCallback<E, R> callback) {
+        try (var stream = selectById(ids, batchSize)) {
             return callback.process(stream);
         }
     }
@@ -1046,7 +1046,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<E> selectAllByRef(@Nonnull Stream<Ref<E>> refs, int batchSize);
+    Stream<E> selectByRef(@Nonnull Stream<Ref<E>> refs, int batchSize);
 
     /**
      * Retrieves a stream of entities based on their primary keys.
@@ -1075,8 +1075,8 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    default <R> R selectAllByRef(@Nonnull Stream<Ref<E>> refs, int batchSize, @Nonnull ResultCallback<E, R> callback) {
-        try (var stream = selectAllByRef(refs, batchSize)) {
+    default <R> R selectByRef(@Nonnull Stream<Ref<E>> refs, int batchSize, @Nonnull ResultCallback<E, R> callback) {
+        try (var stream = selectByRef(refs, batchSize)) {
             return callback.process(stream);
         }
     }
