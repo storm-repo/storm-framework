@@ -31,7 +31,7 @@ import java.util.List;
 public interface SqlTemplate {
 
     /**
-     * Represents a parameter that can be used in a SQL query.
+     * Represents a parameter that can be used in an SQL query.
      *
      * <p>This abstraction encapsulates values that will be passed directly to the underlying database system,
      * regardless of the data access framework being used.</p>
@@ -50,7 +50,7 @@ public interface SqlTemplate {
     }
 
     /**
-     * Represents a named parameter that can be used in a SQL query. The same parameter name can be used multiple times
+     * Represents a named parameter that can be used in an SQL query. The same parameter name can be used multiple times
      * within a single query.
      *
      * <p>Note: At the SQL template level, the framework enforces that multiple occurrences of the same parameter name
@@ -62,7 +62,7 @@ public interface SqlTemplate {
     record NamedParameter(@Nonnull String name, @Nullable Object dbValue) implements Parameter {}
 
     /**
-     * Represents a positional parameter that can be used in a SQL query.
+     * Represents a positional parameter that can be used in an SQL query.
      *
      * <p>Note: At the SQL template level, the framework enforces that each position in the query must be unique. The
      * same position cannot be used more than once, ensuring logical correctness and preventing conflicts in parameter

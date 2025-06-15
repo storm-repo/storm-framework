@@ -17,11 +17,11 @@ package st.orm.kotlin.template.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.Ref;
-import st.orm.kotlin.template.KQueryBuilder.KPredicateBuilder;
+import st.orm.kotlin.template.KPredicateBuilder;
 import st.orm.kotlin.template.impl.KQueryBuilderImpl.KPredicateBuilderImpl;
 import st.orm.template.Metamodel;
 import st.orm.template.Operator;
-import st.orm.template.QueryBuilder;
+import st.orm.template.PredicateBuilder;
 import st.orm.template.impl.PredicateBuilderFactory;
 
 /**
@@ -108,15 +108,15 @@ public interface KPredicateBuilderFactory {
     }
 
     /**
-     * Bridges a {@link KPredicateBuilder} to a {@link QueryBuilder.PredicateBuilder}.
+     * Bridges a {@link KPredicateBuilder} to a {@link PredicateBuilder}.
      *
-     * @param predicateBuilder the predicate builder to bridge
-     * @param <T> the type of the record
-     * @param <R> the type of the result
-     * @param <ID> the type of the ID
-     * @return a bridged instance of {@link QueryBuilder.PredicateBuilder}
+     * @param predicateBuilder the predicate builder to bridge.
+     * @param <T> the type of the record.
+     * @param <R> the type of the result.
+     * @param <ID> the type of the ID.
+     * @return a bridged instance of {@link PredicateBuilder}.
      */
-    static <T extends Record, R, ID> QueryBuilder.PredicateBuilder<T, R, ID> bridge(@Nonnull KPredicateBuilder<T, R, ID> predicateBuilder) {
+    static <T extends Record, R, ID> PredicateBuilder<T, R, ID> bridge(@Nonnull KPredicateBuilder<T, R, ID> predicateBuilder) {
         return ((KPredicateBuilderImpl<T, R, ID>) predicateBuilder).predicateBuilder;
     }
 }

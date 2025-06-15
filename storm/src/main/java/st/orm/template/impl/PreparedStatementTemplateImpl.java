@@ -272,7 +272,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         if (providerFilter != null) {
             template = template.withDialect(Providers.getSqlDialect(providerFilter));
         }
-        return template;
+        return SqlInterceptorManager.customize(template);
     }
 
     /**

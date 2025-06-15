@@ -18,15 +18,15 @@
 package st.orm.kotlin.repository
 
 import st.orm.Ref
-import st.orm.kotlin.template.KQueryBuilder.KPredicateBuilder
+import st.orm.kotlin.template.KPredicateBuilder
 import st.orm.kotlin.template.impl.KPredicateBuilderFactory.bridge
 import st.orm.repository.Entity
 import st.orm.repository.EntityRepository
 import st.orm.template.Metamodel
 import st.orm.template.Operator.EQUALS
 import st.orm.template.Operator.IN
-import st.orm.template.QueryBuilder.PredicateBuilder
-import st.orm.template.QueryBuilder.WhereBuilder
+import st.orm.template.PredicateBuilder
+import st.orm.template.WhereBuilder
 import java.util.stream.Stream
 import kotlin.jvm.optionals.getOrNull
 

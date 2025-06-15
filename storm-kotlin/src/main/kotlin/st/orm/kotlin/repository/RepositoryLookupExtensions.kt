@@ -19,15 +19,15 @@ package st.orm.kotlin.repository
 
 import st.orm.Ref
 import st.orm.kotlin.template.KQueryBuilder
-import st.orm.kotlin.template.KQueryBuilder.KPredicateBuilder
+import st.orm.kotlin.template.KPredicateBuilder
 import st.orm.kotlin.template.impl.KPredicateBuilderFactory.bridge
 import st.orm.repository.*
 import st.orm.template.Metamodel
 import st.orm.template.Operator.EQUALS
 import st.orm.template.Operator.IN
 import st.orm.template.QueryBuilder
-import st.orm.template.QueryBuilder.PredicateBuilder
-import st.orm.template.QueryBuilder.WhereBuilder
+import st.orm.template.PredicateBuilder
+import st.orm.template.WhereBuilder
 import java.util.stream.Stream
 import kotlin.jvm.optionals.getOrNull
 
@@ -1299,6 +1299,17 @@ inline infix fun <reified T> RepositoryLookup.update(entity: T): T
 inline infix fun <reified T> RepositoryLookup.update(entity: Iterable<T>): List<T>
         where T : Record, T : Entity<*> =
     entity<T>().updateAndFetch(entity)
+
+/**
+ * Retrieves all records of type [T] from the repository.
+ *
+ * [T] must be either an Entity or Projection type.
+ *
+ * @return list containing all records.
+ */
+inline fun <reified T> RepositoryLookup.deleteAll()
+        where T : Record, T : Entity<*> =
+    entity<T>().deleteAll()
 
 /**
  * Deletes entities of type [T] matching the specified ID field and its value.

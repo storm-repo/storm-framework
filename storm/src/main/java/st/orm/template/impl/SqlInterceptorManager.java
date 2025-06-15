@@ -18,6 +18,7 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import st.orm.PersistenceException;
 import st.orm.template.Sql;
+import st.orm.template.SqlTemplate;
 
 import java.lang.ScopedValue.Carrier;
 import java.util.ArrayList;
@@ -41,10 +42,16 @@ import static java.util.Collections.synchronizedList;
  */
 public final class SqlInterceptorManager {
 
+    record Operator(UnaryOperator<Sql> interceptor, UnaryOperator<SqlTemplate> customizer) {
+        Operator(UnaryOperator<Sql> interceptor) {
+            this(interceptor, it -> it);
+        }
+    }
+
     private static final ReadWriteLock LOCK = new ReentrantReadWriteLock();
     private static final Set<Object> GLOBAL_OPERATORS = newSetFromMap(new IdentityHashMap<>());
 
-    private static final ScopedValue<List<UnaryOperator<Sql>>> LOCAL_OPERATORS = newInstance();
+    private static final ScopedValue<List<Operator>> LOCAL_OPERATORS = newInstance();
 
     private SqlInterceptorManager() {
     }
@@ -119,7 +126,26 @@ public final class SqlInterceptorManager {
      */
     public static Carrier intercept(@Nonnull UnaryOperator<Sql> operator) {
         var operators = synchronizedList(new ArrayList<>(LOCAL_OPERATORS.orElse(List.of())));
-        operators.addFirst(operator);
+        operators.addFirst(new Operator(operator));
+        return ScopedValue.where(LOCAL_OPERATORS, operators);
+    }
+
+    /**
+     * Create a new scoped interceptor that applies an operator to SQL statements processed by the current thread and
+     * any child threads.
+     *
+     * <p>This interceptor is scoped to the current thread context and propagates only to its child threads.
+     * It is isolated from sibling threads, meaning changes made to the interceptor set will not affect other threads
+     * that share the same parent scope.</p>
+     *
+     * @param customizer a function to customize the SQL template before use.
+     * @param operator the operator to apply to each SQL statement.
+     * @return a {@link Carrier} that binds the interceptor to the current thread's scoped context.
+     * @since 1.3
+     */
+    public static Carrier intercept(@Nonnull UnaryOperator<SqlTemplate> customizer, @Nonnull UnaryOperator<Sql> operator) {
+        var operators = synchronizedList(new ArrayList<>(LOCAL_OPERATORS.orElse(List.of())));
+        operators.addFirst(new Operator(operator, customizer));
         return ScopedValue.where(LOCAL_OPERATORS, operators);
     }
 
@@ -136,11 +162,56 @@ public final class SqlInterceptorManager {
      */
     public static Carrier intercept(@Nonnull Consumer<Sql> observer) {
         var operators = synchronizedList(new ArrayList<>(LOCAL_OPERATORS.orElse(List.of())));
-        operators.addFirst(sql -> {
+        operators.addFirst(new Operator(sql -> {
             observer.accept(sql);
             return sql;
-        });
+        }));
         return ScopedValue.where(LOCAL_OPERATORS, operators);
+    }
+
+    /**
+     * Create a new scoped interceptor that applies an operator to SQL statements processed by the current thread and
+     * any child threads.
+     *
+     * <p>This interceptor is scoped to the current thread context and propagates only to its child threads.
+     * It is isolated from sibling threads, meaning changes made to the interceptor set will not affect other threads
+     * that share the same parent scope.</p>
+     *
+     * @param observer the observer to invoke with each SQL statement.
+     * @return a {@link Carrier} that binds the interceptor to the current thread's scoped context.
+     * @since 1.3
+     */
+    public static Carrier intercept(@Nonnull UnaryOperator<SqlTemplate> customizer, @Nonnull Consumer<Sql> observer) {
+        var operators = synchronizedList(new ArrayList<>(LOCAL_OPERATORS.orElse(List.of())));
+        operators.addFirst(new Operator(sql -> {
+            observer.accept(sql);
+            return sql;
+        }, customizer));
+        return ScopedValue.where(LOCAL_OPERATORS, operators);
+    }
+
+    /**
+     * Customizes the given SQL template using the current thread's scoped customizer, if available.
+     *
+     * <p>This method applies a customizer to the SQL template that is scoped to the current thread context.
+     * If no customizer is set, it returns the original template.</p>
+     *
+     * @param template the SQL template to customize.
+     * @return the customized SQL template, or the original template if no customizer is set.
+     */
+    static SqlTemplate customize(@Nonnull SqlTemplate template) {
+        // Apply the customizer to the template if it is set.
+        SqlTemplate adjusted = template;
+        // The local operators are not protected by a lock, but that is fine since they are locally scoped. However,
+        // they must not modify the local operators from the accept/apply method.
+        try {
+            for (var operator : LOCAL_OPERATORS.orElse(List.of())) {
+                adjusted = operator.customizer().apply(adjusted);
+            }
+        } catch (ConcurrentModificationException e) {
+            throw new PersistenceException("Registering interceptors from within their execution scope is not allowed.");
+        }
+        return adjusted;
     }
 
     /**
@@ -156,7 +227,7 @@ public final class SqlInterceptorManager {
         // they must not modify the local operators from the accept/apply method.
         try {
             for (var operator : LOCAL_OPERATORS.orElse(List.of())) {
-                adjusted = operator.apply(adjusted);
+                adjusted = operator.interceptor().apply(adjusted);
             }
         } catch (ConcurrentModificationException e) {
             throw new PersistenceException("Registering interceptors from within their execution scope is not allowed.");

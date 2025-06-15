@@ -17,8 +17,8 @@ package st.orm.kotlin.repository
 
 import st.orm.Ref
 import st.orm.kotlin.CloseableSequence
-import st.orm.kotlin.template.KQueryBuilder.KPredicateBuilder
-import st.orm.kotlin.template.KQueryBuilder.KWhereBuilder
+import st.orm.kotlin.template.KPredicateBuilder
+import st.orm.kotlin.template.KWhereBuilder
 import st.orm.repository.Entity
 import st.orm.template.Metamodel
 import st.orm.template.Operator.EQUALS

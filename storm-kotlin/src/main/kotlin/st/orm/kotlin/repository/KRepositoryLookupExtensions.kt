@@ -20,8 +20,8 @@ package st.orm.kotlin.repository
 import st.orm.Ref
 import st.orm.kotlin.CloseableSequence
 import st.orm.kotlin.template.KQueryBuilder
-import st.orm.kotlin.template.KQueryBuilder.KPredicateBuilder
-import st.orm.kotlin.template.KQueryBuilder.KWhereBuilder
+import st.orm.kotlin.template.KPredicateBuilder
+import st.orm.kotlin.template.KWhereBuilder
 import st.orm.repository.Entity
 import st.orm.repository.Projection
 import st.orm.template.Metamodel
@@ -1311,6 +1311,17 @@ inline infix fun <reified T> KRepositoryLookup.update(entity: T): T
 inline infix fun <reified T> KRepositoryLookup.update(entity: Iterable<T>): List<T>
         where T : Record, T : Entity<*> =
     entity<T>().updateAndFetch(entity)
+
+/**
+ * Retrieves all records of type [T] from the repository.
+ *
+ * [T] must be either an Entity or Projection type.
+ *
+ * @return list containing all records.
+ */
+inline fun <reified T> KRepositoryLookup.deleteAll()
+        where T : Record, T : Entity<*> =
+    entity<T>().deleteAll()
 
 /**
  * Deletes entities of type [T] matching the specified ID field and its value.

@@ -79,7 +79,7 @@ public interface SqlInterceptor {
      * @param observer the consumer invoked for each SQL statement.
      * @param runnable the action to execute.
      */
-    static void observe(@Nonnull Consumer<Sql> observer, Runnable runnable) {
+    static void observe(@Nonnull Consumer<Sql> observer, @Nonnull Runnable runnable) {
         SqlInterceptorManager.intercept(observer).run(runnable);
     }
 
@@ -113,6 +113,63 @@ public interface SqlInterceptor {
      */
     static <T> T observeThrowing(@Nonnull Consumer<Sql> observer, @Nonnull Callable<T> callable) throws Exception {
         return SqlInterceptorManager.intercept(observer).call(callable);
+    }
+
+    /**
+     * Executes a {@code Runnable} action within the context of an SQL observer, which consumes SQL statements.
+     *
+     * <p>This observer sees only SQL statements generated within the scope of this {@code runnable} and its child
+     * threads.</p>
+     *
+     * @param customizer a function to customize the SQL template before use.
+     * @param observer the consumer invoked for each SQL statement.
+     * @param runnable the action to execute.
+     * @since 1.3
+     */
+    static void observe(@Nonnull UnaryOperator<SqlTemplate> customizer,
+                        @Nonnull Consumer<Sql> observer,
+                        @Nonnull Runnable runnable) {
+        SqlInterceptorManager.intercept(customizer, observer).run(runnable);
+    }
+
+    /**
+     * Executes a {@code Supplier} within the context of an SQL observer, returning its result.
+     *
+     * <p>This observer sees only SQL statements generated within the scope of this {@code supplier} and its child
+     * threads.</p>
+     *
+     * @param customizer a function to customize the SQL template before use.
+     * @param observer the consumer invoked for each SQL statement.
+     * @param supplier the action supplying the result.
+     * @param <T> the type of the supplied result.
+     * @return the result of the supplied action.
+     * @since 1.3
+     */
+    static <T> T observe(@Nonnull UnaryOperator<SqlTemplate> customizer,
+                         @Nonnull Consumer<Sql> observer,
+                         @Nonnull Supplier<T> supplier) {
+        return SqlInterceptorManager.intercept(customizer, observer).get(supplier);
+    }
+
+    /**
+     * Executes a {@code Callable} action within the context of an SQL observer, returning its result and potentially
+     * throwing exceptions.
+     *
+     * <p>This observer sees only SQL statements generated within the scope of this {@code callable} and its child
+     * threads.</p>
+     *
+     * @param customizer a function to customize the SQL template before use.
+     * @param observer the consumer invoked for each SQL statement.
+     * @param callable the action supplying the result and potentially throwing exceptions.
+     * @param <T> the type of the result.
+     * @return the result of the callable action.
+     * @throws Exception if the callable action throws an exception.
+     * @since 1.3
+     */
+    static <T> T observeThrowing(@Nonnull UnaryOperator<SqlTemplate> customizer,
+                                 @Nonnull Consumer<Sql> observer,
+                                 @Nonnull Callable<T> callable) throws Exception {
+        return SqlInterceptorManager.intercept(customizer, observer).call(callable);
     }
 
     /**
@@ -158,5 +215,62 @@ public interface SqlInterceptor {
      */
     static <T> T interceptThrowing(@Nonnull UnaryOperator<Sql> interceptor, @Nonnull Callable<T> callable) throws Exception {
         return SqlInterceptorManager.intercept(interceptor).call(callable);
+    }
+
+    /**
+     * Executes a {@code Runnable} action within the context of an SQL interceptor, which modifies SQL statements.
+     *
+     * <p>This interceptor sees only SQL statements generated within the scope of this {@code runnable} and its child
+     * threads.</p>
+     *
+     * @param customizer a function to customize the SQL template before use.
+     * @param interceptor the operator applied to each SQL statement.
+     * @param runnable the action to execute.
+     * @since 1.3
+     */
+    static void intercept(@Nonnull UnaryOperator<SqlTemplate> customizer,
+                          @Nonnull UnaryOperator<Sql> interceptor,
+                          @Nonnull Runnable runnable) {
+        SqlInterceptorManager.intercept(customizer, interceptor).run(runnable);
+    }
+
+    /**
+     * Executes a {@code Supplier} within the context of an SQL interceptor, returning its result.
+     *
+     * <p>This interceptor sees only SQL statements generated within the scope of this {@code supplier} and its child
+     * threads.</p>
+     *
+     * @param customizer a function to customize the SQL template before use.
+     * @param interceptor the operator applied to each SQL statement.
+     * @param supplier the action supplying the result.
+     * @param <T> the type of the supplied result.
+     * @return the result of the supplied action.
+     * @since 1.3
+     */
+    static <T> T intercept(@Nonnull UnaryOperator<SqlTemplate> customizer,
+                           @Nonnull UnaryOperator<Sql> interceptor,
+                           @Nonnull Supplier<T> supplier) {
+        return SqlInterceptorManager.intercept(customizer, interceptor).get(supplier);
+    }
+
+    /**
+     * Executes a {@code Callable} action within the context of an SQL interceptor, returning its result and potentially
+     * throwing exceptions.
+     *
+     * <p>This interceptor sees only SQL statements generated within the scope of this {@code callable} and its child
+     * threads.</p>
+     *
+     * @param customizer a function to customize the SQL template before use.
+     * @param interceptor the operator applied to each SQL statement.
+     * @param callable the action supplying the result and potentially throwing exceptions.
+     * @param <T> the type of the result.
+     * @return the result of the callable action.
+     * @throws Exception if the callable action throws an exception.
+     * @since 1.3
+     */
+    static <T> T interceptThrowing(@Nonnull UnaryOperator<SqlTemplate> customizer,
+                                   @Nonnull UnaryOperator<Sql> interceptor,
+                                   @Nonnull Callable<T> callable) throws Exception {
+        return SqlInterceptorManager.intercept(customizer, interceptor).call(callable);
     }
 }

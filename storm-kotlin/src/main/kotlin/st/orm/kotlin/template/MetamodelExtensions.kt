@@ -1,7 +1,6 @@
 package st.orm.kotlin.template
 
 import st.orm.Ref
-import st.orm.kotlin.template.KQueryBuilder.KPredicateBuilder
 import st.orm.kotlin.template.impl.KPredicateBuilderFactory.create
 import st.orm.kotlin.template.impl.KPredicateBuilderFactory.createRef
 import st.orm.template.Metamodel

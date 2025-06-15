@@ -21,17 +21,21 @@ import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.kotlin.KQuery;
 import st.orm.kotlin.CloseableSequence;
+import st.orm.kotlin.template.KJoinBuilder;
+import st.orm.kotlin.template.KPredicateBuilder;
 import st.orm.kotlin.template.KQueryBuilder;
+import st.orm.kotlin.template.KTypedJoinBuilder;
+import st.orm.kotlin.template.KWhereBuilder;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.JoinType;
 import st.orm.template.Metamodel;
 import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
-import st.orm.template.QueryBuilder.JoinBuilder;
-import st.orm.template.QueryBuilder.PredicateBuilder;
-import st.orm.template.QueryBuilder.TypedJoinBuilder;
-import st.orm.template.QueryBuilder.WhereBuilder;
+import st.orm.template.JoinBuilder;
+import st.orm.template.PredicateBuilder;
+import st.orm.template.TypedJoinBuilder;
+import st.orm.template.WhereBuilder;
 import st.orm.template.TemplateFunction;
 import st.orm.template.impl.Subqueryable;
 
@@ -479,7 +483,7 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
     }
 
     /**
-     * Adds a WHERE clause to the query using a {@link QueryBuilder.WhereBuilder}.
+     * Adds a WHERE clause to the query using a {@link WhereBuilder}.
      *
      * @param predicate the predicate to add.
      * @return the query builder.
@@ -493,7 +497,7 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
     }
 
     /**
-     * Adds a WHERE clause to the query using a {@link QueryBuilder.WhereBuilder}.
+     * Adds a WHERE clause to the query using a {@link WhereBuilder}.
      *
      * @param predicate the predicate to add.
      * @return the query builder.

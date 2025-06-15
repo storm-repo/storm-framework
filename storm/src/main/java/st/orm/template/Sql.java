@@ -22,6 +22,7 @@ import st.orm.template.SqlTemplate.Parameter;
 import st.orm.template.impl.Elements.Insert;
 import st.orm.template.impl.Elements.Set;
 import st.orm.template.impl.Elements.Table;
+import st.orm.template.impl.SqlOperation;
 
 import java.util.List;
 import java.util.Optional;
@@ -30,6 +31,19 @@ import java.util.Optional;
  * Represents the generated SQL statement with parameters.
  */
 public interface Sql {
+
+    /**
+     * Classifies the kind of SQL statement.
+     */
+    SqlOperation operation();
+
+    /**
+     * Returns a new instance of the SQL statement with the given operation.
+     *
+     * @param operation the SQL operation that classifies the kind of SQL statement.
+     * @return a new instance of the SQL statement with the given operation.
+     */
+    Sql operation(@Nonnull SqlOperation operation);
 
     /**
      * The generated SQL with all parameters replaced by '?' or named ':name' placeholders.

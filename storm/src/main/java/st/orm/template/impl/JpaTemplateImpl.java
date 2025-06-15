@@ -148,7 +148,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         if (providerFilter != null) {
             template = template.withDialect(Providers.getSqlDialect(providerFilter));
         }
-        return template;
+        return SqlInterceptorManager.customize(template);
     }
 
     /**

@@ -19,7 +19,7 @@ import jakarta.annotation.Nonnull;
 import st.orm.Ref;
 import st.orm.template.Metamodel;
 import st.orm.template.Operator;
-import st.orm.template.QueryBuilder.PredicateBuilder;
+import st.orm.template.PredicateBuilder;
 import st.orm.template.impl.Elements.ObjectExpression;
 import st.orm.template.impl.QueryBuilderImpl.PredicateBuilderImpl;
 
