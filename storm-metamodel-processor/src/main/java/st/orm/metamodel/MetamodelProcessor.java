@@ -473,7 +473,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                                 .append("subPath").append(", componentBase + \"").append(fieldName).append("\", true, this);\n");
                     }
                 } else {
-                    builder.append("        this.").append(fieldName).append(" = new MetamodelImpl(")
+                    builder.append("        this.").append(fieldName).append(" = new MetamodelImpl<>(")
                             .append(fieldTypeName).append(".class, ").append("subPath").append(", componentBase + \"").append(fieldName).append("\", false, this);\n");
                 }
             }
