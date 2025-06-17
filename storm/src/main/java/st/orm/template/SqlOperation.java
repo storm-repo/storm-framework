@@ -13,9 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.template.impl;
-
-import st.orm.template.SqlTemplate;
+package st.orm.template;
 
 /**
  * Represents the SQL mode.

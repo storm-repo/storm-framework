@@ -17,6 +17,7 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.template.SqlDialect;
+import st.orm.template.SqlOperation;
 import st.orm.template.impl.Elements.Unsafe;
 
 import java.util.List;
@@ -25,11 +26,11 @@ import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
 import static java.util.regex.Pattern.DOTALL;
-import static st.orm.template.impl.SqlOperation.DELETE;
-import static st.orm.template.impl.SqlOperation.INSERT;
-import static st.orm.template.impl.SqlOperation.SELECT;
-import static st.orm.template.impl.SqlOperation.UNDEFINED;
-import static st.orm.template.impl.SqlOperation.UPDATE;
+import static st.orm.template.SqlOperation.DELETE;
+import static st.orm.template.SqlOperation.INSERT;
+import static st.orm.template.SqlOperation.SELECT;
+import static st.orm.template.SqlOperation.UNDEFINED;
+import static st.orm.template.SqlOperation.UPDATE;
 
 /**
  * SQL parser for basic SQL processing.

@@ -18,6 +18,7 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.template.Sql;
+import st.orm.template.SqlOperation;
 import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplate.BindVariables;
 import st.orm.template.SqlTemplate.Parameter;

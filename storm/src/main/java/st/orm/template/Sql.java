@@ -22,7 +22,6 @@ import st.orm.template.SqlTemplate.Parameter;
 import st.orm.template.impl.Elements.Insert;
 import st.orm.template.impl.Elements.Set;
 import st.orm.template.impl.Elements.Table;
-import st.orm.template.impl.SqlOperation;
 
 import java.util.List;
 import java.util.Optional;
