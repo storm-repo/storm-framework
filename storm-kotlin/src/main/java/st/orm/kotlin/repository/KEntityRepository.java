@@ -461,8 +461,10 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      *
      * <p>This method retrieves entities matching the provided IDs in batches, consolidating them into a single list.
      * The batch-based retrieval minimizes database overhead, allowing efficient handling of larger collections of IDs.
-     * Note that the order of entities in the returned list is not guaranteed to match the order of IDs in the input
-     * collection, as the database may not preserve insertion order during retrieval.</p>
+     * </p>
+     *
+     * <p><strong>Note:</strong> The order of entities in the returned list is not guaranteed to match the order of IDs
+     * in the input collection, as the database may not preserve insertion order during retrieval.</p>
      *
      * @param ids the primary keys of the entities to retrieve, represented as an iterable collection.
      * @return a list of entities corresponding to the provided primary keys. Entities are returned without any
@@ -478,8 +480,10 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      *
      * <p>This method retrieves entities matching the provided IDs in batches, consolidating them into a single list.
      * The batch-based retrieval minimizes database overhead, allowing efficient handling of larger collections of IDs.
-     * Note that the order of entities in the returned list is not guaranteed to match the order of IDs in the input
-     * collection, as the database may not preserve insertion order during retrieval.</p>
+     * </p>
+     *
+     * <p><strong>Note:</strong> The order of entities in the returned list is not guaranteed to match the order of IDs
+     * in the input collection, as the database may not preserve insertion order during retrieval.</p>
      *
      * @param refs the primary keys of the entities to retrieve, represented as an iterable collection.
      * @return a list of entities corresponding to the provided primary keys. Entities are returned without any
@@ -682,7 +686,7 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying
      * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
      * while in use, it must be closed after usage to prevent resource leaks.</p>
      *
@@ -719,7 +723,7 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying
      * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
      * while in use, it must be closed after usage to prevent resource leaks.</p>
      *
@@ -762,7 +766,7 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying
      * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
      * while in use, it must be closed after usage to prevent resource leaks.</p>
      *
@@ -805,7 +809,7 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying
      * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
      * while in use, it must be closed after usage to prevent resource leaks.</p>
      *
@@ -859,7 +863,7 @@ public interface KEntityRepository<E extends Record & Entity<ID>, ID> extends KR
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying
      * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
      * while in use, it must be closed after usage to prevent resource leaks.</p>
      *

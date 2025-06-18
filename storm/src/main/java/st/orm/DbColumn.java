@@ -46,8 +46,8 @@ public @interface DbColumn {
     /**
      * True to force escaping the column name.
      *
-     * <p>Note that the column name is automatically escaped if it contains special characters or is a reserved
-     * keyword.</p>
+     * <p><strong>Note:</strong> The column name is automatically escaped if it contains special characters or is a
+     * reserved keyword.</p>
      */
     boolean escape() default false;
 }

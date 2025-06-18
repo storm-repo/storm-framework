@@ -240,8 +240,9 @@ public interface Templates {
      * Returns an {@link ORMTemplate} for use with JDBC.
      *
      * <p>This method creates an ORM repository template using the provided {@link Connection}.
-     * It allows you to perform database operations using JDBC in a type-safe manner.
-     * <strong>Note:</strong> The caller is responsible for closing the connection after usage.
+     * It allows you to perform database operations using JDBC in a type-safe manner.</p>
+     *
+     * <p><strong>Note:</strong> The caller is responsible for closing the connection after usage.</p>
      *
      * <p>Example usage:
      * <pre>{@code
@@ -386,7 +387,7 @@ public interface Templates {
      * FROM \{from(RAW."SELECT column_a, column_b FROM table", "t")}
      * }</pre>
      *
-     * <p>Note that in this context, the alias is mandatory and auto-joining of foreign keys is not applicable.
+     * </p> in this context, the alias is mandatory and auto-joining of foreign keys is not applicable.</p>
      *
      * @param template the {@link StringTemplate} representing the custom SQL to be used in the FROM clause.
      * @param alias the alias to assign to the frame clause in the query. The alias must not require escaping.
@@ -1021,8 +1022,9 @@ public interface Templates {
      *
      * <p>Here, {@code record} is an instance of the {@link Record} class containing the criteria for deletion.
      *
-     * <p>Note that in most databases, specifying the table in the DELETE clause is not necessary, or even disallowed;
-     * the DELETE statement is usually constructed with only a FROM clause:
+     * <p><strong>Note:</strong> In most databases, specifying the table in the DELETE clause is not
+     * necessary, or even disallowed; the DELETE statement is usually constructed with only a FROM clause:</p>
+     *
      * <pre>{@code
      * DELETE FROM \{from(MyTable.class)}
      * WHERE \{where(record)}
@@ -1050,8 +1052,9 @@ public interface Templates {
      *
      * <p>Here, {@code record} is an instance of the {@link Record} class containing the criteria for deletion.
      *
-     * <p>Note that in most databases, specifying the table in the DELETE clause with an alias is not necessary; the
-     * DELETE statement can be constructed with only a FROM clause and an alias:
+     * <p><strong>Note:</strong> In most databases, specifying the table in the DELETE clause with an alias
+     * is not necessary; the DELETE statement can be constructed with only a FROM clause and an alias:</p>
+     *
      * <pre>{@code
      * DELETE FROM \{from(MyTable.class, "t")}
      * WHERE \{where(record)}

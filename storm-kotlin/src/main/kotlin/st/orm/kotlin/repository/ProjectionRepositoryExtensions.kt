@@ -46,7 +46,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllRef(): List<Ref<T>>
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of projections.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
@@ -100,7 +100,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllBy(field: Metamodel<T, V>, val
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of projections.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
@@ -132,7 +132,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllBy(field: Metamodel<T, V>, val
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of projections.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
@@ -164,7 +164,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllBy(field: Metamodel<T, V>, val
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of projections.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
@@ -272,7 +272,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, 
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of projections.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
@@ -304,7 +304,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, 
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of projections.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
@@ -336,7 +336,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, 
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of projections.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
@@ -369,7 +369,7 @@ fun <T, ID, V> ProjectionRepository<T, ID>.findAllRefByRef(field: Metamodel<T, V
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of projections.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
@@ -546,7 +546,7 @@ fun <T, ID> ProjectionRepository<T, ID>.getRef(predicateBuilder: KPredicateBuild
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of projections.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
@@ -564,7 +564,7 @@ fun <T, ID> ProjectionRepository<T, ID>.select(
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of projections.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
@@ -581,7 +581,7 @@ fun <T, ID> ProjectionRepository<T, ID>.select(predicateBuilder: KPredicateBuild
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of projections.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
@@ -599,7 +599,7 @@ fun <T, ID> ProjectionRepository<T, ID>.selectRef(
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of projections.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *

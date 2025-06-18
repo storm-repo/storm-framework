@@ -184,6 +184,10 @@ public interface SqlTemplate {
      * Indicates whether the SQL parameters should be inlined directly as literals into the SQL string,
      * or whether bind variables should be used.
      *
+     * <P>Note that batch processing cannot be used when inlining parameters, as batch processing requires
+     * bind variables to be used for each parameter in the batch. This setting is therefore ignored when
+     * batch processing is used.</p>
+     *
      * @return true if parameters are inlined as literals; false if using bind variables.
      * @since 1.3
      */

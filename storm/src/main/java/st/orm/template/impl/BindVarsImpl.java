@@ -106,8 +106,9 @@ final class BindVarsImpl implements BindVars, BindVariables {
     /**
      * Registers a function that extracts positional parameters from a record.
      *
-     * <p>Note that the {@code parameterExtractor} function may raise an {@code UncheckedSqlTemplateException} if
-     * the record does not comply with the expected format or if there are issues.</p>
+     * <p><strong>Note:</strong> The {@code parameterExtractor} function may raise an {
+     * @code UncheckedSqlTemplateException} if the record does not comply with the expected format or if there are
+     * issues.</p>
      *
      * @param parameterExtractor the function that extracts positional parameters from a record.
      */

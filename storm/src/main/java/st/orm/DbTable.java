@@ -48,8 +48,8 @@ public @interface DbTable {
     /**
      * True to force escaping the schema and table name.
      *
-     * <p>Note that the schema and table names are automatically escaped if they contain special characters or are a
-     * reserved keyword.</p>
+     *<p><strong>Note:</strong> The schema and table names are automatically escaped if they contain special characters
+     * or are a reserved keyword.</p>
      */
     boolean escape() default false;
 }

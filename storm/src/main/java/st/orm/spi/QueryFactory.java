@@ -19,11 +19,25 @@ import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
 import st.orm.PersistenceException;
 import st.orm.Query;
+import st.orm.template.SqlTemplate;
 
 /**
  * Factory for creating queries.
  */
 public interface QueryFactory {
+
+    /**
+     * Get the SQL template used by this factory.
+     *
+     * <p>Query factory implementations must ensure that the SQL Template returned by this method is processed by any
+     * registered {@code SqlInterceptor} instances before being returned. As a result, this method is expected to
+     * return a new instance of the SQL template each time it is called, ensuring that any modifications made by
+     * interceptors are applied correctly.</p>
+     *
+     * @return the SQL template.
+     * @since 1.3
+     */
+    SqlTemplate sqlTemplate();
 
     /**
      * Create a new bind variables instance that can be used to add bind variables to a batch.

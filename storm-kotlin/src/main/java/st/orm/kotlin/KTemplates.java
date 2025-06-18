@@ -165,7 +165,7 @@ import static st.orm.template.impl.Elements.Where;
  *
  * <h3>Using Connection (JDBC)</h3>
  *
- * <p><strong>Note:</strong> The caller is responsible for closing the connection after usage.
+ * <p><strong>Note:</strong> The caller is responsible for closing the connection after usage.</p>
  *
  * <pre>{@code
  * Connection connection = ...;
@@ -271,9 +271,10 @@ public interface KTemplates {
     /**
      * Returns an {@link KORMTemplate} for use with JDBC.
      *
-     * <p>This method creates an ORM repository template using the provided {@link Connection}.
-     * It allows you to perform database operations using JDBC in a fluent and type-safe manner.
-     * <strong>Note:</strong> The caller is responsible for closing the connection after usage.
+     * <p>This method creates an ORM repository template using the provided {@link Connection}. It allows you to perform
+     * database operations using JDBC in a fluent and type-safe manner.</p>
+     *
+     * <strong>Note:</strong> The caller is responsible for closing the connection after usage.</p>
      *
      * <p>Example usage:
      * <pre>{@code
@@ -422,7 +423,8 @@ public interface KTemplates {
      * FROM \{from(RAW."SELECT column_a, column_b FROM table", "t")}
      * }</pre>
      *
-     * <p>Note that in this context, the alias is mandatory and auto-joining of foreign keys is not applicable.
+     * <p><strong>Note:</strong> In this context, the alias is mandatory and auto-joining of foreign keys is not
+     * applicable.</p>
      *
      * @param template the {@link StringTemplate} representing the custom SQL to be used in the FROM clause.
      * @param alias the alias to assign to the from clause in the query. The alias must not require escaping.
@@ -445,7 +447,8 @@ public interface KTemplates {
      * FROM \{from(RAW."SELECT column_a, column_b FROM table", "t")}
      * }</pre>
      *
-     * <p>Note that in this context, the alias is mandatory and auto-joining of foreign keys is not applicable.
+     * <p><strong>Note:</strong> In this context, the alias is mandatory and auto-joining of foreign keys is not
+     * applicable.</p>
      *
      * @param function used to define the string template to be used in the FROM clause.
      * @param alias the alias to assign to the from clause in the query. The alias must not require escaping.
@@ -1081,8 +1084,9 @@ public interface KTemplates {
      *
      * <p>Here, {@code record} is an instance of the {@link Record} class containing the criteria for deletion.
      *
-     * <p>Note that in most databases, specifying the table in the DELETE clause is not necessary, or even disallowed;
-     * the DELETE statement is usually constructed with only a FROM clause:
+     * <p><strong>Note:</strong> In most databases, specifying the table in the DELETE clause is not necessary, or even
+     * disallowed; the DELETE statement is usually constructed with only a FROM clause:</p>
+     *
      * <pre>{@code
      * DELETE FROM \{from(MyTable.class)}
      * WHERE \{where(record)}
@@ -1110,8 +1114,9 @@ public interface KTemplates {
      *
      * <p>Here, {@code record} is an instance of the {@link Record} class containing the criteria for deletion.
      *
-     * <p>Note that in most databases, specifying the table in the DELETE clause with an alias is not necessary; the
-     * DELETE statement can be constructed with only a FROM clause and an alias:
+     * <p><strong>Note:</strong> In most databases, specifying the table in the DELETE clause with an alias is not
+     * necessary; the DELETE statement can be constructed with only a FROM clause and an alias:</p>
+     *
      * <pre>{@code
      * DELETE FROM \{from(Table.class, "t")}
      * WHERE \{where(record)}
@@ -1587,7 +1592,7 @@ public interface KTemplates {
      * potentially unsafe and may expose your application to SQL injection attacks if not used carefully.
      *
      * <p><strong>Warning:</strong> Use this method only when you are certain that the SQL string being injected
-     * is safe and originates from a trusted source. Avoid using user-supplied input with this method.
+     * is safe and originates from a trusted source. Avoid using user-supplied input with this method.</p>
      *
      * <p>Example usage in a string template:
      * <pre>{@code

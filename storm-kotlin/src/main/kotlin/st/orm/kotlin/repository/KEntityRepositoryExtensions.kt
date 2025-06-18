@@ -41,7 +41,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllRef(): List<Ref<T>>
  * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
@@ -95,7 +95,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, value:
  * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
@@ -127,7 +127,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, value:
  * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
@@ -159,7 +159,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, values
  * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
@@ -267,7 +267,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, val
  * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
@@ -299,7 +299,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, val
  * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
@@ -331,7 +331,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, val
  * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
@@ -364,7 +364,7 @@ fun <T, ID, V> KEntityRepository<T, ID>.findAllRefByRef(field: Metamodel<T, V>, 
  * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
@@ -541,7 +541,7 @@ fun <T, ID> KEntityRepository<T, ID>.getRef(predicateBuilder: KPredicateBuilder<
  * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
@@ -559,7 +559,7 @@ fun <T, ID> KEntityRepository<T, ID>.select(
  * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
@@ -576,7 +576,7 @@ fun <T, ID> KEntityRepository<T, ID>.select(predicateBuilder: KPredicateBuilder<
  * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  * 
@@ -594,7 +594,7 @@ fun <T, ID> KEntityRepository<T, ID>.selectRef(
  * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *

@@ -47,8 +47,8 @@ public interface JoinType {
     /**
      * Whether the join type will be accompanied by an ON clause.
      *
-     * <p>Note that {@code JoinType} implementation is not responsible for generating the ON clause. This method is used
-     * to determine whether the ON clause should be included in the generated SQL.</p>
+     * <p><strong>Note:</strong> The {@code JoinType} implementation is not responsible for generating the ON clause.
+     * This method is used to determine whether the ON clause should be included in the generated SQL.</p>
      *
      * @return {@code true} if the join type will be accompanied by an ON clause, {@code false} otherwise.
      */

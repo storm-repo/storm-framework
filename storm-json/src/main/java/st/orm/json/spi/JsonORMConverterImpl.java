@@ -104,7 +104,7 @@ public final class JsonORMConverterImpl implements ORMConverter {
     /**
      * Returns the number of parameters in the SQL template.
      *
-     * <p><strong>Note:</strong> the count must match the parameter as returned by {@link #getParameterTypes()}.</p>
+     * <p><strong>Note:</strong> The count must match the parameter as returned by {@link #getParameterTypes()}.</p>
      *
      * @return the number of parameters.
      */
@@ -127,7 +127,7 @@ public final class JsonORMConverterImpl implements ORMConverter {
     /**
      * Returns the names of the columns that will be used in the SQL template.
      *
-     * <p><strong>Note:</strong> the names must match the parameters as returned by {@link #getParameterTypes()}.</p>
+     * <p><strong>Note:</strong> The names must match the parameters as returned by {@link #getParameterTypes()}.</p>
      *
      * @return a list of column names.
      */
@@ -139,7 +139,7 @@ public final class JsonORMConverterImpl implements ORMConverter {
     /**
      * Converts the given record to a list of values that can be used in the SQL template.
      *
-     * <p><strong>Note:</strong> the values must match the parameters as returned by {@link #getParameterTypes()}.</p>
+     * <p><strong>Note:</strong> The values must match the parameters as returned by {@link #getParameterTypes()}.</p>
      *
      * @param record the record to convert.
      * @return the values to be used in the SQL template.

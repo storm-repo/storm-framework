@@ -86,8 +86,8 @@ public interface Sql {
     /**
      * The primary key that have been auto generated as part of in insert statement.
      *
-     * <p>Note that the generated keys are only set when the SQL is generated using an {@link Insert} element, either
-     * directly or indirectly using {@link Table}.</p>
+     * <p><strong>Note:</strong> The generated keys are only set when the SQL is generated using an {@link Insert} 
+     * element, either directly or indirectly using {@link Table}.</p>
      */
     List<String> generatedKeys();
 
@@ -103,15 +103,16 @@ public interface Sql {
     /**
      * Returns {@code true} if the statement is version aware, {@code false} otherwise.
      *
-     * <p>Note that the version aware flag is only set when the SQL is generated using a {@link Set} element.</p>
+     * <p><strong>Note:</strong> The version-aware flag is only set when the SQL is generated using a {@link Set} 
+     * element.</p>
      */
     boolean versionAware();
 
     /**
-     * Returns a new instance of the SQL statement with the version aware flag set to the given value.
+     * Returns a new instance of the SQL statement with the version-aware flag set to the given value.
      *
-     * @param versionAware the new value of the version aware flag.
-     * @return a new instance of the SQL statement with the version aware flag set to the given value
+     * @param versionAware the new value of the version-aware flag.
+     * @return a new instance of the SQL statement with the version-aware flag set to the given value
      * @since 1.2
      */
     Sql versionAware(boolean versionAware);

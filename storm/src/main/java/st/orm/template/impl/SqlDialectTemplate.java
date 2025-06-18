@@ -26,8 +26,8 @@ import static java.util.Objects.requireNonNull;
 /**
  * SQL template processor that converts a {@link StringTemplate} into a SQL string using a {@link SqlDialect}.
  *
- * <p>Note that only {@code Name} values will be processed by the dialect, regular strings will be appended as is and
- * other types will be converted to strings using their {@code toString()} method.</p>
+ * <p><strong>Note:</strong> Only {@code Name} values will be processed by the dialect, regular strings will be
+ * appended as is and other types will be converted to strings using their {@code toString()} method.</p>
  */
 final class SqlDialectTemplate implements Processor<String, RuntimeException> {
 

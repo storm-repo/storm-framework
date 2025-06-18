@@ -568,7 +568,8 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     /**
      * Locks the selected rows using a custom lock mode.
      *
-     * <p>Note that this method results in non-portable code, as the lock mode is specific to the underlying database.</p>
+     * <p><strong>Note:</strong> This method results in non-portable code, as the lock mode is specific to the
+     * underlying database.</p>
      *
      * @return the query builder.
      * @throws PersistenceException if the lock mode is not supported for the current query.
@@ -593,8 +594,9 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * <p>Unlike regular queries, which are constructed lazily, prepared queries are constructed eagerly.
      * Prepared queries allow the use of bind variables and enable reading generated keys after row insertion.</p>
      *
-     * <p>Note that the prepared query must be closed after usage to prevent resource leaks. As the prepared query is
-     * AutoCloseable, it is recommended to use it within a try-with-resources block.</p>
+     * <p><strong>Note:</strong> The prepared query must be closed after usage to prevent resource leaks. As the
+     * prepared query is {@code AutoCloseable}, it is recommended to use it within a {@code try-with-resources} block.
+     * </p>
      *
      * @return the prepared query.
      * @throws PersistenceException if the query preparation fails.
@@ -614,10 +616,10 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of records.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only be invoked 
-     * when the query is intended to run. Since the stream holds resources open while in use, it must be closed after 
-     * usage to prevent resource leaks. As the stream is AutoCloseable, it is recommended to use it within a 
-     * try-with-resources block.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
+     * within a {@code try-with-resources} block.</p>
      *
      * @return a stream of results.
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as

@@ -46,7 +46,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllRef(): List<Ref<T>>
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
@@ -100,7 +100,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, value: 
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
@@ -132,7 +132,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, value: 
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
@@ -164,7 +164,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllBy(field: Metamodel<T, V>, values:
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
@@ -272,7 +272,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, valu
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
@@ -304,7 +304,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, valu
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
@@ -336,7 +336,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllRefBy(field: Metamodel<T, V>, valu
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
@@ -369,7 +369,7 @@ fun <T, ID, V> EntityRepository<T, ID>.findAllRefByRef(field: Metamodel<T, V>, v
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
@@ -549,7 +549,7 @@ fun <T, ID> EntityRepository<T, ID>.getRef(predicateBuilder: KPredicateBuilder<T
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
@@ -567,9 +567,9 @@ fun <T, ID> EntityRepository<T, ID>.select(
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
- * while in use, it must be closed after usage to prevent resource leaks.
+ * while in use, it must be closed after usage to prevent resource leaks.</p>
  *
  * @return a stream of matching entities.
  */
@@ -584,7 +584,7 @@ fun <T, ID> EntityRepository<T, ID>.select(predicateBuilder: KPredicateBuilder<T
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *
@@ -602,7 +602,7 @@ fun <T, ID> EntityRepository<T, ID>.selectRef(
  * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
  * dealing with large volumes of entities.
  *
- * Note that calling this method does trigger the execution of the underlying
+ * Note: Calling this method does trigger the execution of the underlying
  * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
  * while in use, it must be closed after usage to prevent resource leaks.
  *

@@ -31,6 +31,10 @@ public interface QueryTemplate extends SubqueryTemplate {
     /**
      * Get the SQL dialect for this template.
      *
+     * <p>This method is aware of any registered {@code SqlInterceptor} instances and returns the SQL dialect used by
+     * the underlying SQL template. The dialect is determined based on the SQL template's configuration and the
+     * interceptors that have been applied to it.</p>
+     *
      * @return the SQL dialect.
      * @since 1.2
      */

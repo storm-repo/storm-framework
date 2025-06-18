@@ -16,13 +16,11 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import st.orm.BindVars;
 import st.orm.Ref;
 import st.orm.PersistenceException;
 import st.orm.PreparedQuery;
 import st.orm.Query;
-import st.orm.spi.Provider;
 import st.orm.spi.Providers;
 import st.orm.spi.QueryFactory;
 import st.orm.template.SqlDialect;
@@ -31,37 +29,33 @@ import st.orm.template.QueryBuilder;
 import st.orm.template.QueryTemplate;
 import st.orm.template.SqlTemplateException;
 
-import java.util.function.Predicate;
-
 import static java.util.Objects.requireNonNull;
-import static st.orm.spi.Providers.getSqlDialect;
 
 class QueryTemplateImpl implements QueryTemplate {
     protected final QueryFactory queryFactory;
     protected final ModelBuilder modelBuilder;
-    protected final Predicate<? super Provider> providerFilter;
     private final RefFactory refFactory;
-    private final SqlDialect dialect;
 
     QueryTemplateImpl(@Nonnull QueryFactory queryFactory,
-                      @Nonnull ModelBuilder modelBuilder,
-                      @Nullable Predicate<? super Provider> providerFilter) {
+                      @Nonnull ModelBuilder modelBuilder) {
         this.queryFactory = requireNonNull(queryFactory);
         this.modelBuilder = requireNonNull(modelBuilder);
-        this.providerFilter = providerFilter;
-        this.dialect = getSqlDialect(providerFilter == null ? _ -> true : providerFilter);
         this.refFactory = new RefFactoryImpl(this);
     }
 
     /**
      * Get the SQL dialect for this template.
      *
+     * <p>This method is aware of any registered {@code SqlInterceptor} instances and returns the SQL dialect used by
+     * the underlying SQL template. The dialect is determined based on the SQL template's configuration and the
+     * interceptors that have been applied to it.</p>
+     *
      * @return the SQL dialect.
      * @since 1.2
      */
     @Override
     public SqlDialect dialect() {
-        return dialect;
+        return queryFactory.sqlTemplate().dialect();
     }
 
     /**

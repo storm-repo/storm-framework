@@ -45,15 +45,30 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
 
     protected final ORMTemplate ormTemplate;
     protected final Model<E, ID> model;
-    protected final int defaultSliceSize;
+    private final boolean compoundPrimaryKey;
 
     public BaseRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
         this.ormTemplate = requireNonNull(ormTemplate);
         this.model = requireNonNull(model);
+        this.compoundPrimaryKey = model.columns().stream()
+                .filter(Column::primaryKey)
+                .count() > 1; // Compound primary key if more than one column is a primary key.
+    }
+
+    /**
+     * Returns the default slice size for batch operations.
+     *
+     * <p>This method is aware of any registered {@code SqlInterceptor} instances and returns the default slice size
+     * that is optimized for the SQL dialect that is used by the underlying SQL template. The dialect is determined
+     * based on the SQL template's configuration and the interceptors that have been applied to it.</p>
+     *
+     * @return the default slice size for batch operations.
+     */
+    protected int getDefaultSliceSize() {
         if (ormTemplate.dialect().supportsMultiValueTuples()) {
-            this.defaultSliceSize = 1000;
+            return 1000;
         } else {
-            this.defaultSliceSize = model.columns().stream().filter(Column::primaryKey).count() > 1
+            return compoundPrimaryKey
                     ? 100   // Compound PKs can become quite large, so we default to a smaller batch size.
                     : 1000;
         }
@@ -290,7 +305,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * Returns a list of all entities of the type supported by this repository. Each element in the list represents
      * an entity in the database, encapsulating all relevant data as mapped by the entity model.
      *
-     * <p><strong>Please note:</strong> loading all entities into memory at once can be very memory-intensive if your
+     * <p><strong>Note:</strong> Loading all entities into memory at once can be very memory-intensive if your
      * table is large.</p>
      *
      * @return a stream of all entities of the type supported by this repository.
@@ -306,8 +321,10 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      *
      * <p>This method retrieves entities matching the provided IDs in batches, consolidating them into a single list.
      * The batch-based retrieval minimizes database overhead, allowing efficient handling of larger collections of IDs.
-     * Note that the order of entities in the returned list is not guaranteed to match the order of IDs in the input
-     * collection, as the database may not preserve insertion order during retrieval.</p>
+     * </p>
+     *
+     * <p><strong>Note:</strong> The order of entities in the returned list is not guaranteed to match the order of IDs
+     * in the input collection, as the database may not preserve insertion order during retrieval.</p>
      *
      * @param ids the primary keys of the entities to retrieve, represented as an iterable collection.
      * @return a list of entities corresponding to the provided primary keys. Entities are returned without any
@@ -327,8 +344,10 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      *
      * <p>This method retrieves entities matching the provided IDs in batches, consolidating them into a single list.
      * The batch-based retrieval minimizes database overhead, allowing efficient handling of larger collections of IDs.
-     * Note that the order of entities in the returned list is not guaranteed to match the order of IDs in the input
-     * collection, as the database may not preserve insertion order during retrieval.</p>
+     * </p>
+     *
+     * <p><strong>Note:</strong> The order of entities in the returned list is not guaranteed to match the order of IDs
+     * in the input collection, as the database may not preserve insertion order during retrieval.</p>
      *
      * @param refs the primary keys of the entities to retrieve, represented as an iterable collection.
      * @return a list of entities corresponding to the provided primary keys. Entities are returned without any
@@ -353,10 +372,10 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
-     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
+     * within a {@code try-with-resources} block.</p>
      *
      * @return a stream of all entities of the type supported by this repository.
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
@@ -377,10 +396,10 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
-     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
+     * within a {@code try-with-resources} block.</p>
      *
      * @param ids a stream of entity IDs to retrieve from the repository.
      * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
@@ -392,7 +411,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      *                              connectivity.
      */
     public Stream<E> selectById(@Nonnull Stream<ID> ids) {
-        return selectById(ids, defaultSliceSize);
+        return selectById(ids, getDefaultSliceSize());
     }
 
     /**
@@ -406,10 +425,10 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
-     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
+     * within a {@code try-with-resources} block.</p>
      *
      * @param refs a stream of refs to retrieve from the repository.
      * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
@@ -421,7 +440,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      *                              connectivity.
      */
     public Stream<E> selectByRef(@Nonnull Stream<Ref<E>> refs) {
-        return selectByRef(refs, defaultSliceSize);
+        return selectByRef(refs, getDefaultSliceSize());
     }
 
     /**
@@ -435,10 +454,10 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
-     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
+     * within a {@code try-with-resources} block.</p>
      *
      * @param ids a stream of entity IDs to retrieve from the repository.
      * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
@@ -467,10 +486,10 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
-     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
+     * within a {@code try-with-resources} block.</p>
      *
      * @param refs a stream of refs to retrieve from the repository.
      * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
@@ -500,7 +519,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
     public long countById(@Nonnull Stream<ID> ids) {
-        return countById(ids, defaultSliceSize);
+        return countById(ids, getDefaultSliceSize());
     }
 
     /**
@@ -537,7 +556,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
     public long countByRef(@Nonnull Stream<Ref<E>> refs) {
-        return countByRef(refs, defaultSliceSize);
+        return countByRef(refs, getDefaultSliceSize());
     }
 
     /**

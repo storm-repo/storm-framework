@@ -107,7 +107,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         this.modelBuilder = ModelBuilder.newInstance();
         this.tableAliasResolver = TableAliasResolver.DEFAULT;
         this.providerFilter = null;
-        this.refFactory = new RefFactoryImpl(this, modelBuilder, null);
+        this.refFactory = new RefFactoryImpl(this, modelBuilder, providerFilter);
     }
 
     public PreparedStatementTemplateImpl(@Nonnull Connection connection) {
@@ -142,7 +142,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         this.modelBuilder = ModelBuilder.newInstance();
         this.tableAliasResolver = TableAliasResolver.DEFAULT;
         this.providerFilter = null;
-        this.refFactory = new RefFactoryImpl(this, modelBuilder, null);
+        this.refFactory = new RefFactoryImpl(this, modelBuilder, providerFilter);
     }
 
     private PreparedStatementTemplateImpl(@Nonnull TemplateProcessor templateProcessor,
@@ -263,7 +263,19 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         }
     }
 
-    private SqlTemplate sqlTemplate() {
+    /**
+     * Get the SQL template used by this factory.
+     *
+     * <p>Query factory implementations must ensure that the SQL Template returned by this method is processed by any
+     * registered {@code SqlInterceptor} instances before being returned. As a result, this method is expected to
+     * return a new instance of the SQL template each time it is called, ensuring that any modifications made by
+     * interceptors are applied correctly.</p>
+     *
+     * @return the SQL template.
+     * @since 1.3
+     */
+    @Override
+    public SqlTemplate sqlTemplate() {
         SqlTemplate template = PS
                 .withTableNameResolver(modelBuilder.tableNameResolver())
                 .withColumnNameResolver(modelBuilder.columnNameResolver())

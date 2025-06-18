@@ -467,6 +467,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
     public void insert(@Nonnull Iterable<E> entities) {
         insert(toStream(entities), defaultBatchSize);
     }
+
     /**
      * Inserts a collection of entities into the database in batches.
      *

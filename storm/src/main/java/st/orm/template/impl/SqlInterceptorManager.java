@@ -196,10 +196,14 @@ public final class SqlInterceptorManager {
      * <p>This method applies a customizer to the SQL template that is scoped to the current thread context.
      * If no customizer is set, it returns the original template.</p>
      *
+     * <p>This method is intended to be used internally within the ORM framework, or it's extensions, to ensure that
+     * SQL templates are adjusted according to the current thread's context, such as applying custom SQL dialects or
+     * other template modifications.</p>
+     *
      * @param template the SQL template to customize.
      * @return the customized SQL template, or the original template if no customizer is set.
      */
-    static SqlTemplate customize(@Nonnull SqlTemplate template) {
+    public static SqlTemplate customize(@Nonnull SqlTemplate template) {
         // Apply the customizer to the template if it is set.
         SqlTemplate adjusted = template;
         // The local operators are not protected by a lock, but that is fine since they are locally scoped. However,

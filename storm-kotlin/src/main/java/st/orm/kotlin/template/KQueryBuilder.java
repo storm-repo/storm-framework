@@ -680,7 +680,8 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     /**
      * Locks the selected rows using a custom lock mode.
      *
-     * <p>Note that this method results in non-portable code, as the lock mode is specific to the underlying database.</p>
+     * <p><strong>Note:</strong> This method results in non-portable code, as the lock mode is specific to the
+     * underlying database.</p>
      *
      * @param template the template to use for the lock mode.
      * @return the query builder.
@@ -692,7 +693,8 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     /**
      * Locks the selected rows using a custom lock mode.
      *
-     * <p>Note that this method results in non-portable code, as the lock mode is specific to the underlying database.</p>
+     * <p><strong>Note:</strong> This method results in non-portable code, as the lock mode is specific to the
+     * underlying database.</p>
      *
      * @param function the function to use for the lock mode.
      * @return the query builder.
@@ -720,7 +722,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * <p>Unlike regular queries, which are constructed lazily, prepared queries are constructed eagerly.
      * Prepared queries allow the use of bind variables and enable reading generated keys after row insertion.</p>
      *
-     * <p>Note that the prepared query must be closed after usage to prevent resource leaks.</p>
+     * <p><strong>Note:</strong> The prepared query must be closed after usage to prevent resource leaks.</p>
      *
      * @return the prepared query.
      * @throws PersistenceException if the query preparation fails.
@@ -740,9 +742,9 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of records.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only be invoked
-     * when the query is intended to run. Since the stream holds resources open while in use, it must be closed after
-     * usage to prevent resource leaks.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks.</p>
      *
      * @return a stream of results.
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
@@ -757,9 +759,9 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
-     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the sequence holds resources open while in use, it must
+     * be closed after usage to prevent resource leaks.</p>
      *
      * @return a stream of results.
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
