@@ -401,7 +401,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
 //    }
 
     /**
-     * Adds a WHERE clause to the query using a {@link WhereBuilder}.
+     * Adds a WHERE clause to the query using a {@link KWhereBuilder}.
      *
      * @param predicate the predicate to add.
      * @return the query builder.
@@ -409,7 +409,7 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     public abstract KQueryBuilder<T, R, ID> where(@Nonnull Function<KWhereBuilder<T, R, ID>, KPredicateBuilder<T, ?, ?>> predicate);
 
     /**
-     * Adds a WHERE clause to the query using a {@link WhereBuilder}.
+     * Adds a WHERE clause to the query using a {@link KWhereBuilder}.
      *
      * @param predicate the predicate to add.
      * @return the query builder.
