@@ -18,6 +18,7 @@ package st.orm.kotlin.template;
 import jakarta.annotation.Nonnull;
 import kotlin.reflect.KClass;
 import st.orm.BindVars;
+import st.orm.Query;
 import st.orm.Ref;
 import st.orm.kotlin.KQuery;
 import st.orm.kotlin.template.impl.KQueryTemplateImpl;
@@ -163,6 +164,14 @@ public interface KQueryTemplate {
      * @param <T> the table type to delete from.
      */
     <T extends Record> KQueryBuilder<T, ?, ?> deleteFrom(@Nonnull KClass<T> fromType);
+
+    /**
+     * Creates a query for the specified {@code query} string.
+     *
+     * @param query the query.
+     * @return the query.
+     */
+    KQuery query(@Nonnull String query);
 
     /**
      * Creates a query for the specified query {@code template}.

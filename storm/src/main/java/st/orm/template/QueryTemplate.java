@@ -149,6 +149,14 @@ public interface QueryTemplate extends SubqueryTemplate {
     <T extends Record> QueryBuilder<T, ?, ?> deleteFrom(@Nonnull Class<T> fromType);
 
     /**
+     * Creates a query for the specified {@code query} string.
+     *
+     * @param query the query.
+     * @return the query.
+     */
+    Query query(@Nonnull String query);
+
+    /**
      * Creates a query for the specified query {@code template}.
      *
      * @param template the query template.

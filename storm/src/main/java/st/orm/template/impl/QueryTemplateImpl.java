@@ -16,6 +16,7 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
+import org.jetbrains.annotations.NotNull;
 import st.orm.BindVars;
 import st.orm.Ref;
 import st.orm.PersistenceException;
@@ -159,6 +160,17 @@ class QueryTemplateImpl implements QueryTemplate {
     @Override
     public <T extends Record> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType, @Nonnull StringTemplate template) {
         return Providers.selectFrom(this, fromType, Void.class, template, true, modelBuilder.supplier(fromType, true));
+    }
+
+    /**
+     * Creates a query for the specified {@code query} string.
+     *
+     * @param query the query.
+     * @return the query.
+     */
+    @Override
+    public Query query(@NotNull String query) {
+        return queryFactory.create(StringTemplate.of(query));
     }
 
     /**
