@@ -47,6 +47,8 @@ import javax.sql.DataSource;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -841,6 +843,22 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
+    public void testInternerRecord() {
+        var pets = ORM(dataSource).entity(Pet.class).select().getResultList();
+        var owners = Collections.newSetFromMap(new IdentityHashMap<>());
+        owners.addAll(pets.stream().map(Pet::owner).toList());
+        assertEquals(11, owners.size());
+    }
+
+    @Test
+    public void testInternerRef() {
+        var pets = ORM(dataSource).entity(PetOwnerRef.class).select().getResultList();
+        var owners = Collections.newSetFromMap(new IdentityHashMap<>());
+        owners.addAll(pets.stream().map(PetOwnerRef::owner).toList());
+        assertEquals(11, owners.size());
+    }
+
+    @Test
     public void testSelectWithInlinePath() {
         var list = ORM(dataSource).entity(Owner.class).select().where(Owner_.address.city.name, EQUALS, "Madison").getResultList();
         assertEquals(4, list.size());
@@ -985,6 +1003,15 @@ public class RepositoryPreparedStatementIntegrationTest {
         var repo = ORM(dataSource).entity(Visit.class);
         try (var stream = repo.selectAll()) {
             repo.delete(stream);
+        }
+        assertEquals(0, repo.count());
+    }
+
+    @Test
+    public void deleteRefBatch() {
+        var repo = ORM(dataSource).entity(Visit.class);
+        try (var stream = repo.selectAll().map(Ref::of)) {
+            repo.deleteByRef(stream);
         }
         assertEquals(0, repo.count());
     }

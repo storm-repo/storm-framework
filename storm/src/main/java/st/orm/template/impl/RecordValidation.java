@@ -66,7 +66,7 @@ final class RecordValidation {
     /**
      * Checks if the provided type is a valid primary key type.
      *
-     * <p>Note that floating point types are prohibited as primary keys.</p>
+     * <p><strong>Note:</strong> Floating point types are prohibited as primary keys.</p>
      *
      * @param type the type to check.
      * @return true if the type is a valid primary key type, false otherwise.

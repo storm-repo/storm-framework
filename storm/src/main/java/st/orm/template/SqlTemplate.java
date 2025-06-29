@@ -31,7 +31,7 @@ import java.util.List;
 public interface SqlTemplate {
 
     /**
-     * Represents a parameter that can be used in a SQL query.
+     * Represents a parameter that can be used in an SQL query.
      *
      * <p>This abstraction encapsulates values that will be passed directly to the underlying database system,
      * regardless of the data access framework being used.</p>
@@ -50,7 +50,7 @@ public interface SqlTemplate {
     }
 
     /**
-     * Represents a named parameter that can be used in a SQL query. The same parameter name can be used multiple times
+     * Represents a named parameter that can be used in an SQL query. The same parameter name can be used multiple times
      * within a single query.
      *
      * <p>Note: At the SQL template level, the framework enforces that multiple occurrences of the same parameter name
@@ -62,7 +62,7 @@ public interface SqlTemplate {
     record NamedParameter(@Nonnull String name, @Nullable Object dbValue) implements Parameter {}
 
     /**
-     * Represents a positional parameter that can be used in a SQL query.
+     * Represents a positional parameter that can be used in an SQL query.
      *
      * <p>Note: At the SQL template level, the framework enforces that each position in the query must be unique. The
      * same position cannot be used more than once, ensuring logical correctness and preventing conflicts in parameter
@@ -168,6 +168,30 @@ public interface SqlTemplate {
      * @return {@code true} if the template expands collection parameters, {@code false} otherwise.
      */
     boolean expandCollection();
+
+    /**
+     * Returns a new SQL template instance configured to inline parameters directly into the SQL string,
+     * rather than using bind variables.
+     *
+     * @param inlineParameters if true, parameters will be inlined as literals into the SQL. If false, parameters are
+     *                         passed via bind variables (default behavior).
+     * @return a new SqlTemplate instance configured with the specified parameter handling.
+     * @since 1.3
+     */
+    SqlTemplate withInlineParameters(boolean inlineParameters);
+
+    /**
+     * Indicates whether the SQL parameters should be inlined directly as literals into the SQL string,
+     * or whether bind variables should be used.
+     *
+     * <P>Note that batch processing cannot be used when inlining parameters, as batch processing requires
+     * bind variables to be used for each parameter in the batch. This setting is therefore ignored when
+     * batch processing is used.</p>
+     *
+     * @return true if parameters are inlined as literals; false if using bind variables.
+     * @since 1.3
+     */
+    boolean inlineParameters();
 
     /**
      * Returns a new SQL template with support for records enabled or disabled.

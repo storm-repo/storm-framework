@@ -53,6 +53,7 @@ import java.sql.Connection;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
@@ -239,8 +240,9 @@ public interface Templates {
      * Returns an {@link ORMTemplate} for use with JDBC.
      *
      * <p>This method creates an ORM repository template using the provided {@link Connection}.
-     * It allows you to perform database operations using JDBC in a type-safe manner.
-     * <strong>Note:</strong> The caller is responsible for closing the connection after usage.
+     * It allows you to perform database operations using JDBC in a type-safe manner.</p>
+     *
+     * <p><strong>Note:</strong> The caller is responsible for closing the connection after usage.</p>
      *
      * <p>Example usage:
      * <pre>{@code
@@ -385,7 +387,7 @@ public interface Templates {
      * FROM \{from(RAW."SELECT column_a, column_b FROM table", "t")}
      * }</pre>
      *
-     * <p>Note that in this context, the alias is mandatory and auto-joining of foreign keys is not applicable.
+     * </p> in this context, the alias is mandatory and auto-joining of foreign keys is not applicable.</p>
      *
      * @param template the {@link StringTemplate} representing the custom SQL to be used in the FROM clause.
      * @param alias the alias to assign to the frame clause in the query. The alias must not require escaping.
@@ -421,6 +423,69 @@ public interface Templates {
      */
     static Element insert(@Nonnull Class<? extends Record> table) {
         return new Insert(table);
+    }
+    /**
+     * Generates an INSERT element for the specified table class.
+     *
+     * <p>This method creates an {@code INSERT} clause for the provided table record. It is designed to be used
+     * within SQL string templates to dynamically construct INSERT queries based on the table's structure.
+     *
+     * <p>Example usage in a string template:
+     * <pre>{@code
+     * INSERT INTO \{insert(MyTable.class)}
+     * VALUES \{values(entity)}
+     * }</pre>
+     *
+     * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically detects that
+     * an INSERT element is required based on its placement in the query:
+     * <pre>{@code
+     * INSERT INTO \{MyTable.class}
+     * VALUES \{entity}
+     * }</pre>
+     *
+     * <p>Here, {@code entity} is an instance of the {@code Table} class containing the values to be inserted.
+     *
+     * @param table the {@link Class} object representing the table record.
+     * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
+     *                           provided primary key value. Use this flag only when intentionally providing the primary
+     *                           key value (e.g., migrations, data exports).
+     * @return an {@link Element} representing the INSERT clause for the specified table.
+     */
+    static Element insert(@Nonnull Class<? extends Record> table, boolean ignoreAutoGenerate) {
+        return new Insert(table, ignoreAutoGenerate);
+    }
+
+    /**
+     * Generates a VALUES clause for the specified record instance(s).
+     *
+     * <p>This method creates a {@code VALUES} clause using the provided {@link Record} instance(s).
+     * It is intended to be used within SQL string templates to dynamically construct INSERT statements with
+     * the given values.
+     *
+     * <p>Example usage in a string template:
+     * <pre>{@code
+     * INSERT INTO \{MyTable.class}
+     * VALUES \{values(entity1, entity2)}
+     * }</pre>
+     *
+     * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically
+     * detects that a VALUES element is required based on its placement in the query:
+     * <pre>{@code
+     * INSERT INTO \{MyTable.class}
+     * VALUES \{new Record[] {entity1, entity2}}
+     * }</pre>
+     *
+     * <p>Here, {@code entity1}, {@code entity2}, etc., are instances of the {@code Record} class containing
+     * the values to be inserted.
+     *
+     * @param r one or more {@link Record} instances containing the values to be inserted.
+     * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
+     *                           provided primary key value. Use this flag only when intentionally providing the primary
+     *                           key value (e.g., migrations, data exports).
+     * @return an {@link Element} representing the VALUES clause with the specified records.
+     */
+    static Element values(@Nonnull Record r, boolean ignoreAutoGenerate) {
+        return new Values(List.of(r), null, ignoreAutoGenerate);
     }
 
     /**
@@ -484,6 +549,39 @@ public interface Templates {
     }
 
     /**
+     * Generates a VALUES clause for the specified iterable of record instances.
+     *
+     * <p>This method creates a {@code VALUES} clause using the provided {@link Iterable} of {@link Record} instances.
+     * It is intended to be used within SQL string templates to dynamically construct INSERT statements with
+     * the given values.
+     *
+     * <p>Example usage in a string template:
+     * <pre>{@code
+     * INSERT INTO \{MyTable.class}
+     * VALUES \{values(records)}
+     * }</pre>
+     *
+     * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically
+     * detects that a VALUES element is required based on its placement in the query:
+     * <pre>{@code
+     * INSERT INTO \{MyTable.class}
+     * VALUES \{records}
+     * }</pre>
+     *
+     * <p>Here, {@code records} is an {@link Iterable} of {@code Record} instances containing
+     * the values to be inserted.
+     *
+     * @param records an {@link Iterable} of {@link Record} instances containing the values to be inserted.
+     * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
+     *                           provided primary key value. Use this flag only when intentionally providing the primary
+     *                           key value (e.g., migrations, data exports).
+     * @return an {@link Element} representing the VALUES clause with the specified records.
+     */
+    static Element values(@Nonnull Iterable<? extends Record> records, boolean ignoreAutoGenerate) {
+        return new Values(records, null, ignoreAutoGenerate);
+    }
+
+    /**
      * Generates a VALUES clause using the specified {@link BindVars} for batch insertion.
      *
      * <p>This method creates a {@code VALUES} clause that utilizes a {@link BindVars} instance, allowing for batch
@@ -516,6 +614,44 @@ public interface Templates {
      */
     static Element values(@Nonnull BindVars bindVars) {
         return new Values(null, requireNonNull(bindVars, "bindVars"));
+    }
+
+    /**
+     * Generates a VALUES clause using the specified {@link BindVars} for batch insertion.
+     *
+     * <p>This method creates a {@code VALUES} clause that utilizes a {@link BindVars} instance, allowing for batch
+     * insertion of records using bind variables. This is particularly useful when performing batch operations where
+     * the same query is executed multiple times with different variable values.
+     *
+     * <p>Example usage in a batch insertion scenario:
+     * <pre>{@code
+     * var bindVars = orm.createBindVars();
+     * try (var query = orm.query(RAW."""
+     *         INSERT INTO \{MyTable.class}
+     *         VALUES \{values(bindVars)}""").prepare()) {
+     *     records.forEach(query::addBatch);
+     *     query.executeBatch();
+     * }
+     * }</pre>
+     *
+     * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically
+     * detects that a VALUES element is required based on its placement in the query:
+     * <pre>{@code
+     * INSERT INTO \{MyTable.class}
+     * VALUES \{bindVars}
+     * }</pre>
+     *
+     * <p>In this example, {@code bindVars} is a {@link BindVars} instance created by the ORM. The {@code records} are
+     * iterated over, and each is added to the batch. The query is then executed as a batch operation.
+     *
+     * @param bindVars the {@link BindVars} instance used for batch insertion.
+     * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
+     *                           provided primary key value. Use this flag only when intentionally providing the primary
+     *                           key value (e.g., migrations, data exports).
+     * @return an {@link Element} representing the VALUES clause utilizing the specified bind variables.
+     */
+    static Element values(@Nonnull BindVars bindVars, boolean ignoreAutoGenerate) {
+        return new Values(null, requireNonNull(bindVars, "bindVars"), ignoreAutoGenerate);
     }
 
     /**
@@ -886,8 +1022,9 @@ public interface Templates {
      *
      * <p>Here, {@code record} is an instance of the {@link Record} class containing the criteria for deletion.
      *
-     * <p>Note that in most databases, specifying the table in the DELETE clause is not necessary, or even disallowed;
-     * the DELETE statement is usually constructed with only a FROM clause:
+     * <p><strong>Note:</strong> In most databases, specifying the table in the DELETE clause is not
+     * necessary, or even disallowed; the DELETE statement is usually constructed with only a FROM clause:</p>
+     *
      * <pre>{@code
      * DELETE FROM \{from(MyTable.class)}
      * WHERE \{where(record)}
@@ -915,8 +1052,9 @@ public interface Templates {
      *
      * <p>Here, {@code record} is an instance of the {@link Record} class containing the criteria for deletion.
      *
-     * <p>Note that in most databases, specifying the table in the DELETE clause with an alias is not necessary; the
-     * DELETE statement can be constructed with only a FROM clause and an alias:
+     * <p><strong>Note:</strong> In most databases, specifying the table in the DELETE clause with an alias
+     * is not necessary; the DELETE statement can be constructed with only a FROM clause and an alias:</p>
+     *
      * <pre>{@code
      * DELETE FROM \{from(MyTable.class, "t")}
      * WHERE \{where(record)}

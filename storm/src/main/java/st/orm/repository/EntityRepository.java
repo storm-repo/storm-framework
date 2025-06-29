@@ -278,7 +278,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @return a new query builder for selecting refs to entities.
      * @since 1.3
      */
-    <R extends Record & Entity<?>> QueryBuilder<E, Ref<R>, ID> selectRef(@Nonnull Class<R> refType);
+    <R extends Record> QueryBuilder<E, Ref<R>, ID> selectRef(@Nonnull Class<R> refType);
 
     /**
      * Creates a new query builder for delete entities of the type managed by this repository.
@@ -336,6 +336,22 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      *                              including database constraints violations, connectivity issues, or if the entity parameter is null.
      */
     void insert(@Nonnull E entity);
+
+    /**
+     * Inserts an entity into the database.
+     *
+     * <p>This method adds a new entity to the database. It ensures that the entity is persisted according to the defined
+     * database constraints and entity model. It's critical for the entity to be fully initialized as per the entity
+     * model requirements.</p>
+     *
+     * @param entity the entity to insert. The entity must satisfy all model constraints.
+     * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
+     *                           provided primary key value. Use this flag only when intentionally providing the primary
+     *                           key value (e.g., migrations, data exports).
+     * @throws PersistenceException if the insert operation fails. This can happen due to a variety of reasons,
+     *                              including database constraints violations, connectivity issues, or if the entity parameter is null.
+     */
+    void insert(@Nonnull E entity, boolean ignoreAutoGenerate);
 
     /**
      * Inserts an entity into the database and returns its primary key.
@@ -448,19 +464,6 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
     E upsertAndFetch(@Nonnull E entity);
 
     /**
-     * Deletes an entity from the database based on its primary key.
-     *
-     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database.</p>
-     *
-     * @param id the primary key of the entity to delete.
-     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
-     *                              being found in the database, violations of database constraints, connectivity
-     *                              issues, or if the entity parameter is null.
-     */
-    void delete(@Nonnull ID id);
-
-    /**
      * Deletes an entity from the database.
      *
      * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
@@ -473,6 +476,33 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      *                              issues, or if the entity parameter is null.
      */
     void delete(@Nonnull E entity);
+
+    /**
+     * Deletes an entity from the database based on its primary key.
+     *
+     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
+     * deletion exists in the database.</p>
+     *
+     * @param id the primary key of the entity to delete.
+     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
+     *                              being found in the database, violations of database constraints, connectivity
+     *                              issues, or if the entity parameter is null.
+     */
+    void deleteById(@Nonnull ID id);
+
+    /**
+     * Deletes an entity from the database.
+     *
+     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
+     * deletion exists in the database and is correctly identified by its primary key.</p>
+     *
+     * @param ref the entity to delete. The entity must exist in the database and should be correctly identified by
+     *            its ref.
+     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
+     *                              being found in the database, violations of database constraints, connectivity
+     *                              issues, or if the entity parameter is null.
+     */
+    void deleteByRef(@Nonnull Ref<E> ref);
 
     /**
      * Deletes all entities from the database.
@@ -550,7 +580,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * Returns a list of all entities of the type supported by this repository. Each element in the list represents
      * an entity in the database, encapsulating all relevant data as mapped by the entity model.
      *
-     * <p><strong>Please note:</strong> loading all entities into memory at once can be very memory-intensive if your
+     * <p><strong>Note:</strong> Loading all entities into memory at once can be very memory-intensive if your
      * table is large.</p>
      *
      * @return a stream of all entities of the type supported by this repository.
@@ -564,8 +594,9 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      *
      * <p>This method retrieves entities matching the provided IDs in batches, consolidating them into a single list.
      * The batch-based retrieval minimizes database overhead, allowing efficient handling of larger collections of IDs.
-     * Note that the order of entities in the returned list is not guaranteed to match the order of IDs in the input
-     * collection, as the database may not preserve insertion order during retrieval.</p>
+     * 
+     * <p><strong>Note:</strong> The order of entities in the returned list is not guaranteed to match the order of IDs 
+     * in the input collection, as the database may not preserve insertion order during retrieval.</p>
      *
      * @param ids the primary keys of the entities to retrieve, represented as an iterable collection.
      * @return a list of entities corresponding to the provided primary keys. Entities are returned without any
@@ -581,8 +612,10 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      *
      * <p>This method retrieves entities matching the provided IDs in batches, consolidating them into a single list.
      * The batch-based retrieval minimizes database overhead, allowing efficient handling of larger collections of IDs.
-     * Note that the order of entities in the returned list is not guaranteed to match the order of IDs in the input
-     * collection, as the database may not preserve insertion order during retrieval.</p>
+     * </p>
+     *
+     * <p><strong>Note:</strong> The order of entities in the returned list is not guaranteed to match the order of IDs
+     * in the input collection, as the database may not preserve insertion order during retrieval.</p>
      *
      * @param refs the primary keys of the entities to retrieve, represented as an iterable collection.
      * @return a list of entities corresponding to the provided primary keys. Entities are returned without any
@@ -606,6 +639,23 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      *                              problems, constraints violations, or invalid entity data.
      */
     void insert(@Nonnull Iterable<E> entities);
+
+    /**
+     * Inserts a collection of entities into the database in batches.
+     *
+     * <p>This method processes the provided entities in batches, optimizing insertion for larger collections by
+     * reducing database overhead. Batch processing helps ensure that even large numbers of entities can be
+     * inserted efficiently and minimizes potential memory and performance issues.</p>
+     *
+     * @param entities an iterable collection of entities to be inserted. Each entity in the collection must
+     *                 be non-null and contain valid data for insertion.
+     * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
+     *                           provided primary key value. Use this flag only when intentionally providing the primary
+     *                           key value (e.g., migrations, data exports).
+     * @throws PersistenceException if the insertion operation fails due to database issues, such as connectivity
+     *                              problems, constraints violations, or invalid entity data.
+     */
+    void insert(@Nonnull Iterable<E> entities, boolean ignoreAutoGenerate);
 
     /**
      * Inserts a collection of entities into the database in batches.
@@ -744,6 +794,20 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      */
     void delete(@Nonnull Iterable<E> entities);
 
+    /**
+     * Deletes a collection of entities from the database in batches.
+     *
+     * <p>This method processes the provided entities in batches to optimize performance when handling larger collections,
+     * reducing database overhead. For each entity in the collection, the method removes the corresponding record from
+     * the database, if it exists. Batch processing ensures efficient handling of deletions, particularly for large data sets.</p>
+     *
+     * @param refs an iterable collection of entities to be deleted. Each entity in the collection must be non-null
+     *             and represent a valid database record for deletion.
+     * @throws PersistenceException if the deletion operation fails due to database issues, such as connectivity problems
+     *                              or constraints violations.
+     */
+    void deleteByRef(@Nonnull Iterable<Ref<E>> refs);
+
     // Stream based methods.
 
     //
@@ -766,10 +830,10 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying
      * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
+     * while in use, it must be closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it
+     * is recommended to use it within a {@code try-with-resources} block.</p>
      *
      * @return a stream of all entities of the type supported by this repository.
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
@@ -783,7 +847,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * result produced by the callback.
      *
      * <p>This method ensures efficient handling of large data sets by loading entities only as needed.
-     * It also manages lifecycle of the callback stream, automatically closing the stream after processing to prevent
+     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to prevent
      * resource leaks.</p>
      *
      * @param callback a {@link ResultCallback} defining how to process the stream of entities and produce a result.
@@ -808,10 +872,10 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying
      * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
+     * while in use, it must be closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it
+     * is recommended to use it within a {@code try-with-resources} block.</p>
      *
      * @param ids a stream of entity IDs to retrieve from the repository.
      * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
@@ -822,7 +886,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<E> selectAllById(@Nonnull Stream<ID> ids);
+    Stream<E> selectById(@Nonnull Stream<ID> ids);
 
     /**
      * Processes a stream of entities corresponding to the provided IDs using the specified callback.
@@ -839,8 +903,8 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @return the result produced by the callback's processing of the entity stream.
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
-    default <R> R selectAllById(@Nonnull Stream<ID> ids, @Nonnull ResultCallback<E, R> callback) {
-        try (var stream = selectAllById(ids)) {
+    default <R> R selectById(@Nonnull Stream<ID> ids, @Nonnull ResultCallback<E, R> callback) {
+        try (var stream = selectById(ids)) {
             return callback.process(stream);
         }
     }
@@ -856,10 +920,10 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying
      * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
+     * while in use, it must be closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it
+     * is recommended to use it within a {@code try-with-resources} block.</p>
      *
      * @param refs a stream of refs to retrieve from the repository.
      * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
@@ -870,7 +934,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<E> selectAllByRef(@Nonnull Stream<Ref<E>> refs);
+    Stream<E> selectByRef(@Nonnull Stream<Ref<E>> refs);
 
     /**
      * Processes a stream of entities corresponding to the provided IDs using the specified callback.
@@ -887,8 +951,8 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @return the result produced by the callback's processing of the entity stream.
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
-    default <R> R selectAllByRef(@Nonnull Stream<Ref<E>> refs, @Nonnull ResultCallback<E, R> callback) {
-        try (var stream = selectAllByRef(refs)) {
+    default <R> R selectByRef(@Nonnull Stream<Ref<E>> refs, @Nonnull ResultCallback<E, R> callback) {
+        try (var stream = selectByRef(refs)) {
             return callback.process(stream);
         }
     }
@@ -904,10 +968,10 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying
      * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
+     * while in use, it must be closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it
+     * is recommended to use it within a {@code try-with-resources} block.</p>
      *
      * @param ids a stream of entity IDs to retrieve from the repository.
      * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
@@ -921,7 +985,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<E> selectAllById(@Nonnull Stream<ID> ids, int batchSize);
+    Stream<E> selectById(@Nonnull Stream<ID> ids, int batchSize);
 
     /**
      * Retrieves a stream of entities based on their primary keys.
@@ -934,10 +998,10 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only
-     * be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
+     * within a {@code try-with-resources} block.</p>
      *
      * @param ids a stream of entity IDs to retrieve from the repository.
      * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
@@ -951,8 +1015,8 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    default <R> R selectAllById(@Nonnull Stream<ID> ids, int batchSize, @Nonnull ResultCallback<E, R> callback) {
-        try (var stream = selectAllById(ids, batchSize)) {
+    default <R> R selectById(@Nonnull Stream<ID> ids, int batchSize, @Nonnull ResultCallback<E, R> callback) {
+        try (var stream = selectById(ids, batchSize)) {
             return callback.process(stream);
         }
     }
@@ -968,10 +1032,10 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying
      * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
+     * while in use, it must be closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it
+     * is recommended to use it within a {@code try-with-resources} block.</p>
      *
      * @param refs a stream of refs to retrieve from the repository.
      * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
@@ -985,7 +1049,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<E> selectAllByRef(@Nonnull Stream<Ref<E>> refs, int batchSize);
+    Stream<E> selectByRef(@Nonnull Stream<Ref<E>> refs, int batchSize);
 
     /**
      * Retrieves a stream of entities based on their primary keys.
@@ -998,10 +1062,10 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only
-     * be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
+     * within a {@code try-with-resources} block.</p>
      *
      * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
      *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
@@ -1014,8 +1078,8 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    default <R> R selectAllByRef(@Nonnull Stream<Ref<E>> refs, int batchSize, @Nonnull ResultCallback<E, R> callback) {
-        try (var stream = selectAllByRef(refs, batchSize)) {
+    default <R> R selectByRef(@Nonnull Stream<Ref<E>> refs, int batchSize, @Nonnull ResultCallback<E, R> callback) {
+        try (var stream = selectByRef(refs, batchSize)) {
             return callback.process(stream);
         }
     }
@@ -1092,6 +1156,22 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
     void insert(@Nonnull Stream<E> entities);
 
     /**
+     * Inserts entities in a batch mode to optimize performance and reduce database load.
+     *
+     * <p>For large volumes of entities, this method processes the inserts in multiple batches to ensure efficient
+     * handling and minimize the impact on database resources. This structured approach facilitates the management of
+     * large-scale insert operations.</p>
+     *
+     * @param entities the entities to insert. Must not be null.
+     * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
+     *                           provided primary key value. Use this flag only when intentionally providing the primary
+     *                           key value (e.g., migrations, data exports).
+     * @throws PersistenceException if the insert fails due to database constraints, connectivity issues, or if the
+     *                              entities parameter is null.
+     */
+    void insert(@Nonnull Stream<E> entities, boolean ignoreAutoGenerate);
+
+    /**
      * Inserts a stream of entities into the database, with the insertion process divided into batches of the specified
      * size.
      *
@@ -1107,6 +1187,26 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      *                              constraints, connectivity issues, or if any entity in the stream is null.
      */
     void insert(@Nonnull Stream<E> entities, int batchSize);
+
+    /**
+     * Inserts a stream of entities into the database, with the insertion process divided into batches of the specified
+     * size.
+     *
+     * <p>This method inserts entities provided in a stream and uses the specified batch size for the insertion
+     * operation.  Batching the inserts can greatly enhance performance by minimizing the number of database
+     * interactions, especially useful when dealing with large volumes of data.</p>
+     *
+     * @param entities a stream of entities to insert. Each entity must not be null and must conform to the model
+     *                 constraints.
+     * @param batchSize the size of the batches to use for the insertion operation. A larger batch size can improve
+     *                  performance but may also increase the load on the database.
+     * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
+     *                           provided primary key value. Use this flag only when intentionally providing the primary
+     *                           key value (e.g., migrations, data exports).
+     * @throws PersistenceException if there is an error during the insertion operation, such as a violation of database
+     *                              constraints, connectivity issues, or if any entity in the stream is null.
+     */
+    void insert(@Nonnull Stream<E> entities, int batchSize, boolean ignoreAutoGenerate);
 
     /**
      * Inserts a stream of entities into the database using the default batch size and returns a stream of their
@@ -1391,4 +1491,37 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      *                              or constraints violations.
      */
     void delete(@Nonnull Stream<E> entities, int batchSize);
+
+    /**
+     * Deletes a stream of entities from the database in batches.
+     *
+     * <p>This method processes the provided stream of entities in batches to optimize performance for larger
+     * data sets, reducing database overhead during deletion. For each entity in the stream, the method removes
+     * the corresponding record from the database, if it exists. Batch processing allows efficient handling
+     * of deletions, particularly for large collections of entities.</p>
+     *
+     * @param refs a stream of entities to be deleted. Each entity in the stream must be non-null and represent
+     *             a valid database record for deletion.
+     * @throws PersistenceException if the deletion operation fails due to database issues, such as connectivity problems
+     *                              or constraints violations.
+     */
+    void deleteByRef(@Nonnull Stream<Ref<E>> refs);
+
+    /**
+     * Deletes a stream of entities from the database in configurable batch sizes.
+     *
+     * <p>This method processes the provided stream of entities in batches, with the size of each batch specified
+     * by the `batchSize` parameter. This allows for control over the number of entities deleted in each database
+     * operation, optimizing performance and memory usage based on system requirements. For each entity in the
+     * stream, the method removes the corresponding record from the database, if it exists.</p>
+     *
+     * @param refs a stream of entities to be deleted. Each entity in the stream must be non-null and represent
+     *              valid database record for deletion.
+     * @param batchSize the number of entities to process in each batch. Larger batch sizes may improve performance
+     *                  but require more memory, while smaller batch sizes may reduce memory usage but increase
+     *                  the number of database operations.
+     * @throws PersistenceException if the deletion operation fails due to database issues, such as connectivity problems
+     *                              or constraints violations.
+     */
+    void deleteByRef(@Nonnull Stream<Ref<E>> refs, int batchSize);
 }

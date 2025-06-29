@@ -29,6 +29,15 @@ import st.orm.template.Model;
 import st.orm.template.SqlTemplateException;
 
 import java.lang.reflect.RecordComponent;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.util.Calendar;
 import java.util.LinkedHashMap;
 import java.util.SequencedMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -276,16 +285,23 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
             if (o == null && !isPrimaryKey && !parentNullable && REFLECTION.isNonnull(component)) {
                 throw new SqlTemplateException(STR."Non-null component '\{component.getDeclaringRecord().getSimpleName()}.\{component.getName()}' is null.");
             }
-            if (o instanceof Enum<?> e) {
-                return callback.apply(column,
-                        switch (ofNullable(REFLECTION.getAnnotation(component, DbEnum.class))
-                                .map(DbEnum::value)
-                                .orElse(NAME)) {
-                            case NAME -> e.name();
-                            case ORDINAL -> e.ordinal();
-                        });
-            }
-            return callback.apply(column, o);
+            Object value = switch (o) {
+                case Instant it -> Timestamp.from(it);
+                case LocalDateTime it -> Timestamp.valueOf(it);
+                case OffsetDateTime it -> Timestamp.from(it.toInstant());
+                case LocalDate it -> Date.valueOf(it);
+                case LocalTime it -> Time.valueOf(it);
+                case Calendar it -> new Timestamp(it.getTimeInMillis());
+                case java.util.Date it -> new Timestamp(it.getTime());
+                case Enum<?> it -> switch (ofNullable(REFLECTION.getAnnotation(component, DbEnum.class))
+                        .map(DbEnum::value)
+                        .orElse(NAME)) {
+                    case NAME -> it.name();
+                    case ORDINAL -> it.ordinal();
+                };
+                case null, default -> o;
+            };
+            return callback.apply(column, value);
         }
         return true;
     }

@@ -126,7 +126,6 @@ public interface Ref<T extends Record> {
         };
     }
 
-
     /**
      * Creates a ref instance with the specified {@code projection} and {@code id}, if both non-null, otherwise returns
      * a null ref instance.
@@ -137,7 +136,6 @@ public interface Ref<T extends Record> {
      * @param <P> the type of the projection.
      * @param <ID> the type of the primary key.
      */
-
     static <P extends Record & Projection<ID>, ID> Ref<P> ofNullable(@Nullable P projection, @Nullable ID id)  {
         return projection == null || id == null ? ofNull() : of(projection, id);
     }
@@ -207,7 +205,7 @@ public interface Ref<T extends Record> {
      * @param <ID> the id type.
      * @param <P> the projection type.
      */
-    static <ID, P extends Record & Entity<ID>> ID projectionId(@Nonnull Ref<P> ref) {
+    static <ID, P extends Record & Projection<ID>> ID projectionId(@Nonnull Ref<P> ref) {
         //noinspection unchecked
         return (ID) ref.id();
     }

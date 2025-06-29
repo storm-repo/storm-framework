@@ -27,93 +27,93 @@ public interface Operator {
     /**
      * The {@code IN} operator.
      */
-    Operator IN = (column, size) -> switch (size) {
+    Operator IN = (column, placeholders) -> switch (placeholders.length) {
         case 0 -> "1 <> 1";
-        default -> STR."\{column} IN (\{"?, ".repeat(size - 1)}?)";
+        default -> STR."\{column} IN (\{String.join(", ", placeholders)})";
     };
 
     /**
      * The {@code NOT IN} operator.
      */
-    Operator NOT_IN = (column, size) -> switch (size) {
+    Operator NOT_IN = (column, placeholders) -> switch (placeholders.length) {
         case 0 -> "1 = 1";
-        default -> STR."\{column} NOT IN (\{"?, ".repeat(size - 1)}?)";
+        default -> STR."\{column} NOT IN (\{String.join(", ", placeholders)})";
     };
 
     /**
      * The {@code EXISTS} operator.
      */
-    Operator EQUALS = (column, size) -> format("Equals", 1, size, STR."\{column} = ?");
+    Operator EQUALS = (column, placeholders) -> format("Equals", 1, placeholders.length, STR."\{column} = \{get(placeholders)}");
 
     /**
      * The {@code NOT EXISTS} operator.
      */
-    Operator NOT_EQUALS = (column, size) -> format("Not equals", 1, size, STR."\{column} <> ?");
+    Operator NOT_EQUALS = (column, placeholders) -> format("Not equals", 1, placeholders.length, STR."\{column} <> \{Operator.get(placeholders)}");
 
     /**
      * The {@code LIKE} operator.
      */
-    Operator LIKE = (column, size) -> format("Like", 1, size, STR."\{column} LIKE ?");
+    Operator LIKE = (column, placeholders) -> format("Like", 1, placeholders.length, STR."\{column} LIKE \{get(placeholders)}");
 
     /**
      * The {@code NOT LIKE} operator.
      */
-    Operator NOT_LIKE = (column, size) -> format("Not like", 1, size, STR."\{column} NOT LIKE ?");
+    Operator NOT_LIKE = (column, placeholders) -> format("Not like", 1, placeholders.length, STR."\{column} NOT LIKE \{get(placeholders)}");
 
     /**
      * The {@code >} operator.
      */
-    Operator GREATER_THAN = (column, size) -> format("Greater than", 1 ,size, STR."\{column} > ?");
+    Operator GREATER_THAN = (column, placeholders) -> format("Greater than", 1 , placeholders.length, STR."\{column} > \{get(placeholders)}");
 
     /**
      * The {@code >=} operator.
      */
-    Operator GREATER_THAN_OR_EQUAL = (column, size) -> format("Greater than or equal", 1, size, STR."\{column} >= ?");
+    Operator GREATER_THAN_OR_EQUAL = (column, placeholders) -> format("Greater than or equal", 1, placeholders.length, STR."\{column} >= \{get(placeholders)}");
 
     /**
      * The {@code <} operator.
      */
-    Operator LESS_THAN = (column, size) -> format("Less than", 1, size, STR."\{column} < ?");
+    Operator LESS_THAN = (column, placeholders) -> format("Less than", 1, placeholders.length, STR."\{column} < \{get(placeholders)}");
 
     /**
      * The {@code <=} operator.
      */
-    Operator LESS_THAN_OR_EQUAL= (column, size) -> format("Less than or equal", 1, size, STR."\{column} <= ?");
+    Operator LESS_THAN_OR_EQUAL= (column, placeholders) -> format("Less than or equal", 1, placeholders.length, STR."\{column} <= \{get(placeholders)}");
 
     /**
      * The {@code BETWEEN} operator.
      */
-    Operator BETWEEN = (column, size) -> format("Between", 2, size, STR."\{column} BETWEEN ? AND ?");
+    Operator BETWEEN = (column, placeholders) -> format("Between", 2, placeholders.length, STR."\{column} BETWEEN \{get(placeholders)} AND \{get(1, placeholders)}");
 
     /**
      * The {@code IS TRUE} operator.
      */
-    Operator IS_TRUE = (column, size) -> format("Is true", 0, size, STR."\{column} IS TRUE");
+    Operator IS_TRUE = (column, placeholders) -> format("Is true", 0, placeholders.length, STR."\{column} IS TRUE");
 
     /**
      * The {@code IS FALSE} operator.
      */
-    Operator IS_FALSE = (column, size) -> format("Is false", 0, size, STR."\{column} IS FALSE");
+    Operator IS_FALSE = (column, placeholders) -> format("Is false", 0, placeholders.length, STR."\{column} IS FALSE");
 
     /**
      * The {@code IS NULL} operator.
      */
-    Operator IS_NULL = (column, size) -> format("Is null", 0, size, STR."\{column} IS NULL");
+    Operator IS_NULL = (column, placeholders) -> format("Is null", 0, placeholders.length, STR."\{column} IS NULL");
 
     /**
      * The {@code IS NOT NULL} operator.
      */
-    Operator IS_NOT_NULL = (column, size) -> format("Is not null", 0, size, STR."\{column} IS NOT NULL");
+    Operator IS_NOT_NULL = (column, placeholders) -> format("Is not null", 0, placeholders.length, STR."\{column} IS NOT NULL");
 
     /**
      * Formats the operator with bind variables matching the specified size.
      *
      * @param column the column to compare.
-     * @param size the number of bind variables to format.
+     * @param placeholders the placeholders to use in the template.
      * @return the formatted operator.
      * @throws IllegalArgumentException if the specified size is not supported by the operator.
      */
-    String format(@Nullable String column, int size);
+    String format(@Nullable String column, String... placeholders);
 
     private static String format(@Nullable String name, int requiredSize, int actualSize, @Nonnull String operator) {
         if (name == null) {
@@ -123,5 +123,16 @@ public interface Operator {
             throw new IllegalArgumentException(STR."\{name} operator requires \{requiredSize} value(s). Found \{actualSize} value(s).");
         }
         return operator;
+    }
+
+    private static String get(String... placeholders) {
+        return get(0, placeholders);
+    }
+
+    private static String get(int index, String... placeholders) {
+        if (index < 0 || index >= placeholders.length) {
+            throw new IllegalArgumentException(STR."Unexpected number of placeholders. Expected at least \{index + 1} but found \{placeholders.length}.");
+        }
+        return placeholders[index];
     }
 }

@@ -82,12 +82,7 @@ final class RefImpl<T extends Record, ID> extends AbstractRef<T> {
     }
 
     /**
-     * Unloads the entity from memory, if applicable.
-     *
-     * <p>For refs that support lazy-loading, this method clears the cached record to free memory.
-     * However, for fully loaded or immutable refs (such as refs generated via {@link #of(Record)} and
-     * {@link #of(Record, Object)}), this method is a no-op because the record cannot be re-fetched. In such cases,
-     * calling unload has no effect.</p>
+     * Unloads the entity from memory.
      */
     @Override
     public void unload() {

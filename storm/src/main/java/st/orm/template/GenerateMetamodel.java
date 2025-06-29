@@ -24,8 +24,8 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 /**
  * Indicates that a metamodel class should be generated for the annotated record.
  *
- * <p>Note that this annotation is not required for records implementing {@code Entity} or {@code Projection}, as they
- * are automatically included when the annotation processor is enabled.</p>
+ * <p><strong>Note:</strong> This annotation is not required for records implementing {@code Entity} or
+ * {@code Projection}, as they are automatically included when the annotation processor is enabled.</p>
  *
  * @since 1.2
  */

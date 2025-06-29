@@ -91,6 +91,19 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
     <R> QueryBuilder<P, R, ID> select(@Nonnull Class<R> selectType);
 
     /**
+     * Creates a new query builder for selecting refs to projections of the type managed by this repository.
+     *
+     * <p>This method is typically used when you only need the primary keys of the projection initially, and you want to
+     * defer fetching the full data until it is actually required. The query builder will return ref instances that
+     * encapsulate the primary key. To retrieve the full entity, call {@link Ref#fetch()}, which will perform an
+     * additional database query on demand.</p>
+     *
+     * @return a new query builder for selecting refs to projections.
+     * @since 1.3
+     */
+    QueryBuilder<P, Ref<P>, ID> selectRef();
+
+    /**
      * Creates a new query builder for the custom {@code selectType} and custom {@code template} for the select clause.
      *
      * @param selectType the result type of the query.
@@ -99,6 +112,20 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @param <R> the result type of the query.
      */
     <R> QueryBuilder<P, R, ID> select(@Nonnull Class<R> selectType, @Nonnull StringTemplate template);
+
+    /**
+     * Creates a new query builder for selecting refs to projections of the type managed by this repository.
+     *
+     * <p>This method is typically used when you only need the primary keys of the projections initially, and you want to
+     * defer fetching the full data until it is actually required. The query builder will return ref instances that
+     * encapsulate the primary key. To retrieve the full projection, call {@link Ref#fetch()}, which will perform an
+     * additional database query on demand.</p>
+     *
+     * @param refType the type that is selected as ref.
+     * @return a new query builder for selecting refs to projections.
+     * @since 1.3
+     */
+    <R extends Record> QueryBuilder<P, Ref<R>, ID> selectRef(@Nonnull Class<R> refType);
 
     // Base methods.
 
@@ -201,8 +228,8 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * Returns a list of all projections of the type supported by this repository. Each element in the list represents
      * a projection in the database, encapsulating all relevant data as mapped by the projection model.
      *
-     * <p><strong>Please note:</strong> loading all projections into memory at once can be very memory-intensive if
-     * your table is large.</p>
+     * <p><strong>Note:</strong> Loading all projections into memory at once can be very memory-intensive if your table
+     * is large.</p>
      *
      * @return a stream of all entities of the type supported by this repository.
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
@@ -215,8 +242,10 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      *
      * <p>This method retrieves projections matching the provided IDs in batches, consolidating them into a single list.
      * The batch-based retrieval minimizes database overhead, allowing efficient handling of larger collections of IDs.
-     * Note that the order of projections in the returned list is not guaranteed to match the order of IDs in the input
-     * collection, as the database may not preserve insertion order during retrieval.</p>
+     * </p>
+     *
+     * <p><strong>Note:</strong> The order of projections in the returned list is not guaranteed to match the order of
+     * IDs in the input collection, as the database may not preserve insertion order during retrieval.</p>
      *
      * @param ids the primary keys of the projections to retrieve, represented as an iterable collection.
      * @return a list of projections corresponding to the provided primary keys. Projections are returned without any
@@ -232,8 +261,10 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      *
      * <p>This method retrieves projections matching the provided IDs in batches, consolidating them into a single list.
      * The batch-based retrieval minimizes database overhead, allowing efficient handling of larger collections of IDs.
-     * Note that the order of projections in the returned list is not guaranteed to match the order of IDs in the input
-     * collection, as the database may not preserve insertion order during retrieval.</p>
+     * </p>
+     *
+     * <p><strong>Note:</strong> The order of projections in the returned list is not guaranteed to match the order of
+     * IDs in the input collection, as the database may not preserve insertion order during retrieval.</p>
      *
      * @param refs the primary keys of the projections to retrieve, represented as an iterable collection.
      * @return a list of projections corresponding to the provided primary keys. Projections are returned without any
@@ -266,10 +297,10 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of projections.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
-     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
+     * within a {@code try-with-resources} block.</p>
      *
      * @return a stream of all projections of the type supported by this repository.
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
@@ -283,7 +314,7 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * result produced by the callback.
      *
      * <p>This method ensures efficient handling of large data sets by loading projections only as needed.
-     * It also manages lifecycle of the callback stream, automatically closing the stream after processing to prevent
+     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to prevent
      * resource leaks.</p>
      *
      * @param callback a {@link ResultCallback} defining how to process the stream of projections and produce a result.
@@ -308,10 +339,10 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of projections.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
-     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
+     * within a {@code try-with-resources} block.</p>
      *
      * @param ids a stream of projection IDs to retrieve from the repository.
      * @return a stream of projections corresponding to the provided primary keys. The order of projections in the stream is
@@ -322,7 +353,7 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<P> selectAllById(@Nonnull Stream<ID> ids);
+    Stream<P> selectById(@Nonnull Stream<ID> ids);
 
     /**
      * Processes a stream of projections corresponding to the provided IDs using the specified callback.
@@ -339,8 +370,8 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @return the result produced by the callback's processing of the projection stream.
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
-    default <R> R selectAllById(@Nonnull Stream<ID> ids, @Nonnull ResultCallback<P, R> callback) {
-        try (var stream = selectAllById(ids)) {
+    default <R> R selectById(@Nonnull Stream<ID> ids, @Nonnull ResultCallback<P, R> callback) {
+        try (var stream = selectById(ids)) {
             return callback.process(stream);
         }
     }
@@ -356,10 +387,10 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of projections.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
-     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
+     * within a {@code try-with-resources} block.</p>
      *
      * @param refs a stream of refs to retrieve from the repository.
      * @return a stream of projections corresponding to the provided primary keys. The order of projections in the stream is
@@ -370,7 +401,7 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<P> selectAllByRef(@Nonnull Stream<Ref<P>> refs);
+    Stream<P> selectByRef(@Nonnull Stream<Ref<P>> refs);
 
     /**
      * Processes a stream of projections corresponding to the provided IDs using the specified callback.
@@ -387,8 +418,8 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @return the result produced by the callback's processing of the projection stream.
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
-    default <R> R selectAllByRef(@Nonnull Stream<Ref<P>> refs, @Nonnull ResultCallback<P, R> callback) {
-        try (var stream = selectAllByRef(refs)) {
+    default <R> R selectByRef(@Nonnull Stream<Ref<P>> refs, @Nonnull ResultCallback<P, R> callback) {
+        try (var stream = selectByRef(refs)) {
             return callback.process(stream);
         }
     }
@@ -404,10 +435,10 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of projections.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
-     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
+     * within a {@code try-with-resources} block.</p>
      *
      * @param ids a stream of projection IDs to retrieve from the repository.
      * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
@@ -421,7 +452,7 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<P> selectAllById(@Nonnull Stream<ID> ids, int batchSize);
+    Stream<P> selectById(@Nonnull Stream<ID> ids, int batchSize);
 
     /**
      * Retrieves a stream of projections based on their primary keys.
@@ -434,10 +465,10 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of projections.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only
-     * be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
+     * within a {@code try-with-resources} block.</p>
      *
      * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
      *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
@@ -450,8 +481,8 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    default <R> R selectAllById(@Nonnull Stream<ID> ids, int batchSize, @Nonnull ResultCallback<P, R> callback) {
-        try (var stream = selectAllById(ids, batchSize)) {
+    default <R> R selectById(@Nonnull Stream<ID> ids, int batchSize, @Nonnull ResultCallback<P, R> callback) {
+        try (var stream = selectById(ids, batchSize)) {
             return callback.process(stream);
         }
     }
@@ -467,10 +498,10 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of projections.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying
-     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
+     * within a {@code try-with-resources} block.</p>
      *
      * @param refs a stream of refs to retrieve from the repository.
      * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
@@ -484,7 +515,7 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<P> selectAllByRef(@Nonnull Stream<Ref<P>> refs, int batchSize);
+    Stream<P> selectByRef(@Nonnull Stream<Ref<P>> refs, int batchSize);
 
     /**
      * Retrieves a stream of projections based on their primary keys.
@@ -497,10 +528,10 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of projections.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only
-     * be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is AutoCloseable, it is
-     * recommended to use it within a try-with-resources block.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
+     * within a {@code try-with-resources} block.</p>
      *
      * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
      *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
@@ -513,8 +544,8 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    default <R> R selectAllByRef(@Nonnull Stream<Ref<P>> refs, int batchSize, @Nonnull ResultCallback<P, R> callback) {
-        try (var stream = selectAllByRef(refs, batchSize)) {
+    default <R> R selectByRef(@Nonnull Stream<Ref<P>> refs, int batchSize, @Nonnull ResultCallback<P, R> callback) {
+        try (var stream = selectByRef(refs, batchSize)) {
             return callback.process(stream);
         }
     }

@@ -77,7 +77,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         this.modelBuilder = ModelBuilder.newInstance();
         this.tableAliasResolver = TableAliasResolver.DEFAULT;
         this.providerFilter = null;
-        this.refFactory = new RefFactoryImpl(this, modelBuilder, null);
+        this.refFactory = new RefFactoryImpl(this, modelBuilder, providerFilter);
     }
 
     private JpaTemplateImpl(@Nonnull TemplateProcessor templateProcessor, @Nonnull ModelBuilder modelBuilder, @Nonnull TableAliasResolver tableAliasResolver, @Nullable Predicate<Provider> providerFilter) {
@@ -139,7 +139,19 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         }
     }
 
-    private SqlTemplate sqlTemplate() {
+    /**
+     * Get the SQL template used by this factory.
+     *
+     * <p>Query factory implementations must ensure that the SQL Template returned by this method is processed by any
+     * registered {@code SqlInterceptor} instances before being returned. As a result, this method is expected to
+     * return a new instance of the SQL template each time it is called, ensuring that any modifications made by
+     * interceptors are applied correctly.</p>
+     *
+     * @return the SQL template.
+     * @since 1.3
+     */
+    @Override
+    public SqlTemplate sqlTemplate() {
         SqlTemplate template = PS
                 .withTableNameResolver(modelBuilder.tableNameResolver())
                 .withColumnNameResolver(modelBuilder.columnNameResolver())
@@ -148,7 +160,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         if (providerFilter != null) {
             template = template.withDialect(Providers.getSqlDialect(providerFilter));
         }
-        return template;
+        return SqlInterceptorManager.customize(template);
     }
 
     /**
@@ -171,7 +183,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      */
     @Override
     public ORMTemplate toORM() {
-        return new ORMTemplateImpl(this, ModelBuilder.newInstance(), null);
+        return new ORMTemplateImpl(this, ModelBuilder.newInstance(), providerFilter);
     }
 
     /**

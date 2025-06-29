@@ -76,42 +76,6 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     public abstract QueryBuilder<T, R, ID> distinct();
 
     /**
-     * A builder for constructing join clause of the query.
-     *
-     * @param <T> the type of the table being queried.
-     * @param <R> the type of the result.
-     * @param <ID> the type of the primary key.
-     */
-    public interface TypedJoinBuilder<T extends Record, R, ID> extends JoinBuilder<T, R, ID> {
-
-        /**
-         * Specifies the relation to join on.
-         * 
-         * @param relation the relation to join on.
-         * @return the query builder.
-         */
-        QueryBuilder<T, R, ID> on(@Nonnull Class<? extends Record> relation);
-    }
-
-    /**
-     * A builder for constructing join clause of the query using custom join conditions.
-     *
-     * @param <T> the type of the table being queried.
-     * @param <R> the type of the result.
-     * @param <ID> the type of the primary key.
-     */
-    public interface JoinBuilder<T extends Record, R, ID> {
-
-        /**
-         * Specifies the join condition using a custom expression.
-         * 
-         * @param template the condition to join on.
-         * @return the query builder.
-         */
-        QueryBuilder<T, R, ID> on(@Nonnull StringTemplate template);
-    }
-
-    /**
      * Adds a cross join to the query.
      *
      * @param relation the relation to join.
@@ -207,363 +171,6 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     public abstract JoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull QueryBuilder<?, ?, ?> subquery, @Nonnull String alias);
-
-    /**
-     * A builder for constructing the WHERE clause of the query.
-     *
-     * @param <T> the type of the table being queried.
-     * @param <R> the type of the result.
-     * @param <ID> the type of the primary key.
-     */
-    public static abstract class WhereBuilder<T extends Record, R, ID> implements SubqueryTemplate {
-
-        /**
-         * A predicate that always evaluates to true.
-         */
-        public final PredicateBuilder<T, R, ID> TRUE() {
-            return where(RAW."TRUE");
-        }
-
-        /**
-         * A predicate that always evaluates to false.
-         */
-        public final PredicateBuilder<T, R, ID> FALSE() {
-            return where(RAW."FALSE");
-        }
-
-        /**
-         * Adds an <code>EXISTS</code> condition to the WHERE clause using the specified subquery.
-         *
-         * <p>This method appends an <code>EXISTS</code> clause to the current query's WHERE condition.
-         * It checks whether the provided subquery returns any rows, allowing you to filter results based
-         * on the existence of related data. This is particularly useful for constructing queries that need
-         * to verify the presence of certain records in a related table or subquery.
-         *
-         * @param subquery the subquery to check for existence.
-         * @return the updated {@link PredicateBuilder} with the EXISTS condition applied.
-         */
-        public abstract PredicateBuilder<T, R, ID> exists(@Nonnull QueryBuilder<?, ?, ?> subquery);
-
-        /**
-         * Adds an <code>NOT EXISTS</code> condition to the WHERE clause using the specified subquery.
-         *
-         * <p>This method appends an <code>NOT EXISTS</code> clause to the current query's WHERE condition.
-         * It checks whether the provided subquery returns any rows, allowing you to filter results based
-         * on the existence of related data. This is particularly useful for constructing queries that need
-         * to verify the absence of certain records in a related table or subquery.
-         *
-         * @param subquery the subquery to check for existence.
-         * @return the updated {@link PredicateBuilder} with the NOT EXISTS condition applied.
-         */
-        public abstract PredicateBuilder<T, R, ID> notExists(@Nonnull QueryBuilder<?, ?, ?> subquery);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified primary key of the table.
-         *
-         * @param id the id to match.
-         * @return the predicate builder.
-         */
-        public abstract PredicateBuilder<T, R, ID> whereId(@Nonnull ID id);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified primary key of the table, expressed by a ref.
-         *
-         * @param ref the ref to match.
-         * @return the predicate builder.
-         * @since 1.3
-         */
-        public abstract PredicateBuilder<T, R, ID> whereRef(@Nonnull Ref<T> ref);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified primary key of the table, expressed by a ref.
-         * The ref can represent any of the related tables in the table graph or manually added joins.
-         *
-         * @param ref the ref to match.
-         * @return the predicate builder.
-         * @since 1.3
-         */
-        public abstract PredicateBuilder<T, R, ID> whereAnyRef(@Nonnull Ref<? extends Record> ref);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified record.
-         *
-         * @param record the record to match.
-         * @return the predicate builder.
-         */
-        public abstract PredicateBuilder<T, R, ID> where(@Nonnull T record);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of the
-         * related tables in the table graph or manually added joins.
-         *
-         * @param record the record to match.
-         * @return the predicate builder.
-         * @since 1.2
-         */
-        public abstract PredicateBuilder<T, R, ID> whereAny(@Nonnull Record record);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified primary keys of the table.
-         *
-         * @param it the ids to match.
-         * @return the predicate builder.
-         * @since 1.2
-         */
-        public abstract PredicateBuilder<T, R, ID> whereId(@Nonnull Iterable<? extends ID> it);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified primary keys of the table, expressed by a ref.
-         *
-         * @param it the refs to match.
-         * @return the predicate builder.
-         * @since 1.3
-         */
-        public abstract PredicateBuilder<T, R, ID> whereRef(@Nonnull Iterable<? extends Ref<T>> it);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified primary keys of the table, expressed by a ref.
-         * The ref can represent any of the related tables in the table graph or manually added joins.
-         *
-         * @param it the refs to match.
-         * @return the predicate builder.
-         * @since 1.3
-         */
-        public abstract PredicateBuilder<T, R, ID> whereAnyRef(@Nonnull Iterable<? extends Ref<? extends Record>> it);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified records.
-         *
-         * @param it the records to match.
-         * @return the predicate builder.
-         */
-        public abstract PredicateBuilder<T, R, ID> where(@Nonnull Iterable<? extends T> it);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified records. The record can represent any of the
-         * related tables in the table graph or manually added joins.
-         *
-         * @param it the records to match.
-         * @return the query builder.
-         */
-        public abstract PredicateBuilder<T, R, ID> whereAny(@Nonnull Iterable<? extends Record> it);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
-         * the related tables in the table graph.
-         *
-         * @param path the path to the object in the table graph.
-         * @param record the records to match.
-         * @return the predicate builder.
-         */
-        public final <V extends Record> PredicateBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull V record) {
-            return where(path, EQUALS, record);
-        }
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
-         * the related tables in the table graph or manually added joins.
-         *
-         * @param record the records to match.
-         * @return the predicate builder.
-         */
-        public final <V extends Record> PredicateBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull V record) {
-            return whereAny(path, EQUALS, record);
-        }
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified ref. The record can represent any of
-         * the related tables in the table graph.
-         *
-         * @param path the path to the object in the table graph.
-         * @param ref the ref to match.
-         * @return the predicate builder.
-         * @since 1.3
-         */
-        public abstract <V extends Record> PredicateBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull Ref<V> ref);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified ref. The record can represent any of
-         * the related tables in the table graph or manually added joins.
-         *
-         * @param path the path to the object in the table graph.
-         * @param ref the ref to match.
-         * @return the predicate builder.
-         * @since 1.3
-         */
-        public abstract <V extends Record> PredicateBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull Ref<V> ref);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified refs. The refs can represent any of
-         * the related tables in the table graph.
-         *
-         * @param path the path to the ref in the table graph.
-         * @param it the refs to match.
-         * @return the predicate builder.
-         * @since 1.3
-         */
-        public abstract <V extends Record> PredicateBuilder<T, R, ID> whereRef(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<? extends Ref<V>> it);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified refs. The refs can represent any of
-         * the related tables in the table graph.
-         *
-         * @param path the path to the ref in the table graph.
-         * @param it the refs to match.
-         * @return the predicate builder.
-         * @since 1.3
-         */
-        public abstract <V extends Record> PredicateBuilder<T, R, ID> whereAnyRef(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<? extends Ref<V>> it);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified records. The records can represent any of
-         * the related tables in the table graph.
-         *
-         * @param path the path to the object in the table graph.
-         * @param it the records to match.
-         * @return the predicate builder.
-         */
-        public final <V extends Record> PredicateBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<V> it) {
-            return where(path, IN, it);
-        }
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified records. The records can represent any of
-         * the related tables in the table graph or manually added joins.
-         *
-         * @param path the path to the object in the table graph.
-         * @param it the records to match.
-         * @return the predicate builder.
-         */
-        public final <V extends Record> PredicateBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<V> it) {
-            return whereAny(path, IN, it);
-        }
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph.
-         *
-         * @param path the path to the object in the table graph.
-         * @param operator the operator to use for the comparison.
-         * @param it the objects to match, which can be primary keys, records representing the table, or fields in the
-         *          table graph.
-         * @return the query builder.
-         * @param <V> the type of the object that the metamodel represents.
-         * @since 1.2
-         */
-        public abstract <V> PredicateBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
-                                                             @Nonnull Operator operator,
-                                                             @Nonnull Iterable<? extends V> it);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph or manually added joins.
-         *
-         * @param path the path to the object in the table graph.
-         * @param operator the operator to use for the comparison.
-         * @param it the objects to match, which can be primary keys, records representing the table, or fields in the
-         *          table graph.
-         * @return the query builder.
-         * @param <V> the type of the object that the metamodel represents.
-         * @since 1.2
-         */
-        public abstract <V> PredicateBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path,
-                                                                @Nonnull Operator operator,
-                                                                @Nonnull Iterable<? extends V> it);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph.
-         *
-         * @param path the path to the object in the table graph.
-         * @param operator the operator to use for the comparison.
-         * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
-         *          table graph.
-         * @return the query builder.
-         * @param <V> the type of the object that the metamodel represents.
-         * @since 1.2
-         */
-        @SafeVarargs
-        public final <V> PredicateBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path,
-                                                          @Nonnull Operator operator,
-                                                          @Nonnull V... o) {
-            return whereImpl(path, operator, o);
-        }
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph or manually added joins.
-         *
-         * @param path the path to the object in the table graph.
-         * @param operator the operator to use for the comparison.
-         * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
-         *          table graph.
-         * @return the query builder.
-         * @param <V> the type of the object that the metamodel represents.
-         * @since 1.2
-         */
-        @SafeVarargs
-        public final <V> PredicateBuilder<T, R, ID> whereAny(@Nonnull Metamodel<?, V> path,
-                                                             @Nonnull Operator operator,
-                                                             @Nonnull V... o) {
-            return whereImpl(path, operator, o);
-        }
-
-        /**
-         * Appends a custom expression to the WHERE clause.
-         *
-         * @param template the expression to add.
-         * @return the predicate builder.
-         */
-        public abstract PredicateBuilder<T, R, ID> where(@Nonnull StringTemplate template);
-
-        /**
-         * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
-         * graph or manually added joins.
-         *
-         * @param path the path to the object in the table graph.
-         * @param operator the operator to use for the comparison.
-         * @param o the object(s) to match, which can be primary keys, records representing the table, or fields in the
-         *          table graph.
-         * @return the query builder.
-         * @param <V> the type of the object that the metamodel represents.
-         * @since 1.2
-         */
-        protected abstract <V> PredicateBuilder<T, R, ID> whereImpl(@Nonnull Metamodel<?, V> path,
-                                                                    @Nonnull Operator operator,
-                                                                    @Nonnull V[] o);
-    }
-
-    /**
-     * A builder for constructing the predicates of the WHERE clause of the query.
-     *
-     * @param <T> the type of the table being queried.
-     * @param <R> the type of the result.
-     * @param <ID> the type of the primary key.
-     */
-    public interface PredicateBuilder<T extends Record, R, ID> {
-
-        /**
-         * Adds a predicate to the WHERE clause using an AND condition.
-         *
-         * <p>This method combines the specified predicate with existing predicates using an AND operation, ensuring
-         * that all added conditions must be true.</p>
-         *
-         * @param predicate the predicate to add.
-         * @return the predicate builder.
-         */
-        PredicateBuilder<T, R, ID> and(@Nonnull PredicateBuilder<?, ?, ?> predicate);
-
-        /**
-         * Adds a predicate to the WHERE clause using an OR condition.
-         *
-         * <p>This method combines the specified predicate with existing predicates using an OR operation, allowing any
-         * of the added conditions to be true.</p>
-         *
-         * @param predicate the predicate to add.
-         * @return the predicate builder.
-         */
-        PredicateBuilder<T, R, ID> or(@Nonnull PredicateBuilder<?, ?, ?> predicate);
-    }
 
     /**
      * Adds a WHERE clause that matches the specified primary key of the table.
@@ -729,7 +336,15 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param predicate the predicate to add.
      * @return the query builder.
      */
-    public abstract QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<?, ?, ?>> predicate);
+    public abstract QueryBuilder<T, R, ID> where(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<T, ?, ?>> predicate);
+
+    /**
+     * Adds a WHERE clause to the query using a {@link WhereBuilder}.
+     *
+     * @param predicate the predicate to add.
+     * @return the query builder.
+     */
+    public abstract QueryBuilder<T, R, ID> whereAny(@Nonnull Function<WhereBuilder<T, R, ID>, PredicateBuilder<?, ?, ?>> predicate);
 
     /**
      * Adds a GROUP BY clause to the query for field at the specified path in the table graph.
@@ -953,7 +568,8 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     /**
      * Locks the selected rows using a custom lock mode.
      *
-     * <p>Note that this method results in non-portable code, as the lock mode is specific to the underlying database.</p>
+     * <p><strong>Note:</strong> This method results in non-portable code, as the lock mode is specific to the
+     * underlying database.</p>
      *
      * @return the query builder.
      * @throws PersistenceException if the lock mode is not supported for the current query.
@@ -978,8 +594,9 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * <p>Unlike regular queries, which are constructed lazily, prepared queries are constructed eagerly.
      * Prepared queries allow the use of bind variables and enable reading generated keys after row insertion.</p>
      *
-     * <p>Note that the prepared query must be closed after usage to prevent resource leaks. As the prepared query is
-     * AutoCloseable, it is recommended to use it within a try-with-resources block.</p>
+     * <p><strong>Note:</strong> The prepared query must be closed after usage to prevent resource leaks. As the
+     * prepared query is {@code AutoCloseable}, it is recommended to use it within a {@code try-with-resources} block.
+     * </p>
      *
      * @return the prepared query.
      * @throws PersistenceException if the query preparation fails.
@@ -999,10 +616,10 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of records.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only be invoked 
-     * when the query is intended to run. Since the stream holds resources open while in use, it must be closed after 
-     * usage to prevent resource leaks. As the stream is AutoCloseable, it is recommended to use it within a 
-     * try-with-resources block.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
+     * within a {@code try-with-resources} block.</p>
      *
      * @return a stream of results.
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
@@ -1015,7 +632,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * applies the provided callback to process them, returning the result produced by the callback.
      *
      * <p>This method ensures efficient handling of large data sets by loading entities only as needed.
-     * It also manages lifecycle of the callback stream, automatically closing the stream after processing to prevent
+     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to prevent
      * resource leaks.</p>
      *
      * @param callback a {@link ResultCallback} defining how to process the stream of records and produce a result.

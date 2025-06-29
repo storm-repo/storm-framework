@@ -24,6 +24,7 @@ import st.orm.Ref;
 import st.orm.PersistenceException;
 import st.orm.kotlin.KBatchCallback;
 import st.orm.kotlin.KResultCallback;
+import st.orm.kotlin.CloseableSequence;
 import st.orm.kotlin.repository.KEntityRepository;
 import st.orm.kotlin.template.KModel;
 import st.orm.kotlin.template.KORMTemplate;
@@ -214,7 +215,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * @since 1.3
      */
     @Override
-    public <R extends Record & Entity<?>> KQueryBuilder<E, Ref<R>, ID> selectRef(@Nonnull KClass<R> refType) {
+    public <R extends Record> KQueryBuilder<E, Ref<R>, ID> selectRef(@Nonnull KClass<R> refType) {
         //noinspection unchecked
         return new KQueryBuilderImpl<>(entityRepository.selectRef((Class<R>) REFLECTION.getType(refType)));
     }
@@ -287,6 +288,25 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
     @Override
     public void insert(@Nonnull E entity) {
         entityRepository.insert(entity);
+    }
+
+    /**
+     * Inserts an entity into the database.
+     *
+     * <p>This method adds a new entity to the database. It ensures that the entity is persisted according to the defined
+     * database constraints and entity model. It's critical for the entity to be fully initialized as per the entity
+     * model requirements.</p>
+     *
+     * @param entity the entity to insert. The entity must satisfy all model constraints.
+     * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
+     *                           provided primary key value. Use this flag only when intentionally providing the primary
+     *                           key value (e.g., migrations, data imports).
+     * @throws PersistenceException if the insert operation fails. This can happen due to a variety of reasons,
+     *                              including database constraints violations, connectivity issues, or if the entity parameter is null.
+     */
+    @Override
+    public void insert(@Nonnull E entity, boolean ignoreAutoGenerate) {
+        entityRepository.insert(entity, ignoreAutoGenerate);
     }
 
     /**
@@ -444,22 +464,6 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
     }
 
     /**
-     * Deletes an entity from the database based on its primary key.
-     *
-     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database.</p>
-     *
-     * @param id the primary key of the entity to delete.
-     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
-     *                              being found in the database, violations of database constraints, connectivity
-     *                              issues, or if the entity parameter is null.
-     */
-    @Override
-    public void delete(@Nonnull ID id) {
-        entityRepository.delete(id);
-    }
-
-    /**
      * Deletes an entity from the database.
      *
      * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
@@ -474,6 +478,39 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
     @Override
     public void delete(@Nonnull E entity) {
         entityRepository.delete(entity);
+    }
+
+    /**
+     * Deletes an entity from the database based on its primary key.
+     *
+     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
+     * deletion exists in the database.</p>
+     *
+     * @param id the primary key of the entity to delete.
+     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
+     *                              being found in the database, violations of database constraints, connectivity
+     *                              issues, or if the entity parameter is null.
+     */
+    @Override
+    public void deleteById(@Nonnull ID id) {
+        entityRepository.deleteById(id);
+    }
+
+    /**
+     * Deletes an entity from the database.
+     *
+     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
+     * deletion exists in the database and is correctly identified by its primary key.</p>
+     *
+     * @param ref the entity to delete. The entity must exist in the database and should be correctly identified by
+     *            its ref.
+     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
+     *                              being found in the database, violations of database constraints, connectivity
+     *                              issues, or if the entity parameter is null.
+     */
+    @Override
+    public void deleteByRef(@Nonnull Ref<E> ref) {
+        entityRepository.deleteByRef(ref);
     }
 
     /**
@@ -579,8 +616,10 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      *
      * <p>This method retrieves entities matching the provided IDs in batches, consolidating them into a single list.
      * The batch-based retrieval minimizes database overhead, allowing efficient handling of larger collections of IDs.
-     * Note that the order of entities in the returned list is not guaranteed to match the order of IDs in the input
-     * collection, as the database may not preserve insertion order during retrieval.</p>
+     * </p>
+     *
+     * <p><strong>Note:</strong> The order of entities in the returned list is not guaranteed to match the order of IDs
+     * in the input collection, as the database may not preserve insertion order during retrieval.</p>
      *
      * @param ids the primary keys of the entities to retrieve, represented as an iterable collection.
      * @return a list of entities corresponding to the provided primary keys. Entities are returned without any
@@ -599,8 +638,10 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      *
      * <p>This method retrieves entities matching the provided IDs in batches, consolidating them into a single list.
      * The batch-based retrieval minimizes database overhead, allowing efficient handling of larger collections of IDs.
-     * Note that the order of entities in the returned list is not guaranteed to match the order of IDs in the input
-     * collection, as the database may not preserve insertion order during retrieval.</p>
+     * </p>
+     *
+     * <p><strong>Note:</strong> The order of entities in the returned list is not guaranteed to match the order of IDs
+     * in the input collection, as the database may not preserve insertion order during retrieval.</p>
      *
      * @param refs the primary keys of the entities to retrieve, represented as an iterable collection.
      * @return a list of entities corresponding to the provided primary keys. Entities are returned without any
@@ -629,6 +670,26 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
     @Override
     public void insert(@Nonnull Iterable<E> entities) {
         entityRepository.insert(entities);
+    }
+
+    /**
+     * Inserts a collection of entities into the database in batches.
+     *
+     * <p>This method processes the provided entities in batches, optimizing insertion for larger collections by
+     * reducing database overhead. Batch processing helps ensure that even large numbers of entities can be
+     * inserted efficiently and minimizes potential memory and performance issues.</p>
+     *
+     * @param entities an iterable collection of entities to be inserted. Each entity in the collection must
+     *                 be non-null and contain valid data for insertion.
+     * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
+     *                           provided primary key value. Use this flag only when intentionally providing the primary
+     *                           key value (e.g., migrations, data imports).
+     * @throws PersistenceException if the insertion operation fails due to database issues, such as connectivity
+     *                              problems, constraints violations, or invalid entity data.
+     */
+    @Override
+    public void insert(@Nonnull Iterable<E> entities, boolean ignoreAutoGenerate) {
+        entityRepository.insert(entities, ignoreAutoGenerate);
     }
 
     /**
@@ -769,7 +830,45 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
         entityRepository.delete(entities);
     }
 
-    // Stream based methods. These methods operate in multiple batches.
+    /**
+     * Deletes a collection of entities from the database in batches.
+     *
+     * <p>This method processes the provided entities in batches to optimize performance when handling larger collections,
+     * reducing database overhead. For each entity in the collection, the method removes the corresponding record from
+     * the database, if it exists. Batch processing ensures efficient handling of deletions, particularly for large data sets.</p>
+     *
+     * @param refs an iterable collection of entities to be deleted. Each entity in the collection must be non-null
+     *             and represent a valid database record for deletion.
+     * @throws PersistenceException if the deletion operation fails due to database issues, such as connectivity problems
+     *                              or constraints violations.
+     */
+    @Override
+    public void deleteByRef(@Nonnull Iterable<Ref<E>> refs) {
+        entityRepository.deleteByRef(refs);
+    }
+
+    // Sequence based methods. These methods operate in multiple batches.
+
+    /**
+     * Returns a sequence of all entities of the type supported by this repository. Each element in the sequence represents
+     * an entity in the database, encapsulating all relevant data as mapped by the entity model.
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as
+     * they are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @return a sequence of all entities of the type supported by this repository.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    @Override
+    public CloseableSequence<E> selectAll() {
+        return CloseableSequence.from(entityRepository.selectAll());
+    }
 
     /**
      * Processes a sequence of all entities of the type supported by this repository using the specified callback.
@@ -777,7 +876,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * result produced by the callback.
      *
      * <p>This method ensures efficient handling of large data sets by loading entities only as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param callback a {@link KResultCallback} defining how to process the sequence of entities and produce a result.
@@ -791,12 +890,41 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
     }
 
     /**
+     * Retrieves a sequence of entities based on their primary keys.
+     *
+     * <p>This method executes queries in batches, depending on the number of primary keys in the specified ids
+     * sequence. This optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve
+     * entities. The batching strategy enhances performance, particularly when dealing with large sets of primary
+     * keys.</p>
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as
+     * they are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @param ids a sequence of entity IDs to retrieve from the repository.
+     * @return a sequence of entities corresponding to the provided primary keys. The order of entities in the sequence is
+     *         not guaranteed to match the order of ids in the input sequence. If an id does not correspond to any entity
+     *         in the database, it will simply be skipped, and no corresponding entity will be included in the returned
+     *         sequence. If the same entity is requested multiple times, it may be included in the sequence multiple times
+     *         if it is part of a separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */    @Override
+    public CloseableSequence<E> selectAllById(@Nonnull Sequence<ID> ids) {
+        return CloseableSequence.from(entityRepository.selectById(toStream(ids)));
+    }
+
+    /**
      * Processes a sequence of entities corresponding to the provided IDs using the specified callback.
      * This method retrieves entities matching the given IDs and applies the callback to process the results,
      * returning the outcome produced by the callback.
      *
      * <p>This method is designed for efficient data handling by only retrieving specified entities as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param ids a sequence of entity IDs to retrieve from the repository.
@@ -806,8 +934,40 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
      */
     @Override
-    public <R> R selectAll(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<E, R> callback) {
-        return entityRepository.selectAllById(toStream(ids), stream -> callback.process(toSequence(stream)));
+    public <R> R selectAllById(@Nonnull Sequence<ID> ids, @Nonnull KResultCallback<E, R> callback) {
+        return entityRepository.selectById(toStream(ids), stream -> callback.process(toSequence(stream)));
+    }
+
+    /**
+     * Retrieves a sequence of entities based on their primary keys.
+     *
+     * <p>This method executes queries in batches, with the batch size determined by the provided parameter. This
+     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities. The
+     * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as
+     * they are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @param refs a sequence of refs to retrieve from the repository.
+     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
+     *                  dealing with large sets of primary keys.
+     * @return a sequence of entities corresponding to the provided primary keys. The order of entities in the sequence is
+     * not guaranteed to match the order of refs in the input sequence. If an id does not correspond to any entity in the
+     * database, it will simply be skipped, and no corresponding entity will be included in the returned sequence. If the
+     * same entity is requested multiple times, it may be included in the sequence multiple times if it is part of a
+     * separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    @Override
+    public CloseableSequence<E> selectAllByRef(@Nonnull Sequence<Ref<E>> refs, int batchSize) {
+        return CloseableSequence.from(entityRepository.selectByRef(toStream(refs), batchSize));
     }
 
     /**
@@ -818,7 +978,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
      *
      * <p>This method is designed for efficient data handling by only retrieving specified entities as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param ids a sequence of entity IDs to retrieve from the repository.
@@ -835,7 +995,84 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      */
     @Override
     public <R> R selectAllById(@Nonnull Sequence<ID> ids, int batchSize, @Nonnull KResultCallback<E, R> callback) {
-        return entityRepository.selectAllById(toStream(ids), batchSize, stream -> callback.process(toSequence(stream)));
+        return entityRepository.selectById(toStream(ids), batchSize, stream -> callback.process(toSequence(stream)));
+    }
+
+    /**
+     * Retrieves a sequence of entities based on their primary keys.
+     *
+     * <p>This method executes queries in batches, with the batch size determined by the provided parameter. This
+     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities. The
+     * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as
+     * they are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @param ids a sequence of entity IDs to retrieve from the repository.
+     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
+     *                  dealing with large sets of primary keys.
+     * @return a sequence of entities corresponding to the provided primary keys. The order of entities in the sequence is
+     * not guaranteed to match the order of refs in the input sequence. If an id does not correspond to any entity in the
+     * database, it will simply be skipped, and no corresponding entity will be included in the returned sequence. If the
+     * same entity is requested multiple times, it may be included in the sequence multiple times if it is part of a
+     * separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    @Override
+    public CloseableSequence<E> selectAllById(@Nonnull Sequence<ID> ids, int batchSize) {
+        return CloseableSequence.from(entityRepository.selectById(toStream(ids), batchSize));
+    }
+
+    /**
+     * Retrieves a sequence of entities based on their primary keys.
+     *
+     * <p>This method executes queries in batches, depending on the number of primary keys in the specified ids sequence.
+     * This optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities.
+     * The batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
+     *
+     * <p>This method is designed for efficient data handling by only retrieving specified entities as needed.
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * resources after processing to prevent resource leaks.</p>
+     *
+     * @param refs a sequence of refs to retrieve from the repository.
+     * @return a sequence of entities corresponding to the provided primary keys. The order of entities in the sequence is
+     *         not guaranteed to match the order of ids in the input sequence. If an id does not correspond to any entity
+     *         in the database, it will simply be skipped, and no corresponding entity will be included in the returned
+     *         sequence. If the same entity is requested multiple times, it may be included in the sequence multiple times
+     *         if it is part of a separate batch.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     */
+    @Override
+    public CloseableSequence<E> selectAllByRef(@Nonnull Sequence<Ref<E>> refs) {
+        return CloseableSequence.from(entityRepository.selectByRef(toStream(refs)));
+    }
+
+    /**
+     * Processes a sequence of entities corresponding to the provided refs using the specified callback.
+     * This method retrieves entities matching the given IDs and applies the callback to process the results,
+     * returning the outcome produced by the callback.
+     *
+     * <p>This method is designed for efficient data handling by only retrieving specified entities as needed.
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * resources after processing to prevent resource leaks.</p>
+     *
+     * @param refs a sequence of refs to retrieve from the repository.
+     * @param callback a {@link KResultCallback} defining how to process the sequence of entities and produce a result.
+     * @param <R> the type of result produced by the callback after processing the entities.
+     * @return the result produced by the callback's processing of the projection sequence.
+     * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
+     */
+    @Override
+    public <R> R selectAllByRef(@Nonnull Sequence<Ref<E>> refs, @Nonnull KResultCallback<E, R> callback) {
+        return entityRepository.selectByRef(toStream(refs), stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -846,7 +1083,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
      *
      * <p>This method is designed for efficient data handling by only retrieving specified entities as needed.
-     * It also manages lifecycle of the underlying resources of the callback sequence, automatically closing those
+     * It also manages the lifecycle of the underlying resources of the callback sequence, automatically closing those
      * resources after processing to prevent resource leaks.</p>
      *
      * @param refs a sequence of entity refs to retrieve from the repository.
@@ -863,7 +1100,7 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
      */
     @Override
     public <R> R selectAllByRef(@Nonnull Sequence<Ref<E>> refs, int batchSize, @Nonnull KResultCallback<E, R> callback) {
-        return entityRepository.selectAllByRef(toStream(refs), batchSize, stream -> callback.process(toSequence(stream)));
+        return entityRepository.selectByRef(toStream(refs), batchSize, stream -> callback.process(toSequence(stream)));
     }
 
     /**
@@ -953,6 +1190,25 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
     }
 
     /**
+     * Inserts entities in a batch mode to optimize performance and reduce database load.
+     *
+     * <p>For large volumes of entities, this method processes the inserts in multiple batches to ensure efficient
+     * handling and minimize the impact on database resources. This structured approach facilitates the management of
+     * large-scale insert operations.</p>
+     *
+     * @param entities the entities to insert. Must not be null.
+     * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
+     *                           provided primary key value. Use this flag only when intentionally providing the primary
+     *                           key value (e.g., migrations, data imports).
+     * @throws PersistenceException if the insert fails due to database constraints, connectivity issues, or if the
+     *                              entities parameter is null.
+     */
+    @Override
+    public void insert(@Nonnull Sequence<E> entities, boolean ignoreAutoGenerate) {
+        entityRepository.insert(toStream(entities), ignoreAutoGenerate);
+    }
+
+    /**
      * Inserts a sequence of entities into the database, with the insertion process divided into batches of the specified
      * size.
      *
@@ -970,6 +1226,29 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
     @Override
     public void insert(@Nonnull Sequence<E> entities, int batchSize) {
         entityRepository.insert(toStream(entities), batchSize);
+    }
+
+    /**
+     * Inserts a sequence of entities into the database, with the insertion process divided into batches of the specified
+     * size.
+     *
+     * <p>This method inserts entities provided in a sequence and uses the specified batch size for the insertion
+     * operation.  Batching the inserts can greatly enhance performance by minimizing the number of database
+     * interactions, especially useful when dealing with large volumes of data.</p>
+     *
+     * @param entities a sequence of entities to insert. Each entity must not be null and must conform to the model
+     *                 constraints.
+     * @param batchSize the size of the batches to use for the insertion operation. A larger batch size can improve
+     *                  performance but may also increase the load on the database.
+     * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
+     *                           provided primary key value. Use this flag only when intentionally providing the primary
+     *                           key value (e.g., migrations, data imports).
+     * @throws PersistenceException if there is an error during the insertion operation, such as a violation of database
+     *                              constraints, connectivity issues, or if any entity in the sequence is null.
+     */
+    @Override
+    public void insert(@Nonnull Sequence<E> entities, int batchSize, boolean ignoreAutoGenerate) {
+        entityRepository.insert(toStream(entities), batchSize, ignoreAutoGenerate);
     }
 
     /**
@@ -1302,5 +1581,44 @@ public final class KEntityRepositoryImpl<E extends Record & Entity<ID>, ID> impl
     @Override
     public void delete(@Nonnull Sequence<E> entities, int batchSize) {
         entityRepository.delete(toStream(entities), batchSize);
+    }
+
+    /**
+     * Deletes a sequence of entities from the database in batches.
+     *
+     * <p>This method processes the provided sequence of entities in batches to optimize performance for larger
+     * data sets, reducing database overhead during deletion. For each entity in the sequence, the method removes
+     * the corresponding record from the database, if it exists. Batch processing allows efficient handling
+     * of deletions, particularly for large collections of entities.</p>
+     *
+     * @param refs a sequence of entities to be deleted. Each entity in the sequence must be non-null and represent
+     *             a valid database record for deletion.
+     * @throws PersistenceException if the deletion operation fails due to database issues, such as connectivity problems
+     *                              or constraints violations.
+     */
+    @Override
+    public void deleteByRef(@Nonnull Sequence<Ref<E>> refs) {
+        entityRepository.deleteByRef(toStream(refs));
+    }
+
+    /**
+     * Deletes a sequence of entities from the database in configurable batch sizes.
+     *
+     * <p>This method processes the provided sequence of entities in batches, with the size of each batch specified
+     * by the `batchSize` parameter. This allows for control over the number of entities deleted in each database
+     * operation, optimizing performance and memory usage based on system requirements. For each entity in the
+     * sequence, the method removes the corresponding record from the database, if it exists.</p>
+     *
+     * @param refs a sequence of entities to be deleted. Each entity in the sequence must be non-null and represent
+     *              valid database record for deletion.
+     * @param batchSize the number of entities to process in each batch. Larger batch sizes may improve performance
+     *                  but require more memory, while smaller batch sizes may reduce memory usage but increase
+     *                  the number of database operations.
+     * @throws PersistenceException if the deletion operation fails due to database issues, such as connectivity problems
+     *                              or constraints violations.
+     */
+    @Override
+    public void deleteByRef(@Nonnull Sequence<Ref<E>> refs, int batchSize) {
+        entityRepository.deleteByRef(toStream(refs), batchSize);
     }
 }

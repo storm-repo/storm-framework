@@ -17,7 +17,7 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.template.SqlDialect;
-import st.orm.template.SqlTemplate;
+import st.orm.template.SqlOperation;
 import st.orm.template.impl.Elements.Unsafe;
 
 import java.util.List;
@@ -26,71 +26,19 @@ import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
 import static java.util.regex.Pattern.DOTALL;
-import static st.orm.template.impl.SqlParser.SqlMode.DELETE;
-import static st.orm.template.impl.SqlParser.SqlMode.INSERT;
-import static st.orm.template.impl.SqlParser.SqlMode.SELECT;
-import static st.orm.template.impl.SqlParser.SqlMode.UNDEFINED;
-import static st.orm.template.impl.SqlParser.SqlMode.UPDATE;
+import static st.orm.template.SqlOperation.DELETE;
+import static st.orm.template.SqlOperation.INSERT;
+import static st.orm.template.SqlOperation.SELECT;
+import static st.orm.template.SqlOperation.UNDEFINED;
+import static st.orm.template.SqlOperation.UPDATE;
 
 /**
  * SQL parser for basic SQL processing.
  */
 final class SqlParser {
 
-    /**
-     * Represents the SQL mode.
-     *
-     * <p>The SQL mode provides context for the {@link SqlTemplate} processor, enabling validation and inference by the
-     * SQL template logic. Each mode indicates the type of SQL operation being performed, which allows the framework to
-     * adapt behavior accordingly.</p>
-     */
-    enum SqlMode {
-
-        /**
-         * Represents a SELECT operation.
-         *
-         * <p>This mode is used for queries that retrieve data from the database without modifying its state. The SQL
-         * template processor uses this mode to validate that the query conforms to the structure of a SELECT
-         * statement.</p>
-         */
-        SELECT,
-
-        /**
-         * Represents an INSERT operation.
-         *
-         * <p>This mode is used for queries that add new records to the database. The SQL template processor validates
-         * that parameters align with the fields being inserted.</p>
-         */
-        INSERT,
-
-        /**
-         * Represents an UPDATE operation.
-         *
-         * <p>This mode is used for queries that modify existing records in the database. The SQL template processor
-         * ensures that the query includes a WHERE clause (if required) to avoid unintentional updates across all
-         * rows.</p>
-         */
-        UPDATE,
-
-        /**
-         * Represents a DELETE operation.
-         *
-         * <p>This mode is used for queries that remove records from the database. The SQL template processor validates
-         * the presence of a WHERE clause (if required) to prevent unintended deletion of all rows.</p>
-         */
-        DELETE,
-
-        /**
-         * Represents an undefined operation.
-         *
-         * <p>This mode is used when the type of SQL operation cannot be determined. The SQL template processor may
-         * apply relaxed validation or inference rules when this mode is specified.</p>
-         */
-        UNDEFINED
-    }
-
     private static final Pattern WITH_PATTERN = Pattern.compile("^(?i:WITH)\\b.*", DOTALL);
-    private static final Map<Pattern, SqlMode> SQL_MODES = Map.of(
+    private static final Map<Pattern, SqlOperation> SQL_MODES = Map.of(
             Pattern.compile("^(?i:SELECT)\\b.*", DOTALL), SELECT,
             Pattern.compile("^(?i:INSERT)\\b.*", DOTALL), INSERT,
             Pattern.compile("^(?i:UPDATE)\\b.*", DOTALL), UPDATE,
@@ -129,7 +77,7 @@ final class SqlParser {
      * @param sql the sql to inspect.
      * @return the SQL mode.
      */
-    private static SqlMode getSqlMode(@Nonnull String sql) {
+    private static SqlOperation getSqlOperation(@Nonnull String sql) {
         return SQL_MODES.entrySet().stream()
                 .filter(e -> e.getKey().matcher(sql).matches())
                 .map(Entry::getValue)
@@ -138,26 +86,26 @@ final class SqlParser {
     }
 
     /**
-     * Determines the SQL mode for the specified {@code template}.
+     * Determines the SQL operation for the specified {@code template}.
      *
      * @param template the string template.
-     * @return the SQL mode.
+     * @return the SQL operation.
      */
-    static SqlMode getSqlMode(@Nonnull StringTemplate template, @Nonnull SqlDialect dialect) {
+    static SqlOperation getSqlOperation(@Nonnull StringTemplate template, @Nonnull SqlDialect dialect) {
         String rawSql = getRawSql(template);
-        SqlMode mode = getSqlMode(rawSql);  // First try directly.
-        if (mode != UNDEFINED) {
-            return mode;
+        SqlOperation operation = getSqlOperation(rawSql);  // First try directly.
+        if (operation != UNDEFINED) {
+            return operation;
         }
         rawSql = removeComments(rawSql, dialect).stripLeading();
-        mode = getSqlMode(rawSql);  // Remove potential leading comments and retry.
-        if (mode != UNDEFINED) {
-            return mode;
+        operation = getSqlOperation(rawSql);  // Remove potential leading comments and retry.
+        if (operation != UNDEFINED) {
+            return operation;
         }
         if (WITH_PATTERN.matcher(rawSql).matches()) {   // Remove potential WITH clause and retry.
-            mode = getSqlMode(removeWithClause(rawSql, dialect));
+            operation = getSqlOperation(removeWithClause(rawSql, dialect));
         }
-        return mode;
+        return operation;
     }
 
     static boolean hasWhereClause(@Nonnull String sql, @Nonnull SqlDialect dialect) {

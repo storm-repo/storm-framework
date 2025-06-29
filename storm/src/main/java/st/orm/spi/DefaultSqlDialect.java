@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 import static java.util.stream.Collectors.joining;
@@ -98,18 +98,18 @@ public class DefaultSqlDialect implements SqlDialect {
             "FOREIGN", "FREE", "FROM", "FULL", "FUNCTION", "GET", "GLOBAL", "GRANT",
             "GROUP", "HAVING", "HOUR", "IDENTITY", "IMMEDIATE", "IN", "INDICATOR",
             "INNER", "INOUT", "INPUT", "INSENSITIVE", "INSERT", "INT", "INTEGER",
-            "INTERSECT", "INTERVAL", "INTO", "IS", "ITERATE", "JOIN", "LANGUAGE", "LARGE",
-            "LAST", "LEADING", "LEFT", "LIKE", "LOCAL", "LOCALTIME", "LOCALTIMESTAMP",
-            "LOOP", "LOWER", "MATCH", "MEMBER", "MERGE", "METHOD", "MINUTE", "MOD",
-            "MODIFIES", "MODULE", "MONTH", "MULTISET", "NATIONAL", "NATURAL", "NCHAR",
-            "NCLOB", "NEW", "NO", "NONE", "NOT", "NULL", "NUMERIC", "OCTET_LENGTH", "OF",
-            "OLD", "ON", "ONLY", "OPEN", "OR", "ORDER", "OUT", "OUTER", "OVER", "OVERLAPS",
-            "PARAMETER", "PARTITION", "POSITION", "PRECISION", "PREPARE", "PRIMARY",
-            "PROCEDURE", "RANGE", "READS", "REAL", "RECURSIVE", "REF", "REFERENCES",
-            "REFERENCING", "RELEASE", "REPEAT", "RESIGNAL", "RESULT", "RETURN", "RETURNS",
-            "REVOKE", "RIGHT", "ROLLBACK", "ROLLUP", "ROUTINE", "ROW", "ROWS", "SAVEPOINT",
-            "SCROLL", "SEARCH", "SECOND", "SELECT", "SENSITIVE", "SESSION_USER", "SET",
-            "SIGNAL", "SIMILAR", "SMALLINT", "SOME", "SPECIFIC", "SPECIFICTYPE", "SQL",
+            "INTERSECT", "INTERVAL", "INTO", "IS", "ITERATE", "JOIN", "KEY", "LANGUAGE",
+            "LARGE", "LAST", "LEADING", "LEFT", "LIKE", "LOCAL", "LOCALTIME",
+            "LOCALTIMESTAMP", "LOOP", "LOWER", "MATCH", "MEMBER", "MERGE", "METHOD",
+            "MINUTE", "MOD", "MODIFIES", "MODULE", "MONTH", "MULTISET", "NATIONAL",
+            "NATURAL", "NCHAR", "NCLOB", "NEW", "NO", "NONE", "NOT", "NULL", "NUMERIC",
+            "OCTET_LENGTH", "OF", "OLD", "ON", "ONLY", "OPEN", "OR", "ORDER", "OUT", "OUTER",
+            "OVER", "OVERLAPS", "PARAMETER", "PARTITION", "POSITION", "PRECISION", "PREPARE",
+            "PRIMARY", "PROCEDURE", "RANGE", "READS", "REAL", "RECURSIVE", "REF",
+            "REFERENCES", "REFERENCING", "RELEASE", "REPEAT", "RESIGNAL", "RESULT", "RETURN",
+            "RETURNS", "REVOKE", "RIGHT", "ROLLBACK", "ROLLUP", "ROUTINE", "ROW", "ROWS",
+            "SAVEPOINT", "SCROLL", "SEARCH", "SECOND", "SELECT", "SENSITIVE", "SESSION_USER",
+            "SET", "SIGNAL", "SIMILAR", "SMALLINT", "SOME", "SPECIFIC", "SPECIFICTYPE", "SQL",
             "SQLEXCEPTION", "SQLSTATE", "SQLWARNING", "START", "STATIC", "SUBSTRING",
             "SUM", "SYSTEM", "TABLE", "TEMPORARY", "THEN", "TIME", "TIMESTAMP",
             "TIMEZONE_HOUR", "TIMEZONE_MINUTE", "TO", "TRAILING", "TRANSLATION", "TREAT",
@@ -210,20 +210,21 @@ public class DefaultSqlDialect implements SqlDialect {
      * Returns a string for the given column name.
      *
      * @param values the (multi) values to use in the IN clause.
-     * @param parameterConsumer the consumer for the parameters.
+     * @param parameterFunction the function responsible for binding the parameters to the SQL template and returning
+     *                          the string representation of the parameter, which is either a '?' placeholder or a
+     *                          literal value.
      * @return the string that represents the multi value IN clause.
      * @throws SqlTemplateException if the values are incompatible.
      * @since 1.2
      */
     @Override
     public String multiValueIn(@Nonnull List<Map<String, Object>> values,
-                               @Nonnull Consumer<Object> parameterConsumer) throws SqlTemplateException {
+                               @Nonnull Function<Object, String> parameterFunction) throws SqlTemplateException {
         List<String> args = new ArrayList<>();
         for (var valueMap : values) {
-            args.add(STR."(\{valueMap.keySet().stream()
-                    .map(k -> EQUALS.format(k, 1))  // We can safely use EQUALS here.
+            args.add(STR."(\{valueMap.entrySet().stream()
+                    .map(entry -> EQUALS.format(entry.getKey(), parameterFunction.apply(entry.getValue())))  // We can safely use EQUALS here.
                     .collect(joining(" AND "))})");
-            valueMap.values().forEach(parameterConsumer);
             args.add(" OR ");
         }
         if (!args.isEmpty()) {

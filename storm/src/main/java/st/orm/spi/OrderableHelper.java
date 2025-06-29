@@ -32,10 +32,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.counting;
+import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
 
@@ -184,7 +184,7 @@ final class OrderableHelper {
     private static boolean hasDuplicateSimpleNames(Deque<Class<?>> classes) {
         Map<String, Long> nameCounts = classes.stream()
                 .distinct()  // Remove exact duplicates.
-                .collect(Collectors.groupingBy(Class::getSimpleName, counting()));
+                .collect(groupingBy(Class::getSimpleName, counting()));
         return nameCounts.values().stream().anyMatch(count -> count > 1);
     }
 

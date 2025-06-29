@@ -16,12 +16,8 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
-import st.orm.template.SqlTemplate.PositionalParameter;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.impl.Elements.Var;
-
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A processor for a var element of a template.
@@ -29,11 +25,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 final class VarProcessor implements ElementProcessor<Var> {
 
     private final SqlTemplateProcessor templateProcessor;
-    private final AtomicInteger parameterPosition;
 
     VarProcessor(@Nonnull SqlTemplateProcessor templateProcessor) {
         this.templateProcessor = templateProcessor;
-        this.parameterPosition = templateProcessor.parameterPosition();
     }
 
     /**
@@ -46,9 +40,15 @@ final class VarProcessor implements ElementProcessor<Var> {
     @Override
     public ElementResult process(@Nonnull Var var) throws SqlTemplateException {
         if (var.bindVars() instanceof BindVarsImpl vars) {
-            templateProcessor.setBindVars(vars);
-            final int position = parameterPosition.getAndIncrement();
-            vars.addParameterExtractor(record -> List.of(new PositionalParameter(position, var.extractor().apply(record))));
+            var parameterFactory = templateProcessor.setBindVars(vars, 1);
+            vars.addParameterExtractor(record -> {
+                parameterFactory.bind(var.extractor().apply(record));
+                try {
+                    return parameterFactory.getParameters();
+                } catch (SqlTemplateException e) {
+                    throw new UncheckedSqlTemplateException(e);
+                }
+            });
             return new ElementResult("?");
         }
         throw new SqlTemplateException("Unsupported BindVars type.");

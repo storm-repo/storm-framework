@@ -20,17 +20,22 @@ import kotlin.reflect.KClass;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.kotlin.KQuery;
+import st.orm.kotlin.CloseableSequence;
+import st.orm.kotlin.template.KJoinBuilder;
+import st.orm.kotlin.template.KPredicateBuilder;
 import st.orm.kotlin.template.KQueryBuilder;
+import st.orm.kotlin.template.KTypedJoinBuilder;
+import st.orm.kotlin.template.KWhereBuilder;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 import st.orm.template.JoinType;
 import st.orm.template.Metamodel;
 import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
-import st.orm.template.QueryBuilder.JoinBuilder;
-import st.orm.template.QueryBuilder.PredicateBuilder;
-import st.orm.template.QueryBuilder.TypedJoinBuilder;
-import st.orm.template.QueryBuilder.WhereBuilder;
+import st.orm.template.JoinBuilder;
+import st.orm.template.PredicateBuilder;
+import st.orm.template.TypedJoinBuilder;
+import st.orm.template.WhereBuilder;
 import st.orm.template.TemplateFunction;
 import st.orm.template.impl.Subqueryable;
 
@@ -130,7 +135,7 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
     /**
      * Locks the selected rows using a custom lock mode.
      *
-     * <p>Note that this method results in non-portable code, as the lock mode is specific to the underlying database.</p>
+     * <p><strong>Note:</strong> This method results in non-portable code, as the lock mode is specific to the underlying database.</p>
      *
      * @return the query builder.
      * @throws PersistenceException if the lock mode is not supported for the current query.
@@ -158,9 +163,9 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of records.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only be invoked
-     * when the query is intended to run. Since the stream holds resources open while in use, it must be closed after
-     * usage to prevent resource leaks.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must
+     * be closed after usage to prevent resource leaks.</p>
      *
      * @return a stream of results.
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
@@ -169,6 +174,27 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
     @Override
     public Stream<R> getResultStream() {
         return builder.getResultStream();
+    }
+
+    /**
+     * Executes the query and returns a stream of results.
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the sequence holds resources open while in use, it must
+     * be closed after usage to prevent resource leaks.</p>
+     *
+     * @return a stream of results.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     *                              connectivity.
+     * @since 1.3
+     */
+    @Override
+    public CloseableSequence<R> getResultSequence() {
+        return CloseableSequence.from(getResultStream());
     }
 
     /**
@@ -315,20 +341,30 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
     }
 
     static class KPredicateBuilderImpl<TX extends Record, RX, IDX> implements KPredicateBuilder<TX, RX, IDX> {
-        private final PredicateBuilder<TX, RX, IDX> predicateBuilder;
+        final PredicateBuilder<TX, RX, IDX> predicateBuilder;
 
-        private KPredicateBuilderImpl(@Nonnull PredicateBuilder<TX, RX, IDX> predicateBuilder) {
+        KPredicateBuilderImpl(@Nonnull PredicateBuilder<TX, RX, IDX> predicateBuilder) {
             this.predicateBuilder = predicateBuilder;
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> and(@Nonnull KPredicateBuilder<?, ?, ?> predicate) {
-            return new KPredicateBuilderImpl<>(predicateBuilder.and(((KPredicateBuilderImpl<?, ?, ?>) predicate).predicateBuilder));
+        public KPredicateBuilder<TX, RX, IDX> and(@Nonnull KPredicateBuilder<TX, ?, ?> predicate) {
+            return new KPredicateBuilderImpl<>(predicateBuilder.and(((KPredicateBuilderImpl<TX, ?, ?>) predicate).predicateBuilder));
         }
 
         @Override
-        public KPredicateBuilder<TX, RX, IDX> or(@Nonnull KPredicateBuilder<?, ?, ?> predicate) {
-            return new KPredicateBuilderImpl<>(predicateBuilder.or(((KPredicateBuilderImpl<?, ?, ?>) predicate).predicateBuilder));
+        public KPredicateBuilder<TX, RX, IDX> andAny(@Nonnull KPredicateBuilder<?, ?, ?> predicate) {
+            return new KPredicateBuilderImpl<>(predicateBuilder.andAny(((KPredicateBuilderImpl<?, ?, ?>) predicate).predicateBuilder));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> or(@Nonnull KPredicateBuilder<TX, ?, ?> predicate) {
+            return new KPredicateBuilderImpl<>(predicateBuilder.or(((KPredicateBuilderImpl<TX, ?, ?>) predicate).predicateBuilder));
+        }
+
+        @Override
+        public KPredicateBuilder<TX, RX, IDX> orAny(@Nonnull KPredicateBuilder<?, ?, ?> predicate) {
+            return new KPredicateBuilderImpl<>(predicateBuilder.orAny(((KPredicateBuilderImpl<?, ?, ?>) predicate).predicateBuilder));
         }
     }
 
@@ -447,14 +483,28 @@ public final class KQueryBuilderImpl<T extends Record, R, ID> extends KQueryBuil
     }
 
     /**
-     * Adds a WHERE clause to the query using a {@link QueryBuilder.WhereBuilder}.
+     * Adds a WHERE clause to the query using a {@link WhereBuilder}.
      *
      * @param predicate the predicate to add.
      * @return the query builder.
      */
     @Override
-    public KQueryBuilder<T, R, ID> where(@Nonnull Function<KWhereBuilder<T, R, ID>, KPredicateBuilder<?, ?, ?>> predicate) {
+    public KQueryBuilder<T, R, ID> where(@Nonnull Function<KWhereBuilder<T, R, ID>, KPredicateBuilder<T, ?, ?>> predicate) {
         return new KQueryBuilderImpl<>(builder.where(whereBuilder -> {
+            var builder = predicate.apply(new KWhereBuilderImpl<>(whereBuilder));
+            return ((KPredicateBuilderImpl<T, ?, ?>) builder).predicateBuilder;
+        }));
+    }
+
+    /**
+     * Adds a WHERE clause to the query using a {@link WhereBuilder}.
+     *
+     * @param predicate the predicate to add.
+     * @return the query builder.
+     */
+    @Override
+    public KQueryBuilder<T, R, ID> whereAny(@Nonnull Function<KWhereBuilder<T, R, ID>, KPredicateBuilder<?, ?, ?>> predicate) {
+        return new KQueryBuilderImpl<>(builder.whereAny(whereBuilder -> {
             var builder = predicate.apply(new KWhereBuilderImpl<>(whereBuilder));
             return ((KPredicateBuilderImpl<?, ?, ?>) builder).predicateBuilder;
         }));

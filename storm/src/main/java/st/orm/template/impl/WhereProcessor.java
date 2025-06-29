@@ -19,7 +19,6 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.BindVars;
 import st.orm.FK;
-import st.orm.PersistenceException;
 import st.orm.Query;
 import st.orm.Ref;
 import st.orm.spi.ORMReflection;
@@ -27,7 +26,6 @@ import st.orm.spi.Providers;
 import st.orm.template.Metamodel;
 import st.orm.template.Operator;
 import st.orm.template.SqlTemplate;
-import st.orm.template.SqlTemplate.PositionalParameter;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.impl.Elements.Alias;
 import st.orm.template.impl.Elements.Column;
@@ -48,7 +46,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.SequencedMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -80,8 +77,6 @@ final class WhereProcessor implements ElementProcessor<Where> {
     private final AliasMapper aliasMapper;
     private final TableMapper tableMapper;
     private final PrimaryTable primaryTable;
-    private final List<SqlTemplate.Parameter> parameters;
-    private final AtomicInteger parameterPosition;
     private final AtomicBoolean versionAware;
 
     WhereProcessor(@Nonnull SqlTemplateProcessor templateProcessor) {
@@ -91,8 +86,6 @@ final class WhereProcessor implements ElementProcessor<Where> {
         this.aliasMapper = templateProcessor.aliasMapper();
         this.tableMapper = templateProcessor.tableMapper();
         this.primaryTable = templateProcessor.primaryTable();
-        this.parameters = templateProcessor.parameters();
-        this.parameterPosition = templateProcessor.parameterPosition();
         this.versionAware = templateProcessor.versionAware();
     }
 
@@ -114,25 +107,17 @@ final class WhereProcessor implements ElementProcessor<Where> {
         if (where.bindVars() != null) {
             if (where.bindVars() instanceof BindVarsImpl vars) {
                 List<String> bindVarsColumns = getBindVarsColumns(primaryTable.table(), primaryTable.alias(), versionAware.getPlain());
-                templateProcessor.setBindVars(vars);
-                final int fixedParameterPosition = parameterPosition.get();
+                var parameterFactory = templateProcessor.setBindVars(vars, bindVarsColumns.size());
                 vars.addParameterExtractor(record -> {
                     try {
-                        AtomicInteger position = new AtomicInteger(fixedParameterPosition);
-                        var values = getValues(record, null, primaryTable.table(), primaryTable.table(), primaryTable.alias(), versionAware.getPlain())
-                                .values().stream()
-                                .map(o -> new PositionalParameter(position.getAndIncrement(), o))
-                                .toList();
-                        if (values.size() != bindVarsColumns.size()) {
-                            throw new PersistenceException(STR."BindVars size mismatch: \{values.size()} != \{bindVarsColumns.size()}.");
-                        }
-                        return values;
+                        getValues(record, null, primaryTable.table(), primaryTable.table(), primaryTable.alias(), versionAware.getPlain())
+                                .values()
+                                .forEach(parameterFactory::bind);
+                        return parameterFactory.getParameters();
                     } catch (SqlTemplateException ex) {
-                        // BindVars works at the abstraction level of the ORM, so we throw a PersistenceException here.
-                        throw new PersistenceException(ex);
+                        throw new UncheckedSqlTemplateException(ex);
                     }
                 });
-                parameterPosition.set(parameterPosition.get() + bindVarsColumns.size());
                 String bindVarsString = bindVarsColumns.stream()
                         .map(columnName -> STR."\{columnName} = ?")
                         .collect(joining(" AND "));
@@ -536,7 +521,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
                     case Stream<?> _ -> throw new SqlTemplateException("Stream not supported in expression.");
                     case Query _ -> throw new SqlTemplateException("Query not supported in expression. Use QueryBuilder instead.");
                     case Element e -> throw new SqlTemplateException(STR."Unsupported element type in expression: \{e.getClass().getSimpleName()}.");
-                    default -> parts.add(templateProcessor.registerParam(value));
+                    default -> parts.add(templateProcessor.bindParameter(value));
                 }
             }
         }
@@ -666,6 +651,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
         String column = null;
         int size = 0;
         List<Map<String, Object>> multiValues = new ArrayList<>();
+        List<String> placeholders = new ArrayList<>();
         for (var o : getObjectIterable(object)) {
             if (o == null) {
                 throw new SqlTemplateException("Null object not allowed, use IS_NULL operator instead.");
@@ -709,13 +695,11 @@ final class WhereProcessor implements ElementProcessor<Where> {
             }
             if (multiValues.isEmpty() && valueMap.size() == 1) {
                 var entry = valueMap.entrySet().iterator().next();
-                parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), entry.getValue()));
                 var k = entry.getKey();
-                if (column != null) {
-                    if (!column.equals(k)) {
-                        throw new SqlTemplateException(STR."Multiple columns specified by where-clause argument: \{column} and \{k}.");
-                    }
+                if (column != null && !column.equals(k)) {
+                    throw new SqlTemplateException(STR."Multiple columns specified by where-clause argument: \{column} and \{k}.");
                 }
+                placeholders.add(templateProcessor.bindParameter(entry.getValue()));
                 column = k;
                 size++;
             } else {
@@ -741,7 +725,8 @@ final class WhereProcessor implements ElementProcessor<Where> {
         // If column is still not resolved, we will let the operator take care it, and potentially raise an error.
         // A common (valid) use case is where object is an empty array or collection and no path is specified.
         try {
-            return operator.format(column, size);
+            assert size == placeholders.size();
+            return operator.format(column, placeholders.toArray(new String[0]));
         } catch (IllegalArgumentException e) {
             throw new SqlTemplateException(e);
         }
@@ -755,8 +740,17 @@ final class WhereProcessor implements ElementProcessor<Where> {
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
     private String getMultiValuesIn(@Nonnull List<Map<String, Object>> values) throws SqlTemplateException {
-        return template.dialect().multiValueIn(values,
-                o -> parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), o)));
+        try {
+            return template.dialect().multiValueIn(values, o -> {
+                try {
+                    return templateProcessor.bindParameter(o);
+                } catch (SqlTemplateException e) {
+                    throw new UncheckedSqlTemplateException(e);
+                }
+            });
+        } catch (UncheckedSqlTemplateException e) {
+            throw e.getCause();
+        }
     }
 
     /**

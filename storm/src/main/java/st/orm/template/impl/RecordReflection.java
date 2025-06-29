@@ -107,8 +107,8 @@ final class RecordReflection {
      * Returns the primary key component for the specified table. If the table has a compound primary key, represented
      * by a record, the primary key component is that record itself.
      *
-     * <p>Note that PKs must always be present at the top-level of the record. They would not be recognized if they're
-     * part of inlined records.</p>
+     * <p><strong>Note:</strong> PKs must always be present at the top-level of the record. They would not be recognized
+     * if they're part of inlined records.</p>
      *
      * @param table the table to obtain the primary key component for.
      * @return the primary key component for the specified table.
@@ -123,8 +123,8 @@ final class RecordReflection {
      * Returns the primary key components for the specified table. If the table has a compound primary key, represented
      * by a record, the primary key components are the record components of the record.
      *
-     * <p>Note that PKs must always be present at the top-level of the record. They would not be recognized if they're
-     * part of inlined records.</p>
+     * <p><strong>Note:</strong> PKs must always be present at the top-level of the record. They would not be recognized
+     * if they're part of inlined records.</p>
      *
      * @param table the table to obtain the primary key components for.
      */

@@ -35,4 +35,11 @@ public interface KORMTemplate extends KQueryTemplate, KRepositoryLookup {
     static KORMTemplate from(ORMTemplate orm) {
         return new KORMTemplateImpl(orm);
     }
+
+    /**
+     * Exposes the underlying ORMTemplate delegate.
+     *
+     * @return the wrapped ORMTemplate.
+     */
+    ORMTemplate unwrap();
 }

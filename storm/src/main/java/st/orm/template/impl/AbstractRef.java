@@ -61,6 +61,9 @@ public abstract class AbstractRef<T extends Record> implements Ref<T> {
 
     @Override
     public String toString() {
-        return STR."Ref(\{id()})";
+        Class<?> type = type();
+        return type == null
+                ? "null"
+                : STR."\{type.getSimpleName()}@\{id()}";
     }
 }

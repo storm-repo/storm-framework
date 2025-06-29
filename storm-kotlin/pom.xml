@@ -6,7 +6,7 @@
     <parent>
         <groupId>st.orm</groupId>
         <artifactId>storm-framework</artifactId>
-        <version>1.3.6</version>
+        <version>1.3.7</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>storm-kotlin</artifactId>
@@ -54,7 +54,7 @@
                 <executions>
                     <execution>
                         <id>compile</id>
-                        <phase>compile</phase>
+                        <phase>process-sources</phase>
                         <goals>
                             <goal>compile</goal>
                         </goals>

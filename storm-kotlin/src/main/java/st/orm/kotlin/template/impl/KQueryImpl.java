@@ -19,8 +19,10 @@ import jakarta.annotation.Nonnull;
 import kotlin.reflect.KClass;
 import st.orm.PersistenceException;
 import st.orm.Query;
+import st.orm.Ref;
 import st.orm.kotlin.KPreparedQuery;
 import st.orm.kotlin.KQuery;
+import st.orm.kotlin.CloseableSequence;
 import st.orm.spi.ORMReflection;
 import st.orm.spi.Providers;
 
@@ -43,8 +45,7 @@ public class KQueryImpl implements KQuery {
      * <p>Queries are normally constructed in a lazy fashion, unlike prepared queries which are constructed eagerly.
      * Prepared queries allow the use of bind variables and enable reading generated keys after row insertion.</p>
      *
-     * <p>Note that the prepared query must be closed after usage to prevent resource leaks. As the prepared query is
-     * AutoCloseable, it is recommended to use it within a try-with-resources block.</p>
+     * <p><strong>Note:</strong> The prepared query must be closed after usage to prevent resource leaks.</p>
      *
      * @return the prepared query.
      * @throws PersistenceException if the query preparation fails.
@@ -76,9 +77,9 @@ public class KQueryImpl implements KQuery {
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of records.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only be invoked
-     * when the query is intended to run. Since the stream holds resources open while in use, it must be closed after
-     * usage to prevent resource leaks.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks.</p>
      *
      * @return a stream of results.
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
@@ -92,6 +93,30 @@ public class KQueryImpl implements KQuery {
     /**
      * Execute a SELECT query and return the resulting rows as a stream of row instances.
      *
+     * <p>Each element in the stream represents a row in the result, where the columns of the row corresponds to the
+     * order of values in the row array.</p>
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the sequence holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks.</p>
+     *
+     * @return a stream of results.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     *                              connectivity.
+     * @since 1.3
+     */
+    @Override
+    public CloseableSequence<Object[]> getResultSequence() {
+        return CloseableSequence.from(query.getResultStream());
+    }
+
+    /**
+     * Execute a SELECT query and return the resulting rows as a stream of row instances.
+     *
      * <p>Each element in the stream represents a row in the result, where the columns of the row are mapped to the
      * constructor arguments of the specified {@code type}.</p>
      *
@@ -99,9 +124,9 @@ public class KQueryImpl implements KQuery {
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of records.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only be invoked
-     * when the query is intended to run. Since the stream holds resources open while in use, it must be closed after
-     * usage to prevent resource leaks.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must
+     * be closed after usage to prevent resource leaks.</p>
      *
      * @return a stream of results.
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
@@ -111,6 +136,74 @@ public class KQueryImpl implements KQuery {
     public <T> Stream<T> getResultStream(@Nonnull KClass<T> type) {
         //noinspection unchecked
         return query.getResultStream((Class<T>) REFLECTION.getType(type));
+    }
+
+    /**
+     * Execute a SELECT query and return the resulting rows as a stream of ref instances.
+     *
+     * <p>Each element in the stream represents a row in the result, where the columns of the row are mapped to the
+     * constructor arguments primary key type.</p>
+     *
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must
+     * be closed after usage to prevent resource leaks.</p>
+
+     *
+     * @param type the type of the results that are being referenced.
+     * @param pkType the primary key type.
+     * @return a stream of ref instances.
+     * @throws PersistenceException if the query fails.
+     * @since 1.3
+     */
+    @Override
+    public <T extends Record> Stream<Ref<T>> getRefStream(@Nonnull KClass<T> type, @Nonnull KClass<?> pkType) {
+        //noinspection unchecked
+        return query.getRefStream((Class<T>) REFLECTION.getType(type), REFLECTION.getType(pkType));
+    }
+
+    /**
+     * Execute a SELECT query and return the resulting rows as a stream of row instances.
+     *
+     * <p>Each element in the stream represents a row in the result, where the columns of the row are mapped to the
+     * constructor arguments of the specified {@code type}.</p>
+     *
+     * <p>The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the sequence holds resources open while in use, it must
+     * be closed after usage to prevent resource leaks.</p>
+     *
+     * @return a stream of results.
+     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     *                              connectivity.
+     * @since 1.3
+     */
+    @Override
+    public <T> CloseableSequence<T> getResultSequence(@Nonnull KClass<T> type) {
+        return CloseableSequence.from(getResultStream(type));
+    }
+
+    /**
+     * Execute a SELECT query and return the resulting rows as a sequence of ref instances.
+     *
+     * <p>Each element in the sequence represents a row in the result, where the columns of the row are mapped to the
+     * constructor arguments primary key type.</p>
+     *
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the sequence holds resources open while in use, it must
+     * be closed after usage to prevent resource leaks.</p>
+     *
+     * @param type the type of the results that are being referenced.
+     * @param pkType the primary key type.
+     * @return a sequence of ref instances.
+     * @throws PersistenceException if the query fails.
+     * @since 1.3
+     */
+    @Override
+    public <T extends Record> CloseableSequence<Ref<T>> getRefSequence(@Nonnull KClass<T> type, @Nonnull KClass<?> pkType) {
+        return CloseableSequence.from(getRefStream(type, pkType));
     }
 
     /**

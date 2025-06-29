@@ -31,6 +31,7 @@ import st.orm.template.JoinType;
 import st.orm.template.Metamodel;
 import st.orm.template.Sql;
 import st.orm.template.SqlDialect;
+import st.orm.template.SqlOperation;
 import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplateException;
 import st.orm.template.TableAliasResolver;
@@ -53,7 +54,6 @@ import st.orm.template.impl.Elements.TemplateSource;
 import st.orm.template.impl.Elements.TemplateTarget;
 import st.orm.template.impl.Elements.Unsafe;
 import st.orm.template.impl.Elements.Update;
-import st.orm.template.impl.SqlParser.SqlMode;
 
 import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
@@ -100,12 +100,12 @@ import static st.orm.template.impl.RecordValidation.validateParameters;
 import static st.orm.template.impl.RecordValidation.validateRecordGraph;
 import static st.orm.template.impl.RecordValidation.validateRecordType;
 import static st.orm.template.impl.RecordValidation.validateWhere;
-import static st.orm.template.impl.SqlParser.SqlMode.DELETE;
-import static st.orm.template.impl.SqlParser.SqlMode.INSERT;
-import static st.orm.template.impl.SqlParser.SqlMode.SELECT;
-import static st.orm.template.impl.SqlParser.SqlMode.UNDEFINED;
-import static st.orm.template.impl.SqlParser.SqlMode.UPDATE;
-import static st.orm.template.impl.SqlParser.getSqlMode;
+import static st.orm.template.SqlOperation.DELETE;
+import static st.orm.template.SqlOperation.INSERT;
+import static st.orm.template.SqlOperation.SELECT;
+import static st.orm.template.SqlOperation.UNDEFINED;
+import static st.orm.template.SqlOperation.UPDATE;
+import static st.orm.template.impl.SqlParser.getSqlOperation;
 import static st.orm.template.impl.SqlParser.hasWhereClause;
 import static st.orm.template.impl.SqlParser.removeComments;
 import static st.orm.template.impl.SqlTemplateProcessor.current;
@@ -128,24 +128,27 @@ public final class SqlTemplateImpl implements SqlTemplate {
     private final boolean positionalOnly;
     private final boolean expandCollection;
     private final boolean supportRecords;
+    private final boolean inlineParameters;
     private final ModelBuilder modelBuilder;
     private final TableAliasResolver tableAliasResolver;
     private final SqlDialect dialect;
     private final SqlDialectTemplate dialectTemplate;
 
     public SqlTemplateImpl(boolean positionalOnly, boolean expandCollection, boolean supportRecords) {
-        this(positionalOnly, expandCollection, supportRecords, ModelBuilder.newInstance(), TableAliasResolver.DEFAULT, getSqlDialect());
+        this(positionalOnly, expandCollection, supportRecords, false, ModelBuilder.newInstance(), TableAliasResolver.DEFAULT, getSqlDialect());
     }
 
     public SqlTemplateImpl(boolean positionalOnly,
                            boolean expandCollection,
                            boolean supportRecords,
+                           boolean inlineParameters,
                            @Nonnull ModelBuilder modelBuilder,
                            @Nonnull TableAliasResolver tableAliasResolver,
                            @Nonnull SqlDialect dialect) {
         this.positionalOnly = positionalOnly;
         this.expandCollection = expandCollection;
         this.supportRecords = supportRecords;
+        this.inlineParameters = inlineParameters;
         this.modelBuilder = requireNonNull(modelBuilder);
         this.tableAliasResolver = requireNonNull(tableAliasResolver);
         this.dialect = requireNonNull(dialect);
@@ -181,7 +184,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withTableNameResolver(@Nonnull TableNameResolver tableNameResolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, dialect);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, dialect);
     }
 
     /**
@@ -202,7 +205,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder, tableAliasResolver, dialect);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, dialect);
     }
 
     /**
@@ -223,7 +226,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withColumnNameResolver(@Nonnull ColumnNameResolver columnNameResolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, dialect);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, dialect);
     }
 
     /**
@@ -244,7 +247,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withForeignKeyResolver(@Nonnull ForeignKeyResolver foreignKeyResolver) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, dialect);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, dialect);
     }
 
     /**
@@ -265,7 +268,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplate withDialect(@Nonnull SqlDialect dialect) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder, tableAliasResolver, dialect);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, dialect);
     }
 
     /**
@@ -287,7 +290,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withSupportRecords(boolean supportRecords) {
-        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, modelBuilder, tableAliasResolver, dialect);
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, dialect);
     }
 
     /**
@@ -301,6 +304,32 @@ public final class SqlTemplateImpl implements SqlTemplate {
     }
 
     /**
+     * Returns a new SQL template instance configured to inline parameters directly into the SQL string,
+     * rather than using bind variables.
+     *
+     * @param inlineParameters if true, parameters will be inlined as literals into the SQL. If false, parameters are
+     *                         passed via bind variables (default behavior).
+     * @return a new SqlTemplate instance configured with the specified parameter handling.
+     * @since 1.3
+     */
+    @Override
+    public SqlTemplate withInlineParameters(boolean inlineParameters) {
+        return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, dialect);
+    }
+
+    /**
+     * Indicates whether the SQL parameters should be inlined directly as literals into the SQL string,
+     * or whether bind variables should be used.
+     *
+     * @return true if parameters are inlined as literals; false if using bind variables.
+     * @since 1.3
+     */
+    @Override
+    public boolean inlineParameters() {
+        return inlineParameters;
+    }
+
+    /**
      * Create a new bind variables instance that can be used to add bind variables to a batch.
      *
      * @return a new bind variables instance.
@@ -310,11 +339,11 @@ public final class SqlTemplateImpl implements SqlTemplate {
         return new BindVarsImpl();
     }
 
-    private Element resolveBindVarsElement(@Nonnull SqlMode mode,
+    private Element resolveBindVarsElement(@Nonnull SqlOperation operation,
                                            @Nonnull String previousFragment,
                                            @Nonnull BindVars bindVars) throws SqlTemplateException {
         String previous = removeComments(previousFragment, dialect).stripTrailing().toUpperCase();
-        return switch (mode) {
+        return switch (operation) {
             case SELECT, DELETE, UNDEFINED -> {
                 if (previous.endsWith("WHERE")) {
                     yield where(bindVars);
@@ -342,11 +371,11 @@ public final class SqlTemplateImpl implements SqlTemplate {
         };
     }
 
-    private Element resolveObjectElement(@Nonnull SqlMode mode,
+    private Element resolveObjectElement(@Nonnull SqlOperation operation,
                                          @Nonnull String previousFragment,
                                          @Nullable Object o) throws SqlTemplateException {
         String previous = removeComments(previousFragment, dialect).stripTrailing().toUpperCase();
-        return switch (mode) {
+        return switch (operation) {
             case SELECT, DELETE, UNDEFINED -> {
                 if (previous.endsWith("WHERE")) {
                     if (o != null) {
@@ -389,18 +418,18 @@ public final class SqlTemplateImpl implements SqlTemplate {
         };
     }
 
-    private Element resolveArrayElement(@Nonnull SqlMode mode,
+    private Element resolveArrayElement(@Nonnull SqlOperation operation,
                                         @Nonnull String previousFragment,
                                         @Nonnull Object[] array) throws SqlTemplateException {
-        return resolveIterableElement(mode, previousFragment, List.of(array));
+        return resolveIterableElement(operation, previousFragment, List.of(array));
     }
 
     @SuppressWarnings("unchecked")
-    private Element resolveIterableElement(@Nonnull SqlMode mode,
+    private Element resolveIterableElement(@Nonnull SqlOperation operation,
                                            @Nonnull String previousFragment,
                                            @Nonnull Iterable<?> iterable) throws SqlTemplateException {
         String previous = removeComments(previousFragment, dialect).stripTrailing().toUpperCase();
-        return switch (mode) {
+        return switch (operation) {
             case SELECT, UPDATE, DELETE, UNDEFINED -> {
                 if (previous.endsWith("WHERE")) {
                     yield where(iterable);
@@ -423,7 +452,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         };
     }
 
-    private Element resolveTypeElement(@Nonnull SqlMode mode,
+    private Element resolveTypeElement(@Nonnull SqlOperation operation,
                                        @Nullable Element first,
                                        @Nonnull String previousFragment,
                                        @Nonnull String nextFragment,
@@ -433,7 +462,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         }
         String next = removeComments(nextFragment, dialect).stripLeading().toUpperCase();
         String previous = removeComments(previousFragment, dialect).stripTrailing().toUpperCase();
-        return switch (mode) {
+        return switch (operation) {
             case SELECT -> {
                 if (previous.endsWith("FROM")) {
                     // Only use auto join if the selected table is present in the from-table graph.
@@ -470,7 +499,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         };
     }
 
-    private List<Element> resolveElements(@Nonnull SqlMode sqlMode,
+    private List<Element> resolveElements(@Nonnull SqlOperation sqlOperation,
                                           @Nonnull List<?> values,
                                           @Nonnull List<String> fragments) throws SqlTemplateException {
         List<Element> resolvedValues = new ArrayList<>();
@@ -480,10 +509,10 @@ public final class SqlTemplateImpl implements SqlTemplate {
             var p = fragments.get(i);
             var n = fragments.get(i + 1);
             Element element = switch (v) {
-                case Select _ when sqlMode != SELECT -> throw new SqlTemplateException("Select element is only allowed for select statements.");
-                case Insert _ when sqlMode != INSERT -> throw new SqlTemplateException("Insert element is only allowed for insert statements.");
-                case Update _ when sqlMode != UPDATE -> throw new SqlTemplateException("Update element is only allowed for update statements.");
-                case Delete _ when sqlMode != DELETE -> throw new SqlTemplateException("Delete element is only allowed for delete statements.");
+                case Select _ when sqlOperation != SELECT -> throw new SqlTemplateException("Select element is only allowed for select statements.");
+                case Insert _ when sqlOperation != INSERT -> throw new SqlTemplateException("Insert element is only allowed for insert statements.");
+                case Update _ when sqlOperation != UPDATE -> throw new SqlTemplateException("Update element is only allowed for update statements.");
+                case Delete _ when sqlOperation != DELETE -> throw new SqlTemplateException("Delete element is only allowed for delete statements.");
                 case Select it when !supportRecords -> throw new SqlTemplateException(STR."Records are not supported in this configuration: '\{it.table().getSimpleName()}'.");
                 case Insert it when !supportRecords -> throw new SqlTemplateException(STR."Records are not supported in this configuration: '\{it.table().getSimpleName()}'.");
                 case Update it when !supportRecords -> throw new SqlTemplateException(STR."Records are not supported in this configuration: '\{it.table().getSimpleName()}'.");
@@ -515,22 +544,22 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     yield it;
                 }
                 case Expression _ -> throw new SqlTemplateException("Expression element not allowed in this context.");
-                case BindVars b -> resolveBindVarsElement(sqlMode, p, b);
+                case BindVars b -> resolveBindVarsElement(sqlOperation, p, b);
                 case Subqueryable t -> new Subquery(t.getSubquery(), true);   // Correlate implicit subqueries.
                 case Metamodel<?, ?> m when m.isColumn() -> new Column(m, CASCADE);
                 case Metamodel<?, ?> _ -> throw new SqlTemplateException("Metamodel does not reference a column.");
-                case Object[] a -> resolveArrayElement(sqlMode, p, a);
-                case Iterable<?> l -> resolveIterableElement(sqlMode, p, l);
+                case Object[] a -> resolveArrayElement(sqlOperation, p, a);
+                case Iterable<?> l -> resolveIterableElement(sqlOperation, p, l);
                 case Element e -> e;
                 case Class<?> c when c.isRecord() -> //noinspection unchecked
-                        resolveTypeElement(sqlMode, first, p, n, (Class<? extends Record>) c);
+                        resolveTypeElement(sqlOperation, first, p, n, (Class<? extends Record>) c);
                 // Note that the following flow would also support Class<?> c. but we'll keep the Class<?> c case for performance and readability.
                 case Object k when REFLECTION.isSupportedType(k) ->
-                        resolveTypeElement(sqlMode, first, p, n, REFLECTION.getRecordType(k));
+                        resolveTypeElement(sqlOperation, first, p, n, REFLECTION.getRecordType(k));
                 case StringTemplate _ -> throw new SqlTemplateException("StringTemplate not allowed as string template value.");
                 case Stream<?> _ -> throw new SqlTemplateException("Stream not supported as string template value.");
                 case Query _ -> throw new SqlTemplateException("Query not supported as string template value. Use QueryBuilder instead.");
-                case Object o -> resolveObjectElement(sqlMode, p, o);
+                case Object o -> resolveObjectElement(sqlOperation, p, o);
                 case null -> //noinspection ConstantValue
                         param(v);
             };
@@ -633,7 +662,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
             String path = "";   // Use "" because it's the root table.
             String alias;
             if (update.alias().isEmpty()) {
-                alias = aliasMapper.generateAlias(table, path, dialect);
+                // Use empty alias as some database don't support aliases in update statements.
+                alias = "";
             } else {
                 alias = update.alias();
                 aliasMapper.setAlias(table, alias, path);
@@ -974,11 +1004,11 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 .map(select -> new PrimaryTable(select.table(), aliasMapper.getPrimaryAlias(select.table()).orElse("")));
     }
 
-    private void postProcessElements(@Nonnull SqlMode sqlMode,
+    private void postProcessElements(@Nonnull SqlOperation sqlOperation,
                                      @Nonnull List<Element> elements,
                                      @Nonnull AliasMapper aliasMapper,
                                      @Nonnull TableMapper tableMapper) throws SqlTemplateException {
-        switch (sqlMode) {
+        switch (sqlOperation) {
             case SELECT -> postProcessSelect(elements, aliasMapper, tableMapper);
             case UPDATE -> postProcessUpdate(elements, aliasMapper, tableMapper);
             case DELETE -> postProcessDelete(elements, aliasMapper, tableMapper);
@@ -1010,20 +1040,20 @@ public final class SqlTemplateImpl implements SqlTemplate {
         var fragments = template.fragments();
         var values = template.values();
         Sql generated;
-        var sqlMode = getSqlMode(template, dialect);
+        var operation = getSqlOperation(template, dialect);
         if (!values.isEmpty()) {
-            var elements = resolveElements(sqlMode, values, fragments);
+            var elements = resolveElements(operation, values, fragments);
             var tableUse = getTableUse();
             var tableMapper = getTableMapper(tableUse); // No need to pass parent table mapper as only aliases are correlated.
             var aliasMapper = getAliasMapper(tableUse);
-            postProcessElements(sqlMode, elements, aliasMapper, tableMapper);
+            postProcessElements(operation, elements, aliasMapper, tableMapper);
             var unwrappedElements = elements.stream()
                     .flatMap(e -> e instanceof Wrapped(var we) ? we.stream() : Stream.of(e))
                     .toList();
             assert values.size() == elements.size();
             Optional<PrimaryTable> primaryTable = getPrimaryTable(unwrappedElements, aliasMapper);
             if (primaryTable.isPresent()) {
-                validateRecordType(primaryTable.get().table(), sqlMode != SELECT && sqlMode != UNDEFINED);
+                validateRecordType(primaryTable.get().table(), operation != SELECT && operation != UNDEFINED);
             }
             validateWhere(unwrappedElements);
             List<String> parts = new ArrayList<>();
@@ -1081,11 +1111,11 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 //noinspection StringTemplateMigration
                 sql = "\n" + sql.indent(2);
             }
-            generated = new SqlImpl(sql, parameters, ofNullable(bindVariables.get()),
-                    generatedKeys, versionAware.getPlain(), checkSafety(sql, sqlMode));
+            generated = new SqlImpl(operation, sql, parameters, ofNullable(bindVariables.get()),
+                    generatedKeys, versionAware.getPlain(), checkSafety(sql, operation));
         } else {
             assert fragments.size() == 1;
-            generated = new SqlImpl(fragments.getFirst(), List.of(), empty(), List.of(), false, checkSafety(fragments.getFirst(), sqlMode));
+            generated = new SqlImpl(operation, fragments.getFirst(), List.of(), empty(), List.of(), false, checkSafety(fragments.getFirst(), operation));
         }
         if (!subquery) {
             // Don't intercept subquery calls.
@@ -1099,12 +1129,12 @@ public final class SqlTemplateImpl implements SqlTemplate {
         return generated;
     }
 
-    private Optional<String> checkSafety(@Nonnull String sql, @Nonnull SqlMode mode) {
-        return switch (mode) {
+    private Optional<String> checkSafety(@Nonnull String sql, @Nonnull SqlOperation operation) {
+        return switch (operation) {
             case SELECT, INSERT, UNDEFINED -> empty();
             case UPDATE, DELETE -> {
                 if (!hasWhereClause(sql, dialect)) {
-                    yield Optional.of(STR."\{mode} without a WHERE clause is potentially unsafe.");
+                    yield Optional.of(STR."\{operation} without a WHERE clause is potentially unsafe.");
                 }
                 yield empty();
             }

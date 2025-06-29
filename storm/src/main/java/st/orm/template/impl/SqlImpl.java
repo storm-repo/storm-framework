@@ -18,6 +18,7 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.template.Sql;
+import st.orm.template.SqlOperation;
 import st.orm.template.SqlTemplate;
 import st.orm.template.SqlTemplate.BindVariables;
 import st.orm.template.SqlTemplate.Parameter;
@@ -31,6 +32,7 @@ import static java.util.Optional.ofNullable;
 /**
  * A result record that contains the generated SQL and the parameters that were used to generate it.
  *
+ * @param operation     classifies the kind of SQL statement.
  * @param statement     the generated SQL with all parameters replaced by '?' or named ':name' placeholders.
  * @param parameters    the parameters that were used to generate the SQL.
  * @param bindVariables a bind variables object that can be used to add bind variables to a batch.
@@ -39,6 +41,7 @@ import static java.util.Optional.ofNullable;
  * @param unsafeWarning a warning message if the statement is deemed potentially unsafe, an empty optional otherwise.
  */
 record SqlImpl(
+        @Nonnull SqlOperation operation,
         @Nonnull String statement,
         @Nonnull List<Parameter> parameters,
         @Nonnull Optional<BindVariables> bindVariables,
@@ -52,6 +55,17 @@ record SqlImpl(
     }
 
     /**
+     * Returns a new instance of the SQL statement with the given operation.
+     *
+     * @param operation the SQL operation that classifies the kind of SQL statement.
+     * @return a new instance of the SQL statement with the given operation.
+     */
+    @Override
+    public Sql operation(@Nonnull SqlOperation operation) {
+        return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, versionAware, unsafeWarning);
+    }
+
+    /**
      * Returns a new instance of the SQL statement with the given statement.
      *
      * @param statement the new SQL statement.
@@ -59,7 +73,7 @@ record SqlImpl(
      */
     @Override
     public Sql statement(@Nonnull String statement) {
-        return new SqlImpl(statement, parameters, bindVariables, generatedKeys, versionAware, unsafeWarning);
+        return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, versionAware, unsafeWarning);
     }
 
     /**
@@ -70,7 +84,7 @@ record SqlImpl(
      */
     @Override
     public Sql parameters(@Nonnull List<Parameter> parameters) {
-        return new SqlImpl(statement, parameters, bindVariables, generatedKeys, versionAware, unsafeWarning);
+        return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, versionAware, unsafeWarning);
     }
 
     /**
@@ -81,7 +95,7 @@ record SqlImpl(
      */
     @Override
     public Sql bindVariables(@Nullable SqlTemplate.BindVariables bindVariables) {
-        return new SqlImpl(statement, parameters, ofNullable(bindVariables), generatedKeys, versionAware, unsafeWarning);
+        return new SqlImpl(operation, statement, parameters, ofNullable(bindVariables), generatedKeys, versionAware, unsafeWarning);
     }
 
     /**
@@ -93,7 +107,7 @@ record SqlImpl(
      */
     @Override
     public Sql generatedKeys(@Nonnull List<String> generatedKeys) {
-        return new SqlImpl(statement, parameters, bindVariables, generatedKeys, versionAware, unsafeWarning);
+        return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, versionAware, unsafeWarning);
     }
 
     /**
@@ -105,7 +119,7 @@ record SqlImpl(
      */
     @Override
     public Sql versionAware(boolean versionAware) {
-        return new SqlImpl(statement, parameters, bindVariables, generatedKeys, versionAware, unsafeWarning);
+        return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, versionAware, unsafeWarning);
     }
 
     /**
@@ -117,6 +131,6 @@ record SqlImpl(
      */
     @Override
     public Sql unsafeWarning(@Nullable String unsafeWarning) {
-        return new SqlImpl(statement, parameters, bindVariables, generatedKeys, versionAware, ofNullable(unsafeWarning));
+        return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, versionAware, ofNullable(unsafeWarning));
     }
 }

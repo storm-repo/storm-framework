@@ -24,7 +24,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -158,14 +158,16 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
      * Returns a string for the given column name.
      *
      * @param values the (multi) values to use in the IN clause.
-     * @param parameterConsumer the consumer for the parameters.
+     * @param parameterFunction the function responsible for binding the parameters to the SQL template and returning
+     *                          the string representation of the parameter, which is either a '?' placeholder or a
+     *                          literal value.
      * @return the string that represents the multi value IN clause.
      * @throws SqlTemplateException if the values are incompatible.
      * @since 1.2
      */
     @Override
     public String multiValueIn(@Nonnull List<Map<String, Object>> values,
-                               @Nonnull Consumer<Object> parameterConsumer) throws SqlTemplateException {
+                               @Nonnull Function<Object, String> parameterFunction) throws SqlTemplateException {
         if (values.isEmpty()) {
             throw new SqlTemplateException("Multi-value IN clause requires at least one value.");
         }
@@ -174,7 +176,7 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
             throw new SqlTemplateException("Multi-value IN clause requires at least two columns.");
         }
         if (!supportsMultiValueTuples()) {
-            return super.multiValueIn(values, parameterConsumer);
+            return super.multiValueIn(values, parameterFunction);
         }
         StringBuilder in = new StringBuilder("(").append(String.join(", ", columns)).append(") IN ((");
         for (var row : values) {
@@ -184,10 +186,10 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
             if (!columns.containsAll(row.keySet())) {
                 throw new SqlTemplateException("Multi-value IN clause requires all entries to have the same columns.");
             }
-            in.append(columns.stream().map(row::get).map(value -> {
-                parameterConsumer.accept(value);
-                return "?";
-            }).collect(joining(", "))).append("), (");
+            in.append(columns.stream()
+                    .map(row::get)
+                    .map(parameterFunction)
+                    .collect(joining(", "))).append("), (");
         }
         in.setLength(in.length() - 3);  // Remove the last ", (".
         in.append(")");

@@ -33,8 +33,9 @@ public interface Query {
      * <p>Queries are normally constructed in a lazy fashion, unlike prepared queries which are constructed eagerly.
      * Prepared queries allow the use of bind variables and enable reading generated keys after row insertion.</p>
      *
-     * <p>Note that the prepared query must be closed after usage to prevent resource leaks. As the prepared query is
-     * AutoCloseable, it is recommended to use it within a try-with-resources block.</p>
+     * <p><strong>Note:</strong> The prepared query must be closed after usage to prevent resource leaks. As the
+     * prepared query is {@code AutoCloseable}, it is recommended to use it within a {@code try-with-resources} block.
+     * </p>
      *
      * @return the prepared query.
      * @throws PersistenceException if the query preparation fails.
@@ -155,6 +156,7 @@ public interface Query {
      * constructor arguments primary key type.</p>
      *
      * @param type the type of the results that are being referenced.
+     * @param pkType the primary key type.
      * @return the result list.
      * @throws PersistenceException if the query fails.
      * @since 1.3
@@ -175,10 +177,10 @@ public interface Query {
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of records.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only be invoked
-     * when the query is intended to run. Since the stream holds resources open while in use, it must be closed after
-     * usage to prevent resource leaks. As the stream is AutoCloseable, it is recommended to use it within a
-     * try-with-resources block.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
+     * within a {@code try-with-resources} block.</p>
      *
      * @return a stream of results.
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
@@ -193,7 +195,7 @@ public interface Query {
      * order of values in the row array.</p>
      *
      * <p>This method ensures efficient handling of large data sets by loading entities only as needed.
-     * It also manages lifecycle of the callback stream, automatically closing the stream after processing to prevent
+     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to prevent
      * resource leaks.</p>
      *
      * @return the result stream.
@@ -215,10 +217,10 @@ public interface Query {
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of records.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only be invoked
-     * when the query is intended to run. Since the stream holds resources open while in use, it must be closed after
-     * usage to prevent resource leaks. As the stream is AutoCloseable, it is recommended to use it within a
-     * try-with-resources block.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
+     * within a {@code try-with-resources} block.</p>
      *
      * @return a stream of results.
      * @throws PersistenceException if the query operation fails due to underlying database issues, such as
@@ -232,10 +234,10 @@ public interface Query {
      * <p>Each element in the stream represents a row in the result, where the columns of the row are mapped to the
      * constructor arguments primary key type.</p>
      *
-     * <p>Note that calling this method does trigger the execution of the underlying query, so it should only be invoked
-     * when the query is intended to run. Since the stream holds resources open while in use, it must be closed after
-     * usage to prevent resource leaks. As the stream is AutoCloseable, it is recommended to use it within a
-     * try-with-resources block.</p>
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
+     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
+     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
+     * within a {@code try-with-resources} block.</p>
      *
      * @param type the type of the results that are being referenced.
      * @param pkType the primary key type.
@@ -252,7 +254,7 @@ public interface Query {
      * constructor arguments of the specified {@code type}.</p>
      *
      * <p>This method ensures efficient handling of large data sets by loading entities only as needed.
-     * It also manages lifecycle of the callback stream, automatically closing the stream after processing to prevent
+     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to prevent
      * resource leaks.</p>
      *
      * @param type the type of the result.

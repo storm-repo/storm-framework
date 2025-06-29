@@ -140,19 +140,58 @@ record SqlTemplateProcessor(
      * Converts an iterable to a string of positional parameters.
      *
      * @param iterable the iterable to convert.
+     * @param inline whether to inline the parameters, instead of binding.
      * @return the string of positional parameters.
      */
-    private String toArgsString(@Nonnull Iterable<?> iterable) {
+    private String toArgsString(@Nonnull Iterable<?> iterable, boolean inline) {
         List<String> args = new ArrayList<>();
         for (var v : iterable) {
-            args.add("?");
+            if (inline) {
+                args.add(toLiteral(v));
+            } else {
+                args.add("?");
+                parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), v));
+            }
             args.add(", ");
-            parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), v));
         }
         if (!args.isEmpty()) {
             args.removeLast();    // Remove last ", " element.
         }
         return join("", args);
+    }
+
+    /**
+     * Converts a Java object into its SQL literal representation.
+     *
+     * @param dbValue the value to convert.
+     * @return a String suitable for inlining into SQL (including quotes or NULL).
+     */
+    private static String toLiteral(@Nullable Object dbValue) {
+        return switch (dbValue) {
+            case null -> "NULL";
+            case Short s   -> s.toString();
+            case Integer i -> i.toString();
+            case Long l    -> l.toString();
+            case Float f   -> f.toString();
+            case Double d  -> d.toString();
+            case Byte b    -> b.toString();
+            case Boolean b -> b ? "TRUE" : "FALSE";
+            case String s  -> // First double every backslash, then double single-quotes.
+                    STR."'\{s.replace("\\", "\\\\")
+                            .replace("'", "''")}'";
+            case java.sql.Date d       -> STR."'\{d}'";
+            case java.sql.Time t       -> STR."'\{t}'";
+            case java.sql.Timestamp t  -> STR."'\{t}'";
+            case Enum<?> e -> STR."'\{e.name()
+                    .replace("\\", "\\\\")
+                    .replace("'", "''")}'";
+            default -> {
+                String str = dbValue.toString()
+                        .replace("\\", "\\\\")
+                        .replace("'", "''");
+                yield STR."'\{str}'";
+            }
+        };
     }
 
     /**
@@ -163,15 +202,20 @@ record SqlTemplateProcessor(
      * @return the string representation of the parameter, which is one or more '?' characters.
      * @throws SqlTemplateException if the value is not supported.
      */
-    String registerParam(@Nullable Object value) throws SqlTemplateException {
+    String bindParameter(@Nullable Object value) throws SqlTemplateException {
+        boolean inline = template.inlineParameters();
         return switch (value) {
-            case Object[] array when template.expandCollection() -> toArgsString(List.of(array));
-            case Iterable<?> it when template.expandCollection() -> toArgsString(it);
+            case Object[] array when template.expandCollection() -> toArgsString(List.of(array), inline);
+            case Iterable<?> it when template.expandCollection() -> toArgsString(it, inline);
             case Object[] _ -> throw new SqlTemplateException("Array parameters not supported.");
             case Iterable<?> _ -> throw new SqlTemplateException("Collection parameters not supported.");
             case null, default -> {
-                parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), value));
-                yield "?";
+                if (inline) {
+                    yield toLiteral(value);
+                } else {
+                    parameters.add(new PositionalParameter(parameterPosition.getAndIncrement(), value));
+                    yield "?";
+                }
             }
         };
     }
@@ -184,7 +228,7 @@ record SqlTemplateProcessor(
      * @return the string representation of the parameter, which is a named placeholder.
      * @throws SqlTemplateException if named parameters are not supported.
      */
-    String registerParam(@Nonnull String name, @Nullable Object value) throws SqlTemplateException {
+    String bindParameter(@Nonnull String name, @Nullable Object value) throws SqlTemplateException {
         if (template.positionalOnly()) {
             throw new SqlTemplateException("Named parameters not supported.");
         }
@@ -206,8 +250,8 @@ record SqlTemplateProcessor(
             Sql sql = template.process(stringTemplate);
             for (var parameter : sql.parameters()) {
                 switch (parameter) {
-                    case PositionalParameter p -> registerParam(p.dbValue());
-                    case NamedParameter n -> registerParam(n.name(), n.dbValue());
+                    case PositionalParameter p -> bindParameter(p.dbValue());
+                    case NamedParameter n -> bindParameter(n.name(), n.dbValue());
                 }
             }
             return sql.statement();
@@ -224,13 +268,22 @@ record SqlTemplateProcessor(
         }
     }
 
+    interface ParameterFactory {
+
+        void bind(@Nullable Object value);
+
+        List<PositionalParameter> getParameters() throws SqlTemplateException;
+    }
+
     /**
      * Sets the bind variables for the current processor.
      *
      * @param vars the bind variables to set.
+     * @param bindVarsCount number of positional parameters to set.
+     * @return the parameter position at which the bind vars are set.
      * @throws SqlTemplateException if the bind variables are not supported.
      */
-    void setBindVars(@Nonnull BindVars vars) throws SqlTemplateException {
+    ParameterFactory setBindVars(@Nonnull BindVars vars, int bindVarsCount) throws SqlTemplateException {
         var current = bindVariables.getPlain();
         if (current != null && current != vars) {
             throw new SqlTemplateException("Multiple BindVars instances not supported.");
@@ -240,5 +293,23 @@ record SqlTemplateProcessor(
         } else {
             throw new SqlTemplateException("Unsupported BindVars type.");
         }
+        int startPosition = parameterPosition.getAndAdd(bindVarsCount);
+        return new ParameterFactory() {
+            final List<PositionalParameter> parameters = new ArrayList<>(bindVarsCount);
+            @Override
+            public void bind(@Nullable Object value) {
+                parameters.add(new PositionalParameter(startPosition + parameters.size(), value));
+            }
+
+            @Override
+            public List<PositionalParameter> getParameters() throws SqlTemplateException {
+                if (bindVarsCount != parameters.size()) {
+                    throw new SqlTemplateException(STR."Expected \{bindVarsCount} parameters, but got \{parameters.size()}.");
+                }
+                var result = List.copyOf(parameters);
+                parameters.clear();
+                return result;
+            }
+        };
     }
 }

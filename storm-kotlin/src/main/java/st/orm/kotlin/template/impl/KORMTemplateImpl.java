@@ -50,28 +50,77 @@ public final class KORMTemplateImpl extends KQueryTemplateImpl implements KORMTe
         this.orm = orm;
     }
 
+    /**
+     * Exposes the underlying ORMTemplate delegate.
+     *
+     * @return the wrapped ORMTemplate.
+     */
+    @Override
+    public ORMTemplate unwrap() {
+        return orm;
+    }
+
+    /**
+     * Returns the repository for the given entity type.
+     *
+     * @param type the entity type.
+     * @param <T> the entity type.
+     * @param <ID> the type of the entity's primary key.
+     * @return the repository for the given entity type.
+     */
     @Override
     public <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> entity(@Nonnull Class<T> type) {
         return new KEntityRepositoryImpl<>(orm.entity(type));
     }
 
+    /**
+     * Returns the repository for the given entity type.
+     *
+     * @param type the entity type.
+     * @param <T> the entity type.
+     * @param <ID> the type of the entity's primary key.
+     * @return the repository for the given entity type.
+     */
     @Override
     public <T extends Record & Entity<ID>, ID> KEntityRepository<T, ID> entity(@Nonnull KClass<T> type) {
         //noinspection unchecked
         return entity((Class<T>) REFLECTION.getType(type));
     }
 
+    /**
+     * Returns the repository for the given projection type.
+     *
+     * @param type the projection type.
+     * @param <T> the projection type.
+     * @param <ID> the type of the projection's primary key, or Void if the projection specifies no primary key.
+     * @return the repository for the given projection type.
+     */
     @Override
     public <T extends Record & Projection<ID>, ID> KProjectionRepository<T, ID> projection(@Nonnull Class<T> type) {
         return new KProjectionRepositoryImpl<>(orm.projection(type));
     }
 
+    /**
+     * Returns the repository for the given projection type.
+     *
+     * @param type the projection type.
+     * @param <T> the projection type.
+     * @param <ID> the type of the projection's primary key, or Void if the projection specifies no primary key.
+     * @return the repository for the given projection type.
+     */
     @Override
     public <T extends Record & Projection<ID>, ID> KProjectionRepository<T, ID> projection(@Nonnull KClass<T> type) {
         //noinspection unchecked
         return projection((Class<T>) REFLECTION.getType(type));
     }
 
+    /**
+     * Returns a proxy for the repository of the given type.
+     *
+     * @param type the repository type.
+     * @param <R> the repository type.
+     * @return a proxy for the repository of the given type.
+     */
     @Override
     public <R extends KRepository> R repository(@Nonnull Class<R> type) {
         KEntityRepository<?, ?> entityRepository = createEntityRepository(type)

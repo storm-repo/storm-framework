@@ -23,7 +23,7 @@ import st.orm.template.SqlTemplateException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -145,19 +145,21 @@ public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDiale
      * Returns a string for the given multi-value IN clause.
      *
      * @param values the (multi) values to use in the IN clause.
-     * @param parameterConsumer the consumer for the parameters.
+     * @param parameterFunction the function responsible for binding the parameters to the SQL template and returning
+     *                          the string representation of the parameter, which is either a '?' placeholder or a
+     *                          literal value.
      * @return the string that represents the multi value IN clause.
      * @throws SqlTemplateException if the values are incompatible.
      * @since 1.2
      */
     @Override
     public String multiValueIn(@Nonnull List<Map<String, Object>> values,
-                               @Nonnull Consumer<Object> parameterConsumer) throws SqlTemplateException {
+                               @Nonnull Function<Object, String> parameterFunction) throws SqlTemplateException {
         if (values.isEmpty()) {
             throw new SqlTemplateException("Multi-value IN clause requires at least one value.");
         }
         // For SQL Server, multi-value tuple IN clauses are not supported. Fall back to the default implementation.
-        return super.multiValueIn(values, parameterConsumer);
+        return super.multiValueIn(values, parameterFunction);
     }
 
     /**

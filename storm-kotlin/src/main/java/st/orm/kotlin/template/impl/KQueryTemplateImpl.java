@@ -17,6 +17,7 @@ package st.orm.kotlin.template.impl;
 
 import jakarta.annotation.Nonnull;
 import kotlin.reflect.KClass;
+import org.jetbrains.annotations.NotNull;
 import st.orm.BindVars;
 import st.orm.Ref;
 import st.orm.PersistenceException;
@@ -79,6 +80,11 @@ public class KQueryTemplateImpl implements KQueryTemplate {
     public <T extends Record> KQueryBuilder<T, ?, ?> deleteFrom(@Nonnull KClass<T> fromType) {
         //noinspection unchecked
         return new KQueryBuilderImpl<>(orm.deleteFrom((Class<T>) REFLECTION.getRecordType(fromType)));
+    }
+
+    @Override
+    public KQuery query(@NotNull String query) {
+        return new KQueryImpl(orm.query(query));
     }
 
     @Override

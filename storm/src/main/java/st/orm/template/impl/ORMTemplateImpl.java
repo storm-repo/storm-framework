@@ -47,10 +47,13 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
 
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
+    private final Predicate<? super Provider> providerFilter;
+
     public ORMTemplateImpl(@Nonnull QueryFactory factory,
                            @Nonnull ModelBuilder modelBuilder,
                            @Nullable Predicate<? super Provider> providerFilter) {
-        super(factory, modelBuilder, providerFilter);
+        super(factory, modelBuilder);
+        this.providerFilter = providerFilter;
     }
 
     /**

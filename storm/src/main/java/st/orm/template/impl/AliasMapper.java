@@ -189,7 +189,7 @@ final class AliasMapper {
     /**
      * Returns the alias for the table at the specified path.
      *
-     * <p>Note that the alias returned is safe for use in SQL and does not require escaping.</p>
+     * <p><strong>Note:</strong> The alias returned is safe for use in SQL and does not require escaping.</p>
      *
      * @param metamodel the metamodel of the table to get the alias for.
      * @param scope the scope to resolve the alias in.
@@ -207,7 +207,7 @@ final class AliasMapper {
     /**
      * Returns the alias for the table at the specified path.
      *
-     * <p>Note that the alias returned is safe for use in SQL and does not require escaping.</p>
+     * <p><strong>Note:</strong> The alias returned is safe for use in SQL and does not require escaping.</p>
      *
      * @param metamodel the metamodel of the table to get the alias for.
      * @param scope the scope to resolve the alias in.
@@ -228,7 +228,7 @@ final class AliasMapper {
     /**
      * Returns the alias for the table at the specified path.
      *
-     * <p>Note that the alias returned is safe for use in SQL and does not require escaping.</p>
+     * <p><strong>Note:</strong> The alias returned is safe for use in SQL and does not require escaping.</p>
      *
      * @param table the table to get the alias for.
      * @param path the path of the table (optional).
@@ -247,7 +247,7 @@ final class AliasMapper {
     /**
      * Returns the alias for the table at the specified path.
      *
-     * <p>Note that the alias returned is safe for use in SQL and does not require escaping.</p>
+     * <p><strong>Note:</strong> The alias returned is safe for use in SQL and does not require escaping.</p>
      *
      * @param table the table to get the alias for.
      * @param path the path of the table (optional).
@@ -268,7 +268,7 @@ final class AliasMapper {
     /**
      * Returns the alias for the table at the specified path.
      *
-     * <p>Note that the alias returned is safe for use in SQL and does not require escaping.</p>
+     * <p><strong>Note:</strong> The alias returned is safe for use in SQL and does not require escaping.</p>
      *
      * @param table the table to get the alias for.
      * @param path the path of the table (optional).
@@ -292,7 +292,7 @@ final class AliasMapper {
     /**
      * Returns the alias for the table at the specified path.
      *
-     * <p>Note that the alias returned is safe for use in SQL and does not require escaping.</p>
+     * <p><strong>Note:</strong> The alias returned is safe for use in SQL and does not require escaping.</p>
      *
      * @param table the table to get the alias for.
      * @param path the path of the table (optional).

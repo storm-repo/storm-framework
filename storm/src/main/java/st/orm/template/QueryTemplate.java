@@ -31,6 +31,10 @@ public interface QueryTemplate extends SubqueryTemplate {
     /**
      * Get the SQL dialect for this template.
      *
+     * <p>This method is aware of any registered {@code SqlInterceptor} instances and returns the SQL dialect used by
+     * the underlying SQL template. The dialect is determined based on the SQL template's configuration and the
+     * interceptors that have been applied to it.</p>
+     *
      * @return the SQL dialect.
      * @since 1.2
      */
@@ -143,6 +147,14 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @param <T> the table type to delete from.
      */
     <T extends Record> QueryBuilder<T, ?, ?> deleteFrom(@Nonnull Class<T> fromType);
+
+    /**
+     * Creates a query for the specified {@code query} string.
+     *
+     * @param query the query.
+     * @return the query.
+     */
+    Query query(@Nonnull String query);
 
     /**
      * Creates a query for the specified query {@code template}.
