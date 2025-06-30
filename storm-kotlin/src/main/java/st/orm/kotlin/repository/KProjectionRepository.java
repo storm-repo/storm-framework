@@ -25,6 +25,7 @@ import st.orm.kotlin.KResultCallback;
 import st.orm.kotlin.template.KModel;
 import st.orm.kotlin.template.KQueryBuilder;
 import st.orm.repository.Projection;
+import st.orm.template.TemplateFunction;
 
 import java.util.List;
 import java.util.Optional;
@@ -120,6 +121,18 @@ public interface KProjectionRepository<P extends Record & Projection<ID>, ID> ex
      * @param <R> the result type of the query.
      */
     <R> KQueryBuilder<P, R, ID> select(@Nonnull Class<R> selectType, @Nonnull StringTemplate template);
+
+    /**
+     * Creates a new query builder for the custom {@code selectType} and custom {@code template} for the select clause.
+     *
+     * @param selectType the result type of the query.
+     * @param function the custom template for the select clause.
+     * @return a new query builder for the custom {@code selectType}.
+     * @param <R> the result type of the query.
+     */
+    default <R> KQueryBuilder<P, R, ID> select(@Nonnull Class<R> selectType, @Nonnull TemplateFunction function) {
+        return select(selectType, TemplateFunction.template(function));
+    }
 
     // Base methods.
 

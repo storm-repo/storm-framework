@@ -18,7 +18,6 @@ package st.orm.spi;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.PK;
-import st.orm.template.impl.RecordReflection;
 
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
