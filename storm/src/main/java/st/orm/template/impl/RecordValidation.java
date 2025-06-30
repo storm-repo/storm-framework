@@ -98,7 +98,7 @@ final class RecordValidation {
             return "";
         }
         boolean pkFound = false;
-        for (var component : type.getRecordComponents()) {
+        for (var component : RecordReflection.getRecordComponents(type)) {
             if (getORMConverter(component).isPresent()) {
                 for (var annotation : List.of(PK.class, FK.class, Inline.class)) {
                     if (REFLECTION.isAnnotationPresent(component, annotation)) {
@@ -114,7 +114,7 @@ final class RecordValidation {
                 pkFound = true;
                 if (component.getType().isRecord()) {
                     if (!REFLECTION.isAnnotationPresent(component, FK.class)) {
-                        for (var nestedComponent : component.getType().getRecordComponents()) {
+                        for (var nestedComponent : RecordReflection.getRecordComponents(component.getType())) {
                             if (!isValidPrimaryKeyType(nestedComponent.getType())) {
                                 return STR."Invalid primary key type \{type.getSimpleName()}.\{component.getName()}.\{nestedComponent.getName()}.";
                             }
@@ -241,8 +241,7 @@ final class RecordValidation {
             return Optional.of(STR."Cyclic dependency detected: \{buildCyclePath(recordType, currentPath)}.");
         }
         currentPath.add(recordType);
-        RecordComponent[] components = recordType.getRecordComponents();
-        for (RecordComponent component : components) {
+        for (RecordComponent component : RecordReflection.getRecordComponents(recordType)) {
             Class<?> componentType = component.getType();
             if (Record.class.isAssignableFrom(componentType)) {
                 @SuppressWarnings("unchecked")

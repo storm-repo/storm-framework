@@ -87,13 +87,15 @@ public final class KORMReflectionImpl implements ORMReflection {
         return getAnnotation(type, annotationType) != null;
     }
 
-    record ComponentCacheKey(@Nonnull Constructor<?> constructor, @Nonnull String componentName) {
+    record ComponentCacheKey(@Nonnull Class<? extends Record> recordType, @Nonnull String componentName) {
         ComponentCacheKey(RecordComponent component) throws IllegalArgumentException {
             //noinspection unchecked
-            this(defaultReflection.findCanonicalConstructor(
-                    (Class<? extends Record>) component.getDeclaringRecord()).orElseThrow(
-                            () -> new IllegalArgumentException(STR."No canonical constructor found for record type: \{component.getDeclaringRecord().getSimpleName()}.")),
-                    component.getName());
+            this((Class<? extends Record>) component.getDeclaringRecord(), component.getName());
+        }
+
+        private Constructor<?> constructor() {
+            return defaultReflection.findCanonicalConstructor(recordType)
+                    .orElseThrow(() -> new IllegalArgumentException(STR."No canonical constructor found for record type: \{recordType.getSimpleName()}."));
         }
     }
 

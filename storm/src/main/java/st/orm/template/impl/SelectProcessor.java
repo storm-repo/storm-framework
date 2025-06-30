@@ -127,7 +127,7 @@ final class SelectProcessor implements ElementProcessor<Select> {
                                           @Nonnull String alias,
                                           boolean isPk) throws SqlTemplateException {
         var columns = new ArrayList<String>();
-        for (var component : type.getRecordComponents()) {
+        for (var component : RecordReflection.getRecordComponents(type)) {
             boolean pk = isPk || REFLECTION.isAnnotationPresent(component, PK.class);
             boolean fk = REFLECTION.isAnnotationPresent(component, FK.class);
             boolean ref = Ref.class.isAssignableFrom(component.getType());
@@ -274,7 +274,7 @@ final class SelectProcessor implements ElementProcessor<Select> {
             }
             return pathsFound + 1;
         }
-        for (RecordComponent component : current.getRecordComponents()) {
+        for (RecordComponent component : RecordReflection.getRecordComponents(current)) {
             Class<?> componentType = component.getType();
             if (componentType.isRecord() && REFLECTION.isAnnotationPresent(component, FK.class)) {
                 searchPath.add(component);

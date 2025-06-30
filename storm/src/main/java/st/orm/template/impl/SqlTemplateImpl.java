@@ -859,7 +859,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                               @Nonnull List<Join> joins,
                               @Nullable String fkName,
                               boolean outerJoin) throws SqlTemplateException {
-        for (var component : recordType.getRecordComponents()) {
+        for (var component : RecordReflection.getRecordComponents(recordType)) {
             var list = new ArrayList<>(path);
             String fkPath = toPathString(path);
             list.add(component);

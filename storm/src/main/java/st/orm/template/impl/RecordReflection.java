@@ -57,8 +57,27 @@ import static st.orm.spi.Providers.getORMConverter;
 final class RecordReflection {
 
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
+    private static final ConcurrentHashMap<Class<?>, List<RecordComponent>> RECORD_COMPONENT_CACHE
+            = new ConcurrentHashMap<>();
 
     private RecordReflection() {
+    }
+
+    /**
+     * Returns the record components for the specified record type. The result is cached to avoid repeated expensive
+     * reflection lookups.
+     *
+     * @param recordType the record type to obtain the record components for.
+     * @return the record components for the specified record type.
+     * @throws IllegalArgumentException if the record type is not a record.
+     */
+    public static List<RecordComponent> getRecordComponents(@Nonnull Class<?> recordType) {
+        return RECORD_COMPONENT_CACHE.computeIfAbsent(recordType, _ -> {
+            if (!recordType.isRecord()) {
+                throw new IllegalArgumentException(STR."The specified class \{recordType.getName()} is not a record type.");
+            }
+            return List.of(recordType.getRecordComponents());
+        });
     }
 
     /**
@@ -76,9 +95,8 @@ final class RecordReflection {
         for (int i = 0; i < parts.length; i++) {
             String part = parts[i];
             // Get record components for the current record class.
-            RecordComponent[] components = currentRecordClass.getRecordComponents();
             foundComponent = null;
-            for (RecordComponent c : components) {
+            for (RecordComponent c : getRecordComponents(currentRecordClass)) {
                 if (c.getName().equals(part)) {
                     foundComponent = c;
                     break;
@@ -114,7 +132,7 @@ final class RecordReflection {
      * @return the primary key component for the specified table.
      */
     static Optional<RecordComponent> getPkComponent(@Nonnull Class<? extends Record> table) {
-        return Stream.of(table.getRecordComponents())
+        return RecordReflection.getRecordComponents(table).stream()
                 .filter(c -> REFLECTION.isAnnotationPresent(c, PK.class))
                 .findFirst();
     }
@@ -136,12 +154,12 @@ final class RecordReflection {
         if (!pkComponent.getType().isRecord()) {
             return Stream.of(pkComponent);
         }
-        return Stream.of(pkComponent.getType().getRecordComponents());
+        return RecordReflection.getRecordComponents(pkComponent.getType()).stream();
     }
 
     @SuppressWarnings("unchecked")
     static Stream<RecordComponent> getFkComponents(@Nonnull Class<? extends Record> table) {
-        return Stream.of(table.getRecordComponents())
+        return RecordReflection.getRecordComponents(table).stream()
                 .flatMap(c -> {
                     if (REFLECTION.isAnnotationPresent(c, FK.class)) {
                         return Stream.of(c);
@@ -161,7 +179,7 @@ final class RecordReflection {
      * @return optional with the component that specified the Version annotation, or an empty if none found.
      */
     static Optional<RecordComponent> getVersionComponent(@Nonnull Class<? extends Record> table) {
-        for (var component : table.getRecordComponents()) {
+        for (var component : RecordReflection.getRecordComponents(table)) {
             if (REFLECTION.isAnnotationPresent(component, Version.class)) {
                 return Optional.of(component);
             }
@@ -190,7 +208,7 @@ final class RecordReflection {
         if (target.equals(source)) {
             return true;
         }
-        return findComponent(List.of(source.getRecordComponents()), target).isPresent();
+        return findComponent(RecordReflection.getRecordComponents(source), target).isPresent();
     }
 
     static Optional<RecordComponent> findComponent(@Nonnull List<RecordComponent> components,
@@ -430,9 +448,9 @@ final class RecordReflection {
         DbColumn[] dbColumns = REFLECTION.getAnnotations(component, DbColumn.class);
         if (component.getType().isRecord()) {
             columnNames = new ArrayList<>();
-            var pkComponents = component.getType().getRecordComponents();
-            for (int i = 0; i < pkComponents.length; i++) {
-                var pkComponent = pkComponents[i];
+            var pkComponents = RecordReflection.getRecordComponents(component.getType());
+            for (int i = 0; i < pkComponents.size(); i++) {
+                var pkComponent = pkComponents.get(i);
                 DbColumn nestedDbColumn = i < dbColumns.length
                         ? dbColumns[i]
                         : REFLECTION.getAnnotation(pkComponent, DbColumn.class);    // Top level is prioritized over nested.
@@ -496,7 +514,7 @@ final class RecordReflection {
                                @Nonnull Class<? extends Record> table,
                                @Nullable String path)
             throws SqlTemplateException {
-        for (var component : table.getRecordComponents()) {
+        for (var component : RecordReflection.getRecordComponents(table)) {
             if (REFLECTION.isAnnotationPresent(component, FK.class)) {
                 if (Ref.class.isAssignableFrom(component.getType())) {
                     tableMapper.mapForeignKey(table, getRefRecordType(component), alias, component, rootTable, path);
