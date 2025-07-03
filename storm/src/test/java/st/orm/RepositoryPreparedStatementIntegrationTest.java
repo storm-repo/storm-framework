@@ -1207,28 +1207,24 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testWhereExistsAmbiguous() {
-        var e = assertThrows(PersistenceException.class, () -> {
-            ORM(dataSource).entity(Owner.class)
-                    .select()
-                    .where(it -> it.exists(it.subquery(Visit.class).where(RAW."\{Owner.class}.id = \{Owner.class}.id")))
-                    .getResultList();
-        });
-        assertInstanceOf(SqlTemplateException.class, e.getCause());
+    public void testWhereExistsCascade() {
+        // The Owner.id = Owner.id is not ambiguous because they are in different scopes.
+        ORM(dataSource).entity(Owner.class)
+                .select()
+                .where(it -> it.exists(it.subquery(Visit.class).where(RAW."\{Owner.class}.id = \{Owner.class}.id")))
+                .getResultList();
     }
 
     @Test
-    public void testWhereExistsPredicateAmbiguous() {
-        var e = assertThrows(PersistenceException.class, () -> {
-            ORM(dataSource).entity(Owner.class)
-                    .select()
-                    .where(it ->
-                            it.where(RAW."EXISTS (\{
-                                    it.subquery(Visit.class).where(RAW."\{Owner.class}.id = \{Owner.class}.id")
-                            })"))
-                    .getResultList();
-        });
-        assertInstanceOf(SqlTemplateException.class, e.getCause());
+    public void testWhereExistsPredicateCascade() {
+        // The Owner.id = Owner.id is not ambiguous because they are in different scopes.
+        ORM(dataSource).entity(Owner.class)
+                .select()
+                .where(it ->
+                        it.where(RAW."EXISTS (\{
+                                it.subquery(Visit.class).where(RAW."\{Owner.class}.id = \{Owner.class}.id")
+                        })"))
+                .getResultList();
     }
 
     @Test

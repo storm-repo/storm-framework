@@ -966,8 +966,10 @@ public final class SqlTemplateImpl implements SqlTemplate {
      * @param elements all elements in the sql statement.
      * @param aliasMapper a mapper of table classes to their aliases.
      * @return the primary table for the sql statement.
+     * @throws SqlTemplateException if no primary table is found or if multiple primary tables are found.
      */
-    private Optional<PrimaryTable> getPrimaryTable(@Nonnull List<Element> elements, @Nonnull AliasMapper aliasMapper) {
+    private Optional<PrimaryTable> getPrimaryTable(@Nonnull List<Element> elements,
+                                                   @Nonnull AliasMapper aliasMapper) throws SqlTemplateException {
         assert elements.stream().noneMatch(Wrapped.class::isInstance);
         PrimaryTable primaryTable = elements.stream()
                 .filter(From.class::isInstance)
@@ -997,11 +999,15 @@ public final class SqlTemplateImpl implements SqlTemplate {
         if (primaryTable != null) {
             return Optional.of(primaryTable);
         }
-        return elements.stream()
+        var select = elements.stream()
                 .filter(Select.class::isInstance)
                 .map(Select.class::cast)
-                .findAny()
-                .map(select -> new PrimaryTable(select.table(), aliasMapper.getPrimaryAlias(select.table()).orElse("")));
+                .findAny();
+        if (select.isPresent()) {
+            return Optional.of(new PrimaryTable(select.get().table(),
+                    aliasMapper.getPrimaryAlias(select.get().table()).orElse("")));
+        }
+        return empty();
     }
 
     private void postProcessElements(@Nonnull SqlOperation sqlOperation,

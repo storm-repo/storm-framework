@@ -30,7 +30,6 @@ import st.orm.template.Metamodel;
 import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
 import st.orm.template.TemplateFunction;
-import st.orm.template.WhereBuilder;
 import st.orm.template.impl.Elements.ObjectExpression;
 
 import java.util.List;
