@@ -1173,7 +1173,7 @@ inline fun <reified T, V> KRepositoryLookup.countBy(
  * @return the count of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> KRepositoryLookup.count(
+inline fun <reified T> KRepositoryLookup.count(
     noinline predicate: KWhereBuilder<T, *, *>.() -> KPredicateBuilder<T, *, *>
 ): Long where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
@@ -1194,7 +1194,7 @@ inline fun <reified T, V> KRepositoryLookup.count(
  * @return the count of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> KRepositoryLookup.count(predicateBuilder: KPredicateBuilder<T, *, *>): Long
+inline fun <reified T> KRepositoryLookup.count(predicateBuilder: KPredicateBuilder<T, *, *>): Long
         where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
