@@ -196,10 +196,10 @@ final class WhereProcessor implements ElementProcessor<Where> {
                 assert pkNames.size() == 1;
                 values.put(dialectTemplate."\{alias.isEmpty() ? "" : STR."\{alias}."}\{pkNames.getFirst()}", id);
             } else {
-                var nestedPkComponents = pkComponent.getType().getRecordComponents();
-                assert pkNames.size() == nestedPkComponents.length;
-                for (int i = 0; i < nestedPkComponents.length; i++) {
-                    values.put(dialectTemplate."\{alias.isEmpty() ? "" : STR."\{alias}."}\{pkNames.get(i)}", validatePk(REFLECTION.invokeComponent(nestedPkComponents[i], id), nestedPkComponents[i]));
+                var nestedPkComponents = RecordReflection.getRecordComponents(pkComponent.getType());
+                assert pkNames.size() == nestedPkComponents.size();
+                for (int i = 0; i < nestedPkComponents.size(); i++) {
+                    values.put(dialectTemplate."\{alias.isEmpty() ? "" : STR."\{alias}."}\{pkNames.get(i)}", validatePk(REFLECTION.invokeComponent(nestedPkComponents.get(i), id), nestedPkComponents.get(i)));
                 }
             }
             if (updating) {
@@ -236,10 +236,10 @@ final class WhereProcessor implements ElementProcessor<Where> {
                 values.put(dialectTemplate."\{alias.isEmpty() ? "" : STR."\{alias}."}\{fkNames.getFirst()}", REFLECTION.isDefaultValue(id) ? null : id);
                 return values;
             } else {
-                var nestedPkComponents = pkComponent.getType().getRecordComponents();
-                assert fkNames.size() == nestedPkComponents.length;
-                for (int i = 0; i < nestedPkComponents.length; i++) {
-                    values.put(dialectTemplate."\{alias.isEmpty() ? "" : STR."\{alias}."}\{fkNames.get(i)}", id == null ? null : validateFk(REFLECTION.invokeComponent(nestedPkComponents[i], id), nestedPkComponents[i]));
+                var nestedPkComponents = RecordReflection.getRecordComponents(pkComponent.getType());
+                assert fkNames.size() == nestedPkComponents.size();
+                for (int i = 0; i < nestedPkComponents.size(); i++) {
+                    values.put(dialectTemplate."\{alias.isEmpty() ? "" : STR."\{alias}."}\{fkNames.get(i)}", id == null ? null : validateFk(REFLECTION.invokeComponent(nestedPkComponents.get(i), id), nestedPkComponents.get(i)));
                 }
             }
             return values;
@@ -272,10 +272,10 @@ final class WhereProcessor implements ElementProcessor<Where> {
                 return values;
             } else {
                 var pk = record == null ? null : REFLECTION.invokeComponent(pkComponent, record);
-                var nestedPkComponents = pkComponent.getType().getRecordComponents();
-                assert fkNames.size() == nestedPkComponents.length;
-                for (int i = 0; i < nestedPkComponents.length; i++) {
-                    values.put(dialectTemplate."\{alias.isEmpty() ? "" : STR."\{alias}."}\{fkNames.get(i)}", pk == null ? null : validateFk(REFLECTION.invokeComponent(nestedPkComponents[i], pk), nestedPkComponents[i]));
+                var nestedPkComponents = RecordReflection.getRecordComponents(pkComponent.getType());
+                assert fkNames.size() == nestedPkComponents.size();
+                for (int i = 0; i < nestedPkComponents.size(); i++) {
+                    values.put(dialectTemplate."\{alias.isEmpty() ? "" : STR."\{alias}."}\{fkNames.get(i)}", pk == null ? null : validateFk(REFLECTION.invokeComponent(nestedPkComponents.get(i), pk), nestedPkComponents.get(i)));
                 }
             }
             return values;
@@ -347,10 +347,10 @@ final class WhereProcessor implements ElementProcessor<Where> {
                 values.put(dialectTemplate."\{alias.isEmpty() ? "" : STR."\{alias}."}\{pkNames.getFirst()}", id);
                 return values;
             }
-            var nestedPkComponents = pkComponent.getType().getRecordComponents();
-            assert pkNames.size() == nestedPkComponents.length;
-            for (int i = 0; i < nestedPkComponents.length; i++) {
-                values.put(dialectTemplate."\{alias.isEmpty() ? "" : STR."\{alias}."}\{pkNames.get(i)}", id == null ? null : REFLECTION.invokeComponent(nestedPkComponents[i], id));
+            var nestedPkComponents = RecordReflection.getRecordComponents(pkComponent.getType());
+            assert pkNames.size() == nestedPkComponents.size();
+            for (int i = 0; i < nestedPkComponents.size(); i++) {
+                values.put(dialectTemplate."\{alias.isEmpty() ? "" : STR."\{alias}."}\{pkNames.get(i)}", id == null ? null : REFLECTION.invokeComponent(nestedPkComponents.get(i), id));
             }
             return values;
         } catch (SqlTemplateException e) {
@@ -384,7 +384,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
             int depth,
             int inlineDepth,
             @Nonnull String[] parts,
-            @Nonnull RecordComponent[] components
+            @Nonnull List<RecordComponent> components
     ) throws SqlTemplateException {
         var values = new LinkedHashMap<String, Object>();
         String name = parts[depth];
@@ -422,7 +422,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
             int depth,
             int inlineDepth,
             @Nonnull String[] parts,
-            @Nonnull RecordComponent[] components
+            @Nonnull List<RecordComponent> components
     ) throws SqlTemplateException {
         var values = new LinkedHashMap<String, Object>();
         for (var component : components) {
@@ -482,7 +482,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
         assert value == null || !value.getClass().isRecord();
         assert !(value instanceof Ref);
         var parts = path.split("\\.");
-        var components = (inlineParentType != null ? inlineParentType : recordType).getRecordComponents();
+        var components = RecordReflection.getRecordComponents(inlineParentType != null ? inlineParentType : recordType);
         if (parts.length == depth + 1) {
             return getNestedValuesAtPath(value, primaryTable, recordType, depth, inlineDepth, parts, components);
         }

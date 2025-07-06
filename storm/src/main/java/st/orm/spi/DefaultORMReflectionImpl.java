@@ -154,9 +154,29 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
         return false;
     }
 
+    private static final ConcurrentHashMap<Class<?>, List<RecordComponent>> RECORD_COMPONENT_CACHE
+            = new ConcurrentHashMap<>();
+
+    /**
+     * Returns the record components for the specified record type. The result is cached to avoid repeated expensive
+     * reflection lookups.
+     *
+     * @param recordType the record type to obtain the record components for.
+     * @return the record components for the specified record type.
+     * @throws IllegalArgumentException if the record type is not a record.
+     */
+    private static List<RecordComponent> getRecordComponents(@Nonnull Class<?> recordType) {
+        return RECORD_COMPONENT_CACHE.computeIfAbsent(recordType, _ -> {
+            if (!recordType.isRecord()) {
+                throw new IllegalArgumentException(STR."The specified class \{recordType.getName()} is not a record type.");
+            }
+            return List.of(recordType.getRecordComponents());
+        });
+    }
+
     private boolean areRecordComponentsDefault(Object record) {
         try {
-            for (RecordComponent component : record.getClass().getRecordComponents()) {
+            for (RecordComponent component : getRecordComponents(record.getClass())) {
                 Object componentValue = invokeComponent(component, record);
                 if (!isDefaultValue(componentValue)) {
                     return false;

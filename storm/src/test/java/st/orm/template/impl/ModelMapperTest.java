@@ -8,9 +8,13 @@ import st.orm.model.Pet;
 import st.orm.model.PetType;
 import st.orm.template.SqlTemplateException;
 
+import java.sql.Date;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 
+import static java.time.ZoneId.systemDefault;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.util.AssertionErrors.assertNull;
@@ -80,7 +84,7 @@ public class ModelMapperTest {
         var values = new ArrayList<>(result.values());
         assertEquals(1, values.get(0));
         assertEquals("Rover", values.get(1));
-        assertEquals(LocalDate.of(2019, 1, 28), values.get(2));
+        assertEquals(new Date(LocalDate.of(2019, 1, 28).atStartOfDay(systemDefault()).toInstant().toEpochMilli()), values.get(2));
         assertEquals(2, values.get(3));
         assertEquals(3, values.get(4));
     }

@@ -151,7 +151,7 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
                         @Nonnull Predicate<Column> columnFilter,
                         @Nonnull BiFunction<Column, Object, Boolean> callback) throws SqlTemplateException {
         try {
-            for (var component : recordClass.getRecordComponents()) {
+            for (var component : RecordReflection.getRecordComponents(recordClass)) {
                 var converter = getORMConverter(component).orElse(null);
                 if (converter != null) {
                     if (!processComponentWithConverter(record, component, converter, index, columnFilter, callback)) {

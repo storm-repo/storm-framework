@@ -458,7 +458,6 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
         return orderBy(RAW."\{path}");
     }
 
-
     /**
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph. The results are
      * sorted in descending order.

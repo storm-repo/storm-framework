@@ -53,6 +53,11 @@ final class AliasMapper {
 
     record TableAlias(Class<? extends Record> table, String path, String alias) {}
 
+    /**
+     * Alias entry with its nesting level: 0=current, 1=parent, etc.
+     */
+    private record AliasEntry(String alias, int level) {}
+
     AliasMapper(@Nonnull TableUse tableUse,
                 @Nonnull TableAliasResolver tableAliasResolver,
                 @Nonnull TableNameResolver tableNameResolver,
@@ -76,68 +81,65 @@ final class AliasMapper {
         return Stream.concat(local, global);
     }
 
-    /**
-     * Retrieves all aliases for the specified table, including those from the parent. Note that the stream may
-     * contain duplicates as parents may contain the same aliases.
-     *
-     * @param table the table to retrieve the aliases for.
-     * @param scope INNER to include local and outer aliases, OUTER to include outer aliases only and CASCADE to
-     *              include all aliases.
-     * @param precedingTable the table that precedes {@code table} in the join chain.
-     */
-    private Stream<String> aliases(@Nonnull Class<? extends Record> table,
-                                   @Nonnull ResolveScope scope,
-                                   @Nullable Class<? extends Record> precedingTable) {
-        if (precedingTable != null) {
-            tableUse.addAutoJoinTable(table, precedingTable);
-        } else {
-            tableUse.addReferencedTable(table);
-        }
-        var local = switch (scope) {
-            case INNER, CASCADE -> aliasMap.getOrDefault(table, List.of()).stream()
-                    .map(TableAlias::alias);
-            case OUTER -> Stream.<String>of();
-        };
-        var global = switch (scope) {
-            case INNER -> Stream.<String>of();
-            case CASCADE, OUTER ->
-                    parent == null ? Stream.<String>of() : parent.aliases(table, CASCADE, precedingTable);   // Use CASCADE to include parents recursively.
-        };
-        return Stream.concat(local, global);
-    }
+//    /**
+//     * Retrieves all aliases for the specified table, including those from the parent. Note that the stream may
+//     * contain duplicates as parents may contain the same aliases.
+//     *
+//     * @param table the table to retrieve the aliases for.
+//     * @param scope INNER to include local and outer aliases, OUTER to include outer aliases only and CASCADE to
+//     *              include all aliases.
+//     * @param precedingTable the table that precedes {@code table} in the join chain.
+//     */
+//    private Stream<String> aliases(@Nonnull Class<? extends Record> table,
+//                                   @Nonnull ResolveScope scope,
+//                                   @Nullable Class<? extends Record> precedingTable) {
+//        if (precedingTable != null) {
+//            tableUse.addAutoJoinTable(table, precedingTable);
+//        } else {
+//            tableUse.addReferencedTable(table);
+//        }
+//        var local = switch (scope) {
+//            case INNER, CASCADE -> aliasMap.getOrDefault(table, List.of()).stream()
+//                    .map(TableAlias::alias);
+//            case OUTER -> Stream.<String>of();
+//        };
+//        var global = switch (scope) {
+//            case INNER -> Stream.<String>of();
+//            case CASCADE, OUTER ->
+//                    parent == null ? Stream.<String>of() : parent.aliases(table, CASCADE, precedingTable);   // Use CASCADE to include parents recursively.
+//        };
+//        return Stream.concat(local, global);
+//    }
 
     /**
-     * Retrieves all aliases for the specified table and path, including those from the parent. Note that the
-     * stream may contain duplicates as parents may contain the same aliases. If path is null, all aliases for
-     * the table are returned.
+     * Recursively collects all alias entries for a given table and optional component path,
+     * tagging each with its nesting depth (0 = current level, 1 = parent, etc.).
      *
-     * @param table the table to retrieve the aliases for.
-     * @param path  the path to retrieve the aliases for.
-     * @param scope CASCADE to include local and outer aliases, LOCAL to include local aliases only, and
-     *              OUTER to include outer aliases only.
-     * @param autoJoinTable the table that is auto-joined to the specified table.
+     * <p>At each level it will:</p>
+     * <ol>
+     *   <li>Include any locally registered aliases whose path matches (or all if {@code path} is null)</li>
+     *   <li>Recurse into the parent mapper (incrementing {@code level} by 1)</li>
+     * </ol></p>
+     *
+     * <p>The resulting stream emits <code>AliasEntry</code> instances with both the alias string and its {@code level},
+     * so callers can apply their own filtering (e.g. only outer or only inner levels).</p>
+     *
+     * @param table         the record type whose aliases are being collected
+     * @param path          optional component path; if <code>null</code>, matches all aliases
+     * @param level         the current nesting depth: 0=current, 1=parent, etc.
      */
-    private Stream<String> aliases(@Nonnull Class<? extends Record> table,
-                                   @Nullable String path,
-                                   @Nonnull ResolveScope scope,
-                                   @Nullable Class<? extends Record> autoJoinTable) {
-        if (autoJoinTable != null) {
-            tableUse.addAutoJoinTable(autoJoinTable, table);
-        } else {
-            tableUse.addReferencedTable(table);
-        }
-        var local = switch (scope) {
-            case INNER, CASCADE -> aliasMap.getOrDefault(table, List.of()).stream()
-                    .filter(a -> path == null || Objects.equals(path, a.path()))
-                    .map(TableAlias::alias);
-            case OUTER -> Stream.<String>of();
-        };
-        var global = switch (scope) {
-            case INNER -> Stream.<String>of();
-            case CASCADE, OUTER ->
-                    parent == null ? Stream.<String>of() : parent.aliases(table, path, CASCADE, autoJoinTable);   // Use CASCADE to include parents recursively.
-        };
-        return Stream.concat(local, global);
+    private Stream<AliasEntry> collectAliasEntries(@Nonnull Class<? extends Record> table,
+                                                   @Nullable String path,
+                                                   int level) {
+        // Current level matches.
+        var local = aliasMap.getOrDefault(table, List.of()).stream()
+                .filter(ta -> path == null || Objects.equals(path, ta.path()))
+                .map(ta -> new AliasEntry(ta.alias(), level));
+        // Recurse to parent if present.
+        var parentStream = parent == null
+                ? Stream.<AliasEntry>empty()
+                : parent.collectAliasEntries(table, path, level + 1);
+        return Stream.concat(local, parentStream);
     }
 
     private SqlTemplateException multipleFoundException(@Nonnull Class<? extends Record> table,
@@ -156,20 +158,18 @@ final class AliasMapper {
     }
 
     public String useAlias(@Nonnull Class<? extends Record> table,
-                           @Nonnull String alias,
-                           @Nonnull ResolveScope scope) throws SqlTemplateException {
-        if (getAliases(table, scope).stream().noneMatch(a -> a.equals(alias))) {
+                           @Nonnull String alias) throws SqlTemplateException {
+        if (collectAliasEntries(table, null, 0)
+                .filter(e -> e.alias().equals(alias))
+                .findAny()
+                .isEmpty()) {
             throw new SqlTemplateException(STR."Alias \{alias} for table \{table.getSimpleName()} not found.");
         }
         return alias;
     }
 
-    public List<String> getAliases(@Nonnull Class<? extends Record> table, @Nonnull ResolveScope scope) {
-        return aliases(table, scope, null).toList();
-    }
-
-    public boolean exists(@Nonnull Class<? extends Record> table, @Nonnull ResolveScope scope) {
-        return !getAliases(table, scope).isEmpty();
+    public boolean exists(@Nonnull Class<? extends Record> table, @Nonnull ResolveScope scope) throws SqlTemplateException {
+        return findAlias(table, null, scope).isPresent();
     }
 
     /**
@@ -178,12 +178,8 @@ final class AliasMapper {
      * @param table the table to get the alias for.
      * @return the primary alias.
      */
-    public Optional<String> getPrimaryAlias(@Nonnull Class<? extends Record> table) {
-        var list = getAliases(table, INNER);
-        if (list.isEmpty()) {
-            return empty();
-        }
-        return Optional.of(list.getFirst());
+    public Optional<String> getPrimaryAlias(@Nonnull Class<? extends Record> table) throws SqlTemplateException {
+        return findAlias(table, null, INNER);
     }
 
     /**
@@ -309,9 +305,9 @@ final class AliasMapper {
                            @Nullable Class<? extends Record> autoJoinTable,
                            @Nonnull SqlDialect dialect,
                            @Nonnull Supplier<SqlTemplateException> exceptionSupplier) throws SqlTemplateException {
-        var result = findAlias(table, path, scope, autoJoinTable);
-        if (result.isPresent()) {
-            return result.get();
+        var alias = findAlias(table, path, scope, autoJoinTable).orElse("");
+        if (!alias.isEmpty()) {
+            return alias;
         }
         if (path != null) {
             throw exceptionSupplier.get();
@@ -333,21 +329,33 @@ final class AliasMapper {
                                        @Nullable String path,
                                        @Nonnull ResolveScope scope,
                                        @Nullable Class<? extends Record> autoJoinTable) throws SqlTemplateException {
-        var list = aliases(table, path, scope, autoJoinTable).toList();
-        if (list.isEmpty() && path != null) {
-            list = aliases(table, path, scope, autoJoinTable).toList();
+        var entries = collectAliasEntries(table, path, 0).toList();
+        var filtered = entries.stream()
+                .filter(e -> switch (scope) {
+                    case INNER   -> e.level() == 0;
+                    case OUTER   -> e.level() >  0;
+                    case CASCADE -> true;
+                })
+                .toList();
+        if (filtered.isEmpty()) {
+            return empty();
         }
-        if (list.isEmpty()) {
-            return Optional.empty();
+        var entry = filtered.getFirst();
+        if (filtered.size() > 1) {
+            if (filtered.get(1).level() == entry.level()) {
+                // Multiple aliases found at the same level.
+                throw multipleFoundException(table, path, scope == INNER ? CASCADE : scope);
+            }
         }
-        if (list.size() > 1) {
-            throw multipleFoundException(table, path, scope);
+        if (entry.level() == 0) {
+            // Only register usage in the current scope.
+            if (autoJoinTable != null) {
+                tableUse.addAutoJoinTable(autoJoinTable, table);
+            } else {
+                tableUse.addReferencedTable(table);
+            }
         }
-        if (path != null) {
-            return Optional.of(list.getFirst());
-        }
-        String alias = list.getFirst();
-        return alias.isEmpty() ? Optional.empty() : Optional.of(alias);
+        return Optional.of(entry.alias());
     }
 
     public String generateAlias(@Nonnull Class<? extends Record> table,

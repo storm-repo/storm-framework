@@ -26,6 +26,7 @@ import st.orm.template.Operator;
 import st.orm.template.PredicateBuilder;
 import st.orm.template.QueryBuilder;
 import st.orm.template.QueryTemplate;
+import st.orm.template.SqlTemplateException;
 import st.orm.template.TypedJoinBuilder;
 import st.orm.template.WhereBuilder;
 import st.orm.template.impl.Elements.ObjectExpression;
@@ -476,7 +477,15 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
 
         @Override
         protected <V> PredicateBuilder<TX, RX, IDX> whereImpl(@Nonnull Metamodel<?, V> path, @Nonnull Operator operator, @Nonnull V[] o) {
-            return PredicateBuilderFactory.createWithId(path, operator, List.of(o));
+            try {
+                try {
+                    return PredicateBuilderFactory.createWithId(path, operator, List.of(o));
+                } catch (NullPointerException e) {
+                    throw new SqlTemplateException("Null value not allowed.");
+                }
+            } catch (SqlTemplateException e) {
+                throw new PersistenceException(e);
+            }
         }
 
         private QueryBuilder<TX, RX, IDX> build(List<StringTemplate> templates) {

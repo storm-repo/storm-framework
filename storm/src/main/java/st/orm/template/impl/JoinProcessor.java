@@ -65,6 +65,7 @@ final class JoinProcessor implements ElementProcessor<Join> {
     @Override
     public ElementResult process(@Nonnull Join join) throws SqlTemplateException {
         if (join.autoJoin() && join.source() instanceof TableSource(var table)) {
+            // Prune the join if the table is not referenced in the template, for instance, in case of a SelectMode.FLAT.
             return new ElementResult(() -> tableUse.isReferencedTable(table) ? getJoinString(join) : "");
         }
         return new ElementResult(getJoinString(join));
@@ -86,7 +87,7 @@ final class JoinProcessor implements ElementProcessor<Join> {
         return switch (join.source()) {
             case TableSource ts -> {
                 var table = getTableName(ts.table(), tableNameResolver);
-                var alias = aliasMapper.useAlias(ts.table(), join.sourceAlias(), INNER);
+                var alias = aliasMapper.useAlias(ts.table(), join.sourceAlias());
                 yield dialectTemplate."\n\{joinType} \{table} \{alias}\{onClause.isEmpty() ? "" : STR." ON \{onClause}"}";
             }
             case TemplateSource ts -> {

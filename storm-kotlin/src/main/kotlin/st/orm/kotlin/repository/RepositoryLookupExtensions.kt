@@ -1161,9 +1161,9 @@ inline fun <reified T, V> RepositoryLookup.countBy(
  * @return the count of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.count(
-    noinline predicate: WhereBuilder<T, *, *>.() -> PredicateBuilder<T, *, *>
-): Long where T : Record, T : Entity<*> = when {
+inline fun <reified T> RepositoryLookup.count(
+    noinline predicate: WhereBuilder<T, *, *>.() -> PredicateBuilder<T, T, *>
+): Long where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)
         (method.invoke(this, T::class.java) as EntityRepository<T, *>).selectCount().where(predicate).singleResult
@@ -1182,7 +1182,7 @@ inline fun <reified T, V> RepositoryLookup.count(
  * @return the count of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.count(predicateBuilder: KPredicateBuilder<T, *, *>): Long
+inline fun <reified T> RepositoryLookup.count(predicateBuilder: KPredicateBuilder<T, T, *>): Long
         where T : Record = when {
     Entity::class.java.isAssignableFrom(T::class.java) -> {
         val method = this::class.java.getMethod("entity", Class::class.java)

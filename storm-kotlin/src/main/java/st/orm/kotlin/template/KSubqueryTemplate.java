@@ -17,6 +17,7 @@ package st.orm.kotlin.template;
 
 import jakarta.annotation.Nonnull;
 import kotlin.reflect.KClass;
+import st.orm.template.TemplateFunction;
 
 import static java.lang.StringTemplate.RAW;
 
@@ -65,5 +66,18 @@ public interface KSubqueryTemplate {
      * @param <T> the table type.
      */
     <T extends Record> KQueryBuilder<T, ?, ?> subquery(@Nonnull KClass<T> fromType,
-                                                          @Nonnull StringTemplate template);
+                                                       @Nonnull StringTemplate template);
+
+    /**
+     * Create a subquery for the given table and select type using the given template.
+     *
+     * @param fromType the table to create the subquery for.
+     * @param function the template to use for the subquery.
+     * @return the subquery builder.
+     * @param <T> the table type.
+     */
+    default <T extends Record> KQueryBuilder<T, ?, ?> subquery(@Nonnull KClass<T> fromType,
+                                                               @Nonnull TemplateFunction function) {
+        return subquery(fromType, TemplateFunction.template(function));
+    }
 }

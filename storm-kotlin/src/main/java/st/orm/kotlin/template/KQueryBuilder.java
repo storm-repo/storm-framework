@@ -30,7 +30,6 @@ import st.orm.template.Metamodel;
 import st.orm.template.Operator;
 import st.orm.template.QueryBuilder;
 import st.orm.template.TemplateFunction;
-import st.orm.template.WhereBuilder;
 import st.orm.template.impl.Elements.ObjectExpression;
 
 import java.util.List;
@@ -203,6 +202,18 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
     public abstract KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull StringTemplate template, @Nonnull String alias);
 
     /**
+     * Adds a join of the specified type to the query.
+     *
+     * @param type the join type.
+     * @param function the function used to define the condition to join.
+     * @param alias the alias to use for the joined relation.
+     * @return the query builder.
+     */
+    public final KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull TemplateFunction function, @Nonnull String alias) {
+        return join(type, TemplateFunction.template(function), alias);
+    }
+
+    /**
      * Adds a join of the specified type to the query using a subquery.
      *
      * @param type the join type.
@@ -211,18 +222,6 @@ public abstract class KQueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     public abstract KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull KQueryBuilder<?, ?, ?> subquery, @Nonnull String alias);
-
-    /**
-     * Adds a join of the specified type to the query.
-     *
-     * @param type the join type.
-     * @param function the function used to define the condition to join.
-     * @param alias the alias to use for the joined relation.
-     * @return the query builder.
-     */  
-    public final KJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull TemplateFunction function, @Nonnull String alias) {
-        return join(type, TemplateFunction.template(function), alias);
-    }
 
     /**
      * Adds a WHERE clause that matches the specified primary key of the table.

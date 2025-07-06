@@ -30,7 +30,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 import static java.lang.System.arraycopy;
@@ -47,8 +46,6 @@ import static st.orm.template.impl.RecordReflection.getRefRecordType;
  * Factory for creating instances for record types.
  */
 final class RecordMapper {
-    private static final ConcurrentHashMap<Class<?>, RecordComponent[]> RECORD_COMPONENT_CACHE = new ConcurrentHashMap<>();
-
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
     private RecordMapper() {
@@ -87,7 +84,7 @@ final class RecordMapper {
      */
     private static int getParameterCount(@Nonnull Class<?> recordType) throws SqlTemplateException {
         int count = 0;
-        var recordComponents = RECORD_COMPONENT_CACHE.computeIfAbsent(recordType, Class::getRecordComponents);
+        var recordComponents = RecordReflection.getRecordComponents(recordType);
         for (RecordComponent component : recordComponents) {
             Class<?> componentType = component.getType();
             var converter = getORMConverter(component);
@@ -125,7 +122,7 @@ final class RecordMapper {
             @SuppressWarnings("unchecked")
             @Override
             public T newInstance(@Nonnull Object[] args) throws SqlTemplateException {
-                var constructorComponents = RECORD_COMPONENT_CACHE.computeIfAbsent(constructor.getDeclaringClass(), Class::getRecordComponents);
+                var constructorComponents = RecordReflection.getRecordComponents(constructor.getDeclaringClass());
                 // Adapt arguments for records recursively.
                 Object[] adaptedArgs = adaptArguments(
                         constructor.getParameterTypes(),
@@ -155,11 +152,11 @@ final class RecordMapper {
         List<Class<?>> expandedTypes = new ArrayList<>();
         var recordComponents = constructor == null
                 ? null
-                : RECORD_COMPONENT_CACHE.computeIfAbsent(constructor.getDeclaringClass(), Class::getRecordComponents);
+                : RecordReflection.getRecordComponents(constructor.getDeclaringClass());
         for (int i = 0; i < parameterTypes.length; i++) {
             Class<?> paramType = parameterTypes[i];
             if (recordComponents != null) {
-                var component = recordComponents[i];
+                var component = recordComponents.get(i);
                 var converter = getORMConverter(component);
                 if (converter.isPresent()) {
                     expandedTypes.addAll(converter.get().getParameterTypes());
@@ -176,7 +173,7 @@ final class RecordMapper {
                 assert constructor != null;
                 assert constructor.getDeclaringClass().isRecord();
                 assert recordComponents != null;
-                expandedTypes.add(getRefPkType(recordComponents[i]));
+                expandedTypes.add(getRefPkType(recordComponents.get(i)));
             } else {
                 // Non-record type, add directly.
                 expandedTypes.add(paramType);
@@ -211,7 +208,7 @@ final class RecordMapper {
      * @throws SqlTemplateException if an error occurred while creating the adapted arguments.
      */
     private static AdaptArgumentsResult adaptArguments(@Nonnull Class<?>[] parameterTypes,
-                                                       @Nonnull RecordComponent[] components,
+                                                       @Nonnull List<RecordComponent> components,
                                                        @Nonnull Object[] args,
                                                        int argsIndex,
                                                        @Nonnull RefFactory refFactory,
@@ -222,7 +219,7 @@ final class RecordMapper {
         for (int i = 0; i < parameterTypes.length; i++) {
             Class<?> paramType = parameterTypes[i];
             Object arg;
-            var component = components[i];
+            var component = components.get(i);
             var converter = getORMConverter(component).orElse(null);
             boolean nonnull = REFLECTION.isNonnull(component);
             boolean nullable = parentNullable || !nonnull;
@@ -237,7 +234,7 @@ final class RecordMapper {
                         .orElseThrow(() -> new SqlTemplateException(STR."No canonical constructor found for record type: \{paramType.getSimpleName()}."));
                 Class<?>[] recordParamTypes = recordConstructor.getParameterTypes();
                 // Recursively adapt arguments for nested records, updating currentIndex after processing.
-                var recordComponents = RECORD_COMPONENT_CACHE.computeIfAbsent(recordConstructor.getDeclaringClass(), Class::getRecordComponents);
+                var recordComponents = RecordReflection.getRecordComponents(recordConstructor.getDeclaringClass());
                 AdaptArgumentsResult result = adaptArguments(recordParamTypes, recordComponents, args, currentIndex, refFactory, nullable, interner);
                 if (!nonnull && Arrays.stream(args, currentIndex, result.offset()).allMatch(RecordMapper::isArgNull)) {
                     // All elements are null and the record is nullable, so we can set the argument to null.
@@ -246,8 +243,8 @@ final class RecordMapper {
                     RecordComponent nullViolation = null;
                     Object[] recordArgs = result.arguments();
                     for (int j = 0; j < recordArgs.length; j++) {
-                        if (isArgNull(recordArgs[j]) && REFLECTION.isNonnull(recordComponents[j])) {
-                            nullViolation = recordComponents[j];
+                        if (isArgNull(recordArgs[j]) && REFLECTION.isNonnull(recordComponents.get(j))) {
+                            nullViolation = recordComponents.get(j);
                             break;
                         }
                     }
@@ -287,7 +284,7 @@ final class RecordMapper {
                 arg = EnumMapper.getFactory(1, paramType).orElseThrow().newInstance(new Object[] { v });
             } else if (Ref.class.isAssignableFrom(paramType)) {
                 Object pk = args[currentIndex++];
-                arg = pk == null ? Ref.ofNull() : refFactory.create(getRefRecordType(components[i]), pk);
+                arg = pk == null ? Ref.ofNull() : refFactory.create(getRefRecordType(components.get(i)), pk);
             } else {
                 arg = args[currentIndex++];
             }
