@@ -644,12 +644,59 @@ fun <T, ID> KEntityRepository<T, ID>.count(
 /**
  * Counts entities of type [T] matching the specified predicate.
  *
- * @param predicate Lambda to build the WHERE clause.
+ * @param predicateBuilder Lambda to build the WHERE clause.
  * @return the count of matching entities.
  */
 fun <T, ID> KEntityRepository<T, ID>.count(predicateBuilder: KPredicateBuilder<T, *, *>): Long
         where T : Record, T : Entity<ID> =
     selectCount().where { predicateBuilder }.singleResult
+
+/**
+ * Checks if entities of type [T] matching the specified field and value exists.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return true if any matching entities exist, false otherwise.
+ */
+fun <T, ID, V> KEntityRepository<T, ID>.existsBy(
+    field: Metamodel<T, V>,
+    value: V
+): Boolean where T : Record, T : Entity<ID> =
+    selectCount().where(field, EQUALS, value).singleResult == 0L
+
+/**
+ * Checks if entities of type [T] matching the specified field and referenced value exists.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the referenced value to match against.
+ * @return true if any matching entities exist, false otherwise.
+ */
+fun <T, ID, V> KEntityRepository<T, ID>.existsBy(
+    field: Metamodel<T, V>,
+    value: Ref<V>
+): Boolean where T : Record, T : Entity<ID>, V : Record =
+    selectCount().where(field, value).singleResult == 0L
+
+/**
+ * Checks if entities of type [T] matching the specified predicate exists.
+ *
+ * @param predicate Lambda to build the WHERE clause.
+ * @return true if any matching entities exist, false otherwise.
+ */
+fun <T, ID> KEntityRepository<T, ID>.exists(
+    predicate: KWhereBuilder<T, *, ID>.() -> KPredicateBuilder<T, *, *>
+): Boolean where T : Record, T : Entity<ID> =
+    selectCount().where(predicate).singleResult == 0L
+
+/**
+ * Checks if entities of type [T] matching the specified predicate exists.
+ *
+ * @param predicateBuilder Lambda to build the WHERE clause.
+ * @return true if any matching entities exist, false otherwise.
+ */
+fun <T, ID> KEntityRepository<T, ID>.exists(predicateBuilder: KPredicateBuilder<T, *, *>): Boolean
+        where T : Record, T : Entity<ID> =
+    selectCount().where { predicateBuilder }.singleResult == 0L
 
 /**
  * Deletes entities of type [T] matching the specified field and value.

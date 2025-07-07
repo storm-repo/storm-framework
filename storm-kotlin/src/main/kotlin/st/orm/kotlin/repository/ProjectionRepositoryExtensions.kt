@@ -655,3 +655,50 @@ fun <T, ID> ProjectionRepository<T, ID>.count(
 fun <T, ID> ProjectionRepository<T, ID>.count(predicateBuilder: KPredicateBuilder<T, *, *>): Long
         where T : Record, T : Projection<ID> =
     selectCount().where { bridge(predicateBuilder) }.singleResult
+
+/**
+ * Checks if projections of type [T] matching the specified field and value exists.
+ *
+ * @param field metamodel reference of the projection field.
+ * @param value the value to match against.
+ * @return true if any matching projections exist, false otherwise.
+ */
+fun <T, ID, V> ProjectionRepository<T, ID>.existBy(
+    field: Metamodel<T, V>,
+    value: V
+): Boolean where T : Record, T : Projection<ID> =
+    selectCount().where(field, EQUALS, value).singleResult == 0L
+
+/**
+ * Checks if projections of type [T] matching the specified field and referenced value exists.
+ *
+ * @param field metamodel reference of the projection field.
+ * @param value the referenced value to match against.
+ * @return true if any matching projections exist, false otherwise.
+ */
+fun <T, ID, V> ProjectionRepository<T, ID>.existsByRef(
+    field: Metamodel<T, V>,
+    value: Ref<V>
+): Boolean where T : Record, T : Projection<ID>, V : Record =
+    selectCount().where(field, value).singleResult == 0L
+
+/**
+ * Checks if projections of type [T] matching the specified predicate exists.
+ *
+ * @param predicate Lambda to build the WHERE clause.
+ * @return true if any matching projections exist, false otherwise.
+ */
+fun <T, ID> ProjectionRepository<T, ID>.exists(
+    predicate: WhereBuilder<T, *, ID>.() -> PredicateBuilder<T, *, *>
+): Boolean where T : Record, T : Projection<ID> =
+    selectCount().where(predicate).singleResult == 0L
+
+/**
+ * Checks if projections of type [T] matching the specified predicate exists.
+ *
+ * @param predicate Lambda to build the WHERE clause.
+ * @return true if any matching projections exist, false otherwise.
+ */
+fun <T, ID> ProjectionRepository<T, ID>.exists(predicateBuilder: KPredicateBuilder<T, *, *>): Boolean
+        where T : Record, T : Projection<ID> =
+    selectCount().where { bridge(predicateBuilder) }.singleResult == 0L

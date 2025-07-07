@@ -660,6 +660,53 @@ fun <T, ID> EntityRepository<T, ID>.count(predicateBuilder: KPredicateBuilder<T,
     selectCount().where { bridge(predicateBuilder) }.singleResult
 
 /**
+ * Checks if entities of type [T] matching the specified field and value exists.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return true if at least one matching entity exists, false otherwise.
+ */
+fun <T, ID, V> EntityRepository<T, ID>.existsBy(
+    field: Metamodel<T, V>,
+    value: V
+): Boolean where T : Record, T : Entity<ID> =
+    selectCount().where(field, EQUALS, value).singleResult == 0L
+
+/**
+ * Checks if entities of type [T] matching the specified field and referenced value exists.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the referenced value to match against.
+ * @return true if at least one matching entity exists, false otherwise.
+ */
+fun <T, ID, V> EntityRepository<T, ID>.existsBy(
+    field: Metamodel<T, V>,
+    value: Ref<V>
+): Boolean where T : Record, T : Entity<ID>, V : Record =
+    selectCount().where(field, value).singleResult == 0L
+
+/**
+ * Checks if entities of type [T] matching the specified predicate exists.
+ *
+ * @param predicate Lambda to build the WHERE clause.
+ * @return true if at least one matching entity exists, false otherwise.
+ */
+fun <T, ID> EntityRepository<T, ID>.exists(
+    predicate: WhereBuilder<T, *, ID>.() -> PredicateBuilder<T, *, *>
+): Boolean where T : Record, T : Entity<ID> =
+    selectCount().where(predicate).singleResult == 0L
+
+/**
+ * Checks if entities of type [T] matching the specified predicate exists.
+ *
+ * @param predicateBuilder Lambda to build the WHERE clause.
+ * @return the count of matching entities.
+ */
+fun <T, ID> EntityRepository<T, ID>.exists(predicateBuilder: KPredicateBuilder<T, *, *>): Boolean
+        where T : Record, T : Entity<ID> =
+    selectCount().where { bridge(predicateBuilder) }.singleResult == 0L
+
+/**
  * Deletes entities of type [T] matching the specified field and value.
  *
  * @param field metamodel reference of the entity field.

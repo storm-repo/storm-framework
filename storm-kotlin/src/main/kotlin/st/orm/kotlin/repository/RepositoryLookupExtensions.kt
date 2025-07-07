@@ -1196,6 +1196,93 @@ inline fun <reified T> RepositoryLookup.count(predicateBuilder: KPredicateBuilde
 }
 
 /**
+ * Checks if entities of type [T] matching the specified field and value exists.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the value to match against.
+ * @return true if any matching entities exist, false otherwise.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> RepositoryLookup.existsBy(
+    field: Metamodel<T, V>,
+    value: V
+): Boolean where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).selectCount().where(field, EQUALS, value).singleResult == 0L
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).selectCount().where(field, EQUALS, value).singleResult == 0L
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Checks if entities of type [T] matching the specified field and referenced value exists.
+ *
+ * @param field metamodel reference of the entity field.
+ * @param value the referenced value to match against.
+ * @return true if any matching entities exist, false otherwise.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> RepositoryLookup.existsBy(
+    field: Metamodel<T, V>,
+    value: Ref<V>
+): Boolean where T : Record, V : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).selectCount().where(field, value).singleResult == 0L
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).selectCount().where(field, value).singleResult == 0L
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Checks if entities of type [T] matching the specified predicate exists.
+ *
+ * @param predicate Lambda to build the WHERE clause.
+ * @return true if any matching entities exist, false otherwise.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T> RepositoryLookup.exists(
+    noinline predicate: WhereBuilder<T, *, *>.() -> PredicateBuilder<T, T, *>
+): Boolean where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).selectCount().where(predicate).singleResult == 0L
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).selectCount().where(predicate).singleResult == 0L
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
+ * Checks if entities of type [T] matching the specified predicate exists.
+ *
+ * @param predicateBuilder Lambda to build the WHERE clause.
+ * @return true if any matching entities exist, false otherwise.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T> RepositoryLookup.exists(predicateBuilder: KPredicateBuilder<T, T, *>): Boolean
+        where T : Record = when {
+    Entity::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("entity", Class::class.java)
+        (method.invoke(this, T::class.java) as EntityRepository<T, *>).selectCount().where { bridge(predicateBuilder) }.singleResult == 0L
+    }
+    Projection::class.java.isAssignableFrom(T::class.java) -> {
+        val method = this::class.java.getMethod("projection", Class::class.java)
+        (method.invoke(this, T::class.java) as ProjectionRepository<T, *>).selectCount().where { bridge(predicateBuilder) }.singleResult == 0L
+    }
+    else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+}
+
+/**
  * Inserts an entity of type [T] into the repository.
  *
  * @param entity The entity to insert.
