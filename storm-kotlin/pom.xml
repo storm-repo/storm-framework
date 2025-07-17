@@ -6,12 +6,12 @@
     <parent>
         <groupId>st.orm</groupId>
         <artifactId>storm-framework</artifactId>
-        <version>1.3.8</version>
+        <version>1.4.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>storm-kotlin</artifactId>
-    <name>Storm</name>
-    <description>Kotlin extensions for Storm.</description>
+    <name>Storm for Kotlin</name>
+    <description>Storm for Kotlin.</description>
     <url>https://github.com/storm-repo/storm-framework</url>
     <licenses>
         <license>
@@ -32,21 +32,6 @@
     </scm>
     <build>
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <argLine>
-                        --enable-preview
-                        --add-opens java.base/java.lang=ALL-UNNAMED
-                        --add-opens storm/st.orm=ALL-UNNAMED
-                        --add-opens storm.kotlin/st.orm.kotlin=ALL-UNNAMED
-                        --add-opens storm.kotlin/st.orm.kotlin.repository=ALL-UNNAMED
-                        --add-opens storm.kotlin/st.orm.kotlin=storm
-                        --add-opens storm.kotlin/st.orm.kotlin.model=storm
-                    </argLine>
-                </configuration>
-            </plugin>
             <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
@@ -84,7 +69,12 @@
     <dependencies>
         <dependency>
             <groupId>st.orm</groupId>
-            <artifactId>storm</artifactId>
+            <artifactId>storm-foundation</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>st.orm</groupId>
+            <artifactId>storm-core</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

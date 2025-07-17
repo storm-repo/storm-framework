@@ -16,13 +16,13 @@
 package st.orm.spi.mariadb;
 
 import jakarta.annotation.Nonnull;
-import st.orm.repository.Entity;
-import st.orm.repository.EntityRepository;
-import st.orm.template.Model;
-import st.orm.spi.EntityRepositoryProvider;
-import st.orm.spi.Orderable.Before;
+import st.orm.core.EntityRepository;
+import st.orm.core.spi.EntityRepositoryProvider;
+import st.orm.core.spi.Orderable.Before;
+import st.orm.core.template.Model;
+import st.orm.core.template.ORMTemplate;
+import st.orm.Entity;
 import st.orm.spi.mysql.MySQLEntityRepositoryProviderImpl;
-import st.orm.template.ORMTemplate;
 
 /**
  * Implementation of {@link EntityRepositoryProvider} for MariaDB.

@@ -22,7 +22,7 @@ import st.orm.FK;
 import st.orm.DbColumn;
 import st.orm.PK;
 import st.orm.Persist;
-import st.orm.repository.Entity;
+import st.orm.Entity;
 
 import java.time.LocalDate;
 

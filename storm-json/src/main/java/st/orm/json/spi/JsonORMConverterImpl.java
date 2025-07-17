@@ -22,13 +22,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.core.spi.Name;
+import st.orm.core.spi.ORMConverter;
+import st.orm.core.spi.ORMReflection;
+import st.orm.core.spi.Providers;
+import st.orm.core.template.SqlTemplateException;
 import st.orm.json.Json;
-import st.orm.spi.Name;
-import st.orm.spi.ORMConverter;
-import st.orm.spi.ORMReflection;
-import st.orm.spi.Providers;
-import st.orm.template.SqlTemplateException;
-
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;

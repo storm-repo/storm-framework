@@ -58,10 +58,10 @@ import static javax.tools.Diagnostic.Kind.NOTE;
 @SupportedAnnotationTypes("*")
 public final class MetamodelProcessor extends AbstractProcessor {
 
-    private static final String METAMODEL_TYPE = "st.orm.template.MetamodelType";
-    private static final String GENERATE_METAMODEL = "st.orm.template.GenerateMetamodel";
-    private static final String ENTITY = "st.orm.repository.Entity";
-    private static final String PROJECTION = "st.orm.repository.Projection";
+    private static final String METAMODEL_TYPE = "st.orm.MetamodelType";
+    private static final String GENERATE_METAMODEL = "st.orm.GenerateMetamodel";
+    private static final String ENTITY = "st.orm.Entity";
+    private static final String PROJECTION = "st.orm.Projection";
     private static final String FOREIGN_KEY = "st.orm.FK";
 
     private final Set<String> generatedFiles;
@@ -369,11 +369,11 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     if (isForeignKey(recordElement, fieldName)) {
                         builder.append("    /** Represents the {@link ").append(recordName).append("#").append(fieldName).append("} foreign key. */\n");
                         builder.append("    ").append(fieldTypeName).append("Metamodel<").append(recordName).append("> ").append(fieldName)
-                                .append(" = new ").append(fieldTypeName).append("Metamodel<>(\"").append(fieldName).append("\", Metamodel.root(").append(recordName).append(".class));\n");
+                                .append(" = new ").append(fieldTypeName).append("Metamodel<>(\"").append(fieldName).append("\", MetamodelImpl.of(").append(recordName).append(".class));\n");
                     } else {
                         builder.append("    /** Represents the inline {@link ").append(recordName).append("#").append(fieldName).append("} record. */\n");
                         builder.append("    ").append(fieldTypeName).append("Metamodel<").append(recordName).append("> ").append(fieldName)
-                                .append(" = new ").append(fieldTypeName).append("Metamodel<>(").append("\"\", \"").append(fieldName).append("\", true, Metamodel.root(").append(recordName).append(".class));\n");
+                                .append(" = new ").append(fieldTypeName).append("Metamodel<>(").append("\"\", \"").append(fieldName).append("\", true, MetamodelImpl.of(").append(recordName).append(".class));\n");
                     }
                 } else {
                     builder.append("    /** Represents the {@link ").append(recordName).append("#").append(fieldName).append("} field. */\n");
@@ -403,7 +403,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     .createSourceFile((packageName.isEmpty() ? "" : packageName + ".") + metaInterfaceName, recordElement);
             try (Writer writer = fileObject.openWriter()) {
                 writer.write(String.format("""
-                    %simport st.orm.template.Metamodel;
+                    %simport st.orm.Metamodel;
+                    import st.orm.core.template.impl.MetamodelImpl;
                     import javax.annotation.processing.Generated;
 
                     /**
@@ -494,8 +495,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     .createSourceFile((packageName.isEmpty() ? "" : packageName + ".") + metaClassName, recordElement);
             try (Writer writer = fileObject.openWriter()) {
                 writer.write(String.format("""
-                    %simport st.orm.template.Metamodel;
-                    import st.orm.template.impl.MetamodelImpl;
+                    %simport st.orm.Metamodel;
+                    import st.orm.core.template.impl.MetamodelImpl;
                     import javax.annotation.processing.Generated;
 
                     /**
@@ -507,7 +508,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     public final class %s<T extends Record> extends MetamodelImpl<T, %s> {
                     %s
                         public %s() {
-                            this("", (Metamodel<T, ?>) Metamodel.root(%s.class));
+                            this("", (Metamodel<T, ?>) MetamodelImpl.of(%s.class));
                         }
                     
                         public %s(String component, Metamodel<T, ?> parent) {

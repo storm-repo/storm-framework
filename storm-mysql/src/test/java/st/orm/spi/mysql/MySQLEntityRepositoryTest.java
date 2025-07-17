@@ -16,14 +16,13 @@ import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import st.orm.Entity;
 import st.orm.FK;
 import st.orm.PK;
 import st.orm.Persist;
 import st.orm.Version;
-import st.orm.repository.Entity;
-import st.orm.template.Metamodel;
-import st.orm.template.PreparedStatementTemplate;
-import st.orm.template.SqlInterceptor;
+import st.orm.core.template.PreparedStatementTemplate;
+import st.orm.core.template.impl.MetamodelImpl;
 
 import javax.sql.DataSource;
 import java.util.Comparator;
@@ -34,9 +33,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.util.AssertionErrors.assertNull;
-import static st.orm.template.Operator.EQUALS;
-import static st.orm.template.Operator.GREATER_THAN_OR_EQUAL;
-import static st.orm.template.SqlInterceptor.observe;
+import static st.orm.Operator.EQUALS;
+import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
+import static st.orm.core.template.SqlInterceptor.observe;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
@@ -121,7 +120,7 @@ public class MySQLEntityRepositoryTest {
                 LIMIT 2 OFFSET 1""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
-            var entities = repo.select().orderBy(Metamodel.of(Owner.class, "id")).offset(1).limit(2).getResultList();
+            var entities = repo.select().orderBy(MetamodelImpl.of(Owner.class, "id")).offset(1).limit(2).getResultList();
             assertEquals(2, entities.size());
             assertEquals("George", entities.getFirst().firstName());
             assertEquals("Franklin", entities.getFirst().lastName());
@@ -147,7 +146,7 @@ public class MySQLEntityRepositoryTest {
                 LIMIT 18446744073709551615 OFFSET 1""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
-            var entities = repo.select().orderBy(Metamodel.of(Owner.class, "id")).offset(1).getResultList();
+            var entities = repo.select().orderBy(MetamodelImpl.of(Owner.class, "id")).offset(1).getResultList();
             assertEquals(9, entities.size());
             assertEquals("George", entities.getFirst().firstName());
             assertEquals("Franklin", entities.getFirst().lastName());
@@ -381,9 +380,9 @@ public class MySQLEntityRepositoryTest {
             assertEquals("John", sql.parameters().get(0).dbValue());
             assertEquals("Doe", sql.parameters().get(1).dbValue());
         }, () -> repo.upsert(Vet.builder().firstName("John").lastName("Doe").build()));
-        var entity = repo.select().where(Metamodel.of(Vet.class, "firstName"), EQUALS, "John").getSingleResult();
+        var entity = repo.select().where(MetamodelImpl.of(Vet.class, "firstName"), EQUALS, "John").getSingleResult();
         repo.upsert(entity.toBuilder().lastName("Smith").build());
-        var updated = repo.select().where(Metamodel.of(Vet.class, "firstName"), EQUALS, "John").getSingleResult();
+        var updated = repo.select().where(MetamodelImpl.of(Vet.class, "firstName"), EQUALS, "John").getSingleResult();
         assertEquals(entity.id(), updated.id());
         assertEquals("John", updated.firstName());
         assertEquals("Smith", updated.lastName());
@@ -405,10 +404,10 @@ public class MySQLEntityRepositoryTest {
         }, () -> repo.upsert(List.of(
                 Vet.builder().firstName("John").lastName("Doe").build(),
                 Vet.builder().firstName("Jane").lastName("Doe").build())));
-        var entities = repo.select().where(Metamodel.of(Vet.class, "lastName"), EQUALS, "Doe").getResultList();
+        var entities = repo.select().where(MetamodelImpl.of(Vet.class, "lastName"), EQUALS, "Doe").getResultList();
         repo.upsert(entities.stream().map(entity -> entity.toBuilder().lastName("Smith").build()).toList());
-        var updated = repo.select().where(Metamodel.of(Vet.class, "lastName"), EQUALS, "Smith").getResultList();
-        var none = repo.select().where(Metamodel.of(Vet.class, "lastName"), EQUALS, "Doe").getResultCount();
+        var updated = repo.select().where(MetamodelImpl.of(Vet.class, "lastName"), EQUALS, "Smith").getResultList();
+        var none = repo.select().where(MetamodelImpl.of(Vet.class, "lastName"), EQUALS, "Doe").getResultCount();
         assertEquals(2, updated.size());
         assertTrue(updated.stream().allMatch(entity -> entity.lastName().equals("Smith")));
         assertEquals(0, none);
@@ -575,10 +574,10 @@ public class MySQLEntityRepositoryTest {
             assertEquals("dragon", sql.parameters().get(0).dbValue());
             assertEquals("description", sql.parameters().get(1).dbValue());
         }, () -> repo.upsert(PetType.builder().name("dragon").description("description").build()));
-        var entity = repo.select().where(Metamodel.of(PetType.class, "name"), EQUALS, "dragon").getSingleResult();
+        var entity = repo.select().where(MetamodelImpl.of(PetType.class, "name"), EQUALS, "dragon").getSingleResult();
         assertEquals("description", entity.description());
         repo.upsert(PetType.builder().name("dragon").description(null).build());
-        var updated = repo.select().where(Metamodel.of(PetType.class, "name"), EQUALS, "dragon").getSingleResult();
+        var updated = repo.select().where(MetamodelImpl.of(PetType.class, "name"), EQUALS, "dragon").getSingleResult();
         assertNull("description", updated.description());
     }
 
@@ -602,9 +601,9 @@ public class MySQLEntityRepositoryTest {
             assertEquals(4, sql.parameters().get(0).dbValue());
             assertEquals("anaesthetics", sql.parameters().get(1).dbValue());
         }, () -> repo.upsert(Specialty.builder().id(4).name("anaesthetics").build()));
-        var entity = repo.select().where(Metamodel.of(Specialty.class, "name"), EQUALS, "anaesthetics").getSingleResult();
+        var entity = repo.select().where(MetamodelImpl.of(Specialty.class, "name"), EQUALS, "anaesthetics").getSingleResult();
         repo.upsert(entity.toBuilder().name("anaesthetist").build());
-        var updated = repo.select().where(Metamodel.of(Specialty.class, "name"), EQUALS, "anaesthetist").getSingleResult();
+        var updated = repo.select().where(MetamodelImpl.of(Specialty.class, "name"), EQUALS, "anaesthetist").getSingleResult();
         assertEquals(entity.id(), updated.id());
         assertEquals("anaesthetist", updated.name());
     }
@@ -648,9 +647,9 @@ public class MySQLEntityRepositoryTest {
         }, () -> repo.upsert(List.of(
                 Specialty.builder().id(4).name("anaesthetics").build(),
                 Specialty.builder().id(5).name("nurse").build())));
-        var entities = repo.select().where(Metamodel.of(Specialty.class, "id"), GREATER_THAN_OR_EQUAL, 4).getResultList();
+        var entities = repo.select().where(MetamodelImpl.of(Specialty.class, "id"), GREATER_THAN_OR_EQUAL, 4).getResultList();
         repo.upsert(entities.stream().map(e -> e.toBuilder().name(STR."\{e.name()}s").build()).toList());
-        var updated = repo.select().where(Metamodel.of(Specialty.class, "id"), GREATER_THAN_OR_EQUAL, 4).getResultList();
+        var updated = repo.select().where(MetamodelImpl.of(Specialty.class, "id"), GREATER_THAN_OR_EQUAL, 4).getResultList();
         assertEquals(2, updated.size());
         assertTrue(updated.stream().allMatch(entity -> entity.name().endsWith("s")));
     }

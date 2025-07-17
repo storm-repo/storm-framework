@@ -1,6 +1,5 @@
 module storm.spring {
     requires storm;
-    requires storm.kotlin;
     requires spring.jdbc;
     requires spring.tx;
     requires spring.context;

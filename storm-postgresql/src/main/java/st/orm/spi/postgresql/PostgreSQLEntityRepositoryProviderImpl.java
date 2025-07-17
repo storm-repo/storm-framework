@@ -16,11 +16,11 @@
 package st.orm.spi.postgresql;
 
 import jakarta.annotation.Nonnull;
-import st.orm.repository.Entity;
-import st.orm.repository.EntityRepository;
-import st.orm.template.Model;
-import st.orm.spi.EntityRepositoryProvider;
-import st.orm.template.ORMTemplate;
+import st.orm.core.EntityRepository;
+import st.orm.core.spi.EntityRepositoryProvider;
+import st.orm.core.template.Model;
+import st.orm.core.template.ORMTemplate;
+import st.orm.Entity;
 
 /**
  * Implementation of {@link EntityRepositoryProvider} for PostgreSQL.

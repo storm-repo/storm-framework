@@ -31,15 +31,13 @@ import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.stereotype.Component;
-import st.orm.kotlin.repository.KRepository;
-import st.orm.kotlin.template.KORMTemplate;
 import st.orm.repository.EntityRepository;
+import st.orm.repository.ProjectionRepository;
 import st.orm.repository.Repository;
 import st.orm.template.ORMTemplate;
 
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -61,16 +59,6 @@ public class RepositoryBeanFactoryPostProcessor implements BeanFactoryPostProces
     }
 
     /**
-     * The name of the KORM template bean to use for repository autowiring. If not specified, the default KORM template
-     * bean will be used.
-     *
-     * @return the name of the KORM template bean.
-     */
-    public String getKORMTemplateBeanName() {
-        return null;
-    }
-
-    /**
      * The base packages to scan for repository interfaces. This is used to find all repository interfaces that should
      * be autowired by the ORM framework. If not specified, no repositories will be autowired.
      *
@@ -82,12 +70,12 @@ public class RepositoryBeanFactoryPostProcessor implements BeanFactoryPostProces
 
     /**
      * The qualifier prefix to use for the repository beans. This is used to distinguish between multiple repository
-     * beans of the same type. The default is "primary".
+     * beans of the same type. The default is an empty string.
      *
      * @return the qualifier prefix to use for the repository beans.
      */
     public String getRepositoryPrefix() {
-        return "primary";
+        return "";
     }
 
     //
@@ -101,7 +89,6 @@ public class RepositoryBeanFactoryPostProcessor implements BeanFactoryPostProces
      * @param beanFactory the bean factory to register the repository beans with.
      * @throws BeansException if an error occurs while registering the repository beans.
      */
-    @SuppressWarnings("unchecked")
     @Override
     public void postProcessBeanFactory(@Nonnull ConfigurableListableBeanFactory beanFactory) throws BeansException {
         BeanDefinitionRegistry registry = (BeanDefinitionRegistry) beanFactory;
@@ -109,20 +96,21 @@ public class RepositoryBeanFactoryPostProcessor implements BeanFactoryPostProces
                 .forPackages(getRepositoryBasePackages())
                 .addScanners(new SubTypesScanner(true))
         );
-        List<Class<?>> list = Stream.concat(
-                reflections.getSubTypesOf(Repository.class).stream(),
-                        reflections.getSubTypesOf(KRepository.class).stream())
+        var list =
+                reflections.getSubTypesOf(Repository.class).stream()
                 .filter(type -> type != EntityRepository.class)
+                .filter(type -> type != ProjectionRepository.class)
                 .filter(type -> !type.isAnnotationPresent(NoRepositoryBean.class))
                 .filter(type -> Stream.of(getRepositoryBasePackages()).anyMatch(type.getName()::startsWith))
                 .distinct()
                 .toList();
-        registerRepositories(registry, beanFactory, list.stream().filter(Repository.class::isAssignableFrom).map(type -> (Class<? extends Repository>) type));
-        registerKRepositories(registry, beanFactory, list.stream().filter(KRepository.class::isAssignableFrom).map(type -> (Class<? extends KRepository>) type));
+        registerRepositories(registry, beanFactory, list.stream().filter(Repository.class::isAssignableFrom));
         RepositoryAutowireCandidateResolver.register(beanFactory);
     }
 
-    private void registerRepositories(@Nonnull BeanDefinitionRegistry registry, @Nonnull ConfigurableListableBeanFactory beanFactory, @Nonnull Stream<Class<? extends Repository>> repositories) {
+    private void registerRepositories(@Nonnull BeanDefinitionRegistry registry,
+                                      @Nonnull ConfigurableListableBeanFactory beanFactory,
+                                      @Nonnull Stream<Class<? extends Repository>> repositories) {
         repositories.forEach(type -> {
             //noinspection unchecked
             Class<Repository> repositoryType = (Class<Repository>) type;
@@ -135,31 +123,11 @@ public class RepositoryBeanFactoryPostProcessor implements BeanFactoryPostProces
         });
     }
 
-    private void registerKRepositories(@Nonnull BeanDefinitionRegistry registry, @Nonnull ConfigurableListableBeanFactory beanFactory, @Nonnull Stream<Class<? extends KRepository>> repositories) {
-        repositories.forEach(type -> {
-            //noinspection unchecked
-            Class<KRepository> repositoryType = (Class<KRepository>) type;
-            AbstractBeanDefinition proxyBeanDefinition = BeanDefinitionBuilder
-                    .genericBeanDefinition(repositoryType, () -> getBeanKORMTemplate(beanFactory).repository(repositoryType))
-                    .getBeanDefinition();
-            proxyBeanDefinition.setAttribute("qualifier", getRepositoryPrefix());
-            String name = getRepositoryPrefix() + type.getSimpleName();
-            registry.registerBeanDefinition(name, proxyBeanDefinition);
-        });
-    }
-
     private ORMTemplate getBeanORMTemplate(@Nonnull ConfigurableListableBeanFactory beanFactory) {
         if (getORMTemplateBeanName() != null) {
             return beanFactory.getBean(getORMTemplateBeanName(), ORMTemplate.class);
         }
         return beanFactory.getBean(ORMTemplate.class);
-    }
-
-    private KORMTemplate getBeanKORMTemplate(@Nonnull ConfigurableListableBeanFactory beanFactory) {
-        if (getKORMTemplateBeanName() != null) {
-            return beanFactory.getBean(getKORMTemplateBeanName(), KORMTemplate.class);
-        }
-        return beanFactory.getBean(KORMTemplate.class);
     }
 
     /**

@@ -6,7 +6,7 @@
     <parent>
         <groupId>st.orm</groupId>
         <artifactId>storm-framework</artifactId>
-        <version>1.3.8</version>
+        <version>1.4.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>storm-spring</artifactId>
@@ -32,19 +32,6 @@
     </scm>
     <build>
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <argLine>
-                        --enable-preview
-                        --add-opens java.base/java.lang=ALL-UNNAMED
-                        --add-opens storm/st.orm=ALL-UNNAMED
-                        --add-opens storm/st.orm.repository=ALL-UNNAMED
-                        --add-opens storm/st.orm.repository.spring=ALL-UNNAMED
-                    </argLine>
-                </configuration>
-            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -85,11 +72,6 @@
         <dependency>
             <groupId>st.orm</groupId>
             <artifactId>storm</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>st.orm</groupId>
-            <artifactId>storm-kotlin</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

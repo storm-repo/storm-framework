@@ -16,9 +16,9 @@
 package st.orm.spi.postgresql;
 
 import jakarta.annotation.Nonnull;
-import st.orm.spi.DefaultSqlDialect;
-import st.orm.template.SqlDialect;
-import st.orm.template.SqlTemplateException;
+import st.orm.core.spi.DefaultSqlDialect;
+import st.orm.core.template.SqlDialect;
+import st.orm.core.template.SqlTemplateException;
 
 import java.util.LinkedHashSet;
 import java.util.List;

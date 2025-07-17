@@ -20,7 +20,7 @@ import jakarta.annotation.Nullable;
 import lombok.Builder;
 import st.orm.PK;
 import st.orm.json.Json;
-import st.orm.repository.Entity;
+import st.orm.Entity;
 
 /**
  * Simple domain object representing an owner.

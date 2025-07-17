@@ -15,9 +15,9 @@
  */
 package st.orm.spi.mariadb;
 
-import st.orm.spi.Orderable.Before;
-import st.orm.template.SqlDialect;
-import st.orm.spi.SqlDialectProvider;
+import st.orm.core.spi.Orderable.Before;
+import st.orm.core.spi.SqlDialectProvider;
+import st.orm.core.template.SqlDialect;
 import st.orm.spi.mysql.MySQLSqlDialectProviderImpl;
 
 /**
