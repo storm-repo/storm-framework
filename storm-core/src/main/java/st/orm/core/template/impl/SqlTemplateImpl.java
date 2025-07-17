@@ -586,7 +586,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
         if (paths.size() == 1) {
             return new SqlTemplateException("Multiple paths found for %s. Specify path %s to uniquely identify the table.".formatted(table.getSimpleName(), paths.getFirst()));
         }
-        return new SqlTemplateException("Multiple patths found for %s in table graph. Specify one of the following paths to uniquely identify the table: %s.".formatted(table.getSimpleName(), String.join(", ", paths)));
+        return new SqlTemplateException("Multiple paths found for %s in table graph. Specify one of the following paths to uniquely identify the table: %s.".formatted(table.getSimpleName(), String.join(", ", paths)));
     }
 
     private TableUse getTableUse() {
