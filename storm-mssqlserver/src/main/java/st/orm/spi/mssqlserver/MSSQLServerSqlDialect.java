@@ -104,7 +104,7 @@ public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDiale
     @Override
     public String escape(@Nonnull String name) {
         // Escape identifier for SQL Server by wrapping it in square brackets and doubling any closing brackets.
-        return STR."[\{name.replace("]", "]]")}]";
+        return "[%s]".formatted(name.replace("]", "]]"));
     }
 
     /**
@@ -185,7 +185,7 @@ public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDiale
     @Override
     public String limit(int limit) {
         // For SQL Server, use the TOP clause. Note: TOP must appear immediately after SELECT.
-        return STR."TOP \{limit}";
+        return "TOP %d".formatted(limit);
     }
 
     /**
@@ -198,7 +198,7 @@ public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDiale
     @Override
     public String offset(int offset) {
         // Note: An ORDER BY clause is required for OFFSET to work correctly.
-        return STR."OFFSET \{offset} ROWS";
+        return "OFFSET %d ROWS".formatted(offset);
     }
 
     /**
@@ -213,7 +213,7 @@ public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDiale
     public String limit(int offset, int limit) {
         // For SQL Server 2012 and later, use the OFFSET-FETCH clause.
         // Note: An ORDER BY clause is required for OFFSET-FETCH to work correctly.
-        return STR."OFFSET \{offset} ROWS FETCH NEXT \{limit} ROWS ONLY";
+        return "OFFSET %d ROWS FETCH NEXT %d ROWS ONLY". formatted(offset, limit);
     }
 
     /**

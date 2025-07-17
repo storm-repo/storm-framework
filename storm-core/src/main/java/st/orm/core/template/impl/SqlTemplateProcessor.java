@@ -43,7 +43,6 @@ import st.orm.core.template.impl.Elements.BindVar;
 import st.orm.core.template.impl.Elements.Where;
 import st.orm.core.template.impl.SqlTemplateImpl.Wrapped;
 
-import java.lang.ScopedValue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -52,7 +51,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static java.lang.ScopedValue.callWhere;
 import static java.lang.String.join;
 import static java.util.Optional.ofNullable;
 
@@ -74,8 +72,8 @@ record SqlTemplateProcessor(
         @Nonnull AtomicBoolean versionAware,
         @Nullable PrimaryTable primaryTable
 ) implements ElementProcessor<Element> {
-    private static final ScopedValue<SqlTemplateProcessor> CURRENT_PROCESSOR = ScopedValue.newInstance();
-    private static final ScopedValue<Boolean> SUBQUERY = ScopedValue.newInstance();
+    private static final ThreadLocal<SqlTemplateProcessor> CURRENT_PROCESSOR = new ThreadLocal<>();
+    private static final ThreadLocal<Boolean> SUBQUERY = ThreadLocal.withInitial(() -> false);
 
     /**
      * Returns the current processor of the calling thread.
@@ -83,7 +81,7 @@ record SqlTemplateProcessor(
      * @return the current processor of the calling thread.
      */
     static Optional<SqlTemplateProcessor> current() {
-        return ofNullable(CURRENT_PROCESSOR.orElse(null));
+        return ofNullable(CURRENT_PROCESSOR.get());
     }
 
     /**
@@ -92,7 +90,7 @@ record SqlTemplateProcessor(
      * @return true if we're in the context of a subquery.
      */
     static boolean isSubquery() {
-        return SUBQUERY.isBound();
+        return SUBQUERY.get();
     }
 
     /**
@@ -258,9 +256,20 @@ record SqlTemplateProcessor(
             }
             return sql.statement();
         };
-        Callable<String> scopedCallable = () -> callWhere(SUBQUERY, true, () -> correlate
-                ? callWhere(CURRENT_PROCESSOR, this, callable)
-                : callable.call());
+        Callable<String> scopedCallable = () -> {
+            SUBQUERY.set(true);
+            try {
+                if (correlate) {
+                    CURRENT_PROCESSOR.set(this);
+                }
+                return callable.call();
+            } finally {
+                if (correlate) {
+                    CURRENT_PROCESSOR.remove();
+                }
+                SUBQUERY.remove();
+            }
+        };
         try {
             return scopedCallable.call();
         } catch (SqlTemplateException e) {

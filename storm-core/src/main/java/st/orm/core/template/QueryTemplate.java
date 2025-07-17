@@ -21,7 +21,6 @@ import st.orm.Ref;
 import st.orm.core.PreparedQuery;
 import st.orm.core.Query;
 
-import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.TemplateString.wrap;
 
 /**

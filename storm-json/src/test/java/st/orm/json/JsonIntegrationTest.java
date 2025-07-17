@@ -183,7 +183,7 @@ public class JsonIntegrationTest {
                         .innerJoin(Specialty.class).on(VetSpecialty.class)
                         .append(raw("GROUP BY \0.id", Vet.class))
                         .getResultList();
-            } catch (PersistenceException _) {
+            } catch (PersistenceException ignore) {
                 // H2 Does not support JSON_OBJECTAGG. We only check the expected SQL.
             }
         });

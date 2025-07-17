@@ -83,7 +83,7 @@ class EntityHelper {
         }
     }
     private static RecordComponent getPkComponent(@Nonnull Class<? extends Record> componentType) {
-        return PK_CACHE.computeIfAbsent(componentType, _ -> {
+        return PK_CACHE.computeIfAbsent(componentType, ignore -> {
             var pkComponents = Stream.of(componentType.getRecordComponents())
                     .filter(c -> getParameter(c).getAnnotation(PK.class) != null)
                     .toList();
@@ -116,7 +116,7 @@ class EntityHelper {
 
     private static Optional<Constructor<?>> findCanonicalConstructor(@Nonnull Class<? extends Record> type) {
         assert type.isRecord();
-        return CONSTRUCTOR_CACHE.computeIfAbsent(type, _ -> {
+        return CONSTRUCTOR_CACHE.computeIfAbsent(type, ignore -> {
             RecordComponent[] components = type.getRecordComponents();
             Constructor<?>[] constructors = type.getDeclaredConstructors();
             for (Constructor<?> constructor : constructors) {

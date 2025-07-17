@@ -244,7 +244,7 @@ public class BuilderPreparedStatementIntegrationTest {
     public void testBuilderWithWhereTemplateFunction() {
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .where(it -> it.where(TemplateBuilder.create(_ -> "1 = 1")))
+                .where(it -> it.where(TemplateBuilder.create(ignore -> "1 = 1")))
                 .getResultList();
         assertEquals(6, list.size());
     }

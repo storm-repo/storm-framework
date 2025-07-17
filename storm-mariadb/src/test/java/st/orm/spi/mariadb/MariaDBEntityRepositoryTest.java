@@ -652,7 +652,7 @@ public class MariaDBEntityRepositoryTest {
                 Specialty.builder().id(4).name("anaesthetics").build(),
                 Specialty.builder().id(5).name("nurse").build())));
         var entities = repo.select().where(MetamodelImpl.of(Specialty.class, "id"), GREATER_THAN_OR_EQUAL, 4).getResultList();
-        repo.upsert(entities.stream().map(e -> e.toBuilder().name(STR."\{e.name()}s").build()).toList());
+        repo.upsert(entities.stream().map(e -> e.toBuilder().name("%ss".formatted(e.name())).build()).toList());
         var updated = repo.select().where(MetamodelImpl.of(Specialty.class, "id"), GREATER_THAN_OR_EQUAL, 4).getResultList();
         assertEquals(2, updated.size());
         assertTrue(updated.stream().allMatch(entity -> entity.name().endsWith("s")));
@@ -677,7 +677,7 @@ public class MariaDBEntityRepositoryTest {
             var entities = repo.upsertAndFetch(List.of(
                     Specialty.builder().id(4).name("anaesthetics").build(),
                     Specialty.builder().id(5).name("nurse").build()));
-            var updated = repo.upsertAndFetch(entities.stream().map(e -> e.toBuilder().name(STR."\{e.name()}s").build()).toList());
+            var updated = repo.upsertAndFetch(entities.stream().map(e -> e.toBuilder().name("%ss".formatted(e.name())).build()).toList());
             assertEquals(2, updated.size());
             assertTrue(updated.stream().allMatch(entity -> entity.name().endsWith("s")));
         });

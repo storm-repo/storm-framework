@@ -135,7 +135,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @return a new query builder for the entity type.
      */
     public QueryBuilder<E, Long, ID> selectCount() {
-        return selectFrom(ormTemplate, model.type(), Long.class, TemplateString.raw("COUNT(*)"), false, () -> model);
+        return selectFrom(ormTemplate, model.type(), Long.class, TemplateString.of("COUNT(*)"), false, () -> model);
     }
 
     /**

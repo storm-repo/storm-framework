@@ -73,8 +73,7 @@ public interface SqlInterceptor {
     /**
      * Executes a {@code Runnable} action within the context of an SQL observer, which consumes SQL statements.
      *
-     * <p>This observer sees only SQL statements generated within the scope of this {@code runnable} and its child
-     * threads.</p>
+     * <p>This observer sees only SQL statements generated within the scope of this {@code runnable}.</p>
      *
      * @param observer the consumer invoked for each SQL statement.
      * @param runnable the action to execute.
@@ -86,8 +85,7 @@ public interface SqlInterceptor {
     /**
      * Executes a {@code Supplier} within the context of an SQL observer, returning its result.
      *
-     * <p>This observer sees only SQL statements generated within the scope of this {@code supplier} and its child
-     * threads.</p>
+     * <p>This observer sees only SQL statements generated within the scope of this {@code supplier}.</p>
      *
      * @param observer the consumer invoked for each SQL statement.
      * @param supplier the action supplying the result.
@@ -102,8 +100,7 @@ public interface SqlInterceptor {
      * Executes a {@code Callable} action within the context of an SQL observer, returning its result and potentially
      * throwing exceptions.
      *
-     * <p>This observer sees only SQL statements generated within the scope of this {@code callable} and its child
-     * threads.</p>
+     * <p>This observer sees only SQL statements generated within the scope of this {@code callable}.</p>
      *
      * @param observer the consumer invoked for each SQL statement.
      * @param callable the action supplying the result and potentially throwing exceptions.
@@ -118,8 +115,7 @@ public interface SqlInterceptor {
     /**
      * Executes a {@code Runnable} action within the context of an SQL observer, which consumes SQL statements.
      *
-     * <p>This observer sees only SQL statements generated within the scope of this {@code runnable} and its child
-     * threads.</p>
+     * <p>This observer sees only SQL statements generated within the scope of this {@code runnable}.</p>
      *
      * @param customizer a function to customize the SQL template before use.
      * @param observer the consumer invoked for each SQL statement.
@@ -135,8 +131,7 @@ public interface SqlInterceptor {
     /**
      * Executes a {@code Supplier} within the context of an SQL observer, returning its result.
      *
-     * <p>This observer sees only SQL statements generated within the scope of this {@code supplier} and its child
-     * threads.</p>
+     * <p>This observer sees only SQL statements generated within the scope of this {@code supplier}.</p>
      *
      * @param customizer a function to customize the SQL template before use.
      * @param observer the consumer invoked for each SQL statement.
@@ -155,8 +150,7 @@ public interface SqlInterceptor {
      * Executes a {@code Callable} action within the context of an SQL observer, returning its result and potentially
      * throwing exceptions.
      *
-     * <p>This observer sees only SQL statements generated within the scope of this {@code callable} and its child
-     * threads.</p>
+     * <p>This observer sees only SQL statements generated within the scope of this {@code callable}.</p>
      *
      * @param customizer a function to customize the SQL template before use.
      * @param observer the consumer invoked for each SQL statement.
@@ -175,8 +169,7 @@ public interface SqlInterceptor {
     /**
      * Executes a {@code Runnable} action within the context of an SQL interceptor, which modifies SQL statements.
      *
-     * <p>This interceptor sees only SQL statements generated within the scope of this {@code runnable} and its child
-     * threads.</p>
+     * <p>This interceptor sees only SQL statements generated within the scope of this {@code runnable}.</p>
      *
      * @param interceptor the operator applied to each SQL statement.
      * @param runnable the action to execute.
@@ -188,8 +181,7 @@ public interface SqlInterceptor {
     /**
      * Executes a {@code Supplier} within the context of an SQL interceptor, returning its result.
      *
-     * <p>This interceptor sees only SQL statements generated within the scope of this {@code supplier} and its child
-     * threads.</p>
+     * <p>This interceptor sees only SQL statements generated within the scope of this {@code supplier}.</p>
      *
      * @param interceptor the operator applied to each SQL statement.
      * @param supplier the action supplying the result.
@@ -204,8 +196,7 @@ public interface SqlInterceptor {
      * Executes a {@code Callable} action within the context of an SQL interceptor, returning its result and potentially
      * throwing exceptions.
      *
-     * <p>This interceptor sees only SQL statements generated within the scope of this {@code callable} and its child
-     * threads.</p>
+     * <p>This interceptor sees only SQL statements generated within the scope of this {@code callable}.</p>
      *
      * @param interceptor the operator applied to each SQL statement.
      * @param callable the action supplying the result and potentially throwing exceptions.
@@ -220,8 +211,7 @@ public interface SqlInterceptor {
     /**
      * Executes a {@code Runnable} action within the context of an SQL interceptor, which modifies SQL statements.
      *
-     * <p>This interceptor sees only SQL statements generated within the scope of this {@code runnable} and its child
-     * threads.</p>
+     * <p>This interceptor sees only SQL statements generated within the scope of this {@code runnable}.</p>
      *
      * @param customizer a function to customize the SQL template before use.
      * @param interceptor the operator applied to each SQL statement.
@@ -237,8 +227,7 @@ public interface SqlInterceptor {
     /**
      * Executes a {@code Supplier} within the context of an SQL interceptor, returning its result.
      *
-     * <p>This interceptor sees only SQL statements generated within the scope of this {@code supplier} and its child
-     * threads.</p>
+     * <p>This interceptor sees only SQL statements generated within the scope of this {@code supplier}.
      *
      * @param customizer a function to customize the SQL template before use.
      * @param interceptor the operator applied to each SQL statement.
@@ -257,8 +246,7 @@ public interface SqlInterceptor {
      * Executes a {@code Callable} action within the context of an SQL interceptor, returning its result and potentially
      * throwing exceptions.
      *
-     * <p>This interceptor sees only SQL statements generated within the scope of this {@code callable} and its child
-     * threads.</p>
+     * <p>This interceptor sees only SQL statements generated within the scope of this {@code callable}.</p>
      *
      * @param customizer a function to customize the SQL template before use.
      * @param interceptor the operator applied to each SQL statement.

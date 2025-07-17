@@ -21,7 +21,7 @@ package st.orm.core.model;
 public interface Person {
 
     default String name() {
-        return STR."\{firstName()} \{lastName()}";
+        return firstName() + " " + lastName();
     }
 
     String firstName();

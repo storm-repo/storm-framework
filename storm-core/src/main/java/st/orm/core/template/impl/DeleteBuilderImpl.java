@@ -176,11 +176,11 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
                 .filter(Column::primaryKey)
                 .map(c -> {
                     if (alias) {
-                        return TemplateString.combine(wrap(fromType), TemplateString.raw("."), TemplateString.raw(c.qualifiedName(queryTemplate.dialect())));
+                        return TemplateString.combine(wrap(fromType), TemplateString.of("."), TemplateString.of(c.qualifiedName(queryTemplate.dialect())));
                     }
-                    return TemplateString.raw(c.qualifiedName(queryTemplate.dialect()));
+                    return TemplateString.of(c.qualifiedName(queryTemplate.dialect()));
                 })
-                .reduce((a, b) -> TemplateString.combine(a, TemplateString.raw(", "), b))
+                .reduce((a, b) -> TemplateString.combine(a, TemplateString.of(", "), b))
                 .orElseThrow(() -> new PersistenceException("No primary key found for table: %s.".formatted(fromType.getSimpleName())));
     }
 
@@ -189,7 +189,7 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
         if (supportsJoin()) {
             template = TemplateString.raw("DELETE \0\nFROM \0", fromType, from(fromType, supportsJoin()));
         } else {
-            template = TemplateString.combine(TemplateString.raw("SELECT "), getPrimaryKeyTemplate(true), TemplateString.raw("\nFROM \0", from(fromType, true)));
+            template = TemplateString.combine(TemplateString.of("SELECT "), getPrimaryKeyTemplate(true), TemplateString.raw("\nFROM \0", from(fromType, true)));
         }
         //noinspection DuplicatedCode
         if (!join.isEmpty()) {
@@ -201,7 +201,7 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
         if (!where.isEmpty()) {
             // Leave handling of multiple where's to the sql processor.
             template = where.stream()
-                    .reduce(TemplateString.combine(template, TemplateString.raw("\nWHERE ")),
+                    .reduce(TemplateString.combine(template, TemplateString.of("\nWHERE ")),
                             (acc, where) -> TemplateString.combine(acc, wrap(where)),
                             TemplateString::combine);
         }
@@ -210,7 +210,7 @@ public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T,
         }
         if (!supportsJoin()) {
             template = TemplateString.combine(TemplateString.raw("DELETE\nFROM \0\nWHERE (", from(fromType, false)),
-                    getPrimaryKeyTemplate(false), TemplateString.raw(") IN ("), wrap(subquery(template, false)), TemplateString.raw(")"));
+                    getPrimaryKeyTemplate(false), TemplateString.of(") IN ("), wrap(subquery(template, false)), TemplateString.of(")"));
         }
         return template;
     }

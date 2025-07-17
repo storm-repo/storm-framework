@@ -516,8 +516,8 @@ final class WhereProcessor implements ElementProcessor<Where> {
                     case Ref<?> r -> parts.add(getObjectExpressionString(r));
                     case Record r -> parts.add(getObjectExpressionString(r));
                     case Class<?> c when c.isRecord() -> //noinspection unchecked
-                            parts.add(dialectTemplate.process(TemplateString.raw(aliasMapper.getAlias(MetamodelImpl.of((Class<? extends Record>) c), CASCADE, template.dialect()))));
-                    case Object k when REFLECTION.isSupportedType(k) -> parts.add(dialectTemplate.process(TemplateString.raw(aliasMapper.getAlias(MetamodelImpl.of(REFLECTION.getRecordType(k)), CASCADE, template.dialect()))));
+                            parts.add(dialectTemplate.process(TemplateString.of(aliasMapper.getAlias(MetamodelImpl.of((Class<? extends Record>) c), CASCADE, template.dialect()))));
+                    case Object k when REFLECTION.isSupportedType(k) -> parts.add(dialectTemplate.process(TemplateString.of(aliasMapper.getAlias(MetamodelImpl.of(REFLECTION.getRecordType(k)), CASCADE, template.dialect()))));
                     case Stream<?> ignore -> throw new SqlTemplateException("Stream not supported in expression.");
                     case Query ignore -> throw new SqlTemplateException("Query not supported in expression. Use QueryBuilder instead.");
                     case Element e -> throw new SqlTemplateException("Unsupported element type in expression: %s.".formatted(e.getClass().getSimpleName()));

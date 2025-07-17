@@ -55,6 +55,7 @@ import st.orm.core.template.Sql;
 import st.orm.core.template.SqlTemplate.PositionalParameter;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateBuilder;
+import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.MetamodelImpl;
 
 import javax.sql.DataSource;
@@ -281,7 +282,7 @@ public class RepositoryPreparedStatementIntegrationTest {
             var id = repository.insertAndFetchId(vetSpecialty);
             assertEquals(1, id.vetId());
             assertEquals(1, id.specialtyId());
-        } catch (PersistenceException _) {
+        } catch (PersistenceException ignore) {
             // May happen in case of Mysql/MariaDB as they only support auto increment columns.
         }
     }
@@ -1102,7 +1103,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testBuilderWithNonRecordSelectTemplate() {
         var count = ORMTemplate.of(dataSource)
-                .selectFrom(Pet.class, Integer.class, raw("COUNT(*)"))
+                .selectFrom(Pet.class, Integer.class, TemplateString.of("COUNT(*)"))
                 .innerJoin(Visit.class).on(Pet.class)
                 .getSingleResult();
         assertEquals(14, count);

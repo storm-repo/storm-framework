@@ -37,7 +37,6 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <argLine>
-                        --enable-preview
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens storm.postgresql/st.orm.spi.postgresql=ALL-UNNAMED
                         --add-opens storm.postgresql/st.orm.spi.postgresql=storm
@@ -75,7 +74,6 @@
                     <source>${java.version}</source>
                     <target>${java.version}</target>
                     <release>${java.version}</release>
-                    <compilerArgs>--enable-preview</compilerArgs>
                 </configuration>
             </plugin>
         </plugins>

@@ -73,15 +73,15 @@ public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> exten
                     || Long.TYPE.isAssignableFrom(c)
                     || Integer.class.isAssignableFrom(c)
                     || Long.class.isAssignableFrom(c)
-                    || BigInteger.class.isAssignableFrom(c) -> STR."src.\{columnName} + 1";
+                    || BigInteger.class.isAssignableFrom(c) -> "src.%s + 1".formatted(columnName);
             case Class<?> c when Instant.class.isAssignableFrom(c)
                     || Date.class.isAssignableFrom(c)
                     || Calendar.class.isAssignableFrom(c)
                     || Timestamp.class.isAssignableFrom(c) -> "SYSTIMESTAMP";
             default ->
-                    throw new PersistenceException(STR."Unsupported version type: \{column.type().getSimpleName()}.");
+                    throw new PersistenceException("Unsupported version type: %s.".formatted(column.type().getSimpleName()));
         };
-        return STR."t.\{columnName} = \{updateExpression}";
+        return "t.%s = %s".formatted(columnName, updateExpression);
     }
 
     private TemplateString mergeSelect(@Nonnull E entity) {
@@ -99,10 +99,10 @@ public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> exten
                             value = null;   // Always pass NULL for auto-generated primary keys to force a mismatch.
                         }
                     }
-                    return combine(wrap(value), TemplateString.raw(" AS %s".formatted(column.qualifiedName(dialect))));
+                    return combine(wrap(value), TemplateString.of(" AS %s".formatted(column.qualifiedName(dialect))));
                 })
-                .reduce((left, right) -> combine(left, TemplateString.raw(", "), right))
-                .map(t -> combine(TemplateString.raw("SELECT "), t, TemplateString.raw(" FROM DUAL")))
+                .reduce((left, right) -> combine(left, TemplateString.of(", "), right))
+                .map(t -> combine(TemplateString.of("SELECT "), t, TemplateString.of(" FROM DUAL")))
                 .orElseThrow();
     }
 
@@ -114,9 +114,9 @@ public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> exten
         var duplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alon fields. Only include them once.
         return model.columns().stream()
                 .filter(column -> duplicates.add(column.name()))
-                .map(c -> combine(wrap(bindVar(bindVars, _ -> values.getPlain().get(c))), TemplateString.raw(" AS %s".formatted(c.qualifiedName(dialect)))))
-                .reduce((left, right) -> combine(left, TemplateString.raw(", "), right))
-                .map(t -> combine(TemplateString.raw("SELECT "), t, TemplateString.raw(" FROM DUAL")))
+                .map(c -> combine(wrap(bindVar(bindVars, ignore -> values.getPlain().get(c))), TemplateString.of(" AS %s".formatted(c.qualifiedName(dialect)))))
+                .reduce((left, right) -> combine(left, TemplateString.of(", "), right))
+                .map(t -> combine(TemplateString.of("SELECT "), t, TemplateString.of(" FROM DUAL")))
                 .orElseThrow();
     }
 
@@ -128,7 +128,7 @@ public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> exten
         String sql = primaryKeys.stream()
                 .map(c -> "t.%s = src.%s".formatted(c.qualifiedName(dialect), c.qualifiedName(dialect)))
                 .collect(joining(" AND "));
-        return TemplateString.raw(sql);
+        return TemplateString.of(sql);
     }
 
     private TemplateString mergeUpdate(@Nonnull AtomicBoolean versionAware) {
@@ -143,14 +143,14 @@ public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> exten
                         versionAware.setPlain(true);
                         return getVersionString(column);
                     }
-                    return STR."t.\{column.name()} = src.\{column.qualifiedName(dialect)}";
+                    return "t.%s = src.%s".formatted(column.name(), column.qualifiedName(dialect));
                 })
                 .toList();
         if (args.isEmpty()) {
-            return TemplateString.raw("");
+            return TemplateString.of("");
         }
         String sql = args.stream().collect(joining(", ", "UPDATE SET ", ""));
-        return TemplateString.raw("\nWHEN MATCHED THEN\n\t%s".formatted(sql));
+        return TemplateString.of("\nWHEN MATCHED THEN\n\t%s".formatted(sql));
     }
 
     private TemplateString mergeInsert() {
@@ -174,7 +174,7 @@ public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> exten
         String insertSql = insertArgs.stream().collect(joining(", ", "INSERT (", ")"));
         String valuesSql = valuesArgs.stream().collect(joining(", ", "VALUES (", ")"));
         String sql = "\n\t%s\n\t%s".formatted(insertSql, valuesSql);
-        return TemplateString.raw("\nWHEN NOT MATCHED THEN%s".formatted(sql));
+        return TemplateString.of("\nWHEN NOT MATCHED THEN%s".formatted(sql));
     }
 
     protected E validateUpsert(@Nonnull E entity) {

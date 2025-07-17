@@ -22,7 +22,6 @@ import st.orm.Ref;
 
 import static st.orm.Operator.EQUALS;
 import static st.orm.Operator.IN;
-import static st.orm.core.template.TemplateString.raw;
 
 /**
  * A builder for constructing the WHERE clause of the query.
@@ -37,14 +36,14 @@ public abstract class WhereBuilder<T extends Record, R, ID> implements SubqueryT
      * A predicate that always evaluates to true.
      */
     public final PredicateBuilder<T, R, ID> TRUE() {
-        return where(raw("TRUE"));
+        return where(TemplateString.of("TRUE"));
     }
 
     /**
      * A predicate that always evaluates to false.
      */
     public final PredicateBuilder<T, R, ID> FALSE() {
-        return where(raw("FALSE"));
+        return where(TemplateString.of("FALSE"));
     }
 
     /**

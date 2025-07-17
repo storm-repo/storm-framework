@@ -20,26 +20,26 @@ import st.orm.PersistenceException;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlTemplate;
 
-import java.lang.ScopedValue.Carrier;
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
-import static java.lang.ScopedValue.newInstance;
 import static java.util.Collections.newSetFromMap;
-import static java.util.Collections.synchronizedList;
 
 /**
  * Manages SQL interceptors.
  *
  * @since 1.1
  */
+@SuppressWarnings("ALL")
 public final class SqlInterceptorManager {
 
     record Operator(UnaryOperator<Sql> interceptor, UnaryOperator<SqlTemplate> customizer) {
@@ -48,10 +48,60 @@ public final class SqlInterceptorManager {
         }
     }
 
+    public interface Carrier {
+        void run(@Nonnull Runnable runnable);
+        <R> R call(@Nonnull Callable<? extends R> op) throws Exception;
+        <R> R get(@Nonnull Supplier<? extends R> op);
+    }
+
+    private static class CarrierImpl implements Carrier {
+        private final Operator operator;
+
+        public CarrierImpl(Operator operator) {
+            this.operator = operator;
+        }
+
+        @Override
+        public void run(@Nonnull Runnable runnable) {
+            var operators = new ArrayList<>(LOCAL_OPERATORS.get());
+            LOCAL_OPERATORS.set(operators);
+            try {
+                operators.addFirst(operator);
+                runnable.run();
+            } finally {
+                operators.removeFirst();
+            }
+        }
+
+        @Override
+        public <R> R call(@Nonnull Callable<? extends R> op) throws Exception {
+            var operators = new ArrayList<>(LOCAL_OPERATORS.get());
+            LOCAL_OPERATORS.set(operators);
+            try {
+                operators.addFirst(operator);
+                return op.call();
+            } finally {
+                operators.removeFirst();
+            }
+        }
+
+        @Override
+        public <R> R get(@Nonnull Supplier<? extends R> op) {
+            var operators = new ArrayList<>(LOCAL_OPERATORS.get());
+            LOCAL_OPERATORS.set(operators);
+            try {
+                operators.addFirst(operator);
+                return op.get();
+            } finally {
+                operators.removeFirst();
+            }
+        }
+    }
+
     private static final ReadWriteLock LOCK = new ReentrantReadWriteLock();
     private static final Set<Object> GLOBAL_OPERATORS = newSetFromMap(new IdentityHashMap<>());
 
-    private static final ScopedValue<List<Operator>> LOCAL_OPERATORS = newInstance();
+    private static final ThreadLocal<List<Operator>> LOCAL_OPERATORS = ThreadLocal.withInitial(List::of);
 
     private SqlInterceptorManager() {
     }
@@ -69,7 +119,6 @@ public final class SqlInterceptorManager {
             LOCK.writeLock().unlock();
         }
     }
-
 
     /**
      * Register a global observer that will be called for all SQL statements.
@@ -125,9 +174,7 @@ public final class SqlInterceptorManager {
      * @return a {@link Carrier} that binds the interceptor to the current thread's scoped context.
      */
     public static Carrier intercept(@Nonnull UnaryOperator<Sql> operator) {
-        var operators = synchronizedList(new ArrayList<>(LOCAL_OPERATORS.orElse(List.of())));
-        operators.addFirst(new Operator(operator));
-        return ScopedValue.where(LOCAL_OPERATORS, operators);
+        return new CarrierImpl(new Operator(operator));
     }
 
     /**
@@ -144,9 +191,7 @@ public final class SqlInterceptorManager {
      * @since 1.3
      */
     public static Carrier intercept(@Nonnull UnaryOperator<SqlTemplate> customizer, @Nonnull UnaryOperator<Sql> operator) {
-        var operators = synchronizedList(new ArrayList<>(LOCAL_OPERATORS.orElse(List.of())));
-        operators.addFirst(new Operator(operator, customizer));
-        return ScopedValue.where(LOCAL_OPERATORS, operators);
+        return new CarrierImpl(new Operator(operator, customizer));
     }
 
     /**
@@ -161,12 +206,10 @@ public final class SqlInterceptorManager {
      * @return a {@link Carrier} that binds the interceptor to the current thread's scoped context.
      */
     public static Carrier intercept(@Nonnull Consumer<Sql> observer) {
-        var operators = synchronizedList(new ArrayList<>(LOCAL_OPERATORS.orElse(List.of())));
-        operators.addFirst(new Operator(sql -> {
+        return new CarrierImpl(new Operator(sql -> {
             observer.accept(sql);
             return sql;
         }));
-        return ScopedValue.where(LOCAL_OPERATORS, operators);
     }
 
     /**
@@ -182,12 +225,10 @@ public final class SqlInterceptorManager {
      * @since 1.3
      */
     public static Carrier intercept(@Nonnull UnaryOperator<SqlTemplate> customizer, @Nonnull Consumer<Sql> observer) {
-        var operators = synchronizedList(new ArrayList<>(LOCAL_OPERATORS.orElse(List.of())));
-        operators.addFirst(new Operator(sql -> {
+        return new CarrierImpl(new Operator(sql -> {
             observer.accept(sql);
             return sql;
         }, customizer));
-        return ScopedValue.where(LOCAL_OPERATORS, operators);
     }
 
     /**
@@ -209,7 +250,7 @@ public final class SqlInterceptorManager {
         // The local operators are not protected by a lock, but that is fine since they are locally scoped. However,
         // they must not modify the local operators from the accept/apply method.
         try {
-            for (var operator : LOCAL_OPERATORS.orElse(List.of())) {
+            for (var operator : LOCAL_OPERATORS.get()) {
                 adjusted = operator.customizer().apply(adjusted);
             }
         } catch (ConcurrentModificationException e) {
@@ -230,7 +271,7 @@ public final class SqlInterceptorManager {
         // The local operators are not protected by a lock, but that is fine since they are locally scoped. However,
         // they must not modify the local operators from the accept/apply method.
         try {
-            for (var operator : LOCAL_OPERATORS.orElse(List.of())) {
+            for (var operator : LOCAL_OPERATORS.get()) {
                 adjusted = operator.interceptor().apply(adjusted);
             }
         } catch (ConcurrentModificationException e) {

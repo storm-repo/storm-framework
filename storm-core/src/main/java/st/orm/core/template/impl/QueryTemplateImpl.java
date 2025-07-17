@@ -170,7 +170,7 @@ class QueryTemplateImpl implements QueryTemplate {
      */
     @Override
     public Query query(@Nonnull String query) {
-        return queryFactory.create(TemplateString.raw(query));
+        return queryFactory.create(TemplateString.of(query));
     }
 
     /**

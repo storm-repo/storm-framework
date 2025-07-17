@@ -67,7 +67,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param <T> table type.
      * @param <ID> primary key type.
      */
-    fun <T : Record, ID : Any> model(type: KClass<T>): Model<T, ID> {
+    fun <T : Record> model(type: KClass<T>): Model<T, *> {
         return model(type, false)
     }
 
@@ -82,7 +82,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param <ID> primary key type.
      * @since 1.3
      */
-    fun <T : Record, ID : Any> model(type: KClass<T>, requirePrimaryKey: Boolean): Model<T, ID>
+    fun <T : Record> model(type: KClass<T>, requirePrimaryKey: Boolean): Model<T, *>
 
     /**
      * Creates a query builder for the specified table.

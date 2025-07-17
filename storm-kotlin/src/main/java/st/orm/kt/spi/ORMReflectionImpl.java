@@ -62,7 +62,7 @@ public class ORMReflectionImpl implements ORMReflection {
     public Optional<Class<?>> findPKType(@Nonnull Class<? extends Record> recordType) {
         assert recordType.isRecord();
         Constructor<?> constructor = findCanonicalConstructor(recordType)
-                .orElseThrow(() -> new IllegalArgumentException(STR."No canonical constructor found for record type: \{recordType.getSimpleName()}."));
+                .orElseThrow(() -> new IllegalArgumentException("No canonical constructor found for record type: %s.".formatted(recordType.getSimpleName())));
         Class<?> pkType = null;
         for (Parameter parameter : constructor.getParameters()) {
             if (parameter.isAnnotationPresent(PK.class)) {
@@ -95,7 +95,7 @@ public class ORMReflectionImpl implements ORMReflection {
 
         private Constructor<?> constructor() {
             return defaultReflection.findCanonicalConstructor(recordType)
-                    .orElseThrow(() -> new IllegalArgumentException(STR."No canonical constructor found for record type: \{recordType.getSimpleName()}."));
+                    .orElseThrow(() -> new IllegalArgumentException("No canonical constructor found for record type: %s.".formatted(recordType.getSimpleName())));
         }
     }
 
@@ -112,7 +112,7 @@ public class ORMReflectionImpl implements ORMReflection {
                 }
                 index++;
             }
-            throw new IllegalArgumentException(STR."No parameter found for component: \{component.getName()} for record type: \{component.getDeclaringRecord().getSimpleName()}.");
+            throw new IllegalArgumentException("No parameter found for component: %s for record type: %s.".formatted(component.getName(), component.getDeclaringRecord().getSimpleName()));
         });
     }
 
@@ -266,7 +266,7 @@ public class ORMReflectionImpl implements ORMReflection {
             return defaultReflection.execute(proxy, method, args);
         }
         Class<?> interfaceClass = method.getDeclaringClass();
-        Class<?> defaultImplsClass = Class.forName(STR."\{interfaceClass.getName()}$DefaultImpls");
+        Class<?> defaultImplsClass = Class.forName("%s$DefaultImpls".formatted(interfaceClass.getName()));
         MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(defaultImplsClass, MethodHandles.lookup());
         List<Class<?>> parameterTypes = new ArrayList<>();
         parameterTypes.add(interfaceClass);

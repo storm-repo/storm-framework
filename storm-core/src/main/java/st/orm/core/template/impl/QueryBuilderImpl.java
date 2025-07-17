@@ -158,7 +158,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
     public QueryBuilder<T, R, ID> append(@Nonnull TemplateString template) {
         List<TemplateString> copy = new ArrayList<>(templates);
         if (!template.fragments().isEmpty()) {
-            template = TemplateString.combine(TemplateString.raw("\n"), template);
+            template = TemplateString.combine(TemplateString.of("\n"), template);
         }
         copy.add(template);
         return copyWith(queryTemplate, fromType, join, where, copy);
@@ -317,10 +317,10 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
     }
 
     // Define the raw templates
-    private static final TemplateString RAW_AND = TemplateString.raw(" AND ");
-    private static final TemplateString RAW_OR = TemplateString.raw(" OR ");
-    private static final TemplateString RAW_OPEN = TemplateString.raw("(");
-    private static final TemplateString RAW_CLOSE = TemplateString.raw(")");
+    private static final TemplateString RAW_AND = TemplateString.of(" AND ");
+    private static final TemplateString RAW_OR = TemplateString.of(" OR ");
+    private static final TemplateString RAW_OPEN = TemplateString.of("(");
+    private static final TemplateString RAW_CLOSE = TemplateString.of(")");
 
     static class PredicateBuilderImpl<TX extends Record, RX, IDX> implements PredicateBuilder<TX, RX, IDX> {
         private final List<TemplateString> templates = new ArrayList<>();

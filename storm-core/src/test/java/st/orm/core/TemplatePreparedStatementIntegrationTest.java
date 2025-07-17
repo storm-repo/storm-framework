@@ -35,6 +35,7 @@ import st.orm.core.repository.spring.PetRepository;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateBuilder;
+import st.orm.core.template.TemplateString;
 
 import javax.sql.DataSource;
 import java.time.LocalDate;
@@ -357,12 +358,12 @@ public class TemplatePreparedStatementIntegrationTest {
                 FROM visit x
                 WHERE x.id = ?""";
         observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
-            try (var _ = ORMTemplate.of(dataSource).query(raw("""
+            try (var ignore = ORMTemplate.of(dataSource).query(raw("""
                     DELETE \0
                     FROM \0
                     WHERE \0""", Visit.class, from(Visit.class, "x", true), where(Visit.builder().id(1).build()))).prepare()) {
                 Assertions.fail("Should not reach here");
-            } catch (PersistenceException _) {
+            } catch (PersistenceException ignore) {
                 // Not supported in H2.
             }
         });
@@ -384,12 +385,12 @@ public class TemplatePreparedStatementIntegrationTest {
             FROM visit v
             WHERE v.id = ?""";
         observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
-            try (var _ = ORMTemplate.of(dataSource).query(raw("""
+            try (var ignore = ORMTemplate.of(dataSource).query(raw("""
                     DELETE \0
                     FROM \0
                     WHERE \0""", Visit.class, Visit.class, where(Visit.builder().id(1).build()))).prepare()) {
                 Assertions.fail("Should not reach here");
-            } catch (PersistenceException _) {
+            } catch (PersistenceException ignore) {
                 // Delete statements with alias are supported by many databases, but not by H2.
             }
         });
@@ -415,12 +416,12 @@ public class TemplatePreparedStatementIntegrationTest {
                 FROM visit f
                 WHERE f.id = ?""";
         observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
-            try (var _ = ORMTemplate.of(dataSource).query(raw("""
+            try (var ignore = ORMTemplate.of(dataSource).query(raw("""
                     DELETE \0
                     FROM \0
                     WHERE \0""", Visit.class, from(Visit.class, "f", false), where(Visit.builder().id(1).build()))).prepare()) {
                 Assertions.fail("Should not reach here");
-            } catch (PersistenceException _) {
+            } catch (PersistenceException ignore) {
                 // Delete statements with alias are supported by many databases, but not by H2.
             }
         });
@@ -434,12 +435,12 @@ public class TemplatePreparedStatementIntegrationTest {
             INNER JOIN pet p ON v.pet_id = p.id
             WHERE p.owner_id = ?""";
         observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
-            try (var _ = ORMTemplate.of(dataSource).query(raw("""
+            try (var ignore = ORMTemplate.of(dataSource).query(raw("""
                     DELETE \0
                     FROM \0
                     WHERE \0""", Visit.class, from(Visit.class, true), where(Owner.builder().id(1).build()))).prepare()) {
                 Assertions.fail("Should not reach here");
-            } catch (PersistenceException _) {
+            } catch (PersistenceException ignore) {
                 // Not supported in H2.
             }
         });
@@ -943,7 +944,7 @@ public class TemplatePreparedStatementIntegrationTest {
         var query = ORMTemplate.of(dataSource).query(raw("""
                 SELECT a.*
                 FROM \0
-                """, from(raw("SELECT * FROM visit"), "a")));
+                """, from(TemplateString.of("SELECT * FROM visit"), "a")));
         assertEquals(14, query.getResultCount());
     }
 

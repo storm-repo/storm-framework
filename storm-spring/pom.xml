@@ -71,7 +71,7 @@
     <dependencies>
         <dependency>
             <groupId>st.orm</groupId>
-            <artifactId>storm</artifactId>
+            <artifactId>storm-java21</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

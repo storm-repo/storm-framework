@@ -25,7 +25,6 @@ import st.orm.Metamodel;
 import st.orm.PK;
 import st.orm.ProjectionQuery;
 import st.orm.Ref;
-import st.orm.config.TemplateDecorator;
 import st.orm.core.Query;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
@@ -93,7 +92,6 @@ import static st.orm.core.Templates.values;
 import static st.orm.core.Templates.where;
 import static st.orm.core.spi.Providers.getORMConverter;
 import static st.orm.core.spi.Providers.getSqlDialect;
-import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
 import static st.orm.core.template.impl.RecordReflection.getPkComponent;
 import static st.orm.core.template.impl.RecordReflection.getPrimaryKeys;
@@ -616,7 +614,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
         final From from = elements.stream()
                 .filter(From.class::isInstance)
                 .map(From.class::cast)
-                .filter(f -> f.source() instanceof TableSource)
                 .findAny()
                 .orElse(null);
         final From effectiveFrom;
@@ -633,7 +630,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             }
             var projectionQuery = REFLECTION.getAnnotation(table, ProjectionQuery.class);
             Source source = projectionQuery != null
-                    ? new TemplateSource(raw(projectionQuery.value()))
+                    ? new TemplateSource(TemplateString.of(projectionQuery.value()))
                     : new TableSource(table);
             effectiveFrom = new From(source, alias, from.autoJoin());
             elements.replaceAll(element -> element instanceof From ? effectiveFrom : element);
@@ -753,21 +750,11 @@ public final class SqlTemplateImpl implements SqlTemplate {
      *
      * @param elements all elements in the sql statement.
      */
-    private void postProcessOther(@Nonnull List<Element> elements,
-                                  @Nonnull AliasMapper aliasMapper,
-                                  @Nonnull TableMapper tableMapper) throws SqlTemplateException {
-        final From from = elements.stream()
-                .filter(From.class::isInstance)
-                .map(From.class::cast)
-                .findAny()
-                .orElse(null);
-        if (from != null && from.source() instanceof TableSource(var table)) {
-            validateRecordGraph(table);
-            addJoins(table, elements, from, aliasMapper, tableMapper);
-        } else {
-            // If no From element is present, we will only add table aliases.
-            addTableAliases(elements, aliasMapper);
-        }
+    private void postProcessUndefined(@Nonnull List<Element> elements,
+                                      @Nonnull AliasMapper aliasMapper,
+                                      @Nonnull TableMapper tableMapper) throws SqlTemplateException {
+        // Process as Select if type is not known.
+        postProcessSelect(elements, aliasMapper, tableMapper);
     }
 
     void addJoins(@Nonnull Class<? extends Record> fromTable,
@@ -793,7 +780,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     }
                     var projectionQuery = REFLECTION.getAnnotation(ts.table(), ProjectionQuery.class);
                     Source source = projectionQuery != null
-                            ? new TemplateSource(raw(projectionQuery.value()))
+                            ? new TemplateSource(TemplateString.of(projectionQuery.value()))
                             : ts;
                     customJoins.add(new Join(source, alias, j.target(), j.type(), false));
                     tableMapper.mapPrimaryKey(fromTable, ts.table(), alias, getPkComponent(ts.table())
@@ -909,7 +896,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 ProjectionQuery query = REFLECTION.getAnnotation(componentType, ProjectionQuery.class);
                 Source source = query == null
                         ? new TableSource(componentType)
-                        : new TemplateSource(raw(query.value()));
+                        : new TemplateSource(TemplateString.of(query.value()));
                 Target target = query == null
                         ? new TableTarget(table)
                         : getTemplateTarget(fromAlias, alias, component, getPkComponent(componentType).orElseThrow(
@@ -951,7 +938,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             }
             joinCondition.append(dialectTemplate.process("\0.\0 = \0.\0", fromAlias, foreignKeys.get(i), toAlias, primaryKeys.get(i)));
         }
-        return new TemplateTarget(raw(joinCondition.toString()));
+        return new TemplateTarget(TemplateString.of(joinCondition.toString()));
     }
 
     private void addTableAliases(@Nonnull List<Element> elements,
@@ -1022,7 +1009,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             case SELECT -> postProcessSelect(elements, aliasMapper, tableMapper);
             case UPDATE -> postProcessUpdate(elements, aliasMapper, tableMapper);
             case DELETE -> postProcessDelete(elements, aliasMapper, tableMapper);
-            default -> postProcessOther(elements, aliasMapper, tableMapper);
+            default -> postProcessUndefined(elements, aliasMapper, tableMapper);
         }
     }
 

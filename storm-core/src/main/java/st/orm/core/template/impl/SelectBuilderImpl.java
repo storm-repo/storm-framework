@@ -154,19 +154,19 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
     }
 
     private TemplateString toTemplateString() {
-        TemplateString template = TemplateString.combine(TemplateString.raw("SELECT %s".formatted(distinct ? "DISTINCT " : "")));
+        TemplateString template = TemplateString.combine(TemplateString.of("SELECT %s".formatted(distinct ? "DISTINCT " : "")));
         if (queryTemplate.dialect().applyLimitAfterSelect()) {
             if (limit != null && offset == null) {
                 template = TemplateString.combine(
                         template,
-                        TemplateString.raw(queryTemplate.dialect().limit(limit)),
-                        TemplateString.raw(" "));
+                        TemplateString.of(queryTemplate.dialect().limit(limit)),
+                        TemplateString.of(" "));
             }
         }
         template = TemplateString.combine(template, selectTemplate, TemplateString.raw("\nFROM \0", from(fromType, true)));
         boolean hasLock = forLock.fragments().size() == 1 && !forLock.fragments().getFirst().isEmpty();
         if (hasLock && queryTemplate.dialect().applyLockHintAfterFrom()) {
-            template = TemplateString.combine(template, TemplateString.raw("\n"), forLock);
+            template = TemplateString.combine(template, TemplateString.of("\n"), forLock);
         }
         //noinspection DuplicatedCode
         if (!join.isEmpty()) {
@@ -178,7 +178,7 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
         if (!where.isEmpty()) {
             // Leave handling of multiple where's to the sql processor.
             template = where.stream()
-                    .reduce(TemplateString.combine(template, TemplateString.raw("\nWHERE ")),
+                    .reduce(TemplateString.combine(template, TemplateString.of("\nWHERE ")),
                             (acc, where) -> TemplateString.combine(acc, wrap(where)),
                             TemplateString::combine);
         }
@@ -187,16 +187,16 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
         }
         if (!queryTemplate.dialect().applyLimitAfterSelect()) {
             if (limit != null && offset == null) {
-                template = TemplateString.combine(template, TemplateString.raw("\n"), TemplateString.raw(queryTemplate.dialect().limit(limit)));
+                template = TemplateString.combine(template, TemplateString.of("\n"), TemplateString.of(queryTemplate.dialect().limit(limit)));
             }
         }
         if (limit != null && offset != null) {
-            template = TemplateString.combine(template, TemplateString.raw("\n"), TemplateString.raw(queryTemplate.dialect().limit(offset, limit)));
+            template = TemplateString.combine(template, TemplateString.of("\n"), TemplateString.of(queryTemplate.dialect().limit(offset, limit)));
         } else if (offset != null) {
-            template = TemplateString.combine(template, TemplateString.raw("\n"), TemplateString.raw(queryTemplate.dialect().offset(offset)));
+            template = TemplateString.combine(template, TemplateString.of("\n"), TemplateString.of(queryTemplate.dialect().offset(offset)));
         }
         if (hasLock && !queryTemplate.dialect().applyLockHintAfterFrom()) {
-            template = TemplateString.combine(template, TemplateString.raw("\n"), forLock);
+            template = TemplateString.combine(template, TemplateString.of("\n"), forLock);
         }
         return template;
     }
@@ -242,7 +242,7 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
      */
     @Override
     public QueryBuilder<T, R, ID> forShare() {
-        return forLock(TemplateString.raw(queryTemplate.dialect().forShareLockHint()));
+        return forLock(TemplateString.of(queryTemplate.dialect().forShareLockHint()));
     }
 
     /**
@@ -255,7 +255,7 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
      */
     @Override
     public QueryBuilder<T, R, ID> forUpdate() {
-        return forLock(TemplateString.raw(queryTemplate.dialect().forUpdateLockHint()));
+        return forLock(TemplateString.of(queryTemplate.dialect().forUpdateLockHint()));
     }
 
     /**

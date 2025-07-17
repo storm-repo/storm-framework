@@ -159,9 +159,6 @@ import java.util.stream.Stream;
  *         .executeUpdate();
  * }</pre>
  *
- * @see Templates#ORM(javax.sql.DataSource)
- * @see Templates#ORM(jakarta.persistence.EntityManager)
- * @see Templates#ORM(Connection)
  * @see QueryBuilder
  * @param <E> the type of entity managed by this repository.
  * @param <ID> the type of the primary key of the entity.

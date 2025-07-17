@@ -32,7 +32,7 @@ sealed interface TemplateString {
          */
         @JvmStatic
         fun raw(str: String): TemplateString =
-            TemplateStringHolder(st.orm.core.template.TemplateString.raw(str))
+            TemplateStringHolder(st.orm.core.template.TemplateString.of(str))
 
         /**
          * Create a new template string from the given [TemplateBuilder].

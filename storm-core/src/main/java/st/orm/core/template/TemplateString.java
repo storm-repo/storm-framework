@@ -36,7 +36,7 @@ public record TemplateString(@Nonnull List<String> fragments, @Nonnull List<Obje
         return TemplateBuilder.create(builder);
     }
 
-    public static TemplateString raw(@Nonnull String str) {
+    public static TemplateString of(@Nonnull String str) {
         return new TemplateString(List.of(str), List.of());
     }
 

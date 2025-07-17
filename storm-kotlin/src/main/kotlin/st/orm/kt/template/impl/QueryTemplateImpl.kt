@@ -34,12 +34,12 @@ open class QueryTemplateImpl(private val core: st.orm.core.template.QueryTemplat
         return core.ref<T, ID>(record, id)
     }
 
-    override fun <T : Record, ID : Any> model(type: KClass<T>): Model<T, ID> {
-        return ModelImpl<T, ID>(core.model(type.java))
+    override fun <T : Record> model(type: KClass<T>): Model<T, *> {
+        return ModelImpl(core.model(type.java))
     }
 
-    override fun <T : Record, ID : Any> model(type: KClass<T>, requirePrimaryKey: Boolean): Model<T, ID> {
-        return ModelImpl<T, ID>(core.model(type.java, requirePrimaryKey))
+    override fun <T : Record> model(type: KClass<T>, requirePrimaryKey: Boolean): Model<T, *> {
+        return ModelImpl(core.model(type.java, requirePrimaryKey))
     }
 
     override fun <T : Record, R : Any> selectFrom(

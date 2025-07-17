@@ -378,7 +378,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
             throw new PersistenceException("At least one path must be provided for GROUP BY clause.");
         }
         List<TemplateString> templates = Stream.of(path)
-                .flatMap(metamodel -> Stream.of(wrap(metamodel), TemplateString.raw(", ")))
+                .flatMap(metamodel -> Stream.of(wrap(metamodel), TemplateString.of(", ")))
                 .toList();
         return groupBy(TemplateString.combine(templates.subList(0, templates.size() - 1).toArray(new TemplateString[0])));
     }
@@ -391,7 +391,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @since 1.2
      */
     public final QueryBuilder<T, R, ID> groupBy(@Nonnull TemplateString template) {
-        return append(TemplateString.combine(TemplateString.raw("GROUP BY "), template));
+        return append(TemplateString.combine(TemplateString.of("GROUP BY "), template));
     }
 
     /**
@@ -436,7 +436,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @since 1.2
      */
     public final QueryBuilder<T, R, ID> having(@Nonnull TemplateString template) {
-        return append(TemplateString.combine(TemplateString.raw("HAVING "), template));
+        return append(TemplateString.combine(TemplateString.of("HAVING "), template));
     }
 
     /**
@@ -479,7 +479,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
             throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
         }
         List<TemplateString> templates = Stream.of(path)
-                .flatMap(metamodel -> Stream.of(wrap(metamodel), TemplateString.raw(", ")))
+                .flatMap(metamodel -> Stream.of(wrap(metamodel), TemplateString.of(", ")))
                 .toList();
         return orderBy(TemplateString.combine(templates.subList(0, templates.size() - 1).toArray(new TemplateString[0])));
     }
@@ -492,7 +492,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @since 1.2
      */
     public final QueryBuilder<T, R, ID> orderBy(@Nonnull TemplateString template) {
-        return append(TemplateString.combine(TemplateString.raw("ORDER BY "), template));
+        return append(TemplateString.combine(TemplateString.of("ORDER BY "), template));
     }
 
     /**
@@ -528,7 +528,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @return the query builder.
      */
     public final QueryBuilder<T, R, ID> append(@Nonnull String template) {
-        return append(TemplateString.raw(template));
+        return append(TemplateString.of(template));
     }
 
     //

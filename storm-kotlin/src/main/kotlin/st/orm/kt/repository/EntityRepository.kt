@@ -162,11 +162,7 @@ import kotlin.reflect.KClass
  * .executeUpdate();
 `</pre> *
  *
- * @see st.orm.template.Templates.ORM
- * @see st.orm.template.Templates.ORM
- * @see st.orm.template.Templates.ORM
  * @see QueryBuilder
- *
  * @param <E> the type of entity managed by this repository.
  * @param <ID> the type of the primary key of the entity.
  */

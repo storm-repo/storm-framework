@@ -98,7 +98,7 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
      */
     @Override
     public String escape(@Nonnull String name) {
-        return STR."\"\{name.replace("\"", "\"\"")}\"";
+        return "\"%s\"".formatted(name.replace("\"", "\"\""));
     }
 
     /**
@@ -187,7 +187,7 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
      */
     @Override
     public String limit(int limit) {
-        return STR."LIMIT \{limit}";
+        return "LIMIT %d".formatted(limit);
     }
 
     /**
@@ -198,7 +198,7 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
      */
     @Override
     public String offset(int offset) {
-        return STR."OFFSET \{offset}";
+        return "OFFSET %d".formatted(offset);
     }
 
     /**
@@ -210,7 +210,7 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
      */
     @Override
     public String limit(int offset, int limit) {
-        return STR."OFFSET \{offset} LIMIT \{limit}";
+        return "OFFSET %d LIMIT %d".formatted(offset, limit);
     }
 
     /**

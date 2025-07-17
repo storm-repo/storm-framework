@@ -113,7 +113,7 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
      */
     @Override
     public String escape(@Nonnull String name) {
-        return STR."`\{name.replace("`", "``")}`";
+        return "`%s`".formatted(name.replace("`", "``"));
     }
 
     /**
@@ -207,7 +207,7 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
     public String limit(int limit) {
         // Taking the most basic approach that is supported by most database in test (containers).
         // For production use, ensure the right dialect is used.
-        return STR."LIMIT \{limit}";
+        return "LIMIT %d".formatted(limit);
     }
 
     /**
@@ -219,7 +219,7 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
      */
     @Override
     public String offset(int offset) {
-        return STR."LIMIT 18446744073709551615 OFFSET \{offset}";
+        return "LIMIT 18446744073709551615 OFFSET %d".formatted(offset);
     }
 
     /**
@@ -234,6 +234,6 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
     public String limit(int offset, int limit) {
         // Taking the most basic approach that is supported by most database in test (containers).
         // For production use, ensure the right dialect is used.
-        return STR."LIMIT \{limit} OFFSET \{offset}";
+        return "LIMIT %d OFFSET %d".formatted(limit, offset);
     }
 }
