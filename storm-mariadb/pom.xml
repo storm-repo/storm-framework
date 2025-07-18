@@ -39,7 +39,7 @@
                     <argLine>
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens storm.mariadb/st.orm.spi.mariadb=ALL-UNNAMED
-                        --add-opens storm.mariadb/st.orm.spi.mariadb=storm
+                        --add-opens storm.mariadb/st.orm.spi.mariadb=storm.core
                     </argLine>
                 </configuration>
             </plugin>

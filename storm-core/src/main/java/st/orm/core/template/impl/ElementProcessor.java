@@ -1,6 +1,7 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Element;
 import st.orm.core.template.SqlTemplateException;
 
 /**

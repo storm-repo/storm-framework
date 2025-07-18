@@ -20,10 +20,10 @@ import st.orm.PersistenceException;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlTemplate;
 
-import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.ConcurrentModificationException;
+import java.util.Deque;
 import java.util.IdentityHashMap;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -63,37 +63,49 @@ public final class SqlInterceptorManager {
 
         @Override
         public void run(@Nonnull Runnable runnable) {
-            var operators = new ArrayList<>(LOCAL_OPERATORS.get());
+            var operators = LOCAL_OPERATORS.get();
             LOCAL_OPERATORS.set(operators);
             try {
                 operators.addFirst(operator);
                 runnable.run();
             } finally {
                 operators.removeFirst();
+                if (operators.isEmpty()) {
+                    // Clear the thread-local to prevent memory leaks.
+                    LOCAL_OPERATORS.remove();
+                }
             }
         }
 
         @Override
         public <R> R call(@Nonnull Callable<? extends R> op) throws Exception {
-            var operators = new ArrayList<>(LOCAL_OPERATORS.get());
+            var operators = LOCAL_OPERATORS.get();
             LOCAL_OPERATORS.set(operators);
             try {
                 operators.addFirst(operator);
                 return op.call();
             } finally {
                 operators.removeFirst();
+                if (operators.isEmpty()) {
+                    // Clear the thread-local to prevent memory leaks.
+                    LOCAL_OPERATORS.remove();
+                }
             }
         }
 
         @Override
         public <R> R get(@Nonnull Supplier<? extends R> op) {
-            var operators = new ArrayList<>(LOCAL_OPERATORS.get());
+            var operators = LOCAL_OPERATORS.get();
             LOCAL_OPERATORS.set(operators);
             try {
                 operators.addFirst(operator);
                 return op.get();
             } finally {
                 operators.removeFirst();
+                if (operators.isEmpty()) {
+                    // Clear the thread-local to prevent memory leaks.
+                    LOCAL_OPERATORS.remove();
+                }
             }
         }
     }
@@ -101,7 +113,7 @@ public final class SqlInterceptorManager {
     private static final ReadWriteLock LOCK = new ReentrantReadWriteLock();
     private static final Set<Object> GLOBAL_OPERATORS = newSetFromMap(new IdentityHashMap<>());
 
-    private static final ThreadLocal<List<Operator>> LOCAL_OPERATORS = ThreadLocal.withInitial(List::of);
+    private static final ThreadLocal<Deque<Operator>> LOCAL_OPERATORS = ThreadLocal.withInitial(() -> new ArrayDeque<>(4));
 
     private SqlInterceptorManager() {
     }

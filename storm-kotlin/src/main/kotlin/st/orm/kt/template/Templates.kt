@@ -17,7 +17,7 @@ package st.orm.kt.template
 
 import jakarta.persistence.EntityManager
 import st.orm.*
-import st.orm.core.template.impl.Element
+import st.orm.Element
 import st.orm.core.template.impl.Elements
 import st.orm.core.template.impl.Elements.ObjectExpression
 import st.orm.core.template.impl.Elements.TemplateSource

@@ -50,6 +50,7 @@ import static java.util.stream.Collectors.partitioningBy;
 import static java.util.stream.Stream.empty;
 import static st.orm.core.template.QueryBuilder.slice;
 import static st.orm.core.template.SqlInterceptor.intercept;
+import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.impl.StringTemplates.flatten;
 
 /**
@@ -144,7 +145,7 @@ public class MySQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         validateUpsert(entity);
         var versionAware = new AtomicBoolean();
         intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
-             var query = ormTemplate.query(flatten(TemplateString.raw("""
+             var query = ormTemplate.query(flatten(raw("""
                     INSERT INTO \0
                     VALUES \0\0""", model.type(), entity, onDuplicateKey(versionAware))));
             query.executeUpdate();
@@ -174,7 +175,7 @@ public class MySQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         validateUpsert(entity);
         var versionAware = new AtomicBoolean();
         return intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
-            try (var query = ormTemplate.query(flatten(TemplateString.raw("""
+            try (var query = ormTemplate.query(flatten(raw("""
                     INSERT INTO \0
                     VALUES \0\0""", model.type(), entity, onDuplicateKey(versionAware)))).prepare()) {
                 query.executeUpdate();
@@ -454,7 +455,7 @@ public class MySQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         var bindVars = ormTemplate.createBindVars();
         var versionAware = new AtomicBoolean();
         return intercept(sql -> sql.versionAware(versionAware.getPlain()), () ->
-                ormTemplate.query(flatten(TemplateString.raw("""
+                ormTemplate.query(flatten(raw("""
                     INSERT INTO \0
                     VALUES \0\0""", model.type(), bindVars, onDuplicateKey(versionAware)))
                 ).prepare());

@@ -19,6 +19,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.BindVars;
 import st.orm.DefaultJoinType;
+import st.orm.Element;
 import st.orm.FK;
 import st.orm.JoinType;
 import st.orm.Metamodel;
@@ -770,7 +771,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             } else if (element instanceof Join j) {
                 String path = ""; // Use "" for custom join, as they for their own root.
                 // Move custom join to list of (auto) joins to allow proper ordering of inner and outer joins.
-                if (j instanceof Join(TableSource ts, var ignore1, var ignore2, var ignore3, var ignore4, boolean b)) {
+                if (j instanceof Join(TableSource ts, var ignore1, var ignore2, var ignore3, var ignore4, boolean ignore5)) {
                     String alias;
                     if (j.sourceAlias().isEmpty()) {
                         alias = aliasMapper.generateAlias(ts.table(), null, dialect);
@@ -1105,7 +1106,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
             validateParameters(parameters);
             String sql = String.join("", parts);
             if (subquery && !sql.startsWith("\n") && sql.contains("\n")) {
-                //noinspection StringTemplateMigration
                 sql = "\n" + sql.indent(2);
             }
             generated = new SqlImpl(operation, sql, parameters, ofNullable(bindVariables.get()),

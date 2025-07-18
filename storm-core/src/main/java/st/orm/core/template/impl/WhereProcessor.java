@@ -18,6 +18,7 @@ package st.orm.core.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.BindVars;
+import st.orm.Element;
 import st.orm.FK;
 import st.orm.Metamodel;
 import st.orm.Operator;

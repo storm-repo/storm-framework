@@ -53,6 +53,7 @@ import static st.orm.core.Templates.bindVar;
 import static st.orm.core.template.QueryBuilder.slice;
 import static st.orm.core.template.SqlInterceptor.intercept;
 import static st.orm.core.template.TemplateString.combine;
+import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.TemplateString.wrap;
 import static st.orm.core.template.impl.StringTemplates.flatten;
 
@@ -224,10 +225,10 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         var versionAware = new AtomicBoolean();
         intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
             // Note: SQL Server’s MERGE syntax does not require a FROM DUAL clause.
-            var query = ormTemplate.query(flatten(TemplateString.raw("""
+            var query = ormTemplate.query(flatten(raw("""
                 MERGE INTO \0 t
                 USING (\0) src
-                ON (\0)\0\0""", model.type(), mergeSelect(entity), mergeOn(), mergeUpdate(versionAware), mergeInsert())));
+                ON (\0)\0\0;""", model.type(), mergeSelect(entity), mergeOn(), mergeUpdate(versionAware), mergeInsert())));
                 query.executeUpdate();
         });
     }
@@ -389,7 +390,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
 
     protected PreparedQuery prepareInsertQuery() {
         var bindVars = ormTemplate.createBindVars();
-        return ormTemplate.query(TemplateString.raw("""
+        return ormTemplate.query(raw("""
                 INSERT INTO \0
                 VALUES \0""", model.type(), bindVars)).prepare();
     }
@@ -398,10 +399,10 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         var bindVars = ormTemplate.createBindVars();
         var versionAware = new AtomicBoolean();
         return intercept(sql -> sql.versionAware(versionAware.getPlain()), () ->
-                ormTemplate.query(flatten(TemplateString.raw("""
+                ormTemplate.query(flatten(raw("""
                     MERGE INTO \0 t
                     USING (\0) src
-                    ON (\0)\0\0""", model.type(), mergeSelect(bindVars), mergeOn(), mergeUpdate(versionAware), mergeInsert()))
+                    ON (\0)\0\0;""", model.type(), mergeSelect(bindVars), mergeOn(), mergeUpdate(versionAware), mergeInsert()))
                 ).prepare());
     }
 

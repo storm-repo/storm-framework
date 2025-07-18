@@ -18,6 +18,7 @@ package st.orm.core.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.BindVars;
+import st.orm.Element;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplate.BindVariables;
@@ -125,6 +126,7 @@ record SqlTemplateProcessor(
                 case BindVar it -> new VarProcessor(this).process(it);
                 case Subquery it -> new SubqueryProcessor(this).process(it);
                 case Unsafe it -> new UnsafeProcessor(this).process(it);
+                default -> throw new SqlTemplateException("Unsupported element type: %s.".formatted(unwrapped.getClass().getName()));
             });
         }
         return new ElementResult(() -> {

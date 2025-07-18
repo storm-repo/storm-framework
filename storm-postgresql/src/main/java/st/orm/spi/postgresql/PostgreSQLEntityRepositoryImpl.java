@@ -51,6 +51,7 @@ import static st.orm.core.Templates.table;
 import static st.orm.core.template.QueryBuilder.slice;
 import static st.orm.core.template.SqlInterceptor.intercept;
 import static st.orm.core.template.TemplateString.combine;
+import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.impl.StringTemplates.flatten;
 
 /**
@@ -70,7 +71,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
                     || Long.TYPE.isAssignableFrom(c)
                     || Integer.class.isAssignableFrom(c)
                     || Long.class.isAssignableFrom(c)
-                    || BigInteger.class.isAssignableFrom(c) -> TemplateString.raw("\0.\0 + 1", table(type), columnName);
+                    || BigInteger.class.isAssignableFrom(c) -> raw("\0.\0 + 1", table(type), columnName);
             case Class<?> c when Instant.class.isAssignableFrom(c)
                     || Date.class.isAssignableFrom(c)
                     || Calendar.class.isAssignableFrom(c)
@@ -78,7 +79,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
             default ->
                     throw new PersistenceException("Unsupported version type: %s.".formatted(column.type().getSimpleName()));
         };
-        return flatten(TemplateString.raw("\0 = \0", columnName, updateExpression));
+        return flatten(raw("\0 = \0", columnName, updateExpression));
     }
 
     /**
@@ -114,7 +115,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
                 .reduce((left, right) -> combine(left, TemplateString.of(", "), right))
                 .map(st -> combine(TemplateString.of("DO UPDATE SET "), st))
                 .orElse(TemplateString.of("DO NOTHING"));
-        return flatten(combine(TemplateString.of("\nON CONFLICT ("), TemplateString.of(conflictTarget), TemplateString.raw(") \0", assignments)));
+        return flatten(combine(TemplateString.of("\nON CONFLICT ("), TemplateString.of(conflictTarget), raw(") \0", assignments)));
     }
 
     protected E validateUpsert(@Nonnull E entity) {
@@ -136,7 +137,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         validateUpsert(entity);
         var versionAware = new AtomicBoolean();
         intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
-            var query = ormTemplate.query(flatten(TemplateString.raw("""
+            var query = ormTemplate.query(flatten(raw("""
                     INSERT INTO \0
                     VALUES \0\0""", model.type(), entity, onConflictClause(versionAware))));
             query.executeUpdate();
@@ -155,7 +156,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         validateUpsert(entity);
         var versionAware = new AtomicBoolean();
         return intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
-            try (var query = ormTemplate.query(flatten(TemplateString.raw("""
+            try (var query = ormTemplate.query(flatten(raw("""
                         INSERT INTO \0
                         VALUES \0\0""", model.type(), entity, onConflictClause(versionAware)))).prepare()) {
                 query.executeUpdate();
@@ -305,7 +306,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         var bindVars = ormTemplate.createBindVars();
         var versionAware = new AtomicBoolean();
         return intercept(sql -> sql.versionAware(versionAware.getPlain()), () ->
-                ormTemplate.query(flatten(TemplateString.raw("""
+                ormTemplate.query(flatten(raw("""
                     INSERT INTO \0
                     VALUES \0\0""", model.type(), bindVars, onConflictClause(versionAware)))
                 ).prepare());

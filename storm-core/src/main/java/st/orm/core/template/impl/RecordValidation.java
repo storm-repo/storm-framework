@@ -16,6 +16,7 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Element;
 import st.orm.Entity;
 import st.orm.FK;
 import st.orm.Inline;

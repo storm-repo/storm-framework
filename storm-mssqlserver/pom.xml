@@ -39,7 +39,7 @@
                     <argLine>
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens storm.mssqlserver/st.orm.spi.mssqlserver=ALL-UNNAMED
-                        --add-opens storm.mssqlserver/st.orm.spi.mssqlserver=storm
+                        --add-opens storm.mssqlserver/st.orm.spi.mssqlserver=storm.core
                     </argLine>
                 </configuration>
             </plugin>

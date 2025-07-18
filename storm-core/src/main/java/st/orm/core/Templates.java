@@ -18,14 +18,12 @@ package st.orm.core;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
-import st.orm.PersistenceException;
-import st.orm.config.TemplateDecorator;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.QueryBuilder;
 import st.orm.Operator;
 import st.orm.ResolveScope;
 import st.orm.core.template.TemplateString;
-import st.orm.core.template.impl.Element;
+import st.orm.Element;
 import st.orm.core.template.impl.Elements;
 import st.orm.core.template.impl.Elements.Alias;
 import st.orm.core.template.impl.Elements.Delete;
@@ -44,8 +42,6 @@ import st.orm.core.template.impl.Elements.Update;
 import st.orm.core.template.impl.Elements.Values;
 import st.orm.core.template.impl.Elements.BindVar;
 import st.orm.core.template.impl.Elements.Where;
-import st.orm.core.template.impl.JpaTemplateImpl;
-import st.orm.core.template.impl.PreparedStatementTemplateImpl;
 import st.orm.core.template.impl.Subqueryable;
 import st.orm.BindVars;
 import st.orm.Metamodel;
@@ -59,7 +55,6 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.function.Function;
-import java.util.function.UnaryOperator;
 
 import static java.util.Objects.requireNonNull;
 import static st.orm.Operator.IN;
@@ -283,7 +278,7 @@ public interface Templates {
     /**
      * Generates a FROM element using a provided SQL string template with an alias.
      *
-     * <p>This method allows you to specify a custom {@link StringTemplate} to be used as the source in the {@code FROM}
+     * <p>This method allows you to specify a custom {@link TemplateString} to be used as the source in the {@code FROM}
      * clause, applying the provided alias. This is useful when you need to include subqueries or complex table
      * expressions in your SQL queries.
      *
@@ -295,7 +290,7 @@ public interface Templates {
      *
      * </p> in this context, the alias is mandatory and auto-joining of foreign keys is not applicable.</p>
      *
-     * @param template the {@link StringTemplate} representing the custom SQL to be used in the FROM clause.
+     * @param template the {@link TemplateString} representing the custom SQL to be used in the FROM clause.
      * @param alias the alias to assign to the frame clause in the query. The alias must not require escaping.
      * @return an {@link Element} representing the FROM clause with the specified template and alias.
      */
