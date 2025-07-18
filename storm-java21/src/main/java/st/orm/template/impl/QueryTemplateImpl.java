@@ -16,7 +16,6 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
-import org.jetbrains.annotations.NotNull;
 import st.orm.template.Query;
 import st.orm.core.template.SqlDialect;
 import st.orm.BindVars;
@@ -80,7 +79,7 @@ public class QueryTemplateImpl implements QueryTemplate {
     }
 
     @Override
-    public Query query(@NotNull String query) {
+    public Query query(@Nonnull String query) {
         return new QueryImpl(core.query(query));
     }
 
@@ -90,17 +89,17 @@ public class QueryTemplateImpl implements QueryTemplate {
     }
 
     @Override
-    public <T extends Record> QueryBuilder<T, ?, ?> subquery(@NotNull Class<T> fromType) {
+    public <T extends Record> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType) {
         return new QueryBuilderImpl<>(core.subquery(fromType));
     }
 
     @Override
-    public <T extends Record, R extends Record> QueryBuilder<T, ?, ?> subquery(@NotNull Class<T> fromType, @NotNull Class<R> selectType) {
+    public <T extends Record, R extends Record> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType, @Nonnull Class<R> selectType) {
         return new QueryBuilderImpl<>(core.subquery(fromType, selectType));
     }
 
     @Override
-    public <T extends Record> QueryBuilder<T, ?, ?> subquery(@NotNull Class<T> fromType, @NotNull StringTemplate template) {
+    public <T extends Record> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType, @Nonnull StringTemplate template) {
         return new QueryBuilderImpl<>(core.subquery(fromType, convert(template)));
     }
 }

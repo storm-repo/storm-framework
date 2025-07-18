@@ -1,4 +1,4 @@
-module storm {
+module storm.java21 {
     exports st.orm.repository;
     exports st.orm.template;
     requires java.sql;

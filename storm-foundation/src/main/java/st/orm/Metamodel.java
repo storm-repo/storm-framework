@@ -15,8 +15,6 @@
  */
 package st.orm;
 
-import jakarta.annotation.Nonnull;
-
 /**
  * The metamodel is used to map database columns to the object model in a type-safe way.
  *
@@ -28,7 +26,7 @@ public interface Metamodel<T extends Record, E> {
 
     /**
      * Returns {@code true} if the metamodel corresponds to a database column, returns {@code false} otherwise, for
-     * example if the metamodel refers to the root metamodel or an inline record.
+     * example, if the metamodel refers to the root metamodel or an inline record.
      *
      * @return {@code true} if this metamodel maps to a column, {@code false} otherwise.
      */

@@ -34,7 +34,7 @@ preferences. Whether you’re looking for minimal enhancements or a complete abs
 
 === Dependency Management
 
-Include the following dependency in your project to start using Storm:
+Include the following dependencies in your project to start using Storm:
 
 [tabs]
 ====
@@ -44,9 +44,15 @@ Maven::
 ----
 <dependency>
     <groupId>st.orm</groupId>
-    <artifactId>storm</artifactId>
+    <artifactId>storm-java21</artifactId>
     <version>1.4.0</version>
     <scope>compile</scope>
+</dependency>
+<dependency>
+    <groupId>st.orm</groupId>
+    <artifactId>storm-core</artifactId>
+    <version>1.4.0</version>
+    <scope>runtime</scope>
 </dependency>
 ----
 Gradle::
