@@ -7,7 +7,6 @@ import st.orm.core.model.Owner;
 import st.orm.core.model.Pet;
 import st.orm.core.model.Visit;
 import st.orm.Metamodel;
-import st.orm.core.template.impl.MetamodelImpl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -17,7 +16,7 @@ public class MetamodelTest {
 
     @Test
     public void testVisitPet() throws SqlTemplateException {
-        Metamodel<Visit, ?> model = MetamodelImpl.of(Visit.class, "pet");
+        Metamodel<Visit, ?> model = Metamodel.of(Visit.class, "pet");
         assertEquals("", model.path());
         assertEquals("pet", model.component());
         assertEquals(Visit.class, model.root());
@@ -27,7 +26,7 @@ public class MetamodelTest {
 
     @Test
     public void testVisitPetOwner() throws SqlTemplateException {
-        Metamodel<Visit, ?> model = MetamodelImpl.of(Visit.class, "pet.owner");
+        Metamodel<Visit, ?> model = Metamodel.of(Visit.class, "pet.owner");
         assertEquals("pet", model.path());
         assertEquals("owner", model.component());
         assertEquals(Visit.class, model.root());
@@ -40,7 +39,7 @@ public class MetamodelTest {
 
     @Test
     public void testVisitPetOwnerAddress() throws SqlTemplateException {
-        Metamodel<Visit, ?> model = MetamodelImpl.of(Visit.class, "pet.owner.address");
+        Metamodel<Visit, ?> model = Metamodel.of(Visit.class, "pet.owner.address");
         assertEquals("pet.owner", model.path());
         assertEquals("address", model.component());
         assertEquals(Visit.class, model.root());
@@ -53,7 +52,7 @@ public class MetamodelTest {
 
     @Test
     public void testVisitPetOwnerAddressCity() throws SqlTemplateException {
-        Metamodel<Visit, ?> model = MetamodelImpl.of(Visit.class, "pet.owner.address.city");
+        Metamodel<Visit, ?> model = Metamodel.of(Visit.class, "pet.owner.address.city");
         assertTrue(model.isColumn());
         assertEquals("pet.owner", model.path());
         assertEquals("address.city", model.component());
@@ -67,7 +66,7 @@ public class MetamodelTest {
 
     @Test
     public void testOwnerAddress() throws SqlTemplateException {
-        Metamodel< Visit, ?> model = MetamodelImpl.of(Visit.class, "pet.owner.address");
+        Metamodel< Visit, ?> model = Metamodel.of(Visit.class, "pet.owner.address");
         assertFalse(model.isColumn());
         assertEquals("pet.owner", model.path());
         assertEquals("address", model.component());
@@ -81,7 +80,7 @@ public class MetamodelTest {
 
     @Test
     public void testVisitPetOwnerAddressCityName() throws SqlTemplateException {
-        Metamodel<Visit, ?> model = MetamodelImpl.of(Visit.class, "pet.owner.address.city.name");
+        Metamodel<Visit, ?> model = Metamodel.of(Visit.class, "pet.owner.address.city.name");
         assertTrue(model.isColumn());
         assertEquals("pet.owner.address.city", model.path());
         assertEquals("name", model.component());

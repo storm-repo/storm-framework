@@ -39,8 +39,8 @@
                     <argLine>
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens storm/st.orm=ALL-UNNAMED
-                        --add-opens=storm.json/st.orm.json=storm
-                        --add-opens=storm.json/st.orm.json.model=storm
+                        --add-opens=storm.json/st.orm.json=storm.core
+                        --add-opens=storm.json/st.orm.json.model=storm.core
                         --add-opens=storm.json/st.orm.json=com.fasterxml.jackson.databind
                         --add-opens=storm.json/st.orm.json.model=com.fasterxml.jackson.databind
                     </argLine>

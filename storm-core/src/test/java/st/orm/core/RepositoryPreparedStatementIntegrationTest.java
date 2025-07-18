@@ -56,7 +56,6 @@ import st.orm.core.template.SqlTemplate.PositionalParameter;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateBuilder;
 import st.orm.core.template.TemplateString;
-import st.orm.core.template.impl.MetamodelImpl;
 
 import javax.sql.DataSource;
 import java.sql.SQLIntegrityConstraintViolationException;
@@ -364,7 +363,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithInvalidPath() {
         var e = assertThrows(PersistenceException.class, () ->
                 ORMTemplate.of(dataSource).entity(Pet.class).select()
-                        .where(wrap(where(MetamodelImpl.of(Pet.class, "owner.city"), EQUALS, "Sunnyvale")))
+                        .where(wrap(where(Metamodel.of(Pet.class, "owner.city"), EQUALS, "Sunnyvale")))
                         .getResultList());
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
@@ -384,7 +383,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectWithInvalidPathNoArg() {
         var e = assertThrows(PersistenceException.class, () ->
                 ORMTemplate.of(dataSource).entity(Pet.class).select()
-                        .where(wrap(where(MetamodelImpl.of(Pet.class, "owner.city"), IS_NULL)))
+                        .where(wrap(where(Metamodel.of(Pet.class, "owner.city"), IS_NULL)))
                         .getResultList());
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }

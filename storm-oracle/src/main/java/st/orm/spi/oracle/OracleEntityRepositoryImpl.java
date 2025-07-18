@@ -111,7 +111,7 @@ public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> exten
         var values = new AtomicReference<Map<Column, ?>>();
         //noinspection unchecked
         bindVars.setRecordListener(record -> values.setPlain(model.getValues((E) record)));
-        var duplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alon fields. Only include them once.
+        var duplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alone fields. Only include them once.
         return model.columns().stream()
                 .filter(column -> duplicates.add(column.name()))
                 .map(c -> combine(wrap(bindVar(bindVars, ignore -> values.getPlain().get(c))), TemplateString.of(" AS %s".formatted(c.qualifiedName(dialect)))))

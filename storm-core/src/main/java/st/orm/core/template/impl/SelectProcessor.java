@@ -18,6 +18,7 @@ package st.orm.core.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.FK;
+import st.orm.Metamodel;
 import st.orm.Ref;
 import st.orm.PK;
 import st.orm.SelectMode;
@@ -226,7 +227,7 @@ final class SelectProcessor implements ElementProcessor<Select> {
             }
         }
         // Fallback for records without annotations.
-        return aliasMapper.getAlias(MetamodelImpl.of(type), INNER, dialect, () ->
+        return aliasMapper.getAlias(Metamodel.root(type), INNER, dialect, () ->
                 new SqlTemplateException("Table %s for column not found.".formatted(type.getSimpleName())));
     }
 

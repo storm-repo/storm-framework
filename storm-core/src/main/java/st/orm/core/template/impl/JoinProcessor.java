@@ -17,6 +17,7 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Metamodel;
 import st.orm.config.ColumnNameResolver;
 import st.orm.config.ForeignKeyResolver;
 import st.orm.core.template.SqlDialect;
@@ -136,7 +137,7 @@ final class JoinProcessor implements ElementProcessor<Join> {
             @Nonnull ForeignKeyResolver foreignKeyResolver,
             @Nonnull SqlDialect dialect
     ) throws SqlTemplateException {
-        fromAlias = fromAlias == null ? aliasMapper.getAlias(MetamodelImpl.of(fromTable), INNER, dialect) : fromAlias;
+        fromAlias = fromAlias == null ? aliasMapper.getAlias(Metamodel.root(fromTable), INNER, dialect) : fromAlias;
         toAlias = toAlias == null ? aliasMapper.getAlias(toTable, null, INNER, dialect,
                 () -> new SqlTemplateException("Table alias missing for: %s".formatted(toTable.getSimpleName()))) : toAlias;
         var fkColumns = getForeignKeys(left, foreignKeyResolver, columnNameResolver);

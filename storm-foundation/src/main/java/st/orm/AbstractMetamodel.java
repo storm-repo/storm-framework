@@ -13,24 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core.template.impl;
+package st.orm;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.FK;
-import st.orm.Metamodel;
-import st.orm.Ref;
-import st.orm.PersistenceException;
-import st.orm.core.spi.ORMReflection;
-import st.orm.core.spi.Providers;
-import st.orm.core.template.SqlTemplateException;
 
-import java.lang.reflect.RecordComponent;
 import java.util.Optional;
 
 import static java.util.Optional.ofNullable;
-import static st.orm.core.template.impl.RecordReflection.getRefRecordType;
-import static st.orm.core.template.impl.RecordReflection.getRecordComponent;
 
 /**
  * Implementation that is used by the generated models.
@@ -39,83 +29,7 @@ import static st.orm.core.template.impl.RecordReflection.getRecordComponent;
  * @param <E> the record component type of the designated element.
  * @since 1.2
  */
-public class MetamodelImpl<T extends Record, E> implements Metamodel<T, E> {
-
-    private static final ORMReflection REFLECTION = Providers.getORMReflection();
-
-    /**
-     * Creates a new metamodel for the given record type.
-     *
-     * @param table the root table to create the metamodel for.
-     * @return a new metamodel for the given record type.
-     * @param <T> the root table type.
-     */
-    public static <T extends Record> Metamodel<T, T> of(@Nonnull Class<T> table) {
-        return new MetamodelImpl<>(table);
-    }
-
-    /**
-     * Creates a new metamodel for the given root rootTable and path.
-     *
-     * <p>This method is typically used to manually create a metamodel for a component of a record, which can be useful
-     * in cases where the metamodel can not be generated automatically, for example local records.</p>
-     *
-     * @param rootTable the root rootTable to create the metamodel for.
-     * @param path a dot separated path starting from the root rootTable.
-     * @return a new metamodel for the given root rootTable and path.
-     * @param <T> the root rootTable type.
-     * @param <E> the record component type of the designated component.
-     * @throws PersistenceException if the metamodel cannot be created for the root rootTable and path.
-     */
-    @SuppressWarnings("unchecked")
-    public static <T extends Record, E> Metamodel<T, E> of(@Nonnull Class<T> rootTable, @Nonnull String path) {
-        Class<E> componentType;
-        String effectivePath;
-        String effectiveComponent;
-        Metamodel<T, ? extends Record> tableModel;
-        boolean isColumn = false;
-        if (path.isEmpty()) {
-            componentType = (Class<E>) rootTable;
-            effectivePath = "";
-            effectiveComponent = "";
-            tableModel = null;
-        } else {
-            try {
-                RecordComponent component = getRecordComponent(rootTable, path);
-                if (Ref.class.isAssignableFrom(component.getType())) {
-                    int index = path.lastIndexOf('.');
-                    effectivePath = index == -1 ? "" : path.substring(0, path.lastIndexOf('.')); // Remove last component.
-                    effectiveComponent = component.getName();
-                    componentType = (Class<E>) getRefRecordType(component);
-                    isColumn = true;
-                } else {
-                    effectivePath = path;
-                    effectiveComponent = component.getName();
-                    componentType = (Class<E>) component.getType();
-                    if (!component.getType().isRecord() ||
-                            REFLECTION.isAnnotationPresent(component, FK.class)) {
-                        isColumn = true;
-                    }
-                    do {
-                        int index = effectivePath.lastIndexOf('.');
-                        effectivePath = effectivePath.substring(0, index == -1 ? 0 : index); // Remove last component.
-                        if (effectivePath.isEmpty()) {
-                            break;
-                        }
-                        component = getRecordComponent(rootTable, effectivePath);
-                        if (!component.getDeclaringRecord().isRecord() || REFLECTION.isAnnotationPresent(component, FK.class)) {
-                            break;
-                        }
-                        effectiveComponent = "%s.%s".formatted(component.getName(), effectiveComponent);
-                    } while (effectivePath.contains("."));
-                }
-            } catch (SqlTemplateException e) {
-                throw new PersistenceException(e);
-            }
-            tableModel = of(rootTable, effectivePath);
-        }
-        return new SimpleMetamodel<>(rootTable, effectivePath, componentType, effectiveComponent, isColumn, tableModel);
-    }
+public abstract class AbstractMetamodel<T extends Record, E> implements Metamodel<T, E> {
 
     private final Class<E> componentType;
     private final String path;
@@ -124,29 +38,29 @@ public class MetamodelImpl<T extends Record, E> implements Metamodel<T, E> {
     private final Metamodel<T, ?> parent;
     private final boolean isColumn;
 
-    public MetamodelImpl(@Nonnull Class<E> componentType) {
+    public AbstractMetamodel(@Nonnull Class<E> componentType) {
         this(componentType, "","", false, null, false);
     }
 
-    public MetamodelImpl(@Nonnull Class<E> componentType,
-                         @Nonnull String path) {
+    public AbstractMetamodel(@Nonnull Class<E> componentType,
+                             @Nonnull String path) {
         this(componentType, path,"", false, null, true);
     }
 
-    public MetamodelImpl(@Nonnull Class<E> componentType,
-                         @Nonnull String path,
-                         @Nonnull String component,
-                         boolean inline,
-                         @Nullable Metamodel<T, ?> parent) {
+    public AbstractMetamodel(@Nonnull Class<E> componentType,
+                             @Nonnull String path,
+                             @Nonnull String component,
+                             boolean inline,
+                             @Nullable Metamodel<T, ?> parent) {
         this(componentType, path, component, inline, parent, !inline);
     }
 
-    private MetamodelImpl(@Nonnull Class<E> componentType,
-                          @Nonnull String path,
-                          @Nonnull String component,
-                          boolean inline,
-                          @Nullable Metamodel<T, ?> parent,
-                          boolean isColumn) {
+    private AbstractMetamodel(@Nonnull Class<E> componentType,
+                              @Nonnull String path,
+                              @Nonnull String component,
+                              boolean inline,
+                              @Nullable Metamodel<T, ?> parent,
+                              boolean isColumn) {
         this.componentType = componentType;
         this.path = path;
         this.component = component;
