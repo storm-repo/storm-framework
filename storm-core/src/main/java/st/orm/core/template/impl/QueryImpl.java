@@ -21,6 +21,7 @@ import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.core.PreparedQuery;
 import st.orm.core.Query;
+import st.orm.core.template.SqlTemplateException;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -133,7 +134,13 @@ class QueryImpl implements Query {
                     int columnCount = resultSet.getMetaData().getColumnCount();
                     close = false;
                     return MonitoredResource.wrap(
-                            generate(() -> readNext(resultSet, columnCount))
+                            generate(() -> {
+                                try {
+                                    return readNext(resultSet, columnCount);
+                                } catch (Exception e) {
+                                    throw exceptionTransformer.apply(e);
+                                }
+                            })
                                     .takeWhile(Objects::nonNull)
                                     .onClose(() -> close(resultSet, statement)));
                 } finally {
@@ -146,7 +153,7 @@ class QueryImpl implements Query {
                     statement.close();
                 }
             }
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw exceptionTransformer.apply(e);
         }
     }
@@ -179,10 +186,16 @@ class QueryImpl implements Query {
                 ResultSet resultSet = statement.executeQuery();
                 int columnCount = resultSet.getMetaData().getColumnCount();
                 var mapper = getObjectMapper(columnCount, type, refFactory)
-                        .orElseThrow(() -> new PersistenceException("No suitable constructor found for %s.".formatted(type.getName())));
+                        .orElseThrow(() -> new SqlTemplateException("No suitable constructor found for %s.".formatted(type.getName())));
                 close = false;
                 return MonitoredResource.wrap(
-                        generate(() -> readNext(resultSet, columnCount, mapper))
+                        generate(() -> {
+                            try {
+                                return readNext(resultSet, columnCount, mapper);
+                            } catch (Exception e) {
+                                throw exceptionTransformer.apply(e);
+                            }
+                        })
                                 .takeWhile(Objects::nonNull)
                                 .onClose(() -> close(resultSet, statement)));
             } finally {
@@ -190,7 +203,7 @@ class QueryImpl implements Query {
                     statement.close();
                 }
             }
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw exceptionTransformer.apply(e);
         }
     }

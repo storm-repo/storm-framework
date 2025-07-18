@@ -16,21 +16,13 @@
 package st.orm.kt.template
 
 import jakarta.persistence.EntityManager
-import st.orm.BindVars
-import st.orm.Metamodel
-import st.orm.Operator
-import st.orm.ResolveScope
-import st.orm.SelectMode
-import st.orm.TemporalType
+import st.orm.*
 import st.orm.core.template.impl.Element
 import st.orm.core.template.impl.Elements
 import st.orm.core.template.impl.Elements.ObjectExpression
 import st.orm.core.template.impl.Elements.TemplateSource
-import st.orm.core.template.impl.JpaTemplateImpl
-import st.orm.core.template.impl.PreparedStatementTemplateImpl
 import st.orm.core.template.impl.Subqueryable
-import st.orm.kt.template.impl.ORMTemplateImpl
-import java.lang.StringTemplate
+import st.orm.kt.template.Templates.table
 import java.sql.Connection
 import java.sql.Time
 import java.sql.Timestamp
