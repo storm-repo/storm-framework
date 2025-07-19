@@ -58,6 +58,22 @@ interface WhereBuilder<T : Record, R, ID> : SubqueryTemplate {
     fun exists(subquery: QueryBuilder<*, *, *>): PredicateBuilder<T, R, ID>
 
     /**
+     * Adds an `EXISTS` condition to the WHERE clause using the specified subquery.
+     *
+     *
+     * This method appends an `EXISTS` clause to the current query's WHERE condition.
+     * It checks whether the provided subquery returns any rows, allowing you to filter results based
+     * on the existence of related data. This is particularly useful for constructing queries that need
+     * to verify the presence of certain records in a related table or subquery.
+     *
+     * @param subquery the subquery to check for existence.
+     * @return the updated [PredicateBuilder] with the EXISTS condition applied.
+     */
+    fun exists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): PredicateBuilder<T, R, ID> {
+        return exists(builder(this))
+    }
+
+    /**
      * Adds an `NOT EXISTS` condition to the WHERE clause using the specified subquery.
      *
      *
@@ -70,6 +86,22 @@ interface WhereBuilder<T : Record, R, ID> : SubqueryTemplate {
      * @return the updated [PredicateBuilder] with the NOT EXISTS condition applied.
      */
     fun notExists(subquery: QueryBuilder<*, *, *>): PredicateBuilder<T, R, ID>
+
+    /**
+     * Adds an `NOT EXISTS` condition to the WHERE clause using the specified subquery.
+     *
+     *
+     * This method appends an `NOT EXISTS` clause to the current query's WHERE condition.
+     * It checks whether the provided subquery returns any rows, allowing you to filter results based
+     * on the existence of related data. This is particularly useful for constructing queries that need
+     * to verify the absence of certain records in a related table or subquery.
+     *
+     * @param subquery the subquery to check for existence.
+     * @return the updated [PredicateBuilder] with the NOT EXISTS condition applied.
+     */
+    fun notExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): PredicateBuilder<T, R, ID> {
+        return notExists(builder(this))
+    }
 
     /**
      * Adds a condition to the WHERE clause that matches the specified primary key of the table.

@@ -22,7 +22,6 @@ import kotlin.reflect.KClass
 /**
  * The subquery template is used to construct subqueries that can be linked to the outer query.
  *
- *
  * Unlike regular queries, subqueries only select fields from the primary table; fields from nested (foreign key)
  * records are not included. Additionally, subqueries cannot be directly built — they should be passed as
  * a query builder object when constructing the outer query.
