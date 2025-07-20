@@ -331,6 +331,11 @@ public final class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilde
         }
 
         @Override
+        public PredicateBuilder<TX, RX, IDX> and(@Nonnull StringTemplate template) {
+            return new PredicateBuilderImpl<>(core.and(convert(template)));
+        }
+
+        @Override
         public PredicateBuilder<TX, RX, IDX> or(@Nonnull PredicateBuilder<TX, ?, ?> predicate) {
             return new PredicateBuilderImpl<>(core.or(((PredicateBuilderImpl<TX, ?, ?>) predicate).core));
         }
@@ -338,6 +343,11 @@ public final class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilde
         @Override
         public PredicateBuilder<TX, RX, IDX> orAny(@Nonnull PredicateBuilder<?, ?, ?> predicate) {
             return new PredicateBuilderImpl<>(core.orAny(((PredicateBuilderImpl<?, ?, ?>) predicate).core));
+        }
+
+        @Override
+        public PredicateBuilder<TX, RX, IDX> or(@Nonnull StringTemplate template) {
+            return new PredicateBuilderImpl<>(core.or(convert(template)));
         }
     }
 

@@ -429,6 +429,67 @@ interface QueryBuilder<T : Record, R, ID> {
     }
 
     /**
+     * Adds an `EXISTS` WHERE clause using the specified subquery.
+     *
+     *
+     * This method appends an `EXISTS` clause to the current query's WHERE condition.
+     * It checks whether the provided subquery returns any rows, allowing you to filter results based
+     * on the existence of related data. This is particularly useful for constructing queries that need
+     * to verify the presence of certain records in a related table or subquery.
+     *
+     * @param subquery the subquery to check for existence.
+     * @return the query builder.
+     */
+    fun whereExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> {
+        return whereBuilder { exists(subquery) }
+    }
+
+    /**
+     * Adds an `EXISTS` WHERE clause using the specified subquery.
+     *
+     * This method appends an `EXISTS` clause to the current query's WHERE condition.
+     * It checks whether the provided subquery returns any rows, allowing you to filter results based
+     * on the existence of related data. This is particularly useful for constructing queries that need
+     * to verify the presence of certain records in a related table or subquery.
+     *
+     * @param builder the subquery to check for existence.
+     * @return the query builder.
+     */
+    fun whereExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> {
+        return whereBuilder { exists(builder(this)) }
+    }
+
+    /**
+     * Adds a `NOT EXISTS` WHERE clause using the specified subquery.
+     *
+     * This method appends an `NOT EXISTS` clause to the current query's WHERE condition.
+     * It checks whether the provided subquery returns any rows, allowing you to filter results based
+     * on the existence of related data. This is particularly useful for constructing queries that need
+     * to verify the absence of certain records in a related table or subquery.
+     *
+     * @param subquery the subquery to check for existence.
+     * @return the query builder.
+     */
+    fun whereNotExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> {
+        return whereBuilder { notExists(subquery) }
+    }
+
+    /**
+     * Adds a `NOT EXISTS` WHERE clause using the specified subquery.
+     *
+     * This method appends an `NOT EXISTS` clause to the current query's WHERE condition.
+     * It checks whether the provided subquery returns any rows, allowing you to filter results based
+     * on the existence of related data. This is particularly useful for constructing queries that need
+     * to verify the absence of certain records in a related table or subquery.
+     *
+     * @param builder the subquery to check for existence.
+     * @return the query builder.
+     */
+    fun whereNotExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> {
+        return whereBuilder { notExists(builder(this)) }
+    }
+
+    /**
      * Adds a WHERE clause to the query using a [WhereBuilder].
      *
      * @param predicate the predicate to add.

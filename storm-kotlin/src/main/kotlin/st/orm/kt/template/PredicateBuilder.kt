@@ -26,7 +26,6 @@ interface PredicateBuilder<T : Record, R, ID> {
     /**
      * Adds a predicate to the WHERE clause using an AND condition.
      *
-     *
      * This method combines the specified predicate with existing predicates using an AND operation, ensuring
      * that all added conditions must be true.
      *
@@ -46,6 +45,30 @@ interface PredicateBuilder<T : Record, R, ID> {
      * @return the predicate builder.
      */
     fun andAny(predicate: PredicateBuilder<*, *, *>): PredicateBuilder<T, R, ID>
+
+    /**
+     * Adds a predicate to the WHERE clause using an AND condition.
+     *
+     * This method combines the specified predicate with existing predicates using an AND operation, ensuring
+     * that all added conditions must be true.
+     *
+     * @param builder the predicate builder to add.
+     * @return the predicate builder.
+     */
+    fun and(builder: TemplateBuilder) : PredicateBuilder<T, R, ID> {
+        return and(builder.build())
+    }
+
+    /**
+     * Adds a predicate to the WHERE clause using an AND condition.
+     *
+     * This method combines the specified predicate with existing predicates using an AND operation, ensuring
+     * that all added conditions must be true.
+     *
+     * @param template the predicate template to add.
+     * @return the predicate builder.
+     */
+    fun and(template: TemplateString): PredicateBuilder<T, R, ID>
 
     /**
      * Adds a predicate to the WHERE clause using an OR condition.
@@ -70,4 +93,28 @@ interface PredicateBuilder<T : Record, R, ID> {
      * @return the predicate builder.
      */
     fun orAny(predicate: PredicateBuilder<*, *, *>): PredicateBuilder<T, R, ID>
+
+    /**
+     * Adds a predicate to the WHERE clause using an OR condition.
+     *
+     * This method combines the specified predicate with existing predicates using an OR operation, ensuring
+     * that all added conditions must be true.
+     *
+     * @param builder the predicate builder to add.
+     * @return the predicate builder.
+     */
+    fun or(builder: TemplateBuilder) : PredicateBuilder<T, R, ID> {
+        return or(builder.build())
+    }
+
+    /**
+     * Adds a predicate to the WHERE clause using an OR condition.
+     *
+     * This method combines the specified predicate with existing predicates using an OR operation, ensuring
+     * that all added conditions must be true.
+     *
+     * @param template the predicate template to add.
+     * @return the predicate builder.
+     */
+    fun or(template: TemplateString): PredicateBuilder<T, R, ID>
 }

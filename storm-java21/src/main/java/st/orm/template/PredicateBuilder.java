@@ -49,6 +49,17 @@ public interface PredicateBuilder<T extends Record, R, ID> {
     PredicateBuilder<T, R, ID> andAny(@Nonnull PredicateBuilder<?, ?, ?> predicate);
 
     /**
+     * Adds a predicate to the WHERE clause using an AND condition.
+     *
+     * <p>This method combines the specified predicate with existing predicates using an AND operation, ensuring
+     * that all added conditions must be true.</p>
+     *
+     * @param template the template string representing the predicate to add.
+     * @return the predicate builder.
+     */
+    PredicateBuilder<T, R, ID> and(@Nonnull StringTemplate template);
+
+    /**
      * Adds a predicate to the WHERE clause using an OR condition.
      *
      * <p>This method combines the specified predicate with existing predicates using an OR operation, allowing any
@@ -69,4 +80,15 @@ public interface PredicateBuilder<T extends Record, R, ID> {
      * @return the predicate builder.
      */
     PredicateBuilder<T, R, ID> orAny(@Nonnull PredicateBuilder<?, ?, ?> predicate);
+
+    /**
+     * Adds a predicate to the WHERE clause using an OR condition.
+     *
+     * <p>This method combines the specified predicate with existing predicates using an OR operation, ensuring
+     * that all added conditions must be true.</p>
+     *
+     * @param template the template string representing the predicate to add.
+     * @return the predicate builder.
+     */
+    PredicateBuilder<T, R, ID> or(@Nonnull StringTemplate template);
 }

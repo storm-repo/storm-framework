@@ -342,13 +342,32 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
         }
 
         @Override
+        public PredicateBuilder<TX, RX, IDX> and(@Nonnull TemplateString template) {
+            templates.add(RAW_AND);
+            templates.add(RAW_OPEN);
+            templates.add(template);
+            templates.add(RAW_CLOSE);
+            return this;
+        }
+
+        @Override
         public PredicateBuilder<TX, RX, IDX> or(@Nonnull PredicateBuilder<TX, ?, ?> predicate) {
             add(RAW_OR, predicate);
             return this;
         }
+
         @Override
         public PredicateBuilder<TX, RX, IDX> orAny(@Nonnull PredicateBuilder<?, ?, ?> predicate) {
             add(RAW_OR, predicate);
+            return this;
+        }
+
+        @Override
+        public PredicateBuilder<TX, RX, IDX> or(@Nonnull TemplateString template) {
+            templates.add(RAW_OR);
+            templates.add(RAW_OPEN);
+            templates.add(template);
+            templates.add(RAW_CLOSE);
             return this;
         }
 

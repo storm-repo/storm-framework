@@ -60,16 +60,6 @@ class QueryBuilderImpl<T : Record, R, ID>(
         return QueryBuilderImpl<T, R, ID>(core.distinct())
     }
 
-//    /**
-//     * Returns a processor that can be used to append the query with a string template.
-//     *
-//     * @param template the string template to append.
-//     * @return a processor that can be used to append the query with a string template.
-//     */
-//    private fun append(template: TemplateString): QueryBuilder<T, R, ID> {
-//        return QueryBuilderImpl<T, R, ID>(core.append(template))
-//    }
-
     /**
      * Returns a processor that can be used to append the query with a string template.
      *
@@ -308,12 +298,20 @@ class QueryBuilderImpl<T : Record, R, ID>(
             return PredicateBuilderImpl<TX, RX, IDX>(core.andAny((predicate as PredicateBuilderImpl<*, *, *>).core))
         }
 
+        override fun and(template: TemplateString): PredicateBuilder<TX, RX, IDX> {
+            return PredicateBuilderImpl<TX, RX, IDX>(core.and(template.unwrap))
+        }
+
         override fun or(predicate: PredicateBuilder<TX, *, *>): PredicateBuilder<TX, RX, IDX> {
             return PredicateBuilderImpl<TX, RX, IDX>(core.or((predicate as PredicateBuilderImpl<TX, *, *>).core))
         }
 
         override fun orAny(predicate: PredicateBuilder<*, *, *>): PredicateBuilder<TX, RX, IDX> {
             return PredicateBuilderImpl<TX, RX, IDX>(core.orAny((predicate as PredicateBuilderImpl<*, *, *>).core))
+        }
+
+        override fun or(template: TemplateString): PredicateBuilder<TX, RX, IDX> {
+            return PredicateBuilderImpl<TX, RX, IDX>(core.or(template.unwrap))
         }
     }
 
