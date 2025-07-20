@@ -25,7 +25,7 @@ sealed interface TemplateString {
          * Create a new template string from the given [TemplateBuilder].
          */
         @JvmStatic
-        fun create(builder: TemplateBuilder): TemplateString = builder.build()
+        fun raw(builder: TemplateBuilder): TemplateString = builder.build()
 
         /**
          * Create a new template string from the given [TemplateBuilder].

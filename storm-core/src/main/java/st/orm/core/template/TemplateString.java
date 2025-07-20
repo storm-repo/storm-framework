@@ -32,12 +32,12 @@ public record TemplateString(@Nonnull List<String> fragments, @Nonnull List<Obje
         return new TemplateString(fragments, values);
     }
 
-    public static TemplateString create(@Nonnull TemplateBuilder builder) {
-        return TemplateBuilder.create(builder);
-    }
-
     public static TemplateString of(@Nonnull String str) {
         return new TemplateString(List.of(str), List.of());
+    }
+
+    public static TemplateString raw(@Nonnull TemplateBuilder builder) {
+        return TemplateBuilder.create(builder);
     }
 
     public static TemplateString raw(@Nonnull String template, @Nonnull Object... values) {
