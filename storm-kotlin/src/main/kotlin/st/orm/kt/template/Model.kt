@@ -31,14 +31,14 @@ interface Model<E : Record, ID : Any> {
      *
      * @return the schema, or an empty String if the schema is not specified.
      */
-    val schema: String?
+    val schema: String
 
     /**
      * Returns the name of the table or view.
      *
      * @return the name of the table or view.
      */
-    val name: String?
+    val name: String
 
     /**
      * Returns the type of the entity or projection.
