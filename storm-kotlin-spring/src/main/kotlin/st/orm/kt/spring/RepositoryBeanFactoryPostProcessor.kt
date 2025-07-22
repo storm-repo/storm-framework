@@ -1,6 +1,20 @@
+/*
+ * Copyright 2024 - 2025 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package st.orm.kt.spring
 
-import jakarta.annotation.Nonnull
 import org.reflections.Reflections
 import org.reflections.scanners.SubTypesScanner
 import org.reflections.util.ConfigurationBuilder
@@ -21,22 +35,6 @@ import st.orm.kt.repository.Repository
 import st.orm.kt.template.ORMTemplate
 import java.util.*
 import java.util.stream.Stream
-
-/*
-* Copyright 2024 - 2025 the original author or authors.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      https://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
 
 /**
  * A [BeanFactoryPostProcessor] that scans the specified base packages for repository interfaces and registers
@@ -82,7 +80,7 @@ open class RepositoryBeanFactoryPostProcessor : BeanFactoryPostProcessor {
      * @param beanFactory the bean factory to register the repository beans with.
      * @throws BeansException if an error occurs while registering the repository beans.
      */
-    override fun postProcessBeanFactory(@Nonnull beanFactory: ConfigurableListableBeanFactory) {
+    override fun postProcessBeanFactory(beanFactory: ConfigurableListableBeanFactory) {
         val registry = beanFactory as BeanDefinitionRegistry
         val reflections = Reflections(
             ConfigurationBuilder()
@@ -108,9 +106,9 @@ open class RepositoryBeanFactoryPostProcessor : BeanFactoryPostProcessor {
     }
 
     private fun registerRepositories(
-        @Nonnull registry: BeanDefinitionRegistry,
-        @Nonnull beanFactory: ConfigurableListableBeanFactory,
-        @Nonnull repositories: Stream<Class<out Repository>>
+        registry: BeanDefinitionRegistry,
+        beanFactory: ConfigurableListableBeanFactory,
+        repositories: Stream<Class<out Repository>>
     ) {
         repositories.forEach { type: Class<out Repository> ->
             val repositoryType = type as Class<Repository>
@@ -124,7 +122,7 @@ open class RepositoryBeanFactoryPostProcessor : BeanFactoryPostProcessor {
         }
     }
 
-    private fun getBeanORMTemplate(@Nonnull beanFactory: ConfigurableListableBeanFactory): ORMTemplate {
+    private fun getBeanORMTemplate(beanFactory: ConfigurableListableBeanFactory): ORMTemplate {
         val beanName = ormTemplateBeanName
         if (beanName != null) {
             return beanFactory.getBean(beanName, ORMTemplate::class.java)
@@ -208,7 +206,7 @@ open class RepositoryBeanFactoryPostProcessor : BeanFactoryPostProcessor {
 
         companion object {
             @JvmStatic
-            fun register(@Nonnull beanFactory: ConfigurableListableBeanFactory) {
+            fun register(beanFactory: ConfigurableListableBeanFactory) {
                 (beanFactory as DefaultListableBeanFactory).setAutowireCandidateResolver(
                     RepositoryAutowireCandidateResolver(beanFactory.getAutowireCandidateResolver())
                 )

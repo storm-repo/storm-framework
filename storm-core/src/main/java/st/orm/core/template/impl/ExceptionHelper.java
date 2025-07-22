@@ -27,11 +27,11 @@ import java.util.function.Function;
  *
  * @since 1.3
  */
-class ExceptionHelper {
+public final class ExceptionHelper {
 
     private ExceptionHelper() {}
 
-    static Function<Throwable, PersistenceException> getExceptionTransformer(@Nullable Sql sql) {
+    public static Function<Throwable, PersistenceException> getExceptionTransformer(@Nullable Sql sql) {
         return e -> {
             try {
                 try {
@@ -44,7 +44,7 @@ class ExceptionHelper {
             } catch (PersistenceException ex) {
                 if (sql != null) {
                     e.addSuppressed(new SqlTemplateException(String.format(
-                            "SQL%n%s", sql.statement()
+                            "SQL:%n%s", sql.statement()
                     )));
                 }
                 throw ex;

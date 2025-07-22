@@ -126,5 +126,5 @@ public interface ORMReflection {
 
     boolean isDefaultMethod(@Nonnull Method method);
 
-    Object execute(@Nonnull Object proxy, @Nonnull Method method, Object... args) throws Throwable;
+    Object execute(@Nonnull Object proxy, @Nonnull Method method, @Nonnull Object... args) throws Throwable;
 }

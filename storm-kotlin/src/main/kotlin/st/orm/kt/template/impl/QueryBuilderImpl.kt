@@ -33,7 +33,7 @@ class QueryBuilderImpl<T : Record, R, ID>(
      * @param <X> the type of the primary key.
      * @throws PersistenceException if the pk type is not valid.
      * @since 1.2
-    </X> */
+     */
     override fun <X : Any> typed(pkType: KClass<X>): QueryBuilder<T, R, X> {
         return QueryBuilderImpl<T, R, X>(core.typed<X>(pkType.java))
     }

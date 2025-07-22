@@ -246,7 +246,7 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
     }
 
     @Override
-    public Object execute(@Nonnull Object proxy, @Nonnull Method method, Object... args) throws Throwable {
+    public Object execute(@Nonnull Object proxy, @Nonnull Method method, @Nonnull Object... args) throws Throwable {
         // Handle default methods using MethodHandles.
         final Class<?> declaringClass = method.getDeclaringClass();
         MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(declaringClass, MethodHandles.lookup());

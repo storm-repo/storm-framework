@@ -34,16 +34,18 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import java.lang.reflect.RecordComponent;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.function.Supplier;
 
+import static java.lang.System.arraycopy;
+import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
 public class ORMReflectionImpl implements ORMReflection {
@@ -74,7 +76,7 @@ public class ORMReflectionImpl implements ORMReflection {
             }
         }
         // May be null if no @PK annotation found.
-        return Optional.ofNullable(pkType);
+        return ofNullable(pkType);
     }
 
     @Override
@@ -176,6 +178,7 @@ public class ORMReflectionImpl implements ORMReflection {
     @Override
     public Object invokeComponent(@Nonnull RecordComponent component, @Nonnull Object record) throws Throwable {
         Method method = component.getAccessor();
+        //noinspection ConstantValue
         if (method != null) {
             try {
                 method.setAccessible(true);
@@ -260,18 +263,89 @@ public class ORMReflectionImpl implements ORMReflection {
         return clazz.getDeclaredAnnotation(Metadata.class) != null;
     }
 
+    record MethodCacheKey(@Nonnull List<Class<?>> interfaces, @Nonnull Method method) {}
+    private static final ConcurrentMap<MethodCacheKey, MethodHandle> METHOD_HANDLE_CACHE = new ConcurrentHashMap<>();
+
     @Override
-    public Object execute(@Nonnull Object proxy, @Nonnull Method method, Object... args) throws Throwable {
+    public Object execute(@Nonnull Object proxy, @Nonnull Method method, @Nonnull Object... args) throws Throwable {
         if (defaultReflection.isDefaultMethod(method)) {
             return defaultReflection.execute(proxy, method, args);
         }
-        Class<?> interfaceClass = method.getDeclaringClass();
-        Class<?> defaultImplsClass = Class.forName("%s$DefaultImpls".formatted(interfaceClass.getName()));
-        MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(defaultImplsClass, MethodHandles.lookup());
-        List<Class<?>> parameterTypes = new ArrayList<>();
-        parameterTypes.add(interfaceClass);
-        parameterTypes.addAll(Arrays.asList(method.getParameterTypes()));
-        MethodHandle methodHandle = lookup.findStatic(defaultImplsClass, method.getName(), MethodType.methodType(method.getReturnType(), parameterTypes.toArray(new Class[0])));
+        var interfaces = List.of(proxy.getClass().getInterfaces());
+        MethodHandle methodHandle = METHOD_HANDLE_CACHE.computeIfAbsent(new MethodCacheKey(interfaces, method), key -> {
+            try {
+                return findKotlinDefault(interfaces, method);
+            } catch (RuntimeException | Error e) {
+                throw e;
+            } catch (Throwable t) {
+                throw new IllegalArgumentException("Failed to find Kotlin DefaultImpls for %s".formatted(method));
+            }
+        });
         return methodHandle.bindTo(proxy).invokeWithArguments(args);
+    }
+
+    private MethodHandle findKotlinDefault(@Nonnull List<Class<?>> interfaces, @Nonnull Method method) throws Throwable {
+        if (interfaces.size() != 1) {
+            throw new IllegalArgumentException("Single interface expected for proxy.");
+        }
+        // Attempt exact match on the first interface.
+        Class<?> iface = interfaces.getFirst();
+        String implsName = iface.getName() + "$DefaultImpls";
+        Class<?> impls = Class.forName(implsName, true, iface.getClassLoader());
+        MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(impls, MethodHandles.lookup());
+        // Try the exact signature.
+        Class<?>[] compileParams = method.getParameterTypes();
+        Class<?>[] exact = new Class<?>[compileParams.length + 1];
+        exact[0] = iface;
+        arraycopy(compileParams, 0, exact, 1, compileParams.length);
+        try {
+            return lookup.findStatic(impls,
+                    method.getName(),
+                    MethodType.methodType(method.getReturnType(), exact));
+        } catch (NoSuchMethodException | IllegalAccessException ignored) {
+            // Fall through to args-based scan.
+        }
+        return ofNullable(scanMethods(impls.getDeclaredMethods(), iface, method, lookup))
+                .or(() -> ofNullable(scanMethods(impls.getMethods(), iface, method, lookup)))
+                .orElseThrow(() -> new NoSuchMethodError("No Kotlin DefaultImpls for %s.".formatted(method)));
+    }
+
+    private MethodHandle scanMethods(@Nonnull Method[] candidates,
+                                     @Nonnull Class<?> iface,
+                                     @Nonnull Method method,
+                                     @Nonnull MethodHandles.Lookup lookup) {
+        Class<?>[] originalParams = method.getParameterTypes();
+        int needed = originalParams.length + 1;
+        for (Method m : candidates) {
+            // Must be a static helper with the same name and arity.
+            if (!Modifier.isStatic(m.getModifiers()) ||
+                    !m.getName().equals(method.getName()) ||
+                    m.getParameterCount() != needed) {
+                continue;
+            }
+            Class<?>[] parameterTypes = m.getParameterTypes();
+            if (!parameterTypes[0].isAssignableFrom(iface)) {
+                continue;
+            }
+            boolean ok = true;
+            for (int i = 0; i < originalParams.length; i++) {
+                Class<?> declared = originalParams[i];
+                Class<?> candidateParameter = parameterTypes[i+1];
+                if (!declared.isAssignableFrom(candidateParameter)) {
+                    ok = false;
+                    break;
+                }
+            }
+            if (!ok) {
+                continue;
+            }
+            m.setAccessible(true);
+            try {
+                return lookup.unreflect(m);
+            } catch (IllegalAccessException e) {
+                throw new IllegalArgumentException("Failed to invoke %s.".formatted(m));
+            }
+        }
+        return null;
     }
 }
