@@ -13,20 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core.spi;
+package st.orm.core.repository;
 
 import jakarta.annotation.Nonnull;
-import st.orm.Projection;
-import st.orm.core.template.Model;
-import st.orm.core.repository.ProjectionRepository;
-import st.orm.core.template.ORMTemplate;
+
+import java.util.stream.Stream;
 
 /**
- * Provides pluggable projection repository logic.
+ * Result callback interface.
+ *
+ * @param <T> input stream.
+ * @param <R> result of the processing.
  */
-public interface ProjectionRepositoryProvider extends Provider {
+@FunctionalInterface
+public interface ResultCallback<T, R> {
 
-    <ID, P extends Record & Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(
-            @Nonnull ORMTemplate ormTemplate,
-            @Nonnull Model<P, ID> model);
+    /**
+     * Process the given stream.
+     *
+     * @param stream stream to process.
+     * @return the result of the processing.
+     */
+    R process(@Nonnull Stream<T> stream);
 }

@@ -18,7 +18,7 @@ package st.orm.core.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.PersistenceException;
-import st.orm.core.PreparedQuery;
+import st.orm.core.template.PreparedQuery;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;

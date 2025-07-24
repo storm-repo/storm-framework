@@ -13,24 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core;
+package st.orm.core.repository;
 
-import jakarta.annotation.Nonnull;
-
-import java.util.stream.Stream;
+import st.orm.core.template.ORMTemplate;
 
 /**
- * Batch callback interface.
- *
- * @param <T> input type.
+ * Base interface for all repositories.
  */
-@FunctionalInterface
-public interface BatchCallback<T> {
+public interface Repository {
 
     /**
-     * Process the given batch stream.
+     * Provides access to the underlying ORM template.
      *
-     * @param batch batch stream to process.
+     * @return the ORM template.
      */
-    void process(@Nonnull Stream<T> batch);
+    ORMTemplate orm();
 }

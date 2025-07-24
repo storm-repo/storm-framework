@@ -23,9 +23,7 @@ import st.orm.NonUniqueResultException;
 import st.orm.Operator;
 import st.orm.PersistenceException;
 import st.orm.Ref;
-import st.orm.core.PreparedQuery;
-import st.orm.core.Query;
-import st.orm.core.ResultCallback;
+import st.orm.core.repository.ResultCallback;
 import st.orm.core.template.impl.Elements.ObjectExpression;
 
 import java.util.Iterator;

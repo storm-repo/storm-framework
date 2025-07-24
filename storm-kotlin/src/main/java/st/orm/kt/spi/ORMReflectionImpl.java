@@ -23,7 +23,7 @@ import kotlin.reflect.KCallable;
 import kotlin.reflect.KClass;
 import kotlin.reflect.KType;
 import st.orm.PK;
-import st.orm.core.spi.DefaultORMReflectionImpl;
+import st.orm.core.repository.impl.DefaultORMReflectionImpl;
 import st.orm.core.spi.ORMReflection;
 
 import java.lang.annotation.Annotation;

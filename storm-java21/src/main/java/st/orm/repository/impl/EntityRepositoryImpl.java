@@ -37,9 +37,9 @@ import static st.orm.template.impl.StringTemplates.convert;
 /**
  */
 public final class EntityRepositoryImpl<E extends Record & Entity<ID>, ID> implements EntityRepository<E, ID> {
-    private final st.orm.core.EntityRepository<E, ID> core;
+    private final st.orm.core.repository.EntityRepository<E, ID> core;
 
-    public EntityRepositoryImpl(@Nonnull st.orm.core.EntityRepository<E, ID> core) {
+    public EntityRepositoryImpl(@Nonnull st.orm.core.repository.EntityRepository<E, ID> core) {
         this.core = requireNonNull(core);
     }
 

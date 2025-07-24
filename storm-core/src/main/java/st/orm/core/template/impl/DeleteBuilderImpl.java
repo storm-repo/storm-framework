@@ -17,7 +17,7 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.PersistenceException;
-import st.orm.core.Query;
+import st.orm.core.template.Query;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.QueryBuilder;
@@ -29,8 +29,8 @@ import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-import static st.orm.core.Templates.from;
-import static st.orm.core.Templates.subquery;
+import static st.orm.core.template.Templates.from;
+import static st.orm.core.template.Templates.subquery;
 import static st.orm.core.template.TemplateString.wrap;
 
 /**

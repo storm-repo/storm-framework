@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core.spi;
+package st.orm.core.repository.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.Projection;
 import st.orm.Ref;
 import st.orm.core.template.Model;
-import st.orm.core.ProjectionRepository;
+import st.orm.core.repository.ProjectionRepository;
 import st.orm.core.template.ORMTemplate;
 
 /**

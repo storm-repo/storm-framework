@@ -17,10 +17,10 @@ package st.orm.spi.mysql;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.core.BatchCallback;
-import st.orm.core.EntityRepository;
-import st.orm.core.PreparedQuery;
-import st.orm.core.spi.EntityRepositoryImpl;
+import st.orm.core.repository.BatchCallback;
+import st.orm.core.repository.EntityRepository;
+import st.orm.core.template.PreparedQuery;
+import st.orm.core.repository.impl.EntityRepositoryImpl;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.ORMTemplate;

@@ -30,7 +30,7 @@ import kotlin.reflect.KClass
 /**
  */
 class EntityRepositoryImpl<E, ID : Any>(
-    private val core: st.orm.core.EntityRepository<E, ID>
+    private val core: st.orm.core.repository.EntityRepository<E, ID>
 ) : EntityRepository<E, ID> where E : Record, E : Entity<ID> {
 
     override val model: Model<E, ID>

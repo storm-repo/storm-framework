@@ -16,7 +16,7 @@
 package st.orm.spi.mariadb;
 
 import jakarta.annotation.Nonnull;
-import st.orm.core.EntityRepository;
+import st.orm.core.repository.EntityRepository;
 import st.orm.core.spi.EntityRepositoryProvider;
 import st.orm.core.spi.Orderable.Before;
 import st.orm.core.template.Model;

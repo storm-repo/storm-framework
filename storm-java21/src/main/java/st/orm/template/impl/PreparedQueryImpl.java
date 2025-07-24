@@ -22,9 +22,9 @@ import java.util.stream.Stream;
 
 
 public class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
-    private final st.orm.core.PreparedQuery core;
+    private final st.orm.core.template.PreparedQuery core;
 
-    public PreparedQueryImpl(@Nonnull st.orm.core.PreparedQuery core) {
+    public PreparedQueryImpl(@Nonnull st.orm.core.template.PreparedQuery core) {
         super(core);
         this.core = core;
     }

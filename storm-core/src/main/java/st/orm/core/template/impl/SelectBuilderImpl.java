@@ -19,7 +19,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.PersistenceException;
 import st.orm.Ref;
-import st.orm.core.Query;
+import st.orm.core.template.Query;
 import st.orm.core.template.Model;
 import st.orm.core.template.QueryBuilder;
 import st.orm.core.template.QueryTemplate;
@@ -32,8 +32,8 @@ import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
 import static st.orm.SelectMode.PK;
-import static st.orm.core.Templates.from;
-import static st.orm.core.Templates.select;
+import static st.orm.core.template.Templates.from;
+import static st.orm.core.template.Templates.select;
 import static st.orm.core.template.TemplateString.wrap;
 
 /**

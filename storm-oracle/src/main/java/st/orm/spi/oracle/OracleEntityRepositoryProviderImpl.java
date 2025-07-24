@@ -16,7 +16,7 @@
 package st.orm.spi.oracle;
 
 import jakarta.annotation.Nonnull;
-import st.orm.core.EntityRepository;
+import st.orm.core.repository.EntityRepository;
 import st.orm.core.spi.EntityRepositoryProvider;
 import st.orm.core.template.Model;
 import st.orm.core.template.ORMTemplate;

@@ -5,10 +5,11 @@ module storm.core {
     uses st.orm.core.spi.ProjectionRepositoryProvider;
     uses st.orm.core.spi.QueryBuilderProvider;
     uses st.orm.core.spi.SqlDialectProvider;
-    exports st.orm.core;
     exports st.orm.core.template;
     exports st.orm.core.template.impl;
     exports st.orm.core.spi;
+    exports st.orm.core.repository;
+    exports st.orm.core.repository.impl;
     requires java.sql;
     requires jakarta.persistence;
     requires jakarta.annotation;

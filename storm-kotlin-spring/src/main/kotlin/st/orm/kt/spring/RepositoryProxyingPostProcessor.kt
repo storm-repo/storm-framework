@@ -19,21 +19,14 @@ import org.springframework.aop.framework.ProxyFactory
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.stereotype.Component
 import st.orm.kt.repository.Repository
-import java.util.*
-import java.util.Set
-
 
 @Component
 class RepositoryProxyingPostProcessor : BeanPostProcessor {
-    private val repositoryInterfaces: MutableSet<Class<*>?> = Set.of<Class<*>?>(Repository::class.java)
-
-    override fun postProcessAfterInitialization(bean: Any, beanName: String): Any? {
-        if (Arrays.stream<Class<*>>(bean.javaClass.getInterfaces())
-                .anyMatch { o: Class<*>? -> repositoryInterfaces.contains(o) }
-        ) {
+    override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
+        if (bean is Repository) {
             val factory = ProxyFactory(bean)
-            factory.setProxyTargetClass(true)
-            return factory.getProxy()
+            factory.isProxyTargetClass = true
+            return factory.proxy
         }
         return bean
     }

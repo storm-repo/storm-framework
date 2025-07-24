@@ -13,16 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core;
+package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
-import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.QueryBuilder;
+import st.orm.core.repository.EntityRepository;
+import st.orm.core.repository.ProjectionRepository;
 import st.orm.Operator;
 import st.orm.ResolveScope;
-import st.orm.core.template.TemplateString;
 import st.orm.Element;
 import st.orm.core.template.impl.Elements;
 import st.orm.core.template.impl.Elements.Alias;

@@ -26,9 +26,9 @@ import java.util.stream.Stream;
 import static java.util.Objects.requireNonNull;
 
 public class QueryImpl implements Query {
-    private final st.orm.core.Query core;
+    private final st.orm.core.template.Query core;
 
-    public QueryImpl(@Nonnull st.orm.core.Query core) {
+    public QueryImpl(@Nonnull st.orm.core.template.Query core) {
         this.core = requireNonNull(core, "core");
     }
 

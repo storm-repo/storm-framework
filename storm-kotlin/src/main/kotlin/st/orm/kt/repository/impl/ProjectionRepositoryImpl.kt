@@ -28,7 +28,7 @@ import kotlin.reflect.KClass
 /**
  */
 class ProjectionRepositoryImpl<P, ID : Any>(
-    private val core: st.orm.core.ProjectionRepository<P, ID>
+    private val core: st.orm.core.repository.ProjectionRepository<P, ID>
 ) : ProjectionRepository<P, ID> where P : Record, P : Projection<ID> {
 
     override val orm: ORMTemplate

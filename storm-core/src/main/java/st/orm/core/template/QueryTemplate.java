@@ -18,8 +18,6 @@ package st.orm.core.template;
 import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
 import st.orm.Ref;
-import st.orm.core.PreparedQuery;
-import st.orm.core.Query;
 
 import static st.orm.core.template.TemplateString.wrap;
 

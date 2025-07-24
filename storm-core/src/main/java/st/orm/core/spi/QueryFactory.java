@@ -18,7 +18,7 @@ package st.orm.core.spi;
 import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
 import st.orm.PersistenceException;
-import st.orm.core.Query;
+import st.orm.core.template.Query;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.TemplateString;
 

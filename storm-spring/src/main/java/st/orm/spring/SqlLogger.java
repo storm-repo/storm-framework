@@ -13,26 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core;
+package st.orm.spring;
 
-import jakarta.annotation.Nonnull;
+import org.slf4j.event.Level;
 
-import java.util.stream.Stream;
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
 
-/**
- * Result callback interface.
- *
- * @param <T> input stream.
- * @param <R> result of the processing.
- */
-@FunctionalInterface
-public interface ResultCallback<T, R> {
+import static java.lang.annotation.ElementType.METHOD;
+import static java.lang.annotation.ElementType.TYPE;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
-    /**
-     * Process the given stream.
-     *
-     * @param stream stream to process.
-     * @return the result of the processing.
-     */
-    R process(@Nonnull Stream<T> stream);
+@Retention(RUNTIME)
+@Target({METHOD, TYPE})
+public @interface SqlLogger {
+
+    boolean inlineParameters() default true;
+
+    String name() default "";
+
+    Level level() default Level.INFO;
 }

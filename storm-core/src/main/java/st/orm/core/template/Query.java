@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core;
+package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
 import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
 import st.orm.PersistenceException;
 import st.orm.Ref;
+import st.orm.core.repository.ResultCallback;
 
 import java.util.List;
 import java.util.Optional;

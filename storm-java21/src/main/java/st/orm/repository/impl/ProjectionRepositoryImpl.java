@@ -36,9 +36,9 @@ import static st.orm.template.impl.StringTemplates.convert;
 /**
  */
 public final class ProjectionRepositoryImpl<P extends Record & Projection<ID>, ID> implements ProjectionRepository<P, ID> {
-    private final st.orm.core.ProjectionRepository<P, ID> projectionRepository;
+    private final st.orm.core.repository.ProjectionRepository<P, ID> projectionRepository;
 
-    public ProjectionRepositoryImpl(@Nonnull st.orm.core.ProjectionRepository<P, ID> projectionRepository) {
+    public ProjectionRepositoryImpl(@Nonnull st.orm.core.repository.ProjectionRepository<P, ID> projectionRepository) {
         this.projectionRepository = requireNonNull(projectionRepository);
     }
 

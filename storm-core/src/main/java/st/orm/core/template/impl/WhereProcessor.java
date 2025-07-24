@@ -23,7 +23,7 @@ import st.orm.FK;
 import st.orm.Metamodel;
 import st.orm.Operator;
 import st.orm.Ref;
-import st.orm.core.Query;
+import st.orm.core.template.Query;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
 import st.orm.core.template.SqlTemplate;

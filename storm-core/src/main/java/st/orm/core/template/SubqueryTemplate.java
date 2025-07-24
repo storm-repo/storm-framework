@@ -18,7 +18,7 @@ package st.orm.core.template;
 import jakarta.annotation.Nonnull;
 
 import static st.orm.SelectMode.FLAT;
-import static st.orm.core.Templates.select;
+import static st.orm.core.template.Templates.select;
 import static st.orm.core.template.TemplateString.wrap;
 
 /**

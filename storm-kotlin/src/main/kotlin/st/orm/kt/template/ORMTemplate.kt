@@ -18,7 +18,7 @@ package st.orm.kt.template
 import jakarta.annotation.Nonnull
 import jakarta.persistence.EntityManager
 import st.orm.config.TemplateDecorator
-import st.orm.core.Templates
+import st.orm.core.template.Templates
 import st.orm.kt.repository.RepositoryLookup
 import st.orm.kt.template.impl.ORMTemplateImpl
 import java.sql.Connection

@@ -13,16 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core.spi;
+package st.orm.kt.spring
 
-import st.orm.core.repository.impl.DefaultORMReflectionImpl;
-import st.orm.core.spi.Orderable.AfterAny;
+import org.aspectj.lang.annotation.Aspect
+import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
+import org.springframework.context.annotation.Bean
 
-@AfterAny
-public class DefaultORMReflectionProviderImpl implements ORMReflectionProvider {
+@AutoConfiguration
+@ConditionalOnClass(Aspect::class)
+open class RepositoryAopAutoConfiguration {
 
-    @Override
-    public ORMReflection getReflection() {
-        return new DefaultORMReflectionImpl();
+    companion object {
+        @JvmStatic
+        @Bean
+        fun kotlinRepositoryProxyingPostProcessor(): RepositoryProxyingPostProcessor =
+            RepositoryProxyingPostProcessor()
     }
+
+    @Bean
+    open fun kotlinSqlLoggerAspect(): SqlLoggerAspect = SqlLoggerAspect()
 }

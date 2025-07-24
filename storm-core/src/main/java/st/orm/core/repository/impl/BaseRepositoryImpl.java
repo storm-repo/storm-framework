@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core.spi;
+package st.orm.core.repository.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.Ref;
@@ -21,7 +21,7 @@ import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
-import st.orm.core.Repository;
+import st.orm.core.repository.Repository;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.QueryBuilder;
 import st.orm.core.template.TemplateString;

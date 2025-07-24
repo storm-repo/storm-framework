@@ -19,10 +19,9 @@ import jakarta.annotation.Nonnull;
 import jakarta.persistence.EntityManager;
 import st.orm.PersistenceException;
 import st.orm.config.TemplateDecorator;
-import st.orm.core.Templates;
-import st.orm.core.EntityRepository;
-import st.orm.core.ProjectionRepository;
-import st.orm.core.RepositoryLookup;
+import st.orm.core.repository.EntityRepository;
+import st.orm.core.repository.ProjectionRepository;
+import st.orm.core.repository.RepositoryLookup;
 import st.orm.core.template.impl.JpaTemplateImpl;
 import st.orm.core.template.impl.PreparedStatementTemplateImpl;
 

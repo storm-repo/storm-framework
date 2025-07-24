@@ -10,8 +10,8 @@ import st.orm.core.model.Pet;
 import javax.sql.DataSource;
 import java.util.List;
 
-import static st.orm.core.Templates.select;
-import static st.orm.core.Templates.table;
+import static st.orm.core.template.Templates.select;
+import static st.orm.core.template.Templates.table;
 import static st.orm.core.template.PreparedStatementTemplate.ORM;
 import static st.orm.core.template.TemplateString.raw;
 

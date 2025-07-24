@@ -13,22 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.kt.template.impl
+package st.orm.spring;
 
-import st.orm.kt.template.PreparedQuery
-import java.util.stream.Stream
-import kotlin.reflect.KClass
+import org.aspectj.lang.annotation.Aspect;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.context.annotation.Bean;
 
-class PreparedQueryImpl(private val core: st.orm.core.template.PreparedQuery) : QueryImpl(core), PreparedQuery {
-    override fun addBatch(record: Record) {
-        core.addBatch(record)
+@AutoConfiguration
+@ConditionalOnClass(Aspect.class)
+public class RepositoryAopAutoConfiguration {
+
+    @Bean
+    public static RepositoryProxyingPostProcessor javaRepositoryProxyingPostProcessor() {
+        return new RepositoryProxyingPostProcessor();
     }
 
-    override fun <ID : Any> getGeneratedKeys(type: KClass<ID>): Stream<ID> {
-        return core.getGeneratedKeys<ID>(type.java)
-    }
-
-    override fun close() {
-        core.close()
+    @Bean
+    public SqlLoggerAspect javaSqlLoggerAspect() {
+        return new SqlLoggerAspect();
     }
 }

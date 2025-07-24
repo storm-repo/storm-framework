@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core.spi;
+package st.orm.core.repository.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.PK;
+import st.orm.core.spi.ORMReflection;
 
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;

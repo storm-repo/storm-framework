@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static st.orm.core.Templates.alias;
+import static st.orm.core.template.Templates.alias;
 import static st.orm.core.template.ORMTemplate.of;
 import static st.orm.core.template.SqlInterceptor.observe;
 import static st.orm.core.template.TemplateString.raw;

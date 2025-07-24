@@ -19,21 +19,14 @@ import jakarta.annotation.Nonnull;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Repository;
-
-import java.util.Set;
-
-import static java.util.Arrays.stream;
+import st.orm.repository.Repository;
 
 @Component
 public class RepositoryProxyingPostProcessor implements BeanPostProcessor {
 
-    private final Set<Class<?>> repositoryInterfaces = Set.of(Repository.class);
-
     @Override
     public Object postProcessAfterInitialization(@Nonnull Object bean, @Nonnull String beanName) {
-        if (stream(bean.getClass().getInterfaces())
-                .anyMatch(repositoryInterfaces::contains)) {
+        if (bean instanceof Repository) {
             ProxyFactory factory = new ProxyFactory(bean);
             factory.setProxyTargetClass(true);
             return factory.getProxy();

@@ -17,7 +17,8 @@ package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
 import st.orm.Entity;
-import st.orm.core.EntityRepository;
+import st.orm.core.repository.EntityRepository;
+import st.orm.core.repository.impl.EntityRepositoryImpl;
 import st.orm.core.template.Model;
 import st.orm.core.spi.Orderable.AfterAny;
 import st.orm.core.template.ORMTemplate;
