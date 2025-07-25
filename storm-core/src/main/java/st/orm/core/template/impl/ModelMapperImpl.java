@@ -58,7 +58,6 @@ import static st.orm.core.spi.Providers.getORMReflection;
  * @param <ID> the primary key type.
  * @since 1.2
  */
-@SuppressWarnings("DuplicatedCode")
 final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> {
     private static final ORMReflection REFLECTION = getORMReflection();
 
@@ -243,8 +242,9 @@ final class ModelMapperImpl<T extends Record, ID> implements ModelMapper<T, ID> 
                 ? null
                 : REFLECTION.invokeComponent(component, record);
         if (component.getType().isRecord()) {
+            boolean isForeignKey = REFLECTION.isAnnotationPresent(component, FK.class); // Primary key can be a foreign key as well.
             //noinspection unchecked
-            return map((Record) id, (Class<? extends Record>) component.getType(), false, parentNullable || !REFLECTION.isNonnull(component), index, columnFilter, callback);
+            return map((Record) id, (Class<? extends Record>) component.getType(), isForeignKey, parentNullable || !REFLECTION.isNonnull(component), index, columnFilter, callback);
         }
         Column column = model.columns().get(index.getAndIncrement());
         if (columnFilter.test(column)) {

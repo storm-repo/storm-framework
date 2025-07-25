@@ -928,7 +928,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                                              @Nonnull RecordComponent fromComponent,
                                              @Nonnull RecordComponent toComponent) throws SqlTemplateException {
         var foreignKeys = getForeignKeys(fromComponent, foreignKeyResolver(), columnNameResolver());
-        var primaryKeys = getPrimaryKeys(toComponent, columnNameResolver());
+        var primaryKeys = getPrimaryKeys(toComponent, foreignKeyResolver(), columnNameResolver());
         if (foreignKeys.size() != primaryKeys.size()) {
             throw new SqlTemplateException("Mismatch between foreign keys and primary keys count.");
         }

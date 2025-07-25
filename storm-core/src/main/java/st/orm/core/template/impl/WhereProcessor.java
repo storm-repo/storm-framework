@@ -150,7 +150,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
         var pkComponent = getPkComponent(recordType).orElseThrow(() ->
                 new SqlTemplateException("Primary key not found for %s.".formatted(recordType.getSimpleName())));
         List<String> names = new ArrayList<>();
-        getPrimaryKeys(pkComponent, template.columnNameResolver()).stream()
+        getPrimaryKeys(pkComponent, template.foreignKeyResolver(), template.columnNameResolver()).stream()
                 .map(columnName -> dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", columnName))
                 .forEach(names::add);
         if (updating) {
@@ -191,7 +191,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
                                                      boolean updating) throws SqlTemplateException {
         try {
             var values = new LinkedHashMap<String, Object>();
-            var pkNames = getPrimaryKeys(pkComponent, template.columnNameResolver());
+            var pkNames = getPrimaryKeys(pkComponent, template.foreignKeyResolver(), template.columnNameResolver());
             var id = validatePk(REFLECTION.invokeComponent(pkComponent, record), pkComponent);
             if (!pkComponent.getType().isRecord()) {
                 assert pkNames.size() == 1;
@@ -342,7 +342,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
             var values = new LinkedHashMap<String, Object>();
             RecordComponent pkComponent = getPkComponent(recordType).orElseThrow(() ->
                     new SqlTemplateException("Primary key not found for %s".formatted(recordType.getSimpleName())));
-            var pkNames = getPrimaryKeys(pkComponent, template.columnNameResolver());
+            var pkNames = getPrimaryKeys(pkComponent, template.foreignKeyResolver(), template.columnNameResolver());
             if (!pkComponent.getType().isRecord()) {
                 assert pkNames.size() == 1;
                 values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", pkNames.getFirst()), id);

@@ -194,10 +194,6 @@ final class ModelFactory {
                 for (int i = 0; i < columnNames.size(); i++) {
                     var columnName = columnNames.get(i);
                     var recordComponent = pkComponents.get(i);
-                    Class<?> type = recordComponent.getType();
-                    if (type.isRecord()) {
-                        throw new SqlTemplateException("Foreign key column cannot be a record: %s.%s.".formatted(component.getDeclaringRecord().getSimpleName(), component.getName()));
-                    }
                     KeyIndex pk = primaryKey ? new KeyIndex(1, 1) : null;
                     KeyIndex fk = new KeyIndex(i + 1, columnNames.size());
                     //noinspection ConstantValue

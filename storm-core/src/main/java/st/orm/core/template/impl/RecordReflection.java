@@ -138,8 +138,9 @@ final class RecordReflection {
     }
 
     /**
-     * Returns the primary key components for the specified table. If the table has a compound primary key, represented
-     * by a record, the primary key components are the record components of the record.
+     * Returns the primary key components for the specified table. If the primary key is a foreign key (a record with a
+     * primary key), that record component is returned. If the primary key is a compound primary key (an inline record)
+     * the primary key components are the record components of that inline record.
      *
      * <p><strong>Note:</strong> PKs must always be present at the top-level of the record. They would not be recognized
      * if they're part of inlined records.</p>
@@ -150,6 +151,10 @@ final class RecordReflection {
         var pkComponent = getPkComponent(table).orElse(null);
         if (pkComponent == null) {
             return Stream.of();
+        }
+        if (REFLECTION.isAnnotationPresent(pkComponent, FK.class)) {
+            // If the primary key component is also a foreign key, return the component itself.
+            return Stream.of(pkComponent);
         }
         if (!pkComponent.getType().isRecord()) {
             return Stream.of(pkComponent);
@@ -436,10 +441,15 @@ final class RecordReflection {
      * @return the column name for the specified record component(s).
      */
     static List<ColumnName> getPrimaryKeys(@Nonnull RecordComponent component,
+                                           @Nonnull ForeignKeyResolver foreignKeyResolver,
                                            @Nonnull ColumnNameResolver columnNameResolver) throws SqlTemplateException {
         var columnNames = getColumnNames(component, PK_COLUMN_ANNOTATIONS);
         if (!columnNames.isEmpty()) {
             return columnNames;
+        }
+        if (REFLECTION.isAnnotationPresent(component, FK.class)) {
+            // If the primary key component is also a foreign key, return the foreign key column names.
+            return getForeignKeys(component, foreignKeyResolver, columnNameResolver);
         }
         DbColumn[] dbColumns = REFLECTION.getAnnotations(component, DbColumn.class);
         if (component.getType().isRecord()) {

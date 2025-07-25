@@ -141,7 +141,7 @@ final class JoinProcessor implements ElementProcessor<Join> {
         toAlias = toAlias == null ? aliasMapper.getAlias(toTable, null, INNER, dialect,
                 () -> new SqlTemplateException("Table alias missing for: %s".formatted(toTable.getSimpleName()))) : toAlias;
         var fkColumns = getForeignKeys(left, foreignKeyResolver, columnNameResolver);
-        var pkColumns = getPrimaryKeys(right, columnNameResolver);
+        var pkColumns = getPrimaryKeys(right, foreignKeyResolver, columnNameResolver);
         if (fkColumns.size() != pkColumns.size()) {
             throw new SqlTemplateException("Mismatch in PK/FK columns between tables.");
         }

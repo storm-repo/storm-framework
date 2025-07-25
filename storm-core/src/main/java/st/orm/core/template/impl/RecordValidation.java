@@ -143,7 +143,7 @@ final class RecordValidation {
                 }
                 String message = validate(fkType, true, duplicates);
                 if (!message.isEmpty()) {
-                    return message;
+                    return message + " Should %s.%s be marked as @FK?".formatted(component.getDeclaringRecord().getSimpleName(), component.getName());
                 }
             }
             if (REFLECTION.isAnnotationPresent(component, Inline.class)) {
