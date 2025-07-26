@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core.template.impl;
+package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
 
@@ -27,7 +27,7 @@ import static java.util.Objects.requireNonNull;
  * A weak interner that allows fast lookups and retrieval of existing instances based on equality, while holding
  * elements weakly to permit garbage collection.
  */
-final class WeakInterner {
+public final class WeakInterner {
     private final Map<Object, WeakReference<Object>> map;
 
     public WeakInterner() {

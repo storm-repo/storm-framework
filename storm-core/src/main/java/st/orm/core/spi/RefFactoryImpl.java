@@ -13,15 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core.template.impl;
+package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Ref;
-import st.orm.core.spi.Provider;
-import st.orm.core.spi.QueryFactory;
 import st.orm.core.template.QueryBuilder;
 import st.orm.core.template.QueryTemplate;
+import st.orm.core.template.impl.LazySupplier;
+import st.orm.core.template.impl.ModelBuilder;
+import st.orm.core.template.impl.ORMTemplateImpl;
 
 import java.util.function.Predicate;
 

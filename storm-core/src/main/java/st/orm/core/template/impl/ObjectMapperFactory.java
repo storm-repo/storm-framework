@@ -18,6 +18,7 @@ package st.orm.core.template.impl;
 import jakarta.annotation.Nonnull;
 import st.orm.Ref;
 import st.orm.PK;
+import st.orm.core.spi.RefFactory;
 import st.orm.core.template.SqlTemplateException;
 
 import java.lang.annotation.Annotation;

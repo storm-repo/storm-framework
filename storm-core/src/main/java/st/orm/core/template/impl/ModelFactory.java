@@ -72,7 +72,7 @@ final class ModelFactory {
             boolean requirePrimaryKey) throws SqlTemplateException {
         try {
             //noinspection unchecked
-            return (Model<T, ID>) MODEL_CACHE.computeIfAbsent(type, igore -> {
+            return (Model<T, ID>) MODEL_CACHE.computeIfAbsent(type, ignore -> {
                 AtomicInteger index = new AtomicInteger(1);
                 AtomicInteger primaryKeyIndex = new AtomicInteger(1);
                 List<Column> columns = new ArrayList<>();

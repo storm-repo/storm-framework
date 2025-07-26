@@ -19,6 +19,8 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.BindVars;
 import st.orm.PersistenceException;
+import st.orm.core.spi.RefFactory;
+import st.orm.core.spi.RefFactoryImpl;
 import st.orm.core.template.Query;
 import st.orm.core.spi.Provider;
 import st.orm.core.spi.Providers;

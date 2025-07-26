@@ -22,6 +22,8 @@ import st.orm.DbEnum;
 import st.orm.Ref;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
+import st.orm.core.spi.RefFactory;
+import st.orm.core.spi.WeakInterner;
 import st.orm.core.template.SqlTemplateException;
 
 import java.lang.reflect.Constructor;
@@ -38,7 +40,6 @@ import static java.util.Optional.empty;
 import static java.util.Optional.ofNullable;
 import static st.orm.EnumType.NAME;
 import static st.orm.core.spi.Providers.getORMConverter;
-import static st.orm.core.template.impl.ObjectMapperFactory.construct;
 import static st.orm.core.template.impl.RecordReflection.getRefPkType;
 import static st.orm.core.template.impl.RecordReflection.getRefRecordType;
 
@@ -56,13 +57,14 @@ final class RecordMapper {
      *
      * @param columnCount the number of columns to use as constructor arguments.
      * @param type the type of the instance to create.
+     * @param refFactory the factory for creating ref instances for entities and projections.
      * @return a factory for creating instances of the specified type.
      * @param <T> the type of the instance to create.
      * @throws SqlTemplateException if an error occurred while creating the factory.
      */
     static <T> Optional<ObjectMapper<T>> getFactory(int columnCount,
                                                     @Nonnull Class<? extends T> type,
-                                                    @Nonnull RefFactory bridge) throws SqlTemplateException {
+                                                    @Nonnull RefFactory refFactory) throws SqlTemplateException {
         if (!type.isRecord()) {
             throw new SqlTemplateException("Type must be a record: %s.".formatted(type.getName()));
         }
@@ -70,7 +72,7 @@ final class RecordMapper {
         Constructor<?> recordConstructor = REFLECTION.findCanonicalConstructor((Class<? extends Record>) type)
                 .orElseThrow(() -> new SqlTemplateException("No canonical constructor found for record type: %s.".formatted(type.getSimpleName())));
         if (getParameterCount(type) == columnCount) {
-            return Optional.of(wrapConstructor(recordConstructor, bridge));
+            return Optional.of(wrapConstructor(recordConstructor, refFactory));
         }
         return empty();
     }
@@ -133,7 +135,7 @@ final class RecordMapper {
                         false,
                         interner).arguments();
                 // Don't intern top level records.
-                return construct((Constructor<T>) constructor, adaptedArgs, 0);
+                return ObjectMapperFactory.construct((Constructor<T>) constructor, adaptedArgs, 0);
             }
         };
     }
@@ -226,7 +228,7 @@ final class RecordMapper {
             if (converter != null) {
                 Object[] argsCopy = new Object[converter.getParameterCount()];
                 arraycopy(args, currentIndex, argsCopy, 0, argsCopy.length);
-                arg = converter.fromDatabase(argsCopy);
+                arg = converter.fromDatabase(argsCopy, refFactory);
                 currentIndex += argsCopy.length;
             } else if (paramType.isRecord()) {
                 //noinspection unchecked
@@ -260,7 +262,7 @@ final class RecordMapper {
                         // references to allow interning being used even in the event of (infinite) result streams. If the
                         // caller keeps the records the interner will reuse those same records. If the caller discards the
                         // records the interner will not keep track of them and new instances will be outputted.
-                        arg = interner.intern(construct(recordConstructor, result.arguments(), argsIndex + i));
+                        arg = interner.intern(ObjectMapperFactory.construct(recordConstructor, result.arguments(), argsIndex + i));
                     }
                 }
                 currentIndex = result.offset();

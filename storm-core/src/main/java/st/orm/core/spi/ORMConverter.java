@@ -84,7 +84,8 @@ public interface ORMConverter {
      *
      * @param values the arguments to convert. The arguments match the parameter types as returned by getParameterTypes().
      * @return the converted object.
+     * @param refFactory the factory for creating references to entities.
      * @throws SqlTemplateException if an error occurs during conversion.
      */
-    Object fromDatabase(@Nonnull Object[] values) throws SqlTemplateException;
+    Object fromDatabase(@Nonnull Object[] values, @Nonnull RefFactory refFactory) throws SqlTemplateException;
 }

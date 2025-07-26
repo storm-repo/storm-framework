@@ -21,6 +21,8 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceException;
 import st.orm.BindVars;
 import st.orm.Ref;
+import st.orm.core.spi.RefFactory;
+import st.orm.core.spi.RefFactoryImpl;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.template.Query;
 import st.orm.core.spi.Provider;

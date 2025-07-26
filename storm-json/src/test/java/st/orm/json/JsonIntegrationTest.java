@@ -15,6 +15,7 @@ import st.orm.Entity;
 import st.orm.Inline;
 import st.orm.PK;
 import st.orm.PersistenceException;
+import st.orm.Ref;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.json.model.Address;
 import st.orm.json.model.Owner;
@@ -49,6 +50,15 @@ public class JsonIntegrationTest {
         var orm = of(dataSource);
         var query = orm.query("SELECT id, first_name, last_name, address, telephone FROM owner");
         var owner = query.getResultList(Owner.class);
+        assertEquals(10, owner.stream().distinct().count());
+    }
+
+    @Test
+    public void testSelectRef() {
+        record Result(@Json List<Ref<Owner>> owner) {}
+        var orm = of(dataSource);
+        var query = orm.query("SELECT JSON_ARRAYAGG(id) FROM owner");
+        var owner = query.getSingleResult(Result.class).owner().stream().map(Ref::id).distinct().toList();
         assertEquals(10, owner.size());
     }
 

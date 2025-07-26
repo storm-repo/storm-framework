@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core.template.impl;
+package st.orm.core.spi;
 
 import st.orm.Ref;
 
@@ -48,8 +48,8 @@ abstract class AbstractRef<T extends Record> implements Ref<T> {
     @Override
     public String toString() {
         Class<?> type = type();
-        return type == null
-                ? "null"
+        return type == Record.class
+                ? "%s".formatted(id())
                 : "%s@%s".formatted(type.getSimpleName(), id());
     }
 }

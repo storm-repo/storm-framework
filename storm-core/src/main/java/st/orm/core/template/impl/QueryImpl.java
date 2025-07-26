@@ -19,6 +19,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.PersistenceException;
 import st.orm.Ref;
+import st.orm.core.spi.RefFactory;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.template.Query;
 import st.orm.core.template.SqlTemplateException;

@@ -37,7 +37,7 @@ import static java.util.Objects.requireNonNull;
  */
 public interface Ref<T extends Record> {
 
-    Ref<?> NULL = new AbstractRef<Record>() {
+    Ref<?> NULL = new AbstractRef<>() {
         @Override
         public Class<Record> type() {
             return Record.class;
