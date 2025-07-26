@@ -45,17 +45,20 @@ public class SqlLoggerAspect {
         return wrap(joinPoint, sqlLogger);
     }
 
-    private Object wrap(ProceedingJoinPoint joinPoint, SqlLogger sqlLogger) throws Throwable{
+    private Object wrap(ProceedingJoinPoint joinPoint, SqlLogger sqlLogger) throws Throwable {
         var logger = getLogger(sqlLogger, joinPoint);
         if (!logger.isEnabledForLevel(sqlLogger.level())) {
             return joinPoint.proceed();
         }
+
         return SqlInterceptor.interceptThrowing(
                 (SqlTemplate template) -> template.withInlineParameters(sqlLogger.inlineParameters()),
                 (Sql sql) -> {
-                    var indentedSql = sql.statement()
+                    // prefix every line with a tab, just like the Kotlin version
+                    String indentedSql = sql.statement()
                             .lines()
-                            .collect(Collectors.joining("\n", "\t", ""));
+                            .map(line -> "\t" + line)
+                            .collect(Collectors.joining("\n"));
                     logger.atLevel(sqlLogger.level()).log("[SQL] (%s)\n%s"
                             .formatted(joinPoint.getSignature().toShortString(), indentedSql));
                     return sql;
@@ -68,7 +71,8 @@ public class SqlLoggerAspect {
                     } catch (Throwable e) {
                         throw new PersistenceException(e);
                     }
-            });
+                }
+        );
     }
 
     private Logger getLogger(@Nonnull SqlLogger logger, @Nonnull JoinPoint joinPoint) {

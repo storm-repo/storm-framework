@@ -28,7 +28,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 @Target({METHOD, TYPE})
 public @interface SqlLogger {
 
-    boolean inlineParameters() default true;
+    boolean inlineParameters() default false;
 
     String name() default "";
 

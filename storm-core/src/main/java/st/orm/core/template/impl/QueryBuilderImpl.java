@@ -50,6 +50,7 @@ import static st.orm.JoinType.left;
 import static st.orm.JoinType.right;
 import static st.orm.Operator.EQUALS;
 import static st.orm.Operator.IN;
+import static st.orm.core.template.TemplateString.combine;
 import static st.orm.core.template.TemplateString.wrap;
 
 /**
@@ -158,7 +159,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
     public QueryBuilder<T, R, ID> append(@Nonnull TemplateString template) {
         List<TemplateString> copy = new ArrayList<>(templates);
         if (!template.fragments().isEmpty()) {
-            template = TemplateString.combine(TemplateString.of("\n"), template);
+            template = combine(TemplateString.of("\n"), template);
         }
         copy.add(template);
         return copyWith(queryTemplate, fromType, join, where, copy);
@@ -324,9 +325,15 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
 
     static class PredicateBuilderImpl<TX extends Record, RX, IDX> implements PredicateBuilder<TX, RX, IDX> {
         private final List<TemplateString> templates = new ArrayList<>();
+        private final boolean safe;
 
         PredicateBuilderImpl(@Nonnull TemplateString template) {
+            this(template, true);
+        }
+
+        PredicateBuilderImpl(@Nonnull TemplateString template, boolean safe) {
             templates.add(requireNonNull(template, "template"));
+            this.safe = safe;
         }
 
         @Override
@@ -344,10 +351,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
 
         @Override
         public PredicateBuilder<TX, RX, IDX> and(@Nonnull TemplateString template) {
-            templates.add(RAW_AND);
-            templates.add(RAW_OPEN);
-            templates.add(template);
-            templates.add(RAW_CLOSE);
+            add(RAW_AND, combine(RAW_OPEN, template, RAW_CLOSE));   // Always wrap a template in parentheses as we don't know if it's a single expression or a complex one.
             return this;
         }
 
@@ -366,23 +370,32 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
 
         @Override
         public PredicateBuilder<TX, RX, IDX> or(@Nonnull TemplateString template) {
-            templates.add(RAW_OR);
-            templates.add(RAW_OPEN);
-            templates.add(template);
-            templates.add(RAW_CLOSE);
+            add(RAW_OR, combine(RAW_OPEN, template, RAW_CLOSE));
             return this;
         }
 
         private void add(@Nonnull TemplateString operator, @Nonnull PredicateBuilder<?, ?, ?> predicate) {
-            templates.add(operator);
             var list = ((PredicateBuilderImpl<?, ?, ?>) predicate).templates;
+            assert !list.isEmpty();
             if (list.size() > 1) {
-                templates.add(RAW_OPEN);
+                var wrap = new ArrayList<TemplateString>();
+                wrap.add(RAW_OPEN);
+                wrap.addAll(list);
+                wrap.add(RAW_CLOSE);
+                add(operator, combine(wrap));
+            } else {
+                add(operator, list.getFirst());
             }
-            templates.addAll(list);
-            if (list.size() > 1) {
-                templates.add(RAW_CLOSE);
+        }
+
+        private void add(@Nonnull TemplateString operator, @Nonnull TemplateString template) {
+            if (templates.size() == 1 && !safe) {
+                // Wrap the first template in parentheses if it's the only one.
+                templates.addFirst(RAW_OPEN);
+                templates.addLast(RAW_CLOSE);
             }
+            templates.add(operator);
+            templates.add(template);
         }
 
         private List<TemplateString> getTemplates() {
@@ -494,7 +507,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
 
         @Override
         public PredicateBuilder<TX, RX, IDX> where(@Nonnull TemplateString template) {
-            return new PredicateBuilderImpl<>(template);
+            return new PredicateBuilderImpl<>(template, false);
         }
 
         @Override
@@ -511,7 +524,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
         }
 
         private QueryBuilder<TX, RX, IDX> build(List<TemplateString> templates) {
-            return queryBuilder.addWhere(new Where(new TemplateExpression(TemplateString.combine(templates)), null));
+            return queryBuilder.addWhere(new Where(new TemplateExpression(combine(templates)), null));
         }
     }
 
