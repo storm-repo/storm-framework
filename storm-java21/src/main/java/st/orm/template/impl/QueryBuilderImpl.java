@@ -326,8 +326,8 @@ public final class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilde
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> andAny(@Nonnull PredicateBuilder<?, ?, ?> predicate) {
-            return new PredicateBuilderImpl<>(core.andAny(((PredicateBuilderImpl<?, ?, ?>) predicate).core));
+        public <TY extends Record, RY, IDY> PredicateBuilder<TY, RY, IDY> andAny(@Nonnull PredicateBuilder<TY, RY, IDY> predicate) {
+            return new PredicateBuilderImpl<>(core.andAny(((PredicateBuilderImpl<TY, RY, IDY>) predicate).core));
         }
 
         @Override
@@ -341,8 +341,8 @@ public final class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilde
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> orAny(@Nonnull PredicateBuilder<?, ?, ?> predicate) {
-            return new PredicateBuilderImpl<>(core.orAny(((PredicateBuilderImpl<?, ?, ?>) predicate).core));
+        public <TY extends Record, RY, IDY> PredicateBuilder<TY, RY, IDY> orAny(@Nonnull PredicateBuilder<TY, RY, IDY> predicate) {
+            return new PredicateBuilderImpl<>(core.orAny(((PredicateBuilderImpl<TY, RY, IDY>) predicate).core));
         }
 
         @Override

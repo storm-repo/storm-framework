@@ -44,7 +44,7 @@ interface PredicateBuilder<T : Record, R, ID> {
      * @param predicate the predicate to add.
      * @return the predicate builder.
      */
-    fun andAny(predicate: PredicateBuilder<*, *, *>): PredicateBuilder<T, R, ID>
+    fun <TX : Record, RX, IDX> andAny(predicate: PredicateBuilder<TX, RX, IDX>): PredicateBuilder<TX, RX, IDX>
 
     /**
      * Adds a predicate to the WHERE clause using an AND condition.
@@ -92,7 +92,7 @@ interface PredicateBuilder<T : Record, R, ID> {
      * @param predicate the predicate to add.
      * @return the predicate builder.
      */
-    fun orAny(predicate: PredicateBuilder<*, *, *>): PredicateBuilder<T, R, ID>
+    fun <TX : Record, RX, IDX> orAny(predicate: PredicateBuilder<TX, RX, IDX>): PredicateBuilder<TX, RX, IDX>
 
     /**
      * Adds a predicate to the WHERE clause using an OR condition.

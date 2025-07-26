@@ -46,7 +46,8 @@ public interface PredicateBuilder<T extends Record, R, ID> {
      * @param predicate the predicate to add.
      * @return the predicate builder.
      */
-    PredicateBuilder<T, R, ID> andAny(@Nonnull PredicateBuilder<?, ?, ?> predicate);
+    <TX extends Record, RX, IDX> PredicateBuilder<TX, RX, IDX> andAny(@Nonnull PredicateBuilder<TX, RX, IDX> predicate);
+
 
     /**
      * Adds a predicate to the WHERE clause using an AND condition.
@@ -79,7 +80,7 @@ public interface PredicateBuilder<T extends Record, R, ID> {
      * @param predicate the predicate to add.
      * @return the predicate builder.
      */
-    PredicateBuilder<T, R, ID> orAny(@Nonnull PredicateBuilder<?, ?, ?> predicate);
+    <TX extends Record, RX, IDX> PredicateBuilder<TX, RX, IDX> orAny(@Nonnull PredicateBuilder<TX, RX, IDX> predicate);
 
     /**
      * Adds a predicate to the WHERE clause using an OR condition.

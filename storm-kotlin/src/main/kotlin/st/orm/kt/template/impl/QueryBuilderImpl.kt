@@ -294,8 +294,8 @@ class QueryBuilderImpl<T : Record, R, ID>(
             return PredicateBuilderImpl<TX, RX, IDX>(core.and((predicate as PredicateBuilderImpl<TX, *, *>).core))
         }
 
-        override fun andAny(predicate: PredicateBuilder<*, *, *>): PredicateBuilder<TX, RX, IDX> {
-            return PredicateBuilderImpl<TX, RX, IDX>(core.andAny((predicate as PredicateBuilderImpl<*, *, *>).core))
+        override fun <TY : Record, RY, IDY> andAny(predicate: PredicateBuilder<TY, RY, IDY>): PredicateBuilder<TY, RY, IDY> {
+            return PredicateBuilderImpl<TY, RY, IDY>(core.andAny((predicate as PredicateBuilderImpl<TY, RY, IDY>).core))
         }
 
         override fun and(template: TemplateString): PredicateBuilder<TX, RX, IDX> {
@@ -306,8 +306,8 @@ class QueryBuilderImpl<T : Record, R, ID>(
             return PredicateBuilderImpl<TX, RX, IDX>(core.or((predicate as PredicateBuilderImpl<TX, *, *>).core))
         }
 
-        override fun orAny(predicate: PredicateBuilder<*, *, *>): PredicateBuilder<TX, RX, IDX> {
-            return PredicateBuilderImpl<TX, RX, IDX>(core.orAny((predicate as PredicateBuilderImpl<*, *, *>).core))
+        override fun <TY : Record, RY, IDY> orAny(predicate: PredicateBuilder<TY, RY, IDY>): PredicateBuilder<TY, RY, IDY> {
+            return PredicateBuilderImpl<TY, RY, IDY>(core.orAny((predicate as PredicateBuilderImpl<TY, RY, IDY>).core))
         }
 
         override fun or(template: TemplateString): PredicateBuilder<TX, RX, IDX> {

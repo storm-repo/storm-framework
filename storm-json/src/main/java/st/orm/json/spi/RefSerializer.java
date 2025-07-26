@@ -22,14 +22,15 @@ import st.orm.Ref;
 
 import java.io.IOException;
 
-public class RefSerializer extends StdSerializer<Ref<?>> {
+@SuppressWarnings("rawtypes")
+public class RefSerializer extends StdSerializer<Ref> {
 
     public RefSerializer() {
         super(Ref.class, false);
     }
 
     @Override
-    public void serialize(Ref<?> ref, JsonGenerator generator, SerializerProvider provider)
+    public void serialize(Ref ref, JsonGenerator generator, SerializerProvider provider)
             throws IOException {
         generator.writeObject(ref.id());
     }

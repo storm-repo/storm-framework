@@ -336,9 +336,10 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> andAny(@Nonnull PredicateBuilder<?, ?, ?> predicate) {
+        public <TY extends Record, RY, IDY> PredicateBuilder<TY, RY, IDY> andAny(@Nonnull PredicateBuilder<TY, RY, IDY> predicate) {
             add(RAW_AND, predicate);
-            return this;
+            //noinspection unchecked
+            return (PredicateBuilder<TY, RY, IDY>) this;
         }
 
         @Override
@@ -357,9 +358,10 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> orAny(@Nonnull PredicateBuilder<?, ?, ?> predicate) {
+        public <TY extends Record, RY, IDY> PredicateBuilder<TY, RY, IDY> orAny(@Nonnull PredicateBuilder<TY, RY, IDY> predicate) {
             add(RAW_OR, predicate);
-            return this;
+            //noinspection unchecked
+            return (PredicateBuilder<TY, RY, IDY>) this;
         }
 
         @Override
