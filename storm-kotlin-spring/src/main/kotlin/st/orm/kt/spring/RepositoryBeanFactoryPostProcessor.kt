@@ -179,8 +179,7 @@ open class RepositoryBeanFactoryPostProcessor : BeanFactoryPostProcessor {
             } else {
                 val requiredQualifier = getRequiredQualifier(descriptor)
                 if (requiredQualifier != null) {
-                    val beanQualifier = bdHolder.getBeanDefinition().getAttribute("qualifier") as String?
-                    return requiredQualifier == beanQualifier
+                    return bdHolder.beanDefinition.getAttribute("qualifier") == requiredQualifier
                 }
             }
             return false
@@ -197,8 +196,9 @@ open class RepositoryBeanFactoryPostProcessor : BeanFactoryPostProcessor {
         private fun getQualifierValue(annotation: Annotation): String? {
             if (annotation is Qualifier) {
                 return annotation.value
-            } else if (annotation.javaClass.isAnnotationPresent(Qualifier::class.java)) {
-                val qualifier: Qualifier = annotation.javaClass.getAnnotation(Qualifier::class.java)
+            }
+            val qualifier = annotation.annotationClass.java.getAnnotation(Qualifier::class.java)
+            if (qualifier != null) {
                 return qualifier.value
             }
             return null
@@ -207,9 +207,8 @@ open class RepositoryBeanFactoryPostProcessor : BeanFactoryPostProcessor {
         companion object {
             @JvmStatic
             fun register(beanFactory: ConfigurableListableBeanFactory) {
-                (beanFactory as DefaultListableBeanFactory).setAutowireCandidateResolver(
-                    RepositoryAutowireCandidateResolver(beanFactory.getAutowireCandidateResolver())
-                )
+                (beanFactory as DefaultListableBeanFactory).autowireCandidateResolver =
+                    RepositoryAutowireCandidateResolver(beanFactory.autowireCandidateResolver)
             }
         }
     }

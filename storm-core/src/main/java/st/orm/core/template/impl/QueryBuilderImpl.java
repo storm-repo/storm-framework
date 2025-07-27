@@ -377,7 +377,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
         private void add(@Nonnull TemplateString operator, @Nonnull PredicateBuilder<?, ?, ?> predicate) {
             var list = ((PredicateBuilderImpl<?, ?, ?>) predicate).templates;
             assert !list.isEmpty();
-            if (list.size() > 1) {
+            if (list.size() > 1 || !((PredicateBuilderImpl<?, ?, ?>) predicate).safe) {
                 var wrap = new ArrayList<TemplateString>();
                 wrap.add(RAW_OPEN);
                 wrap.addAll(list);
