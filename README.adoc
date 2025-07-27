@@ -292,7 +292,7 @@ DSL (Kotlin)::
 [source,kotlin]
 ----
 val user: User? = ORMTemplate.of(dataSource)
-    .find { User.email eq email }
+    .find { User.email eq email }   // Type-safe!
 ----
 SQL Template::
 +
@@ -340,8 +340,8 @@ DSL (Kotlin)::
 +
 [source,kotlin]
 ----
-val usersInCity: List<User> = ORMTemplate.of(dataSource
-    .findAll { User_.city eq city }
+val usersInCity: List<User> = ORMTemplate.of(dataSource)
+    .findAll { User_.city eq city }     // Type-safe!
 ----
 SQL Template::
 +
@@ -1044,7 +1044,7 @@ val user: User = orm upsert User(
 ----
 ====
 
-The example uses Lombok's `@Builder` annotation to create a new `User` object for readability. The upsert logic is
+The Java example uses Lombok's `@Builder` annotation to create a new `User` object for readability. The upsert logic is
 invoked by passing an object without a primary key. The `upsertAndFetch` method will automatically determine whether
 to insert or update the record. The resulting `User` object will contain the values read from the database, including
 the primary key. An alternative `upsert` method is also available to perform the operation without fetching the record
@@ -1455,7 +1455,8 @@ Spring (Kotlin)::
 @Configuration
 class AcmeRepositoryBeanFactoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
 
-    override val repositoryBasePackages: Array<String> get() = arrayOf("com.acme.repository")
+    override val repositoryBasePackages: Array<String>
+        get() = arrayOf("com.acme.repository")
 }
 ----
 ====
