@@ -20,15 +20,17 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Ref;
+import st.orm.core.spi.Name;
+import st.orm.core.spi.ORMConverter;
+import st.orm.core.spi.ORMReflection;
+import st.orm.core.spi.Providers;
+import st.orm.core.spi.RefFactory;
+import st.orm.core.template.SqlTemplateException;
 import st.orm.json.Json;
-import st.orm.spi.Name;
-import st.orm.spi.ORMConverter;
-import st.orm.spi.ORMReflection;
-import st.orm.spi.Providers;
-import st.orm.template.SqlTemplateException;
-
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
@@ -50,6 +52,7 @@ import static java.util.Optional.empty;
 public final class JsonORMConverterImpl implements ORMConverter {
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
     private static final Map<CacheKey, ObjectMapper> OBJECT_MAPPER = new ConcurrentHashMap<>();
+    private static final ThreadLocal<RefFactory> REF_FACTORY = new ThreadLocal<>();
 
     private final RecordComponent component;
     private final TypeReference<?> typeReference;
@@ -77,7 +80,10 @@ public final class JsonORMConverterImpl implements ORMConverter {
             if (key.sealedType != null) {
                 mapper.registerSubtypes(getPermittedSubtypes(key.sealedType));
             }
-            return mapper;
+            return mapper.registerModule(
+                    new SimpleModule()
+                            .addSerializer(Ref.class, new RefSerializer())
+                            .addDeserializer(Ref.class, new RefDeserializer(REF_FACTORY::get)));
         });
     }
 
@@ -162,12 +168,18 @@ public final class JsonORMConverterImpl implements ORMConverter {
      * @throws SqlTemplateException if an error occurs during conversion.
      */
     @Override
-    public Object fromDatabase(@Nonnull Object[] values) throws SqlTemplateException {
+    public Object fromDatabase(@Nonnull Object[] values, @Nonnull RefFactory refFactory) throws SqlTemplateException {
+        Object value = values[0];
+        if (value == null) {
+            return null;
+        }
         try {
-            Object value = values[0];
-            return value == null ? null : mapper.readValue((String) values[0], typeReference);
+            REF_FACTORY.set(refFactory);
+            return mapper.readValue((String) values[0], typeReference);
         } catch (JsonProcessingException e) {
             throw new SqlTemplateException(e);
+        } finally {
+            REF_FACTORY.remove();
         }
     }
 }

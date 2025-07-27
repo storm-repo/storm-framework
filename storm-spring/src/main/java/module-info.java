@@ -1,6 +1,5 @@
 module storm.spring {
-    requires storm;
-    requires storm.kotlin;
+    requires storm.java21;
     requires spring.jdbc;
     requires spring.tx;
     requires spring.context;
@@ -10,5 +9,11 @@ module storm.spring {
     requires org.reflections;
     requires spring.core;
     requires spring.aop;
+    requires org.slf4j;
+    requires org.aspectj.weaver;
+    requires java.logging;
+    requires storm.core;
+    requires storm.foundation;
+    requires spring.boot.autoconfigure;
     exports st.orm.spring;
 }

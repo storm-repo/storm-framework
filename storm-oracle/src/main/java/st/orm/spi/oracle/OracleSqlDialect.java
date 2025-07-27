@@ -16,9 +16,9 @@
 package st.orm.spi.oracle;
 
 import jakarta.annotation.Nonnull;
-import st.orm.spi.DefaultSqlDialect;
-import st.orm.template.SqlDialect;
-import st.orm.template.SqlTemplateException;
+import st.orm.core.spi.DefaultSqlDialect;
+import st.orm.core.template.SqlDialect;
+import st.orm.core.template.SqlTemplateException;
 
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -104,7 +104,7 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
 
     @Override
     public String escape(@Nonnull String name) {
-        return STR."\"\{name.replace("\"", "\"\"")}\"";
+        return "\"%s\"".formatted(name.replace("\"", "\"\""));
     }
 
     /**
@@ -176,7 +176,7 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
      */
     @Override
     public String limit(int limit) {
-        return STR."FETCH FIRST \{limit} ROWS ONLY";
+        return "FETCH FIRST %d ROWS ONLY".formatted(limit);
     }
 
     /**
@@ -188,7 +188,7 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
      */
     @Override
     public String offset(int offset) {
-        return STR."OFFSET \{offset} ROWS";
+        return "OFFSET %d ROWS".formatted(offset);
     }
 
     /**
@@ -198,7 +198,7 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
      */
     @Override
     public String limit(int offset, int limit) {
-        return STR."OFFSET \{offset} ROWS FETCH NEXT \{limit} ROWS ONLY";
+        return "OFFSET %d ROWS FETCH NEXT %d ROWS ONLY".formatted(offset, limit);
     }
 
     /**

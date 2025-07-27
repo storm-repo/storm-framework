@@ -17,18 +17,19 @@ package st.orm.spi.mssqlserver;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.BatchCallback;
+import st.orm.core.repository.BatchCallback;
+import st.orm.core.repository.EntityRepository;
+import st.orm.core.template.PreparedQuery;
+import st.orm.core.repository.impl.EntityRepositoryImpl;
+import st.orm.core.template.Column;
+import st.orm.core.template.Model;
+import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.TemplateString;
+import st.orm.core.template.impl.LazySupplier;
 import st.orm.BindVars;
+import st.orm.Entity;
 import st.orm.PersistenceException;
-import st.orm.PreparedQuery;
-import st.orm.repository.Entity;
-import st.orm.spi.EntityRepositoryImpl;
-import st.orm.template.Column;
-import st.orm.template.Model;
-import st.orm.template.ORMTemplate;
-import st.orm.template.impl.LazySupplier;
 
-import java.lang.StringTemplate;
 import java.math.BigInteger;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -44,19 +45,20 @@ import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static java.lang.StringTemplate.RAW;
-import static java.lang.StringTemplate.combine;
 import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.partitioningBy;
 import static java.util.stream.Stream.empty;
-import static st.orm.Templates.var;
-import static st.orm.template.QueryBuilder.slice;
-import static st.orm.template.SqlInterceptor.intercept;
-import static st.orm.template.impl.StringTemplates.flatten;
+import static st.orm.core.template.Templates.bindVar;
+import static st.orm.core.template.QueryBuilder.slice;
+import static st.orm.core.template.SqlInterceptor.intercept;
+import static st.orm.core.template.TemplateString.combine;
+import static st.orm.core.template.TemplateString.raw;
+import static st.orm.core.template.TemplateString.wrap;
+import static st.orm.core.template.impl.StringTemplates.flatten;
 
 /**
- * Implementation of {@link st.orm.repository.EntityRepository} for SQL Server.
+ * Implementation of {@link EntityRepository} for SQL Server.
  */
 public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         extends EntityRepositoryImpl<E, ID> {
@@ -76,22 +78,22 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
                     || Long.TYPE.isAssignableFrom(c)
                     || Integer.class.isAssignableFrom(c)
                     || Long.class.isAssignableFrom(c)
-                    || BigInteger.class.isAssignableFrom(c) -> STR."t.\{columnName} + 1";
+                    || BigInteger.class.isAssignableFrom(c) -> "t.%s + 1".formatted(columnName);
             case Class<?> c when Instant.class.isAssignableFrom(c)
                     || Date.class.isAssignableFrom(c)
                     || Calendar.class.isAssignableFrom(c)
                     || Timestamp.class.isAssignableFrom(c) -> "CURRENT_TIMESTAMP";
             default ->
-                    throw new PersistenceException(STR."Unsupported version type: \{column.type().getSimpleName()}.");
+                    throw new PersistenceException("Unsupported version type: %s.".formatted(column.type().getSimpleName()));
         };
-        return STR."t.\{columnName} = \{updateExpression}";
+        return "t.%s = %s".formatted(columnName, updateExpression);
     }
 
     /**
      * Builds a SELECT clause for the merge source based on the entity’s current values.
      * (Note: Unlike Oracle, SQL Server does not require a FROM DUAL clause.)
      */
-    private StringTemplate mergeSelect(@Nonnull E entity) {
+    private TemplateString mergeSelect(@Nonnull E entity) {
         var dialect = ormTemplate.dialect();
         var values = model.getValues(entity);
         var duplicates = new HashSet<>(); // Ensure each column appears only once.
@@ -106,48 +108,48 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
                             value = null;
                         }
                     }
-                    return combine(RAW."\{value}", StringTemplate.of(STR." AS \{column.qualifiedName(dialect)}"));
+                    return combine(wrap(value), TemplateString.of(" AS %s".formatted(column.qualifiedName(dialect))));
                 })
-                .reduce((left, right) -> combine(left, RAW.", ", right))
-                .map(t -> combine(RAW."SELECT ", t))
+                .reduce((left, right) -> combine(left, TemplateString.of(", "), right))
+                .map(t -> combine(TemplateString.of("SELECT "), t))
                 .orElseThrow();
     }
 
     /**
      * Builds a SELECT clause for the merge source based on bind variables.
      */
-    private StringTemplate mergeSelect(@Nonnull BindVars bindVars) {
+    private TemplateString mergeSelect(@Nonnull BindVars bindVars) {
         var values = new AtomicReference<Map<Column, ?>>();
         //noinspection unchecked
         bindVars.setRecordListener(record -> values.setPlain(model.getValues((E) record)));
         var duplicates = new HashSet<>();
         return model.columns().stream()
                 .filter(column -> duplicates.add(column.name()))
-                .map(c -> combine(RAW."\{var(bindVars, _ -> values.getPlain().get(c))}",
-                        StringTemplate.of(STR." AS \{c.name()}")))
-                .reduce((left, right) -> combine(left, RAW.", ", right))
-                .map(t -> combine(RAW."SELECT ", t))
+                .map(c -> combine(wrap(bindVar(bindVars, ignore -> values.getPlain().get(c))),
+                        TemplateString.of(" AS %s".formatted(c.name()))))
+                .reduce((left, right) -> combine(left, TemplateString.of(", "), right))
+                .map(t -> combine(TemplateString.of("SELECT "), t))
                 .orElseThrow();
     }
 
     /**
      * Constructs the ON clause by equating primary key columns.
      */
-    private StringTemplate mergeOn() {
+    private TemplateString mergeOn() {
         var dialect = ormTemplate.dialect();
         var primaryKeys = model.columns().stream()
                 .filter(Column::primaryKey)
                 .toList();
         String sql = primaryKeys.stream()
-                .map(c -> STR."t.\{c.qualifiedName(dialect)} = src.\{c.qualifiedName(dialect)}")
+                .map(c -> "t.%s = src.%s".formatted(c.qualifiedName(dialect), c.qualifiedName(dialect)))
                 .collect(joining(" AND "));
-        return StringTemplate.of(sql);
+        return TemplateString.of(sql);
     }
 
     /**
      * Constructs the UPDATE clause for the MERGE statement.
      */
-    private StringTemplate mergeUpdate(@Nonnull AtomicBoolean versionAware) {
+    private TemplateString mergeUpdate(@Nonnull AtomicBoolean versionAware) {
         var dialect = ormTemplate.dialect();
         var duplicates = new HashSet<>();
         var args = model.columns().stream()
@@ -159,20 +161,20 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
                         versionAware.setPlain(true);
                         return getVersionString(column);
                     }
-                    return STR."t.\{column.qualifiedName(dialect)} = src.\{column.qualifiedName(dialect)}";
+                    return "t.%s = src.%s".formatted(column.qualifiedName(dialect), column.qualifiedName(dialect));
                 })
                 .toList();
         if (args.isEmpty()) {
-            return StringTemplate.of("");
+            return TemplateString.EMPTY;
         }
         String sql = args.stream().collect(joining(", ", "UPDATE SET ", ""));
-        return StringTemplate.of(STR."\nWHEN MATCHED THEN\n\t\{sql}");
+        return TemplateString.of("\nWHEN MATCHED THEN\n\t%s".formatted(sql));
     }
 
     /**
      * Constructs the INSERT clause for the MERGE statement.
      */
-    private StringTemplate mergeInsert() {
+    private TemplateString mergeInsert() {
         var dialect = ormTemplate.dialect();
         var insertDuplicates = new HashSet<>();
         var insertArgs = model.columns().stream()
@@ -184,15 +186,15 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         var valuesArgs = model.columns().stream()
                 .filter(c -> !c.primaryKey() || !c.autoGenerated())
                 .filter(column -> valuesDuplicates.add(column.name()))
-                .map(c -> STR."src.\{c.qualifiedName(dialect)}")
+                .map(c -> "src.%s".formatted(c.qualifiedName(dialect)))
                 .toList();
         if (insertArgs.isEmpty()) {
-            return StringTemplate.of("");
+            return TemplateString.EMPTY;
         }
         String insertSql = String.join(", ", insertArgs);
         String valuesSql = String.join(", ", valuesArgs);
-        String sql = STR."\n\tINSERT (\{insertSql})\n\tVALUES (\{valuesSql})";
-        return StringTemplate.of(STR."\nWHEN NOT MATCHED THEN\{sql}");
+        String sql = "\n\tINSERT (%s)\n\tVALUES (%s)".formatted(insertSql, valuesSql);
+        return TemplateString.of("\nWHEN NOT MATCHED THEN%s".formatted(sql));
     }
 
     /**
@@ -223,10 +225,10 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         var versionAware = new AtomicBoolean();
         intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
             // Note: SQL Server’s MERGE syntax does not require a FROM DUAL clause.
-            var query = ormTemplate.query(flatten(RAW."""
-                MERGE INTO \{model.type()} t
-                USING (\{mergeSelect(entity)}) src
-                ON (\{mergeOn()})\{mergeUpdate(versionAware)}\{mergeInsert()};"""));
+            var query = ormTemplate.query(flatten(raw("""
+                MERGE INTO \0 t
+                USING (\0) src
+                ON (\0)\0\0;""", model.type(), mergeSelect(entity), mergeOn(), mergeUpdate(versionAware), mergeInsert())));
                 query.executeUpdate();
         });
     }
@@ -388,19 +390,19 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
 
     protected PreparedQuery prepareInsertQuery() {
         var bindVars = ormTemplate.createBindVars();
-        return ormTemplate.query(RAW."""
-                INSERT INTO \{model.type()}
-                VALUES \{bindVars}""").prepare();
+        return ormTemplate.query(raw("""
+                INSERT INTO \0
+                VALUES \0""", model.type(), bindVars)).prepare();
     }
 
     protected PreparedQuery prepareUpsertQuery() {
         var bindVars = ormTemplate.createBindVars();
         var versionAware = new AtomicBoolean();
         return intercept(sql -> sql.versionAware(versionAware.getPlain()), () ->
-                ormTemplate.query(flatten(RAW."""
-                    MERGE INTO \{model.type()} t
-                    USING (\{mergeSelect(bindVars)}) src
-                    ON (\{mergeOn()})\{mergeUpdate(versionAware)}\{mergeInsert()};""")
+                ormTemplate.query(flatten(raw("""
+                    MERGE INTO \0 t
+                    USING (\0) src
+                    ON (\0)\0\0;""", model.type(), mergeSelect(bindVars), mergeOn(), mergeUpdate(versionAware), mergeInsert()))
                 ).prepare());
     }
 

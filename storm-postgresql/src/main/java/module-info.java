@@ -1,8 +1,9 @@
 module storm.postgresql {
-    uses st.orm.spi.EntityRepositoryProvider;
-    requires storm;
+    uses st.orm.core.spi.EntityRepositoryProvider;
+    requires storm.foundation;
+    requires storm.core;
     requires jakarta.annotation;
     requires java.sql;
-    provides st.orm.spi.EntityRepositoryProvider with st.orm.spi.postgresql.PostgreSQLEntityRepositoryProviderImpl;
-    provides st.orm.spi.SqlDialectProvider with st.orm.spi.postgresql.PostgreSQLSqlDialectProviderImpl;
+    provides st.orm.core.spi.EntityRepositoryProvider with st.orm.spi.postgresql.PostgreSQLEntityRepositoryProviderImpl;
+    provides st.orm.core.spi.SqlDialectProvider with st.orm.spi.postgresql.PostgreSQLSqlDialectProviderImpl;
 }

@@ -17,17 +17,19 @@ package st.orm.spi.postgresql;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.BatchCallback;
+import st.orm.core.repository.BatchCallback;
+import st.orm.core.repository.EntityRepository;
+import st.orm.core.template.PreparedQuery;
+import st.orm.core.repository.impl.EntityRepositoryImpl;
+import st.orm.core.template.Column;
+import st.orm.core.template.Model;
+import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.TemplateString;
+import st.orm.core.template.impl.LazySupplier;
+import st.orm.Entity;
 import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
 import st.orm.PersistenceException;
-import st.orm.PreparedQuery;
-import st.orm.repository.Entity;
-import st.orm.spi.EntityRepositoryImpl;
-import st.orm.template.Column;
-import st.orm.template.Model;
-import st.orm.template.ORMTemplate;
-import st.orm.template.impl.LazySupplier;
 
 import java.math.BigInteger;
 import java.sql.Timestamp;
@@ -42,18 +44,18 @@ import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static java.lang.StringTemplate.RAW;
-import static java.lang.StringTemplate.combine;
 import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.partitioningBy;
 import static java.util.stream.Stream.empty;
-import static st.orm.Templates.table;
-import static st.orm.template.QueryBuilder.slice;
-import static st.orm.template.SqlInterceptor.intercept;
-import static st.orm.template.impl.StringTemplates.flatten;
+import static st.orm.core.template.Templates.table;
+import static st.orm.core.template.QueryBuilder.slice;
+import static st.orm.core.template.SqlInterceptor.intercept;
+import static st.orm.core.template.TemplateString.combine;
+import static st.orm.core.template.TemplateString.raw;
+import static st.orm.core.template.impl.StringTemplates.flatten;
 
 /**
- * Implementation of {@link st.orm.repository.EntityRepository} for PostgreSQL.
+ * Implementation of {@link EntityRepository} for PostgreSQL.
  */
 public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         extends EntityRepositoryImpl<E, ID> {
@@ -62,22 +64,22 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         super(ormTemplate, model);
     }
 
-    private StringTemplate getVersionString(@Nonnull Class<? extends Record> type, @Nonnull Column column) {
-        StringTemplate columnName = StringTemplate.of(column.qualifiedName(ormTemplate.dialect()));
-        StringTemplate updateExpression = switch (column.type()) {
+    private TemplateString getVersionString(@Nonnull Class<? extends Record> type, @Nonnull Column column) {
+        TemplateString columnName = TemplateString.of(column.qualifiedName(ormTemplate.dialect()));
+        TemplateString updateExpression = switch (column.type()) {
             case Class<?> c when Integer.TYPE.isAssignableFrom(c)
                     || Long.TYPE.isAssignableFrom(c)
                     || Integer.class.isAssignableFrom(c)
                     || Long.class.isAssignableFrom(c)
-                    || BigInteger.class.isAssignableFrom(c) -> RAW."\{table(type)}.\{columnName} + 1";
+                    || BigInteger.class.isAssignableFrom(c) -> raw("\0.\0 + 1", table(type), columnName);
             case Class<?> c when Instant.class.isAssignableFrom(c)
                     || Date.class.isAssignableFrom(c)
                     || Calendar.class.isAssignableFrom(c)
-                    || Timestamp.class.isAssignableFrom(c) -> RAW."CURRENT_TIMESTAMP";
+                    || Timestamp.class.isAssignableFrom(c) -> TemplateString.of("CURRENT_TIMESTAMP");
             default ->
-                    throw new PersistenceException(STR."Unsupported version type: \{column.type().getSimpleName()}.");
+                    throw new PersistenceException("Unsupported version type: %s.".formatted(column.type().getSimpleName()));
         };
-        return flatten(RAW."\{columnName} = \{updateExpression}");
+        return flatten(raw("\0 = \0", columnName, updateExpression));
     }
 
     /**
@@ -89,15 +91,15 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
      * </p>
      *
      * @param versionAware a flag that will be set if a version column is encountered.
-     * @return the conflict clause as a StringTemplate.
+     * @return the conflict clause as a TemplateString.
      */
-    private StringTemplate onConflictClause(@Nonnull AtomicBoolean versionAware) {
+    private TemplateString onConflictClause(@Nonnull AtomicBoolean versionAware) {
         var dialect = ormTemplate.dialect();
         // Determine the conflict target from primary key columns.
         String conflictTarget = model.columns().stream()
                 .filter(Column::primaryKey)
                 .map(c -> c.qualifiedName(dialect))
-                .reduce((a, b) -> STR."\{a}, \{b}")
+                .reduce("%s, %s"::formatted)
                 .orElseThrow(() -> new PersistenceException("No primary key defined."));
         // Build the assignment list for non-primary key updatable columns.
         var assignments = model.columns().stream()
@@ -108,12 +110,12 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
                         versionAware.setPlain(true);
                         return getVersionString(model.type(), column);
                     }
-                    return StringTemplate.of(STR."\{column.qualifiedName(dialect)} = EXCLUDED.\{column.qualifiedName(dialect)}");
+                    return TemplateString.of("%s = EXCLUDED.%s".formatted(column.qualifiedName(dialect), column.qualifiedName(dialect)));
                 })
-                .reduce((left, right) -> combine(left, RAW.", ", right))
-                .map(st -> StringTemplate.combine(RAW."DO UPDATE SET ", st))
-                .orElse(StringTemplate.of("DO NOTHING"));
-        return flatten(combine(RAW."\nON CONFLICT (", StringTemplate.of(conflictTarget), RAW.") \{assignments}"));
+                .reduce((left, right) -> combine(left, TemplateString.of(", "), right))
+                .map(st -> combine(TemplateString.of("DO UPDATE SET "), st))
+                .orElse(TemplateString.of("DO NOTHING"));
+        return flatten(combine(TemplateString.of("\nON CONFLICT ("), TemplateString.of(conflictTarget), raw(") \0", assignments)));
     }
 
     protected E validateUpsert(@Nonnull E entity) {
@@ -135,9 +137,9 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         validateUpsert(entity);
         var versionAware = new AtomicBoolean();
         intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
-            var query = ormTemplate.query(flatten(RAW."""
-                    INSERT INTO \{model.type()}
-                    VALUES \{entity}\{onConflictClause(versionAware)}"""));
+            var query = ormTemplate.query(flatten(raw("""
+                    INSERT INTO \0
+                    VALUES \0\0""", model.type(), entity, onConflictClause(versionAware))));
             query.executeUpdate();
         });
     }
@@ -154,13 +156,13 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         validateUpsert(entity);
         var versionAware = new AtomicBoolean();
         return intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
-            try (var query = ormTemplate.query(flatten(RAW."""
-                        INSERT INTO \{model.type()}
-                        VALUES \{entity}\{onConflictClause(versionAware)}""")).prepare()) {
+            try (var query = ormTemplate.query(flatten(raw("""
+                        INSERT INTO \0
+                        VALUES \0\0""", model.type(), entity, onConflictClause(versionAware)))).prepare()) {
                 query.executeUpdate();
                 if (autoGeneratedPrimaryKey) {
                     try (var stream = query.getGeneratedKeys(model.primaryKeyType())) {
-                        return stream.reduce((_, __) -> {
+                        return stream.reduce((ignore1, ignore2) -> {
                             throw new NonUniqueResultException("Expected single result, but found more than one.");
                         }).orElseThrow(() -> new NoResultException("Expected single result, but found none."));
                     }
@@ -304,9 +306,9 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         var bindVars = ormTemplate.createBindVars();
         var versionAware = new AtomicBoolean();
         return intercept(sql -> sql.versionAware(versionAware.getPlain()), () ->
-                ormTemplate.query(flatten(RAW."""
-                    INSERT INTO \{model.type()}
-                    VALUES \{bindVars}\{onConflictClause(versionAware)}""")
+                ormTemplate.query(flatten(raw("""
+                    INSERT INTO \0
+                    VALUES \0\0""", model.type(), bindVars, onConflictClause(versionAware)))
                 ).prepare());
     }
 

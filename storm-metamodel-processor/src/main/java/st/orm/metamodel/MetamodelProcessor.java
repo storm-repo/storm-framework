@@ -58,10 +58,10 @@ import static javax.tools.Diagnostic.Kind.NOTE;
 @SupportedAnnotationTypes("*")
 public final class MetamodelProcessor extends AbstractProcessor {
 
-    private static final String METAMODEL_TYPE = "st.orm.template.MetamodelType";
-    private static final String GENERATE_METAMODEL = "st.orm.template.GenerateMetamodel";
-    private static final String ENTITY = "st.orm.repository.Entity";
-    private static final String PROJECTION = "st.orm.repository.Projection";
+    private static final String METAMODEL_TYPE = "st.orm.MetamodelType";
+    private static final String GENERATE_METAMODEL = "st.orm.GenerateMetamodel";
+    private static final String ENTITY = "st.orm.Entity";
+    private static final String PROJECTION = "st.orm.Projection";
     private static final String FOREIGN_KEY = "st.orm.FK";
 
     private final Set<String> generatedFiles;
@@ -403,7 +403,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     .createSourceFile((packageName.isEmpty() ? "" : packageName + ".") + metaInterfaceName, recordElement);
             try (Writer writer = fileObject.openWriter()) {
                 writer.write(String.format("""
-                    %simport st.orm.template.Metamodel;
+                    %simport st.orm.Metamodel;
                     import javax.annotation.processing.Generated;
 
                     /**
@@ -473,8 +473,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
                                 .append("subPath").append(", componentBase + \"").append(fieldName).append("\", true, this);\n");
                     }
                 } else {
-                    builder.append("        this.").append(fieldName).append(" = new MetamodelImpl<>(")
-                            .append(fieldTypeName).append(".class, ").append("subPath").append(", componentBase + \"").append(fieldName).append("\", false, this);\n");
+                    builder.append("        this.").append(fieldName).append(" = new AbstractMetamodel<>(")
+                            .append(fieldTypeName).append(".class, ").append("subPath").append(", componentBase + \"").append(fieldName).append("\", false, this) { };\n");
                 }
             }
         }
@@ -494,8 +494,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     .createSourceFile((packageName.isEmpty() ? "" : packageName + ".") + metaClassName, recordElement);
             try (Writer writer = fileObject.openWriter()) {
                 writer.write(String.format("""
-                    %simport st.orm.template.Metamodel;
-                    import st.orm.template.impl.MetamodelImpl;
+                    %simport st.orm.Metamodel;
+                    import st.orm.AbstractMetamodel;
                     import javax.annotation.processing.Generated;
 
                     /**
@@ -504,7 +504,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                      * @param <T> the record type of the root table of the entity graph.
                      */
                     @Generated("%s")
-                    public final class %s<T extends Record> extends MetamodelImpl<T, %s> {
+                    public final class %s<T extends Record> extends AbstractMetamodel<T, %s> {
                     %s
                         public %s() {
                             this("", (Metamodel<T, ?>) Metamodel.root(%s.class));

@@ -1,7 +1,8 @@
 module storm.json {
-    requires storm;
+    requires storm.foundation;
+    requires storm.core;
     requires jakarta.annotation;
     requires java.sql;
     requires com.fasterxml.jackson.databind;
-    provides st.orm.spi.ORMConverterProvider with st.orm.json.spi.JsonORMConverterProviderImpl;
+    provides st.orm.core.spi.ORMConverterProvider with st.orm.json.spi.JsonORMConverterProviderImpl;
 }

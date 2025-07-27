@@ -16,13 +16,14 @@
 package st.orm.spi.mariadb;
 
 import jakarta.annotation.Nonnull;
-import st.orm.repository.Entity;
+import st.orm.core.repository.EntityRepository;
+import st.orm.core.template.Model;
+import st.orm.core.template.ORMTemplate;
+import st.orm.Entity;
 import st.orm.spi.mysql.MySQLEntityRepositoryImpl;
-import st.orm.template.Model;
-import st.orm.template.ORMTemplate;
 
 /**
- * Implementation of {@link st.orm.repository.EntityRepository} for MariaDB.
+ * Implementation of {@link EntityRepository} for MariaDB.
  */
 public class MariaDBEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         extends MySQLEntityRepositoryImpl<E, ID> {

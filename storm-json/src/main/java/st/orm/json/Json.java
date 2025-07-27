@@ -15,7 +15,7 @@
  */
 package st.orm.json;
 
-import st.orm.template.MetamodelType;
+import st.orm.MetamodelType;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;

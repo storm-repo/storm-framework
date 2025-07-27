@@ -6,13 +6,13 @@
         <java.version>21</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
-        <kotlin.version>2.1.21</kotlin.version>
+        <kotlin.version>2.0.21</kotlin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <spring-boot.version>3.4.3</spring-boot.version>
+        <spring-boot.version>3.5.3</spring-boot.version>
     </properties>
     <groupId>st.orm</groupId>
     <artifactId>storm-framework</artifactId>
-    <version>1.3.8</version>
+    <version>1.4.0</version>
     <packaging>pom</packaging>
     <name>Storm Framework</name>
     <description>A SQL Template and ORM framework, focusing on modernizing and simplifying database programming.</description>
@@ -36,15 +36,19 @@
     </scm>
     <modules>
         <module>storm-metamodel-processor</module>
-        <module>storm</module>
+        <module>storm-foundation</module>
+        <module>storm-core</module>
         <module>storm-json</module>
         <module>storm-oracle</module>
         <module>storm-mysql</module>
         <module>storm-mariadb</module>
         <module>storm-postgresql</module>
         <module>storm-mssqlserver</module>
-        <module>storm-kotlin</module>
         <module>storm-spring</module>
+        <module>storm-java21</module>
+        <module>storm-kotlin</module>
+        <module>storm-kotlin-validator</module>
+        <module>storm-kotlin-spring</module>
     </modules>
     <dependencyManagement>
         <dependencies>
@@ -74,7 +78,6 @@
                         <source>${java.version}</source>
                         <target>${java.version}</target>
                         <release>${java.version}</release>
-                        <compilerArgs>--enable-preview</compilerArgs>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -153,17 +156,17 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.sonatype.central</groupId>
-                <artifactId>central-publishing-maven-plugin</artifactId>
-                <version>0.7.0</version>
-                <extensions>true</extensions>
-                <configuration>
-                    <publishingServerId>central</publishingServerId>
-                    <autoPublish>true</autoPublish>
-                    <waitUntil>uploaded</waitUntil>
-                </configuration>
-            </plugin>
+<!--            <plugin>-->
+<!--                <groupId>org.sonatype.central</groupId>-->
+<!--                <artifactId>central-publishing-maven-plugin</artifactId>-->
+<!--                <version>0.7.0</version>-->
+<!--                <extensions>true</extensions>-->
+<!--                <configuration>-->
+<!--                    <publishingServerId>central</publishingServerId>-->
+<!--                    <autoPublish>true</autoPublish>-->
+<!--                    <waitUntil>uploaded</waitUntil>-->
+<!--                </configuration>-->
+<!--            </plugin>-->
         </plugins>
     </build>
 </project>

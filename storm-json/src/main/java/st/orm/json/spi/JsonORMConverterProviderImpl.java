@@ -17,11 +17,11 @@ package st.orm.json.spi;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import jakarta.annotation.Nonnull;
+import st.orm.core.spi.ORMConverter;
+import st.orm.core.spi.ORMConverterProvider;
+import st.orm.core.spi.ORMReflection;
+import st.orm.core.spi.Providers;
 import st.orm.json.Json;
-import st.orm.spi.ORMConverter;
-import st.orm.spi.ORMConverterProvider;
-import st.orm.spi.ORMReflection;
-import st.orm.spi.Providers;
 
 import java.lang.reflect.RecordComponent;
 import java.util.Optional;

@@ -1,14 +1,13 @@
-module storm.kotlin {
-    requires storm;
-    exports st.orm.kotlin;
-    exports st.orm.kotlin.template;
-    exports st.orm.kotlin.repository;
+module storm.kt {
+    requires storm.foundation;
+    requires storm.core;
+    exports st.orm.kt.template;
+    exports st.orm.kt.repository;
     requires java.sql;
     requires jakarta.persistence;
     requires jakarta.annotation;
     requires kotlin.reflect;
     requires kotlin.stdlib;
-    requires org.jetbrains.annotations;
-    uses st.orm.spi.ORMReflection;
-    provides st.orm.spi.ORMReflectionProvider with st.orm.kotlin.spi.KORMReflectionProviderImpl;
+    uses st.orm.core.spi.ORMReflection;
+    provides st.orm.core.spi.ORMReflectionProvider with st.orm.kt.spi.ORMReflectionProviderImpl;
 }

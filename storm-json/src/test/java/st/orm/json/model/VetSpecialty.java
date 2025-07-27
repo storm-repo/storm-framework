@@ -2,10 +2,10 @@ package st.orm.json.model;
 
 import jakarta.annotation.Nonnull;
 import lombok.Builder;
+import st.orm.Entity;
 import st.orm.FK;
 import st.orm.PK;
 import st.orm.Persist;
-import st.orm.repository.Entity;
 
 @Builder(toBuilder = true)
 public record VetSpecialty(

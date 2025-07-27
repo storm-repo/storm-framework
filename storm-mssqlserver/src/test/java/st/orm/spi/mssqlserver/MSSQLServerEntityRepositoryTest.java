@@ -17,15 +17,14 @@ import org.testcontainers.containers.MSSQLServerContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import st.orm.Entity;
 import st.orm.FK;
+import st.orm.Metamodel;
 import st.orm.PK;
 import st.orm.Persist;
 import st.orm.PersistenceException;
 import st.orm.Version;
-import st.orm.repository.Entity;
-import st.orm.template.Metamodel;
-import st.orm.template.PreparedStatementTemplate;
-import st.orm.template.SqlInterceptor;
+import st.orm.core.template.PreparedStatementTemplate;
 
 import javax.sql.DataSource;
 import java.util.Comparator;
@@ -38,9 +37,9 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.util.AssertionErrors.assertNull;
-import static st.orm.template.Operator.EQUALS;
-import static st.orm.template.Operator.GREATER_THAN_OR_EQUAL;
-import static st.orm.template.SqlInterceptor.observe;
+import static st.orm.Operator.EQUALS;
+import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
+import static st.orm.core.template.SqlInterceptor.observe;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
@@ -662,7 +661,7 @@ public class MSSQLServerEntityRepositoryTest {
                 Specialty.builder().id(4).name("anaesthetics").build(),
                 Specialty.builder().id(5).name("nurse").build())));
         var entities = repo.select().where(Metamodel.of(Specialty.class, "id"), GREATER_THAN_OR_EQUAL, 4).getResultList();
-        repo.upsert(entities.stream().map(e -> e.toBuilder().name(STR."\{e.name()}s").build()).toList());
+        repo.upsert(entities.stream().map(e -> e.toBuilder().name("%ss".formatted(e.name())).build()).toList());
         var updated = repo.select().where(Metamodel.of(Specialty.class, "id"), GREATER_THAN_OR_EQUAL, 4).getResultList();
         assertEquals(2, updated.size());
         assertTrue(updated.stream().allMatch(entity -> entity.name().endsWith("s")));
@@ -692,7 +691,7 @@ public class MSSQLServerEntityRepositoryTest {
             var entities = repo.upsertAndFetch(List.of(
                     Specialty.builder().id(4).name("anaesthetics").build(),
                     Specialty.builder().id(5).name("nurse").build()));
-            var updated = repo.upsertAndFetch(entities.stream().map(e -> e.toBuilder().name(STR."\{e.name()}s").build()).toList());
+            var updated = repo.upsertAndFetch(entities.stream().map(e -> e.toBuilder().name("%ss".formatted(e.name())).build()).toList());
             assertEquals(2, updated.size());
             assertTrue(updated.stream().allMatch(entity -> entity.name().endsWith("s")));
         });

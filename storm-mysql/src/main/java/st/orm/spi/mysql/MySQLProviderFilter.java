@@ -15,8 +15,9 @@
  */
 package st.orm.spi.mysql;
 
-import st.orm.spi.Provider;
-import st.orm.spi.SqlDialectProvider;
+
+import st.orm.core.spi.Provider;
+import st.orm.core.spi.SqlDialectProvider;
 
 import java.util.function.Predicate;
 

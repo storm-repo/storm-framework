@@ -1,8 +1,9 @@
 module storm.mariadb {
-    uses st.orm.spi.EntityRepositoryProvider;
-    requires storm;
+    uses st.orm.core.spi.EntityRepositoryProvider;
+    requires storm.foundation;
+    requires storm.core;
     requires storm.mysql;
     requires jakarta.annotation;
-    provides st.orm.spi.EntityRepositoryProvider with st.orm.spi.mariadb.MariaDBEntityRepositoryProviderImpl;
-    provides st.orm.spi.SqlDialectProvider with st.orm.spi.mariadb.MariaDBSqlDialectProviderImpl;
+    provides st.orm.core.spi.EntityRepositoryProvider with st.orm.spi.mariadb.MariaDBEntityRepositoryProviderImpl;
+    provides st.orm.core.spi.SqlDialectProvider with st.orm.spi.mariadb.MariaDBSqlDialectProviderImpl;
 }

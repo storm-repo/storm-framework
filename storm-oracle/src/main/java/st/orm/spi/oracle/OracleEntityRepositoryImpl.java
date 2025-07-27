@@ -17,16 +17,18 @@ package st.orm.spi.oracle;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.BatchCallback;
+import st.orm.core.repository.BatchCallback;
+import st.orm.core.repository.EntityRepository;
+import st.orm.core.template.PreparedQuery;
+import st.orm.core.repository.impl.EntityRepositoryImpl;
+import st.orm.core.template.Column;
+import st.orm.core.template.Model;
+import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.TemplateString;
+import st.orm.core.template.impl.LazySupplier;
 import st.orm.BindVars;
+import st.orm.Entity;
 import st.orm.PersistenceException;
-import st.orm.PreparedQuery;
-import st.orm.repository.Entity;
-import st.orm.spi.EntityRepositoryImpl;
-import st.orm.template.Column;
-import st.orm.template.Model;
-import st.orm.template.ORMTemplate;
-import st.orm.template.impl.LazySupplier;
 
 import java.math.BigInteger;
 import java.sql.Timestamp;
@@ -43,20 +45,21 @@ import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static java.lang.StringTemplate.RAW;
-import static java.lang.StringTemplate.combine;
 import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.partitioningBy;
 import static java.util.stream.Stream.empty;
-import static st.orm.Templates.table;
-import static st.orm.Templates.var;
-import static st.orm.template.QueryBuilder.slice;
-import static st.orm.template.SqlInterceptor.intercept;
-import static st.orm.template.impl.StringTemplates.flatten;
+import static st.orm.core.template.Templates.table;
+import static st.orm.core.template.Templates.bindVar;
+import static st.orm.core.template.QueryBuilder.slice;
+import static st.orm.core.template.SqlInterceptor.intercept;
+import static st.orm.core.template.TemplateString.combine;
+import static st.orm.core.template.TemplateString.raw;
+import static st.orm.core.template.TemplateString.wrap;
+import static st.orm.core.template.impl.StringTemplates.flatten;
 
 /**
- * Implementation of {@link st.orm.repository.EntityRepository} for Oracle.
+ * Implementation of {@link EntityRepository} for Oracle.
  */
 public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> extends EntityRepositoryImpl<E, ID> {
 
@@ -71,18 +74,18 @@ public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> exten
                     || Long.TYPE.isAssignableFrom(c)
                     || Integer.class.isAssignableFrom(c)
                     || Long.class.isAssignableFrom(c)
-                    || BigInteger.class.isAssignableFrom(c) -> STR."src.\{columnName} + 1";
+                    || BigInteger.class.isAssignableFrom(c) -> "src.%s + 1".formatted(columnName);
             case Class<?> c when Instant.class.isAssignableFrom(c)
                     || Date.class.isAssignableFrom(c)
                     || Calendar.class.isAssignableFrom(c)
                     || Timestamp.class.isAssignableFrom(c) -> "SYSTIMESTAMP";
             default ->
-                    throw new PersistenceException(STR."Unsupported version type: \{column.type().getSimpleName()}.");
+                    throw new PersistenceException("Unsupported version type: %s.".formatted(column.type().getSimpleName()));
         };
-        return STR."t.\{columnName} = \{updateExpression}";
+        return "t.%s = %s".formatted(columnName, updateExpression);
     }
 
-    private StringTemplate mergeSelect(@Nonnull E entity) {
+    private TemplateString mergeSelect(@Nonnull E entity) {
         var dialect = ormTemplate.dialect();
         var values = model.getValues(entity);
         var duplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alon fields. Only include them once.
@@ -97,39 +100,39 @@ public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> exten
                             value = null;   // Always pass NULL for auto-generated primary keys to force a mismatch.
                         }
                     }
-                    return combine(RAW."\{value}", StringTemplate.of(STR." AS \{column.qualifiedName(dialect)}"));
+                    return combine(wrap(value), TemplateString.of(" AS %s".formatted(column.qualifiedName(dialect))));
                 })
-                .reduce((left, right) -> combine(left, RAW.", ", right))
-                .map(t -> combine(RAW."SELECT ", t, RAW." FROM DUAL"))
+                .reduce((left, right) -> combine(left, TemplateString.of(", "), right))
+                .map(t -> combine(TemplateString.of("SELECT "), t, TemplateString.of(" FROM DUAL")))
                 .orElseThrow();
     }
 
-    private StringTemplate mergeSelect(@Nonnull BindVars bindVars) {
+    private TemplateString mergeSelect(@Nonnull BindVars bindVars) {
         var dialect = ormTemplate.dialect();
         var values = new AtomicReference<Map<Column, ?>>();
         //noinspection unchecked
         bindVars.setRecordListener(record -> values.setPlain(model.getValues((E) record)));
-        var duplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alon fields. Only include them once.
+        var duplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alone fields. Only include them once.
         return model.columns().stream()
                 .filter(column -> duplicates.add(column.name()))
-                .map(c -> combine(RAW."\{var(bindVars, _ -> values.getPlain().get(c))}", StringTemplate.of(STR." AS \{c.qualifiedName(dialect)}")))
-                .reduce((left, right) -> combine(left, RAW.", ", right))
-                .map(t -> combine(RAW."SELECT ", t, RAW." FROM DUAL"))
+                .map(c -> combine(wrap(bindVar(bindVars, ignore -> values.getPlain().get(c))), TemplateString.of(" AS %s".formatted(c.qualifiedName(dialect)))))
+                .reduce((left, right) -> combine(left, TemplateString.of(", "), right))
+                .map(t -> combine(TemplateString.of("SELECT "), t, TemplateString.of(" FROM DUAL")))
                 .orElseThrow();
     }
 
-    private StringTemplate mergeOn() {
+    private TemplateString mergeOn() {
         var dialect = ormTemplate.dialect();
         var primaryKeys = model.columns().stream()
                 .filter(Column::primaryKey)
                 .toList();
         String sql = primaryKeys.stream()
-                .map(c -> STR."t.\{c.qualifiedName(dialect)} = src.\{c.qualifiedName(dialect)}")
+                .map(c -> "t.%s = src.%s".formatted(c.qualifiedName(dialect), c.qualifiedName(dialect)))
                 .collect(joining(" AND "));
-        return StringTemplate.of(sql);
+        return TemplateString.of(sql);
     }
 
-    private StringTemplate mergeUpdate(@Nonnull AtomicBoolean versionAware) {
+    private TemplateString mergeUpdate(@Nonnull AtomicBoolean versionAware) {
         var dialect = ormTemplate.dialect();
         var duplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alon fields. Only include them once.
         var args = model.columns().stream()
@@ -141,38 +144,38 @@ public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> exten
                         versionAware.setPlain(true);
                         return getVersionString(column);
                     }
-                    return STR."t.\{column.name()} = src.\{column.qualifiedName(dialect)}";
+                    return "t.%s = src.%s".formatted(column.name(), column.qualifiedName(dialect));
                 })
                 .toList();
         if (args.isEmpty()) {
-            return StringTemplate.of("");
+            return TemplateString.of("");
         }
         String sql = args.stream().collect(joining(", ", "UPDATE SET ", ""));
-        return StringTemplate.of(STR."\nWHEN MATCHED THEN\n\t\{sql}");
+        return TemplateString.of("\nWHEN MATCHED THEN\n\t%s".formatted(sql));
     }
 
-    private StringTemplate mergeInsert() {
+    private TemplateString mergeInsert() {
         var dialect = ormTemplate.dialect();
         var insertDuplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alon fields. Only include them once.
         var insertArgs = model.columns().stream()
                 .filter(c -> !c.primaryKey() || !c.autoGenerated())
                 .filter(column -> insertDuplicates.add(column.name()))
-                .map(c -> STR."\{c.qualifiedName(dialect)}")
+                .map(c -> c.qualifiedName(dialect))
                 .toList();
         var valuesDuplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alon fields. Only include them once.
         var valuesArgs = model.columns().stream()
                 .filter(c -> !c.primaryKey() || !c.autoGenerated())
                 .filter(column -> valuesDuplicates.add(column.name()))
-                .map(c -> STR."src.\{c.qualifiedName(dialect)}")
+                .map(c -> "src.%s".formatted(c.qualifiedName(dialect)))
                 .toList();
         assert insertArgs.size() == valuesArgs.size();
         if (insertArgs.isEmpty()) {
-            return StringTemplate.of("");
+            return TemplateString.EMPTY;
         }
         String insertSql = insertArgs.stream().collect(joining(", ", "INSERT (", ")"));
         String valuesSql = valuesArgs.stream().collect(joining(", ", "VALUES (", ")"));
-        String sql = STR."\n\t\{insertSql}\n\t\{valuesSql}";
-        return StringTemplate.of(STR."\nWHEN NOT MATCHED THEN\{sql}");
+        String sql = "\n\t%s\n\t%s".formatted(insertSql, valuesSql);
+        return TemplateString.of("\nWHEN NOT MATCHED THEN%s".formatted(sql));
     }
 
     protected E validateUpsert(@Nonnull E entity) {
@@ -210,10 +213,10 @@ public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> exten
         validateUpsert(entity);
         var versionAware = new AtomicBoolean();
         intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
-            var query = ormTemplate.query(flatten(RAW."""
-                    MERGE INTO \{table(model.type())} t
-                    USING (\{mergeSelect(entity)}) src
-                    ON (\{mergeOn()})\{mergeUpdate(versionAware)}\{mergeInsert()}"""));
+            var query = ormTemplate.query(flatten(raw("""
+                    MERGE INTO \0 t
+                    USING (\0) src
+                    ON (\0)\0\0""", table(model.type()), mergeSelect(entity), mergeOn(), mergeUpdate(versionAware), mergeInsert())));
             query.executeUpdate();
         });
     }
@@ -532,19 +535,19 @@ public class OracleEntityRepositoryImpl<E extends Record & Entity<ID>, ID> exten
 
     protected PreparedQuery prepareInsertQuery() {
         var bindVars = ormTemplate.createBindVars();
-        return ormTemplate.query(RAW."""
-                INSERT INTO \{model.type()}
-                VALUES \{bindVars}""").prepare();
+        return ormTemplate.query(raw("""
+                INSERT INTO \0
+                VALUES \0""", model.type(), bindVars)).prepare();
     }
 
     protected PreparedQuery prepareUpsertQuery() {
         var bindVars = ormTemplate.createBindVars();
         var versionAware = new AtomicBoolean();
         return intercept(sql -> sql.versionAware(versionAware.getPlain()), () ->
-                ormTemplate.query(flatten(RAW."""
-                    MERGE INTO \{table(model.type())} t
-                    USING (\{mergeSelect(bindVars)}) src
-                    ON (\{mergeOn()})\{mergeUpdate(versionAware)}\{mergeInsert()}""")
+                ormTemplate.query(flatten(raw("""
+                    MERGE INTO \0 t
+                    USING (\0) src
+                    ON (\0)\0\0""", table(model.type()), mergeSelect(bindVars), mergeOn(), mergeUpdate(versionAware), mergeInsert()))
                 ).prepare());
     }
 

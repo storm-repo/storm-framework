@@ -16,8 +16,8 @@
 package st.orm.json.model;
 
 import lombok.Builder;
+import st.orm.Entity;
 import st.orm.PK;
-import st.orm.repository.Entity;
 
 /**
  * Simple domain object representing a veterinarian.
