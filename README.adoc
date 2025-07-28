@@ -1,16 +1,16 @@
 = ST/ORM
 
 *Storm* is a SQL Template and ORM framework designed for Java 21+ and Kotlin 2.0+, focusing on modernizing and
-simplifying database programming. By leveraging the latest features of Java, it enables developers to define entities
-and queries in a concise and readable manner, enhancing both productivity and code clarity.
+simplifying database programming. By leveraging the latest features of Java and Kotlin, it enables developers to define
+entities and queries in a concise and readable manner, enhancing both productivity and code clarity.
 
 *Key benefits of Storm:*
 
 * *Easy to learn*: With a programming model similar to the Java Persistence API (JPA), developers familiar with JPA can
 quickly and easily adapt to using Storm.
 * *Modern Syntax*: Storm allows for clean and concise code, making it effortless to write entities and queries.
-* *Type-safe*: Storm’s query builder mirrors SQL, providing a type-safe, intuitive experience
-that makes queries easy to write and read while reducing the risk of runtime errors.
+* *Type-safe*: Storm’s DSL mirrors SQL, providing a type-safe, intuitive experience that makes queries easy to write and
+read while reducing the risk of runtime errors.
 * *Direct Database Interaction*: Storm translates method calls directly into database operations, offering a transparent
 and straightforward experience. It eliminates inefficiencies like the N+1 query problem for predictable and efficient
 interactions.
