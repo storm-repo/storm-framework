@@ -13,24 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spring;
+package st.orm.spring.impl;
 
-import org.aspectj.lang.annotation.Aspect;
-import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.stereotype.Component;
 
-@AutoConfiguration
-@ConditionalOnClass(Aspect.class)
-public class RepositoryAopAutoConfiguration {
+/**
+ * Registers a resolver bean in the Spring application context.
+ */
+@Component
+public class ResolverRegistration {
 
-    @Bean
-    public static RepositoryProxyingPostProcessor javaRepositoryProxyingPostProcessor() {
-        return new RepositoryProxyingPostProcessor();
-    }
+    private final ConfigurableListableBeanFactory beanFactory;
 
-    @Bean
-    public SqlLoggerAspect javaSqlLoggerAspect() {
-        return new SqlLoggerAspect();
+    /**
+     * Creates a new {@link ResolverRegistration} instance.
+     *
+     * @param beanFactory the bean factory.
+     */
+    public ResolverRegistration(ConfigurableListableBeanFactory beanFactory) {
+        this.beanFactory = beanFactory;
     }
 }

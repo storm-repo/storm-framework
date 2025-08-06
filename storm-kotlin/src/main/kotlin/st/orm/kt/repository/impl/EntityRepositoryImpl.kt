@@ -18,7 +18,6 @@ package st.orm.kt.repository.impl
 
 import st.orm.Entity
 import st.orm.Ref
-import st.orm.kt.repository.BatchCallback
 import st.orm.kt.repository.EntityRepository
 import st.orm.kt.template.*
 import st.orm.kt.template.impl.ModelImpl
@@ -84,6 +83,10 @@ class EntityRepositoryImpl<E, ID : Any>(
 
     override fun count(): Long {
         return core.count()
+    }
+
+    override fun exists(): Boolean {
+        return core.exists()
     }
 
     override fun existsById(id: ID): Boolean {
@@ -270,34 +273,24 @@ class EntityRepositoryImpl<E, ID : Any>(
         core.insert(entities, batchSize, ignoreAutoGenerate)
     }
 
-    override fun insertAndFetchIds(entities: Stream<E>, callback: BatchCallback<ID>) {
-        core.insertAndFetchIds(
-            entities
-        ) { batch: Stream<ID> -> callback.process(batch) }
+    override fun insertAndFetchIds(entities: Stream<E>, callback: (Stream<ID>) -> Unit) {
+        core.insertAndFetchIds(entities, callback)
     }
 
-    override fun insertAndFetch(entities: Stream<E>, callback: BatchCallback<E>) {
-        core.insertAndFetch(
-            entities
-        ) { batch: Stream<E> -> callback.process(batch) }
+    override fun insertAndFetch(entities: Stream<E>, callback: (Stream<E>) -> Unit) {
+        core.insertAndFetch(entities, callback)
     }
 
     override fun insertAndFetchIds(
         entities: Stream<E>,
         batchSize: Int,
-        callback: BatchCallback<ID>
+        callback: (Stream<ID>) -> Unit
     ) {
-        core.insertAndFetchIds(
-            entities,
-            batchSize
-        ) { batch: Stream<ID> -> callback.process(batch) }
+        core.insertAndFetchIds(entities, batchSize, callback)
     }
 
-    override fun insertAndFetch(entities: Stream<E>, batchSize: Int, callback: BatchCallback<E>) {
-        core.insertAndFetch(
-            entities,
-            batchSize
-        ) { batch: Stream<E> -> callback.process(batch) }
+    override fun insertAndFetch(entities: Stream<E>, batchSize: Int, callback: (Stream<E>) -> Unit) {
+        core.insertAndFetch(entities, batchSize, callback)
     }
 
     override fun update(entities: Stream<E>) {
@@ -308,17 +301,12 @@ class EntityRepositoryImpl<E, ID : Any>(
         core.update(entities, batchSize)
     }
 
-    override fun updateAndFetch(entities: Stream<E>, callback: BatchCallback<E>) {
-        core.updateAndFetch(
-            entities
-        ) { batch: Stream<E> -> callback.process(batch) }
+    override fun updateAndFetch(entities: Stream<E>, callback: (Stream<E>) -> Unit) {
+        core.updateAndFetch(entities, callback)
     }
 
-    override fun updateAndFetch(entities: Stream<E>, batchSize: Int, callback: BatchCallback<E>) {
-        core.updateAndFetch(
-            entities,
-            batchSize
-        ) { batch: Stream<E> -> callback.process(batch) }
+    override fun updateAndFetch(entities: Stream<E>, batchSize: Int, callback: (Stream<E>) -> Unit) {
+        core.updateAndFetch(entities, batchSize, callback)
     }
 
     override fun upsert(entities: Stream<E>) {
@@ -329,34 +317,24 @@ class EntityRepositoryImpl<E, ID : Any>(
         core.upsert(entities, batchSize)
     }
 
-    override fun upsertAndFetchIds(entities: Stream<E>, callback: BatchCallback<ID>) {
-        core.upsertAndFetchIds(
-            entities
-        ) { batch: Stream<ID> -> callback.process(batch) }
+    override fun upsertAndFetchIds(entities: Stream<E>, callback: (Stream<ID>) -> Unit) {
+        core.upsertAndFetchIds(entities, callback)
     }
 
-    override fun upsertAndFetch(entities: Stream<E>, callback: BatchCallback<E>) {
-        core.upsertAndFetch(
-            entities
-        ) { batch: Stream<E> -> callback.process(batch) }
+    override fun upsertAndFetch(entities: Stream<E>, callback: (Stream<E>) -> Unit) {
+        core.upsertAndFetch(entities, callback)
     }
 
     override fun upsertAndFetchIds(
         entities: Stream<E>,
         batchSize: Int,
-        callback: BatchCallback<ID>
+        callback: (Stream<ID>) -> Unit
     ) {
-        core.upsertAndFetchIds(
-            entities,
-            batchSize
-        ) { batch: Stream<ID> -> callback.process(batch) }
+        core.upsertAndFetchIds(entities, batchSize, callback)
     }
 
-    override fun upsertAndFetch(entities: Stream<E>, batchSize: Int, callback: BatchCallback<E>) {
-        core.upsertAndFetch(
-            entities,
-            batchSize
-        ) { batch: Stream<E> -> callback.process(batch) }
+    override fun upsertAndFetch(entities: Stream<E>, batchSize: Int, callback: (Stream<E>) -> Unit) {
+        core.upsertAndFetch(entities, batchSize, callback)
     }
 
     override fun delete(entities: Stream<E>) {

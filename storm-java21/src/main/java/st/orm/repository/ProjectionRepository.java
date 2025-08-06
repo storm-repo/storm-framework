@@ -139,6 +139,14 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
     long count();
 
     /**
+     * Checks if any projection of the type managed by this repository exists in the database.
+     *
+     * @return true if at least one projection exists, false otherwise.
+     * @throws PersistenceException if there is an underlying database issue during the count operation.
+     */
+    boolean exists();
+
+    /**
      * Checks if a projection with the specified primary key exists in the database.
      *
      * <p>This method determines the presence of a projection by checking if the count of projections with the given primary

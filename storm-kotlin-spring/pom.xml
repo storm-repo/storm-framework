@@ -6,7 +6,7 @@
     <parent>
         <groupId>st.orm</groupId>
         <artifactId>storm-framework</artifactId>
-        <version>1.4.0</version>
+        <version>1.5.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>storm-kotlin-spring</artifactId>
@@ -33,9 +33,46 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.11.2</version>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <useModulePath>true</useModulePath>
+                    <argLine>
+                        --add-reads kotlin.stdlib=kotlinx.coroutines.core
+                        --add-reads storm.core=storm.kotlin.spring
+                        --add-opens java.base/java.lang=ALL-UNNAMED
+                        --add-opens storm.kotlin.spring/st.orm.kt.spring=ALL-UNNAMED
+                        --add-opens storm.kotlin.spring/st.orm.kt.spring.model=ALL-UNNAMED
+                        --add-opens storm.kotlin.spring/st.orm.kt.spring=kotlin.reflect
+                        --add-opens storm.kotlin.spring/st.orm.kt.spring=spring.core
+                        --add-opens storm.kotlin.spring/st.orm.kt.spring.model=storm.foundation
+                        --add-opens storm.kotlin.spring/st.orm.kt.spring.model=storm.kotlin
+                        --add-opens storm.kotlin.spring/st.orm.kt.spring.model=storm.core
+                        -Dst.orm.ansiEscaping=true
+                    </argLine>
+                    <forkCount>1</forkCount>
+                    <reuseForks>false</reuseForks>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <version>${kotlin.version}</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <jvmTarget>21</jvmTarget>
+                    <args>
+                        <arg>-Xjdk-release=21</arg>
+                    </args>
+                </configuration>
                 <executions>
                     <execution>
                         <id>compile</id>
@@ -102,6 +139,54 @@
             <groupId>org.springframework</groupId>
             <artifactId>spring-tx</artifactId>
             <scope>provided</scope>
+        </dependency>
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mariadb.jdbc</groupId>
+            <artifactId>mariadb-java-client</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib-jdk8</artifactId>
+            <version>${kotlin.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-test</artifactId>
+            <version>${kotlin.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.kotest</groupId>
+            <artifactId>kotest-assertions-core-jvm</artifactId>
+            <version>5.7.2</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

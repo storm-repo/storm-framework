@@ -48,7 +48,6 @@ import java.util.stream.Stream;
 import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.partitioningBy;
 import static java.util.stream.Stream.empty;
-import static st.orm.core.template.QueryBuilder.slice;
 import static st.orm.core.template.SqlInterceptor.intercept;
 import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.impl.StringTemplates.flatten;

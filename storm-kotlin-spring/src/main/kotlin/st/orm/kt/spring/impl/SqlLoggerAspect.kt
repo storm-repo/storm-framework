@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.kt.spring
+package st.orm.kt.spring.impl
 
 import org.aspectj.lang.JoinPoint
 import org.aspectj.lang.ProceedingJoinPoint
@@ -23,6 +23,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory.getLogger
 import org.springframework.stereotype.Component
 import st.orm.core.template.SqlInterceptor.intercept
+import st.orm.kt.spring.SqlLogger
 import java.util.function.Supplier
 
 @Aspect

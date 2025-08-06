@@ -13,24 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.kt.spring
+package st.orm.spring.impl;
 
-import org.aspectj.lang.annotation.Aspect
-import org.springframework.boot.autoconfigure.AutoConfiguration
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
-import org.springframework.context.annotation.Bean
+import org.aspectj.lang.annotation.Aspect;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.context.annotation.Bean;
 
 @AutoConfiguration
-@ConditionalOnClass(Aspect::class)
-open class RepositoryAopAutoConfiguration {
+@ConditionalOnClass(Aspect.class)
+public class RepositoryAopAutoConfiguration {
 
-    companion object {
-        @JvmStatic
-        @Bean
-        fun kotlinRepositoryProxyingPostProcessor(): RepositoryProxyingPostProcessor =
-            RepositoryProxyingPostProcessor()
+    @Bean
+    public static RepositoryProxyingPostProcessor javaRepositoryProxyingPostProcessor() {
+        return new RepositoryProxyingPostProcessor();
     }
 
     @Bean
-    open fun kotlinSqlLoggerAspect(): SqlLoggerAspect = SqlLoggerAspect()
+    public SqlLoggerAspect javaSqlLoggerAspect() {
+        return new SqlLoggerAspect();
+    }
 }

@@ -51,7 +51,6 @@ import static java.util.stream.Collectors.partitioningBy;
 import static java.util.stream.Stream.empty;
 import static st.orm.core.template.Templates.table;
 import static st.orm.core.template.Templates.bindVar;
-import static st.orm.core.template.QueryBuilder.slice;
 import static st.orm.core.template.SqlInterceptor.intercept;
 import static st.orm.core.template.TemplateString.combine;
 import static st.orm.core.template.TemplateString.raw;

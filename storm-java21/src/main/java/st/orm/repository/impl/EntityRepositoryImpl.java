@@ -104,6 +104,11 @@ public final class EntityRepositoryImpl<E extends Record & Entity<ID>, ID> imple
     }
 
     @Override
+    public boolean exists() {
+        return core.exists();
+    }
+
+    @Override
     public boolean existsById(@Nonnull ID id) {
         return core.existsById(id);
     }

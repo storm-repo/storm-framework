@@ -1,0 +1,66 @@
+package st.orm.kt.template.impl
+
+import st.orm.PersistenceException
+import st.orm.core.spi.TransactionCallback
+import st.orm.core.spi.TransactionContext
+import st.orm.core.spi.TransactionTemplate
+import st.orm.core.spi.TransactionTemplateProvider
+import st.orm.kt.template.TransactionPropagation.*
+import java.util.*
+import java.util.Optional.ofNullable
+
+class TransactionTemplateProviderImpl : TransactionTemplateProvider {
+
+    override fun getTransactionTemplate(): TransactionTemplate {
+        return object : TransactionTemplate {
+            private var propagation = REQUIRED
+            private var isolation: Int? = null
+            private var timeoutSeconds: Int? = null
+            private var readOnly = false
+
+            override fun propagation(propagation: String): TransactionTemplate {
+                this.propagation = when (propagation) {
+                    "REQUIRED" -> REQUIRED
+                    "SUPPORTS" -> SUPPORTS
+                    "MANDATORY" -> MANDATORY
+                    "REQUIRES_NEW" -> REQUIRES_NEW
+                    "NOT_SUPPORTED" -> NOT_SUPPORTED
+                    "NEVER" -> NEVER
+                    "NESTED" -> NESTED
+                    else -> throw IllegalArgumentException("Unknown propagation: $propagation.")
+                }
+                return this
+            }
+
+            override fun isolation(isolation: Int): TransactionTemplate {
+                this.isolation = isolation
+                return this
+            }
+
+            override fun readOnly(readOnly: Boolean): TransactionTemplate {
+                this.readOnly = readOnly
+                return this
+            }
+
+            // We do not support timeout in this implementation.
+            override fun timeout(timeoutSeconds: Int): TransactionTemplate {
+                this.timeoutSeconds = timeoutSeconds
+                return this
+            }
+
+            override fun newContext(suspendMode: Boolean): TransactionContext = // Suspend mode is supported in this implementation.
+                JdbcTransactionContext()
+
+            override fun currentContext(): Optional<TransactionContext> {
+                return ofNullable(JdbcTransactionContext.current())
+            }
+
+            override fun <T> execute(callback: TransactionCallback<T>, context: TransactionContext): T {
+                if (context !is JdbcTransactionContext) {
+                    throw PersistenceException("Transaction context must be of type JdbcTransactionContext.")
+                }
+                return context.execute(propagation, isolation, timeoutSeconds, readOnly, callback)
+            }
+        }
+    }
+}

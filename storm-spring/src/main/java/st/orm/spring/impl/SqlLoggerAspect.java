@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spring;
+package st.orm.spring.impl;
 
 import jakarta.annotation.Nonnull;
 import org.aspectj.lang.JoinPoint;
@@ -28,6 +28,7 @@ import st.orm.PersistenceException;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlInterceptor;
 import st.orm.core.template.SqlTemplate;
+import st.orm.spring.SqlLogger;
 
 import java.util.stream.Collectors;
 

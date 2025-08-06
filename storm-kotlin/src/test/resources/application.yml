@@ -1,0 +1,21 @@
+### Embedded H2 Settings ###
+spring:
+  test:
+   database:
+    replace: auto_configured
+
+  datasource:
+    hikari:
+      maximum-pool-size: 4
+  jpa:
+    hibernate:
+      ddl-auto: create
+    defer-datasource-initialization: true
+  sql:
+    init:
+      mode: always
+
+logging:
+  level:
+    root: INFO
+    org.springframework: WARN

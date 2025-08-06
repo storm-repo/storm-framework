@@ -5,6 +5,8 @@ module storm.core {
     uses st.orm.core.spi.ProjectionRepositoryProvider;
     uses st.orm.core.spi.QueryBuilderProvider;
     uses st.orm.core.spi.SqlDialectProvider;
+    uses st.orm.core.spi.ConnectionProvider;
+    uses st.orm.core.spi.TransactionTemplateProvider;
     exports st.orm.core.template;
     exports st.orm.core.template.impl;
     exports st.orm.core.spi;
@@ -20,4 +22,5 @@ module storm.core {
     provides st.orm.core.spi.ProjectionRepositoryProvider with st.orm.core.spi.DefaultProjectionRepositoryProviderImpl;
     provides st.orm.core.spi.QueryBuilderProvider with st.orm.core.spi.DefaultQueryBuilderProviderImpl;
     provides st.orm.core.spi.SqlDialectProvider with st.orm.core.spi.DefaultSqlDialectProviderImpl;
+    provides st.orm.core.spi.ConnectionProvider with st.orm.core.spi.DefaultConnectionProviderImpl;
 }

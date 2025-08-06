@@ -23,11 +23,9 @@ import st.orm.NoResultException;
 import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.Ref;
-import st.orm.template.Templates;
 import st.orm.template.Model;
 import st.orm.template.QueryBuilder;
 
-import java.sql.Connection;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -54,7 +52,7 @@ import java.util.stream.Stream;
  * record City(@PK int id,
  *             String name,
  *             long population
- * ) implements Entity<City, Integer> {};
+ * ) implements Entity<Integer> {};
  *
  * record Address(String street, String postalCode, @FK City city)
  *
@@ -62,7 +60,7 @@ import java.util.stream.Stream;
  *             String email,
  *             LocalDate birthDate,
  *             @Inline Address address
- * ) implements Entity<User, Integer> {};
+ * ) implements Entity<Integer> {};
  * }</pre>
  *
  * <h2>Repository Lookup</h2>
@@ -293,6 +291,14 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * connectivity.
      */
     long count();
+
+    /**
+     * Checks if any entity of the type managed by this repository exists in the database.
+     *
+     * @return true if at least one entity exists, false otherwise.
+     * @throws PersistenceException if there is an underlying database issue during the count operation.
+     */
+    boolean exists();
 
     /**
      * Checks if an entity with the specified primary key exists in the database.

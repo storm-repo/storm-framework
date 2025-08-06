@@ -13,24 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spring;
+package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
-import org.springframework.aop.framework.ProxyFactory;
-import org.springframework.beans.factory.config.BeanPostProcessor;
-import org.springframework.stereotype.Component;
-import st.orm.repository.Repository;
 
-@Component
-public class RepositoryProxyingPostProcessor implements BeanPostProcessor {
+/**
+ * @since 1.5
+ */
+public interface TransactionContext {
 
-    @Override
-    public Object postProcessAfterInitialization(@Nonnull Object bean, @Nonnull String beanName) {
-        if (bean instanceof Repository) {
-            ProxyFactory factory = new ProxyFactory(bean);
-            factory.setProxyTargetClass(true);
-            return factory.getProxy();
-        }
-        return bean;
+    interface Decorator<T> {
+        T decorate(T resource);
     }
+
+    /**
+     * Gets the decorator for the specified resource type.
+     *
+     * @param resourceType the resource type.
+     * @return the decorator.
+     * @param <T> the resource type.
+     */
+    <T> Decorator<T> getDecorator(@Nonnull Class<T> resourceType);
 }

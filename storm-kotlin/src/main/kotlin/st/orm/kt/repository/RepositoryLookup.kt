@@ -32,29 +32,23 @@ import kotlin.reflect.full.memberFunctions
 /**
  * Provides access to repositories.
  *
- *
  * Entity repositories returned by `entity` provide basic CRUD operations for database tables. Projection
  * repositories returned by `projection` provide read operations for database views and projection queries. The
  * repositories returned by the `repository` method
  * allow to implement specialized repository logic by implementing default methods. The default methods have full access
  * to the CRUD and `QueryBuilder` logic of the repository it extends:
  *
- * <pre>`interface UserRepository extends EntityRepository<User, Integer> {
- * default Optional<User> findByName(String name) {
- * return select().
- * .where(User_.name, EQUALS, name) // Type-safe metamodel.
- * .getOptionalResult();
- * }
+ * ```
+ * interface UserRepository : EntityRepository<User, Integer> {
+ *   fun findByName(String name): User? =
+ *     find { User_.name eq name }  // Type-safe metamodel.
  *
- * default List<User> findByCity(City city) {
- * return select().
- * .where(User_.city, city) // Type-safe metamodel.
- * .getResultList();
+ *   fun findByCity(City city): List<User> =
+ *     findAll { User_.city eq city }    // Type-safe metamodel.
  * }
- * }`</pre>
+ * ```
  *
  * @see EntityRepository
- *
  * @see ProjectionRepository
  */
 interface RepositoryLookup {
@@ -1230,7 +1224,6 @@ inline fun <reified T> RepositoryLookup.count(
 /**
  * Counts entities of type [T] matching the specified predicate.
  *
- * @param predicate Lambda to build the WHERE clause.
  * @return the count of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
@@ -1274,11 +1267,21 @@ inline fun <reified T> RepositoryLookup.count(predicate: PredicateBuilder<T, *, 
  * @param value the value to match against.
  * @return true if any matching entities exist, false otherwise.
  */
-fun <T, ID : Any, V> EntityRepository<T, ID>.existsBy(
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> RepositoryLookup.existsBy(
     field: Metamodel<T, V>,
     value: V
-): Boolean where T : Record, T : Entity<ID> =
-    selectCount().where(field, EQUALS, value).singleResult == 0L
+): Boolean where T : Record = this::class
+    .memberFunctions
+    .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
+    .call(this, T::class)
+    .let { repository ->
+        when (repository) {
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectCount().where(field, EQUALS, value).singleResult > 0
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectCount().where(field, EQUALS, value).singleResult > 0
+            else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+        }
+    }
 
 /**
  * Checks if entities of type [T] matching the specified field and referenced value exists.
@@ -1287,11 +1290,21 @@ fun <T, ID : Any, V> EntityRepository<T, ID>.existsBy(
  * @param value the referenced value to match against.
  * @return true if any matching entities exist, false otherwise.
  */
-fun <T, ID : Any, V> EntityRepository<T, ID>.existsBy(
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T, V> RepositoryLookup.existsBy(
     field: Metamodel<T, V>,
     value: Ref<V>
-): Boolean where T : Record, T : Entity<ID>, V : Record =
-    selectCount().where(field, value).singleResult == 0L
+): Boolean where T : Record, V : Record = this::class
+    .memberFunctions
+    .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
+    .call(this, T::class)
+    .let { repository ->
+        when (repository) {
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectCount().where(field, value).singleResult > 0
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectCount().where(field, value).singleResult > 0
+            else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+        }
+    }
 
 /**
  * Checks if entities of type [T] matching the specified predicate exists.
@@ -1299,10 +1312,39 @@ fun <T, ID : Any, V> EntityRepository<T, ID>.existsBy(
  * @param predicate Lambda to build the WHERE clause.
  * @return true if any matching entities exist, false otherwise.
  */
-fun <T, ID : Any> EntityRepository<T, ID>.exists(
-    predicate: WhereBuilder<T, *, ID>.() -> PredicateBuilder<T, *, *>
-): Boolean where T : Record, T : Entity<ID> =
-    selectCount().whereBuilder(predicate).singleResult == 0L
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T> RepositoryLookup.exists(
+    noinline predicate: WhereBuilder<T, *, *>.() -> PredicateBuilder<T, *, *>
+): Boolean where T : Record = this::class
+    .memberFunctions
+    .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
+    .call(this, T::class)
+    .let { repository ->
+        when (repository) {
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectCount().whereBuilder(predicate).singleResult > 0
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectCount().whereBuilder(predicate).singleResult > 0
+            else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+        }
+    }
+
+/**
+ * Checks if entities of type [T] matching the specified predicate exists.
+ *
+ * @return true if any matching entities exist, false otherwise.
+ */
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T> RepositoryLookup.exists(): Boolean
+        where T : Record = this::class
+    .memberFunctions
+    .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
+    .call(this, T::class)
+    .let { repository ->
+        when (repository) {
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).exists()
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).exists()
+            else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+        }
+    }
 
 /**
  * Checks if entities of type [T] matching the specified predicate exists.
@@ -1310,9 +1352,19 @@ fun <T, ID : Any> EntityRepository<T, ID>.exists(
  * @param predicate Lambda to build the WHERE clause.
  * @return true if any matching entities exist, false otherwise.
  */
-fun <T, ID : Any> EntityRepository<T, ID>.exists(predicate: PredicateBuilder<T, *, *>): Boolean
-        where T : Record, T : Entity<ID> =
-    selectCount().where(predicate).singleResult == 0L
+@Suppress("UNCHECKED_CAST")
+inline fun <reified T> RepositoryLookup.exists(predicate: PredicateBuilder<T, *, *>): Boolean
+        where T : Record = this::class
+    .memberFunctions
+    .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
+    .call(this, T::class)
+    .let { repository ->
+        when (repository) {
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectCount().where(predicate).singleResult > 0
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectCount().where(predicate).singleResult > 0
+            else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
+        }
+    }
 
 /**
  * Inserts an entity of type [T] into the repository.

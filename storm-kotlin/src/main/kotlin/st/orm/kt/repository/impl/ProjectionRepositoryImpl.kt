@@ -78,6 +78,10 @@ class ProjectionRepositoryImpl<P, ID : Any>(
         return core.count()
     }
 
+    override fun exists(): Boolean {
+        return core.exists()
+    }
+
     override fun existsById(id: ID): Boolean {
         return core.existsById(id)
     }

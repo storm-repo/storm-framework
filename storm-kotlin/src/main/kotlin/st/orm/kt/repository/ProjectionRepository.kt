@@ -20,19 +20,12 @@ import st.orm.Operator.EQUALS
 import st.orm.Operator.IN
 import st.orm.Projection
 import st.orm.Ref
-import st.orm.kt.template.Model
-import st.orm.kt.template.PredicateBuilder
-import st.orm.kt.template.QueryBuilder
-import st.orm.kt.template.TemplateBuilder
-import st.orm.kt.template.TemplateString
-import st.orm.kt.template.WhereBuilder
-import st.orm.kt.template.build
+import st.orm.kt.template.*
 import java.util.stream.Stream
 import kotlin.reflect.KClass
 
 /**
  * Provides a generic interface with read operations for projections.
- *
  *
  * Projection repositories provide a high-level abstraction for reading projections in the database. They offer a
  * set of methods for reading projections, as well as querying and filtering entities based on specific criteria. The
@@ -44,7 +37,7 @@ import kotlin.reflect.KClass
  *
  * @param <P> the type of projection managed by this repository.
  * @param <ID> the type of the primary key of the projection, or [Void] if the projection has no primary key.
-</ID></P> */
+ */
 interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : Projection<ID> {
     /**
      * Returns the projection model associated with this repository.
@@ -153,6 +146,14 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * connectivity.
      */
     fun count(): Long
+
+    /**
+     * Checks if any projection of the type managed by this repository exists in the database.
+     *
+     * @return true if at least one projection exists, false otherwise.
+     * @throws st.orm.PersistenceException if there is an underlying database issue during the count operation.
+     */
+    fun exists(): Boolean
 
     /**
      * Checks if a projection with the specified primary key exists in the database.
@@ -337,27 +338,6 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
     fun selectAll(): Stream<P>
 
     /**
-     * Processes a stream of all projections of the type supported by this repository using the specified callback.
-     * This method retrieves the projections and applies the provided callback to process them, returning the
-     * result produced by the callback.
-     *
-     *
-     * This method ensures efficient handling of large data sets by loading projections only as needed.
-     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to prevent
-     * resource leaks.
-     *
-     * @param callback a [ResultCallback] defining how to process the stream of projections and produce a result.
-     * @param <R> the type of result produced by the callback after processing the projections.
-     * @return the result produced by the callback's processing of the projection stream.
-     * @throws st.orm.PersistenceException if the operation fails due to underlying database issues, such as connectivity.
-     */
-    fun <R> selectAll(callback: ResultCallback<P, R>): R {
-        selectAll().use { stream ->
-            return callback.process(stream)
-        }
-    }
-
-    /**
      * Retrieves a stream of projections based on their primary keys.
      *
      *
@@ -388,28 +368,6 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
     fun selectById(ids: Stream<ID>): Stream<P>
 
     /**
-     * Processes a stream of projections corresponding to the provided IDs using the specified callback.
-     * This method retrieves projections matching the given IDs and applies the callback to process the results,
-     * returning the outcome produced by the callback.
-     *
-     *
-     * This method is designed for efficient data handling by only retrieving specified projections as needed.
-     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to
-     * prevent resource leaks.
-     *
-     * @param ids a stream of projection IDs to retrieve from the repository.
-     * @param callback a [ResultCallback] defining how to process the stream of projections and produce a result.
-     * @param <R> the type of result produced by the callback after processing the projections.
-     * @return the result produced by the callback's processing of the projection stream.
-     * @throws st.orm.PersistenceException if the operation fails due to underlying database issues, such as connectivity.
-     */
-    fun <R> selectById(ids: Stream<ID>, callback: ResultCallback<P, R>): R {
-        selectById(ids).use { stream ->
-            return callback.process(stream)
-        }
-    }
-
-    /**
      * Retrieves a stream of projections based on their primary keys.
      *
      *
@@ -438,28 +396,6 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * connectivity.
      */
     fun selectByRef(refs: Stream<Ref<P>>): Stream<P>
-
-    /**
-     * Processes a stream of projections corresponding to the provided IDs using the specified callback.
-     * This method retrieves projections matching the given IDs and applies the callback to process the results,
-     * returning the outcome produced by the callback.
-     *
-     *
-     * This method is designed for efficient data handling by only retrieving specified projections as needed.
-     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to
-     * prevent resource leaks.
-     *
-     * @param refs a stream of refs to retrieve from the repository.
-     * @param callback a [ResultCallback] defining how to process the stream of projections and produce a result.
-     * @param <R> the type of result produced by the callback after processing the projections.
-     * @return the result produced by the callback's processing of the projection stream.
-     * @throws st.orm.PersistenceException if the operation fails due to underlying database issues, such as connectivity.
-     */
-    fun <R> selectByRef(refs: Stream<Ref<P>>, callback: ResultCallback<P, R>): R {
-        selectByRef(refs).use { stream ->
-            return callback.process(stream)
-        }
-    }
 
     /**
      * Retrieves a stream of projections based on their primary keys.
@@ -513,42 +449,6 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * closed after usage to prevent resource leaks. As the stream is `AutoCloseable`, it is recommended to use it
      * within a `try-with-resources` block.
      *
-     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
-     * batches used to execute the selection operation. A larger batch size can improve performance, especially when
-     * dealing with large sets of primary keys.
-     * @return a stream of projections corresponding to the provided primary keys. The order of projections in the stream is
-     * not guaranteed to match the order of ids in the input stream. If an id does not correspond to any projection in the
-     * database, it will simply be skipped, and no corresponding projection will be included in the returned stream. If the
-     * same projection is requested multiple times, it may be included in the stream multiple times if it is part of a
-     * separate batch.
-     * @throws st.orm.PersistenceException if the selection operation fails due to underlying database issues, such as
-     * connectivity.
-     */
-    fun <R> selectById(ids: Stream<ID>, batchSize: Int, callback: ResultCallback<P, R>): R {
-        selectById(ids, batchSize).use { stream ->
-            return callback.process(stream)
-        }
-    }
-
-    /**
-     * Retrieves a stream of projections based on their primary keys.
-     *
-     *
-     * This method executes queries in batches, with the batch size determined by the provided parameter. This
-     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve projections. The
-     * batching strategy enhances performance, particularly when dealing with large sets of primary keys.
-     *
-     *
-     * The resulting stream is lazily loaded, meaning that the projections are only retrieved from the database as they
-     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
-     * dealing with large volumes of projections.
-     *
-     *
-     * **Note:** Calling this method does trigger the execution of the underlying query, so it should
-     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
-     * closed after usage to prevent resource leaks. As the stream is `AutoCloseable`, it is recommended to use it
-     * within a `try-with-resources` block.
-     *
      * @param refs a stream of refs to retrieve from the repository.
      * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
      * batches used to execute the selection operation. A larger batch size can improve performance, especially when
@@ -562,46 +462,6 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * connectivity.
      */
     fun selectByRef(refs: Stream<Ref<P>>, batchSize: Int): Stream<P>
-
-    /**
-     * Retrieves a stream of projections based on their primary keys.
-     *
-     *
-     * This method executes queries in batches, with the batch size determined by the provided parameter. This
-     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve projections. The
-     * batching strategy enhances performance, particularly when dealing with large sets of primary keys.
-     *
-     *
-     * The resulting stream is lazily loaded, meaning that the projections are only retrieved from the database as they
-     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
-     * dealing with large volumes of projections.
-     *
-     *
-     * **Note:** Calling this method does trigger the execution of the underlying query, so it should
-     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
-     * closed after usage to prevent resource leaks. As the stream is `AutoCloseable`, it is recommended to use it
-     * within a `try-with-resources` block.
-     *
-     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
-     * batches used to execute the selection operation. A larger batch size can improve performance, especially when
-     * dealing with large sets of primary keys.
-     * @return a stream of projections corresponding to the provided primary keys. The order of projections in the stream is
-     * not guaranteed to match the order of refs in the input stream. If an id does not correspond to any projection in the
-     * database, it will simply be skipped, and no corresponding projection will be included in the returned stream. If the
-     * same projection is requested multiple times, it may be included in the stream multiple times if it is part of a
-     * separate batch.
-     * @throws st.orm.PersistenceException if the selection operation fails due to underlying database issues, such as
-     * connectivity.
-     */
-    fun <R> selectByRef(
-        refs: Stream<Ref<P>>,
-        batchSize: Int,
-        callback: ResultCallback<P, R>
-    ): R {
-        selectByRef(refs, batchSize).use { stream ->
-            return callback.process(stream)
-        }
-    }
 
     /**
      * Counts the number of projections identified by the provided stream of IDs using the default batch size.
@@ -1280,7 +1140,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
         field: Metamodel<P, V>,
         value: V
     ): Boolean =
-        selectCount().where(field, EQUALS, value).singleResult == 0L
+        selectCount().where(field, EQUALS, value).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified field and referenced value exists.
@@ -1293,7 +1153,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
         field: Metamodel<P, V>,
         value: Ref<V>
     ): Boolean =
-        selectCount().where(field, value).singleResult == 0L
+        selectCount().where(field, value).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified predicate exists.
@@ -1304,7 +1164,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
     fun exists(
         predicate: WhereBuilder<P, *, ID>.() -> PredicateBuilder<P, *, *>
     ): Boolean =
-        selectCount().whereBuilder(predicate).singleResult == 0L
+        selectCount().whereBuilder(predicate).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified predicate exists.
@@ -1315,5 +1175,5 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
     fun exists(
         predicate: PredicateBuilder<P, *, *>
     ): Boolean =
-        selectCount().where(predicate).singleResult == 0L
+        selectCount().where(predicate).singleResult > 0
 }

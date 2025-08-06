@@ -13,26 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core.repository;
-
-import jakarta.annotation.Nonnull;
-
-import java.util.stream.Stream;
+package st.orm.kt.template
 
 /**
- * Result callback interface.
+ * Represents the transaction propagation behaviors.
  *
- * @param <T> input stream.
- * @param <R> result of the processing.
+ * @since 1.5
  */
-@FunctionalInterface
-public interface ResultCallback<T, R> {
-
-    /**
-     * Process the given stream.
-     *
-     * @param stream stream to process.
-     * @return the result of the processing.
-     */
-    R process(@Nonnull Stream<T> stream);
+enum class TransactionPropagation {
+    REQUIRED,
+    SUPPORTS,
+    MANDATORY,
+    REQUIRES_NEW,
+    NOT_SUPPORTED,
+    NEVER,
+    NESTED
 }

@@ -13,25 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spring;
+package st.orm.core.spi;
 
-import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
-import org.springframework.stereotype.Component;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
+
 
 /**
- * Registers a resolver bean in the Spring application context.
+ * Callback interface for transactional code. Used with TransactionTemplate's execute method.
+ *
+ * @since 1.5
  */
-@Component
-public class ResolverRegistration {
-
-    private final ConfigurableListableBeanFactory beanFactory;
+@FunctionalInterface
+public interface TransactionCallback<T> {
 
     /**
-     * Creates a new {@link ResolverRegistration} instance.
+     * Gets called by {@link TransactionTemplate#execute} within a transactional context.
      *
-     * @param beanFactory the bean factory.
+     * @param status provides access to transaction status.
+     * @return a result object, or null.
      */
-    public ResolverRegistration(ConfigurableListableBeanFactory beanFactory) {
-        this.beanFactory = beanFactory;
-    }
+    @Nullable
+    T doInTransaction(@Nonnull TransactionStatus status);
 }

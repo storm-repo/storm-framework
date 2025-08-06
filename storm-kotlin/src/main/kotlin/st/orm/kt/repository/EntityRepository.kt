@@ -20,13 +20,7 @@ import st.orm.Metamodel
 import st.orm.Operator.EQUALS
 import st.orm.Operator.IN
 import st.orm.Ref
-import st.orm.kt.template.Model
-import st.orm.kt.template.PredicateBuilder
-import st.orm.kt.template.QueryBuilder
-import st.orm.kt.template.TemplateBuilder
-import st.orm.kt.template.TemplateString
-import st.orm.kt.template.WhereBuilder
-import st.orm.kt.template.build
+import st.orm.kt.template.*
 import java.util.stream.Stream
 import kotlin.reflect.KClass
 
@@ -34,7 +28,6 @@ import kotlin.reflect.KClass
  * Provides a generic interface with CRUD operations for entities.
  *
  * <h1>Using Entity Repositories</h1>
- *
  *
  * Entity repositories provide a high-level abstraction for managing entities in the database. They offer a set of
  * methods for creating, reading, updating, and deleting entities, as well as querying and filtering entities based on
@@ -49,21 +42,29 @@ import kotlin.reflect.KClass
  * the foreign key field of the entity record. The [st.orm.Inline] annotation (optional) is used to mark the record
  * component that is inlined in the entity record.
  *
- *
  * Example:
- * <pre>`record City(@PK int id,
- * String name,
- * long population
- * ) implements Entity<City, Integer> {};
+ * ```
+ * @JvmRecord
+ * data class City(
+ *   @PK val id: Int = 0,
+ *   val name: String,
+ *   val population: Long
+ * ) : Entity<Int>
  *
- * record Address(String street, String postalCode, @FK City city)
+ * @JvmRecord
+ * data class Address(
+ *   val street: String,
+ *   val postalCode: String,
+ *   @FK val city City
+ * )
  *
- * record User(@PK int id,
- * String email,
- * LocalDate birthDate,
- * Address address
- * ) implements Entity<User, Integer> {};
-`</pre> *
+ * data class User(
+ *   @PK val id: Int = 0,
+ *   val email: String,
+ *   val birthDate: LocalDate,
+ *   val address: Address
+ * ) : Entity<Int>
+ *```
  *
  * <h2>Repository Lookup</h2>
  *
@@ -78,19 +79,18 @@ import kotlin.reflect.KClass
  * class. Specialized repositories allow specialized repository methods to be defined in the repository interface. The
  * specialized repository can be used to implement specialized queries or operations that are specific to the entity type.
  * The specialized logic can utilize the [QueryBuilder] interface to build SELECT and DELETE statements.
- * <pre>`interface UserRepository extends EntityRepository<User> {
+ *
+ * ```
+ * interface UserRepository : EntityRepository<User> {
  *
  * // Specialized repository methods go here:
  *
- * default Optional<User> findByEmail(String email) {
- * return select()
- * .where(User_.email, EQUALS, email)
- * .getOptionalResult();
- * }
+ *   fun findByEmail(String email): User? =
+ *     find { User_.email eq email }
  * }
  *
- * UserRepository userRepository = orm.repository(UserRepository.class)
-`</pre> *
+ * val userRepository = orm.repository<UserRepository>()
+ * ```
  *
  * <h2>Repository Injection</h2>
  *
@@ -107,60 +107,54 @@ import kotlin.reflect.KClass
  *
  *
  * Insert a user into the database. The template engine also supports insertion of multiple entries in batch mode by
- * passing a list of entities. Alternatively, insertion can also be executed using a stream of entities.
- * <pre>`User user = ...;
- * userRepository.insert(user);
-`</pre> *
+ * passing a list of entities. Alternatively, insertion can also be executed using a flow of entities.
+ * ```
+ * val user: User = ...
+ * orm insert user
+ * ```
  *
  * <h3>Read</h3>
  *
  *
  * Select all users from the database that are linked to cities with the name "Sunnyvale". The static metamodel is
  * used to specify the City entity in the QueryBuilder's entity graph.
- * <pre>`List<City> cities = cityRepository.findByName("Sunnyvale")
- * List<User> users = userRepository
- * .select()
- * .where(User_.address.city, cities) // Type-safe metamodel.
- * .getResultList();
-`</pre> *
  *
- * Alternatively, `getResultStream()` can be invoked to load the users lazily.
+ * ```
+ * val cities: List<City> = cityRepository.findByName("Sunnyvale")
+ * val users: List<User> = orm.findAll { User_.address.city inList cities }
+ * ```
  *
+ * Alternatively, `select { ... }` can be invoked to load the users lazily.
  *
  * The QueryBuilder also allows the previous queries to be combined into a single select query, using the
  * User's static metamodel to specify the city name field in the QueryBuilder's entity graph.
- * <pre>`List<User> users = userRepository
- * .select()
- * .where(User_.address.city.name, EQUALS, "Sunnyvale") // Type-safe metamodel.
- * .getResultList();
-`</pre> *
+ *
+ * ```
+ * val users: List<User> = orm.findAll { User_.address.city.name eq "Sunnyvale" }   // Type-safe metamodel.
+ * ```
  *
  * <h4>Update</h4>
  *
- *
  * Update a user in the database. The repository also supports updates for multiple entries in batch model by passing
- * a list of entities. Alternatively, updates can also be executed using a stream of entities.
- * <pre>`User user = ...;
- * userRepository.update(user);
-`</pre> *
+ * a list of entities. Alternatively, updates can also be executed using a flow of entities.
+ * ```
+ * orm update user
+ * ```
  *
  * <h3>Delete</h3>
  *
  *
  * Delete user in the database. The repository also supports updates for multiple entries in batch mode by passing a
- * list entities or primary keys. Alternatively, deletion can be executed in using a stream of entities.
- * <pre>`User user = ...;
- * userRepository.delete(user);
-`</pre> *
- *
+ * list entities or primary keys. Alternatively, deletion can be executed in using a flow of entities.
+ * ```
+ * orm delete user
+ * ```
  *
  * Also here, the QueryBuilder can be used to create specialized statement, for instance, to delete all users where
  * the email field IS NULL.
- * <pre>`repository
- * .delete()
- * .where(User_.email, IS_NULL) // Type-safe metamodel.
- * .executeUpdate();
-`</pre> *
+ * ```
+ * orm.delete { User_.email IS_NULL } // Type-safe metamodel.
+ * ```
  *
  * @see QueryBuilder
  * @param <E> the type of entity managed by this repository.
@@ -312,6 +306,14 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * connectivity.
      */
     fun count(): Long
+
+    /**
+     * Checks if any entity of the type managed by this repository exists in the database.
+     *
+     * @return true if at least one entity exists, false otherwise.
+     * @throws st.orm.PersistenceException if there is an underlying database issue during the count operation.
+     */
+    fun exists(): Boolean
 
     /**
      * Checks if an entity with the specified primary key exists in the database.
@@ -862,15 +864,15 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
 
     // Stream based methods.
     //
-    // The BatchCallback interface is used to allow the caller to process the results in batches. This approach is
+    // The batch callback is used to allow the caller to process the results in batches. This approach is
     // preferred over returning a stream of results directly because it allows the repository to control the batch
     // processing and resource management. The repository can decide how to batch the results and ensure that the
-    // resources are properly managed. The BatchCallback interface provides a clean and flexible way to process the
-    // results in batches, allowing the caller to define the processing logic for each batch.
+    // resources are properly managed. The callback provides a clean and flexible way to process the results in
+    // batches, allowing the caller to define the processing logic for each batch.
     //
     // If the repository had returned a stream of results directly, that stream would effectively be linked to the input
     // stream. If the caller would fail to fully consume the resulting stream, the input stream would not be fully
-    // processed. The BatchCallback approach prevents the caller from accidentally misusing the API.
+    // processed. The callback approach prevents the caller from accidentally misusing the API.
     //
 
     /**
@@ -893,27 +895,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * connectivity.
      */
     fun selectAll(): Stream<E>
-
-    /**
-     * Processes a stream of all entities of the type supported by this repository using the specified callback.
-     * This method retrieves the entities and applies the provided callback to process them, returning the
-     * result produced by the callback.
-     *
-     *
-     * This method ensures efficient handling of large data sets by loading entities only as needed.
-     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to prevent
-     * resource leaks.
-     *
-     * @param callback a [ResultCallback] defining how to process the stream of entities and produce a result.
-     * @param <R> the type of result produced by the callback after processing the entities.
-     * @return the result produced by the callback's processing of the entity stream.
-     * @throws st.orm.PersistenceException if the operation fails due to underlying database issues, such as connectivity.
-     */
-    fun <R> selectAll(callback: ResultCallback<E, R>): R {
-        selectAll().use { stream ->
-            return callback.process(stream)
-        }
-    }
 
     /**
      * Retrieves a stream of entities based on their primary keys.
@@ -946,28 +927,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
     fun selectById(ids: Stream<ID>): Stream<E>
 
     /**
-     * Processes a stream of entities corresponding to the provided IDs using the specified callback.
-     * This method retrieves entities matching the given IDs and applies the callback to process the results,
-     * returning the outcome produced by the callback.
-     *
-     *
-     * This method is designed for efficient data handling by only retrieving specified entities as needed.
-     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to
-     * prevent resource leaks.
-     *
-     * @param ids a stream of entity IDs to retrieve from the repository.
-     * @param callback a [ResultCallback] defining how to process the stream of entities and produce a result.
-     * @param <R> the type of result produced by the callback after processing the entities.
-     * @return the result produced by the callback's processing of the entity stream.
-     * @throws st.orm.PersistenceException if the operation fails due to underlying database issues, such as connectivity.
-     */
-    fun <R> selectById(ids: Stream<ID>, callback: ResultCallback<E, R>): R {
-        selectById(ids).use { stream ->
-            return callback.process(stream)
-        }
-    }
-
-    /**
      * Retrieves a stream of entities based on their primary keys.
      *
      *
@@ -996,28 +955,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * connectivity.
      */
     fun selectByRef(refs: Stream<Ref<E>>): Stream<E>
-
-    /**
-     * Processes a stream of entities corresponding to the provided IDs using the specified callback.
-     * This method retrieves entities matching the given IDs and applies the callback to process the results,
-     * returning the outcome produced by the callback.
-     *
-     *
-     * This method is designed for efficient data handling by only retrieving specified entities as needed.
-     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to
-     * prevent resource leaks.
-     *
-     * @param refs a stream of refs to retrieve from the repository.
-     * @param callback a [ResultCallback] defining how to process the stream of entities and produce a result.
-     * @param <R> the type of result produced by the callback after processing the entities.
-     * @return the result produced by the callback's processing of the entity stream.
-     * @throws st.orm.PersistenceException if the operation fails due to underlying database issues, such as connectivity.
-     */
-    fun <R> selectByRef(refs: Stream<Ref<E>>, callback: ResultCallback<E, R>): R {
-        selectByRef(refs).use { stream ->
-            return callback.process(stream)
-        }
-    }
 
     /**
      * Retrieves a stream of entities based on their primary keys.
@@ -1066,43 +1003,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * dealing with large volumes of entities.
      *
      *
-     * **Note:** Calling this method does trigger the execution of the underlying query, so it should
-     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
-     * closed after usage to prevent resource leaks. As the stream is `AutoCloseable`, it is recommended to use it
-     * within a `try-with-resources` block.
-     *
-     * @param ids a stream of entity IDs to retrieve from the repository.
-     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
-     * batches used to execute the selection operation. A larger batch size can improve performance, especially when
-     * dealing with large sets of primary keys.
-     * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
-     * not guaranteed to match the order of refs in the input stream. If an id does not correspond to any entity in the
-     * database, it will simply be skipped, and no corresponding entity will be included in the returned stream. If the
-     * same entity is requested multiple times, it may be included in the stream multiple times if it is part of a
-     * separate batch.
-     * @throws st.orm.PersistenceException if the selection operation fails due to underlying database issues, such as
-     * connectivity.
-     */
-    fun <R> selectById(ids: Stream<ID>, batchSize: Int, callback: ResultCallback<E, R>): R {
-        selectById(ids, batchSize).use { stream ->
-            return callback.process(stream)
-        }
-    }
-
-    /**
-     * Retrieves a stream of entities based on their primary keys.
-     *
-     *
-     * This method executes queries in batches, with the batch size determined by the provided parameter. This
-     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities. The
-     * batching strategy enhances performance, particularly when dealing with large sets of primary keys.
-     *
-     *
-     * The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
-     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
-     * dealing with large volumes of entities.
-     *
-     *
      * **Note:** Calling this method does trigger the execution of the underlying
      * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
      * while in use, it must be closed after usage to prevent resource leaks. As the stream is `AutoCloseable`, it
@@ -1121,46 +1021,6 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * connectivity.
      */
     fun selectByRef(refs: Stream<Ref<E>>, batchSize: Int): Stream<E>
-
-    /**
-     * Retrieves a stream of entities based on their primary keys.
-     *
-     *
-     * This method executes queries in batches, with the batch size determined by the provided parameter. This
-     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities. The
-     * batching strategy enhances performance, particularly when dealing with large sets of primary keys.
-     *
-     *
-     * The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
-     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
-     * dealing with large volumes of entities.
-     *
-     *
-     * **Note:** Calling this method does trigger the execution of the underlying query, so it should
-     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
-     * closed after usage to prevent resource leaks. As the stream is `AutoCloseable`, it is recommended to use it
-     * within a `try-with-resources` block.
-     *
-     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
-     * batches used to execute the selection operation. A larger batch size can improve performance, especially when
-     * dealing with large sets of primary keys.
-     * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
-     * not guaranteed to match the order of refs in the input stream. If an id does not correspond to any entity in the
-     * database, it will simply be skipped, and no corresponding entity will be included in the returned stream. If the
-     * same entity is requested multiple times, it may be included in the stream multiple times if it is part of a
-     * separate batch.
-     * @throws st.orm.PersistenceException if the selection operation fails due to underlying database issues, such as
-     * connectivity.
-     */
-    fun <R> selectByRef(
-        refs: Stream<Ref<E>>,
-        batchSize: Int,
-        callback: ResultCallback<E, R>
-    ): R {
-        selectByRef(refs, batchSize).use { stream ->
-            return callback.process(stream)
-        }
-    }
 
     /**
      * Counts the number of entities identified by the provided stream of IDs using the default batch size.
@@ -1310,7 +1170,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * violation of database constraints, connectivity issues, or if any entity in the
      * stream is null.
      */
-    fun insertAndFetchIds(entities: Stream<E>, callback: BatchCallback<ID>)
+    fun insertAndFetchIds(entities: Stream<E>, callback: (Stream<ID>) -> Unit)
 
     /**
      * Inserts a stream of entities into the database using the default batch size and returns a stream of the inserted entities.
@@ -1328,7 +1188,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * violation of database constraints, connectivity issues, or if any entity in the
      * stream is null.
      */
-    fun insertAndFetch(entities: Stream<E>, callback: BatchCallback<E>)
+    fun insertAndFetch(entities: Stream<E>, callback: (Stream<E>) -> Unit)
 
     /**
      * Inserts a stream of entities into the database with the insertion process divided into batches of the specified size,
@@ -1348,7 +1208,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * violation of database constraints, connectivity issues, or if any entity in the
      * stream is null.
      */
-    fun insertAndFetchIds(entities: Stream<E>, batchSize: Int, callback: BatchCallback<ID>)
+    fun insertAndFetchIds(entities: Stream<E>, batchSize: Int, callback: (Stream<ID>) -> Unit)
 
     /**
      * Inserts a stream of entities into the database with the insertion process divided into batches of the specified size,
@@ -1370,7 +1230,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * violation of database constraints, connectivity issues, or if any entity in the
      * stream is null.
      */
-    fun insertAndFetch(entities: Stream<E>, batchSize: Int, callback: BatchCallback<E>)
+    fun insertAndFetch(entities: Stream<E>, batchSize: Int, callback: (Stream<E>) -> Unit)
 
     /**
      * Updates a stream of entities in the database using the default batch size.
@@ -1421,7 +1281,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * of database constraints, connectivity issues, or if any entity in the stream is
      * null.
      */
-    fun updateAndFetch(entities: Stream<E>, callback: BatchCallback<E>)
+    fun updateAndFetch(entities: Stream<E>, callback: (Stream<E>) -> Unit)
 
     /**
      * Updates a stream of entities in the database, with the update process divided into batches of the specified size,
@@ -1443,7 +1303,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * of database constraints, connectivity issues, or if any entity in the stream is
      * null.
      */
-    fun updateAndFetch(entities: Stream<E>, batchSize: Int, callback: BatchCallback<E>)
+    fun updateAndFetch(entities: Stream<E>, batchSize: Int, callback: (Stream<E>) -> Unit)
 
     /**
      * Inserts or updates a stream of entities in the database in batches.
@@ -1495,7 +1355,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
-    fun upsertAndFetchIds(entities: Stream<E>, callback: BatchCallback<ID>)
+    fun upsertAndFetchIds(entities: Stream<E>, callback: (Stream<ID>) -> Unit)
 
     /**
      * Inserts or updates a stream of entities in the database in batches and retrieves the updated entities through a callback.
@@ -1514,7 +1374,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
-    fun upsertAndFetch(entities: Stream<E>, callback: BatchCallback<E>)
+    fun upsertAndFetch(entities: Stream<E>, callback: (Stream<E>) -> Unit)
 
     /**
      * Inserts or updates a stream of entities in the database in configurable batch sizes and retrieves their IDs through a callback.
@@ -1534,7 +1394,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
-    fun upsertAndFetchIds(entities: Stream<E>, batchSize: Int, callback: BatchCallback<ID>)
+    fun upsertAndFetchIds(entities: Stream<E>, batchSize: Int, callback: (Stream<ID>) -> Unit)
 
     /**
      * Inserts or updates a stream of entities in the database in configurable batch sizes and retrieves the updated entities through a callback.
@@ -1557,7 +1417,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
-    fun upsertAndFetch(entities: Stream<E>, batchSize: Int, callback: BatchCallback<E>)
+    fun upsertAndFetch(entities: Stream<E>, batchSize: Int, callback: (Stream<E>) -> Unit)
 
     /**
      * Deletes a stream of entities from the database in batches.
@@ -2244,7 +2104,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
         field: Metamodel<E, V>,
         value: V
     ): Boolean =
-        selectCount().where(field, EQUALS, value).singleResult == 0L
+        selectCount().where(field, EQUALS, value).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified field and referenced value exists.
@@ -2257,7 +2117,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
         field: Metamodel<E, V>,
         value: Ref<V>
     ): Boolean =
-        selectCount().where(field, value).singleResult == 0L
+        selectCount().where(field, value).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified predicate exists.
@@ -2268,7 +2128,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
     fun exists(
         predicate: WhereBuilder<E, *, ID>.() -> PredicateBuilder<E, *, *>
     ): Boolean =
-        selectCount().whereBuilder(predicate).singleResult == 0L
+        selectCount().whereBuilder(predicate).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified predicate exists.
@@ -2279,7 +2139,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
     fun exists(
         predicate: PredicateBuilder<E, *, *>
     ): Boolean =
-        selectCount().where(predicate).singleResult == 0L
+        selectCount().where(predicate).singleResult > 0
 
     /**
      * Deletes entities of type [T] matching the specified field and value.

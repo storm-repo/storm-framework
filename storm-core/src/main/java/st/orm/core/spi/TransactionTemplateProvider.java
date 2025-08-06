@@ -13,21 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.kt.spring
+package st.orm.core.spi;
 
-import org.springframework.aop.framework.ProxyFactory
-import org.springframework.beans.factory.config.BeanPostProcessor
-import org.springframework.stereotype.Component
-import st.orm.kt.repository.Repository
+/**
+ * The transaction template provider is responsible for integration with the Transaction subsystem.
+ *
+ * @since 1.5
+ */
+public interface TransactionTemplateProvider extends Provider {
 
-@Component
-class RepositoryProxyingPostProcessor : BeanPostProcessor {
-    override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
-        if (bean is Repository) {
-            val factory = ProxyFactory(bean)
-            factory.isProxyTargetClass = true
-            return factory.proxy
-        }
-        return bean
-    }
+    /**
+     * Returns a transaction template.
+     *
+     * @return a transaction template.
+     */
+    TransactionTemplate getTransactionTemplate();
 }

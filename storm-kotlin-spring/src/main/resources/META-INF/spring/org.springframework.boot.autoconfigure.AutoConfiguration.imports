@@ -1,1 +1,1 @@
-st.orm.kt.spring.RepositoryAopAutoConfiguration
+st.orm.kt.spring.impl.RepositoryAopAutoConfiguration

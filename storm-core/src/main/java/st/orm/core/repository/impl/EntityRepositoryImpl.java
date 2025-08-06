@@ -40,7 +40,6 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static st.orm.core.spi.Providers.deleteFrom;
-import static st.orm.core.template.QueryBuilder.slice;
 
 /**
  * Default implementation of {@link EntityRepository}.

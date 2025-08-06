@@ -21,6 +21,7 @@ import st.orm.BindVars;
 import st.orm.PersistenceException;
 import st.orm.core.spi.RefFactory;
 import st.orm.core.spi.RefFactoryImpl;
+import st.orm.core.spi.TransactionTemplate;
 import st.orm.core.template.Query;
 import st.orm.core.spi.Provider;
 import st.orm.core.spi.Providers;
@@ -42,7 +43,6 @@ import st.orm.core.template.TemplateString;
 
 import javax.sql.DataSource;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -50,8 +50,9 @@ import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.List;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 
+import static st.orm.core.spi.Providers.getConnection;
+import static st.orm.core.spi.Providers.releaseConnection;
 import static st.orm.core.template.SqlTemplate.PS;
 import static st.orm.core.template.impl.ExceptionHelper.getExceptionTransformer;
 
@@ -68,10 +69,12 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     private final TableAliasResolver tableAliasResolver;
     private final Predicate<Provider> providerFilter;
     private final RefFactory refFactory;
+    private final TransactionTemplate transactionTemplate;
 
     public PreparedStatementTemplateImpl(@Nonnull DataSource dataSource) {
         // Note that this logic does not use Spring's DataSourceUtils, so it is not aware of Spring's transaction
         // management.
+        transactionTemplate = Providers.getTransactionTemplate();
         templateProcessor = (sql, safe) -> {
             if (!safe) {
                 sql.unsafeWarning().ifPresent(warning -> {
@@ -95,6 +98,11 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                     //noinspection SqlSourceToSinkFlow
                     preparedStatement = connection.prepareStatement(statement);
                 }
+                var transactionContext = transactionTemplate.currentContext().orElse(null);
+                if (transactionContext != null) {
+                    preparedStatement = transactionContext.getDecorator(PreparedStatement.class)
+                            .decorate(preparedStatement);
+                }
                 if (bindVariables == null) {
                     setParameters(preparedStatement, parameters);
                 } else {
@@ -114,6 +122,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     }
 
     public PreparedStatementTemplateImpl(@Nonnull Connection connection) {
+        transactionTemplate = Providers.getTransactionTemplate();
         templateProcessor = (sql, safe) -> {
             if (!safe) {
                 sql.unsafeWarning().ifPresent(warning -> {
@@ -135,6 +144,11 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                 //noinspection SqlSourceToSinkFlow
                 preparedStatement = connection.prepareStatement(statement);
             }
+            var transactionContext = transactionTemplate.currentContext().orElse(null);
+            if (transactionContext != null) {
+                preparedStatement = transactionContext.getDecorator(PreparedStatement.class)
+                        .decorate(preparedStatement);
+            }
             if (bindVariables == null) {
                 setParameters(preparedStatement, parameters);
             } else {
@@ -151,12 +165,14 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     private PreparedStatementTemplateImpl(@Nonnull TemplateProcessor templateProcessor,
                                           @Nonnull ModelBuilder modelBuilder,
                                           @Nonnull TableAliasResolver tableAliasResolver,
-                                          @Nullable Predicate<Provider> providerFilter) {
+                                          @Nullable Predicate<Provider> providerFilter,
+                                          @Nonnull TransactionTemplate transactionTemplate) {
         this.templateProcessor = templateProcessor;
         this.modelBuilder = modelBuilder;
         this.tableAliasResolver = tableAliasResolver;
         this.providerFilter = providerFilter;
         this.refFactory = new RefFactoryImpl(this, modelBuilder, providerFilter);
+        this.transactionTemplate = transactionTemplate;
     }
 
     /**
@@ -167,7 +183,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public PreparedStatementTemplateImpl withTableNameResolver(@Nullable TableNameResolver tableNameResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, providerFilter);
+        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, providerFilter, transactionTemplate);
     }
 
     /**
@@ -178,7 +194,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public PreparedStatementTemplateImpl withColumnNameResolver(@Nullable ColumnNameResolver columnNameResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, providerFilter);
+        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, providerFilter, transactionTemplate);
     }
 
     /**
@@ -189,7 +205,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public PreparedStatementTemplateImpl withForeignKeyResolver(@Nullable ForeignKeyResolver foreignKeyResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, providerFilter);
+        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, providerFilter, transactionTemplate);
     }
 
     /**
@@ -200,7 +216,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public PreparedStatementTemplate withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter);
+        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter, transactionTemplate);
     }
 
     /**
@@ -211,7 +227,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public PreparedStatementTemplateImpl withProviderFilter(@Nullable Predicate<Provider> providerFilter) {
-        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter);
+        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter, transactionTemplate);
     }
 
     /**
@@ -365,56 +381,5 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     public PreparedStatement query(@Nonnull TemplateString template) throws SQLException {
         var sql = sqlTemplate().process(template);
         return templateProcessor.process(sql, true);    // We allow unsafe queries in direct JDBC mode.
-    }
-
-    private static final Method GET_CONNECTION_METHOD = ((Supplier<Method>) () -> {
-        try {
-            return Class.forName("org.springframework.jdbc.datasource.DataSourceUtils").getMethod("getConnection", DataSource.class);
-        } catch (Throwable ignore) {
-        }
-        return null;
-    }).get();
-
-    private static final Method RELEASE_CONNECTION_METHOD =((Supplier<Method>) () -> {
-        try {
-            return Class.forName("org.springframework.jdbc.datasource.DataSourceUtils").getMethod("releaseConnection", Connection.class, DataSource.class);
-        } catch (Throwable ignore) {
-        }
-        return null;
-    }).get();
-
-    private static Connection getConnection(@Nonnull DataSource dataSource) throws SQLException {
-        if (GET_CONNECTION_METHOD != null) {
-            try {
-                try {
-                    return (Connection) GET_CONNECTION_METHOD.invoke(null, dataSource);
-                } catch (InvocationTargetException e) {
-                    throw e.getTargetException();
-                }
-            } catch (SQLException e) {
-                throw e;
-            } catch (Throwable t) {
-                throw new SQLException(t);
-            }
-        }
-        return dataSource.getConnection();
-    }
-
-    private static void releaseConnection(@Nonnull Connection connection, @Nonnull DataSource dataSource) throws SQLException {
-        if (RELEASE_CONNECTION_METHOD != null) {
-            try {
-                try {
-                    RELEASE_CONNECTION_METHOD.invoke(null, connection, dataSource);
-                } catch (InvocationTargetException e) {
-                    throw e.getTargetException();
-                }
-            } catch (SQLException e) {
-                throw e;
-            } catch (Throwable t) {
-                throw new SQLException(t);
-            }
-        } else {
-            connection.close();
-        }
     }
 }

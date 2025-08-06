@@ -19,7 +19,6 @@ import jakarta.annotation.Nonnull
 import st.orm.NoResultException
 import st.orm.NonUniqueResultException
 import st.orm.Ref
-import st.orm.kt.repository.ResultCallback
 import java.util.function.Supplier
 import java.util.stream.Stream
 import kotlin.reflect.KClass
@@ -32,14 +31,11 @@ interface Query {
     /**
      * Prepares the query for execution.
      *
-     *
      * Queries are normally constructed in a lazy fashion, unlike prepared queries which are constructed eagerly.
      * Prepared queries allow the use of bind variables and enable reading generated keys after row insertion.
      *
-     *
      * **Note:** The prepared query must be closed after usage to prevent resource leaks. As the
      * prepared query is `AutoCloseable`, it is recommended to use it within a `try-with-resources` block.
-     *
      *
      * @return the prepared query.
      * @throws st.orm.PersistenceException if the query preparation fails.
@@ -202,27 +198,6 @@ interface Query {
      * Execute a SELECT query and return the resulting rows as a stream of row instances.
      *
      *
-     * Each element in the stream represents a row in the result, where the columns of the row corresponds to the
-     * order of values in the row array.
-     *
-     *
-     * This method ensures efficient handling of large data sets by loading entities only as needed.
-     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to prevent
-     * resource leaks.
-     *
-     * @return the result stream.
-     * @throws st.orm.PersistenceException if the query fails.
-     */
-    fun <R> getResult(callback: ResultCallback<Array<Any>, R>): R? {
-        this.resultStream.use { stream ->
-            return callback.process(stream)
-        }
-    }
-
-    /**
-     * Execute a SELECT query and return the resulting rows as a stream of row instances.
-     *
-     *
      * Each element in the stream represents a row in the result, where the columns of the row are mapped to the
      * constructor arguments of the specified `type`.
      *
@@ -265,28 +240,6 @@ interface Query {
     fun <T : Record> getRefStream(type: KClass<T>, pkType: KClass<*>): Stream<Ref<T>>
 
     /**
-     * Execute a SELECT query and return the resulting rows as a stream of row instances.
-     *
-     *
-     * Each element in the stream represents a row in the result, where the columns of the row are mapped to the
-     * constructor arguments of the specified `type`.
-     *
-     *
-     * This method ensures efficient handling of large data sets by loading entities only as needed.
-     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to prevent
-     * resource leaks.
-     *
-     * @param type the type of the result.
-     * @return the result stream.
-     * @throws st.orm.PersistenceException if the query fails.
-     */
-    fun <T : Any, R> getResult(type: KClass<T>, callback: ResultCallback<T, R>): R {
-        getResultStream(type).use { stream ->
-            return callback.process(stream)
-        }
-    }
-
-    /**
      * Returns true if the query is version aware, false otherwise.
      *
      * @return true if the query is version aware, false otherwise.
@@ -319,7 +272,7 @@ interface Query {
      * @param <T> the type of the result.
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
-    </T> */
+     */
     private fun <T> singleResult(stream: Stream<T>): T {
         stream.use {
             return stream
@@ -337,7 +290,7 @@ interface Query {
      * @return the single result of the stream.
      * @param <T> the type of the result.
      * @throws NonUniqueResultException if more than one result.
-    </T> */
+     */
     private fun <T> optionalResult(@Nonnull stream: Stream<T>): T? {
         stream.use {
             return stream

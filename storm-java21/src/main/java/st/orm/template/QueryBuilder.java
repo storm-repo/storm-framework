@@ -691,40 +691,4 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     public final int executeUpdate() {
         return build().executeUpdate();
     }
-
-    /**
-     * Performs the function in multiple batches, each containing up to {@code batchSize} elements from the stream.
-     *
-     * @param stream the stream to batch.
-     * @param batchSize the maximum number of elements to include in each batch.
-     * @param function the function to apply to each batch.
-     * @return a stream of results from each batch.
-     * @param <X> the type of elements in the stream.
-     * @param <Y> the type of elements in the result stream.
-     */
-    public static <X, Y> Stream<Y> slice(@Nonnull Stream<X> stream,
-                                         int batchSize,
-                                         @Nonnull Function<List<X>, Stream<Y>> function) {
-        return slice(stream, batchSize)
-                .flatMap(function); // Note that the flatMap operation closes the stream passed to it.
-    }
-
-    /**
-     * Generates a stream of slices, each containing a subset of elements from the original stream up to a specified
-     * size. This method is designed to facilitate batch processing of large streams by dividing the stream into
-     * smaller manageable slices, which can be processed independently.
-     *
-     * <p>If the specified size is equal to {@code Integer.MAX_VALUE}, this method will return a single slice containing
-     * the original stream, effectively bypassing the slicing mechanism. This is useful for operations that can handle
-     * all elements at once without the need for batching.</p>
-     *
-     * @param <X> the type of elements in the stream.
-     * @param stream the original stream of elements to be sliced.
-     * @param size the maximum number of elements to include in each slice. If {@code size} is
-     * {@code Integer.MAX_VALUE}, only one slice will be returned.
-     * @return a stream of slices, where each slice contains up to {@code size} elements from the original stream.
-     */
-    public static <X> Stream<List<X>> slice(@Nonnull Stream<X> stream, int size) {
-        return st.orm.core.template.QueryBuilder.slice(stream, size);
-    }
 }

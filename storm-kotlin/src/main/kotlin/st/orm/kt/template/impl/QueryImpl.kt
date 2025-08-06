@@ -15,9 +15,9 @@
  */
 package st.orm.kt.template.impl
 
+import st.orm.Ref
 import st.orm.kt.template.PreparedQuery
 import st.orm.kt.template.Query
-import st.orm.Ref
 import java.util.stream.Stream
 import kotlin.reflect.KClass
 
@@ -26,15 +26,13 @@ open class QueryImpl(private val core: st.orm.core.template.Query) : Query {
     /**
      * Prepares the query for execution.
      *
-     *
      * Queries are normally constructed in a lazy fashion, unlike prepared queries which are constructed eagerly.
      * Prepared queries allow the use of bind variables and enable reading generated keys after row insertion.
-     *
      *
      * **Note:** The prepared query must be closed after usage to prevent resource leaks.
      *
      * @return the prepared query.
-     * @throws PersistenceException if the query preparation fails.
+     * @throws st.orm.PersistenceException if the query preparation fails.
      */
     override fun prepare(): PreparedQuery {
         return PreparedQueryImpl(core.prepare())
@@ -55,22 +53,19 @@ open class QueryImpl(private val core: st.orm.core.template.Query) : Query {
         /**
          * Execute a SELECT query and return the resulting rows as a stream of row instances.
          *
-         *
          * Each element in the stream represents a row in the result, where the columns of the row corresponds to the
          * order of values in the row array.
-         *
          *
          * The resulting stream is lazily loaded, meaning that the records are only retrieved from the database as they
          * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
          * dealing with large volumes of records.
-         *
          *
          * **Note:** Calling this method does trigger the execution of the underlying query, so it should
          * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
          * closed after usage to prevent resource leaks.
          *
          * @return a stream of results.
-         * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+         * @throws st.orm.PersistenceException if the query operation fails due to underlying database issues, such as
          * connectivity.
          */
         get() = core.getResultStream()
@@ -78,22 +73,19 @@ open class QueryImpl(private val core: st.orm.core.template.Query) : Query {
     /**
      * Execute a SELECT query and return the resulting rows as a stream of row instances.
      *
-     *
      * Each element in the stream represents a row in the result, where the columns of the row are mapped to the
      * constructor arguments of the specified `type`.
-     *
      *
      * The resulting stream is lazily loaded, meaning that the records are only retrieved from the database as they
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of records.
-     *
      *
      * **Note:** Calling this method does trigger the execution of the underlying query, so it should
      * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must
      * be closed after usage to prevent resource leaks.
      *
      * @return a stream of results.
-     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
+     * @throws st.orm.PersistenceException if the query operation fails due to underlying database issues, such as
      * connectivity.
      */
     override fun <T : Any> getResultStream(type: KClass<T>): Stream<T> {
@@ -103,27 +95,24 @@ open class QueryImpl(private val core: st.orm.core.template.Query) : Query {
     /**
      * Execute a SELECT query and return the resulting rows as a stream of ref instances.
      *
-     *
      * Each element in the stream represents a row in the result, where the columns of the row are mapped to the
      * constructor arguments primary key type.
-     *
      *
      * **Note:** Calling this method does trigger the execution of the underlying query, so it should
      * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must
      * be closed after usage to prevent resource leaks.
      *
-     *
      * @param type the type of the results that are being referenced.
      * @param pkType the primary key type.
      * @return a stream of ref instances.
-     * @throws PersistenceException if the query fails.
+     * @throws st.orm.PersistenceException if the query fails.
      * @since 1.3
      */
     override fun <T : Record> getRefStream(
         type: KClass<T>,
         pkType: KClass<*>
     ): Stream<Ref<T>> {
-        return core.getRefStream<T?>(type.java, pkType.java)
+        return core.getRefStream<T>(type.java, pkType.java)
     }
 
     override val versionAware: Boolean
@@ -138,7 +127,7 @@ open class QueryImpl(private val core: st.orm.core.template.Query) : Query {
      * Execute a command, such as an INSERT, UPDATE or DELETE statement.
      *
      * @return the number of rows impacted as result of the statement.
-     * @throws PersistenceException if the statement fails.
+     * @throws st.orm.PersistenceException if the statement fails.
      */
     override fun executeUpdate(): Int {
         return core.executeUpdate()
@@ -147,7 +136,7 @@ open class QueryImpl(private val core: st.orm.core.template.Query) : Query {
     /**
      * Execute a batch of commands.
      *
-     * @throws PersistenceException if the batch fails.
+     * @throws st.orm.PersistenceException if the batch fails.
      * @return an array of update counts containing one element for each command in the batch. The elements of the
      * array are ordered according to the order in which commands were added to the batch, following
      * `Statement.executeBatch` semantics.

@@ -18,7 +18,6 @@ package st.orm.kt.spring
 import org.reflections.Reflections
 import org.reflections.scanners.SubTypesScanner
 import org.reflections.util.ConfigurationBuilder
-import org.springframework.beans.BeansException
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.config.BeanDefinitionHolder
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor
@@ -37,7 +36,7 @@ import java.util.*
 import java.util.stream.Stream
 
 /**
- * A [BeanFactoryPostProcessor] that scans the specified base packages for repository interfaces and registers
+ * A [org.springframework.beans.factory.config.BeanFactoryPostProcessor] that scans the specified base packages for repository interfaces and registers
  * them as beans in the bean factory. This allows repository interfaces to be autowired by the ORM framework.
  */
 @Component
@@ -78,7 +77,7 @@ open class RepositoryBeanFactoryPostProcessor : BeanFactoryPostProcessor {
      * Scans the specified base packages for repository interfaces and registers them as beans in the bean factory.
      *
      * @param beanFactory the bean factory to register the repository beans with.
-     * @throws BeansException if an error occurs while registering the repository beans.
+     * @throws org.springframework.beans.BeansException if an error occurs while registering the repository beans.
      */
     override fun postProcessBeanFactory(beanFactory: ConfigurableListableBeanFactory) {
         val registry = beanFactory as BeanDefinitionRegistry
