@@ -478,7 +478,7 @@ open class TransactionTest(
         orm.exists<Visit>().shouldBeTrue()
     }
 
-        @Test
+    @Test
     open fun `transaction times out and rolls back when execution exceeds query timeout`(): Unit = runBlocking {
         assertThrows<TransactionTimedOutException> {
             transaction(timeoutSeconds = 1) {

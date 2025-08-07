@@ -92,8 +92,8 @@ internal class JdbcTransactionContext : TransactionContext {
 
     /**
      * Obtains a JDBC Connection for the current transaction.
-     * Creates a new connection or reuses existing one based on
-     * transaction propagation rules.
+     *
+     * Creates a new connection or reuses existing one based on transaction propagation rules.
      *
      * @param dataSource DataSource to get connection from
      * @return JDBC Connection
