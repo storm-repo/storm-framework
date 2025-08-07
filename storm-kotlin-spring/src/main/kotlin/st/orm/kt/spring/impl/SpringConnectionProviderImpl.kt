@@ -20,6 +20,7 @@ import org.springframework.jdbc.datasource.DataSourceUtils
 import st.orm.PersistenceException
 import st.orm.core.spi.ConnectionProvider
 import st.orm.core.spi.Orderable.BeforeAny
+import st.orm.core.spi.TransactionContext
 import st.orm.kt.spring.SpringTransactionConfiguration
 import java.sql.Connection
 import javax.sql.DataSource
@@ -32,9 +33,11 @@ class SpringConnectionProviderImpl : ConnectionProvider {
     override fun isEnabled(): Boolean =
         SpringTransactionConfiguration.transactionManagers.isNotEmpty()
 
-    override fun getConnection(dataSource: DataSource): Connection {
-        val context = SpringTransactionContext.current()
-        context?.useDataSource(dataSource)
+    override fun getConnection(dataSource: DataSource, context: TransactionContext?): Connection {
+        if (context != null) {
+            require(context is SpringTransactionContext) { "Transaction context must be of type JdbcTransactionContext." }
+            context.useDataSource(dataSource)
+        }
         try {
             return DataSourceUtils.getConnection(dataSource)
         } catch (e: CannotGetJdbcConnectionException) {
@@ -42,7 +45,10 @@ class SpringConnectionProviderImpl : ConnectionProvider {
         }
     }
 
-    override fun releaseConnection(connection: Connection, dataSource: DataSource) {
+    override fun releaseConnection(connection: Connection, dataSource: DataSource, context: TransactionContext?) {
+        if (context != null) {
+            require(context is SpringTransactionContext) { "Transaction context must be of type JdbcTransactionContext." }
+        }
         DataSourceUtils.releaseConnection(connection, dataSource)
     }
 }

@@ -20,6 +20,8 @@ import jakarta.persistence.PersistenceException;
 
 import java.util.Optional;
 
+import static java.util.Optional.ofNullable;
+
 /**
  * The transaction template is a functional interface that allows callers to let logic be executed in the scope of a
  * new transaction.
@@ -85,12 +87,20 @@ public interface TransactionTemplate {
     TransactionContext newContext(boolean suspendMode) throws PersistenceException;
 
     /**
-     * Returns the current transaction context or an empty optional if there is no active transaction.
+     * Returns the current transaction context if any.
      *
-     * @return current transaction context or an empty optional.
-     * @throws PersistenceException if the transaction subsystem raised an issue.
+     * @return the current transaction context if any.
      */
-    Optional<TransactionContext> currentContext() throws PersistenceException;
+    default Optional<TransactionContext> currentContext() {
+        return ofNullable(contextHolder().get());
+    }
+
+    /**
+     * Returns the thread local that holds the current transaction context.
+     *
+     * @return thread local that holds the current transaction context.
+     */
+    ThreadLocal<TransactionContext> contextHolder();
 
     /**
      * Executes the specified action in the scope of a transaction. Exceptions raised by the action will be relayed

@@ -315,8 +315,8 @@ open class SpringManagedTransactionTest(
                 orm.query(
                     """
                         SELECT COUNT(*) 
-                          FROM SYSTEM_RANGE(1, 1_000_000) AS A
-                         CROSS JOIN SYSTEM_RANGE(1, 1_000_000) AS B
+                        FROM SYSTEM_RANGE(1, 1_000_000) AS A
+                        CROSS JOIN SYSTEM_RANGE(1, 1_000_000) AS B
                     """.trimIndent()
                 ).singleResult
             }

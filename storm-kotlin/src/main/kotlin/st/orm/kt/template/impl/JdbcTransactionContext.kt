@@ -42,27 +42,6 @@ import javax.sql.DataSource
  * @since 1.5
  */
 internal class JdbcTransactionContext : TransactionContext {
-    companion object {
-        private val CONTEXT = ThreadLocal.withInitial { mutableListOf<JdbcTransactionContext>() }
-
-        private fun push(context: JdbcTransactionContext) {
-            CONTEXT.get().add(context)
-        }
-
-        fun current(): JdbcTransactionContext? {
-            val stack = CONTEXT.get()
-            return stack.lastOrNull()
-        }
-
-        private fun pop() {
-            val stack = CONTEXT.get()
-            stack.removeAt(stack.lastIndex)
-            if (stack.isEmpty()) {
-                CONTEXT.remove()
-            }
-        }
-    }
-
     /**
      * Internal data class representing the state of a transaction frame.
      * Each transaction operation creates a new state that tracks various
@@ -166,7 +145,6 @@ internal class JdbcTransactionContext : TransactionContext {
         val state = TransactionState(propagation, isolation, timeoutSeconds, readOnly)
         stack.add(state)
         val result = try {
-            push(this)
             callback.doInTransaction(object : TransactionStatus {
                 override fun isRollbackOnly(): Boolean =
                     this@JdbcTransactionContext.isRollbackOnly
@@ -177,13 +155,13 @@ internal class JdbcTransactionContext : TransactionContext {
             })
         } catch (e: Throwable) {
             rollback()
-            if (e is SQLTimeoutException) {
-                // TimeoutJob may not have registered timeout yet.
-                throw TransactionTimedOutException(e.message ?: "Transaction did not complete within timeout.", e)
+            when (e.cause) {
+                is SQLTimeoutException -> {
+                    // TimeoutJob may not have registered timeout yet.
+                    throw TransactionTimedOutException(e.message ?: "Transaction did not complete within timeout.", e)
+                }
+                else -> throw e
             }
-            throw e
-        } finally {
-            pop()
         }
         if (state.rollbackOnly) {
             rollback()

@@ -16,6 +16,7 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -31,15 +32,17 @@ public interface ConnectionProvider extends Provider {
      * Gets a connection from the given data source.
      *
      * @param dataSource the data source to get the connection from.
+     * @param context the transaction context.
      * @return a connection to the database.
      */
-    Connection getConnection(@Nonnull DataSource dataSource);
+    Connection getConnection(@Nonnull DataSource dataSource, @Nullable TransactionContext context);
 
     /**
      * Releases the given connection back to the data source.
      *
      * @param connection the connection to release.
      * @param dataSource the data source to which the connection belongs.
+     * @param context the transaction context.
      */
-    void releaseConnection(@Nonnull Connection connection, @Nonnull DataSource dataSource);
+    void releaseConnection(@Nonnull Connection connection, @Nonnull DataSource dataSource, @Nullable TransactionContext context);
 }

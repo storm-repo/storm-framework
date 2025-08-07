@@ -21,6 +21,7 @@ import st.orm.BindVars;
 import st.orm.PersistenceException;
 import st.orm.core.spi.RefFactory;
 import st.orm.core.spi.RefFactoryImpl;
+import st.orm.core.spi.TransactionContext;
 import st.orm.core.spi.TransactionTemplate;
 import st.orm.core.template.Query;
 import st.orm.core.spi.Provider;
@@ -85,7 +86,8 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
             var parameters = sql.parameters();
             var bindVariables = sql.bindVariables().orElse(null);
             var generatedKeys = sql.generatedKeys();
-            Connection connection = getConnection(dataSource);
+            var transactionContext = transactionTemplate.currentContext().orElse(null);
+            Connection connection = getConnection(dataSource, transactionContext);
             PreparedStatement preparedStatement = null;
             try {
                 if (!generatedKeys.isEmpty()) {
@@ -98,7 +100,6 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                     //noinspection SqlSourceToSinkFlow
                     preparedStatement = connection.prepareStatement(statement);
                 }
-                var transactionContext = transactionTemplate.currentContext().orElse(null);
                 if (transactionContext != null) {
                     preparedStatement = transactionContext.getDecorator(PreparedStatement.class)
                             .decorate(preparedStatement);
@@ -110,10 +111,10 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                 }
             } finally {
                 if (preparedStatement == null) {
-                    releaseConnection(connection, dataSource);
+                    releaseConnection(connection, dataSource, transactionContext);
                 }
             }
-            return createProxy(preparedStatement, connection, dataSource);
+            return createProxy(preparedStatement, connection, dataSource, transactionContext);
         };
         this.modelBuilder = ModelBuilder.newInstance();
         this.tableAliasResolver = TableAliasResolver.DEFAULT;
@@ -323,7 +324,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      * @param connection the connection to close when the PreparedStatement is closed.
      * @return a proxy for the PreparedStatement that closes the connection when the PreparedStatement is closed.
      */
-    private static PreparedStatement createProxy(@Nonnull PreparedStatement statement, @Nonnull Connection connection, @Nonnull DataSource dataSource) {
+    private static PreparedStatement createProxy(@Nonnull PreparedStatement statement, @Nonnull Connection connection, @Nonnull DataSource dataSource, @Nullable TransactionContext context) {
         return (PreparedStatement) Proxy.newProxyInstance(
                 PreparedStatement.class.getClassLoader(),
                 new Class<?>[] { PreparedStatement.class },
@@ -333,7 +334,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                         try {
                             statement.close();
                         } finally {
-                            releaseConnection(connection, dataSource);
+                            releaseConnection(connection, dataSource, context);
                         }
                         return null;
                     }

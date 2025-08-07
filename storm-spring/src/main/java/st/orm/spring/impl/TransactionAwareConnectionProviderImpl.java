@@ -16,10 +16,12 @@
 package st.orm.spring.impl;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import org.springframework.jdbc.CannotGetJdbcConnectionException;
 import org.springframework.jdbc.datasource.DataSourceUtils;
 import st.orm.PersistenceException;
 import st.orm.core.spi.ConnectionProvider;
+import st.orm.core.spi.TransactionContext;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -27,7 +29,7 @@ import java.sql.Connection;
 public class TransactionAwareConnectionProviderImpl implements ConnectionProvider {
 
     @Override
-    public Connection getConnection(@Nonnull DataSource dataSource) {
+    public Connection getConnection(@Nonnull DataSource dataSource, @Nullable TransactionContext context) {
         try {
             return DataSourceUtils.getConnection(dataSource);
         } catch (CannotGetJdbcConnectionException e) {
@@ -36,7 +38,7 @@ public class TransactionAwareConnectionProviderImpl implements ConnectionProvide
     }
 
     @Override
-    public void releaseConnection(@Nonnull Connection connection, @Nonnull DataSource dataSource) {
+    public void releaseConnection(@Nonnull Connection connection, @Nonnull DataSource dataSource, @Nullable TransactionContext context) {
         DataSourceUtils.releaseConnection(connection, dataSource);
     }
 }

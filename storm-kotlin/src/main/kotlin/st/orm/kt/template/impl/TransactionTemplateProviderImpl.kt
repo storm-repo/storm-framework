@@ -6,10 +6,9 @@ import st.orm.core.spi.TransactionContext
 import st.orm.core.spi.TransactionTemplate
 import st.orm.core.spi.TransactionTemplateProvider
 import st.orm.kt.template.TransactionPropagation.*
-import java.util.*
-import java.util.Optional.ofNullable
 
 class TransactionTemplateProviderImpl : TransactionTemplateProvider {
+    private val contextHolder = ThreadLocal<TransactionContext>()
 
     override fun getTransactionTemplate(): TransactionTemplate {
         return object : TransactionTemplate {
@@ -42,7 +41,6 @@ class TransactionTemplateProviderImpl : TransactionTemplateProvider {
                 return this
             }
 
-            // We do not support timeout in this implementation.
             override fun timeout(timeoutSeconds: Int): TransactionTemplate {
                 this.timeoutSeconds = timeoutSeconds
                 return this
@@ -51,8 +49,8 @@ class TransactionTemplateProviderImpl : TransactionTemplateProvider {
             override fun newContext(suspendMode: Boolean): TransactionContext = // Suspend mode is supported in this implementation.
                 JdbcTransactionContext()
 
-            override fun currentContext(): Optional<TransactionContext> {
-                return ofNullable(JdbcTransactionContext.current())
+            override fun contextHolder(): ThreadLocal<TransactionContext> {
+                return contextHolder
             }
 
             override fun <T> execute(callback: TransactionCallback<T>, context: TransactionContext): T {

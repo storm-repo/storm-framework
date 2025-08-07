@@ -3,10 +3,7 @@ package st.orm.kt.spring
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.shouldNotBe
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
@@ -461,5 +458,53 @@ open class TransactionTest(
                 orm.deleteAll<Visit>()
             }
         }
+    }
+
+
+    /**
+     * Context switching scenarios.
+     */
+
+    @Test
+    fun `context switch sees uncommitted data`(): Unit = runBlocking {
+        val afterSwitch = CompletableDeferred<Boolean>()
+        suspendTransaction {
+            orm.deleteAll<Visit>()
+            withContext(Dispatchers.IO) {
+                afterSwitch.complete(orm.exists<Visit>())
+            }
+            delay(500) // Ensure the launch happens after the deleteAll
+        }
+        afterSwitch.await().shouldBeFalse()
+    }
+
+    @Test
+    fun `context switch with transaction sees uncommitted data`(): Unit = runBlocking {
+        val afterSwitch = CompletableDeferred<Boolean>()
+        suspendTransaction {
+            orm.deleteAll<Visit>()
+            withContext(Dispatchers.IO) {
+                transaction {
+                    afterSwitch.complete(orm.exists<Visit>())
+                }
+            }
+            delay(500) // Ensure the launch happens after the deleteAll
+        }
+        afterSwitch.await().shouldBeFalse()
+    }
+
+    @Test
+    fun `context switch with suspend transaction sees uncommitted data`(): Unit = runBlocking {
+        val afterSwitch = CompletableDeferred<Boolean>()
+        suspendTransaction {
+            orm.deleteAll<Visit>()
+            withContext(Dispatchers.IO) {
+                suspendTransaction {
+                    afterSwitch.complete(orm.exists<Visit>())
+                }
+            }
+            delay(500) // Ensure the launch happens after the deleteAll
+        }
+        afterSwitch.await().shouldBeFalse()
     }
 }

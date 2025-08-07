@@ -67,16 +67,17 @@ fun <T> transaction(
         timeoutSeconds = timeoutSeconds,
         readOnly = readOnly
     )
-    TransactionContextHolder.current.get()?.let { existingCtx ->
+    val contextHolder = transactionTemplate.contextHolder()
+    contextHolder.get()?.let { existingCtx ->
         return execute(transactionTemplate, existingCtx, block)
     }
-    val newCtx = transactionTemplate.newContext(false).also {
-        TransactionContextHolder.current.set(it)
+    val newContext = transactionTemplate.newContext(false).also {
+        contextHolder.set(it)
     }
     try {
-        return execute(transactionTemplate, newCtx, block)
+        return execute(transactionTemplate, newContext, block)
     } finally {
-        TransactionContextHolder.current.remove()
+        contextHolder.remove()
     }
 }
 
@@ -123,20 +124,19 @@ suspend fun <T> suspendTransaction(
         timeoutSeconds = timeoutSeconds,
         readOnly = readOnly
     )
+    val currentContext = currentCoroutineContext()
     // If we're already in a transaction, just re-use it (no dispatcher switch needed).
-    currentCoroutineContext()[TransactionKey]?.context?.let {
-        return suspendExecute(transactionTemplate, it, block)
+    currentContext[TransactionKey]?.context?.let {
+        return suspendExecute(currentContext, transactionTemplate, it, block)
     }
     val newContext = transactionTemplate.newContext(true)
-    return withContext(context +
-            TransactionKey(newContext) +
-            TransactionContextHolder.current.asContextElement(newContext)) {
-        suspendExecute(transactionTemplate, newContext, block)
+    val elements = TransactionKey(newContext) +
+            transactionTemplate.contextHolder().asContextElement(newContext)    // Make the context available via the ThreadLocal.
+    return withContext(context + elements) {
+        // Just pass the elements, not the context, as the caller might have switched dispatchers. We just want to make
+        // the transaction context available to the caller's coroutine.
+        suspendExecute(elements, transactionTemplate, newContext, block)
     }
-}
-
-private object TransactionContextHolder {
-    val current = ThreadLocal<TransactionContext?>()
 }
 
 private class TransactionKey(val context: TransactionContext) :
@@ -180,7 +180,11 @@ private fun <T> execute(
     }, transactionContext)
 }
 
+/**
+ * Execute the given [block] within a coroutine-friendly database transaction.
+ */
 private fun <T> suspendExecute(
+    context: CoroutineContext,
     transactionTemplate: TransactionTemplate,
     transactionContext: TransactionContext,
     block: suspend Transaction.() -> T
@@ -194,6 +198,8 @@ private fun <T> suspendExecute(
                 status.setRollbackOnly()
             }
         }
-        runBlocking { block(tx) }
+        runBlocking(context) {  // Propagate the transaction context to the coroutine.
+            block(tx)
+        }
     }, transactionContext)
 }

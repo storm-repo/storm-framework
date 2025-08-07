@@ -44,46 +44,6 @@ import javax.sql.DataSource
  */
 internal class SpringTransactionContext : TransactionContext {
     /**
-     * Companion object providing static transaction context management functions.
-     */
-    companion object {
-        /**
-         * Thread-local storage for transaction contexts.
-         */
-        private val CONTEXT = ThreadLocal.withInitial { mutableListOf<SpringTransactionContext>() }
-
-        /**
-         * Pushes a new transaction context onto the thread-local stack.
-         *
-         * @param context The context to push
-         */
-        private fun push(context: SpringTransactionContext) {
-            CONTEXT.get().add(context)
-        }
-
-        /**
-         * Returns the current transaction context if one exists.
-         *
-         * @return The current SpringTransactionContext or null if none exists
-         */
-        fun current(): SpringTransactionContext? {
-            val stack = CONTEXT.get()
-            return stack.lastOrNull()
-        }
-
-        /**
-         * Removes and returns the current transaction context from the stack.
-         */
-        private fun pop() {
-            val stack = CONTEXT.get()
-            stack.removeAt(stack.lastIndex)
-            if (stack.isEmpty()) {
-                CONTEXT.remove()
-            }
-        }
-    }
-
-    /**
      * Internal class representing the state of a single transaction.
      * 
      * @property transactionStatus The Spring transaction status
@@ -147,7 +107,6 @@ internal class SpringTransactionContext : TransactionContext {
         val state = TransactionState(transactionDefinition = definition)
         stack.add(state)
         val result = try {
-            push(this)
             callback.doInTransaction(object : st.orm.core.spi.TransactionStatus {
                 override fun isRollbackOnly(): Boolean =
                     this@SpringTransactionContext.isRollbackOnly
@@ -158,13 +117,13 @@ internal class SpringTransactionContext : TransactionContext {
             })
         } catch (e: Throwable) {
             rollback()
-            if (e is SQLTimeoutException) {
-                // TimeoutJob may not have registered timeout yet.
-                throw TransactionTimedOutException(e.message ?: "Transaction did not complete within timeout.", e)
+            when (e.cause) {
+                is SQLTimeoutException -> {
+                    // TimeoutJob may not have registered timeout yet.
+                    throw TransactionTimedOutException(e.message ?: "Transaction did not complete within timeout.", e)
+                }
+                else -> throw e
             }
-            throw e
-        } finally {
-            pop()
         }
         if (isRollbackOnly) {
             rollback()

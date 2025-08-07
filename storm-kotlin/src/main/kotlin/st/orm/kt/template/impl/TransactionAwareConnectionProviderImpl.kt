@@ -17,6 +17,7 @@ package st.orm.kt.template.impl
 
 import st.orm.PersistenceException
 import st.orm.core.spi.ConnectionProvider
+import st.orm.core.spi.TransactionContext
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.sql.Connection
@@ -27,9 +28,9 @@ import javax.sql.DataSource
  */
 class TransactionAwareConnectionProviderImpl : ConnectionProvider {
 
-    override fun getConnection(dataSource: DataSource): Connection {
-        val context = JdbcTransactionContext.current()
+    override fun getConnection(dataSource: DataSource, context: TransactionContext?): Connection {
         if (context != null) {
+            require(context is JdbcTransactionContext) { "Transaction context must be of type JdbcTransactionContext." }
             validateState()
             return context.getConnection(dataSource)
         }
@@ -37,9 +38,9 @@ class TransactionAwareConnectionProviderImpl : ConnectionProvider {
         return getRegularConnection(dataSource)
     }
 
-    override fun releaseConnection(connection: Connection, dataSource: DataSource) {
-        val context = JdbcTransactionContext.current()
+    override fun releaseConnection(connection: Connection, dataSource: DataSource, context: TransactionContext?) {
         if (context != null) {
+            require(context is JdbcTransactionContext) { "Transaction context must be of type JdbcTransactionContext." }
             if (context.currentConnection() == connection) {
                 // If this connection is the current transaction connection, do not close it. It will be closed when the
                 // outermost transaction ends.

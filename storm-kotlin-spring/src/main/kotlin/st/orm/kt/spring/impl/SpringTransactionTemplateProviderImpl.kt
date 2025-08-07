@@ -24,8 +24,6 @@ import st.orm.core.spi.TransactionContext
 import st.orm.core.spi.TransactionTemplate
 import st.orm.core.spi.TransactionTemplateProvider
 import st.orm.kt.spring.SpringTransactionConfiguration
-import java.util.*
-import java.util.Optional.ofNullable
 
 /**
  * Transaction template integration for the Spring framework.
@@ -34,6 +32,8 @@ import java.util.Optional.ofNullable
  */
 @BeforeAny
 class SpringTransactionTemplateProviderImpl : TransactionTemplateProvider {
+    private val contextHolder = ThreadLocal<TransactionContext>()
+
     override fun isEnabled(): Boolean =
         SpringTransactionConfiguration.transactionManagers.isNotEmpty()
 
@@ -84,8 +84,8 @@ class SpringTransactionTemplateProviderImpl : TransactionTemplateProvider {
                 return SpringTransactionContext()
             }
 
-            override fun currentContext(): Optional<TransactionContext> {
-                return ofNullable(SpringTransactionContext.current())
+            override fun contextHolder(): ThreadLocal<TransactionContext> {
+                return contextHolder
             }
 
             override fun <T> execute(callback: TransactionCallback<T>, context: TransactionContext): T {

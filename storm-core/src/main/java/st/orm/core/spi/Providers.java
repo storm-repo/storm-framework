@@ -16,6 +16,7 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import st.orm.Entity;
 import st.orm.Ref;
 import st.orm.Projection;
@@ -211,18 +212,18 @@ public final class Providers {
 
     private static final AtomicReference<ConnectionProvider> CONNECTION_PROVIDER = new AtomicReference<>();
 
-    public static Connection getConnection(@Nonnull DataSource dataSource) {
+    public static Connection getConnection(@Nonnull DataSource dataSource, @Nullable TransactionContext context) {
         return CONNECTION_PROVIDER.updateAndGet(value -> requireNonNullElseGet(value, () -> Orderable.sort(CONNECTION_PROVIDERS.get().stream())
                 .findFirst()
                 .orElseThrow())
-        ).getConnection(dataSource);
+        ).getConnection(dataSource, context);
     }
 
-    public static void releaseConnection(@Nonnull Connection connection, @Nonnull DataSource dataSource) {
+    public static void releaseConnection(@Nonnull Connection connection, @Nonnull DataSource dataSource, @Nullable TransactionContext context) {
         CONNECTION_PROVIDER.updateAndGet(value -> requireNonNullElseGet(value, () -> Orderable.sort(CONNECTION_PROVIDERS.get().stream())
                 .findFirst()
                 .orElseThrow())
-        ).releaseConnection(connection, dataSource);
+        ).releaseConnection(connection, dataSource, context);
     }
 
     public static TransactionTemplate getTransactionTemplate() {

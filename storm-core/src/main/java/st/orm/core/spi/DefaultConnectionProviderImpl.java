@@ -16,6 +16,7 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import st.orm.PersistenceException;
 import st.orm.core.spi.Orderable.AfterAny;
 
@@ -46,7 +47,7 @@ public class DefaultConnectionProviderImpl implements ConnectionProvider {
     }
 
     @Override
-    public Connection getConnection(@Nonnull DataSource dataSource) {
+    public Connection getConnection(@Nonnull DataSource dataSource, @Nullable TransactionContext context) {
         try {
             if (GET_CONNECTION_METHOD != null) {
                 try {
@@ -63,7 +64,7 @@ public class DefaultConnectionProviderImpl implements ConnectionProvider {
     }
 
     @Override
-    public void releaseConnection(@Nonnull Connection connection, @Nonnull DataSource dataSource) {
+    public void releaseConnection(@Nonnull Connection connection, @Nonnull DataSource dataSource, @Nullable TransactionContext context) {
         try {
             if (RELEASE_CONNECTION_METHOD != null) {
                 try {
