@@ -20,13 +20,7 @@ import st.orm.Metamodel
 import st.orm.Operator.EQUALS
 import st.orm.Operator.IN
 import st.orm.Ref
-import st.orm.kt.template.Model
-import st.orm.kt.template.PredicateBuilder
-import st.orm.kt.template.QueryBuilder
-import st.orm.kt.template.TemplateBuilder
-import st.orm.kt.template.TemplateString
-import st.orm.kt.template.WhereBuilder
-import st.orm.kt.template.build
+import st.orm.kt.template.*
 import java.util.stream.Stream
 import kotlin.reflect.KClass
 
@@ -2244,7 +2238,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
         field: Metamodel<E, V>,
         value: V
     ): Boolean =
-        selectCount().where(field, EQUALS, value).singleResult == 0L
+        selectCount().where(field, EQUALS, value).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified field and referenced value exists.
@@ -2257,7 +2251,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
         field: Metamodel<E, V>,
         value: Ref<V>
     ): Boolean =
-        selectCount().where(field, value).singleResult == 0L
+        selectCount().where(field, value).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified predicate exists.
@@ -2268,7 +2262,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
     fun exists(
         predicate: WhereBuilder<E, *, ID>.() -> PredicateBuilder<E, *, *>
     ): Boolean =
-        selectCount().whereBuilder(predicate).singleResult == 0L
+        selectCount().whereBuilder(predicate).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified predicate exists.
@@ -2279,7 +2273,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
     fun exists(
         predicate: PredicateBuilder<E, *, *>
     ): Boolean =
-        selectCount().where(predicate).singleResult == 0L
+        selectCount().where(predicate).singleResult > 0
 
     /**
      * Deletes entities of type [T] matching the specified field and value.

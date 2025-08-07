@@ -1278,7 +1278,7 @@ fun <T, ID : Any, V> EntityRepository<T, ID>.existsBy(
     field: Metamodel<T, V>,
     value: V
 ): Boolean where T : Record, T : Entity<ID> =
-    selectCount().where(field, EQUALS, value).singleResult == 0L
+    selectCount().where(field, EQUALS, value).singleResult > 0
 
 /**
  * Checks if entities of type [T] matching the specified field and referenced value exists.
@@ -1291,7 +1291,7 @@ fun <T, ID : Any, V> EntityRepository<T, ID>.existsBy(
     field: Metamodel<T, V>,
     value: Ref<V>
 ): Boolean where T : Record, T : Entity<ID>, V : Record =
-    selectCount().where(field, value).singleResult == 0L
+    selectCount().where(field, value).singleResult > 0
 
 /**
  * Checks if entities of type [T] matching the specified predicate exists.
@@ -1302,7 +1302,7 @@ fun <T, ID : Any, V> EntityRepository<T, ID>.existsBy(
 fun <T, ID : Any> EntityRepository<T, ID>.exists(
     predicate: WhereBuilder<T, *, ID>.() -> PredicateBuilder<T, *, *>
 ): Boolean where T : Record, T : Entity<ID> =
-    selectCount().whereBuilder(predicate).singleResult == 0L
+    selectCount().whereBuilder(predicate).singleResult > 0
 
 /**
  * Checks if entities of type [T] matching the specified predicate exists.
@@ -1312,7 +1312,7 @@ fun <T, ID : Any> EntityRepository<T, ID>.exists(
  */
 fun <T, ID : Any> EntityRepository<T, ID>.exists(predicate: PredicateBuilder<T, *, *>): Boolean
         where T : Record, T : Entity<ID> =
-    selectCount().where(predicate).singleResult == 0L
+    selectCount().where(predicate).singleResult > 0
 
 /**
  * Inserts an entity of type [T] into the repository.

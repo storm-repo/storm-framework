@@ -20,13 +20,7 @@ import st.orm.Operator.EQUALS
 import st.orm.Operator.IN
 import st.orm.Projection
 import st.orm.Ref
-import st.orm.kt.template.Model
-import st.orm.kt.template.PredicateBuilder
-import st.orm.kt.template.QueryBuilder
-import st.orm.kt.template.TemplateBuilder
-import st.orm.kt.template.TemplateString
-import st.orm.kt.template.WhereBuilder
-import st.orm.kt.template.build
+import st.orm.kt.template.*
 import java.util.stream.Stream
 import kotlin.reflect.KClass
 
@@ -1280,7 +1274,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
         field: Metamodel<P, V>,
         value: V
     ): Boolean =
-        selectCount().where(field, EQUALS, value).singleResult == 0L
+        selectCount().where(field, EQUALS, value).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified field and referenced value exists.
@@ -1293,7 +1287,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
         field: Metamodel<P, V>,
         value: Ref<V>
     ): Boolean =
-        selectCount().where(field, value).singleResult == 0L
+        selectCount().where(field, value).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified predicate exists.
@@ -1304,7 +1298,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
     fun exists(
         predicate: WhereBuilder<P, *, ID>.() -> PredicateBuilder<P, *, *>
     ): Boolean =
-        selectCount().whereBuilder(predicate).singleResult == 0L
+        selectCount().whereBuilder(predicate).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified predicate exists.
@@ -1315,5 +1309,5 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
     fun exists(
         predicate: PredicateBuilder<P, *, *>
     ): Boolean =
-        selectCount().where(predicate).singleResult == 0L
+        selectCount().where(predicate).singleResult > 0
 }
