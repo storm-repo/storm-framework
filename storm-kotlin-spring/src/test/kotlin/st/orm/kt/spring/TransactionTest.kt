@@ -19,8 +19,10 @@ import st.orm.kt.spring.model.Visit
 import st.orm.kt.template.ORMTemplate
 import st.orm.kt.template.TransactionIsolation.*
 import st.orm.kt.template.TransactionPropagation.*
+import st.orm.kt.template.TransactionTimedOutException
 import st.orm.kt.template.suspendTransaction
 import st.orm.kt.template.transaction
+import kotlin.test.assertFalse
 
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @SpringBootTest
@@ -460,7 +462,6 @@ open class TransactionTest(
         }
     }
 
-
     /**
      * Context switching scenarios.
      */
@@ -506,5 +507,40 @@ open class TransactionTest(
             delay(500) // Ensure the launch happens after the deleteAll
         }
         afterSwitch.await().shouldBeFalse()
+    }
+
+    /**
+     * Fail-fast concurrency scenarios.
+     */
+
+    @Test
+    fun `concurrent DB access in same transaction throws exception`(): Unit = runBlocking {
+        val e = assertThrows<PersistenceException> {
+            suspendTransaction(timeoutSeconds = 1) {
+                coroutineScope {
+                    // Two concurrent operations.
+                    val job1 = launch(Dispatchers.IO) {
+                        orm.query(
+                            """
+                                SELECT COUNT(*) 
+                                FROM SYSTEM_RANGE(1, 1_000_000) AS A
+                                CROSS JOIN SYSTEM_RANGE(1, 1_000_000) AS B
+                            """.trimIndent()
+                        ).singleResult
+                    }
+                    val job2 = launch(Dispatchers.IO) {
+                        orm.query(
+                            """
+                            SELECT COUNT(*) 
+                            FROM SYSTEM_RANGE(1, 1_000_000) AS A
+                            CROSS JOIN SYSTEM_RANGE(1, 1_000_000) AS B
+                        """.trimIndent()
+                        ).singleResult
+                    }
+                    joinAll(job1, job2)
+                }
+            }
+        }
+        assertFalse(e.cause is TransactionTimedOutException)
     }
 }

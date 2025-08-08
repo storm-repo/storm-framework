@@ -21,6 +21,9 @@ import st.orm.core.spi.TransactionContext
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.sql.Connection
+import java.util.*
+import java.util.Collections.newSetFromMap
+import java.util.Collections.synchronizedSet
 import javax.sql.DataSource
 
 /**
@@ -32,7 +35,9 @@ class TransactionAwareConnectionProviderImpl : ConnectionProvider {
         if (context != null) {
             require(context is JdbcTransactionContext) { "Transaction context must be of type JdbcTransactionContext." }
             validateState()
-            return context.getConnection(dataSource)
+            val connection = context.getConnection(dataSource)
+            ConcurrencyDetector.beforeAccess(connection)
+            return connection
         }
         // If no programmatic transaction is active, obtain a new connection from the data source.
         return getRegularConnection(dataSource)
@@ -44,6 +49,7 @@ class TransactionAwareConnectionProviderImpl : ConnectionProvider {
             if (context.currentConnection() == connection) {
                 // If this connection is the current transaction connection, do not close it. It will be closed when the
                 // outermost transaction ends.
+                ConcurrencyDetector.afterAccess(connection)
                 return
             }
         }
@@ -100,6 +106,22 @@ class TransactionAwareConnectionProviderImpl : ConnectionProvider {
             }
         } catch (t: Throwable) {
             throw PersistenceException("Failed to release connection.", t)
+        }
+    }
+
+    object ConcurrencyDetector {
+        private val monitor = synchronizedSet(newSetFromMap(IdentityHashMap<Connection, Boolean>()))
+
+        fun beforeAccess(connection: Connection) {
+            if (!monitor.add(connection)) {
+                throw PersistenceException(
+                    "Concurrent access detected on transaction‐scoped Connection $connection."
+                )
+            }
+        }
+
+        fun afterAccess(connection: Connection) {
+            monitor.remove(connection)
         }
     }
 

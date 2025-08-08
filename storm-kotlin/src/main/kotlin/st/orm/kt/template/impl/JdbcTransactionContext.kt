@@ -66,14 +66,14 @@ internal class JdbcTransactionContext : TransactionContext {
     internal data class TransactionState(
         val propagation: TransactionPropagation = REQUIRED,
         val isolationLevel: Int?                = null,
-        var timeoutSeconds: Int?                = null,
+        val timeoutSeconds: Int?                = null,
         val readOnly: Boolean?                  = null,
+        var dataSource: DataSource?             = null,
+        var connection: Connection?             = null,
+        var ownsConnection: Boolean             = false,
         var originalIsolationLevel: Int?        = null,
         var originalReadOnly: Boolean?          = null,
-        var connection: Connection?             = null,
         var savepoint: Savepoint?               = null,
-        var dataSource: DataSource?             = null,
-        var ownsConnection: Boolean             = false,
         var rollbackOnly: Boolean               = false,
         var suspendedConnection: Connection?    = null,
         var suspendedDataSource: DataSource?    = null,
@@ -154,7 +154,7 @@ internal class JdbcTransactionContext : TransactionContext {
                 }
             })
         } catch (e: Throwable) {
-            rollback()
+            rollback(suppressException = true)  // Suppress any rollback exception to ensure handling of e.
             when (e.cause) {
                 is SQLTimeoutException -> {
                     // TimeoutJob may not have registered timeout yet.
@@ -261,30 +261,6 @@ internal class JdbcTransactionContext : TransactionContext {
     }
 
     /**
-     * Open a fresh JDBC Connection for REQUIRED (when no outer) or REQUIRES_NEW.
-     */
-    private fun openNewTransaction(state: TransactionState, dataSource: DataSource) {
-        val connection = dataSource.connection
-        if (!connection.autoCommit) {
-            throw PersistenceException("Connection returned from DataSource must be in auto-commit mode.")
-        }
-        state.isolationLevel?.let { connection.transactionIsolation = it }
-        state.readOnly?.let { connection.isReadOnly = it }
-        connection.autoCommit = false
-        state.connection = connection
-        state.dataSource = dataSource
-        state.ownsConnection = true
-        // Schedule rollback on timeout if requested.
-        state.timeoutSeconds?.let { seconds ->
-            state.timeoutJob = timeoutScope.launch {
-                delay(seconds * 1000L)
-                state.timedOut = true
-                state.rollbackOnly = true
-            }
-        }
-    }
-
-    /**
      * Commit the current transaction block. If nested, release savepoint; if outermost (or REQUIRES_NEW), commit and
      * close; if joined REQUIRED, just restore settings.
      */
@@ -317,7 +293,7 @@ internal class JdbcTransactionContext : TransactionContext {
     /**
      * Roll back the current transaction frame.
      */
-    private fun rollback() {
+    private fun rollback(suppressException: Boolean = false) {
         val state = popState()
         // Cancel any pending timeout watcher.
         state.timeoutJob?.let { job ->
@@ -349,10 +325,12 @@ internal class JdbcTransactionContext : TransactionContext {
                 }
             }
         } catch (e: SQLException) {
-            throw PersistenceException("Rollback failed.", e)
+            if (!suppressException) {
+                throw PersistenceException("Rollback failed.", e)
+            }
         }
         if (stack.isEmpty()) clear(state)
-        if (state.timedOut) {
+        if (!suppressException && state.timedOut) {
             throw TransactionTimedOutException("Transaction did not complete within timeout (${state.timeoutSeconds}s).")
         }
     }
@@ -368,22 +346,66 @@ internal class JdbcTransactionContext : TransactionContext {
         state.originalReadOnly?.let { state.connection!!.isReadOnly = it }
     }
 
-    /** Open a non-transactional connection (auto-commit) */
-    private fun openConnection(state: TransactionState, ds: DataSource) {
-        val conn = ds.connection.apply { autoCommit = true }
-        state.connection = conn
-        state.dataSource = ds
-        state.ownsConnection = true
+    /**
+     * Open a fresh JDBC Connection for REQUIRED (when no outer) or REQUIRES_NEW.
+     */
+    private fun openNewTransaction(state: TransactionState, dataSource: DataSource) {
+        // Synchronize on the TransactionState so that only one thread can initialize its connection.
+        // Without this, two threads could race to assign different connections (or tx modes) to the
+        // same state. Ensuring a single, consistent connection instance lets downstream logic
+        // detect and fail fast on concurrent access within the same transaction.
+        if (state.connection != null) return
+        synchronized(state) {
+            val connection = dataSource.connection
+            if (!connection.autoCommit) {
+                throw PersistenceException("Connection returned from DataSource must be in auto-commit mode.")
+            }
+            state.isolationLevel?.let { connection.transactionIsolation = it }
+            state.readOnly?.let { connection.isReadOnly = it }
+            connection.autoCommit = false
+            state.connection = connection
+            state.dataSource = dataSource
+            state.ownsConnection = true
+            // Schedule rollback on timeout if requested.
+            state.timeoutSeconds?.let { seconds ->
+                state.timeoutJob = timeoutScope.launch {
+                    delay(seconds * 1000L)
+                    state.timedOut = true
+                    state.rollbackOnly = true
+                }
+            }
+        }
     }
 
-    /** Suspend an outer transaction on this state */
+    /**
+     * Open a non-transactional connection (auto-commit).
+     */
+    private fun openConnection(state: TransactionState, dataSource: DataSource) {
+        // Synchronize on the TransactionState so that only one thread can initialize its connection.
+        // Without this, two threads could race to assign different connections (or tx modes) to the
+        // same state. Ensuring a single, consistent connection instance lets downstream logic
+        // detect and fail fast on concurrent access within the same transaction.
+        if (state.connection != null) return
+        synchronized(state) {
+            val connection = dataSource.connection.apply { autoCommit = true }
+            state.connection = connection
+            state.dataSource = dataSource
+            state.ownsConnection = true
+        }
+    }
+
+    /**
+     * Suspend an outer transaction on this state.
+     */
     private fun suspendTransaction(state: TransactionState, outer: TransactionState) {
         state.suspendedConnection = outer.connection
         state.suspendedDataSource = outer.dataSource
         state.suspended = true
     }
 
-    /** helper: join an existing transaction */
+    /**
+     * Join an existing transaction.
+     */
     private fun joinOuterTransaction(state: TransactionState, outer: TransactionState) {
         state.connection = outer.connection
         state.dataSource = outer.dataSource
