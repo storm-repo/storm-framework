@@ -18,18 +18,18 @@ package st.orm.kt.template.impl
 import st.orm.PersistenceException
 import st.orm.core.spi.ConnectionProvider
 import st.orm.core.spi.TransactionContext
+import java.lang.Thread.currentThread
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.sql.Connection
 import java.util.*
-import java.util.Collections.newSetFromMap
-import java.util.Collections.synchronizedSet
+import java.util.Collections.synchronizedMap
 import javax.sql.DataSource
 
 /**
  * @since 1.5
  */
-class TransactionAwareConnectionProviderImpl : ConnectionProvider {
+class CoroutineAwareConnectionProviderImpl : ConnectionProvider {
 
     override fun getConnection(dataSource: DataSource, context: TransactionContext?): Connection {
         if (context != null) {
@@ -109,11 +109,17 @@ class TransactionAwareConnectionProviderImpl : ConnectionProvider {
         }
     }
 
+    /**
+     * Detects concurrent access to transaction-scoped connections. Note that the same thread can access the same
+     * connection multiple times.
+     */
     object ConcurrencyDetector {
-        private val monitor = synchronizedSet(newSetFromMap(IdentityHashMap<Connection, Boolean>()))
+        private val connectionMap = synchronizedMap(WeakHashMap<Connection, Thread>())
 
         fun beforeAccess(connection: Connection) {
-            if (!monitor.add(connection)) {
+            val thread = currentThread()
+            val existingThread = connectionMap.computeIfAbsent(connection) { thread }
+            if (existingThread == null || existingThread != thread) {
                 throw PersistenceException(
                     "Concurrent access detected on transaction‐scoped Connection $connection."
                 )
@@ -121,7 +127,7 @@ class TransactionAwareConnectionProviderImpl : ConnectionProvider {
         }
 
         fun afterAccess(connection: Connection) {
-            monitor.remove(connection)
+            connectionMap.remove(connection)
         }
     }
 

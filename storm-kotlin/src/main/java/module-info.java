@@ -12,6 +12,6 @@ module storm.kotlin {
     requires kotlinx.coroutines.core;
     uses st.orm.core.spi.ORMReflection;
     provides st.orm.core.spi.ORMReflectionProvider with st.orm.kt.spi.ORMReflectionProviderImpl;
-    provides st.orm.core.spi.ConnectionProvider with st.orm.kt.template.impl.TransactionAwareConnectionProviderImpl;
+    provides st.orm.core.spi.ConnectionProvider with st.orm.kt.template.impl.CoroutineAwareConnectionProviderImpl;
     provides st.orm.core.spi.TransactionTemplateProvider with st.orm.kt.template.impl.TransactionTemplateProviderImpl;
 }

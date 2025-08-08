@@ -1,1 +1,1 @@
-st.orm.kt.template.impl.TransactionAwareConnectionProviderImpl
+st.orm.kt.template.impl.CoroutineAwareConnectionProviderImpl
