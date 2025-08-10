@@ -15,10 +15,7 @@
  */
 package st.orm.kt.template
 
-import kotlinx.coroutines.asContextElement
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import st.orm.core.spi.Providers.getTransactionTemplate
 import st.orm.core.spi.TransactionContext
 import st.orm.core.spi.TransactionTemplate
@@ -84,7 +81,7 @@ fun <T> transaction(
 /**
  * Executes the given [block] within a coroutine-friendly database transaction.
  *
- * This variant ensures the transactional logic runs on the specified coroutine [context]
+ * This variant ensures the transactional logic runs on the specified coroutine [dispatcher]
  * (e.g. a dispatcher) while preserving all the usual Spring semantics for propagation,
  * isolation, timeout and read-only settings.
  *
@@ -96,7 +93,7 @@ fun <T> transaction(
  * | `REQUIRES_NEW`    | Commits only the new (inner) tx                  | Rolls back only the inner tx; outer stays active                 | Commits outer tx (inner stays committed)             | Rolls back outer tx; inner-committed work remains                  |
  * | `NESTED`          | Releases the JDBC savepoint—inner changes are now visible to the outer transaction  | Rolls back to savepoint—undoes just inner work, outer stays open | Commits entire tx (savepoints dropped, all work kept) | Rolls back entire tx (including inner work, regardless of savepoint) |
  *
- * @param context           The [CoroutineContext] in which to run the transaction.
+ * @param dispatcher        The [CoroutineDispatcher] in which to run the transaction.
  *                          For example, `Dispatchers.IO`.
  * @param propagation       Controls how this call participates in an existing transaction:
  *                          - `REQUIRED` (default): join or start if none
@@ -111,7 +108,7 @@ fun <T> transaction(
  * @since 1.5
  */
 suspend fun <T> suspendTransaction(
-    context: CoroutineContext = TransactionDispatchers.Default,
+    dispatcher: CoroutineDispatcher     = TransactionDispatchers.Default,
     propagation: TransactionPropagation = TransactionPropagation.REQUIRED,
     isolation: TransactionIsolation?    = null,
     timeoutSeconds: Int?                = null,
@@ -132,7 +129,7 @@ suspend fun <T> suspendTransaction(
     val newContext = transactionTemplate.newContext(true)
     val elements = TransactionKey(newContext) +
             transactionTemplate.contextHolder().asContextElement(newContext)    // Make the context available via the ThreadLocal.
-    return withContext(context + elements) {
+    return withContext(dispatcher + elements) { // Potentially add limitedParallelism(1) here in the future.
         // Just pass the elements, not the context, as the caller might have switched dispatchers. We just want to make
         // the transaction context available to the caller's coroutine.
         suspendExecute(elements, transactionTemplate, newContext, block)
@@ -198,7 +195,12 @@ private fun <T> suspendExecute(
                 status.setRollbackOnly()
             }
         }
-        runBlocking(context) {  // Propagate the transaction context to the coroutine.
+        runBlocking(context) {
+            // Bridges between the blocking TransactionTemplate.execute call and the suspending block,
+            // while propagating the transaction context into the coroutine.
+            //
+            // Note: On pre-Java 24 virtual threads, runBlocking will pin the carrier thread for the
+            // entire duration of the block, eliminating the scalability benefits of virtual threads.
             block(tx)
         }
     }, transactionContext)

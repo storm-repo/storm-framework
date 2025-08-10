@@ -15,13 +15,13 @@
  */
 package st.orm.kt.repository
 
+import kotlinx.coroutines.flow.Flow
 import st.orm.Metamodel
 import st.orm.Operator.EQUALS
 import st.orm.Operator.IN
 import st.orm.Projection
 import st.orm.Ref
 import st.orm.kt.template.*
-import java.util.stream.Stream
 import kotlin.reflect.KClass
 
 /**
@@ -335,7 +335,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @throws st.orm.PersistenceException if the selection operation fails due to underlying database issues, such as
      * connectivity.
      */
-    fun selectAll(): Stream<P>
+    fun selectAll(): Flow<P>
 
     /**
      * Retrieves a stream of projections based on their primary keys.
@@ -365,7 +365,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @throws st.orm.PersistenceException if the selection operation fails due to underlying database issues, such as
      * connectivity.
      */
-    fun selectById(ids: Stream<ID>): Stream<P>
+    fun selectById(ids: Flow<ID>): Flow<P>
 
     /**
      * Retrieves a stream of projections based on their primary keys.
@@ -395,7 +395,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @throws st.orm.PersistenceException if the selection operation fails due to underlying database issues, such as
      * connectivity.
      */
-    fun selectByRef(refs: Stream<Ref<P>>): Stream<P>
+    fun selectByRef(refs: Flow<Ref<P>>): Flow<P>
 
     /**
      * Retrieves a stream of projections based on their primary keys.
@@ -417,7 +417,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * within a `try-with-resources` block.
      *
      * @param ids a stream of projection IDs to retrieve from the repository.
-     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     * @param chunkSize the number of primary keys to include in each batch. This parameter determines the size of the
      * batches used to execute the selection operation. A larger batch size can improve performance, especially when
      * dealing with large sets of primary keys.
      * @return a stream of projections corresponding to the provided primary keys. The order of projections in the stream is
@@ -428,7 +428,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @throws st.orm.PersistenceException if the selection operation fails due to underlying database issues, such as
      * connectivity.
      */
-    fun selectById(ids: Stream<ID>, batchSize: Int): Stream<P>
+    fun selectById(ids: Flow<ID>, chunkSize: Int): Flow<P>
 
     /**
      * Retrieves a stream of projections based on their primary keys.
@@ -450,7 +450,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * within a `try-with-resources` block.
      *
      * @param refs a stream of refs to retrieve from the repository.
-     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     * @param chunkSize the number of primary keys to include in each batch. This parameter determines the size of the
      * batches used to execute the selection operation. A larger batch size can improve performance, especially when
      * dealing with large sets of primary keys.
      * @return a stream of projections corresponding to the provided primary keys. The order of projections in the stream is
@@ -461,7 +461,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @throws st.orm.PersistenceException if the selection operation fails due to underlying database issues, such as
      * connectivity.
      */
-    fun selectByRef(refs: Stream<Ref<P>>, batchSize: Int): Stream<P>
+    fun selectByRef(refs: Flow<Ref<P>>, chunkSize: Int): Flow<P>
 
     /**
      * Counts the number of projections identified by the provided stream of IDs using the default batch size.
@@ -475,24 +475,24 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @return the total count of projections matching the provided IDs.
      * @throws st.orm.PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    fun countById(ids: Stream<ID>): Long
+    suspend fun countById(ids: Flow<ID>): Long
 
     /**
      * Counts the number of projections identified by the provided stream of IDs, with the counting process divided into
      * batches of the specified size.
      *
      *
-     * This method performs the counting operation in batches, specified by the `batchSize` parameter. This
+     * This method performs the counting operation in batches, specified by the `chunkSize` parameter. This
      * batching approach is particularly useful for efficiently handling large volumes of IDs, reducing the overhead on
      * the database and improving performance.
      *
      * @param ids a stream of IDs for which to count matching projections.
-     * @param batchSize the size of the batches to use for the counting operation. A larger batch size can improve
+     * @param chunkSize the size of the batches to use for the counting operation. A larger batch size can improve
      * performance but may also increase the load on the database.
      * @return the total count of projections matching the provided IDs.
      * @throws st.orm.PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    fun countById(ids: Stream<ID>, batchSize: Int): Long
+    suspend fun countById(ids: Flow<ID>, chunkSize: Int): Long
 
     /**
      * Counts the number of projections identified by the provided stream of refs using the default batch size.
@@ -506,24 +506,24 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @return the total count of projections matching the provided IDs.
      * @throws st.orm.PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    fun countByRef(refs: Stream<Ref<P>>): Long
+    suspend fun countByRef(refs: Flow<Ref<P>>): Long
 
     /**
      * Counts the number of projections identified by the provided stream of refs, with the counting process divided into
      * batches of the specified size.
      *
      *
-     * This method performs the counting operation in batches, specified by the `batchSize` parameter. This
+     * This method performs the counting operation in batches, specified by the `chunkSize` parameter. This
      * batching approach is particularly useful for efficiently handling large volumes of IDs, reducing the overhead on
      * the database and improving performance.
      *
      * @param refs a stream of refs for which to count matching projections.
-     * @param batchSize the size of the batches to use for the counting operation. A larger batch size can improve
+     * @param chunkSize the size of the batches to use for the counting operation. A larger batch size can improve
      * performance but may also increase the load on the database.
      * @return the total count of projections matching the provided IDs.
      * @throws st.orm.PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    fun countByRef(refs: Stream<Ref<P>>, batchSize: Int): Long
+    suspend fun countByRef(refs: Flow<Ref<P>>, chunkSize: Int): Long
 
     // Kotlin specific DSL
 
@@ -548,8 +548,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      *
      * @return a sequence containing all entities.
      */
-    fun selectAllRef(): Stream<Ref<P>> =
-        selectRef().resultStream
+    fun selectAllRef(): Flow<Ref<P>> =
+        selectRef().resultFlow
 
     /**
      * Retrieves an optional entity of type [T] based on a single field and its value.
@@ -600,8 +600,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V> selectBy(field: Metamodel<P, V>, value: V): Stream<P> =
-        select().where(field, EQUALS, value).resultStream
+    fun <V> selectBy(field: Metamodel<P, V>, value: V): Flow<P> =
+        select().where(field, EQUALS, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -630,8 +630,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Record> selectBy(field: Metamodel<P, V>, value: Ref<V>): Stream<P> =
-        select().where(field, value).resultStream
+    fun <V : Record> selectBy(field: Metamodel<P, V>, value: Ref<V>): Flow<P> =
+        select().where(field, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -660,8 +660,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param values Iterable of values to match against.
      * @return at sequence of matching entities.
      */
-    fun <V> selectBy(field: Metamodel<P, V>, values: Iterable<V>): Stream<P> =
-        select().where(field, IN, values).resultStream
+    fun <V> selectBy(field: Metamodel<P, V>, values: Iterable<V>): Flow<P> =
+        select().where(field, IN, values).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -682,8 +682,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param values Iterable of values to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Record> selectByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): Stream<P> =
-        select().whereRef(field, values).resultStream
+    fun <V : Record> selectByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): Flow<P> =
+        select().whereRef(field, values).resultFlow
 
     /**
      * Retrieves exactly one entity of type [T] based on a single field and its value.
@@ -760,8 +760,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V> selectRefBy(field: Metamodel<P, V>, value: V): Stream<Ref<P>> =
-        selectRef().where(field, EQUALS, value).resultStream
+    fun <V> selectRefBy(field: Metamodel<P, V>, value: V): Flow<Ref<P>> =
+        selectRef().where(field, EQUALS, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -790,8 +790,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Record> selectRefBy(field: Metamodel<P, V>, value: Ref<V>): Stream<Ref<P>> =
-        selectRef().where(field, value).resultStream
+    fun <V : Record> selectRefBy(field: Metamodel<P, V>, value: Ref<V>): Flow<Ref<P>> =
+        selectRef().where(field, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -820,8 +820,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param values Iterable of values to match against.
      * @return a sequence of matching entities.
      */
-    fun <V> selectRefBy(field: Metamodel<P, V>, values: Iterable<V>): Stream<Ref<P>> =
-        selectRef().where(field, IN, values).resultStream
+    fun <V> selectRefBy(field: Metamodel<P, V>, values: Iterable<V>): Flow<Ref<P>> =
+        selectRef().where(field, IN, values).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -850,8 +850,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param values Iterable of values to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Record> selectRefByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): Stream<Ref<P>> =
-        selectRef().whereRef(field, values).resultStream
+    fun <V : Record> selectRefByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): Flow<Ref<P>> =
+        selectRef().whereRef(field, values).resultFlow
 
     /**
      * Retrieves exactly one entity of type [T] based on a single field and its value.
@@ -1024,8 +1024,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      */
     fun select(
         predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>
-    ): Stream<P> =
-        select().whereBuilder(predicate).resultStream
+    ): Flow<P> =
+        select().whereBuilder(predicate).resultFlow
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -1042,8 +1042,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      */
     fun select(
         predicate: PredicateBuilder<P, *, *>
-    ): Stream<P> =
-        select().where(predicate).resultStream
+    ): Flow<P> =
+        select().where(predicate).resultFlow
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -1060,8 +1060,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      */
     fun selectRef(
         predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>
-    ): Stream<Ref<P>> =
-        selectRef().whereBuilder(predicate).resultStream
+    ): Flow<Ref<P>> =
+        selectRef().whereBuilder(predicate).resultFlow
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -1078,8 +1078,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      */
     fun selectRef(
         predicate: PredicateBuilder<P, *, *>
-    ): Stream<Ref<P>> =
-        selectRef().where(predicate).resultStream
+    ): Flow<Ref<P>> =
+        selectRef().where(predicate).resultFlow
 
     /**
      * Counts entities of type [T] matching the specified field and value.

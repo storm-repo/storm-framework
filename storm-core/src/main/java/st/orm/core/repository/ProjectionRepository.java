@@ -42,6 +42,14 @@ import java.util.stream.Stream;
  * @param <ID> the type of the primary key of the projection, or {@link Void} if the projection has no primary key.
  */
 public interface ProjectionRepository<P extends Record & Projection<ID>, ID> extends Repository {
+    
+    /**
+     * Returns the default slice size applied by the repository.
+     *
+     * @return the default slice size applied by the repository.
+     * @since 1.5
+     */
+    int getDefaultChunkSize();
 
     /**
      * Returns the projection model associated with this repository.
@@ -388,7 +396,7 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * within a {@code try-with-resources} block.</p>
      *
      * @param ids a stream of projection IDs to retrieve from the repository.
-     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     * @param chunkSize the number of primary keys to include in each batch. This parameter determines the size of the
      *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
      *                  dealing with large sets of primary keys.
      * @return a stream of projections corresponding to the provided primary keys. The order of projections in the stream is
@@ -399,7 +407,7 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<P> selectById(@Nonnull Stream<ID> ids, int batchSize);
+    Stream<P> selectById(@Nonnull Stream<ID> ids, int chunkSize);
 
     /**
      * Retrieves a stream of projections based on their primary keys.
@@ -418,7 +426,7 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * within a {@code try-with-resources} block.</p>
      *
      * @param refs a stream of refs to retrieve from the repository.
-     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     * @param chunkSize the number of primary keys to include in each batch. This parameter determines the size of the
      *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
      *                  dealing with large sets of primary keys.
      * @return a stream of projections corresponding to the provided primary keys. The order of projections in the stream is
@@ -429,7 +437,7 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<P> selectByRef(@Nonnull Stream<Ref<P>> refs, int batchSize);
+    Stream<P> selectByRef(@Nonnull Stream<Ref<P>> refs, int chunkSize);
 
     /**
      * Counts the number of projections identified by the provided stream of IDs using the default batch size.
@@ -448,17 +456,17 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * Counts the number of projections identified by the provided stream of IDs, with the counting process divided into
      * batches of the specified size.
      *
-     * <p>This method performs the counting operation in batches, specified by the {@code batchSize} parameter. This
+     * <p>This method performs the counting operation in batches, specified by the {@code chunkSize} parameter. This
      * batching approach is particularly useful for efficiently handling large volumes of IDs, reducing the overhead on
      * the database and improving performance.</p>
      *
      * @param ids a stream of IDs for which to count matching projections.
-     * @param batchSize the size of the batches to use for the counting operation. A larger batch size can improve
+     * @param chunkSize the size of the batches to use for the counting operation. A larger batch size can improve
      *                  performance but may also increase the load on the database.
      * @return the total count of projections matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    long countById(@Nonnull Stream<ID> ids, int batchSize);
+    long countById(@Nonnull Stream<ID> ids, int chunkSize);
 
     /**
      * Counts the number of projections identified by the provided stream of refs using the default batch size.
@@ -477,15 +485,15 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * Counts the number of projections identified by the provided stream of refs, with the counting process divided into
      * batches of the specified size.
      *
-     * <p>This method performs the counting operation in batches, specified by the {@code batchSize} parameter. This
+     * <p>This method performs the counting operation in batches, specified by the {@code chunkSize} parameter. This
      * batching approach is particularly useful for efficiently handling large volumes of IDs, reducing the overhead on
      * the database and improving performance.</p>
      *
      * @param refs a stream of refs for which to count matching projections.
-     * @param batchSize the size of the batches to use for the counting operation. A larger batch size can improve
+     * @param chunkSize the size of the batches to use for the counting operation. A larger batch size can improve
      *                  performance but may also increase the load on the database.
      * @return the total count of projections matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    long countByRef(@Nonnull Stream<Ref<P>> refs, int batchSize);
+    long countByRef(@Nonnull Stream<Ref<P>> refs, int chunkSize);
 }

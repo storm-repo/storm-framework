@@ -289,13 +289,13 @@ public final class EntityRepositoryImpl<E extends Record & Entity<ID>, ID> imple
     }
 
     @Override
-    public Stream<E> selectById(@Nonnull Stream<ID> ids, int batchSize) {
-        return core.selectById(ids, batchSize);
+    public Stream<E> selectById(@Nonnull Stream<ID> ids, int chunkSize) {
+        return core.selectById(ids, chunkSize);
     }
 
     @Override
-    public Stream<E> selectByRef(@Nonnull Stream<Ref<E>> refs, int batchSize) {
-        return core.selectByRef(refs, batchSize);
+    public Stream<E> selectByRef(@Nonnull Stream<Ref<E>> refs, int chunkSize) {
+        return core.selectByRef(refs, chunkSize);
     }
 
     @Override
@@ -304,8 +304,8 @@ public final class EntityRepositoryImpl<E extends Record & Entity<ID>, ID> imple
     }
 
     @Override
-    public long countById(@Nonnull Stream<ID> ids, int batchSize) {
-        return core.countById(ids, batchSize);
+    public long countById(@Nonnull Stream<ID> ids, int chunkSize) {
+        return core.countById(ids, chunkSize);
     }
 
     @Override
@@ -314,8 +314,8 @@ public final class EntityRepositoryImpl<E extends Record & Entity<ID>, ID> imple
     }
 
     @Override
-    public long countByRef(@Nonnull Stream<Ref<E>> refs, int batchSize) {
-        return core.countByRef(refs, batchSize);
+    public long countByRef(@Nonnull Stream<Ref<E>> refs, int chunkSize) {
+        return core.countByRef(refs, chunkSize);
     }
 
     @Override

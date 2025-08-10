@@ -165,6 +165,22 @@ import java.util.stream.Stream;
 public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Repository {
 
     /**
+     * Returns the default batch size applied by the repository.
+     *
+     * @return the default batch size applied by the repository.
+     * @since 1.5
+     */
+    int getDefaultBatchSize();
+
+    /**
+     * Returns the default slice size applied by the repository.
+     *
+     * @return the default slice size applied by the repository.
+     * @since 1.5
+     */
+    int getDefaultChunkSize();
+
+    /**
      * Returns the entity model associated with this repository.
      *
      * @return the entity model.
@@ -903,7 +919,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * is recommended to use it within a {@code try-with-resources} block.</p>
      *
      * @param ids a stream of entity IDs to retrieve from the repository.
-     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     * @param chunkSize the number of primary keys to include in each batch. This parameter determines the size of the
      *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
      *                  dealing with large sets of primary keys.
      * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
@@ -914,7 +930,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<E> selectById(@Nonnull Stream<ID> ids, int batchSize);
+    Stream<E> selectById(@Nonnull Stream<ID> ids, int chunkSize);
 
     /**
      * Retrieves a stream of entities based on their primary keys.
@@ -933,7 +949,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * is recommended to use it within a {@code try-with-resources} block.</p>
      *
      * @param refs a stream of refs to retrieve from the repository.
-     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     * @param chunkSize the number of primary keys to include in each batch. This parameter determines the size of the
      *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
      *                  dealing with large sets of primary keys.
      * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
@@ -944,7 +960,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    Stream<E> selectByRef(@Nonnull Stream<Ref<E>> refs, int batchSize);
+    Stream<E> selectByRef(@Nonnull Stream<Ref<E>> refs, int chunkSize);
 
     /**
      * Counts the number of entities identified by the provided stream of IDs using the default batch size.
@@ -968,12 +984,12 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * the database and improving performance.</p>
      *
      * @param ids a stream of IDs for which to count matching entities.
-     * @param batchSize the size of the batches to use for the counting operation. A larger batch size can improve
+     * @param chunkSize the size of the batches to use for the counting operation. A larger batch size can improve
      *                  performance but may also increase the load on the database.
      * @return the total count of entities matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    long countById(@Nonnull Stream<ID> ids, int batchSize);
+    long countById(@Nonnull Stream<ID> ids, int chunkSize);
 
     /**
      * Counts the number of entities identified by the provided stream of refs using the default batch size.
@@ -997,12 +1013,12 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * the database and improving performance.</p>
      *
      * @param refs a stream of IDs for which to count matching entities.
-     * @param batchSize the size of the batches to use for the counting operation. A larger batch size can improve
+     * @param chunkSize the size of the batches to use for the counting operation. A larger batch size can improve
      *                  performance but may also increase the load on the database.
      * @return the total count of entities matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    long countByRef(@Nonnull Stream<Ref<E>> refs, int batchSize);
+    long countByRef(@Nonnull Stream<Ref<E>> refs, int chunkSize);
 
     /**
      * Inserts entities in a batch mode to optimize performance and reduce database load.

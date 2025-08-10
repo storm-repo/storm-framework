@@ -16,43 +16,65 @@
 package st.orm.kt.template
 
 import kotlinx.coroutines.CoroutineDispatcher
-import st.orm.kt.template.TransactionDispatchers.Virtual
+import kotlinx.coroutines.Dispatchers
+import st.orm.kt.template.TransactionDispatchers.resolveDefault
 import st.orm.kt.template.impl.VirtualThreadDispatcher
+import java.io.Closeable
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * A singleton object that provides a virtual thread dispatcher for coroutine execution.
+ * Selects a default dispatcher that prefers Virtual Threads on Java 24+,
+ * and falls back to Dispatchers.IO on older JVMs (to avoid VT pinning on Java 21–23).
  *
- * This dispatcher is designed to be used in environments that support virtual threads.
+ * You can override with:
+ *   -Dstorm.virtualThreads=true|false
  *
  * @since 1.5
  */
 object TransactionDispatchers {
 
-    // Backing reference allowing atomic updates; null means "use Virtual"
-    private val _override = AtomicReference<CoroutineDispatcher?>(null)
+    // Backing reference allowing atomic updates.
+    private val overrideRef = AtomicReference<CoroutineDispatcher?>(null)
 
     /**
-     * The default dispatcher for coroutines. If not explicitly set, this
-     * falls back to [Virtual], which is lazily instantiated.
+     * Public default dispatcher. Uses override if set; otherwise resolves lazily via [resolveDefault].
      */
     var Default: CoroutineDispatcher
-        get() = _override.get() ?: Virtual
-        set(value) = _override.set(value)
+        get() = overrideRef.get() ?: resolveDefault()
+        set(value) { overrideRef.set(value) }
 
     /**
-     * A dispatcher that dispatches Kotlin coroutines onto Java virtual threads.
-     * Instantiated lazily upon first use to avoid unnecessary resource allocation.
+     * Virtual-thread dispatcher (created lazily).
      */
     val Virtual: CoroutineDispatcher by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        VirtualThreadDispatcher()
+        VirtualThreadDispatcher(threadNamePrefix = "tx")
     }
 
     /**
-     * Shuts down the virtual thread dispatcher if it has been instantiated.
-     * Safe to call even if [Virtual] was never accessed.
+     * Cleanly shuts down the VT dispatcher if it was instantiated.
      */
     fun shutdown() {
-        (Virtual as? VirtualThreadDispatcher)?.close()
+        (Virtual as? Closeable)?.close()
+    }
+
+    private fun resolveDefault(): CoroutineDispatcher {
+        return if (isVirtualThreadsEnabled()) Virtual else Dispatchers.IO
+    }
+
+    private fun isVirtualThreadsEnabled(): Boolean {
+        // Explicit property takes precedence, otherwise enable only if Java >= 24 to prevent pinning issues with
+        // suspendTransaction.
+        val propEnabled = System.getProperty("storm.virtualThreads", "false")
+            .equals("true", ignoreCase = true)
+        return propEnabled || isJava24OrNewer()
+    }
+
+    private fun isJava24OrNewer(): Boolean {
+        return try {
+            Runtime.version().feature() >= 24
+        } catch (_: Throwable) {
+            val spec = System.getProperty("java.specification.version") ?: return false
+            spec.substringBefore('.').toIntOrNull()?.let { it >= 24 } ?: false
+        }
     }
 }

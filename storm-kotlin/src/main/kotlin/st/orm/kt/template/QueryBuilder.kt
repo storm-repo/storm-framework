@@ -15,6 +15,8 @@
  */
 package st.orm.kt.template
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.stream.consumeAsFlow
 import st.orm.*
 import st.orm.Operator.*
 import st.orm.core.template.impl.Elements.ObjectExpression
@@ -817,11 +819,9 @@ interface QueryBuilder<T : Record, R, ID> {
     /**
      * Executes the query and returns a stream of results.
      *
-     *
      * The resulting stream is lazily loaded, meaning that the records are only retrieved from the database as they
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of records.
-     *
      *
      * **Note:** Calling this method does trigger the execution of the underlying query, so it should
      * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
@@ -834,6 +834,14 @@ interface QueryBuilder<T : Record, R, ID> {
      */
     val resultStream: Stream<R>
 
+    /**
+     * Executes the query and returns a flow of results.
+     *
+     * @since 1.5
+     */
+    val resultFlow: Flow<R>
+        get() = resultStream.consumeAsFlow()
+
     val resultCount: Long
         /**
          * Returns the number of results of this query.
@@ -843,7 +851,7 @@ interface QueryBuilder<T : Record, R, ID> {
          * connectivity.
          */
         get() {
-            this.resultStream.use { stream ->
+            resultStream.use { stream ->
                 return stream.count()
             }
         }
@@ -856,7 +864,7 @@ interface QueryBuilder<T : Record, R, ID> {
          * @throws PersistenceException if the query fails.
          */
         get() {
-            this.resultStream.use { stream ->
+            resultStream.use { stream ->
                 return stream.toList()
             }
         }
@@ -871,7 +879,7 @@ interface QueryBuilder<T : Record, R, ID> {
          * @throws PersistenceException if the query fails.
          */
         get() {
-            this.resultStream.use { stream ->
+            resultStream.use { stream ->
                 return stream
                     .reduce { _, _ ->
                         throw NonUniqueResultException("Expected single result, but found more than one.")
@@ -889,7 +897,7 @@ interface QueryBuilder<T : Record, R, ID> {
          * @throws PersistenceException if the query fails.
          */
         get() {
-            this.resultStream.use { stream ->
+            resultStream.use { stream ->
                 return stream.reduce { _, _ ->
                     throw NonUniqueResultException("Expected single result, but found more than one.")
                 }

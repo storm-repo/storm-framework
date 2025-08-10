@@ -9,6 +9,8 @@ import st.orm.kt.template.TransactionPropagation
 import st.orm.kt.template.TransactionPropagation.*
 import st.orm.kt.template.TransactionTimedOutException
 import java.sql.*
+import java.util.*
+import java.util.logging.Logger
 import javax.sql.DataSource
 
 /**
@@ -42,6 +44,10 @@ import javax.sql.DataSource
  * @since 1.5
  */
 internal class JdbcTransactionContext : TransactionContext {
+    companion object {
+        val logger = Logger.getLogger("st.orm.transaction")!!
+    }
+
     /**
      * Internal data class representing the state of a transaction frame.
      * Each transaction operation creates a new state that tracks various
@@ -79,7 +85,8 @@ internal class JdbcTransactionContext : TransactionContext {
         var suspendedDataSource: DataSource?    = null,
         var suspended: Boolean                  = false,
         var timeoutJob: Job?                    = null,
-        var timedOut: Boolean                   = false
+        var timedOut: Boolean                   = false,
+        val transactionId: String               = UUID.randomUUID().toString(),
     )
 
     private val stack = mutableListOf<TransactionState>()
@@ -181,6 +188,7 @@ internal class JdbcTransactionContext : TransactionContext {
      * Mark the current transaction so that it will roll back on completion.
      */
     private fun setRollbackOnly() {
+        logger.fine("Marking transaction for rollback (${currentState.transactionId}).")
         currentState.rollbackOnly = true
     }
 
@@ -236,9 +244,11 @@ internal class JdbcTransactionContext : TransactionContext {
                                     "Incompatible DataSource: expected ${outer.dataSource}, got $dataSource."
                                 )
                             }
+                            val savepoint = outer.connection!!.setSavepoint()
+                            logger.fine("Creating nested transaction with savepoint (${savepoint}).")
                             state.connection = outer.connection
                             state.dataSource = dataSource
-                            state.savepoint = outer.connection!!.setSavepoint()
+                            state.savepoint = savepoint
                             state.ownsConnection = false
                             state.originalIsolationLevel = outer.connection!!.transactionIsolation
                             state.originalReadOnly = outer.connection!!.isReadOnly
@@ -273,9 +283,11 @@ internal class JdbcTransactionContext : TransactionContext {
         try {
             when {
                 state.savepoint != null -> {
+                    logger.fine("Committing transaction with savepoint ${state.savepoint} (${state.transactionId}).")
                     connection.releaseSavepoint(state.savepoint)
                 }
                 state.ownsConnection -> {
+                    logger.fine("Committing transaction (${state.transactionId}).")
                     connection.commit()
                     connection.autoCommit = true
                     connection.close()
@@ -309,17 +321,20 @@ internal class JdbcTransactionContext : TransactionContext {
         try {
             when {
                 state.savepoint != null -> {
+                    logger.fine("Rolling back to savepoint ${state.savepoint} (${state.transactionId}).")
                     connection.rollback(state.savepoint)
                     // Restore prior settings.
                     state.originalIsolationLevel?.let { connection.transactionIsolation = it }
                     state.originalReadOnly?.let { connection.isReadOnly = it }
                 }
                 state.ownsConnection -> {
+                    logger.fine("Rolling back transaction (${state.transactionId}).")
                     connection.rollback()
                     connection.autoCommit = true
                     connection.close()
                 }
                 else -> {
+                    logger.fine("Marking transaction for rollback (${state.transactionId}).")
                     // Joined REQUIRED: mark outer for rollback and restore prior settings.
                     stack.lastOrNull()?.rollbackOnly = true
                 }
@@ -356,6 +371,7 @@ internal class JdbcTransactionContext : TransactionContext {
         // detect and fail fast on concurrent access within the same transaction.
         if (state.connection != null) return
         synchronized(state) {
+            logger.fine("Opening new transaction (${state.transactionId}).")
             val connection = dataSource.connection
             if (!connection.autoCommit) {
                 throw PersistenceException("Connection returned from DataSource must be in auto-commit mode.")
@@ -370,6 +386,7 @@ internal class JdbcTransactionContext : TransactionContext {
             state.timeoutSeconds?.let { seconds ->
                 state.timeoutJob = timeoutScope.launch {
                     delay(seconds * 1000L)
+                    logger.fine("Transaction timed out (${state.transactionId}).")
                     state.timedOut = true
                     state.rollbackOnly = true
                 }
@@ -387,6 +404,7 @@ internal class JdbcTransactionContext : TransactionContext {
         // detect and fail fast on concurrent access within the same transaction.
         if (state.connection != null) return
         synchronized(state) {
+            logger.fine("Opening connection (${state.transactionId}).")
             val connection = dataSource.connection.apply { autoCommit = true }
             state.connection = connection
             state.dataSource = dataSource
@@ -398,6 +416,7 @@ internal class JdbcTransactionContext : TransactionContext {
      * Suspend an outer transaction on this state.
      */
     private fun suspendTransaction(state: TransactionState, outer: TransactionState) {
+        logger.fine("Suspending existing transaction (${state.transactionId}).")
         state.suspendedConnection = outer.connection
         state.suspendedDataSource = outer.dataSource
         state.suspended = true
@@ -407,6 +426,7 @@ internal class JdbcTransactionContext : TransactionContext {
      * Join an existing transaction.
      */
     private fun joinOuterTransaction(state: TransactionState, outer: TransactionState) {
+        logger.fine("Joining existing transaction (${outer.transactionId}).")
         state.connection = outer.connection
         state.dataSource = outer.dataSource
         state.ownsConnection = false

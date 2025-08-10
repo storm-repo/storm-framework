@@ -18,12 +18,13 @@ package st.orm.kt.template.impl
 import st.orm.PersistenceException
 import st.orm.core.spi.ConnectionProvider
 import st.orm.core.spi.TransactionContext
-import java.lang.Thread.currentThread
+import java.lang.System.identityHashCode
+import java.lang.ref.ReferenceQueue
+import java.lang.ref.WeakReference
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.sql.Connection
-import java.util.*
-import java.util.Collections.synchronizedMap
+import java.util.concurrent.ConcurrentHashMap
 import javax.sql.DataSource
 
 /**
@@ -114,20 +115,50 @@ class CoroutineAwareConnectionProviderImpl : ConnectionProvider {
      * connection multiple times.
      */
     object ConcurrencyDetector {
-        private val connectionMap = synchronizedMap(WeakHashMap<Connection, Thread>())
+        private class ConnectionIdentity(connection: Connection, queue: ReferenceQueue<Connection>) :
+            WeakReference<Connection>(connection, queue) {
+            private val id = identityHashCode(connection)
+            override fun hashCode() = id
+            override fun equals(other: Any?) =
+                other is ConnectionIdentity && this.get() === other.get() && this.get() != null
+        }
 
-        fun beforeAccess(connection: Connection) {
-            val thread = currentThread()
-            val existingThread = connectionMap.computeIfAbsent(connection) { thread }
-            if (existingThread == null || existingThread != thread) {
-                throw PersistenceException(
-                    "Concurrent access detected on transaction‐scoped Connection $connection."
-                )
+        private data class Owner(var thread: Thread? = null, var depth: Int = 0)
+        private val queue = ReferenceQueue<Connection>()
+        private val owners = ConcurrentHashMap<ConnectionIdentity, Owner>()
+
+        private fun reap() {
+            while (true) {
+                val ref = queue.poll() as? ConnectionIdentity ?: break
+                owners.remove(ref)
             }
         }
 
-        fun afterAccess(connection: Connection) {
-            connectionMap.remove(connection)
+        fun beforeAccess(conn: Connection) {
+            reap()
+            val key = ConnectionIdentity(conn, queue)
+            val owner = owners.computeIfAbsent(key) { Owner() }
+            val t = Thread.currentThread()
+            synchronized(owner) {
+                when (owner.thread) {
+                    null -> { owner.thread = t; owner.depth = 1 }
+                    t    -> owner.depth++
+                    else -> throw PersistenceException("Concurrent access on $conn")
+                }
+            }
+        }
+
+        fun afterAccess(conn: Connection) {
+            reap()
+            val key = ConnectionIdentity(conn, queue)
+            val owner = owners[key] ?: return
+            val t = Thread.currentThread()
+            var clear = false
+            synchronized(owner) {
+                if (owner.thread !== t) return
+                if (--owner.depth == 0) { owner.thread = null; clear = true }
+            }
+            if (clear) owners.remove(key, owner)
         }
     }
 

@@ -195,7 +195,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         LazySupplier<PreparedQuery> updateQuery = new LazySupplier<>(this::prepareUpdateQuery);
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
-            return slice(toStream(entities), defaultBatchSize, batch -> {
+            return chunked(toStream(entities), defaultBatchSize, batch -> {
                 var result = new ArrayList<ID>();
                 var partition = partition(batch);
                 updateAndFetchIds(partition.get(true), updateQuery, ids -> result.addAll(ids.toList()));
@@ -231,7 +231,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         LazySupplier<PreparedQuery> updateQuery = new LazySupplier<>(this::prepareUpdateQuery);
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
-            slice(entities, batchSize).forEach(batch -> {
+            chunked(entities, batchSize).forEach(batch -> {
                 var partition = partition(batch);
                 updateAndFetch(partition.get(true), updateQuery, null);
                 upsertAndFetch(partition.get(false), upsertQuery, null);
@@ -265,7 +265,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         LazySupplier<PreparedQuery> updateQuery = new LazySupplier<>(this::prepareUpdateQuery);
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
-            slice(entities, batchSize).forEach(batch -> {
+            chunked(entities, batchSize).forEach(batch -> {
                 var partition = partition(batch);
                 updateAndFetchIds(partition.get(true), updateQuery, callback);
                 upsertAndFetchIds(partition.get(false), upsertQuery, callback);
@@ -283,7 +283,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         LazySupplier<PreparedQuery> updateQuery = new LazySupplier<>(this::prepareUpdateQuery);
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
-            slice(entities, batchSize).forEach(batch -> {
+            chunked(entities, batchSize).forEach(batch -> {
                 var partition = partition(batch);
                 updateAndFetch(partition.get(true), updateQuery, callback);
                 upsertAndFetch(partition.get(false), upsertQuery, callback);

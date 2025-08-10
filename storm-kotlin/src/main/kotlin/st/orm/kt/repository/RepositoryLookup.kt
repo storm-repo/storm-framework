@@ -15,6 +15,7 @@
  */
 package st.orm.kt.repository
 
+import kotlinx.coroutines.flow.Flow
 import st.orm.Entity
 import st.orm.Metamodel
 import st.orm.Operator.EQUALS
@@ -24,7 +25,6 @@ import st.orm.Ref
 import st.orm.kt.template.PredicateBuilder
 import st.orm.kt.template.QueryBuilder
 import st.orm.kt.template.WhereBuilder
-import java.util.stream.Stream
 import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.full.memberFunctions
@@ -155,7 +155,7 @@ inline fun <reified T> RepositoryLookup.findAll(): List<T>
  * @return stream containing all records.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T> RepositoryLookup.selectAll(): Stream<T>
+inline fun <reified T> RepositoryLookup.selectAll(): Flow<T>
         where T : Record = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
@@ -197,15 +197,15 @@ inline fun <reified T> RepositoryLookup.findAllRef(): List<Ref<T>>
  * @return stream containing all records.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T> RepositoryLookup.selectAllRef(): Stream<Ref<T>>
+inline fun <reified T> RepositoryLookup.selectAllRef(): Flow<Ref<T>>
         where T : Record = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
     .let { repository ->
         when (repository) {
-            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().resultStream
-            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().resultStream
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().resultFlow
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().resultFlow
             else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
         }
     }
@@ -293,15 +293,15 @@ inline fun <reified T, V> RepositoryLookup.findAllBy(field: Metamodel<T, V>, val
  * @return stream of matching records.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.selectBy(field: Metamodel<T, V>, value: V): Stream<T>
+inline fun <reified T, V> RepositoryLookup.selectBy(field: Metamodel<T, V>, value: V): Flow<T>
         where T : Record = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
     .let { repository ->
         when (repository) {
-            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).select().where(field, EQUALS, value).resultStream
-            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).select().where(field, EQUALS, value).resultStream
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).select().where(field, EQUALS, value).resultFlow
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).select().where(field, EQUALS, value).resultFlow
             else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
         }
     }
@@ -341,15 +341,15 @@ inline fun <reified T, V> RepositoryLookup.findAllBy(field: Metamodel<T, V>, val
  * @return stream of matching records.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.selectBy(field: Metamodel<T, V>, value: Ref<V>): Stream<T>
+inline fun <reified T, V> RepositoryLookup.selectBy(field: Metamodel<T, V>, value: Ref<V>): Flow<T>
         where T : Record, V : Record = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
     .let { repository ->
         when (repository) {
-            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).select().where(field, value).resultStream
-            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).select().where(field, value).resultStream
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).select().where(field, value).resultFlow
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).select().where(field, value).resultFlow
             else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
         }
     }
@@ -389,15 +389,15 @@ inline fun <reified T, V> RepositoryLookup.findAllBy(field: Metamodel<T, V>, val
  * @return stream of matching records.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.selectBy(field: Metamodel<T, V>, values: Iterable<V>): Stream<T>
+inline fun <reified T, V> RepositoryLookup.selectBy(field: Metamodel<T, V>, values: Iterable<V>): Flow<T>
         where T : Record = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
     .let { repository ->
         when (repository) {
-            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).select().where(field, IN, values).resultStream
-            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).select().where(field, IN, values).resultStream
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).select().where(field, IN, values).resultFlow
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).select().where(field, IN, values).resultFlow
             else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
         }
     }
@@ -437,15 +437,15 @@ inline fun <reified T, V> RepositoryLookup.findAllByRef(field: Metamodel<T, V>, 
  * @return stream of matching records.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.selectByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): Stream<T>
+inline fun <reified T, V> RepositoryLookup.selectByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): Flow<T>
         where T : Record, V : Record = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
     .let { repository ->
         when (repository) {
-            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).select().whereRef(field, values).resultStream
-            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).select().whereRef(field, values).resultStream
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).select().whereRef(field, values).resultFlow
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).select().whereRef(field, values).resultFlow
             else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
         }
     }
@@ -577,15 +577,15 @@ inline fun <reified T, V> RepositoryLookup.findAllRefBy(field: Metamodel<T, V>, 
  * @return stream of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.selectRefBy(field: Metamodel<T, V>, value: V): Stream<Ref<T>>
+inline fun <reified T, V> RepositoryLookup.selectRefBy(field: Metamodel<T, V>, value: V): Flow<Ref<T>>
         where T : Record = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
     .let { repository ->
         when (repository) {
-            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().where(field, EQUALS, value).resultStream
-            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().where(field, EQUALS, value).resultStream
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().where(field, EQUALS, value).resultFlow
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().where(field, EQUALS, value).resultFlow
             else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
         }
     }
@@ -621,15 +621,15 @@ inline fun <reified T, V> RepositoryLookup.findAllRefBy(field: Metamodel<T, V>, 
  * @return stream of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.selectRefBy(field: Metamodel<T, V>, value: Ref<V>): Stream<Ref<T>>
+inline fun <reified T, V> RepositoryLookup.selectRefBy(field: Metamodel<T, V>, value: Ref<V>): Flow<Ref<T>>
         where T : Record, V : Record = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
     .let { repository ->
         when (repository) {
-            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().where(field, value).resultStream
-            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().where(field, value).resultStream
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().where(field, value).resultFlow
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().where(field, value).resultFlow
             else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
         }
     }
@@ -665,15 +665,15 @@ inline fun <reified T, V> RepositoryLookup.findAllRefBy(field: Metamodel<T, V>, 
  * @return stream of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.selectRefBy(field: Metamodel<T, V>, values: Iterable<V>): Stream<Ref<T>>
+inline fun <reified T, V> RepositoryLookup.selectRefBy(field: Metamodel<T, V>, values: Iterable<V>): Flow<Ref<T>>
         where T : Record = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
     .let { repository ->
         when (repository) {
-            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().where(field, IN, values).resultStream
-            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().where(field, IN, values).resultStream
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().where(field, IN, values).resultFlow
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().where(field, IN, values).resultFlow
             else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
         }
     }
@@ -709,15 +709,15 @@ inline fun <reified T, V> RepositoryLookup.findAllRefByRef(field: Metamodel<T, V
  * @return stream of matching entities.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.selectRefByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): Stream<Ref<T>>
+inline fun <reified T, V> RepositoryLookup.selectRefByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): Flow<Ref<T>>
         where T : Record, V : Record = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
     .let { repository ->
         when (repository) {
-            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().whereRef(field, values).resultStream
-            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().whereRef(field, values).resultStream
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().whereRef(field, values).resultFlow
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().whereRef(field, values).resultFlow
             else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
         }
     }
@@ -1038,14 +1038,14 @@ inline fun <reified T> RepositoryLookup.getRef(predicate: PredicateBuilder<T, Re
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.select(
     noinline predicate: WhereBuilder<T, T, *>.() -> PredicateBuilder<T, *, *>
-): Stream<T> where T : Record = this::class
+): Flow<T> where T : Record = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
     .let { repository ->
         when (repository) {
-            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).select().whereBuilder(predicate).resultStream
-            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).select().whereBuilder(predicate).resultStream
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).select().whereBuilder(predicate).resultFlow
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).select().whereBuilder(predicate).resultFlow
             else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
         }
     }
@@ -1058,15 +1058,15 @@ inline fun <reified T> RepositoryLookup.select(
  * @return A [KQueryBuilder] for selecting records of type [T].
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T> RepositoryLookup.select(predicate: PredicateBuilder<T, T, *>): Stream<T>
+inline fun <reified T> RepositoryLookup.select(predicate: PredicateBuilder<T, T, *>): Flow<T>
         where T : Record = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
     .let { repository ->
         when (repository) {
-            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).select().where(predicate).resultStream
-            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).select().where(predicate).resultStream
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).select().where(predicate).resultFlow
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).select().where(predicate).resultFlow
             else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
         }
     }
@@ -1081,14 +1081,14 @@ inline fun <reified T> RepositoryLookup.select(predicate: PredicateBuilder<T, T,
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.selectRef(
     noinline predicate: WhereBuilder<T, Ref<T>, *>.() -> PredicateBuilder<T, *, *>
-): Stream<Ref<T>> where T : Record = this::class
+): Flow<Ref<T>> where T : Record = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
     .let { repository ->
         when (repository) {
-            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().whereBuilder(predicate).resultStream
-            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().whereBuilder(predicate).resultStream
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().whereBuilder(predicate).resultFlow
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().whereBuilder(predicate).resultFlow
             else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
         }
     }
@@ -1101,15 +1101,15 @@ inline fun <reified T> RepositoryLookup.selectRef(
  * @return A [KQueryBuilder] for selecting records of type [T].
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T> RepositoryLookup.selectRef(predicate: PredicateBuilder<T, Ref<T>, *>): Stream<Ref<T>>
+inline fun <reified T> RepositoryLookup.selectRef(predicate: PredicateBuilder<T, Ref<T>, *>): Flow<Ref<T>>
         where T : Record = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
     .let { repository ->
         when (repository) {
-            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().where(predicate).resultStream
-            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().where(predicate).resultStream
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().where(predicate).resultFlow
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().where(predicate).resultFlow
             else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
         }
     }
@@ -1379,12 +1379,22 @@ inline infix fun <reified T> RepositoryLookup.insert(entity: T): T
 /**
  * Inserts multiple entities of type [T] into the repository.
  *
- * @param entity Iterable collection of entities to insert.
+ * @param entities Iterable collection of entities to insert.
  * @return list of inserted entities after fetching from the database.
  */
-inline infix fun <reified T> RepositoryLookup.insert(entity: Iterable<T>): List<T>
+inline infix fun <reified T> RepositoryLookup.insert(entities: Iterable<T>): List<T>
         where T : Record, T : Entity<*> =
-    entity<T>().insertAndFetch(entity)
+    entity<T>().insertAndFetch(entities)
+
+/**
+ * Inserts multiple entities of type [T] into the repository.
+ *
+ * @param entities Flow of entities to insert.
+ * @return flow of inserted entities after fetching from the database.
+ */
+inline infix fun <reified T> RepositoryLookup.insert(entities: Flow<T>): Flow<T>
+        where T : Record, T : Entity<*> =
+    entity<T>().insertAndFetch(entities)
 
 /**
  * Upserts (inserts or updates) an entity of type [T] into the repository.
@@ -1399,12 +1409,22 @@ inline infix fun <reified T> RepositoryLookup.upsert(entity: T): T
 /**
  * Upserts (inserts or updates) multiple entities of type [T] into the repository.
  *
- * @param entity Iterable collection of entities to upsert.
+ * @param entities Iterable collection of entities to upsert.
  * @return list of upserted entities after fetching from the database.
  */
-inline infix fun <reified T> RepositoryLookup.upsert(entity: Iterable<T>): List<T>
+inline infix fun <reified T> RepositoryLookup.upsert(entities: Iterable<T>): List<T>
         where T : Record, T : Entity<*> =
-    entity<T>().upsertAndFetch(entity)
+    entity<T>().upsertAndFetch(entities)
+
+/**
+ * Upserts (inserts or updates) multiple entities of type [T] into the repository.
+ *
+ * @param entities Flow of entities to upsert.
+ * @return flow of upserted entities after fetching from the database.
+ */
+inline infix fun <reified T> RepositoryLookup.upsert(entities: Flow<T>): Flow<T>
+        where T : Record, T : Entity<*> =
+    entity<T>().upsertAndFetch(entities)
 
 /**
  * Creates a query builder to delete records of type [T].
@@ -1434,6 +1454,15 @@ inline infix fun <reified T> RepositoryLookup.delete(entity: Iterable<T>)
     entity<T>().delete(entity)
 
 /**
+ * Deletes multiple entities of type [T] from the repository.
+ *
+ * @param entity Flow of entities to delete.
+ */
+inline infix suspend fun <reified T> RepositoryLookup.delete(entity: Flow<T>)
+        where T : Record, T : Entity<*> =
+    entity<T>().delete(entity)
+
+/**
  * Deletes an entity of type [T] from the repository.
  *
  * @param ref The entity to delete.
@@ -1452,6 +1481,15 @@ inline infix fun <reified T> RepositoryLookup.deleteByRef(refs: Iterable<Ref<T>>
     entity<T>().deleteByRef(refs)
 
 /**
+ * Deletes multiple entities of type [T] from the repository.
+ *
+ * @param refs Flow of entities to delete.
+ */
+inline infix suspend fun <reified T> RepositoryLookup.deleteByRef(refs: Flow<Ref<T>>)
+        where T : Record, T : Entity<*> =
+    entity<T>().deleteByRef(refs)
+
+/**
  * Updates an entity of type [T] in the repository.
  *
  * @param entity The entity to update.
@@ -1464,12 +1502,22 @@ inline infix fun <reified T> RepositoryLookup.update(entity: T): T
 /**
  * Updates multiple entities of type [T] in the repository.
  *
- * @param entity Iterable collection of entities to update.
+ * @param entities Iterable collection of entities to update.
  * @return list of updated entities after fetching from the database.
  */
-inline infix fun <reified T> RepositoryLookup.update(entity: Iterable<T>): List<T>
+inline infix fun <reified T> RepositoryLookup.update(entities: Iterable<T>): List<T>
         where T : Record, T : Entity<*> =
-    entity<T>().updateAndFetch(entity)
+    entity<T>().updateAndFetch(entities)
+
+/**
+ * Updates multiple entities of type [T] in the repository.
+ *
+ * @param entities Flow of entities to update.
+ * @return flow of updated entities after fetching from the database.
+ */
+inline infix fun <reified T> RepositoryLookup.update(entities: Flow<T>): Flow<T>
+        where T : Record, T : Entity<*> =
+    entity<T>().updateAndFetch(entities)
 
 /**
  * Retrieves all records of type [T] from the repository.
@@ -1506,7 +1554,7 @@ inline fun <reified T> RepositoryLookup.deleteBy(
     field: Metamodel<T, T>,
     value: Ref<T>
 ): Int where T : Record, T : Entity<*> =
-    entity<T>().delete().where(value).executeUpdate()
+    entity<T>().delete().where(field, value).executeUpdate()
 
 /**
  * Deletes entities of type [T] matching the specified field and value.

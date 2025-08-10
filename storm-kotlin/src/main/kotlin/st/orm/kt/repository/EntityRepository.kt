@@ -15,13 +15,13 @@
  */
 package st.orm.kt.repository
 
+import kotlinx.coroutines.flow.Flow
 import st.orm.Entity
 import st.orm.Metamodel
 import st.orm.Operator.EQUALS
 import st.orm.Operator.IN
 import st.orm.Ref
 import st.orm.kt.template.*
-import java.util.stream.Stream
 import kotlin.reflect.KClass
 
 /**
@@ -161,10 +161,9 @@ import kotlin.reflect.KClass
  * @param <ID> the type of the primary key of the entity.
  */
 interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entity<ID> {
+
     /**
-     * Returns the entity model associated with this repository.
-     *
-     * @return the entity model.
+     * The entity model associated with this repository.
      */
     val model: Model<E, ID>
 
@@ -616,11 +615,10 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * Returns a list of all entities of the type supported by this repository. Each element in the list represents
      * an entity in the database, encapsulating all relevant data as mapped by the entity model.
      *
-     *
      * **Note:** Loading all entities into memory at once can be very memory-intensive if your
      * table is large.
      *
-     * @return a stream of all entities of the type supported by this repository.
+     * @return a list of all entities of the type supported by this repository.
      * @throws st.orm.PersistenceException if the selection operation fails due to underlying database issues, such as
      * connectivity.
      */
@@ -629,10 +627,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
     /**
      * Retrieves a list of entities based on their primary keys.
      *
-     *
      * This method retrieves entities matching the provided IDs in batches, consolidating them into a single list.
      * The batch-based retrieval minimizes database overhead, allowing efficient handling of larger collections of IDs.
-     *
      *
      * **Note:** The order of entities in the returned list is not guaranteed to match the order of IDs
      * in the input collection, as the database may not preserve insertion order during retrieval.
@@ -862,231 +858,199 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      */
     fun deleteByRef(refs: Iterable<Ref<E>>)
 
-    // Stream based methods.
-    //
-    // The batch callback is used to allow the caller to process the results in batches. This approach is
-    // preferred over returning a stream of results directly because it allows the repository to control the batch
-    // processing and resource management. The repository can decide how to batch the results and ensure that the
-    // resources are properly managed. The callback provides a clean and flexible way to process the results in
-    // batches, allowing the caller to define the processing logic for each batch.
-    //
-    // If the repository had returned a stream of results directly, that stream would effectively be linked to the input
-    // stream. If the caller would fail to fully consume the resulting stream, the input stream would not be fully
-    // processed. The callback approach prevents the caller from accidentally misusing the API.
-    //
-
     /**
-     * Returns a stream of all entities of the type supported by this repository. Each element in the stream represents
+     * Returns a flow of all entities of the type supported by this repository. Each element in the flow represents
      * an entity in the database, encapsulating all relevant data as mapped by the entity model.
      *
-     *
-     * The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
-     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * The resulting flow is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the flow. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.
      *
-     *
      * **Note:** Calling this method does trigger the execution of the underlying
-     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is `AutoCloseable`, it
+     * query, so it should only be invoked when the query is intended to run. Since the flow holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks. As the flow is `AutoCloseable`, it
      * is recommended to use it within a `try-with-resources` block.
      *
-     * @return a stream of all entities of the type supported by this repository.
+     * @return a flow of all entities of the type supported by this repository.
      * @throws st.orm.PersistenceException if the selection operation fails due to underlying database issues, such as
      * connectivity.
      */
-    fun selectAll(): Stream<E>
+    fun selectAll(): Flow<E>
 
     /**
-     * Retrieves a stream of entities based on their primary keys.
+     * Retrieves a flow of entities based on their primary keys.
      *
-     *
-     * This method executes queries in batches, depending on the number of primary keys in the specified ids stream.
+     * This method executes queries in batches, depending on the number of primary keys in the specified ids flow.
      * This optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities.
      * The batching strategy enhances performance, particularly when dealing with large sets of primary keys.
      *
-     *
-     * The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
-     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * The resulting flow is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the flow. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.
      *
-     *
      * **Note:** Calling this method does trigger the execution of the underlying
-     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is `AutoCloseable`, it
+     * query, so it should only be invoked when the query is intended to run. Since the flow holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks. As the flow is `AutoCloseable`, it
      * is recommended to use it within a `try-with-resources` block.
      *
-     * @param ids a stream of entity IDs to retrieve from the repository.
-     * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
-     * not guaranteed to match the order of ids in the input stream. If an id does not correspond to any entity
+     * @param ids a flow of entity IDs to retrieve from the repository.
+     * @return a flow of entities corresponding to the provided primary keys. The order of entities in the flow is
+     * not guaranteed to match the order of ids in the input flow. If an id does not correspond to any entity
      * in the database, it will simply be skipped, and no corresponding entity will be included in the returned
-     * stream. If the same entity is requested multiple times, it may be included in the stream multiple times
+     * flow. If the same entity is requested multiple times, it may be included in the flow multiple times
      * if it is part of a separate batch.
      * @throws st.orm.PersistenceException if the selection operation fails due to underlying database issues, such as
      * connectivity.
      */
-    fun selectById(ids: Stream<ID>): Stream<E>
+    fun selectById(ids: Flow<ID>): Flow<E>
 
     /**
-     * Retrieves a stream of entities based on their primary keys.
+     * Retrieves a flow of entities based on their primary keys.
      *
-     *
-     * This method executes queries in batches, depending on the number of primary keys in the specified ids stream.
+     * This method executes queries in batches, depending on the number of primary keys in the specified ids flow.
      * This optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities.
      * The batching strategy enhances performance, particularly when dealing with large sets of primary keys.
      *
-     *
-     * The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
-     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * The resulting flow is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the flow. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.
      *
-     *
      * **Note:** Calling this method does trigger the execution of the underlying
-     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is `AutoCloseable`, it
+     * query, so it should only be invoked when the query is intended to run. Since the flow holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks. As the flow is `AutoCloseable`, it
      * is recommended to use it within a `try-with-resources` block.
      *
-     * @param refs a stream of refs to retrieve from the repository.
-     * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
-     * not guaranteed to match the order of ids in the input stream. If an id does not correspond to any entity
+     * @param refs a flow of refs to retrieve from the repository.
+     * @return a flow of entities corresponding to the provided primary keys. The order of entities in the flow is
+     * not guaranteed to match the order of ids in the input flow. If an id does not correspond to any entity
      * in the database, it will simply be skipped, and no corresponding entity will be included in the returned
-     * stream. If the same entity is requested multiple times, it may be included in the stream multiple times
+     * flow. If the same entity is requested multiple times, it may be included in the flow multiple times
      * if it is part of a separate batch.
      * @throws st.orm.PersistenceException if the selection operation fails due to underlying database issues, such as
      * connectivity.
      */
-    fun selectByRef(refs: Stream<Ref<E>>): Stream<E>
+    fun selectByRef(refs: Flow<Ref<E>>): Flow<E>
 
     /**
-     * Retrieves a stream of entities based on their primary keys.
-     *
+     * Retrieves a flow of entities based on their primary keys.
      *
      * This method executes queries in batches, with the batch size determined by the provided parameter. This
      * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities. The
      * batching strategy enhances performance, particularly when dealing with large sets of primary keys.
      *
-     *
-     * The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
-     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * The resulting flow is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the flow. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.
      *
-     *
      * **Note:** Calling this method does trigger the execution of the underlying
-     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is `AutoCloseable`, it
+     * query, so it should only be invoked when the query is intended to run. Since the flow holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks. As the flow is `AutoCloseable`, it
      * is recommended to use it within a `try-with-resources` block.
      *
-     * @param ids a stream of entity IDs to retrieve from the repository.
-     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     * @param ids a flow of entity IDs to retrieve from the repository.
+     * @param chunkSize the number of primary keys to include in each batch. This parameter determines the size of the
      * batches used to execute the selection operation. A larger batch size can improve performance, especially when
      * dealing with large sets of primary keys.
-     * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
-     * not guaranteed to match the order of refs in the input stream. If an id does not correspond to any entity in the
-     * database, it will simply be skipped, and no corresponding entity will be included in the returned stream. If the
-     * same entity is requested multiple times, it may be included in the stream multiple times if it is part of a
+     * @return a flow of entities corresponding to the provided primary keys. The order of entities in the flow is
+     * not guaranteed to match the order of refs in the input flow. If an id does not correspond to any entity in the
+     * database, it will simply be skipped, and no corresponding entity will be included in the returned flow. If the
+     * same entity is requested multiple times, it may be included in the flow multiple times if it is part of a
      * separate batch.
      * @throws st.orm.PersistenceException if the selection operation fails due to underlying database issues, such as
      * connectivity.
      */
-    fun selectById(ids: Stream<ID>, batchSize: Int): Stream<E>
+    fun selectById(ids: Flow<ID>, chunkSize: Int): Flow<E>
 
     /**
-     * Retrieves a stream of entities based on their primary keys.
-     *
+     * Retrieves a flow of entities based on their primary keys.
      *
      * This method executes queries in batches, with the batch size determined by the provided parameter. This
      * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve entities. The
      * batching strategy enhances performance, particularly when dealing with large sets of primary keys.
      *
-     *
-     * The resulting stream is lazily loaded, meaning that the entities are only retrieved from the database as they
-     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * The resulting flow is lazily loaded, meaning that the entities are only retrieved from the database as they
+     * are consumed by the flow. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of entities.
      *
-     *
      * **Note:** Calling this method does trigger the execution of the underlying
-     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
-     * while in use, it must be closed after usage to prevent resource leaks. As the stream is `AutoCloseable`, it
+     * query, so it should only be invoked when the query is intended to run. Since the flow holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks. As the flow is `AutoCloseable`, it
      * is recommended to use it within a `try-with-resources` block.
      *
-     * @param refs a stream of refs to retrieve from the repository.
-     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     * @param refs a flow of refs to retrieve from the repository.
+     * @param chunkSize the number of primary keys to include in each batch. This parameter determines the size of the
      * batches used to execute the selection operation. A larger batch size can improve performance, especially when
      * dealing with large sets of primary keys.
-     * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
-     * not guaranteed to match the order of refs in the input stream. If an id does not correspond to any entity in the
-     * database, it will simply be skipped, and no corresponding entity will be included in the returned stream. If the
-     * same entity is requested multiple times, it may be included in the stream multiple times if it is part of a
+     * @return a flow of entities corresponding to the provided primary keys. The order of entities in the flow is
+     * not guaranteed to match the order of refs in the input flow. If an id does not correspond to any entity in the
+     * database, it will simply be skipped, and no corresponding entity will be included in the returned flow. If the
+     * same entity is requested multiple times, it may be included in the flow multiple times if it is part of a
      * separate batch.
      * @throws st.orm.PersistenceException if the selection operation fails due to underlying database issues, such as
      * connectivity.
      */
-    fun selectByRef(refs: Stream<Ref<E>>, batchSize: Int): Stream<E>
+    fun selectByRef(refs: Flow<Ref<E>>, chunkSize: Int): Flow<E>
 
     /**
-     * Counts the number of entities identified by the provided stream of IDs using the default batch size.
-     *
+     * Counts the number of entities identified by the provided flow of IDs using the default batch size.
      *
      * This method calculates the total number of entities that match the provided primary keys. The counting
      * is performed in batches, which helps optimize performance and manage database load when dealing with
      * large sets of IDs.
      *
-     * @param ids a stream of IDs for which to count matching entities.
+     * @param ids a flow of IDs for which to count matching entities.
      * @return the total count of entities matching the provided IDs.
      * @throws st.orm.PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    fun countById(ids: Stream<ID>): Long
+    suspend fun countById(ids: Flow<ID>): Long
 
     /**
-     * Counts the number of entities identified by the provided stream of IDs, with the counting process divided into
+     * Counts the number of entities identified by the provided flow of IDs, with the counting process divided into
      * batches of the specified size.
      *
-     *
-     * This method performs the counting operation in batches, specified by the `batchSize` parameter. This
+     * This method performs the counting operation in batches, specified by the `chunkSize` parameter. This
      * batching approach is particularly useful for efficiently handling large volumes of IDs, reducing the overhead on
      * the database and improving performance.
      *
-     * @param ids a stream of IDs for which to count matching entities.
-     * @param batchSize the size of the batches to use for the counting operation. A larger batch size can improve
+     * @param ids a flow of IDs for which to count matching entities.
+     * @param chunkSize the size of the batches to use for the counting operation. A larger batch size can improve
      * performance but may also increase the load on the database.
      * @return the total count of entities matching the provided IDs.
      * @throws st.orm.PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    fun countById(ids: Stream<ID>, batchSize: Int): Long
+    suspend fun countById(ids: Flow<ID>, chunkSize: Int): Long
 
     /**
-     * Counts the number of entities identified by the provided stream of refs using the default batch size.
-     *
+     * Counts the number of entities identified by the provided flow of refs using the default batch size.
      *
      * This method calculates the total number of entities that match the provided primary keys. The counting
      * is performed in batches, which helps optimize performance and manage database load when dealing with
      * large sets of IDs.
      *
-     * @param refs a stream of IDs for which to count matching entities.
+     * @param refs a flow of IDs for which to count matching entities.
      * @return the total count of entities matching the provided IDs.
      * @throws st.orm.PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    fun countByRef(refs: Stream<Ref<E>>): Long
+    suspend fun countByRef(refs: Flow<Ref<E>>): Long
 
     /**
-     * Counts the number of entities identified by the provided stream of refs, with the counting process divided into
+     * Counts the number of entities identified by the provided flow of refs, with the counting process divided into
      * batches of the specified size.
      *
-     *
-     * This method performs the counting operation in batches, specified by the `batchSize` parameter. This
+     * This method performs the counting operation in batches, specified by the `chunkSize` parameter. This
      * batching approach is particularly useful for efficiently handling large volumes of IDs, reducing the overhead on
      * the database and improving performance.
      *
-     * @param refs a stream of IDs for which to count matching entities.
-     * @param batchSize the size of the batches to use for the counting operation. A larger batch size can improve
+     * @param refs a flow of IDs for which to count matching entities.
+     * @param chunkSize the size of the batches to use for the counting operation. A larger batch size can improve
      * performance but may also increase the load on the database.
      * @return the total count of entities matching the provided IDs.
      * @throws st.orm.PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    fun countByRef(refs: Stream<Ref<E>>, batchSize: Int): Long
+    suspend fun countByRef(refs: Flow<Ref<E>>, chunkSize: Int): Long
 
     /**
      * Inserts entities in a batch mode to optimize performance and reduce database load.
-     *
      *
      * For large volumes of entities, this method processes the inserts in multiple batches to ensure efficient
      * handling and minimize the impact on database resources. This structured approach facilitates the management of
@@ -1096,11 +1060,10 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @throws st.orm.PersistenceException if the insert fails due to database constraints, connectivity issues, or if the
      * entities parameter is null.
      */
-    fun insert(entities: Stream<E>)
+    suspend fun insert(entities: Flow<E>)
 
     /**
      * Inserts entities in a batch mode to optimize performance and reduce database load.
-     *
      *
      * For large volumes of entities, this method processes the inserts in multiple batches to ensure efficient
      * handling and minimize the impact on database resources. This structured approach facilitates the management of
@@ -1113,36 +1076,34 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @throws st.orm.PersistenceException if the insert fails due to database constraints, connectivity issues, or if the
      * entities parameter is null.
      */
-    fun insert(entities: Stream<E>, ignoreAutoGenerate: Boolean)
+    suspend fun insert(entities: Flow<E>, ignoreAutoGenerate: Boolean)
 
     /**
-     * Inserts a stream of entities into the database, with the insertion process divided into batches of the specified
+     * Inserts a flow of entities into the database, with the insertion process divided into batches of the specified
      * size.
      *
-     *
-     * This method inserts entities provided in a stream and uses the specified batch size for the insertion
+     * This method inserts entities provided in a flow and uses the specified batch size for the insertion
      * operation.  Batching the inserts can greatly enhance performance by minimizing the number of database
      * interactions, especially useful when dealing with large volumes of data.
      *
-     * @param entities a stream of entities to insert. Each entity must not be null and must conform to the model
+     * @param entities a flow of entities to insert. Each entity must not be null and must conform to the model
      * constraints.
      * @param batchSize the size of the batches to use for the insertion operation. A larger batch size can improve
      * performance but may also increase the load on the database.
      * @throws st.orm.PersistenceException if there is an error during the insertion operation, such as a violation of database
-     * constraints, connectivity issues, or if any entity in the stream is null.
+     * constraints, connectivity issues, or if any entity in the flow is null.
      */
-    fun insert(entities: Stream<E>, batchSize: Int)
+    suspend fun insert(entities: Flow<E>, batchSize: Int)
 
     /**
-     * Inserts a stream of entities into the database, with the insertion process divided into batches of the specified
+     * Inserts a flow of entities into the database, with the insertion process divided into batches of the specified
      * size.
      *
-     *
-     * This method inserts entities provided in a stream and uses the specified batch size for the insertion
+     * This method inserts entities provided in a flow and uses the specified batch size for the insertion
      * operation.  Batching the inserts can greatly enhance performance by minimizing the number of database
      * interactions, especially useful when dealing with large volumes of data.
      *
-     * @param entities a stream of entities to insert. Each entity must not be null and must conform to the model
+     * @param entities a flow of entities to insert. Each entity must not be null and must conform to the model
      * constraints.
      * @param batchSize the size of the batches to use for the insertion operation. A larger batch size can improve
      * performance but may also increase the load on the database.
@@ -1150,77 +1111,73 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * provided primary key value. Use this flag only when intentionally providing the primary
      * key value (e.g., migrations, data exports).
      * @throws st.orm.PersistenceException if there is an error during the insertion operation, such as a violation of database
-     * constraints, connectivity issues, or if any entity in the stream is null.
+     * constraints, connectivity issues, or if any entity in the flow is null.
      */
-    fun insert(entities: Stream<E>, batchSize: Int, ignoreAutoGenerate: Boolean)
+    suspend fun insert(entities: Flow<E>, batchSize: Int, ignoreAutoGenerate: Boolean)
 
     /**
-     * Inserts a stream of entities into the database using the default batch size and returns a stream of their
+     * Inserts a flow of entities into the database using the default batch size and returns a flow of their
      * generated primary keys.
-     *
      *
      * This method facilitates the insertion of entities and fetches their primary keys immediately after insertion.
      * This is particularly useful when the primary keys are generated by the database (e.g., auto-increment fields). It
      * uses the default batch size to optimize the number of database interactions.
      *
-     * @param entities a stream of entities to insert. Each entity must not be null and must conform to the model
+     * @param entities a flow of entities to insert. Each entity must not be null and must conform to the model
      * constraints.
      * @param callback the callback to process the IDs of the inserted entities in batches.
      * @throws st.orm.PersistenceException if there is an error during the insertion or key retrieval operation, such as a
      * violation of database constraints, connectivity issues, or if any entity in the
-     * stream is null.
+     * flow is null.
      */
-    fun insertAndFetchIds(entities: Stream<E>, callback: (Stream<ID>) -> Unit)
+    fun insertAndFetchIds(entities: Flow<E>): Flow<ID>
 
     /**
-     * Inserts a stream of entities into the database using the default batch size and returns a stream of the inserted entities.
-     *
+     * Inserts a flow of entities into the database using the default batch size and returns a flow of the inserted entities.
      *
      * This method inserts entities into the database and retrieves them immediately after insertion. It is useful
      * for ensuring that the returned entities reflect any database-generated values or defaults. The insertion and
      * retrieval are performed using the default batch size to optimize database performance.
      *
-     * @param entities a stream of entities to insert. Each entity must not be null and must conform to the model
+     * @param entities a flow of entities to insert. Each entity must not be null and must conform to the model
      * constraints.
      * @param callback the callback to process the inserted entities, reflecting their new state in the database,
      * in batches.
      * @throws st.orm.PersistenceException if there is an error during the insertion or retrieval operation, such as a
      * violation of database constraints, connectivity issues, or if any entity in the
-     * stream is null.
+     * flow is null.
      */
-    fun insertAndFetch(entities: Stream<E>, callback: (Stream<E>) -> Unit)
+    fun insertAndFetch(entities: Flow<E>): Flow<E>
 
     /**
-     * Inserts a stream of entities into the database with the insertion process divided into batches of the specified size,
-     * and returns a stream of their generated primary keys.
-     *
+     * Inserts a flow of entities into the database with the insertion process divided into batches of the specified size,
+     * and returns a flow of their generated primary keys.
      *
      * This method allows for efficient insertion of a large number of entities by batching them according to the
      * specified batch size. It also fetches the primary keys immediately after insertion, useful for entities with
      * database-generated keys.
      *
-     * @param entities a stream of entities to insert. Each entity must not be null and must conform to the model
+     * @param entities a flow of entities to insert. Each entity must not be null and must conform to the model
      * constraints.
      * @param batchSize the size of the batches to use for the insertion operation. A larger batch size can improve
      * performance but may also increase the load on the database.
      * @param callback the callback to process the IDs of the inserted entities in batches.
      * @throws st.orm.PersistenceException if there is an error during the insertion or key retrieval operation, such as a
      * violation of database constraints, connectivity issues, or if any entity in the
-     * stream is null.
+     * flow is null.
      */
-    fun insertAndFetchIds(entities: Stream<E>, batchSize: Int, callback: (Stream<ID>) -> Unit)
+    fun insertAndFetchIds(entities: Flow<E>, batchSize: Int) : Flow<ID>
 
     /**
-     * Inserts a stream of entities into the database with the insertion process divided into batches of the specified size,
-     * and returns a stream of the inserted entities.
-     *
+     * Inserts a flow of entities into the database with the insertion process divided into batches of the specified size,
+     * and returns a flow of the inserted entities.
      *
      * This method provides an efficient way to insert a large number of entities by batching them according to the
      * specified batch size. It fetches the inserted entities immediately after insertion to ensure that the returned
      * entities reflect any database-generated values or defaults. This is particularly useful when database triggers or
      * default values are involved.
      *
-     * @param entities a stream of entities to insert. Each entity must not be null and must conform to the model
+     * @param entities a flow of entities to insert. Each entity must not be null and must conform to the model
      * constraints.
      * @param batchSize the size of the batches to use for the insertion operation. A larger batch size can improve
      * performance but may also increase the load on the database.
@@ -1228,109 +1185,103 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * in batches.
      * @throws st.orm.PersistenceException if there is an error during the insertion or retrieval operation, such as a
      * violation of database constraints, connectivity issues, or if any entity in the
-     * stream is null.
+     * flow is null.
      */
-    fun insertAndFetch(entities: Stream<E>, batchSize: Int, callback: (Stream<E>) -> Unit)
+    fun insertAndFetch(entities: Flow<E>, batchSize: Int): Flow<E>
 
     /**
-     * Updates a stream of entities in the database using the default batch size.
+     * Updates a flow of entities in the database using the default batch size.
      *
-     *
-     * This method updates entities provided in a stream, optimizing the update process by batching them
+     * This method updates entities provided in a flow, optimizing the update process by batching them
      * with a default size. This helps to reduce the number of database operations and can significantly improve
      * performance when updating large numbers of entities.
      *
-     * @param entities a stream of entities to update. Each entity must not be null, must already exist in the database,
+     * @param entities a flow of entities to update. Each entity must not be null, must already exist in the database,
      * and must conform to the model constraints.
      * @throws st.orm.PersistenceException if there is an error during the update operation, such as a violation of database
-     * constraints, connectivity issues, or if any entity in the stream is null.
+     * constraints, connectivity issues, or if any entity in the flow is null.
      */
-    fun update(entities: Stream<E>)
+    suspend fun update(entities: Flow<E>)
 
     /**
-     * Updates a stream of entities in the database, with the update process divided into batches of the specified size.
+     * Updates a flow of entities in the database, with the update process divided into batches of the specified size.
      *
-     *
-     * This method updates entities provided in a stream and uses the specified batch size for the update operation.
+     * This method updates entities provided in a flow and uses the specified batch size for the update operation.
      * Batching the updates can greatly enhance performance by minimizing the number of database interactions,
      * especially useful when dealing with large volumes of data.
      *
-     * @param entities a stream of entities to update. Each entity must not be null, must already exist in the database,
+     * @param entities a flow of entities to update. Each entity must not be null, must already exist in the database,
      * and must conform to the model constraints.
      * @param batchSize the size of the batches to use for the update operation. A larger batch size can improve
      * performance but may also increase the load on the database.
      * @throws st.orm.PersistenceException if there is an error during the update operation, such as a violation of database
-     * constraints, connectivity issues, or if any entity in the stream is null.
+     * constraints, connectivity issues, or if any entity in the flow is null.
      */
-    fun update(entities: Stream<E>, batchSize: Int)
+    suspend fun update(entities: Flow<E>, batchSize: Int)
 
     /**
-     * Updates a stream of entities in the database using the default batch size and returns a stream of the updated entities.
+     * Updates a flow of entities in the database using the default batch size and returns a flow of the updated entities.
      *
-     *
-     * This method updates entities provided in a stream, optimizing the update process by batching them with the
+     * This method updates entities provided in a flow, optimizing the update process by batching them with the
      * default size. It fetches the updated entities immediately after updating to ensure that the returned entities
      * reflect any database-generated values or defaults. This is particularly useful when database triggers or default
      * values are involved.
      *
-     * @param entities a stream of entities to update. Each entity must not be null, must already exist in the database,
+     * @param entities a flow of entities to update. Each entity must not be null, must already exist in the database,
      * and must conform to the model constraints.
      * @param callback the callback to process the updated entities, reflecting their new state in the database,
      * in batches.
      * @throws st.orm.PersistenceException if there is an error during the update or retrieval operation, such as a violation
-     * of database constraints, connectivity issues, or if any entity in the stream is
+     * of database constraints, connectivity issues, or if any entity in the flow is
      * null.
      */
-    fun updateAndFetch(entities: Stream<E>, callback: (Stream<E>) -> Unit)
+    fun updateAndFetch(entities: Flow<E>): Flow<E>
 
     /**
-     * Updates a stream of entities in the database, with the update process divided into batches of the specified size,
-     * and returns a stream of the updated entities.
+     * Updates a flow of entities in the database, with the update process divided into batches of the specified size,
+     * and returns a flow of the updated entities.
      *
-     *
-     * This method updates entities provided in a stream and uses the specified batch size for the update operation.
+     * This method updates entities provided in a flow and uses the specified batch size for the update operation.
      * Batching the updates can greatly enhance performance by minimizing the number of database interactions,
      * especially useful when dealing with large volumes of data. It fetches the updated entities immediately after
      * updating to ensure that the returned entities reflect any database-generated values or defaults.
      *
-     * @param entities a stream of entities to update. Each entity must not be null, must already exist in the database,
+     * @param entities a flow of entities to update. Each entity must not be null, must already exist in the database,
      * and must conform to the model constraints.
      * @param batchSize the size of the batches to use for the update operation. A larger batch size can improve
      * performance but may also increase the load on the database.
      * @param callback the callback to process the updated entities, reflecting their new state in the database,
      * in batches.
      * @throws st.orm.PersistenceException if there is an error during the update or retrieval operation, such as a violation
-     * of database constraints, connectivity issues, or if any entity in the stream is
+     * of database constraints, connectivity issues, or if any entity in the flow is
      * null.
      */
-    fun updateAndFetch(entities: Stream<E>, batchSize: Int, callback: (Stream<E>) -> Unit)
+    fun updateAndFetch(entities: Flow<E>, batchSize: Int): Flow<E>
 
     /**
-     * Inserts or updates a stream of entities in the database in batches.
+     * Inserts or updates a flow of entities in the database in batches.
      *
-     *
-     * This method processes the provided stream of entities in batches, performing an "upsert" operation on each.
+     * This method processes the provided flow of entities in batches, performing an "upsert" operation on each.
      * For each entity, it will be inserted into the database if it does not already exist; if it does exist, it will
      * be updated to reflect the current state of the entity. Batch processing optimizes the performance of the
      * upsert operation for larger data sets by reducing database overhead.
      *
-     * @param entities a stream of entities to be inserted or updated. Each entity in the stream must be non-null
+     * @param entities a flow of entities to be inserted or updated. Each entity in the flow must be non-null
      * and contain valid data for insertion or update in the database.
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity
      * problems, constraints violations, or invalid entity data.
      */
-    fun upsert(entities: Stream<E>)
+    suspend fun upsert(entities: Flow<E>)
 
     /**
-     * Inserts or updates a stream of entities in the database in configurable batch sizes.
+     * Inserts or updates a flow of entities in the database in configurable batch sizes.
      *
-     *
-     * This method processes the provided stream of entities in batches, performing an "upsert" operation on each.
+     * This method processes the provided flow of entities in batches, performing an "upsert" operation on each.
      * For each entity, it will be inserted if it does not already exist in the database, or updated if it does.
      * The batch size can be configured to control the number of entities processed in each database operation,
      * allowing for optimized performance and memory management based on system requirements.
      *
-     * @param entities a stream of entities to be inserted or updated. Each entity in the stream must be non-null
+     * @param entities a flow of entities to be inserted or updated. Each entity in the flow must be non-null
      * and contain valid data for insertion or update in the database.
      * @param batchSize the number of entities to process in each batch. A larger batch size may improve performance
      * but increase memory usage, while a smaller batch size may reduce memory usage but increase
@@ -1338,55 +1289,52 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity
      * problems, constraints violations, or invalid entity data.
      */
-    fun upsert(entities: Stream<E>, batchSize: Int)
+    suspend fun upsert(entities: Flow<E>, batchSize: Int)
 
     /**
-     * Inserts or updates a stream of entities in the database in batches and retrieves their IDs through a callback.
+     * Inserts or updates a flow of entities in the database in batches and retrieves their IDs through a callback.
      *
-     *
-     * This method processes the provided stream of entities in batches, performing an "upsert" operation on each entity.
+     * This method processes the provided flow of entities in batches, performing an "upsert" operation on each entity.
      * For each entity, it will be inserted if it does not already exist in the database or updated if it does. After
      * each batch operation, the IDs of the upserted entities are passed to the provided callback, allowing for
      * specializedized handling of the IDs as they are retrieved.
      *
-     * @param entities a stream of entities to be inserted or updated. Each entity in the stream must be non-null and
+     * @param entities a flow of entities to be inserted or updated. Each entity in the flow must be non-null and
      * contain valid data for insertion or update in the database.
      * @param callback the callback to process the IDs of the upserted entities in batches.
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
-    fun upsertAndFetchIds(entities: Stream<E>, callback: (Stream<ID>) -> Unit)
+    fun upsertAndFetchIds(entities: Flow<E>): Flow<ID>
 
     /**
-     * Inserts or updates a stream of entities in the database in batches and retrieves the updated entities through a callback.
+     * Inserts or updates a flow of entities in the database in batches and retrieves the updated entities through a callback.
      *
-     *
-     * This method processes the provided stream of entities in batches, performing an "upsert" operation on each entity.
+     * This method processes the provided flow of entities in batches, performing an "upsert" operation on each entity.
      * For each entity, it will be inserted if it does not already exist in the database or updated if it does. After
      * each batch operation, the updated entities are passed to the provided callback, allowing for specializedized handling
      * of the entities as they are retrieved. The entities returned reflect their current state in the database, including
      * any changes such as generated primary keys, timestamps, or default values set by the database during the upsert process.
      *
-     * @param entities a stream of entities to be inserted or updated. Each entity in the stream must be non-null and
+     * @param entities a flow of entities to be inserted or updated. Each entity in the flow must be non-null and
      * contain valid data for insertion or update in the database.
      * @param callback the callback to process the upserted entities, reflecting their new state in the database,
      * in batches.
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
-    fun upsertAndFetch(entities: Stream<E>, callback: (Stream<E>) -> Unit)
+    fun upsertAndFetch(entities: Flow<E>): Flow<E>
 
     /**
-     * Inserts or updates a stream of entities in the database in configurable batch sizes and retrieves their IDs through a callback.
+     * Inserts or updates a flow of entities in the database in configurable batch sizes and retrieves their IDs through a callback.
      *
-     *
-     * This method processes the provided stream of entities in batches, performing an "upsert" operation on each entity.
+     * This method processes the provided flow of entities in batches, performing an "upsert" operation on each entity.
      * For each entity, it will be inserted if it does not already exist in the database or updated if it does. The batch size
      * parameter allows control over the number of entities processed in each batch, optimizing memory and performance based
      * on system requirements. After each batch operation, the IDs of the upserted entities are passed to the provided
      * callback, allowing for specializedized handling of the IDs as they are retrieved.
      *
-     * @param entities a stream of entities to be inserted or updated. Each entity in the stream must be non-null and contain
+     * @param entities a flow of entities to be inserted or updated. Each entity in the flow must be non-null and contain
      * valid data for insertion or update in the database.
      * @param batchSize the number of entities to process in each batch. Adjusting the batch size can optimize performance
      * and memory usage, with larger sizes potentially improving performance but using more memory.
@@ -1394,21 +1342,20 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
-    fun upsertAndFetchIds(entities: Stream<E>, batchSize: Int, callback: (Stream<ID>) -> Unit)
+    fun upsertAndFetchIds(entities: Flow<E>, batchSize: Int): Flow<ID>
 
     /**
-     * Inserts or updates a stream of entities in the database in configurable batch sizes and retrieves the updated entities through a callback.
+     * Inserts or updates a flow of entities in the database in configurable batch sizes and retrieves the updated entities through a callback.
      *
-     *
-     * This method processes the provided stream of entities in batches, performing an "upsert" operation on each entity.
+     * This method processes the provided flow of entities in batches, performing an "upsert" operation on each entity.
      * For each entity, it will be inserted if it does not already exist in the database or updated if it does. The
-     * `batchSize` parameter allows control over the number of entities processed in each batch, optimizing performance
+     * `chunkSize` parameter allows control over the number of entities processed in each batch, optimizing performance
      * and memory usage based on system requirements. After each batch operation, the updated entities are passed to
      * the provided callback, allowing for specializedized handling of the entities as they are retrieved. The entities
      * returned reflect their current state in the database, including any changes such as generated primary keys,
      * timestamps, or default values applied during the upsert process.
      *
-     * @param entities a stream of entities to be inserted or updated. Each entity in the stream must be non-null and
+     * @param entities a flow of entities to be inserted or updated. Each entity in the flow must be non-null and
      * contain valid data for insertion or update in the database.
      * @param batchSize the number of entities to process in each batch. Adjusting the batch size can optimize performance
      * and memory usage, with larger sizes potentially improving performance but using more memory.
@@ -1417,34 +1364,32 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @throws st.orm.PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
      * constraints violations, or invalid entity data.
      */
-    fun upsertAndFetch(entities: Stream<E>, batchSize: Int, callback: (Stream<E>) -> Unit)
+    fun upsertAndFetch(entities: Flow<E>, batchSize: Int): Flow<E>
 
     /**
-     * Deletes a stream of entities from the database in batches.
+     * Deletes a flow of entities from the database in batches.
      *
-     *
-     * This method processes the provided stream of entities in batches to optimize performance for larger
-     * data sets, reducing database overhead during deletion. For each entity in the stream, the method removes
+     * This method processes the provided flow of entities in batches to optimize performance for larger
+     * data sets, reducing database overhead during deletion. For each entity in the flow, the method removes
      * the corresponding record from the database, if it exists. Batch processing allows efficient handling
      * of deletions, particularly for large collections of entities.
      *
-     * @param entities a stream of entities to be deleted. Each entity in the stream must be non-null and represent
+     * @param entities a flow of entities to be deleted. Each entity in the flow must be non-null and represent
      * a valid database record for deletion.
      * @throws st.orm.PersistenceException if the deletion operation fails due to database issues, such as connectivity problems
      * or constraints violations.
      */
-    fun delete(entities: Stream<E>)
+    suspend fun delete(entities: Flow<E>)
 
     /**
-     * Deletes a stream of entities from the database in configurable batch sizes.
+     * Deletes a flow of entities from the database in configurable batch sizes.
      *
-     *
-     * This method processes the provided stream of entities in batches, with the size of each batch specified
-     * by the `batchSize` parameter. This allows for control over the number of entities deleted in each database
+     * This method processes the provided flow of entities in batches, with the size of each batch specified
+     * by the `chunkSize` parameter. This allows for control over the number of entities deleted in each database
      * operation, optimizing performance and memory usage based on system requirements. For each entity in the
-     * stream, the method removes the corresponding record from the database, if it exists.
+     * flow, the method removes the corresponding record from the database, if it exists.
      *
-     * @param entities a stream of entities to be deleted. Each entity in the stream must be non-null and represent
+     * @param entities a flow of entities to be deleted. Each entity in the flow must be non-null and represent
      * a valid database record for deletion.
      * @param batchSize the number of entities to process in each batch. Larger batch sizes may improve performance
      * but require more memory, while smaller batch sizes may reduce memory usage but increase
@@ -1452,34 +1397,32 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @throws st.orm.PersistenceException if the deletion operation fails due to database issues, such as connectivity problems
      * or constraints violations.
      */
-    fun delete(entities: Stream<E>, batchSize: Int)
+    suspend fun delete(entities: Flow<E>, batchSize: Int)
 
     /**
-     * Deletes a stream of entities from the database in batches.
+     * Deletes a flow of entities from the database in batches.
      *
-     *
-     * This method processes the provided stream of entities in batches to optimize performance for larger
-     * data sets, reducing database overhead during deletion. For each entity in the stream, the method removes
+     * This method processes the provided flow of entities in batches to optimize performance for larger
+     * data sets, reducing database overhead during deletion. For each entity in the flow, the method removes
      * the corresponding record from the database, if it exists. Batch processing allows efficient handling
      * of deletions, particularly for large collections of entities.
      *
-     * @param refs a stream of entities to be deleted. Each entity in the stream must be non-null and represent
+     * @param refs a flow of entities to be deleted. Each entity in the flow must be non-null and represent
      * a valid database record for deletion.
      * @throws st.orm.PersistenceException if the deletion operation fails due to database issues, such as connectivity problems
      * or constraints violations.
      */
-    fun deleteByRef(refs: Stream<Ref<E>>)
+    suspend fun deleteByRef(refs: Flow<Ref<E>>)
 
     /**
-     * Deletes a stream of entities from the database in configurable batch sizes.
+     * Deletes a flow of entities from the database in configurable batch sizes.
      *
-     *
-     * This method processes the provided stream of entities in batches, with the size of each batch specified
-     * by the `batchSize` parameter. This allows for control over the number of entities deleted in each database
+     * This method processes the provided flow of entities in batches, with the size of each batch specified
+     * by the `chunkSize` parameter. This allows for control over the number of entities deleted in each database
      * operation, optimizing performance and memory usage based on system requirements. For each entity in the
-     * stream, the method removes the corresponding record from the database, if it exists.
+     * flow, the method removes the corresponding record from the database, if it exists.
      *
-     * @param refs a stream of entities to be deleted. Each entity in the stream must be non-null and represent
+     * @param refs a flow of entities to be deleted. Each entity in the flow must be non-null and represent
      * valid database record for deletion.
      * @param batchSize the number of entities to process in each batch. Larger batch sizes may improve performance
      * but require more memory, while smaller batch sizes may reduce memory usage but increase
@@ -1487,7 +1430,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @throws st.orm.PersistenceException if the deletion operation fails due to database issues, such as connectivity problems
      * or constraints violations.
      */
-    fun deleteByRef(refs: Stream<Ref<E>>, batchSize: Int)
+    suspend fun deleteByRef(refs: Flow<Ref<E>>, batchSize: Int)
 
     // Kotlin specific DSL
 
@@ -1512,8 +1455,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      *
      * @return a sequence containing all entities.
      */
-    fun selectAllRef(): Stream<Ref<E>> =
-        selectRef().resultStream
+    fun selectAllRef(): Flow<Ref<E>> =
+        selectRef().resultFlow
 
     /**
      * Retrieves an optional entity of type [T] based on a single field and its value.
@@ -1564,8 +1507,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V> selectBy(field: Metamodel<E, V>, value: V): Stream<E> =
-        select().where(field, EQUALS, value).resultStream
+    fun <V> selectBy(field: Metamodel<E, V>, value: V): Flow<E> =
+        select().where(field, EQUALS, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -1594,8 +1537,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Record> selectBy(field: Metamodel<E, V>, value: Ref<V>): Stream<E> =
-        select().where(field, value).resultStream
+    fun <V : Record> selectBy(field: Metamodel<E, V>, value: Ref<V>): Flow<E> =
+        select().where(field, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1624,8 +1567,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param values Iterable of values to match against.
      * @return at sequence of matching entities.
      */
-    fun <V> selectBy(field: Metamodel<E, V>, values: Iterable<V>): Stream<E> =
-        select().where(field, IN, values).resultStream
+    fun <V> selectBy(field: Metamodel<E, V>, values: Iterable<V>): Flow<E> =
+        select().where(field, IN, values).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1646,8 +1589,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param values Iterable of values to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Record> selectByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): Stream<E> =
-        select().whereRef(field, values).resultStream
+    fun <V : Record> selectByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): Flow<E> =
+        select().whereRef(field, values).resultFlow
 
     /**
      * Retrieves exactly one entity of type [T] based on a single field and its value.
@@ -1724,8 +1667,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V> selectRefBy(field: Metamodel<E, V>, value: V): Stream<Ref<E>> =
-        selectRef().where(field, EQUALS, value).resultStream
+    fun <V> selectRefBy(field: Metamodel<E, V>, value: V): Flow<Ref<E>> =
+        selectRef().where(field, EQUALS, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -1754,8 +1697,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Record> selectRefBy(field: Metamodel<E, V>, value: Ref<V>): Stream<Ref<E>> =
-        selectRef().where(field, value).resultStream
+    fun <V : Record> selectRefBy(field: Metamodel<E, V>, value: Ref<V>): Flow<Ref<E>> =
+        selectRef().where(field, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1784,8 +1727,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param values Iterable of values to match against.
      * @return a sequence of matching entities.
      */
-    fun <V> selectRefBy(field: Metamodel<E, V>, values: Iterable<V>): Stream<Ref<E>> =
-        selectRef().where(field, IN, values).resultStream
+    fun <V> selectRefBy(field: Metamodel<E, V>, values: Iterable<V>): Flow<Ref<E>> =
+        selectRef().where(field, IN, values).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1814,8 +1757,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param values Iterable of values to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Record> selectRefByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): Stream<Ref<E>> =
-        selectRef().whereRef(field, values).resultStream
+    fun <V : Record> selectRefByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): Flow<Ref<E>> =
+        selectRef().whereRef(field, values).resultFlow
 
     /**
      * Retrieves exactly one entity of type [T] based on a single field and its value.
@@ -1988,8 +1931,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      */
     fun select(
         predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>
-    ): Stream<E> =
-        select().whereBuilder(predicate).resultStream
+    ): Flow<E> =
+        select().whereBuilder(predicate).resultFlow
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -2006,8 +1949,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      */
     fun select(
         predicate: PredicateBuilder<E, *, *>
-    ): Stream<E> =
-        select().where(predicate).resultStream
+    ): Flow<E> =
+        select().where(predicate).resultFlow
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -2024,8 +1967,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      */
     fun selectRef(
         predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>
-    ): Stream<Ref<E>> =
-        selectRef().whereBuilder(predicate).resultStream
+    ): Flow<Ref<E>> =
+        selectRef().whereBuilder(predicate).resultFlow
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -2042,8 +1985,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      */
     fun selectRef(
         predicate: PredicateBuilder<E, *, *>
-    ): Stream<Ref<E>> =
-        selectRef().where(predicate).resultStream
+    ): Flow<Ref<E>> =
+        selectRef().where(predicate).resultFlow
 
     /**
      * Counts entities of type [T] matching the specified field and value.

@@ -15,6 +15,11 @@
  */
 package st.orm.kt.repository.impl
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.fold
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.stream.consumeAsFlow
 import st.orm.Projection
 import st.orm.Ref
 import st.orm.kt.repository.ProjectionRepository
@@ -22,7 +27,6 @@ import st.orm.kt.template.*
 import st.orm.kt.template.impl.ModelImpl
 import st.orm.kt.template.impl.ORMTemplateImpl
 import st.orm.kt.template.impl.QueryBuilderImpl
-import java.util.stream.Stream
 import kotlin.reflect.KClass
 
 /**
@@ -118,39 +122,42 @@ class ProjectionRepositoryImpl<P, ID : Any>(
         return core.findAllByRef(refs)
     }
 
-    override fun selectAll(): Stream<P> {
-        return core.selectAll()
-    }
+    override fun selectAll(): Flow<P> =
+        core.selectAll().consumeAsFlow()
 
-    override fun selectById(ids: Stream<ID>): Stream<P> {
-        return core.selectById(ids)
-    }
+    override fun selectById(ids: Flow<ID>): Flow<P> =
+        ids.chunked(core.defaultChunkSize)
+            .flatMapConcat { core.findAllById(it).asFlow() }
 
-    override fun selectByRef(refs: Stream<Ref<P>>): Stream<P> {
-        return core.selectByRef(refs)
-    }
+    override fun selectByRef(refs: Flow<Ref<P>>): Flow<P> =
+        refs.chunked(core.defaultChunkSize)
+            .flatMapConcat { core.findAllByRef(it).asFlow() }
 
-    override fun selectById(ids: Stream<ID>, batchSize: Int): Stream<P> {
-        return core.selectById(ids, batchSize)
-    }
+    override fun selectById(ids: Flow<ID>, chunkSize: Int): Flow<P> =
+        ids.chunked(chunkSize)
+            .flatMapConcat { core.findAllById(it).asFlow() }
 
-    override fun selectByRef(refs: Stream<Ref<P>>, batchSize: Int): Stream<P> {
-        return core.selectByRef(refs, batchSize)
-    }
+    override fun selectByRef(refs: Flow<Ref<P>>, chunkSize: Int): Flow<P> =
+        refs.chunked(chunkSize)
+            .flatMapConcat { core.findAllByRef(it).asFlow() }
 
-    override fun countById(ids: Stream<ID>): Long {
-        return core.countById(ids)
-    }
+    override suspend fun countById(ids: Flow<ID>): Long =
+        ids.chunked(core.defaultChunkSize)
+            .map { chunk -> core.countById(chunk.stream()) }
+            .fold(0L) { acc, v -> acc + v }
 
-    override fun countById(ids: Stream<ID>, batchSize: Int): Long {
-        return core.countById(ids, batchSize)
-    }
+    override suspend fun countById(ids: Flow<ID>, chunkSize: Int): Long =
+        ids.chunked(chunkSize)
+            .map { chunk -> core.countById(chunk.stream()) }
+            .fold(0L) { acc, v -> acc + v }
 
-    override fun countByRef(refs: Stream<Ref<P>>): Long {
-        return core.countByRef(refs)
-    }
+    override suspend fun countByRef(refs: Flow<Ref<P>>): Long =
+        refs.chunked(core.defaultChunkSize)
+            .map { chunk -> core.countByRef(chunk.stream()) }
+            .fold(0L) { acc, v -> acc + v }
 
-    override fun countByRef(refs: Stream<Ref<P>>, batchSize: Int): Long {
-        return core.countByRef(refs, batchSize)
-    }
+    override suspend fun countByRef(refs: Flow<Ref<P>>, chunkSize: Int): Long =
+        refs.chunked(chunkSize)
+            .map { chunk -> core.countByRef(chunk.stream()) }
+            .fold(0L) { acc, v -> acc + v }
 }
