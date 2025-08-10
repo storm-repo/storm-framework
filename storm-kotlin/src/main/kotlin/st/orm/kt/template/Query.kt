@@ -16,6 +16,8 @@
 package st.orm.kt.template
 
 import jakarta.annotation.Nonnull
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.stream.consumeAsFlow
 import st.orm.NoResultException
 import st.orm.NonUniqueResultException
 import st.orm.Ref
@@ -121,7 +123,6 @@ interface Query {
         /**
          * Execute a SELECT query and return the resulting rows as a list of row instances.
          *
-         *
          * Each element in the list represents a row in the result, where the columns of the row corresponds to the
          * order of values in the row array.
          *
@@ -136,7 +137,6 @@ interface Query {
 
     /**
      * Execute a SELECT query and return the resulting rows as a list of row instances.
-     *
      *
      * Each element in the list represents a row in the result, where the columns of the row are mapped to the
      * constructor arguments of the specified `type`.
@@ -153,7 +153,6 @@ interface Query {
 
     /**
      * Execute a SELECT query and return the resulting rows as a list of ref instances.
-     *
      *
      * Each element in the list represents a row in the result, where the columns of the row are mapped to the
      * constructor arguments primary key type.
@@ -173,15 +172,12 @@ interface Query {
     /**
      * Execute a SELECT query and return the resulting rows as a stream of row instances.
      *
-     *
      * Each element in the stream represents a row in the result, where the columns of the row corresponds to the
      * order of values in the row array.
-     *
      *
      * The resulting stream is lazily loaded, meaning that the records are only retrieved from the database as they
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of records.
-     *
      *
      * **Note:** Calling this method does trigger the execution of the underlying query, so it should
      * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
@@ -195,17 +191,28 @@ interface Query {
     val resultStream: Stream<Array<Any>>
 
     /**
-     * Execute a SELECT query and return the resulting rows as a stream of row instances.
+     * Execute a SELECT query and return the resulting rows as a flow of row instances.
      *
+     * Each element in the flow represents a row in the result, where the columns of the row corresponds to the
+     * order of values in the row array.
+     *
+     * @return a flow of results.
+     * @throws st.orm.PersistenceException if the query operation fails due to underlying database issues, such as
+     * connectivity.
+     * @since 1.5
+     */
+    val resultFlow: Flow<Array<Any>>
+        get() = resultStream.consumeAsFlow()
+
+    /**
+     * Execute a SELECT query and return the resulting rows as a stream of row instances.
      *
      * Each element in the stream represents a row in the result, where the columns of the row are mapped to the
      * constructor arguments of the specified `type`.
      *
-     *
      * The resulting stream is lazily loaded, meaning that the records are only retrieved from the database as they
      * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
      * dealing with large volumes of records.
-     *
      *
      * **Note:** Calling this method does trigger the execution of the underlying query, so it should
      * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
@@ -219,12 +226,24 @@ interface Query {
     fun <T : Any> getResultStream(type: KClass<T>): Stream<T>
 
     /**
-     * Execute a SELECT query and return the resulting rows as a stream of ref instances.
+     * Execute a SELECT query and return the resulting rows as a flow of row instances.
      *
+     * Each element in the flow represents a row in the result, where the columns of the row are mapped to the
+     * constructor arguments of the specified `type`.
+     *
+     * @return a flow of results.
+     * @throws st.orm.PersistenceException if the query operation fails due to underlying database issues, such as
+     * connectivity.
+     * @since 1.5
+     */
+    fun <T : Any> getResultFlow(type: KClass<T>): Flow<T> =
+        getResultStream(type).consumeAsFlow()
+
+    /**
+     * Execute a SELECT query and return the resulting rows as a stream of ref instances.
      *
      * Each element in the stream represents a row in the result, where the columns of the row are mapped to the
      * constructor arguments primary key type.
-     *
      *
      * **Note:** Calling this method does trigger the execution of the underlying query, so it should
      * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
@@ -238,6 +257,21 @@ interface Query {
      * @since 1.3
      */
     fun <T : Record> getRefStream(type: KClass<T>, pkType: KClass<*>): Stream<Ref<T>>
+
+    /**
+     * Execute a SELECT query and return the resulting rows as a flow of ref instances.
+     *
+     * Each element in the flow represents a row in the result, where the columns of the row are mapped to the
+     * constructor arguments primary key type.
+     *
+     * @param type the type of the results that are being referenced.
+     * @param pkType the primary key type.
+     * @return a flow of ref instances.
+     * @throws st.orm.PersistenceException if the query fails.
+     * @since 1.5
+     */
+    fun <T : Record> getRefFlow(type: KClass<T>, pkType: KClass<*>): Flow<Ref<T>> =
+        getRefStream(type, pkType).consumeAsFlow()
 
     /**
      * Returns true if the query is version aware, false otherwise.
