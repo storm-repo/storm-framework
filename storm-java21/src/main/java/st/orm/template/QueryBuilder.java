@@ -20,22 +20,17 @@ import st.orm.JoinType;
 import st.orm.Metamodel;
 import st.orm.Operator;
 import st.orm.Ref;
-import st.orm.repository.ResultCallback;
 import st.orm.core.template.impl.Elements.ObjectExpression;
 import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
 import st.orm.PersistenceException;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
-import static java.lang.Integer.MAX_VALUE;
 import static java.lang.StringTemplate.RAW;
-import static java.util.Spliterators.spliteratorUnknownSize;
 import static st.orm.Operator.EQUALS;
 import static st.orm.Operator.IN;
 
@@ -604,26 +599,6 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      *                              connectivity.
      */
     public abstract Stream<R> getResultStream();
-
-    /**
-     * Executes the query and returns a stream of using the specified callback. This method retrieves the records and
-     * applies the provided callback to process them, returning the result produced by the callback.
-     *
-     * <p>This method ensures efficient handling of large data sets by loading entities only as needed.
-     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to prevent
-     * resource leaks.</p>
-     *
-     * @param callback a {@link ResultCallback} defining how to process the stream of records and produce a result.
-     * @param <X> the type of result produced by the callback after processing the entities.
-     * @return the result produced by the callback's processing of the record stream.
-     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
-     * connectivity.
-     */
-    public final <X> X getResult(@Nonnull ResultCallback<R, X> callback) {
-        try (Stream<R> stream = getResultStream()) {
-            return callback.process(stream);
-        }
-    }
 
     /**
      * Returns the number of results of this query.

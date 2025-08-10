@@ -41,7 +41,7 @@
                         --add-opens storm.core/st.orm.core=ALL-UNNAMED
                         --add-opens storm.core/st.orm.core.repository=ALL-UNNAMED
                         --add-opens storm.core/st.orm.core.repository.spring=ALL-UNNAMED
-                        -Dst.orm.ansiEscaping=true
+                        -Dstorm.ansiEscaping=true
                     </argLine>
                 </configuration>
             </plugin>

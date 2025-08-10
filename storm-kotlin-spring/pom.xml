@@ -56,7 +56,7 @@
                         --add-opens storm.kotlin.spring/st.orm.kt.spring.model=storm.foundation
                         --add-opens storm.kotlin.spring/st.orm.kt.spring.model=storm.kotlin
                         --add-opens storm.kotlin.spring/st.orm.kt.spring.model=storm.core
-                        -Dst.orm.ansiEscaping=true
+                        -Dstorm.ansiEscaping=true
                     </argLine>
                     <forkCount>1</forkCount>
                     <reuseForks>false</reuseForks>

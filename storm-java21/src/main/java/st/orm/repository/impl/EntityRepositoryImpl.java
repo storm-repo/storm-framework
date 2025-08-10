@@ -16,7 +16,6 @@
 package st.orm.repository.impl;
 
 import jakarta.annotation.Nonnull;
-import st.orm.repository.BatchCallback;
 import st.orm.repository.EntityRepository;
 import st.orm.Entity;
 import st.orm.Ref;
@@ -339,26 +338,6 @@ public final class EntityRepositoryImpl<E extends Record & Entity<ID>, ID> imple
     }
 
     @Override
-    public void insertAndFetchIds(@Nonnull Stream<E> entities, @Nonnull BatchCallback<ID> callback) {
-        core.insertAndFetchIds(entities, callback::process);
-    }
-
-    @Override
-    public void insertAndFetch(@Nonnull Stream<E> entities, @Nonnull BatchCallback<E> callback) {
-        core.insertAndFetch(entities, callback::process);
-    }
-
-    @Override
-    public void insertAndFetchIds(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<ID> callback) {
-        core.insertAndFetchIds(entities, batchSize, callback::process);
-    }
-
-    @Override
-    public void insertAndFetch(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<E> callback) {
-        core.insertAndFetch(entities, batchSize, callback::process);
-    }
-
-    @Override
     public void update(@Nonnull Stream<E> entities) {
         core.update(entities);
     }
@@ -369,16 +348,6 @@ public final class EntityRepositoryImpl<E extends Record & Entity<ID>, ID> imple
     }
 
     @Override
-    public void updateAndFetch(@Nonnull Stream<E> entities, @Nonnull BatchCallback<E> callback) {
-        core.updateAndFetch(entities, callback::process);
-    }
-
-    @Override
-    public void updateAndFetch(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<E> callback) {
-        core.updateAndFetch(entities, batchSize, callback::process);
-    }
-
-    @Override
     public void upsert(@Nonnull Stream<E> entities) {
         core.upsert(entities);
     }
@@ -386,26 +355,6 @@ public final class EntityRepositoryImpl<E extends Record & Entity<ID>, ID> imple
     @Override
     public void upsert(@Nonnull Stream<E> entities, int batchSize) {
         core.upsert(entities, batchSize);
-    }
-
-    @Override
-    public void upsertAndFetchIds(@Nonnull Stream<E> entities, @Nonnull BatchCallback<ID> callback) {
-        core.upsertAndFetchIds(entities, callback::process);
-    }
-
-    @Override
-    public void upsertAndFetch(@Nonnull Stream<E> entities, @Nonnull BatchCallback<E> callback) {
-        core.upsertAndFetch(entities, callback::process);
-    }
-
-    @Override
-    public void upsertAndFetchIds(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<ID> callback) {
-        core.upsertAndFetchIds(entities, batchSize, callback::process);
-    }
-
-    @Override
-    public void upsertAndFetch(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<E> callback) {
-        core.upsertAndFetch(entities, batchSize, callback::process);
     }
 
     @Override

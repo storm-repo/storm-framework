@@ -16,8 +16,6 @@
 package st.orm.spi.postgresql;
 
 import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
-import st.orm.core.repository.BatchCallback;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.repository.impl.EntityRepositoryImpl;
@@ -46,7 +44,6 @@ import java.util.stream.Stream;
 
 import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.partitioningBy;
-import static java.util.stream.Stream.empty;
 import static st.orm.core.template.Templates.table;
 import static st.orm.core.template.SqlInterceptor.intercept;
 import static st.orm.core.template.TemplateString.combine;
@@ -196,10 +193,9 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
             return chunked(toStream(entities), defaultBatchSize, batch -> {
-                var result = new ArrayList<ID>();
                 var partition = partition(batch);
-                updateAndFetchIds(partition.get(true), updateQuery, ids -> result.addAll(ids.toList()));
-                upsertAndFetchIds(partition.get(false), upsertQuery, ids -> result.addAll(ids.toList()));
+                var result = new ArrayList<>(updateAndFetchIds(partition.get(true), updateQuery));
+                result.addAll(upsertAndFetchIds(partition.get(false), upsertQuery));
                 return result.stream();
             }).toList();
         } finally {
@@ -233,60 +229,8 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         try {
             chunked(entities, batchSize).forEach(batch -> {
                 var partition = partition(batch);
-                updateAndFetch(partition.get(true), updateQuery, null);
-                upsertAndFetch(partition.get(false), upsertQuery, null);
-            });
-        } finally {
-            closeQuietly(updateQuery, upsertQuery);
-        }
-    }
-
-    /**
-     * Inserts or updates a stream of entities in the database in batches and retrieves their IDs through a callback.
-     */
-    @Override
-    public void upsertAndFetchIds(@Nonnull Stream<E> entities, @Nonnull BatchCallback<ID> callback) {
-        upsertAndFetchIds(entities, defaultBatchSize, callback);
-    }
-
-    /**
-     * Inserts or updates a stream of entities in the database in batches and retrieves the updated entities through a callback.
-     */
-    @Override
-    public void upsertAndFetch(@Nonnull Stream<E> entities, @Nonnull BatchCallback<E> callback) {
-        upsertAndFetch(entities, defaultBatchSize, callback);
-    }
-
-    /**
-     * Inserts or updates a stream of entities in the database in configurable batch sizes and retrieves their IDs through a callback.
-     */
-    @Override
-    public void upsertAndFetchIds(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<ID> callback) {
-        LazySupplier<PreparedQuery> updateQuery = new LazySupplier<>(this::prepareUpdateQuery);
-        LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
-        try {
-            chunked(entities, batchSize).forEach(batch -> {
-                var partition = partition(batch);
-                updateAndFetchIds(partition.get(true), updateQuery, callback);
-                upsertAndFetchIds(partition.get(false), upsertQuery, callback);
-            });
-        } finally {
-            closeQuietly(updateQuery, upsertQuery);
-        }
-    }
-
-    /**
-     * Inserts or updates a stream of entities in the database in configurable batch sizes and retrieves the updated entities through a callback.
-     */
-    @Override
-    public void upsertAndFetch(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<E> callback) {
-        LazySupplier<PreparedQuery> updateQuery = new LazySupplier<>(this::prepareUpdateQuery);
-        LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
-        try {
-            chunked(entities, batchSize).forEach(batch -> {
-                var partition = partition(batch);
-                updateAndFetch(partition.get(true), updateQuery, callback);
-                upsertAndFetch(partition.get(false), upsertQuery, callback);
+                update(partition.get(true), updateQuery);
+                upsert(partition.get(false), upsertQuery);
             });
         } finally {
             closeQuietly(updateQuery, upsertQuery);
@@ -311,11 +255,8 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
                 ).prepare());
     }
 
-    protected void upsertAndFetchIds(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> querySupplier, @Nullable BatchCallback<ID> callback) {
+    protected void upsert(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> querySupplier) {
         if (batch.isEmpty()) {
-            if (callback != null) {
-                callback.process(empty());
-            }
             return;
         }
         var query = querySupplier.get();
@@ -324,23 +265,24 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
             throw new PersistenceException("Batch upsert failed.");
         }
-        if (callback != null) {
-            if (autoGeneratedPrimaryKey) {
-                try (var generatedKeys = query.getGeneratedKeys(model.primaryKeyType())) {
-                    callback.process(generatedKeys);
-                }
-            } else {
-                callback.process(batch.stream().map(Entity::id));
-            }
-        }
     }
 
-    protected void upsertAndFetch(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> querySupplier, @Nullable BatchCallback<E> callback) {
-        upsertAndFetchIds(batch, querySupplier, callback == null ? null : ids -> {
-            try (var stream = selectById(ids)) {
-                callback.process(stream);
+    protected List<ID> upsertAndFetchIds(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> querySupplier) {
+        if (batch.isEmpty()) {
+            return List.of();
+        }
+        var query = querySupplier.get();
+        batch.stream().map(this::validateUpsert).map(Record.class::cast).forEach(query::addBatch);
+        int[] result = query.executeBatch();
+        if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
+            throw new PersistenceException("Batch upsert failed.");
+        }
+        if (autoGeneratedPrimaryKey) {
+            try (var generatedKeys = query.getGeneratedKeys(model.primaryKeyType())) {
+                return generatedKeys.toList();
             }
-        });
+        }
+        return batch.stream().map(Entity::id).toList();
     }
 
     /**

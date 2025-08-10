@@ -86,7 +86,8 @@ final class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
      * @return a stream of generated keys resulting from an insert statement; returns an empty stream if no keys are
      * generated.
      * @throws PersistenceException if the statement fails
-     */    @Override
+     */
+    @Override
     public <ID> Stream<ID> getGeneratedKeys(@Nonnull Class<ID> type) {
         try {
             ResultSet resultSet = statement.getGeneratedKeys();

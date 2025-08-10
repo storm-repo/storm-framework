@@ -46,7 +46,7 @@
                         --add-opens storm.kotlin/st.orm.kt=kotlin.reflect
                         --add-opens storm.kotlin/st.orm.kt.model=storm.foundation
                         --add-opens storm.kotlin/st.orm.kt.model=storm.core
-                        -Dst.orm.ansiEscaping=true
+                        -Dstorm.ansiEscaping=true
                     </argLine>
                 </configuration>
             </plugin>

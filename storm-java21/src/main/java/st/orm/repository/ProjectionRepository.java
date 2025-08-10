@@ -317,26 +317,6 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
     Stream<P> selectAll();
 
     /**
-     * Processes a stream of all projections of the type supported by this repository using the specified callback.
-     * This method retrieves the projections and applies the provided callback to process them, returning the
-     * result produced by the callback.
-     *
-     * <p>This method ensures efficient handling of large data sets by loading projections only as needed.
-     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to prevent
-     * resource leaks.</p>
-     *
-     * @param callback a {@link ResultCallback} defining how to process the stream of projections and produce a result.
-     * @param <R> the type of result produced by the callback after processing the projections.
-     * @return the result produced by the callback's processing of the projection stream.
-     * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
-     */
-    default <R> R selectAll(@Nonnull ResultCallback<P, R> callback) {
-        try (var stream = selectAll()) {
-            return callback.process(stream);
-        }
-    }
-
-    /**
      * Retrieves a stream of projections based on their primary keys.
      *
      * <p>This method executes queries in batches, depending on the number of primary keys in the specified ids stream.
@@ -362,27 +342,6 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      *                              connectivity.
      */
     Stream<P> selectById(@Nonnull Stream<ID> ids);
-
-    /**
-     * Processes a stream of projections corresponding to the provided IDs using the specified callback.
-     * This method retrieves projections matching the given IDs and applies the callback to process the results,
-     * returning the outcome produced by the callback.
-     *
-     * <p>This method is designed for efficient data handling by only retrieving specified projections as needed.
-     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to
-     * prevent resource leaks.</p>
-     *
-     * @param ids a stream of projection IDs to retrieve from the repository.
-     * @param callback a {@link ResultCallback} defining how to process the stream of projections and produce a result.
-     * @param <R> the type of result produced by the callback after processing the projections.
-     * @return the result produced by the callback's processing of the projection stream.
-     * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
-     */
-    default <R> R selectById(@Nonnull Stream<ID> ids, @Nonnull ResultCallback<P, R> callback) {
-        try (var stream = selectById(ids)) {
-            return callback.process(stream);
-        }
-    }
 
     /**
      * Retrieves a stream of projections based on their primary keys.
@@ -411,27 +370,6 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      */
     Stream<P> selectByRef(@Nonnull Stream<Ref<P>> refs);
 
-    /**
-     * Processes a stream of projections corresponding to the provided IDs using the specified callback.
-     * This method retrieves projections matching the given IDs and applies the callback to process the results,
-     * returning the outcome produced by the callback.
-     *
-     * <p>This method is designed for efficient data handling by only retrieving specified projections as needed.
-     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to
-     * prevent resource leaks.</p>
-     *
-     * @param refs a stream of refs to retrieve from the repository.
-     * @param callback a {@link ResultCallback} defining how to process the stream of projections and produce a result.
-     * @param <R> the type of result produced by the callback after processing the projections.
-     * @return the result produced by the callback's processing of the projection stream.
-     * @throws PersistenceException if the operation fails due to underlying database issues, such as connectivity.
-     */
-    default <R> R selectByRef(@Nonnull Stream<Ref<P>> refs, @Nonnull ResultCallback<P, R> callback) {
-        try (var stream = selectByRef(refs)) {
-            return callback.process(stream);
-        }
-    }
-    
     /**
      * Retrieves a stream of projections based on their primary keys.
      *
@@ -478,39 +416,6 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
      * within a {@code try-with-resources} block.</p>
      *
-     * @param chunkSize the number of primary keys to include in each batch. This parameter determines the size of the
-     *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
-     *                  dealing with large sets of primary keys.
-     * @return a stream of projections corresponding to the provided primary keys. The order of projections in the stream is
-     * not guaranteed to match the order of ids in the input stream. If an id does not correspond to any projection in the
-     * database, it will simply be skipped, and no corresponding projection will be included in the returned stream. If the
-     * same projection is requested multiple times, it may be included in the stream multiple times if it is part of a
-     * separate batch.
-     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
-     *                              connectivity.
-     */
-    default <R> R selectById(@Nonnull Stream<ID> ids, int chunkSize, @Nonnull ResultCallback<P, R> callback) {
-        try (var stream = selectById(ids, chunkSize)) {
-            return callback.process(stream);
-        }
-    }
-
-    /**
-     * Retrieves a stream of projections based on their primary keys.
-     *
-     * <p>This method executes queries in batches, with the batch size determined by the provided parameter. This
-     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve projections. The
-     * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
-     *
-     * <p>The resulting stream is lazily loaded, meaning that the projections are only retrieved from the database as they
-     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
-     * dealing with large volumes of projections.</p>
-     *
-     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
-     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
-     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
-     * within a {@code try-with-resources} block.</p>
-     *
      * @param refs a stream of refs to retrieve from the repository.
      * @param chunkSize the number of primary keys to include in each batch. This parameter determines the size of the
      *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
@@ -524,39 +429,6 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      *                              connectivity.
      */
     Stream<P> selectByRef(@Nonnull Stream<Ref<P>> refs, int chunkSize);
-
-    /**
-     * Retrieves a stream of projections based on their primary keys.
-     *
-     * <p>This method executes queries in batches, with the batch size determined by the provided parameter. This
-     * optimization aims to reduce the overhead of executing multiple queries and efficiently retrieve projections. The
-     * batching strategy enhances performance, particularly when dealing with large sets of primary keys.</p>
-     *
-     * <p>The resulting stream is lazily loaded, meaning that the projections are only retrieved from the database as they
-     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
-     * dealing with large volumes of projections.</p>
-     *
-     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying query, so it should
-     * only be invoked when the query is intended to run. Since the stream holds resources open while in use, it must be
-     * closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it is recommended to use it
-     * within a {@code try-with-resources} block.</p>
-     *
-     * @param chunkSize the number of primary keys to include in each batch. This parameter determines the size of the
-     *                  batches used to execute the selection operation. A larger batch size can improve performance, especially when
-     *                  dealing with large sets of primary keys.
-     * @return a stream of projections corresponding to the provided primary keys. The order of projections in the stream is
-     * not guaranteed to match the order of refs in the input stream. If an id does not correspond to any projection in the
-     * database, it will simply be skipped, and no corresponding projection will be included in the returned stream. If the
-     * same projection is requested multiple times, it may be included in the stream multiple times if it is part of a
-     * separate batch.
-     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
-     *                              connectivity.
-     */
-    default <R> R selectByRef(@Nonnull Stream<Ref<P>> refs, int chunkSize, @Nonnull ResultCallback<P, R> callback) {
-        try (var stream = selectByRef(refs, chunkSize)) {
-            return callback.process(stream);
-        }
-    }
 
     /**
      * Counts the number of projections identified by the provided stream of IDs using the default batch size.
