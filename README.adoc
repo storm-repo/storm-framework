@@ -961,16 +961,15 @@ In this mode, Storm simply operates within the transaction context provided by S
 
 ==== Kotlin programmatic transactions
 
-In addition to Spring’s declarative model, Storm for Kotlin provides *full programmatic transaction control* via APIs that work with both:
+In addition to declarative transaction models, Storm for Kotlin provides *full programmatic transaction control*
+for both **suspend functions** (coroutine-friendly, non-blocking access) and **regular non-suspend code** (blocking style).
 
-* **Suspend functions** (coroutine-friendly, non-blocking database access)
-* **Regular (non-suspend) code** (blocking style)
+Suspend transactions allow **context switching** without losing the active transaction, so you can offload CPU-bound work
+to another dispatcher while keeping the same database session and state.
 
-* All common propagation models (`REQUIRED`, `REQUIRES_NEW`, `NESTED`, etc.)
-* **Isolation level** — Control concurrency behavior and visibility of uncommitted changes.
-* **Read-only mode** — Hint to the database and transaction manager that no data modifications will occur.
-* **Timeout** — Specify the maximum duration a transaction may run before being rolled back.
-* **Context switching** — Offload CPU-bound work to another thread or dispatcher while keeping the same transaction active.
+You can configure all common **propagation** models (`REQUIRED`, `REQUIRES_NEW`, `NESTED`, etc.), the **isolation level**
+to control concurrency behavior, **read-only mode** to hint that no modifications will occur, and a **timeout** to
+automatically roll back long-running or stuck transactions.
 
 Example:
 [tabs]
