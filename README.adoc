@@ -1016,19 +1016,6 @@ Propagation modes:
 * `NOT_SUPPORTED` — Always run non-transactionally (suspends any existing transaction).
 * `NEVER` — Fail if a transaction is active.
 
-[NOTE]
-====
-* *rollbackOnly semantics*: Marking a scope as `rollbackOnly` cancels just that scope.
-** In `NESTED`, this means rolling back to the savepoint for that block while preserving the outer transaction’s work.
-** In `REQUIRED` or `REQUIRES_NEW`, marking rollback affects the whole transaction of that scope.
-* *Context switching*: Within any transactional scope, you can switch dispatchers
-(e.g., `withContext(Dispatchers.Default)`) and still access the **same active transaction**.
-This allows you to offload CPU-bound work without breaking or losing the transactional context.
-* *Concurrency*: Launching concurrent work inside a transaction using `async`, `launch`, or other parallel coroutine
-builders is *not supported*, as database transactions are bound to the calling thread/coroutine. Use sequential
-operations or split work into separate transactions if parallelism is required.
-====
-
 Example:
 [tabs]
 ====
@@ -1080,6 +1067,19 @@ class ORMConfiguration(private val dataSource: DataSource) {
     fun ormTemplate() = ORMTemplate.of(dataSource)
 }
 ----
+====
+
+[NOTE]
+====
+* *rollbackOnly semantics*: Marking a scope as `rollbackOnly` cancels just that scope.
+** In `NESTED`, this means rolling back to the savepoint for that block while preserving the outer transaction’s work.
+** In `REQUIRED` or `REQUIRES_NEW`, marking rollback affects the whole transaction of that scope.
+* *Context switching*: Within any transactional scope, you can switch dispatchers
+(e.g., `withContext(Dispatchers.Default)`) and still access the **same active transaction**.
+This allows you to offload CPU-bound work without breaking or losing the transactional context.
+* *Concurrency*: Launching concurrent work inside a transaction using `async`, `launch`, or other parallel coroutine
+builders is *not supported*, as database transactions are bound to the calling thread/coroutine. Use sequential
+operations or split work into separate transactions if parallelism is required.
 ====
 
 === Batch Processing
