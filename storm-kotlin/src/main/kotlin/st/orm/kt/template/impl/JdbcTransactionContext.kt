@@ -8,6 +8,7 @@ import st.orm.core.spi.TransactionStatus
 import st.orm.kt.template.TransactionPropagation
 import st.orm.kt.template.TransactionPropagation.*
 import st.orm.kt.template.TransactionTimedOutException
+import st.orm.kt.template.UnexpectedRollbackException
 import java.sql.*
 import java.util.*
 import java.util.logging.Logger
@@ -81,6 +82,7 @@ internal class JdbcTransactionContext : TransactionContext {
         var originalReadOnly: Boolean?          = null,
         var savepoint: Savepoint?               = null,
         var rollbackOnly: Boolean               = false,
+        var rollbackInherited: Boolean          = false,
         var suspendedConnection: Connection?    = null,
         var suspendedDataSource: DataSource?    = null,
         var suspended: Boolean                  = false,
@@ -170,11 +172,8 @@ internal class JdbcTransactionContext : TransactionContext {
                 else -> throw e
             }
         }
-        if (state.rollbackOnly) {
-            rollback()
-        } else {
-            commit()
-        }
+        // Let commit detect timeout or rollback-only.
+        commit()
         return result as T
     }
 
@@ -188,8 +187,21 @@ internal class JdbcTransactionContext : TransactionContext {
      * Mark the current transaction so that it will roll back on completion.
      */
     private fun setRollbackOnly() {
+        val lastIndex = stack.lastIndex
+        val currentState = stack[lastIndex]
         logger.fine("Marking transaction for rollback (${currentState.transactionId}).")
         currentState.rollbackOnly = true
+        currentState.rollbackInherited = false  // Reset inherited flag, if applicable.
+        // Do NOT propagate from NESTED (savepoint) scopes and do NOT propagate from owners (outermost or REQUIRES_NEW).
+        if (currentState.savepoint != null || currentState.ownsConnection) return
+        // Propagate to outer joined frames up to (and including) the owning frame, but stop at a savepoint boundary.
+        for (i in lastIndex - 1 downTo 0) {
+            val s = stack[i]
+            if (s.savepoint != null) break          // Don't cross NESTED boundary.
+            s.rollbackOnly = true
+            s.rollbackInherited = true              // Indicates caller-triggered.
+            if (s.ownsConnection) break             // Stop at the owner (could be REQUIRES_NEW).
+        }
     }
 
     private fun useDataSource(dataSource: DataSource) {
@@ -275,22 +287,33 @@ internal class JdbcTransactionContext : TransactionContext {
      * close; if joined REQUIRED, just restore settings.
      */
     private fun commit() {
+        currentState.let { state ->
+            // Cancel any pending timeout watcher.
+            state.timeoutJob?.let { job ->
+                when {
+                    job.isCompleted && !job.isCancelled -> state.timedOut = true
+                    job.isActive -> job.cancel()
+                }
+            }
+            if (state.rollbackOnly || state.timedOut) {
+                rollback()
+                return
+            }
+        }
         val state = popState()
-        // Cancel any pending timeout watcher
-        state.timeoutJob?.cancel()
-        val connection = state.connection
-            ?: return
+        val connection = state.connection ?: return
         try {
             when {
                 state.savepoint != null -> {
-                    logger.fine("Committing transaction with savepoint ${state.savepoint} (${state.transactionId}).")
+                    logger.fine("Committing nested scope; releasing savepoint ${state.savepoint} (${state.transactionId}).")
                     connection.releaseSavepoint(state.savepoint)
                 }
                 state.ownsConnection -> {
                     logger.fine("Committing transaction (${state.transactionId}).")
-                    connection.commit()
-                    connection.autoCommit = true
-                    connection.close()
+                    if (!connection.autoCommit) {
+                        connection.commit()
+                    }
+                    close(connection, state)
                 }
                 else -> {
                     // Joined REQUIRED: Commiting joined transaction, which means we're doing nothing yet.
@@ -299,7 +322,6 @@ internal class JdbcTransactionContext : TransactionContext {
         } catch (e: SQLException) {
             throw PersistenceException("Commit failed.", e)
         }
-        if (stack.isEmpty()) clear(state)
     }
 
     /**
@@ -310,32 +332,26 @@ internal class JdbcTransactionContext : TransactionContext {
         // Cancel any pending timeout watcher.
         state.timeoutJob?.let { job ->
             when {
-                job.isCompleted && !job.isCancelled -> {
-                    state.timedOut = true   // Timeout detected.
-                }
+                job.isCompleted && !job.isCancelled -> state.timedOut = true
                 job.isActive -> job.cancel()
             }
         }
-        val connection = state.connection
-            ?: return
+        val connection = state.connection ?: return
         try {
             when {
                 state.savepoint != null -> {
                     logger.fine("Rolling back to savepoint ${state.savepoint} (${state.transactionId}).")
                     connection.rollback(state.savepoint)
-                    // Restore prior settings.
-                    state.originalIsolationLevel?.let { connection.transactionIsolation = it }
-                    state.originalReadOnly?.let { connection.isReadOnly = it }
                 }
                 state.ownsConnection -> {
                     logger.fine("Rolling back transaction (${state.transactionId}).")
-                    connection.rollback()
-                    connection.autoCommit = true
-                    connection.close()
+                    if (!connection.autoCommit) {
+                        connection.rollback()
+                    }
+                    close(connection, state)
                 }
                 else -> {
                     logger.fine("Marking transaction for rollback (${state.transactionId}).")
-                    // Joined REQUIRED: mark outer for rollback and restore prior settings.
                     stack.lastOrNull()?.rollbackOnly = true
                 }
             }
@@ -344,21 +360,24 @@ internal class JdbcTransactionContext : TransactionContext {
                 throw PersistenceException("Rollback failed.", e)
             }
         }
-        if (stack.isEmpty()) clear(state)
         if (!suppressException && state.timedOut) {
             throw TransactionTimedOutException("Transaction did not complete within timeout (${state.timeoutSeconds}s).")
         }
+        if (state.rollbackInherited) {
+            throw UnexpectedRollbackException("Transaction was marked rollback-only by a joined scope.")
+        }
+    }
+
+    private fun close(connection: Connection, state: TransactionState) {
+        state.originalIsolationLevel?.let { connection.transactionIsolation = it }
+        state.originalReadOnly?.let       { connection.isReadOnly = it }
+        connection.autoCommit = true
+        connection.close()
     }
 
     private fun popState(): TransactionState {
         if (stack.isEmpty()) throw IllegalStateException("No transaction in active.")
         return stack.removeAt(stack.lastIndex)
-    }
-
-    private fun clear(state: TransactionState) {
-        // Restore prior settings.
-        state.originalIsolationLevel?.let { state.connection!!.transactionIsolation = it }
-        state.originalReadOnly?.let { state.connection!!.isReadOnly = it }
     }
 
     /**
@@ -376,6 +395,8 @@ internal class JdbcTransactionContext : TransactionContext {
             if (!connection.autoCommit) {
                 throw PersistenceException("Connection returned from DataSource must be in auto-commit mode.")
             }
+            state.originalIsolationLevel = connection.transactionIsolation
+            state.originalReadOnly      = connection.isReadOnly
             state.isolationLevel?.let { connection.transactionIsolation = it }
             state.readOnly?.let { connection.isReadOnly = it }
             connection.autoCommit = false

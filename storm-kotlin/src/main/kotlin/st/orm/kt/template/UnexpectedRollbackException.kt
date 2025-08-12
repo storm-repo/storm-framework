@@ -18,11 +18,10 @@ package st.orm.kt.template
 import st.orm.PersistenceException
 
 /**
- * Exception thrown when a transaction times out.
- *
+ * Exception raised
  * @since 1.5
  */
-class TransactionTimedOutException(
+class UnexpectedRollbackException(
     message: String,
     cause: Throwable? = null
 ) : PersistenceException(message, cause)

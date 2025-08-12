@@ -10,6 +10,7 @@ import st.orm.core.spi.TransactionCallback
 import st.orm.core.spi.TransactionContext
 import st.orm.kt.spring.SpringTransactionConfiguration
 import st.orm.kt.template.TransactionTimedOutException
+import st.orm.kt.template.UnexpectedRollbackException
 import java.sql.PreparedStatement
 import java.sql.SQLTimeoutException
 import javax.sql.DataSource
@@ -45,7 +46,7 @@ import javax.sql.DataSource
 internal class SpringTransactionContext : TransactionContext {
     /**
      * Internal class representing the state of a single transaction.
-     * 
+     *
      * @property transactionStatus The Spring transaction status
      * @property transactionManager The platform transaction manager handling this transaction
      * @property dataSource The data source associated with this transaction
@@ -63,24 +64,78 @@ internal class SpringTransactionContext : TransactionContext {
 
     private val stack = mutableListOf<TransactionState>()
 
-    // Coroutine-based scheduler for transaction timeouts.
+    // Coroutine-based scheduler for timeouts.
     private val timeoutScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val currentState: TransactionState
         get() = stack.lastOrNull() ?: throw IllegalStateException("No transaction active.")
 
-    private fun setRollbackOnly() {
-        val state = currentState
-        state.rollbackOnly = true
-        state.transactionStatus?.setRollbackOnly()
+
+    /**
+     * Returns true if propagation is a boundary.
+     */
+    private fun isBoundary(propagation: Int?): Boolean =
+        when (propagation) {
+            TransactionDefinition.PROPAGATION_REQUIRES_NEW,
+            TransactionDefinition.PROPAGATION_NESTED,
+            TransactionDefinition.PROPAGATION_NOT_SUPPORTED,
+            TransactionDefinition.PROPAGATION_NEVER -> true
+            else -> false
+        }
+
+    /**
+     * Returns the index of the owner of the current physical transaction range for stack[index].
+     * Walks outward until just after a boundary (or to 0).
+     */
+    private fun ownerIndexFor(index: Int): Int {
+        var i = index
+        while (i > 0) {
+            val prev = stack[i - 1]
+            if (isBoundary(prev.transactionDefinition?.propagationBehavior)) break
+            i--
+        }
+        return i
     }
 
-    private val isRollbackOnly: Boolean get() =
-        currentState.rollbackOnly || currentState.transactionStatus?.isRollbackOnly ?: false
+    /**
+     * Finds an already-known DataSource in range, ensuring consistency.
+     */
+    private fun findDataSourceInRange(startIdx: Int, endIdx: Int): DataSource? {
+        var dataSource: DataSource? = null
+        for (i in startIdx..endIdx) {
+            val stackDataSource = stack[i].dataSource
+            if (stackDataSource != null) {
+                if (dataSource == null) dataSource = stackDataSource
+                else if (dataSource !== stackDataSource) {
+                    throw IllegalStateException(
+                        "Incompatible DataSource detected within the same transaction range: $dataSource vs $stackDataSource"
+                    )
+                }
+            }
+        }
+        return dataSource
+    }
+
+    /**
+     * Ensures Spring TransactionStatus exists for frames in range using [dataSource].
+     * Applies any pending rollback flags immediately.
+     */
+    private fun ensureStartedInRange(startIndex: Int, endIndex: Int, dataSource: DataSource) {
+        for (index in startIndex..endIndex) {
+            val state = stack[index]
+            if (state.dataSource == null) {
+                state.dataSource = dataSource
+            }
+            startTransactionIfNecessary(state, dataSource, index)
+            if (state.rollbackOnly) {
+                state.transactionStatus?.setRollbackOnly()
+            }
+        }
+    }
 
     override fun <T : Any> getDecorator(resourceType: Class<T>): TransactionContext.Decorator<T> {
         if (resourceType != PreparedStatement::class.java) {
-            return TransactionContext.Decorator<T> { obj -> obj }   // No-op.
+            return TransactionContext.Decorator<T> { obj -> obj } // No-op.
         }
         return TransactionContext.Decorator { resource ->
             val statement = resource as PreparedStatement
@@ -92,14 +147,6 @@ internal class SpringTransactionContext : TransactionContext {
         }
     }
 
-    /**
-     * Executes the provided callback within a transaction boundary.
-     *
-     * @param definition The transaction definition to use.
-     * @param callback The transactional operation to execute.
-     * @return The result of the callback execution.
-     * @param T The type of result returned by the callback.
-     */
     fun <T> execute(
         definition: TransactionDefinition,
         callback: TransactionCallback<T>
@@ -116,49 +163,53 @@ internal class SpringTransactionContext : TransactionContext {
                 }
             })
         } catch (e: Throwable) {
+            // Let Spring roll back if a transaction was actually started for this frame.
             rollback()
             when (e.cause) {
-                is SQLTimeoutException -> {
-                    // TimeoutJob may not have registered timeout yet.
+                is SQLTimeoutException ->
                     throw TransactionTimedOutException(e.message ?: "Transaction did not complete within timeout.", e)
-                }
                 else -> throw e
             }
         }
-        if (isRollbackOnly) {
-            rollback()
-        } else {
-            commit()
-        }
+        // Always delegate to commit() so Spring can detect/throw on global rollback-only.
+        commit()
         return result as T
     }
 
     /**
-     * Associates a data source with the current transaction context.
-     * This method is typically called by the ConnectionProvider before obtaining a JDBC Connection.
-     *
-     * @param dataSource The data source to associate with the current transaction
+     * Called by the ConnectionProvider before obtaining a JDBC Connection.
+     * Attaches [dataSource] to the current range (owner..current), starts Spring statuses,
+     * and applies any pending flags.
      */
     fun useDataSource(dataSource: DataSource) {
-        if (currentState.dataSource == null) {
-            for (i in stack.indices) {
-                startTransactionIfNecessary(stack[i], dataSource, i)
-            }
-        } else {
-            if (currentState.dataSource !== dataSource) {
-                throw IllegalStateException(
-                    "Incompatible DataSource detected: $dataSource but already using ${currentState.dataSource}."
-                )
-            }
+        val index = stack.lastIndex
+        if (index < 0) throw IllegalStateException("No transaction active.")
+        val startIndex = ownerIndexFor(index)
+        val existingDataSource = findDataSourceInRange(startIndex, index)
+        if (existingDataSource != null && existingDataSource !== dataSource) {
+            throw IllegalStateException(
+                "Incompatible DataSource detected: $dataSource but already using $existingDataSource."
+            )
         }
+        ensureStartedInRange(startIndex, index, dataSource)
     }
 
-    /**
-     * Resolves the appropriate transaction manager for the given data source.
-     *
-     * @param dataSource The data source to find a transaction manager for.
-     * @return The resolved PlatformTransactionManager.
-     */
+    private val isRollbackOnly: Boolean
+        get() = (currentState.rollbackOnly || (currentState.transactionStatus?.isRollbackOnly ?: false))
+
+    private fun setRollbackOnly() {
+        val index = stack.lastIndex
+        if (index < 0) throw IllegalStateException("No transaction active.")
+        val startIndex = ownerIndexFor(index)
+        val dataSource = findDataSourceInRange(startIndex, index)
+        if (dataSource != null) {
+            ensureStartedInRange(startIndex, index, dataSource)  // Starts statuses and calls setRollbackOnly() where needed.
+        }
+        val currentState = stack[index]
+        currentState.rollbackOnly = true
+        currentState.transactionStatus?.setRollbackOnly()
+    }
+
     private fun resolveTransactionManager(dataSource: DataSource): PlatformTransactionManager =
         SpringTransactionConfiguration.transactionManagers
             .mapNotNull { it as? DataSourceTransactionManager }
@@ -166,18 +217,15 @@ internal class SpringTransactionContext : TransactionContext {
             ?: throw IllegalStateException("No TransactionManager found for DataSource $dataSource.")
 
     /**
-     * Starts a new transaction if necessary based on the current state and isolation level.
+     * Starts Spring TransactionStatus for [state] if not already started.
      *
-     * @param state The current transaction state.
-     * @param dataSource The data source to use.
-     * @param level The transaction isolation level.
+     * For inner frames, reuses outer's manager where appropriate. We will still ask the transaction manager
+     * for a status using this frame's definition to honor propagation semantics.
      */
     private fun startTransactionIfNecessary(state: TransactionState, dataSource: DataSource, level: Int) {
-        assert(state.transactionDefinition != null)
-        if (state.dataSource != null) {
-            assert(state.transactionManager != null)
-            assert(state.transactionStatus != null)
-            if (state.dataSource != dataSource) {
+        requireNotNull(state.transactionDefinition) { "TransactionDefinition must not be null." }
+        if (state.dataSource != null && state.transactionManager != null && state.transactionStatus != null) {
+            if (state.dataSource !== dataSource) {
                 throw IllegalStateException(
                     "Incompatible DataSource detected: $dataSource but already using ${state.dataSource}."
                 )
@@ -185,79 +233,96 @@ internal class SpringTransactionContext : TransactionContext {
             return
         }
         if (level > 0) {
-            startTransactionIfNecessary(state, dataSource, level - 1)
-            val outerTransaction = stack[level - 1]
-            state.dataSource = outerTransaction.dataSource!!
-            state.transactionManager = outerTransaction.transactionManager!!
+            // Ensure outer is initialized first for consistent manager usage.
+            startTransactionIfNecessary(stack[level - 1], dataSource, level - 1)
+            val outer = stack[level - 1]
+            state.dataSource = outer.dataSource ?: dataSource
+            state.transactionManager = outer.transactionManager ?: resolveTransactionManager(dataSource)
         } else {
-            // This is the outermost transaction, so we need to set up the transaction manager.
             state.dataSource = dataSource
             state.transactionManager = resolveTransactionManager(dataSource)
         }
-        // Spring will handle transaction definition.
         val transactionStatus = state.transactionManager!!.getTransaction(state.transactionDefinition)
         state.transactionStatus = transactionStatus
-        // Schedule rollback on timeout if requested.
+        // Apply pending flags immediately.
+        if (state.rollbackOnly) transactionStatus.setRollbackOnly()
+        // Schedule timeout, marking intent but not forcing DS init elsewhere.
         state.transactionDefinition?.timeout?.let { seconds ->
             if (seconds >= 0) {
                 state.timeoutJob = timeoutScope.launch {
                     delay(seconds * 1000L)
                     state.timedOut = true
                     state.rollbackOnly = true
+                    // If a status already exists (this frame was started), reflect now.
+                    state.transactionStatus?.setRollbackOnly()
                 }
             }
         }
     }
 
-    /**
-     * Commit the current (top-of-stack) transaction and pop it. All resources are cleared if this was the last
-     * transaction.
-     */
     private fun commit() {
+        currentState.let { state ->
+            // Cancel any pending timeout watcher.
+            state.timeoutJob?.let { job ->
+                when {
+                    job.isCompleted && !job.isCancelled -> state.timedOut = true
+                    job.isActive -> job.cancel()
+                }
+            }
+            if (state.rollbackOnly || state.timedOut) {
+                rollback()
+                return
+            }
+        }
         val state = popState()
-        // Cancel any pending timeout watcher
-        state.timeoutJob?.cancel()
         try {
-            state.transactionStatus?.let { state.transactionManager!!.commit(it) }
+            state.transactionStatus?.let { st ->
+                state.transactionManager!!.commit(st)
+            }
         } catch (e: org.springframework.transaction.TransactionTimedOutException) {
             throw TransactionTimedOutException(e.message ?: "Transaction did not complete within timeout.")
+        } catch (e: org.springframework.transaction.UnexpectedRollbackException) {
+            if (state.timedOut) {
+                throw TransactionTimedOutException(
+                    "Transaction did not complete within timeout (${state.transactionDefinition?.timeout}s)."
+                )
+            }
+            throw UnexpectedRollbackException(
+                e.message ?: "Transaction was marked rollback-only by a joined scope.",
+                e
+            )
         } catch (e: Exception) {
             throw PersistenceException(e)
         }
     }
 
-    /**
-     * Rollback the current (top-of-stack) transaction and pop it. All resources are cleared if this was the last
-     * transaction.
-     */
     private fun rollback() {
         val state = popState()
-        // Cancel any pending timeout watcher
+        // Cancel any pending timeout watcher.
         state.timeoutJob?.let { job ->
             when {
-                job.isCompleted && !job.isCancelled -> {
-                    state.timedOut = true   // Timeout detected.
-                }
+                job.isCompleted && !job.isCancelled -> state.timedOut = true
                 job.isActive -> job.cancel()
             }
         }
         try {
-            state.transactionStatus?.let { state.transactionManager!!.rollback(it) }
+            state.transactionStatus?.let { st ->
+                state.transactionManager!!.rollback(st)
+            }
         } catch (e: org.springframework.transaction.TransactionTimedOutException) {
             throw TransactionTimedOutException(e.message ?: "Transaction did not complete within timeout.")
         } catch (e: Exception) {
             throw PersistenceException(e)
         }
         if (state.timedOut) {
-            throw TransactionTimedOutException("Transaction did not complete within timeout (${state.transactionDefinition!!.timeout}s).")
+            throw TransactionTimedOutException(
+                "Transaction did not complete within timeout (${state.transactionDefinition!!.timeout}s)."
+            )
         }
     }
 
     private fun popState(): TransactionState {
-        if (stack.isNotEmpty()) {
-            return stack.removeAt(stack.lastIndex)
-        } else {
-            throw IllegalStateException("No transaction in progress to commit/rollback.")
-        }
+        if (stack.isEmpty()) throw IllegalStateException("No transaction in progress to commit/rollback.")
+        return stack.removeAt(stack.lastIndex)
     }
 }

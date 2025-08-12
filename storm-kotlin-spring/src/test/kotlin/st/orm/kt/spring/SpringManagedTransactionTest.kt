@@ -14,12 +14,9 @@ import st.orm.PersistenceException
 import st.orm.kt.repository.deleteAll
 import st.orm.kt.repository.exists
 import st.orm.kt.spring.model.Visit
-import st.orm.kt.template.ORMTemplate
+import st.orm.kt.template.*
 import st.orm.kt.template.TransactionIsolation.*
 import st.orm.kt.template.TransactionPropagation.*
-import st.orm.kt.template.TransactionTimedOutException
-import st.orm.kt.template.suspendTransaction
-import st.orm.kt.template.transaction
 
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @EnableTransactionIntegration
@@ -77,31 +74,6 @@ open class SpringManagedTransactionTest(
         transaction {
             transaction(REQUIRED) {
                 orm.deleteAll<Visit>()
-            }
-            setRollbackOnly()
-            orm.exists<Visit>().shouldBeFalse()
-        }
-        orm.exists<Visit>().shouldBeTrue()
-    }
-
-    @Test
-    fun `modification rolled back for required inner rollback and outer commit`(): Unit = runBlocking {
-        transaction {
-            transaction(REQUIRED) {
-                orm.deleteAll<Visit>()
-                setRollbackOnly()
-            }
-            orm.exists<Visit>().shouldBeFalse()
-        }
-        orm.exists<Visit>().shouldBeTrue()
-    }
-
-    @Test
-    fun `modification rolled back for required inner rollback and outer rollback`(): Unit = runBlocking {
-        transaction {
-            transaction(REQUIRED) {
-                orm.deleteAll<Visit>()
-                setRollbackOnly()
             }
             setRollbackOnly()
             orm.exists<Visit>().shouldBeFalse()
@@ -312,6 +284,18 @@ open class SpringManagedTransactionTest(
         assertThrows<TransactionTimedOutException> {
             transaction(timeoutSeconds = 1) {
                 orm.deleteAll<Visit>()
+                Thread.sleep(1500)
+            }
+        }
+        // Timeout should cause rollback: data still exists.
+        orm.exists<Visit>().shouldBeTrue()
+    }
+
+    @Test
+    open fun `transaction times out and rolls back when execution exceeds query timeout`(): Unit = runBlocking {
+        assertThrows<TransactionTimedOutException> {
+            transaction(timeoutSeconds = 1) {
+                orm.deleteAll<Visit>()
                 orm.query(
                     """
                         SELECT COUNT(*) 
@@ -320,6 +304,51 @@ open class SpringManagedTransactionTest(
                     """.trimIndent()
                 ).singleResult
             }
+        }
+        orm.exists<Visit>().shouldBeTrue()
+    }
+
+    /**
+     * Unexpected rollback scenarios.
+     */
+
+    @Test
+    fun `outer commit fails with UnexpectedRollback when inner REQUIRED marks rollback-only`(): Unit = runBlocking {
+        assertThrows<UnexpectedRollbackException> {
+            transaction {
+                orm.deleteAll<Visit>()
+                // Inner REQUIRED participates in the same physical tx and marks rollback-only.
+                transaction(REQUIRED) {
+                    setRollbackOnly()
+                }
+                // Outer tries to commit -> should throw UnexpectedRollbackException.
+            }
+        }
+        orm.exists<Visit>().shouldBeTrue()
+    }
+
+    @Test
+    fun `nested rollback does not throw on outer commit`(): Unit = runBlocking {
+        transaction {
+            transaction(NESTED) {
+                orm.deleteAll<Visit>()
+                setRollbackOnly()
+            }
+            // Outer should still commit fine; data remains.
+        }
+        orm.exists<Visit>().shouldBeTrue()
+    }
+
+    @Test
+    fun `outer rollback does not throw when inner REQUIRED marked rollback-only too`(): Unit = runBlocking {
+        transaction {
+            transaction(REQUIRED) {
+                orm.deleteAll<Visit>()
+                setRollbackOnly()               // Inner marks global tx rollback-only.
+            }
+            orm.exists<Visit>().shouldBeFalse() // Mid-scope still sees uncommitted change.
+            setRollbackOnly()                   // Outer makes rollback explicit/expected.
+            // exit -> should roll back WITHOUT throwing UnexpectedRollbackException.
         }
         orm.exists<Visit>().shouldBeTrue()
     }
