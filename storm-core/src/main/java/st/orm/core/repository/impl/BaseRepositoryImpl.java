@@ -26,17 +26,19 @@ import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.QueryBuilder;
 import st.orm.core.template.TemplateString;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static java.lang.Integer.MAX_VALUE;
 import static java.util.Objects.requireNonNull;
 import static java.util.Spliterator.ORDERED;
 import static java.util.Spliterators.spliteratorUnknownSize;
 import static st.orm.core.spi.Providers.selectFrom;
 import static st.orm.core.spi.Providers.selectRefFrom;
-import static st.orm.core.template.QueryBuilder.slice;
 import static st.orm.core.template.TemplateString.wrap;
 
 /**
@@ -64,13 +66,14 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * based on the SQL template's configuration and the interceptors that have been applied to it.</p>
      *
      * @return the default slice size for batch operations.
+     * @since 1.5
      */
-    protected int getDefaultSliceSize() {
+    public int getDefaultChunkSize() {
         if (ormTemplate.dialect().supportsMultiValueTuples()) {
             return 1000;
         } else {
             return compoundPrimaryKey
-                    ? 100   // Compound PKs can become quite large, so we default to a smaller batch size.
+                    ? 100   // Compound PKs can become quite large, so we default to a smaller chunk size.
                     : 1000;
         }
     }
@@ -202,6 +205,16 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      */
     public long count() {
         return selectCount().getSingleResult();
+    }
+
+    /**
+     * Checks if any entity of the type managed by this repository exists in the database.
+     *
+     * @return true if at least one entity exists, false otherwise.
+     * @throws PersistenceException if there is an underlying database issue during the count operation.
+     */
+    public boolean exists() {
+        return count() > 0;
     }
 
     /**
@@ -412,7 +425,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      *                              connectivity.
      */
     public Stream<E> selectById(@Nonnull Stream<ID> ids) {
-        return selectById(ids, getDefaultSliceSize());
+        return selectById(ids, getDefaultChunkSize());
     }
 
     /**
@@ -441,7 +454,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      *                              connectivity.
      */
     public Stream<E> selectByRef(@Nonnull Stream<Ref<E>> refs) {
-        return selectByRef(refs, getDefaultSliceSize());
+        return selectByRef(refs, getDefaultChunkSize());
     }
 
     /**
@@ -461,7 +474,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * within a {@code try-with-resources} block.</p>
      *
      * @param ids a stream of entity IDs to retrieve from the repository.
-     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     * @param chunkSize the number of primary keys to include in each batch. This parameter determines the size of the
      *                  batches used to execute the selection operation. A larger batch size can improve performance,
      *                  especially when dealing with large sets of primary keys.
      * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
@@ -472,8 +485,8 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    public Stream<E> selectById(@Nonnull Stream<ID> ids, int batchSize) {
-        return slice(ids, batchSize, batch -> select().whereId(batch).getResultStream()); // Stream returned by getResultStream is closed by the batch operation.
+    public Stream<E> selectById(@Nonnull Stream<ID> ids, int chunkSize) {
+        return chunked(ids, chunkSize, batch -> select().whereId(batch).getResultStream()); // Stream returned by getResultStream is closed by the batch operation.
     }
 
     /**
@@ -493,7 +506,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * within a {@code try-with-resources} block.</p>
      *
      * @param refs a stream of refs to retrieve from the repository.
-     * @param batchSize the number of primary keys to include in each batch. This parameter determines the size of the
+     * @param chunkSize the number of primary keys to include in each batch. This parameter determines the size of the
      *                  batches used to execute the selection operation. A larger batch size can improve performance,
      *                  especially when dealing with large sets of primary keys.
      * @return a stream of entities corresponding to the provided primary keys. The order of entities in the stream is
@@ -504,8 +517,8 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
      *                              connectivity.
      */
-    public Stream<E> selectByRef(@Nonnull Stream<Ref<E>> refs, int batchSize) {
-        return slice(refs, batchSize, batch -> select().whereRef(batch).getResultStream()); // Stream returned by getResultStream is closed by the batch operation.
+    public Stream<E> selectByRef(@Nonnull Stream<Ref<E>> refs, int chunkSize) {
+        return chunked(refs, chunkSize, batch -> select().whereRef(batch).getResultStream()); // Stream returned by getResultStream is closed by the batch operation.
     }
 
     /**
@@ -520,7 +533,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
     public long countById(@Nonnull Stream<ID> ids) {
-        return countById(ids, getDefaultSliceSize());
+        return countById(ids, getDefaultChunkSize());
     }
 
     /**
@@ -532,13 +545,13 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * the database and improving performance.</p>
      *
      * @param ids a stream of IDs for which to count matching entities.
-     * @param batchSize the size of the batches to use for the counting operation. A larger batch size can improve
+     * @param chunkSize the size of the batches to use for the counting operation. A larger batch size can improve
      *                  performance but may also increase the load on the database.
      * @return the total count of entities matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    public long countById(@Nonnull Stream<ID> ids, int batchSize) {
-        return slice(ids, batchSize)
+    public long countById(@Nonnull Stream<ID> ids, int chunkSize) {
+        return chunked(ids, chunkSize)
                 .mapToLong(slice -> selectCount()
                         .whereId(slice)
                         .getSingleResult())
@@ -557,7 +570,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
     public long countByRef(@Nonnull Stream<Ref<E>> refs) {
-        return countByRef(refs, getDefaultSliceSize());
+        return countByRef(refs, getDefaultChunkSize());
     }
 
     /**
@@ -569,16 +582,86 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * the database and improving performance.</p>
      *
      * @param refs a stream of IDs for which to count matching entities.
-     * @param batchSize the size of the batches to use for the counting operation. A larger batch size can improve
+     * @param chunkSize the size of the batches to use for the counting operation. A larger batch size can improve
      *                  performance but may also increase the load on the database.
      * @return the total count of entities matching the provided IDs.
      * @throws PersistenceException if there is an error during the counting operation, such as connectivity issues.
      */
-    public long countByRef(@Nonnull Stream<Ref<E>> refs, int batchSize) {
-        return slice(refs, batchSize)
+    public long countByRef(@Nonnull Stream<Ref<E>> refs, int chunkSize) {
+        return chunked(refs, chunkSize)
                 .mapToLong(slice -> selectCount()
                         .whereRef(slice)
                         .getSingleResult())
                 .sum();
+    }
+
+    /**
+     * Performs the function in multiple batches, each containing up to {@code batchSize} elements from the stream.
+     *
+     * @param stream the stream to batch.
+     * @param batchSize the maximum number of elements to include in each batch.
+     * @param function the function to apply to each batch.
+     * @return a stream of results from each batch.
+     * @param <X> the type of elements in the stream.
+     * @param <Y> the type of elements in the result stream.
+     */
+    protected static <X, Y> Stream<Y> chunked(@Nonnull Stream<X> stream,
+                                              int batchSize,
+                                              @Nonnull Function<List<X>, Stream<Y>> function) {
+        return chunked(stream, batchSize)
+                .flatMap(function); // Note that the flatMap operation closes the stream passed to it.
+    }
+
+    /**
+     * Generates a stream of slices, each containing a subset of elements from the original stream up to a specified
+     * size. This method is designed to facilitate batch processing of large streams by dividing the stream into
+     * smaller manageable slices, which can be processed independently.
+     *
+     * <p>If the specified size is equal to {@code Integer.MAX_VALUE}, this method will return a single slice containing
+     * the original stream, effectively bypassing the slicing mechanism. This is useful for operations that can handle
+     * all elements at once without the need for batching.</p>
+     *
+     * @param <X> the type of elements in the stream.
+     * @param stream the original stream of elements to be sliced.
+     * @param size the maximum number of elements to include in each slice. If {@code size} is
+     * {@code Integer.MAX_VALUE}, only one slice will be returned.
+     * @return a stream of slices, where each slice contains up to {@code size} elements from the original stream.
+     */
+    protected static <X> Stream<List<X>> chunked(@Nonnull Stream<X> stream, int size) {
+        if (size == MAX_VALUE) {
+            return Stream.of(stream.toList());
+        }
+        // We're lifting the resource closing logic from the input stream to the output stream.
+        final Iterator<X> iterator = stream.iterator();
+        var it = new Iterator<List<X>>() {
+            @Override
+            public boolean hasNext() {
+                return iterator.hasNext();
+            }
+
+            @Override
+            public List<X> next() {
+                Iterator<X> sliceIterator = new Iterator<>() {
+                    private int count = 0;
+
+                    @Override
+                    public boolean hasNext() {
+                        return count < size && iterator.hasNext();
+                    }
+
+                    @Override
+                    public X next() {
+                        if (count >= size) {
+                            throw new IllegalStateException("Size exceeded.");
+                        }
+                        count++;
+                        return iterator.next();
+                    }
+                };
+                return StreamSupport.stream(spliteratorUnknownSize(sliceIterator, 0), false).toList();
+            }
+        };
+        return StreamSupport.stream(spliteratorUnknownSize(it, 0), false)
+                .onClose(stream::close);
     }
 }

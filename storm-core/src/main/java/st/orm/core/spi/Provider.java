@@ -19,4 +19,13 @@ package st.orm.core.spi;
  * Base interface for service provider interfaces of the storm framework.
  */
 public interface Provider extends Orderable<Provider> {
+
+    /**
+     * Returns true to indicate that this provider must be included, false otherwise.
+     *
+     * @return true to indicate that this provider must be included, false otherwise.
+     */
+    default Boolean isEnabled() {
+        return true;
+    }
 }

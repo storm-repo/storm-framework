@@ -16,8 +16,6 @@
 package st.orm.spi.mysql;
 
 import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
-import st.orm.core.repository.BatchCallback;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.repository.impl.EntityRepositoryImpl;
@@ -47,8 +45,6 @@ import java.util.stream.Stream;
 
 import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.partitioningBy;
-import static java.util.stream.Stream.empty;
-import static st.orm.core.template.QueryBuilder.slice;
 import static st.orm.core.template.SqlInterceptor.intercept;
 import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.impl.StringTemplates.flatten;
@@ -252,11 +248,11 @@ public class MySQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         LazySupplier<PreparedQuery> updateQuery = new LazySupplier<>(this::prepareUpdateQuery);
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
-            return slice(toStream(entities), defaultBatchSize, batch -> {
+            return chunked(toStream(entities), defaultBatchSize, batch -> {
                 var result = new ArrayList<ID>();
                 var partition = partition(batch);
-                updateAndFetchIds(partition.get(true), updateQuery, ids -> result.addAll(ids.toList()));
-                upsertAndFetchIds(partition.get(false), upsertQuery, ids -> result.addAll(ids.toList()));
+                result.addAll(updateAndFetchIds(partition.get(true), updateQuery));
+                result.addAll(upsertAndFetchIds(partition.get(false), upsertQuery));
                 return result.stream();
             }).toList();
         } finally {
@@ -326,117 +322,10 @@ public class MySQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         LazySupplier<PreparedQuery> updateQuery = new LazySupplier<>(this::prepareUpdateQuery);
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
-            slice(entities, batchSize).forEach(batch -> {
+            chunked(entities, batchSize).forEach(batch -> {
                 var partition = partition(batch);
-                updateAndFetch(partition.get(true), updateQuery, null);
-                upsertAndFetch(partition.get(false), upsertQuery, null);
-            });
-        } finally {
-            closeQuietly(updateQuery, upsertQuery);
-        }
-    }
-
-    /**
-     * Inserts or updates a stream of entities in the database in batches and retrieves their IDs through a callback.
-     *
-     * <p>This method processes the provided stream of entities in batches, performing an "upsert" operation on each entity.
-     * For each entity, it will be inserted if it does not already exist in the database or updated if it does. After
-     * each batch operation, the IDs of the upserted entities are passed to the provided callback, allowing for
-     * customized handling of the IDs as they are retrieved.</p>
-     *
-     * @param entities a stream of entities to be inserted or updated. Each entity in the stream must be non-null and
-     *                 contain valid data for insertion or update in the database.
-     * @param callback the callback to process the IDs of the upserted entities in batches.
-     * @throws PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
-     *                              constraints violations, or invalid entity data.
-     */
-    @Override
-    public void upsertAndFetchIds(@Nonnull Stream<E> entities, @Nonnull BatchCallback<ID> callback) {
-        upsertAndFetchIds(entities, defaultBatchSize, callback);
-    }
-
-    /**
-     * Inserts or updates a stream of entities in the database in batches and retrieves the updated entities through a callback.
-     *
-     * <p>This method processes the provided stream of entities in batches, performing an "upsert" operation on each entity.
-     * For each entity, it will be inserted if it does not already exist in the database or updated if it does. After
-     * each batch operation, the updated entities are passed to the provided callback, allowing for customized handling
-     * of the entities as they are retrieved. The entities returned reflect their current state in the database, including
-     * any changes such as generated primary keys, timestamps, or default values set by the database during the upsert process.</p>
-     *
-     * @param entities a stream of entities to be inserted or updated. Each entity in the stream must be non-null and
-     *                 contain valid data for insertion or update in the database.
-     * @param callback the callback to process the upserted entities, reflecting their new state in the database,
-     *                 in batches.
-     * @throws PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
-     *                              constraints violations, or invalid entity data.
-     */
-    @Override
-    public void upsertAndFetch(@Nonnull Stream<E> entities, @Nonnull BatchCallback<E> callback) {
-        upsertAndFetch(entities, defaultBatchSize, callback);
-    }
-
-    /**
-     * Inserts or updates a stream of entities in the database in configurable batch sizes and retrieves their IDs through a callback.
-     *
-     * <p>This method processes the provided stream of entities in batches, performing an "upsert" operation on each entity.
-     * For each entity, it will be inserted if it does not already exist in the database or updated if it does. The batch size
-     * parameter allows control over the number of entities processed in each batch, optimizing memory and performance based
-     * on system requirements. After each batch operation, the IDs of the upserted entities are passed to the provided
-     * callback, allowing for customized handling of the IDs as they are retrieved.</p>
-     *
-     * @param entities a stream of entities to be inserted or updated. Each entity in the stream must be non-null and contain
-     *                 valid data for insertion or update in the database.
-     * @param batchSize the number of entities to process in each batch. Adjusting the batch size can optimize performance
-     *                  and memory usage, with larger sizes potentially improving performance but using more memory.
-     * @param callback the callback to process the IDs of the upserted entities in batches.
-     * @throws PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
-     *                              constraints violations, or invalid entity data.
-     */
-    @Override
-    public void upsertAndFetchIds(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<ID> callback) {
-        LazySupplier<PreparedQuery> updateQuery = new LazySupplier<>(this::prepareUpdateQuery);
-        LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
-        try {
-            slice(entities, batchSize).forEach(batch -> {
-                var partition = partition(batch);
-                updateAndFetchIds(partition.get(true), updateQuery, callback);
-                upsertAndFetchIds(partition.get(false), upsertQuery, callback);
-            });
-        } finally {
-            closeQuietly(updateQuery, upsertQuery);
-        }
-    }
-
-    /**
-     * Inserts or updates a stream of entities in the database in configurable batch sizes and retrieves the updated entities through a callback.
-     *
-     * <p>This method processes the provided stream of entities in batches, performing an "upsert" operation on each entity.
-     * For each entity, it will be inserted if it does not already exist in the database or updated if it does. The
-     * `batchSize` parameter allows control over the number of entities processed in each batch, optimizing performance
-     * and memory usage based on system requirements. After each batch operation, the updated entities are passed to
-     * the provided callback, allowing for customized handling of the entities as they are retrieved. The entities
-     * returned reflect their current state in the database, including any changes such as generated primary keys,
-     * timestamps, or default values applied during the upsert process.</p>
-     *
-     * @param entities a stream of entities to be inserted or updated. Each entity in the stream must be non-null and
-     *                 contain valid data for insertion or update in the database.
-     * @param batchSize the number of entities to process in each batch. Adjusting the batch size can optimize performance
-     *                  and memory usage, with larger sizes potentially improving performance but using more memory.
-     * @param callback the callback to process the upserted entities, reflecting their new state in the database,
-     *                 in batches.
-     * @throws PersistenceException if the upsert operation fails due to database issues, such as connectivity problems,
-     *                              constraints violations, or invalid entity data.
-     */
-    @Override
-    public void upsertAndFetch(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<E> callback) {
-        LazySupplier<PreparedQuery> updateQuery = new LazySupplier<>(this::prepareUpdateQuery);
-        LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
-        try {
-            slice(entities, batchSize).forEach(batch -> {
-                var partition = partition(batch);
-                updateAndFetch(partition.get(true), updateQuery, callback);
-                upsertAndFetch(partition.get(false), upsertQuery, callback);
+                update(partition.get(true), updateQuery);
+                upsert(partition.get(false), upsertQuery);
             });
         } finally {
             closeQuietly(updateQuery, upsertQuery);
@@ -461,11 +350,8 @@ public class MySQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
                 ).prepare());
     }
 
-    protected void upsertAndFetchIds(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> querySupplier, @Nullable BatchCallback<ID> callback) {
+    protected void upsert(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> querySupplier) {
         if (batch.isEmpty()) {
-            if (callback != null) {
-                callback.process(empty());
-            }
             return;
         }
         var query = querySupplier.get();
@@ -474,23 +360,24 @@ public class MySQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
         if (IntStream.of(result).anyMatch(r -> r != 1 && r != 2)) {
             throw new PersistenceException("Batch upsert failed.");
         }
-        if (callback != null) {
-            if (autoGeneratedPrimaryKey) {
-                try (var generatedKeys = query.getGeneratedKeys(model.primaryKeyType())) {
-                    callback.process(generatedKeys);
-                }
-            } else {
-                callback.process(batch.stream().map(Entity::id));
-            }
-        }
     }
 
-    protected void upsertAndFetch(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> querySupplier, @Nullable BatchCallback<E> callback) {
-        upsertAndFetchIds(batch, querySupplier, callback == null ? null : ids -> {
-            try (var stream = selectById(ids)) {
-                callback.process(stream);
+    protected List<ID> upsertAndFetchIds(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> querySupplier) {
+        if (batch.isEmpty()) {
+            return List.of();
+        }
+        var query = querySupplier.get();
+        batch.stream().map(this::validateUpsert).map(Record.class::cast).forEach(query::addBatch);
+        int[] result = query.executeBatch();
+        if (IntStream.of(result).anyMatch(r -> r != 1 && r != 2)) {
+            throw new PersistenceException("Batch upsert failed.");
+        }
+        if (autoGeneratedPrimaryKey) {
+            try (var generatedKeys = query.getGeneratedKeys(model.primaryKeyType())) {
+                return generatedKeys.toList();
             }
-        });
+        }
+        return batch.stream().map(Entity::id).toList();
     }
 
     /**

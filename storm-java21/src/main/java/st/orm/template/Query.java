@@ -20,7 +20,6 @@ import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
 import st.orm.PersistenceException;
 import st.orm.Ref;
-import st.orm.repository.ResultCallback;
 
 import java.util.List;
 import java.util.Optional;
@@ -196,25 +195,6 @@ public interface Query {
     /**
      * Execute a SELECT query and return the resulting rows as a stream of row instances.
      *
-     * <p>Each element in the stream represents a row in the result, where the columns of the row corresponds to the
-     * order of values in the row array.</p>
-     *
-     * <p>This method ensures efficient handling of large data sets by loading entities only as needed.
-     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to prevent
-     * resource leaks.</p>
-     *
-     * @return the result stream.
-     * @throws PersistenceException if the query fails.
-     */
-    default <R> R getResult(@Nonnull ResultCallback<Object[], R> callback) {
-        try (var stream = getResultStream()) {
-            return callback.process(stream);
-        }
-    }
-
-    /**
-     * Execute a SELECT query and return the resulting rows as a stream of row instances.
-     *
      * <p>Each element in the stream represents a row in the result, where the columns of the row are mapped to the
      * constructor arguments of the specified {@code type}.</p>
      *
@@ -251,26 +231,6 @@ public interface Query {
      * @since 1.3
      */
     <T extends Record> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType);
-
-    /**
-     * Execute a SELECT query and return the resulting rows as a stream of row instances.
-     *
-     * <p>Each element in the stream represents a row in the result, where the columns of the row are mapped to the
-     * constructor arguments of the specified {@code type}.</p>
-     *
-     * <p>This method ensures efficient handling of large data sets by loading entities only as needed.
-     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to prevent
-     * resource leaks.</p>
-     *
-     * @param type the type of the result.
-     * @return the result stream.
-     * @throws PersistenceException if the query fails.
-     */
-    default <T, R> R getResult(@Nonnull Class<T> type, @Nonnull ResultCallback<T, R> callback) {
-        try (var stream = getResultStream(type)) {
-            return callback.process(stream);
-        }
-    }
 
     /**
      * Returns true if the query is version aware, false otherwise.

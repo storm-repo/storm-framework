@@ -15,5 +15,8 @@ module storm.spring {
     requires storm.core;
     requires storm.foundation;
     requires spring.boot.autoconfigure;
+    requires java.sql;
     exports st.orm.spring;
+    exports st.orm.spring.impl;
+    provides st.orm.core.spi.ConnectionProvider with st.orm.spring.impl.TransactionAwareConnectionProviderImpl;
 }

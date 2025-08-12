@@ -16,6 +16,7 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import st.orm.Entity;
 import st.orm.Ref;
 import st.orm.Projection;
@@ -29,7 +30,9 @@ import st.orm.core.template.SqlDialect;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.LazySupplier;
 
+import javax.sql.DataSource;
 import java.lang.reflect.RecordComponent;
+import java.sql.Connection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +64,8 @@ public final class Providers {
     private static final Supplier<List<ProjectionRepositoryProvider>> PROJECTION_REPOSITORY_PROVIDERS = createProviders(ProjectionRepositoryProvider.class);
     private static final Supplier<List<QueryBuilderProvider>> QUERY_BUILDER_REPOSITORY_PROVIDERS = createProviders(QueryBuilderProvider.class);
     private static final Supplier<List<SqlDialectProvider>> SQL_DIALECT_PROVIDERS = createProviders(SqlDialectProvider.class);
+    private static final Supplier<List<ConnectionProvider>> CONNECTION_PROVIDERS = createProviders(ConnectionProvider.class);
+    private static final Supplier<List<TransactionTemplateProvider>> TRANSACTION_TEMPLATE_PROVIDERS = createProviders(TransactionTemplateProvider.class);
 
     private static final ConcurrentMap<Object, List<?>> PROVIDER_CACHE = new ConcurrentHashMap<>();
 
@@ -73,7 +78,7 @@ public final class Providers {
      * @return a supplier that returns the provider instances responsible for providing the actual service instances.
      */
     @SuppressWarnings("unchecked")
-    private static <S> Supplier<List<S>> createProviders(Class<S> providerClass) {
+    private static <S extends Provider> Supplier<List<S>> createProviders(Class<S> providerClass) {
         return () -> {
             ClassLoader contextClassLoader = currentThread().getContextClassLoader();
             ClassLoader providersClassloader = Providers.class.getClassLoader();
@@ -100,8 +105,9 @@ public final class Providers {
      * @param <S> service type.
      * @return a list of all services loaded by the specified {@code loader}.
      */
-    private static <S> List<S> toUnmodifiableList(@Nonnull ServiceLoader<S> loader) {
+    private static <S extends Provider> List<S> toUnmodifiableList(@Nonnull ServiceLoader<S> loader) {
         return stream(loader.spliterator(), false)
+                .filter(Provider::isEnabled)
                 .collect(collectingAndThen(toList(), Collections::unmodifiableList));
     }
 
@@ -200,6 +206,29 @@ public final class Providers {
         return Orderable.sort(SQL_DIALECT_PROVIDERS.get().stream())
                 .filter(filter)
                 .map(SqlDialectProvider::getSqlDialect)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private static final AtomicReference<ConnectionProvider> CONNECTION_PROVIDER = new AtomicReference<>();
+
+    public static Connection getConnection(@Nonnull DataSource dataSource, @Nullable TransactionContext context) {
+        return CONNECTION_PROVIDER.updateAndGet(value -> requireNonNullElseGet(value, () -> Orderable.sort(CONNECTION_PROVIDERS.get().stream())
+                .findFirst()
+                .orElseThrow())
+        ).getConnection(dataSource, context);
+    }
+
+    public static void releaseConnection(@Nonnull Connection connection, @Nonnull DataSource dataSource, @Nullable TransactionContext context) {
+        CONNECTION_PROVIDER.updateAndGet(value -> requireNonNullElseGet(value, () -> Orderable.sort(CONNECTION_PROVIDERS.get().stream())
+                .findFirst()
+                .orElseThrow())
+        ).releaseConnection(connection, dataSource, context);
+    }
+
+    public static TransactionTemplate getTransactionTemplate() {
+        return Orderable.sort(TRANSACTION_TEMPLATE_PROVIDERS.get().stream())
+                .map(TransactionTemplateProvider::getTransactionTemplate)
                 .findFirst()
                 .orElseThrow();
     }

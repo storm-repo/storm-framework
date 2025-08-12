@@ -16,7 +16,6 @@
 package st.orm.repository.impl;
 
 import jakarta.annotation.Nonnull;
-import st.orm.repository.BatchCallback;
 import st.orm.repository.EntityRepository;
 import st.orm.Entity;
 import st.orm.Ref;
@@ -101,6 +100,11 @@ public final class EntityRepositoryImpl<E extends Record & Entity<ID>, ID> imple
     @Override
     public long count() {
         return core.count();
+    }
+
+    @Override
+    public boolean exists() {
+        return core.exists();
     }
 
     @Override
@@ -284,13 +288,13 @@ public final class EntityRepositoryImpl<E extends Record & Entity<ID>, ID> imple
     }
 
     @Override
-    public Stream<E> selectById(@Nonnull Stream<ID> ids, int batchSize) {
-        return core.selectById(ids, batchSize);
+    public Stream<E> selectById(@Nonnull Stream<ID> ids, int chunkSize) {
+        return core.selectById(ids, chunkSize);
     }
 
     @Override
-    public Stream<E> selectByRef(@Nonnull Stream<Ref<E>> refs, int batchSize) {
-        return core.selectByRef(refs, batchSize);
+    public Stream<E> selectByRef(@Nonnull Stream<Ref<E>> refs, int chunkSize) {
+        return core.selectByRef(refs, chunkSize);
     }
 
     @Override
@@ -299,8 +303,8 @@ public final class EntityRepositoryImpl<E extends Record & Entity<ID>, ID> imple
     }
 
     @Override
-    public long countById(@Nonnull Stream<ID> ids, int batchSize) {
-        return core.countById(ids, batchSize);
+    public long countById(@Nonnull Stream<ID> ids, int chunkSize) {
+        return core.countById(ids, chunkSize);
     }
 
     @Override
@@ -309,8 +313,8 @@ public final class EntityRepositoryImpl<E extends Record & Entity<ID>, ID> imple
     }
 
     @Override
-    public long countByRef(@Nonnull Stream<Ref<E>> refs, int batchSize) {
-        return core.countByRef(refs, batchSize);
+    public long countByRef(@Nonnull Stream<Ref<E>> refs, int chunkSize) {
+        return core.countByRef(refs, chunkSize);
     }
 
     @Override
@@ -334,26 +338,6 @@ public final class EntityRepositoryImpl<E extends Record & Entity<ID>, ID> imple
     }
 
     @Override
-    public void insertAndFetchIds(@Nonnull Stream<E> entities, @Nonnull BatchCallback<ID> callback) {
-        core.insertAndFetchIds(entities, callback::process);
-    }
-
-    @Override
-    public void insertAndFetch(@Nonnull Stream<E> entities, @Nonnull BatchCallback<E> callback) {
-        core.insertAndFetch(entities, callback::process);
-    }
-
-    @Override
-    public void insertAndFetchIds(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<ID> callback) {
-        core.insertAndFetchIds(entities, batchSize, callback::process);
-    }
-
-    @Override
-    public void insertAndFetch(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<E> callback) {
-        core.insertAndFetch(entities, batchSize, callback::process);
-    }
-
-    @Override
     public void update(@Nonnull Stream<E> entities) {
         core.update(entities);
     }
@@ -364,16 +348,6 @@ public final class EntityRepositoryImpl<E extends Record & Entity<ID>, ID> imple
     }
 
     @Override
-    public void updateAndFetch(@Nonnull Stream<E> entities, @Nonnull BatchCallback<E> callback) {
-        core.updateAndFetch(entities, callback::process);
-    }
-
-    @Override
-    public void updateAndFetch(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<E> callback) {
-        core.updateAndFetch(entities, batchSize, callback::process);
-    }
-
-    @Override
     public void upsert(@Nonnull Stream<E> entities) {
         core.upsert(entities);
     }
@@ -381,26 +355,6 @@ public final class EntityRepositoryImpl<E extends Record & Entity<ID>, ID> imple
     @Override
     public void upsert(@Nonnull Stream<E> entities, int batchSize) {
         core.upsert(entities, batchSize);
-    }
-
-    @Override
-    public void upsertAndFetchIds(@Nonnull Stream<E> entities, @Nonnull BatchCallback<ID> callback) {
-        core.upsertAndFetchIds(entities, callback::process);
-    }
-
-    @Override
-    public void upsertAndFetch(@Nonnull Stream<E> entities, @Nonnull BatchCallback<E> callback) {
-        core.upsertAndFetch(entities, callback::process);
-    }
-
-    @Override
-    public void upsertAndFetchIds(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<ID> callback) {
-        core.upsertAndFetchIds(entities, batchSize, callback::process);
-    }
-
-    @Override
-    public void upsertAndFetch(@Nonnull Stream<E> entities, int batchSize, @Nonnull BatchCallback<E> callback) {
-        core.upsertAndFetch(entities, batchSize, callback::process);
     }
 
     @Override

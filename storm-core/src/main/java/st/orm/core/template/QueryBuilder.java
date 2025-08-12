@@ -23,7 +23,6 @@ import st.orm.NonUniqueResultException;
 import st.orm.Operator;
 import st.orm.PersistenceException;
 import st.orm.Ref;
-import st.orm.core.repository.ResultCallback;
 import st.orm.core.template.impl.Elements.ObjectExpression;
 
 import java.util.Iterator;
@@ -616,26 +615,6 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
     public abstract Stream<R> getResultStream();
 
     /**
-     * Executes the query and returns a stream of using the specified callback. This method retrieves the records and
-     * applies the provided callback to process them, returning the result produced by the callback.
-     *
-     * <p>This method ensures efficient handling of large data sets by loading entities only as needed.
-     * It also manages the lifecycle of the callback stream, automatically closing the stream after processing to prevent
-     * resource leaks.</p>
-     *
-     * @param callback a {@link ResultCallback} defining how to process the stream of records and produce a result.
-     * @param <X> the type of result produced by the callback after processing the entities.
-     * @return the result produced by the callback's processing of the record stream.
-     * @throws PersistenceException if the query operation fails due to underlying database issues, such as
-     * connectivity.
-     */
-    public final <X> X getResult(@Nonnull ResultCallback<R, X> callback) {
-        try (Stream<R> stream = getResultStream()) {
-            return callback.process(stream);
-        }
-    }
-
-    /**
      * Returns the number of results of this query.
      *
      * @return the total number of results of this query as a long value.
@@ -700,75 +679,5 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      */
     public final int executeUpdate() {
         return build().executeUpdate();
-    }
-
-    /**
-     * Performs the function in multiple batches, each containing up to {@code batchSize} elements from the stream.
-     *
-     * @param stream the stream to batch.
-     * @param batchSize the maximum number of elements to include in each batch.
-     * @param function the function to apply to each batch.
-     * @return a stream of results from each batch.
-     * @param <X> the type of elements in the stream.
-     * @param <Y> the type of elements in the result stream.
-     */
-    public static <X, Y> Stream<Y> slice(@Nonnull Stream<X> stream,
-                                         int batchSize,
-                                         @Nonnull Function<List<X>, Stream<Y>> function) {
-        return slice(stream, batchSize)
-                .flatMap(function); // Note that the flatMap operation closes the stream passed to it.
-    }
-
-    /**
-     * Generates a stream of slices, each containing a subset of elements from the original stream up to a specified
-     * size. This method is designed to facilitate batch processing of large streams by dividing the stream into
-     * smaller manageable slices, which can be processed independently.
-     *
-     * <p>If the specified size is equal to {@code Integer.MAX_VALUE}, this method will return a single slice containing
-     * the original stream, effectively bypassing the slicing mechanism. This is useful for operations that can handle
-     * all elements at once without the need for batching.</p>
-     *
-     * @param <X> the type of elements in the stream.
-     * @param stream the original stream of elements to be sliced.
-     * @param size the maximum number of elements to include in each slice. If {@code size} is
-     * {@code Integer.MAX_VALUE}, only one slice will be returned.
-     * @return a stream of slices, where each slice contains up to {@code size} elements from the original stream.
-     */
-    public static <X> Stream<List<X>> slice(@Nonnull Stream<X> stream, int size) {
-        if (size == MAX_VALUE) {
-            return Stream.of(stream.toList());
-        }
-        // We're lifting the resource closing logic from the input stream to the output stream.
-        final Iterator<X> iterator = stream.iterator();
-        var it = new Iterator<List<X>>() {
-            @Override
-            public boolean hasNext() {
-                return iterator.hasNext();
-            }
-
-            @Override
-            public List<X> next() {
-                Iterator<X> sliceIterator = new Iterator<>() {
-                    private int count = 0;
-
-                    @Override
-                    public boolean hasNext() {
-                        return count < size && iterator.hasNext();
-                    }
-
-                    @Override
-                    public X next() {
-                        if (count >= size) {
-                            throw new IllegalStateException("Size exceeded.");
-                        }
-                        count++;
-                        return iterator.next();
-                    }
-                };
-                return StreamSupport.stream(spliteratorUnknownSize(sliceIterator, 0), false).toList();
-            }
-        };
-        return StreamSupport.stream(spliteratorUnknownSize(it, 0), false)
-                .onClose(stream::close);
     }
 }

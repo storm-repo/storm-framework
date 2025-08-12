@@ -31,7 +31,7 @@ import static st.orm.Operator.EQUALS;
 
 public class DefaultSqlDialect implements SqlDialect {
 
-    private static final boolean ANSI_ESCAPING = System.getProperty("st.orm.ansiEscaping", "false")
+    private static final boolean ANSI_ESCAPING = System.getProperty("storm.ansiEscaping", "false")
             .equalsIgnoreCase("true");
 
     /**

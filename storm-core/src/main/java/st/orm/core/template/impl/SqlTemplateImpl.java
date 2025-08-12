@@ -17,6 +17,8 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import st.orm.BindVars;
 import st.orm.DefaultJoinType;
 import st.orm.Element;
@@ -68,8 +70,6 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -119,7 +119,7 @@ import static st.orm.core.template.impl.SqlTemplateProcessor.isSubquery;
  */
 public final class SqlTemplateImpl implements SqlTemplate {
 
-    private static final Logger LOGGER = Logger.getLogger("st.orm.sql");
+    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.sql");
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
     record Wrapped(@Nonnull List<? extends Element> elements) implements Element {
@@ -1117,10 +1117,13 @@ public final class SqlTemplateImpl implements SqlTemplate {
         if (!subquery) {
             // Don't intercept subquery calls.
             generated = SqlInterceptorManager.intercept(generated);
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.fine("Generated SQL:\n%s".formatted(generated.statement()));
-            } else if (LOGGER.isLoggable(Level.FINEST)) {
-                LOGGER.finest("Generated SQL:\n%s".formatted(generated));
+            if (LOGGER.isDebugEnabled()) {
+                String log = "Generated SQL:\n%s".formatted(generated.statement());
+                if (LOGGER.isTraceEnabled()) {
+                    LOGGER.trace(log);
+                } else {
+                    LOGGER.debug(log);
+                }
             }
         }
         return generated;

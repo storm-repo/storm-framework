@@ -45,13 +45,13 @@ Maven (Java)::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-java21</artifactId>
-    <version>1.4.0</version>
+    <version>1.5.0</version>
     <scope>compile</scope>
 </dependency>
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-core</artifactId>
-    <version>1.4.0</version>
+    <version>1.5.0</version>
     <scope>runtime</scope>
 </dependency>
 ----
@@ -59,15 +59,15 @@ Gradle (Java)::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-java21:1.4.0'
-runtimeOnly 'st.orm:storm-core:1.4.0'
+implementation 'st.orm:storm-java21:1.5.0'
+runtimeOnly 'st.orm:storm-core:1.5.0'
 ----
 Gradle (Kotlin)::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-kotlin:1.4.0'
-runtimeOnly 'st.orm:storm-core:1.4.0'
+implementation 'st.orm:storm-kotlin:1.5.0'
+runtimeOnly 'st.orm:storm-core:1.5.0'
 ----
 ====
 
@@ -260,7 +260,7 @@ approaches:
 * Annotate the record with the `@DbTable` annotation to define custom table names.
 * Annotate fields with the `@DbColumn` annotation to define custom column names or specify a custom name in `@PK` or
 `@FK` annotations.
-* Providing implementations of the `TableNameResolver`, `ColumnNameResolver` or `ForeignKeyResolver` interfaces to 
+* Providing implementations of the `TableNameResolver`, `ColumnNameResolver` or `ForeignKeyResolver` interfaces to
 globally manage naming conventions.
 
 This flexible approach enables developers to easily adapt Storm entities to existing database schemas or specific naming
@@ -406,7 +406,7 @@ List<UserRole> userRoles = ORMTemplate.of(dataSource).entity(UserRole.class)
     .where(UserRole_.role, EQUALS, role)    // Type-safe!
     .getResultList();
 ----
-DSL Kotlin)::
+DSL (Kotlin)::
 +
 [source,kotlin]
 ----
@@ -596,7 +596,7 @@ val users: List<User> = ORMTemplate.of(dataSource)
     .orderBy(User_.birthDate)
     .resultList
 ----
-SQL Template (Java)::
+SQL Template::
 +
 [source,java]
 ----
@@ -620,7 +620,7 @@ criteria. The `EntityRepository` interface is designed to work with entity recor
 interface, providing a consistent and type-safe way to interact with the database.
 
 An entity repository can be obtained by invoking `entity` on an `ORMTemplate` with the desired entity class. The orm
-template can be requested as demonstrated below. Note that orm templates are supported for Data Sources, 
+template can be requested as demonstrated below. Note that orm templates are supported for Data Sources,
 JDBC Connections and JPA Entity Managers.
 
 [tabs]
@@ -700,7 +700,7 @@ val userRepository: UserRepository = orm.repository<UserRepository>()
 
 ==== Repository Injection
 
-Specialized entity repositories can also be injected using Spring's dependency injection mechanism when the 
+Specialized entity repositories can also be injected using Spring's dependency injection mechanism when the
 `storm-spring` package is included in the project. Check the Spring Framework Integration section for more information.
 
 
@@ -925,21 +925,162 @@ Map<Ref<City>, Long> counts = ORMTemplate.of(dataSource).query(RAW."""
 
 === Transaction Management
 
-Storm works directly with the underlying database platform, being JPA, JDBC Connections or JDBC Data Sources. It does
-not provide its own transaction management. Instead, it relies on the transaction management capabilities of the
-underlying database platform. This means that you can use Storm in conjunction with your existing transaction management
-mechanism, whether it’s JPA or JDBC.
+Storm works directly with the underlying database platform and integrates seamlessly with existing transaction
+management mechanisms.
 
-When Data Sources are used in a Spring application, the transaction management is handled by Spring. You can use the
-`@Transactional` annotation to manage transactions in your Spring application. Storm will then automatically participate
-in the Spring-managed transactions.
+==== Spring-managed transactions
 
-Storm's sessionless design means that it does not maintain any internal state or session. Each operation is stateless
-and independent, allowing for a clean and efficient interaction with the database. This design choice simplifies the
-programming model and reduces the complexity associated with managing transactions.
+When DataSources are used in a Spring application, transaction boundaries can be controlled using Spring’s standard
+`@Transactional` annotation. Storm automatically participates in these transactions without any special configuration.
+This works both with and without the `storm(-kotlin)-spring` dependency.
 
-*Note:* Spring's transaction management also works without the `storm-spring` dependency, as this dependency is only
-needed for repository injection.
+Example:
+[tabs]
+====
+Declarative (Java)::
++
+[source,java]
+----
+@Transactional
+public void processUser(User user) {
+    userRepository.insert(user);
+}
+----
+Declarative (Kotlin)::
++
+[source,kotlin]
+----
+@Transactional
+fun processUser(user: User) {
+    userRepository.insert(user)
+}
+----
+====
+
+In this mode, Storm simply operates within the transaction context provided by Spring.
+
+==== Kotlin programmatic transactions
+
+In addition to declarative transaction models, Storm for Kotlin provides *full programmatic transaction control*
+for both **suspend functions** (coroutine-friendly, non-blocking access) and **regular non-suspend code** (blocking style).
+
+Suspend transactions allow **context switching** without losing the active transaction, so you can offload CPU-bound work
+to another dispatcher while keeping the same database session and state.
+
+You can configure all common **propagation** models (`REQUIRED`, `REQUIRES_NEW`, `NESTED`, etc.), the **isolation level**
+to control concurrency behavior, **read-only mode** to hint that no modifications will occur, and a **timeout** to
+automatically roll back long-running or stuck transactions.
+
+Example:
+[tabs]
+====
+Programmatic Regular (Kotlin)::
++
+[source,kotlin]
+----
+transaction(isolation = REPEATABLE_READ, timeoutSeconds = 30) {
+    val orders = orderRepository.findPendingOrders()
+    orders.forEach { processOrder(it) }
+    orderRepositoryupdate(order.copy(pending = false))
+}
+----
+Programmatic Suspend (Kotlin)::
++
+[source,kotlin]
+----
+suspendTransaction(isolation = REPEATABLE_READ, timeoutSeconds = 30) {
+    val orders = orderRepository.findPendingOrders()
+
+    withContext(Dispatchers.Default) {
+        // CPU-bound work.
+        heavyComputation(orders)
+    }
+
+    orderRepositoryupdate(order.copy(pending = false))
+}
+----
+====
+
+==== Transaction Propagation
+
+Storm’s transaction APIs support the common propagation behaviors found in most enterprise transaction models.
+Propagation defines how a transactional block participates in an existing transaction or starts a new one.
+
+Propagation modes:
+
+* `REQUIRED` — Join an existing transaction if present; otherwise start a new one.
+* `REQUIRES_NEW` — Always start a new, independent transaction (suspends any existing one).
+* `NESTED` — Create a savepoint inside the current physical transaction; failures roll back to the savepoint.
+* `MANDATORY` — Require an existing transaction; fail if none is active.
+* `SUPPORTS` — Run within a transaction if one exists; otherwise run non-transactionally.
+* `NOT_SUPPORTED` — Always run non-transactionally (suspends any existing transaction).
+* `NEVER` — Fail if a transaction is active.
+
+Example:
+[tabs]
+====
+Propagation (Kotlin)::
++
+[source,kotlin]
+----
+transaction(propagation = REQUIRED) {
+    val order = orderRepository.findPendingOrder()
+
+    transaction(propagation = NESTED) {
+        val promo = repository.findByCode(promoCode)
+        if (!discountService.processDiscount(order, promo)) {
+            // Roll back only the discount changes.
+            setRollbackOnly()
+        }
+    }
+
+    // Fetch with potential discount applied.
+    val adjustedOrder = orderRepository.findById(order.id)
+    processOrder(adjustedOrder)
+}
+----
+====
+
+==== Key benefits of programmatic transactions
+
+* **Coroutine-friendly**: Works seamlessly with Kotlin’s structured concurrency, avoiding accidental blocking.
+* **Propagation control**: Choose the exact transaction semantics you need.
+* **Context switching inside transactions**: Safely run work on other threads/dispatchers while retaining the same transaction context.
+
+==== Combine programmatic transactions with Spring
+
+Storm also allows Spring's declarative (`@Transactional`) and programmatic(`TransactionTemplate`) to be used with
+Storm's programmatic `transaction` API. This allows you to use the same transaction management mechanisms as Spring
+while still taking advantage of Storm's programmatic transaction features. Note that `suspendTransaction` is not
+supported when transaction integration is enabled.
+
+[tabs]
+====
+Programmatic and Spring (Kotlin)::
++
+[source,kotlin]
+----
+@EnableTransactionIntegration
+@Configuration
+class ORMConfiguration(private val dataSource: DataSource) {
+    @Bean
+    fun ormTemplate() = ORMTemplate.of(dataSource)
+}
+----
+====
+
+[NOTE]
+====
+* *rollbackOnly semantics*: Marking a scope as `rollbackOnly` cancels just that scope.
+** In `NESTED`, this means rolling back to the savepoint for that block while preserving the outer transaction’s work.
+** In `REQUIRED` or `REQUIRES_NEW`, marking rollback affects the whole transaction of that scope.
+* *Context switching*: Within any transactional scope, you can switch dispatchers
+(e.g., `withContext(Dispatchers.Default)`) and still access the **same active transaction**.
+This allows you to offload CPU-bound work without breaking or losing the transactional context.
+* *Concurrency*: Launching concurrent work inside a transaction using `async`, `launch`, or other parallel coroutine
+builders is *not supported*, as database transactions are bound to the calling thread/coroutine. Use sequential
+operations or split work into separate transactions if parallelism is required.
+====
 
 === Batch Processing
 
@@ -953,22 +1094,21 @@ To use batch processing, you can use the out-of-the-box `insert`, `update`, and 
 configured to control the number of operations executed in a single batch.
 
 
-=== Streaming
+=== Streaming / Flow
 
 Storm supports streaming, allowing you to process large datasets efficiently without loading them entirely into memory.
 This is particularly useful when dealing with large result sets or when you need to process data in a memory-efficient
 manner. Streaming allows you to retrieve and process records one at a time, reducing memory consumption and improving
 performance.
 
-The out-of-the-box methods of the repository return a stream of results for methods that query the entire table. The
-`QueryBuilder` interface also provides a `getResultStream` method that returns a stream of results for the specified
-query can be used as a swap-in for the `getResultList` method.
-
-*Note:* Streams must be closed after use to release any resources associated with them. This can be done using the
+[NOTE]
+====
+Streams must be closed after use to release any resources associated with them. This can be done using the
 `try-with-resources` statement or by explicitly closing the stream in a `finally` block.
+====
 
-The following example demonstrates how to use streaming to process a large dataset without loading it entirely into
-memory:
+The following example demonstrates how to use streaming to process a large dataset without loading the full objects
+entirely into memory:
 
 [tabs]
 ====
@@ -985,19 +1125,10 @@ DSL (Kotlin)::
 +
 [source,kotlin]
 ----
-userRepository.selectAll().use { users ->
-    val userIds: List<Int> = users
-      .map { it.id }
-      .toList()
-    ...
-}
+val users: Flow<User> = userRepository.selectAll()
+val userIds: List<Int> = users.map { it.id }.toList()
 ----
 ====
-
-The example uses the `select` method to retrieve a stream of `User` records. The stream is then processed using
-Java's stream API to extract the user IDs. The `try-with-resources` statement ensures that the stream is closed
-automatically after use. This approach allows you to convert the stream to a list of user IDs without loading all
-`User` records into memory at once.
 
 
 === Upsert Processing
@@ -1050,10 +1181,12 @@ to insert or update the record. The resulting `User` object will contain the val
 the primary key. An alternative `upsert` method is also available to perform the operation without fetching the record
 from the database.
 
-*Note:* Upsert logic is implemented using the underlying database platform's capabilities. This means that the correct
+[NOTE]
+====
+Upsert logic is implemented using the underlying database platform's capabilities. This means that the correct
 database dialect must be provided to support upsert operations. Storm supports various database dialects, including
 Oracle, MySQL, PostgreSQL, and MS SQL Server.
-
+====
 
 === Database Dialects
 
@@ -1070,7 +1203,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-oracle</artifactId>
-    <version>1.4.0</version>
+    <version>1.5.0</version>
     <scope>runtime</scope>
 </dependency>
 ----
@@ -1078,7 +1211,7 @@ Gradle::
 +
 [source,groovy]
 ----
-runtimeOnly 'st.orm:storm-oracle:1.4.0'
+runtimeOnly 'st.orm:storm-oracle:1.5.0'
 ----
 ====
 
@@ -1100,7 +1233,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-metamodel-processor</artifactId>
-    <version>1.4.0</version>
+    <version>1.5.0</version>
     <scope>provided</scope>
 </dependency>
 ----
@@ -1108,7 +1241,7 @@ Gradle::
 +
 [source,groovy]
 ----
-annotationProcessor 'st.orm:storm-metamodel-processor:1.4.0'
+annotationProcessor 'st.orm:storm-metamodel-processor:1.5.0'
 ----
 ====
 
@@ -1173,7 +1306,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-json</artifactId>
-    <version>1.4.0</version>
+    <version>1.5.0</version>
     <scope>compile</scope>
 </dependency>
 ----
@@ -1181,7 +1314,7 @@ Gradle::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-json:1.4.0'
+implementation 'st.orm:storm-json:1.5.0'
 ----
 ====
 
@@ -1232,9 +1365,12 @@ interface UserRepository : EntityRepository<User> {
 ----
 ====
 
-*Note:* This approach is suitable for mappings with a moderate size. For larger datasets or extensive mappings, it’s
+[NOTE]
+====
+This approach is suitable for mappings with a moderate size. For larger datasets or extensive mappings, it’s
 advisable to split queries into two separate parts: one to retrieve the main entities, and another to fetch their
 related entities. This strategy can help maintain optimal performance and manageability.
+====
 
 [tabs]
 ====
@@ -1294,61 +1430,14 @@ interface UserRepository : EntityRepository<User> {
 
 === Intercepting SQL Statements ===
 
-STORM provides a powerful mechanism called SqlInterceptor for observing and modifying SQL statements generated by the
+Storm provides a powerful mechanism called SqlInterceptor for observing and modifying SQL statements generated by the
 template engine. This feature allows you to inspect or alter SQL before it's sent to the database, enabling scenarios
 such as logging, debugging, or applying query transformations.
 
-*Note:* Intercepting SQL statements is primarily intended for logging, diagnostics, debugging, and similar concerns. It is not recommended to use SQL interceptors for implementing business logic or critical application functionality.
-
-==== Observing SQL Statements ====
-
-To observe SQL statements without modifying them, you can use an observer:
-
-[source,java]
-----
-SqlInterceptor.observe(sql -> log.debug("SQL: \{sql.statement()}"), () -> {
-    var entities = repository.findAll();    // Database operation(s)...
-});
-----
-
-==== Modifying SQL Statements ====
-
-A practical use of modifying SQL statements is to prepend a comment identifying the origin of the query. This approach
-makes it easier to trace queries back to their source in logs or database monitoring tools:
-
-[source,java]
-----
-SqlInterceptor.intercept(sql -> {
-    StackTraceElement caller = Thread.currentThread().getStackTrace()[3];
-    String modifiedSql = STR."/* \{caller.getClassName()}.\{caller.getMethodName()} */ \{sql.statement()}";
-    return sql.statement(modifiedSql);
-}, () -> {
-    // Your database operation(s) here...
-});
-----
-
-==== Global Observers and Interceptors ====
-
-If you wish to intercept SQL globally across the entire application, you can register global observers or interceptors:
-
-[source,java]
-----
-SqlInterceptor.registerGlobalObserver(sql -> log.debug("SQL: \{sql.statement()}"));
-
-SqlInterceptor.registerGlobalInterceptor(sql -> {
-    StackTraceElement caller = Thread.currentThread().getStackTrace()[3];
-    String modifiedSql = STR."/* \{caller.getClassName()}.\{caller.getMethodName()} */ \{sql.statement()}";
-    return sql.statement(modifiedSql);
-});
-----
-
-To unregister use the `SqlInterceptor.unregisterGlobalObserver` and SqlInterceptor.unregisterGlobalInterceptor` methods.
-
-
-==== Thread Scope and Nested Interceptors ====
-
-The interceptors and observers are scoped to their respective threads and child threads, providing fine-grained control.
-Nested interceptors or observers operate independently within their defined context.
+[NOTE]
+====
+Intercepting SQL statements is primarily intended for logging, diagnostics, debugging, and similar concerns. It is not recommended to use SQL interceptors for implementing business logic or critical application functionality.
+====
 
 === Spring Framework Integration
 
@@ -1364,7 +1453,7 @@ Maven (Java)::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-spring</artifactId>
-    <version>1.4.0</version>
+    <version>1.5.0</version>
     <scope>compile</scope>
 </dependency>
 ----
@@ -1372,7 +1461,7 @@ Gradle (Java)::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-spring:1.4.0'
+implementation 'st.orm:storm-spring:1.5.0'
 ----
 Maven (Kotlin)::
 +
@@ -1381,7 +1470,7 @@ Maven (Kotlin)::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-kotlin-spring</artifactId>
-    <version>1.4.0</version>
+    <version>1.5.0</version>
     <scope>compile</scope>
 </dependency>
 ----
@@ -1389,7 +1478,7 @@ Gradle (Kotlin)::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-kotlin-spring:1.4.0'
+implementation 'st.orm:storm-kotlin-spring:1.5.0'
 ----
 ====
 
@@ -1460,3 +1549,47 @@ class AcmeRepositoryBeanFactoryPostProcessor : RepositoryBeanFactoryPostProcesso
 }
 ----
 ====
+
+==== Observing SQL Statements ====
+
+To observe SQL statements without modifying them, you can use an observer:
+
+[source,java]
+----
+SqlInterceptor.observe(sql -> log.debug("SQL: \{sql.statement()}"), () -> {
+    var entities = repository.findAll();    // Database operation(s)...
+});
+----
+
+==== Modifying SQL Statements ====
+
+A practical use of modifying SQL statements is to prepend a comment identifying the origin of the query. This approach
+makes it easier to trace queries back to their source in logs or database monitoring tools:
+
+[source,java]
+----
+SqlInterceptor.intercept(sql -> {
+    StackTraceElement caller = Thread.currentThread().getStackTrace()[3];
+    String modifiedSql = STR."/* \{caller.getClassName()}.\{caller.getMethodName()} */ \{sql.statement()}";
+    return sql.statement(modifiedSql);
+}, () -> {
+    // Your database operation(s) here...
+});
+----
+
+==== Global Observers and Interceptors ====
+
+If you wish to intercept SQL globally across the entire application, you can register global observers or interceptors:
+
+[source,java]
+----
+SqlInterceptor.registerGlobalObserver(sql -> log.debug("SQL: \{sql.statement()}"));
+
+SqlInterceptor.registerGlobalInterceptor(sql -> {
+    StackTraceElement caller = Thread.currentThread().getStackTrace()[3];
+    String modifiedSql = STR."/* \{caller.getClassName()}.\{caller.getMethodName()} */ \{sql.statement()}";
+    return sql.statement(modifiedSql);
+});
+----
+
+To unregister use the `SqlInterceptor.unregisterGlobalObserver` and SqlInterceptor.unregisterGlobalInterceptor` methods.

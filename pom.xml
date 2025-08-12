@@ -7,12 +7,13 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <kotlin.version>2.0.21</kotlin.version>
+        <kotlin.coroutines.version>1.9.0</kotlin.coroutines.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <spring-boot.version>3.5.3</spring-boot.version>
+        <spring-boot.version>3.5.4</spring-boot.version>
     </properties>
     <groupId>st.orm</groupId>
     <artifactId>storm-framework</artifactId>
-    <version>1.4.0</version>
+    <version>1.5.0</version>
     <packaging>pom</packaging>
     <name>Storm Framework</name>
     <description>A SQL Template and ORM framework, focusing on modernizing and simplifying database programming.</description>
@@ -156,17 +157,17 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.sonatype.central</groupId>
-                <artifactId>central-publishing-maven-plugin</artifactId>
-                <version>0.7.0</version>
-                <extensions>true</extensions>
-                <configuration>
-                    <publishingServerId>central</publishingServerId>
-                    <autoPublish>true</autoPublish>
-                    <waitUntil>uploaded</waitUntil>
-                </configuration>
-            </plugin>
+<!--            <plugin>-->
+<!--                <groupId>org.sonatype.central</groupId>-->
+<!--                <artifactId>central-publishing-maven-plugin</artifactId>-->
+<!--                <version>0.7.0</version>-->
+<!--                <extensions>true</extensions>-->
+<!--                <configuration>-->
+<!--                    <publishingServerId>central</publishingServerId>-->
+<!--                    <autoPublish>true</autoPublish>-->
+<!--                    <waitUntil>uploaded</waitUntil>-->
+<!--                </configuration>-->
+<!--            </plugin>-->
         </plugins>
     </build>
 </project>
