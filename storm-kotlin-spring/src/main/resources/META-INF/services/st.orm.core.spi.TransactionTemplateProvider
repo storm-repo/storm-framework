@@ -1,1 +1,1 @@
-st.orm.kt.spring.impl.SpringTransactionTemplateProviderImpl
+st.orm.spring.impl.SpringTransactionTemplateProviderImpl

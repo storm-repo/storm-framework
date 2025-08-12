@@ -41,11 +41,11 @@
                         --add-reads kotlin.stdlib=kotlinx.coroutines.core
                         --add-reads storm.core=storm.kotlin
                         --add-opens java.base/java.lang=ALL-UNNAMED
-                        --add-opens storm.kotlin/st.orm.kt=ALL-UNNAMED
-                        --add-opens storm.kotlin/st.orm.kt.model=ALL-UNNAMED
-                        --add-opens storm.kotlin/st.orm.kt=kotlin.reflect
-                        --add-opens storm.kotlin/st.orm.kt.model=storm.foundation
-                        --add-opens storm.kotlin/st.orm.kt.model=storm.core
+                        --add-opens storm.kotlin/st.orm.template=ALL-UNNAMED
+                        --add-opens storm.kotlin/st.orm.template.model=ALL-UNNAMED
+                        --add-opens storm.kotlin/st.orm.template=kotlin.reflect
+                        --add-opens storm.kotlin/st.orm.template.model=storm.foundation
+                        --add-opens storm.kotlin/st.orm.template.model=storm.core
                         -Dstorm.ansiEscaping=true
                     </argLine>
                 </configuration>

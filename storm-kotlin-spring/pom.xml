@@ -49,13 +49,13 @@
                         --add-reads kotlin.stdlib=kotlinx.coroutines.core
                         --add-reads storm.core=storm.kotlin.spring
                         --add-opens java.base/java.lang=ALL-UNNAMED
-                        --add-opens storm.kotlin.spring/st.orm.kt.spring=ALL-UNNAMED
-                        --add-opens storm.kotlin.spring/st.orm.kt.spring.model=ALL-UNNAMED
-                        --add-opens storm.kotlin.spring/st.orm.kt.spring=kotlin.reflect
-                        --add-opens storm.kotlin.spring/st.orm.kt.spring=spring.core
-                        --add-opens storm.kotlin.spring/st.orm.kt.spring.model=storm.foundation
-                        --add-opens storm.kotlin.spring/st.orm.kt.spring.model=storm.kotlin
-                        --add-opens storm.kotlin.spring/st.orm.kt.spring.model=storm.core
+                        --add-opens storm.kotlin.spring/st.orm.spring=ALL-UNNAMED
+                        --add-opens storm.kotlin.spring/st.orm.spring.model=ALL-UNNAMED
+                        --add-opens storm.kotlin.spring/st.orm.spring=kotlin.reflect
+                        --add-opens storm.kotlin.spring/st.orm.spring=spring.core
+                        --add-opens storm.kotlin.spring/st.orm.spring.model=storm.foundation
+                        --add-opens storm.kotlin.spring/st.orm.spring.model=storm.kotlin
+                        --add-opens storm.kotlin.spring/st.orm.spring.model=storm.core
                         -Dstorm.ansiEscaping=true
                     </argLine>
                     <forkCount>1</forkCount>
