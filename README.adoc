@@ -209,8 +209,8 @@ Kotlin::
 [source,kotlin]
 ----
 enum class RoleType {
-    User,
-    Admin
+    USER,
+    ADMIN
 }
 
 @JvmRecord
