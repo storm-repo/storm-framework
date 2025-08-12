@@ -133,12 +133,9 @@ open class RepositoryBeanFactoryPostProcessor : BeanFactoryPostProcessor {
      * Adds qualifier support by looking at the attribute "qualifier" of the bean definition. This works hand in hand
      * with the proxyBeanDefinition.setAttribute("qualifier", getRepositoryPrefix()); call above.
      */
-    class RepositoryAutowireCandidateResolver
-    /**
-     * Creates a new [RepositoryAutowireCandidateResolver] instance.
-     *
-     * @param delegate the delegate autowire candidate resolver.
-     */(private val delegate: AutowireCandidateResolver) : AutowireCandidateResolver {
+    class RepositoryAutowireCandidateResolver(
+        private val delegate: AutowireCandidateResolver
+    ) : AutowireCandidateResolver {
         override fun isRequired(descriptor: DependencyDescriptor): Boolean {
             return delegate.isRequired(descriptor)
         }

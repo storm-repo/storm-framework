@@ -10,6 +10,7 @@ module storm.kotlin {
     requires kotlin.reflect;
     requires kotlin.stdlib;
     requires kotlinx.coroutines.core;
+    requires org.slf4j;
     uses st.orm.core.spi.ORMReflection;
     provides st.orm.core.spi.ORMReflectionProvider with st.orm.spi.ORMReflectionProviderImpl;
     provides st.orm.core.spi.ConnectionProvider with st.orm.template.impl.CoroutineAwareConnectionProviderImpl;

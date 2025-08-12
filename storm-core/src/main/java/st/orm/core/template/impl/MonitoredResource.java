@@ -16,6 +16,8 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import st.orm.PersistenceException;
 
 import java.lang.ref.Cleaner;
@@ -27,15 +29,13 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Monitors whether streams are closed.
  */
 final class MonitoredResource {
 
-    private static final Logger LOGGER = Logger.getLogger("st.orm.resource");
+    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.resource");
     private static final Cleaner CLEANER = Cleaner.create();
 
     static <T extends AutoCloseable> T wrap(@Nonnull T resource) {
@@ -73,7 +73,7 @@ final class MonitoredResource {
             // invoked by the garbage collector. It will be invoked at most once.
             int count = openCount.decrementAndGet();
             if (count == 0) {
-                LOGGER.log(Level.WARNING, "Resource was not closed properly.", createStackTrace);
+                LOGGER.warn("Resource was not closed properly.", createStackTrace);
             }
             if (count <= 0) {
                 try {

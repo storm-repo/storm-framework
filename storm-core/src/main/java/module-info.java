@@ -17,6 +17,7 @@ module storm.core {
     requires jakarta.annotation;
     requires java.compiler;
     requires storm.foundation;
+    requires org.slf4j;
     provides st.orm.core.spi.ORMReflectionProvider with st.orm.core.spi.DefaultORMReflectionProviderImpl;
     provides st.orm.core.spi.EntityRepositoryProvider with st.orm.core.spi.DefaultEntityRepositoryProviderImpl;
     provides st.orm.core.spi.ProjectionRepositoryProvider with st.orm.core.spi.DefaultProjectionRepositoryProviderImpl;
