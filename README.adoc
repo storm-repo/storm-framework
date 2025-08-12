@@ -406,7 +406,7 @@ List<UserRole> userRoles = ORMTemplate.of(dataSource).entity(UserRole.class)
     .where(UserRole_.role, EQUALS, role)    // Type-safe!
     .getResultList();
 ----
-DSL Kotlin)::
+DSL (Kotlin)::
 +
 [source,kotlin]
 ----
