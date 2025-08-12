@@ -630,14 +630,14 @@ DSL (Java)::
 [source,java]
 ----
 ORMTemplate orm = ORMTemplate.of(dataSource);
-EntityRepository<User> userRepository = orm.of(dataSource).entity(User.class);
+EntityRepository<User> userRepository = orm.entity(User.class);
 ----
 DSL (Kotlin)::
 +
 [source,kotlin]
 ----
 val orm: ORMTemplate = ORMTemplate.of(dataSource)
-val userRepository: EntityRepository<User> = orm.of(dataSource).entity<User>()
+val userRepository: EntityRepository<User> = orm.entity<User>()
 ----
 ====
 
