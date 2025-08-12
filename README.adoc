@@ -990,10 +990,12 @@ Programmatic Suspend (Kotlin)::
 ----
 suspendTransaction(isolation = REPEATABLE_READ, timeoutSeconds = 30) {
     val orders = orderRepository.findPendingOrders()
+
     withContext(Dispatchers.Default) {
         // CPU-bound work.
         heavyComputation(orders)
     }
+
     orderRepositoryupdate(order.copy(pending = false))
 }
 ----
@@ -1036,6 +1038,7 @@ Propagation (Kotlin)::
 ----
 transaction(propagation = REQUIRED) {
     val order = orderRepository.findPendingOrder()
+
     transaction(propagation = NESTED) {
         val promo = repository.findByCode(promoCode)
         if (!discountService.processDiscount(order, promo)) {
@@ -1043,6 +1046,7 @@ transaction(propagation = REQUIRED) {
             setRollbackOnly()
         }
     }
+
     // Fetch with potential discount applied.
     val adjustedOrder = orderRepository.findById(order.id)
     processOrder(adjustedOrder)
