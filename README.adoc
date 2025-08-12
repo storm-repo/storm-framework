@@ -1039,10 +1039,12 @@ transaction(propagation = REQUIRED) {
     transaction(propagation = NESTED) {
         val promo = repository.findByCode(promoCode)
         if (!discountService.processDiscount(order, promo)) {
-            setRollbackOnly()                                   // Roll back only the discount changes.
+            // Roll back only the discount changes.
+            setRollbackOnly()
         }
     }
-    val adjustedOrder = orderRepository.findById(order.id)    // Fetch with potential discount applied.
+    // Fetch with potential discount applied.
+    val adjustedOrder = orderRepository.findById(order.id)
     processOrder(adjustedOrder)
 }
 ----
