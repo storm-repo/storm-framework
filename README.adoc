@@ -292,7 +292,7 @@ DSL (Kotlin)::
 [source,kotlin]
 ----
 val user: User? = ORMTemplate.of(dataSource)
-    .find { User.email eq email }   // Type-safe!
+    .find { User_.email eq email }   // Type-safe!
 ----
 SQL Template::
 +
@@ -659,8 +659,8 @@ interface UserRepository extends EntityRepository<User> {
     // Specialized repository methods go here. Example:
     default Optional<User> findByEmail(String email) {
         return select()
-                .where(User_.email, EQUALS, email)
-                .getOptionalResult();
+            .where(User_.email, EQUALS, email)
+            .getOptionalResult();
     }
 }
 ----
@@ -789,9 +789,9 @@ DSL (Java)::
 ----
 Role role = ...;
 List<Ref<User>> users = ORMTemplate.of(dataSource).entity(UserRole.class)
-        .selectRef(User.class)
-        .where(UserRole_.role, role)
-        .getResultList();
+    .selectRef(User.class)
+    .where(UserRole_.role, role)
+    .getResultList();
 ----
 DSL (Kotlin)::
 +
@@ -799,9 +799,9 @@ DSL (Kotlin)::
 ----
 val role: Role = ...
 val users: List<Ref<User>> = ORMTemplate.of(dataSource)
-        .selectRef(User::class)
-        .where(UserRole_.role eq role)
-        .resultList
+    .selectRef(User::class)
+    .where(UserRole_.role eq role)
+    .resultList
 ----
 SQL Template::
 +
@@ -828,10 +828,10 @@ DSL (Java)::
 ----
 List<Ref<User>> users = ...;
 List<Role> roles = ORMTemplate.of(dataSource).entity(UserRole.class)
-        .select(Role.class)
-        .distinct()
-        .whereRef(UserRole_.user, users)
-        .getResultList();
+    .select(Role.class)
+    .distinct()
+    .whereRef(UserRole_.user, users)
+    .getResultList();
 ----
 DSL (Kotlin)::
 +
@@ -839,10 +839,10 @@ DSL (Kotlin)::
 ----
 val users: List<Ref<User>> = ...;
 val roles: List<Role> = ORMTemplate.of(dataSource)
-        .select(Role::class)
-        .distinct()
-        .where(UserRole_.user inRefs users)
-        .resultList
+    .select(Role::class)
+    .distinct()
+    .where(UserRole_.user inRefs users)
+    .resultList
 ----
 SQL Template::
 +
@@ -1027,8 +1027,8 @@ transaction(propagation = REQUIRED) {
     val order = orderRepository.findPendingOrder()
 
     transaction(propagation = NESTED) {
-        val promo = repository.findByCode(promoCode)
-        if (!discountService.processDiscount(order, promo)) {
+        val promo = promoRepository.findByCode(promoCode)
+        if (!processDiscount(order, promo)) {
             // Roll back only the discount changes.
             setRollbackOnly()
         }
@@ -1280,16 +1280,16 @@ DSL (Java)::
 [source,java]
 ----
 List<User> users = userRepository
-        .select()
-        .where(User_.city.name, EQUALS, "Sunnyvale")
-        .getResultList();
+    .select()
+    .where(User_.city.name, EQUALS, "Sunnyvale")
+    .getResultList();
 ----
 DSL (Kotlin)::
 +
 [source,kotlin]
 ----
 val users: List<User> = orm
-        .findAll { User_.city.name eq "Sunnyvale" }
+    .findAll { User_.city.name eq "Sunnyvale" }
 ----
 ====
 
@@ -1512,9 +1512,7 @@ Spring (Kotlin)::
 @Configuration
 class ORMTemplateConfiguration(val dataSource: DataSource) {
     @Bean
-    fun ormTemplate(): ORMTemplate {
-        return OrmTemplate.of(dataSource)
-    }
+    fun ormTemplate() = OrmTemplate.of(dataSource)
 }
 ----
 ====
