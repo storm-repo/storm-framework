@@ -6,7 +6,6 @@ module storm.spring {
     requires spring.beans;
     requires spring.boot;
     requires jakarta.annotation;
-    requires org.reflections;
     requires spring.core;
     requires spring.aop;
     requires org.slf4j;

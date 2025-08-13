@@ -45,13 +45,13 @@ Maven (Java)::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-java21</artifactId>
-    <version>1.5.0</version>
+    <version>1.6.0</version>
     <scope>compile</scope>
 </dependency>
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-core</artifactId>
-    <version>1.5.0</version>
+    <version>1.6.0</version>
     <scope>runtime</scope>
 </dependency>
 ----
@@ -59,15 +59,15 @@ Gradle (Java)::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-java21:1.5.0'
-runtimeOnly 'st.orm:storm-core:1.5.0'
+implementation 'st.orm:storm-java21:1.6.0'
+runtimeOnly 'st.orm:storm-core:1.6.0'
 ----
 Gradle (Kotlin)::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-kotlin:1.5.0'
-runtimeOnly 'st.orm:storm-core:1.5.0'
+implementation 'st.orm:storm-kotlin:1.6.0'
+runtimeOnly 'st.orm:storm-core:1.6.0'
 ----
 ====
 
@@ -1203,7 +1203,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-oracle</artifactId>
-    <version>1.5.0</version>
+    <version>1.6.0</version>
     <scope>runtime</scope>
 </dependency>
 ----
@@ -1211,7 +1211,7 @@ Gradle::
 +
 [source,groovy]
 ----
-runtimeOnly 'st.orm:storm-oracle:1.5.0'
+runtimeOnly 'st.orm:storm-oracle:1.6.0'
 ----
 ====
 
@@ -1233,7 +1233,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-metamodel-processor</artifactId>
-    <version>1.5.0</version>
+    <version>1.6.0</version>
     <scope>provided</scope>
 </dependency>
 ----
@@ -1241,7 +1241,7 @@ Gradle::
 +
 [source,groovy]
 ----
-annotationProcessor 'st.orm:storm-metamodel-processor:1.5.0'
+annotationProcessor 'st.orm:storm-metamodel-processor:1.6.0'
 ----
 ====
 
@@ -1306,7 +1306,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-json</artifactId>
-    <version>1.5.0</version>
+    <version>1.6.0</version>
     <scope>compile</scope>
 </dependency>
 ----
@@ -1314,7 +1314,7 @@ Gradle::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-json:1.5.0'
+implementation 'st.orm:storm-json:1.6.0'
 ----
 ====
 
@@ -1442,7 +1442,7 @@ Maven (Java)::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-spring</artifactId>
-    <version>1.5.0</version>
+    <version>1.6.0</version>
     <scope>compile</scope>
 </dependency>
 ----
@@ -1450,7 +1450,7 @@ Gradle (Java)::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-spring:1.5.0'
+implementation 'st.orm:storm-spring:1.6.0'
 ----
 Maven (Kotlin)::
 +
@@ -1459,7 +1459,7 @@ Maven (Kotlin)::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-kotlin-spring</artifactId>
-    <version>1.5.0</version>
+    <version>1.6.0</version>
     <scope>compile</scope>
 </dependency>
 ----
@@ -1467,7 +1467,7 @@ Gradle (Kotlin)::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-kotlin-spring:1.5.0'
+implementation 'st.orm:storm-kotlin-spring:1.6.0'
 ----
 ====
 

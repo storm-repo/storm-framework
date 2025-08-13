@@ -16,202 +16,245 @@
 package st.orm.spring;
 
 import jakarta.annotation.Nonnull;
-import org.reflections.Reflections;
-import org.reflections.scanners.SubTypesScanner;
-import org.reflections.util.ConfigurationBuilder;
-import org.springframework.beans.BeansException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.config.DependencyDescriptor;
-import org.springframework.beans.factory.support.AbstractBeanDefinition;
-import org.springframework.beans.factory.support.AutowireCandidateResolver;
-import org.springframework.beans.factory.support.BeanDefinitionBuilder;
-import org.springframework.beans.factory.support.BeanDefinitionRegistry;
-import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.beans.factory.support.*;
+import org.springframework.context.ResourceLoaderAware;
+import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.StandardEnvironment;
+import org.springframework.core.io.ResourceLoader;
+import org.springframework.core.type.classreading.MetadataReader;
+import org.springframework.core.type.filter.AssignableTypeFilter;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ClassUtils;
 import st.orm.repository.EntityRepository;
 import st.orm.repository.ProjectionRepository;
 import st.orm.repository.Repository;
 import st.orm.template.ORMTemplate;
 
 import java.lang.annotation.Annotation;
-import java.util.Arrays;
-import java.util.Optional;
+import java.util.*;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * A {@link BeanFactoryPostProcessor} that scans the specified base packages for repository interfaces and registers
- * them as beans in the bean factory. This allows repository interfaces to be autowired by the ORM framework.
+ * BeanFactoryPostProcessor that scans base packages for Repository interfaces and registers them as beans.
  */
+@SuppressWarnings("ALL")
 @Component
-public class RepositoryBeanFactoryPostProcessor implements BeanFactoryPostProcessor {
+public class RepositoryBeanFactoryPostProcessor
+        implements BeanFactoryPostProcessor, ResourceLoaderAware {
 
-    /**
-     * The name of the ORM template bean to use for repository autowiring. If not specified, the default ORM template
-     * bean will be used.
-     *
-     * @return the name of the ORM template bean.
-     */
-    public String getORMTemplateBeanName() {
-        return null;
-    }
+    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.spring.repository");
 
-    /**
-     * The base packages to scan for repository interfaces. This is used to find all repository interfaces that should
-     * be autowired by the ORM framework. If not specified, no repositories will be autowired.
-     *
-     * @return the base packages to scan for repository interfaces.
-     */
-    public String[] getRepositoryBasePackages() {
-        return new String[0];
-    }
+    private final Environment environment = new StandardEnvironment();
+    private ResourceLoader resourceLoader;
 
-    /**
-     * The qualifier prefix to use for the repository beans. This is used to distinguish between multiple repository
-     * beans of the same type. The default is an empty string.
-     *
-     * @return the qualifier prefix to use for the repository beans.
-     */
-    public String getRepositoryPrefix() {
-        return "";
-    }
+    /** Override to point to a specific ORMTemplate bean. Null = primary/default. */
+    public String getOrmTemplateBeanName() { return null; }
 
-    //
-    // The logic below is required to support Spring autowiring of our repository interfaces. This logic is here
-    // primarily for our own convenience. It is not required for the operation of the ORM framework.
-    //
+    /** Override with base packages to scan. Empty = no scan. */
+    public String[] getRepositoryBasePackages() { return new String[0]; }
 
-    /**
-     * Scans the specified base packages for repository interfaces and registers them as beans in the bean factory.
-     *
-     * @param beanFactory the bean factory to register the repository beans with.
-     * @throws BeansException if an error occurs while registering the repository beans.
-     */
+    /** Optional qualifier prefix for registered repositories. */
+    protected String getRepositoryPrefix() { return ""; }
+
     @Override
-    public void postProcessBeanFactory(@Nonnull ConfigurableListableBeanFactory beanFactory) throws BeansException {
+    public void setResourceLoader(@Nonnull ResourceLoader resourceLoader) {
+        this.resourceLoader = resourceLoader;
+    }
+
+    @Override
+    public void postProcessBeanFactory(@Nonnull ConfigurableListableBeanFactory beanFactory) {
+        String[] bases = getRepositoryBasePackages();
+        if (bases == null || bases.length == 0) return;
         BeanDefinitionRegistry registry = (BeanDefinitionRegistry) beanFactory;
-        Reflections reflections = new Reflections(new ConfigurationBuilder()
-                .forPackages(getRepositoryBasePackages())
-                .addScanners(new SubTypesScanner(true))
-        );
-        var list =
-                reflections.getSubTypesOf(Repository.class).stream()
-                .filter(type -> type != EntityRepository.class)
-                .filter(type -> type != ProjectionRepository.class)
-                .filter(type -> !type.isAnnotationPresent(NoRepositoryBean.class))
-                .filter(type -> Stream.of(getRepositoryBasePackages()).anyMatch(type.getName()::startsWith))
+        ClassPathScanningCandidateComponentProvider scanner =
+                new ClassPathScanningCandidateComponentProvider(false, environment) {
+                    @Override
+                    protected boolean isCandidateComponent(MetadataReader metadataReader) {
+                        var md = metadataReader.getClassMetadata();
+                        return md.isIndependent() && md.isInterface();
+                    }
+                    @Override
+                    protected boolean isCandidateComponent(AnnotatedBeanDefinition beanDefinition) {
+                        var md = beanDefinition.getMetadata();
+                        return md.isIndependent() && md.isInterface();
+                    }
+                };
+        scanner.addIncludeFilter(new AssignableTypeFilter(Repository.class));
+        if (resourceLoader != null) scanner.setResourceLoader(resourceLoader);
+        List<Class<? extends Repository>> repositoryTypes = Arrays.stream(bases)
+                .flatMap(base -> scanner.findCandidateComponents(base).stream())
+                .map(definition -> {
+                    String name = definition.getBeanClassName();
+                    if (name == null) return null;
+                    try {
+                        @SuppressWarnings("unchecked")
+                        Class<? extends Repository> clazz =
+                                (Class<? extends Repository>) ClassUtils.forName(name, defaultClassLoader());
+                        return clazz;
+                    } catch (Throwable ex) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .filter(t -> t != Repository.class)
+                .filter(t -> t != EntityRepository.class)
+                .filter(t -> t != ProjectionRepository.class)
+                .filter(t -> !hasNoRepositoryBeanAnnotation(t))
                 .distinct()
-                .toList();
-        registerRepositories(registry, beanFactory, list.stream().filter(Repository.class::isAssignableFrom));
+                .collect(Collectors.toList());
+        registerRepositories(registry, beanFactory, repositoryTypes.stream());
         RepositoryAutowireCandidateResolver.register(beanFactory);
     }
 
-    private void registerRepositories(@Nonnull BeanDefinitionRegistry registry,
-                                      @Nonnull ConfigurableListableBeanFactory beanFactory,
-                                      @Nonnull Stream<Class<? extends Repository>> repositories) {
+    private void registerRepositories(
+            BeanDefinitionRegistry registry,
+            ConfigurableListableBeanFactory beanFactory,
+            Stream<Class<? extends Repository>> repositories
+    ) {
         repositories.forEach(type -> {
-            //noinspection unchecked
+            @SuppressWarnings("unchecked")
             Class<Repository> repositoryType = (Class<Repository>) type;
-            AbstractBeanDefinition proxyBeanDefinition = BeanDefinitionBuilder
-                    .genericBeanDefinition(repositoryType, () -> getBeanORMTemplate(beanFactory).repository(repositoryType))
-                    .getBeanDefinition();
-            proxyBeanDefinition.setAttribute("qualifier", getRepositoryPrefix());
+            Supplier<Repository> supplier = () ->
+                    getBeanORMTemplate(beanFactory).repository(repositoryType);
+            var definition = BeanDefinitionBuilder.genericBeanDefinition(repositoryType, supplier).getBeanDefinition();
+            definition.setAttribute("qualifier", getRepositoryPrefix());
+            String prefix = getRepositoryPrefix();
+            if (prefix != null && !prefix.isEmpty()) {
+                // Set the qualifier attribute to support autowiring by qualifier.
+                definition.setAttribute("qualifier", prefix);
+                LOGGER.debug("Registering repository {} with qualifier {}.", type.getName(), prefix);
+            } else {
+                LOGGER.debug("Registering repository {}.", type.getName());
+            }
             String name = getRepositoryPrefix() + type.getSimpleName();
-            registry.registerBeanDefinition(name, proxyBeanDefinition);
+            registry.registerBeanDefinition(name, definition);
         });
     }
 
-    private ORMTemplate getBeanORMTemplate(@Nonnull ConfigurableListableBeanFactory beanFactory) {
-        if (getORMTemplateBeanName() != null) {
-            return beanFactory.getBean(getORMTemplateBeanName(), ORMTemplate.class);
-        }
-        return beanFactory.getBean(ORMTemplate.class);
+    private ORMTemplate getBeanORMTemplate(ConfigurableListableBeanFactory beanFactory) {
+        String beanName = getOrmTemplateBeanName();
+        return (beanName != null)
+                ? beanFactory.getBean(beanName, ORMTemplate.class)
+                : beanFactory.getBean(ORMTemplate.class);
     }
 
     /**
-     * Adds qualifier support by looking at the attribute "qualifier" of the bean definition. This works hand in hand
-     * with the proxyBeanDefinition.setAttribute("qualifier", getRepositoryPrefix()); call above.
+     * Reflectively check for any @NoRepositoryBean without a hard dependency.
+     * Works with Spring Data's and/or your own annotation if present.
+     */
+    private boolean hasNoRepositoryBeanAnnotation(Class<?> type) {
+        // Fast path: simple-name match on direct annotations (no class loading).
+        for (Annotation a : type.getAnnotations()) {
+            if ("NoRepositoryBean".equals(a.annotationType().getSimpleName())) {
+                return true;
+            }
+        }
+        String[] candidates = new String[] {
+                "org.springframework.data.repository.NoRepositoryBean",
+                "st.orm.spring.NoRepositoryBean"
+        };
+        for (String fullyQualifiedName : candidates) {
+            Class<?> loaded;
+            try {
+                loaded = Class.forName(fullyQualifiedName, false, type.getClassLoader());
+            } catch (ClassNotFoundException e) {
+                continue;
+            }
+            if (Annotation.class.isAssignableFrom(loaded)) {
+                var annotationType = (Class<? extends Annotation>) loaded;
+                if (type.isAnnotationPresent(annotationType)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private ClassLoader defaultClassLoader() {
+        if (resourceLoader != null && resourceLoader.getClassLoader() != null) {
+            return resourceLoader.getClassLoader();
+        }
+        ClassLoader cl = ClassUtils.getDefaultClassLoader();
+        return (cl != null ? cl : ClassLoader.getSystemClassLoader());
+    }
+
+    /**
+     * Qualifier-aware AutowireCandidateResolver that reads "qualifier" attribute
+     * (set on the repository bean definitions we register).
      */
     public static class RepositoryAutowireCandidateResolver implements AutowireCandidateResolver {
-
-        static void register(@Nonnull ConfigurableListableBeanFactory beanFactory) {
-            ((DefaultListableBeanFactory) beanFactory).setAutowireCandidateResolver(new RepositoryAutowireCandidateResolver(((DefaultListableBeanFactory) beanFactory).getAutowireCandidateResolver()));
-        }
-
         private final AutowireCandidateResolver delegate;
 
-        /**
-         * Creates a new {@link RepositoryAutowireCandidateResolver} instance.
-         *
-         * @param delegate the delegate autowire candidate resolver.
-         */
         public RepositoryAutowireCandidateResolver(AutowireCandidateResolver delegate) {
             this.delegate = delegate;
         }
 
-        @Override
-        public boolean isRequired(@Nonnull DependencyDescriptor descriptor) {
+        @Override public boolean isRequired(@Nonnull DependencyDescriptor descriptor) {
             return delegate.isRequired(descriptor);
         }
-
-        @Override
-        public boolean hasQualifier(@Nonnull DependencyDescriptor descriptor) {
+        
+        @Override public boolean hasQualifier(@Nonnull DependencyDescriptor descriptor) {
             return delegate.hasQualifier(descriptor);
         }
-
-        @Override
-        public Object getSuggestedValue(@Nonnull DependencyDescriptor descriptor) {
+        
+        @Override public Object getSuggestedValue(@Nonnull DependencyDescriptor descriptor) {
             return delegate.getSuggestedValue(descriptor);
         }
-
-        @Override
-        public Object getLazyResolutionProxyIfNecessary(@Nonnull DependencyDescriptor descriptor, String beanName) {
+        
+        @Override public Object getLazyResolutionProxyIfNecessary(@Nonnull DependencyDescriptor descriptor, String beanName) {
             return delegate.getLazyResolutionProxyIfNecessary(descriptor, beanName);
         }
-
-        @Override
-        public Class<?> getLazyResolutionProxyClass(@Nonnull DependencyDescriptor descriptor, String beanName) {
+        
+        @Override public Class<?> getLazyResolutionProxyClass(@Nonnull DependencyDescriptor descriptor, String beanName) {
             return delegate.getLazyResolutionProxyClass(descriptor, beanName);
         }
-
-        @Nonnull
-        @Override
-        public AutowireCandidateResolver cloneIfNecessary() {
+        
+        @Override public AutowireCandidateResolver cloneIfNecessary() {
             return delegate.cloneIfNecessary();
         }
 
         @Override
-        public boolean isAutowireCandidate(@Nonnull BeanDefinitionHolder bdHolder, @Nonnull DependencyDescriptor descriptor) {
-            if (delegate.isAutowireCandidate(bdHolder, descriptor)) {
+        public boolean isAutowireCandidate(@Nonnull BeanDefinitionHolder holder, @Nonnull DependencyDescriptor descriptor) {
+            if (delegate.isAutowireCandidate(holder, descriptor)) {
                 return true;
-            } else {
-                Optional<String> requiredQualifier = getRequiredQualifier(descriptor);
-                if (requiredQualifier.isPresent()) {
-                    String beanQualifier = (String) bdHolder.getBeanDefinition().getAttribute("qualifier");
-                    return requiredQualifier.get().equals(beanQualifier);
-                }
+            }
+            String requiredQualifier = getRequiredQualifier(descriptor);
+            if (requiredQualifier != null) {
+                Object attr = holder.getBeanDefinition().getAttribute("qualifier");
+                return requiredQualifier.equals(attr);
             }
             return false;
         }
 
-        private Optional<String> getRequiredQualifier(DependencyDescriptor descriptor) {
-            return Arrays.stream(descriptor.getAnnotations())
-                    .map(this::getQualifierValue)
-                    .filter(Optional::isPresent)
-                    .map(Optional::get)
-                    .findFirst();
+        private String getRequiredQualifier(DependencyDescriptor descriptor) {
+            for (Annotation ann : descriptor.getAnnotations()) {
+                String v = getQualifierValue(ann);
+                if (v != null) return v;
+            }
+            return null;
         }
 
-        private Optional<String> getQualifierValue(Annotation annotation) {
-            if (annotation instanceof Qualifier) {
-                return Optional.of(((Qualifier) annotation).value());
-            } else if (annotation.annotationType().isAnnotationPresent(Qualifier.class)) {
-                Qualifier qualifier = annotation.annotationType().getAnnotation(Qualifier.class);
-                return Optional.of(qualifier.value());
-            }
-            return Optional.empty();
+        private String getQualifierValue(Annotation annotation) {
+            if (annotation instanceof Qualifier q) return q.value();
+            Qualifier metadata = annotation.annotationType().getAnnotation(Qualifier.class);
+            return (metadata != null ? metadata.value() : null);
+        }
+
+        public static void register(ConfigurableListableBeanFactory beanFactory) {
+            DefaultListableBeanFactory dlbf = (DefaultListableBeanFactory) beanFactory;
+            dlbf.setAutowireCandidateResolver(
+                    new RepositoryAutowireCandidateResolver(dlbf.getAutowireCandidateResolver()));
         }
     }
 }

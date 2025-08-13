@@ -7,5 +7,4 @@ module storm.java21 {
     requires java.compiler;
     requires storm.foundation;
     requires storm.core;
-    requires org.jetbrains.annotations;
 }

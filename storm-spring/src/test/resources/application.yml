@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create
+    defer-datasource-initialization: true  # Important!
+
+  sql:
+    init:
+      mode: always  # Force data.sql execution on tests
+
+logging:
+  level:
+    root: INFO
+    org.springframework: WARN
