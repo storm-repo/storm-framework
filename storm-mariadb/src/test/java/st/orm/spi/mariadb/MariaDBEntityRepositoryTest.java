@@ -22,6 +22,7 @@ import st.orm.FK;
 import st.orm.Metamodel;
 import st.orm.PK;
 import st.orm.Persist;
+import st.orm.PersistenceException;
 import st.orm.Version;
 import st.orm.core.template.PreparedStatementTemplate;
 
@@ -35,6 +36,7 @@ import static java.util.Collections.nCopies;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.util.AssertionErrors.assertNull;
 import static st.orm.GenerationStrategy.NONE;
@@ -816,8 +818,8 @@ public class MariaDBEntityRepositoryTest {
     public record Pet(
             @PK(generation = SEQUENCE, sequence = "pet_id_seq") Integer id,
             @Nonnull String name,
-            @Nonnull @Persist(updatable = false) LocalDate birthDate,
-            @Nonnull @FK @Persist(updatable = false) PetType type,
+            @Nonnull LocalDate birthDate,
+            @Nonnull @FK PetType type,
             @Nullable @FK Owner owner
     ) implements Entity<Integer> {}
 
@@ -1047,11 +1049,201 @@ public class MariaDBEntityRepositoryTest {
     }
     
     @Test
+    public void testUpsertWithSequenceExisting() {
+        String expectedSql = """
+                UPDATE pet
+                SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                WHERE id = ?""";
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var first = new AtomicBoolean(false);
+        observe(sql -> {
+            if (!first.getAndSet(true)) {
+                assertEquals(expectedSql, sql.statement());
+                assertEquals(sql.generatedKeys(), List.of());
+                assertFalse(sql.versionAware());
+                assertFalse(sql.bindVariables().isPresent());
+            }
+        }, () -> {
+            var id = 1;
+            repo.upsert(Pet.builder()
+                    .id(id)
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build());
+            var entity = repo.getById(id);
+            assertEquals(id, entity.id());
+            assertEquals("Buddy", entity.name());
+            assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+            assertEquals(1, entity.type().id());
+            assertEquals(1, entity.owner().id());
+        });
+    }
+
+    @Test
+    public void testUpsertWithSequenceExistingBatch() {
+        String expectedSql = """
+                UPDATE pet
+                SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                WHERE id = ?""";
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var first = new AtomicBoolean(false);
+        observe(sql -> {
+            if (!first.getAndSet(true)) {
+                assertEquals(expectedSql, sql.statement());
+                assertEquals(sql.generatedKeys(), List.of());
+                assertFalse(sql.versionAware());
+                assertTrue(sql.bindVariables().isPresent());
+            }
+        }, () -> {
+            var ids = List.of(1, 2);
+            repo.upsert(ids.stream().map(id -> Pet.builder()
+                    .id(id)
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build()).toList());
+            ids.forEach(id -> {
+                var entity = repo.getById(id);
+                assertEquals(id, entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            });
+        });
+    }
+
+    @Test
+    public void testUpsertWithSequenceExistingStream() {
+        String expectedSql = """
+                UPDATE pet
+                SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                WHERE id = ?""";
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var first = new AtomicBoolean(false);
+        observe(sql -> {
+            if (!first.getAndSet(true)) {
+                assertEquals(expectedSql, sql.statement());
+                assertEquals(sql.generatedKeys(), List.of());
+                assertFalse(sql.versionAware());
+                assertTrue(sql.bindVariables().isPresent());
+            }
+        }, () -> {
+            var ids = List.of(1, 2);
+            repo.upsert(ids.stream().map(id -> Pet.builder()
+                    .id(id)
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build()));
+            ids.forEach(id -> {
+                var entity = repo.getById(id);
+                assertEquals(id, entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            });
+        });
+    }
+
+    @Test
+    public void testUpsertWithSequenceNew() {
+        String expectedSql = """
+                UPDATE pet
+                SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                WHERE id = ?""";
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var first = new AtomicBoolean(false);
+        observe(sql -> {
+            if (!first.getAndSet(true)) {
+                assertEquals(expectedSql, sql.statement());
+                assertEquals(sql.generatedKeys(), List.of());
+                assertFalse(sql.versionAware());
+                assertFalse(sql.bindVariables().isPresent());
+            }
+        }, () -> {
+            var id = 100;
+            var e = assertThrows(PersistenceException.class, () ->
+                repo.upsert(Pet.builder()
+                        .id(id)
+                        .name("Buddy")
+                        .birthDate(LocalDate.of(2020, 1, 1))
+                        .type(PetType.builder().id(1).build())
+                        .owner(Owner.builder().id(1).build())
+                        .build()));
+            assertNull("Exception must be raised by storm.", e.getCause());
+        });
+    }
+
+    @Test
+    public void testUpsertWithSequenceNewBatch() {
+        String expectedSql = """
+                UPDATE pet
+                SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                WHERE id = ?""";
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var first = new AtomicBoolean(false);
+        observe(sql -> {
+            if (!first.getAndSet(true)) {
+                assertEquals(expectedSql, sql.statement());
+                assertEquals(sql.generatedKeys(), List.of());
+                assertFalse(sql.versionAware());
+                assertTrue(sql.bindVariables().isPresent());
+            }
+        }, () -> {
+            var ids = List.of(100, 101);
+            var e = assertThrows(PersistenceException.class, () ->
+                    repo.upsert(ids.stream().map(id -> Pet.builder()
+                        .id(id)
+                        .name("Buddy")
+                        .birthDate(LocalDate.of(2020, 1, 1))
+                        .type(PetType.builder().id(1).build())
+                        .owner(Owner.builder().id(1).build())
+                        .build()).toList()));
+            assertNull("Exception must be raised by storm.", e.getCause());
+        });
+    }
+
+    @Test
+    public void testUpsertWithSequenceNewStream() {
+        String expectedSql = """
+                UPDATE pet
+                SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                WHERE id = ?""";
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var first = new AtomicBoolean(false);
+        observe(sql -> {
+            if (!first.getAndSet(true)) {
+                assertEquals(expectedSql, sql.statement());
+                assertEquals(sql.generatedKeys(), List.of());
+                assertFalse(sql.versionAware());
+                assertTrue(sql.bindVariables().isPresent());
+            }
+        }, () -> {
+            var ids = List.of(100, 101);
+            var e = assertThrows(PersistenceException.class, () ->
+                    repo.upsert(ids.stream().map(id -> Pet.builder()
+                            .id(id)
+                            .name("Buddy")
+                            .birthDate(LocalDate.of(2020, 1, 1))
+                            .type(PetType.builder().id(1).build())
+                            .owner(Owner.builder().id(1).build())
+                            .build())));
+            assertNull("Exception must be raised by storm.", e.getCause());
+        });
+    }
+
+    @Test
     public void testUpsertWithSequence() {
         String expectedSql = """
                 INSERT INTO pet (id, name, birth_date, type_id, owner_id)
                 VALUES (NEXT VALUE FOR pet_id_seq, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE id = VALUES(id), name = VALUES(name), owner_id = VALUES(owner_id)""";
+                ON DUPLICATE KEY UPDATE id = VALUES(id), name = VALUES(name), birth_date = VALUES(birth_date), type_id = VALUES(type_id), owner_id = VALUES(owner_id)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
         var first = new AtomicBoolean(false);
         observe(sql -> {
@@ -1082,7 +1274,7 @@ public class MariaDBEntityRepositoryTest {
         String expectedSql = """
                 INSERT INTO pet (id, name, birth_date, type_id, owner_id)
                 VALUES (NEXT VALUE FOR pet_id_seq, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE id = VALUES(id), name = VALUES(name), owner_id = VALUES(owner_id)
+                ON DUPLICATE KEY UPDATE id = VALUES(id), name = VALUES(name), birth_date = VALUES(birth_date), type_id = VALUES(type_id), owner_id = VALUES(owner_id)
                 RETURNING id""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
         var first = new AtomicBoolean(false);
@@ -1113,7 +1305,7 @@ public class MariaDBEntityRepositoryTest {
         String expectedSql = """
                 INSERT INTO pet (id, name, birth_date, type_id, owner_id)
                 VALUES (NEXT VALUE FOR pet_id_seq, ?, ?, ?, ?), (NEXT VALUE FOR pet_id_seq, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE id = VALUES(id), name = VALUES(name), owner_id = VALUES(owner_id)
+                ON DUPLICATE KEY UPDATE id = VALUES(id), name = VALUES(name), birth_date = VALUES(birth_date), type_id = VALUES(type_id), owner_id = VALUES(owner_id)
                 RETURNING id""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
         var first = new AtomicBoolean(false);
@@ -1147,7 +1339,7 @@ public class MariaDBEntityRepositoryTest {
         String expectedSql = """
                 INSERT INTO pet (id, name, birth_date, type_id, owner_id)
                 VALUES (NEXT VALUE FOR pet_id_seq, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE id = VALUES(id), name = VALUES(name), owner_id = VALUES(owner_id)""";
+                ON DUPLICATE KEY UPDATE id = VALUES(id), name = VALUES(name), birth_date = VALUES(birth_date), type_id = VALUES(type_id), owner_id = VALUES(owner_id)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
         var first = new AtomicBoolean(false);
         observe(sql -> {
@@ -1181,8 +1373,8 @@ public class MariaDBEntityRepositoryTest {
     public record PetSequenceEmpty(
             @PK(generation = SEQUENCE) Integer id,
             @Nonnull String name,
-            @Nonnull @Persist(updatable = false) LocalDate birthDate,
-            @Nonnull @FK @Persist(updatable = false) PetType type,
+            @Nonnull LocalDate birthDate,
+            @Nonnull @FK PetType type,
             @Nullable @FK Owner owner
     ) implements Entity<Integer> {}
 
@@ -1412,11 +1604,201 @@ public class MariaDBEntityRepositoryTest {
     }
 
     @Test
+    public void testUpsertWithSequenceEmptyExisting() {
+        String expectedSql = """
+                UPDATE pet
+                SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                WHERE id = ?""";
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var first = new AtomicBoolean(false);
+        observe(sql -> {
+            if (!first.getAndSet(true)) {
+                assertEquals(expectedSql, sql.statement());
+                assertEquals(sql.generatedKeys(), List.of());
+                assertFalse(sql.versionAware());
+                assertFalse(sql.bindVariables().isPresent());
+            }
+        }, () -> {
+            var id = 1;
+            repo.upsert(PetSequenceEmpty.builder()
+                    .id(id)
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build());
+            var entity = repo.getById(id);
+            assertEquals(id, entity.id());
+            assertEquals("Buddy", entity.name());
+            assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+            assertEquals(1, entity.type().id());
+            assertEquals(1, entity.owner().id());
+        });
+    }
+
+    @Test
+    public void testUpsertWithSequenceEmptyExistingBatch() {
+        String expectedSql = """
+                UPDATE pet
+                SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                WHERE id = ?""";
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var first = new AtomicBoolean(false);
+        observe(sql -> {
+            if (!first.getAndSet(true)) {
+                assertEquals(expectedSql, sql.statement());
+                assertEquals(sql.generatedKeys(), List.of());
+                assertFalse(sql.versionAware());
+                assertTrue(sql.bindVariables().isPresent());
+            }
+        }, () -> {
+            var ids = List.of(1, 2);
+            repo.upsert(ids.stream().map(id -> PetSequenceEmpty.builder()
+                    .id(id)
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build()).toList());
+            ids.forEach(id -> {
+                var entity = repo.getById(id);
+                assertEquals(id, entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            });
+        });
+    }
+
+    @Test
+    public void testUpsertWithSequenceEmptyExistingStream() {
+        String expectedSql = """
+                UPDATE pet
+                SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                WHERE id = ?""";
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var first = new AtomicBoolean(false);
+        observe(sql -> {
+            if (!first.getAndSet(true)) {
+                assertEquals(expectedSql, sql.statement());
+                assertEquals(sql.generatedKeys(), List.of());
+                assertFalse(sql.versionAware());
+                assertTrue(sql.bindVariables().isPresent());
+            }
+        }, () -> {
+            var ids = List.of(1, 2);
+            repo.upsert(ids.stream().map(id -> PetSequenceEmpty.builder()
+                    .id(id)
+                    .name("Buddy")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .type(PetType.builder().id(1).build())
+                    .owner(Owner.builder().id(1).build())
+                    .build()));
+            ids.forEach(id -> {
+                var entity = repo.getById(id);
+                assertEquals(id, entity.id());
+                assertEquals("Buddy", entity.name());
+                assertEquals(LocalDate.of(2020, 1, 1), entity.birthDate());
+                assertEquals(1, entity.type().id());
+                assertEquals(1, entity.owner().id());
+            });
+        });
+    }
+
+    @Test
+    public void testUpsertWithSequenceEmptyNew() {
+        String expectedSql = """
+                UPDATE pet
+                SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                WHERE id = ?""";
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var first = new AtomicBoolean(false);
+        observe(sql -> {
+            if (!first.getAndSet(true)) {
+                assertEquals(expectedSql, sql.statement());
+                assertEquals(sql.generatedKeys(), List.of());
+                assertFalse(sql.versionAware());
+                assertFalse(sql.bindVariables().isPresent());
+            }
+        }, () -> {
+            var id = 100;
+            var e = assertThrows(PersistenceException.class, () ->
+                    repo.upsert(PetSequenceEmpty.builder()
+                            .id(id)
+                            .name("Buddy")
+                            .birthDate(LocalDate.of(2020, 1, 1))
+                            .type(PetType.builder().id(1).build())
+                            .owner(Owner.builder().id(1).build())
+                            .build()));
+            assertNull("Exception must be raised by storm.", e.getCause());
+        });
+    }
+
+    @Test
+    public void testUpsertWithSequenceEmptyNewBatch() {
+        String expectedSql = """
+                UPDATE pet
+                SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                WHERE id = ?""";
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var first = new AtomicBoolean(false);
+        observe(sql -> {
+            if (!first.getAndSet(true)) {
+                assertEquals(expectedSql, sql.statement());
+                assertEquals(sql.generatedKeys(), List.of());
+                assertFalse(sql.versionAware());
+                assertTrue(sql.bindVariables().isPresent());
+            }
+        }, () -> {
+            var ids = List.of(100, 101);
+            var e = assertThrows(PersistenceException.class, () ->
+                    repo.upsert(ids.stream().map(id -> PetSequenceEmpty.builder()
+                            .id(id)
+                            .name("Buddy")
+                            .birthDate(LocalDate.of(2020, 1, 1))
+                            .type(PetType.builder().id(1).build())
+                            .owner(Owner.builder().id(1).build())
+                            .build()).toList()));
+            assertNull("Exception must be raised by storm.", e.getCause());
+        });
+    }
+
+    @Test
+    public void testUpsertWithSequenceEmptyNewStream() {
+        String expectedSql = """
+                UPDATE pet
+                SET name = ?, birth_date = ?, type_id = ?, owner_id = ?
+                WHERE id = ?""";
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
+        var first = new AtomicBoolean(false);
+        observe(sql -> {
+            if (!first.getAndSet(true)) {
+                assertEquals(expectedSql, sql.statement());
+                assertEquals(sql.generatedKeys(), List.of());
+                assertFalse(sql.versionAware());
+                assertTrue(sql.bindVariables().isPresent());
+            }
+        }, () -> {
+            var ids = List.of(100, 101);
+            var e = assertThrows(PersistenceException.class, () ->
+                    repo.upsert(ids.stream().map(id -> PetSequenceEmpty.builder()
+                            .id(id)
+                            .name("Buddy")
+                            .birthDate(LocalDate.of(2020, 1, 1))
+                            .type(PetType.builder().id(1).build())
+                            .owner(Owner.builder().id(1).build())
+                            .build())));
+            assertNull("Exception must be raised by storm.", e.getCause());
+        });
+    }
+
+    @Test
     public void testUpsertWithSequenceEmpty() {
         String expectedSql = """
                 INSERT INTO pet (name, birth_date, type_id, owner_id)
                 VALUES (?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), name = VALUES(name), owner_id = VALUES(owner_id)""";
+                ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), name = VALUES(name), birth_date = VALUES(birth_date), type_id = VALUES(type_id), owner_id = VALUES(owner_id)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
         var first = new AtomicBoolean(false);
         observe(sql -> {
@@ -1447,7 +1829,7 @@ public class MariaDBEntityRepositoryTest {
         String expectedSql = """
                 INSERT INTO pet (name, birth_date, type_id, owner_id)
                 VALUES (?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), name = VALUES(name), owner_id = VALUES(owner_id)
+                ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), name = VALUES(name), birth_date = VALUES(birth_date), type_id = VALUES(type_id), owner_id = VALUES(owner_id)
                 RETURNING id""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
         var first = new AtomicBoolean(false);
@@ -1478,7 +1860,7 @@ public class MariaDBEntityRepositoryTest {
         String expectedSql = """
                 INSERT INTO pet (name, birth_date, type_id, owner_id)
                 VALUES (?, ?, ?, ?), (?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), name = VALUES(name), owner_id = VALUES(owner_id)
+                ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), name = VALUES(name), birth_date = VALUES(birth_date), type_id = VALUES(type_id), owner_id = VALUES(owner_id)
                 RETURNING id""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
         var first = new AtomicBoolean(false);
@@ -1512,7 +1894,7 @@ public class MariaDBEntityRepositoryTest {
         String expectedSql = """
                 INSERT INTO pet (name, birth_date, type_id, owner_id)
                 VALUES (?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), name = VALUES(name), owner_id = VALUES(owner_id)""";
+                ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), name = VALUES(name), birth_date = VALUES(birth_date), type_id = VALUES(type_id), owner_id = VALUES(owner_id)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(PetSequenceEmpty.class);
         var first = new AtomicBoolean(false);
         observe(sql -> {
