@@ -1,5 +1,5 @@
 module storm.spring {
-    requires storm.java21;
+    requires storm.java;
     requires spring.jdbc;
     requires spring.tx;
     requires spring.context;

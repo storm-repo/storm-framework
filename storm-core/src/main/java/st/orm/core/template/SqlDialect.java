@@ -204,4 +204,13 @@ public interface SqlDialect {
      * @since 1.2
      */
     String forUpdateLockHint();
+
+    /**
+     * Returns the SQL statement for getting the next value of the given sequence.
+     *
+     * @param sequenceName the name of the sequence.
+     * @return the SQL statement for getting the next value of the given sequence.
+     * @since 1.6
+     */
+    String sequenceNextVal(String sequenceName);
 }

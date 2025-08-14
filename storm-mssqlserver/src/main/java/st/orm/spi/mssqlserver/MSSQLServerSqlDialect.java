@@ -249,4 +249,16 @@ public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDiale
     public String forUpdateLockHint() {
         return "WITH (UPDLOCK)";
     }
+
+    /**
+     * Returns the SQL statement for getting the next value of the given sequence.
+     *
+     * @param sequenceName the name of the sequence.
+     * @return the SQL statement for getting the next value of the given sequence.
+     * @since 1.6
+     */
+    @Override
+    public String sequenceNextVal(String sequenceName) {
+        return "NEXT VALUE FOR " + getSafeIdentifier(sequenceName);
+    }
 }

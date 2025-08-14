@@ -16,6 +16,7 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
+import st.orm.PersistenceException;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplateException;
 
@@ -320,5 +321,17 @@ public class DefaultSqlDialect implements SqlDialect {
     @Override
     public String forUpdateLockHint() {
         return "FOR UPDATE";
+    }
+
+    /**
+     * Returns the SQL statement for getting the next value of the given sequence.
+     *
+     * @param sequenceName the name of the sequence.
+     * @return the SQL statement for getting the next value of the given sequence.
+     * @since 1.6
+     */
+    @Override
+    public String sequenceNextVal(String sequenceName) {
+        throw new PersistenceException("Sequences are not supported by this dialect.");
     }
 }

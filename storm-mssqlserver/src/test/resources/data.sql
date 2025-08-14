@@ -23,7 +23,7 @@ DROP TABLE owner;
 -- Create tables
 
 CREATE TABLE owner (
-                       id int IDENTITY(1,1) PRIMARY KEY,
+                       id int IDENTITY(1,1) PRIMARY KEY ,
                        first_name varchar(255),
                        last_name varchar(255),
                        address varchar(255),
@@ -32,8 +32,12 @@ CREATE TABLE owner (
                        version int DEFAULT 0
 );
 
+CREATE SEQUENCE pet_id_seq
+    START WITH 1
+    INCREMENT BY 1;
+
 CREATE TABLE pet (
-                     id int IDENTITY(1,1) PRIMARY KEY,
+                     id int PRIMARY KEY DEFAULT NEXT VALUE FOR pet_id_seq,
                      name varchar(255),
                      birth_date date,
                      owner_id int,

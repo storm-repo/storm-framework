@@ -70,19 +70,17 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <useModulePath>true</useModulePath>
                     <argLine>
+                        --enable-preview
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens storm.spring/st.orm.spring=ALL-UNNAMED
                         --add-opens storm.spring/st.orm.spring.model=ALL-UNNAMED
                         --add-opens storm.spring/st.orm.spring=spring.core
                         --add-opens storm.spring/st.orm.spring.model=storm.foundation
-                        --add-opens storm.spring/st.orm.spring.model=storm.java21
+                        --add-opens storm.spring/st.orm.spring.model=storm.java
                         --add-opens storm.spring/st.orm.spring.model=storm.core
                         -Dstorm.ansiEscaping=true
                     </argLine>
-                    <forkCount>1</forkCount>
-                    <reuseForks>false</reuseForks>
                 </configuration>
             </plugin>
         </plugins>

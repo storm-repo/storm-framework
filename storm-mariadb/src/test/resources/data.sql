@@ -10,8 +10,12 @@ drop table if exists visit CASCADE;
 drop view if exists owner_view;
 drop view if exists visit_view;
 
+CREATE SEQUENCE pet_id_seq
+    START WITH 1
+    INCREMENT BY 1;
+
 create table owner (id integer auto_increment, first_name varchar(255), last_name varchar(255), address varchar(255), city varchar(255), telephone varchar(255), primary key (id), version integer default 0);
-create table pet (id integer auto_increment, name varchar(255), birth_date date, owner_id integer, type_id integer, primary key (id));
+create table pet (id integer PRIMARY KEY DEFAULT(NEXT VALUE for pet_id_seq), name varchar(255), birth_date date, owner_id integer, type_id integer);
 create table pet_type (id integer auto_increment, name varchar(255), description varchar(255), primary key (id), unique(name));
 create table specialty (id integer, name varchar(255), primary key (id), unique(name));
 create table vet (id integer auto_increment, first_name varchar(255), last_name varchar(255), primary key (id));
