@@ -38,7 +38,7 @@ abstract class AbstractRef<T extends Record> implements Ref<T> {
         if (this == obj) {
             return true;
         }
-        if (obj instanceof AbstractRef<?> l) {
+        if (obj instanceof Ref<?> l) {
             return Objects.equals(type(), l.type())
                     && Objects.equals(id(), l.id());
         }
