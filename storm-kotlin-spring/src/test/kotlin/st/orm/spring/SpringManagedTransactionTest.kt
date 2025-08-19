@@ -3,6 +3,7 @@ package st.orm.spring
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
@@ -25,13 +26,25 @@ import st.orm.template.TransactionPropagation.*
 open class SpringManagedTransactionTest(
     @Autowired val orm: ORMTemplate
 ) {
+
+    @AfterEach
+    fun resetDefaults() {
+        // Restore baseline defaults: REQUIRED, isolation=null, timeout=null, readOnly=false.
+        setGlobalTransactionDefaults(
+            propagation = REQUIRED,
+            isolation = null,
+            timeoutSeconds = null,
+            readOnly = false
+        )
+    }
+
     /**
      * Single-layer scenarios (default REQUIRED propagation)
      */
 
     @Test
     fun `modification visible after required commit`(): Unit = runBlocking {
-        transaction {
+        transactionBlocking {
             orm.deleteAll<Visit>()
         }
         orm.exists<Visit>().shouldBeFalse()
@@ -39,7 +52,7 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `modification rolled back after required rollback`(): Unit = runBlocking {
-        transaction {
+        transactionBlocking {
             orm.deleteAll<Visit>()
             setRollbackOnly()
         }
@@ -48,7 +61,7 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `modification rolled back after required rollback at start`(): Unit = runBlocking {
-        transaction {
+        transactionBlocking {
             setRollbackOnly()
             orm.deleteAll<Visit>()
         }
@@ -61,8 +74,8 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `modification visible for required inner commit and outer commit`(): Unit = runBlocking {
-        transaction {
-            transaction(REQUIRED) {
+        transactionBlocking {
+            transactionBlocking(REQUIRED) {
                 orm.deleteAll<Visit>()
             }
         }
@@ -71,8 +84,8 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `modification rolled back for required inner commit and outer rollback`(): Unit = runBlocking {
-        transaction {
-            transaction(REQUIRED) {
+        transactionBlocking {
+            transactionBlocking(REQUIRED) {
                 orm.deleteAll<Visit>()
             }
             setRollbackOnly()
@@ -87,8 +100,8 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `modification visible for requires_new inner commit and outer commit`(): Unit = runBlocking {
-        transaction {
-            transaction(REQUIRES_NEW) {
+        transactionBlocking {
+            transactionBlocking(REQUIRES_NEW) {
                 orm.deleteAll<Visit>()
             }
             orm.exists<Visit>().shouldBeFalse()
@@ -98,8 +111,8 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `modification visible for requires_new inner commit and outer rollback`(): Unit = runBlocking {
-        transaction {
-            transaction(REQUIRES_NEW) {
+        transactionBlocking {
+            transactionBlocking(REQUIRES_NEW) {
                 orm.deleteAll<Visit>()
             }
             setRollbackOnly()
@@ -110,8 +123,8 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `modification rolled back for requires_new inner rollback and outer commit`(): Unit = runBlocking {
-        transaction {
-            transaction(REQUIRES_NEW) {
+        transactionBlocking {
+            transactionBlocking(REQUIRES_NEW) {
                 orm.deleteAll<Visit>()
                 setRollbackOnly()
             }
@@ -122,8 +135,8 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `modification rolled back for requires_new inner rollback and outer rollback`(): Unit = runBlocking {
-        transaction {
-            transaction(REQUIRES_NEW) {
+        transactionBlocking {
+            transactionBlocking(REQUIRES_NEW) {
                 orm.deleteAll<Visit>()
                 setRollbackOnly()
             }
@@ -139,8 +152,8 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `modification visible for nested inner commit and outer commit`(): Unit = runBlocking {
-        transaction {
-            transaction(NESTED) {
+        transactionBlocking {
+            transactionBlocking(NESTED) {
                 orm.deleteAll<Visit>()
             }
         }
@@ -149,8 +162,8 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `modification rolled back for nested inner commit and outer rollback`(): Unit = runBlocking {
-        transaction {
-            transaction(NESTED) {
+        transactionBlocking {
+            transactionBlocking(NESTED) {
                 orm.deleteAll<Visit>()
             }
             setRollbackOnly()
@@ -161,8 +174,8 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `modification rolled back for nested inner rollback and outer commit`(): Unit = runBlocking {
-        transaction {
-            transaction(NESTED) {
+        transactionBlocking {
+            transactionBlocking(NESTED) {
                 orm.deleteAll<Visit>()
                 setRollbackOnly()
             }
@@ -173,8 +186,8 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `modification rolled back for nested inner rollback and outer rollback`(): Unit = runBlocking {
-        transaction {
-            transaction(NESTED) {
+        transactionBlocking {
+            transactionBlocking(NESTED) {
                 orm.deleteAll<Visit>()
                 setRollbackOnly()
             }
@@ -188,7 +201,7 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `required commit with READ_UNCOMMITTED isolation`(): Unit = runBlocking {
-        transaction(isolation = READ_UNCOMMITTED) {
+        transactionBlocking(isolation = READ_UNCOMMITTED) {
             orm.deleteAll<Visit>()
         }
         orm.exists<Visit>().shouldBeFalse()
@@ -196,7 +209,7 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `required rollback with READ_UNCOMMITTED isolation`(): Unit = runBlocking {
-        transaction(isolation = READ_UNCOMMITTED) {
+        transactionBlocking(isolation = READ_UNCOMMITTED) {
             orm.deleteAll<Visit>()
             setRollbackOnly()
         }
@@ -205,7 +218,7 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `required commit with READ_COMMITTED isolation`(): Unit = runBlocking {
-        transaction(isolation = READ_COMMITTED) {
+        transactionBlocking(isolation = READ_COMMITTED) {
             orm.deleteAll<Visit>()
         }
         orm.exists<Visit>().shouldBeFalse()
@@ -213,7 +226,7 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `required rollback with READ_COMMITTED isolation`(): Unit = runBlocking {
-        transaction(isolation = READ_COMMITTED) {
+        transactionBlocking(isolation = READ_COMMITTED) {
             orm.deleteAll<Visit>()
             setRollbackOnly()
         }
@@ -222,7 +235,7 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `required commit with REPEATABLE_READ isolation`(): Unit = runBlocking {
-        transaction(isolation = REPEATABLE_READ) {
+        transactionBlocking(isolation = REPEATABLE_READ) {
             orm.deleteAll<Visit>()
         }
         orm.exists<Visit>().shouldBeFalse()
@@ -230,7 +243,7 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `required rollback with REPEATABLE_READ isolation`(): Unit = runBlocking {
-        transaction(isolation = REPEATABLE_READ) {
+        transactionBlocking(isolation = REPEATABLE_READ) {
             orm.deleteAll<Visit>()
             setRollbackOnly()
         }
@@ -239,7 +252,7 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `required commit with SERIALIZABLE isolation`(): Unit = runBlocking {
-        transaction(isolation = SERIALIZABLE) {
+        transactionBlocking(isolation = SERIALIZABLE) {
             orm.deleteAll<Visit>()
         }
         orm.exists<Visit>().shouldBeFalse()
@@ -247,7 +260,7 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `required rollback with SERIALIZABLE isolation`(): Unit = runBlocking {
-        transaction(isolation = SERIALIZABLE) {
+        transactionBlocking(isolation = SERIALIZABLE) {
             orm.deleteAll<Visit>()
             setRollbackOnly()
         }
@@ -261,7 +274,7 @@ open class SpringManagedTransactionTest(
     @Test
     fun `suspendTransaction not allowed with spring managed transactions`(): Unit = runBlocking {
         assertThrows<PersistenceException> {
-            suspendTransaction {
+            transaction {
                 orm.deleteAll<Visit>()
             }
         }
@@ -270,7 +283,7 @@ open class SpringManagedTransactionTest(
     @Transactional
     @Test
     open fun `programmatic transactions allowed with spring managed transactions`(): Unit = runBlocking {
-        transaction {
+        transactionBlocking {
             orm.deleteAll<Visit>()
         }
     }
@@ -282,7 +295,7 @@ open class SpringManagedTransactionTest(
     @Test
     open fun `transaction times out and rolls back when execution exceeds timeout`(): Unit = runBlocking {
         assertThrows<TransactionTimedOutException> {
-            transaction(timeoutSeconds = 1) {
+            transactionBlocking(timeoutSeconds = 1) {
                 orm.deleteAll<Visit>()
                 Thread.sleep(1500)
             }
@@ -294,7 +307,7 @@ open class SpringManagedTransactionTest(
     @Test
     open fun `transaction times out and rolls back when execution exceeds query timeout`(): Unit = runBlocking {
         assertThrows<TransactionTimedOutException> {
-            transaction(timeoutSeconds = 1) {
+            transactionBlocking(timeoutSeconds = 1) {
                 orm.deleteAll<Visit>()
                 orm.query(
                     """
@@ -315,10 +328,10 @@ open class SpringManagedTransactionTest(
     @Test
     fun `outer commit fails with UnexpectedRollback when inner REQUIRED marks rollback-only`(): Unit = runBlocking {
         assertThrows<UnexpectedRollbackException> {
-            transaction {
+            transactionBlocking {
                 orm.deleteAll<Visit>()
                 // Inner REQUIRED participates in the same physical tx and marks rollback-only.
-                transaction(REQUIRED) {
+                transactionBlocking(REQUIRED) {
                     setRollbackOnly()
                 }
                 // Outer tries to commit -> should throw UnexpectedRollbackException.
@@ -329,8 +342,8 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `nested rollback does not throw on outer commit`(): Unit = runBlocking {
-        transaction {
-            transaction(NESTED) {
+        transactionBlocking {
+            transactionBlocking(NESTED) {
                 orm.deleteAll<Visit>()
                 setRollbackOnly()
             }
@@ -341,8 +354,8 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `outer rollback does not throw when inner REQUIRED marked rollback-only too`(): Unit = runBlocking {
-        transaction {
-            transaction(REQUIRED) {
+        transactionBlocking {
+            transactionBlocking(REQUIRED) {
                 orm.deleteAll<Visit>()
                 setRollbackOnly()               // Inner marks global tx rollback-only.
             }
@@ -351,5 +364,87 @@ open class SpringManagedTransactionTest(
             // exit -> should roll back WITHOUT throwing UnexpectedRollbackException.
         }
         orm.exists<Visit>().shouldBeTrue()
+    }
+
+    /**
+     * Global defaults.
+     */
+
+    @Test
+    fun `global timeout applies to sync transaction`(): Unit = runBlocking {
+        setGlobalTransactionDefaults(timeoutSeconds = 1)
+        assertThrows<TransactionTimedOutException> {
+            transactionBlocking {
+                orm.deleteAll<Visit>()
+                Thread.sleep(1500)
+            }
+        }
+        // Timed out -> should have rolled back
+        orm.exists<Visit>().shouldBeTrue()
+    }
+
+    /**
+     * Thread-scoped defaults (synchronous path).
+     */
+
+    @Test
+    fun `withThreadDefaults overrides global for sync transaction`(): Unit = runBlocking {
+        setGlobalTransactionDefaults(timeoutSeconds = 5) // Relaxed global
+        assertThrows<TransactionTimedOutException> {
+            withTransactionDefaultsBlocking(timeoutSeconds = 1) {
+                transactionBlocking {
+                    orm.deleteAll<Visit>()
+                    Thread.sleep(1500)
+                }
+            }
+        }
+        // Rolled back
+        orm.exists<Visit>().shouldBeTrue()
+    }
+
+    @Test
+    fun `withThreadDefaults is cleared after block`() = runBlocking {
+        // Inside block -> short timeout
+        withTransactionDefaultsBlocking(timeoutSeconds = 1) {
+            assertThrows<TransactionTimedOutException> {
+                transactionBlocking {
+                    Thread.sleep(1500)
+                }
+            }
+        }
+        // Outside block -> no timeout default (uses global which we reset in @AfterEach)
+        transactionBlocking {
+            // Should not throw
+            Thread.sleep(100)
+        }
+    }
+
+    /**
+     * Explicit args override defaults.
+     */
+
+    @Test
+    fun `explicit transaction args override thread defaults`(): Unit = runBlocking {
+        withTransactionDefaultsBlocking(timeoutSeconds = 5) {
+            // Explicit 1s should win and time out
+            assertThrows<TransactionTimedOutException> {
+                transactionBlocking(timeoutSeconds = 1) {
+                    Thread.sleep(1500)
+                }
+            }
+        }
+    }
+
+    /**
+     * Sanity: defaults don't force read-only etc. (smoke).
+     */
+
+    @Test
+    fun `global isolation default does not block writes (smoke)`(): Unit = runBlocking {
+        setGlobalTransactionDefaults(isolation = READ_COMMITTED)
+        transactionBlocking {
+            orm.deleteAll<Visit>()
+        }
+        orm.exists<Visit>().shouldBeFalse()
     }
 }

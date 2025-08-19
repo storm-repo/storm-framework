@@ -120,6 +120,7 @@ open class RepositoryBeanFactoryPostProcessor :
         repositories: Stream<Class<out Repository>>
     ) {
         repositories.forEach { type: Class<out Repository> ->
+            @Suppress("UNCHECKED_CAST")
             val repositoryType = type as Class<Repository>
             val proxyBeanDefinition = BeanDefinitionBuilder
                 .genericBeanDefinition(repositoryType) {
@@ -162,6 +163,7 @@ open class RepositoryBeanFactoryPostProcessor :
             val loaded: Class<*> = runCatching { Class.forName(fullyQualifiedName, false, type.classLoader) }
                 .getOrNull() ?: continue
             if (Annotation::class.java.isAssignableFrom(loaded)) {
+                @Suppress("UNCHECKED_CAST")
                 val annotationType = loaded as Class<out kotlin.Annotation>
                 if (type.isAnnotationPresent(annotationType)) {
                     return true
