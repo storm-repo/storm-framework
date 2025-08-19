@@ -269,10 +269,10 @@ preferences.
 
 === Querying Entities
 
-The Storm API provides a powerful and flexible way to query entities. It supports both SQL Template mode and ORM mode,
-allowing developers to choose the approach that best fits their needs.
+The Storm API provides a powerful and flexible way to query entities. It supports both a DSL mode and a SQL Template
+mode, allowing developers to choose the approach that best fits their needs.
 
-The following example demonstrates how to query the `User` entity using both SQL Template mode and ORM mode. The query
+The following example demonstrates how to query the `User` entity using both DSL mode and SQL Template mode. The query
 fetches users based on the specified email address. The email address is passed as a bind variable to the underlying SQL
 query in all modes.
 
@@ -306,10 +306,10 @@ Optional<User> user = ORMTemplate.of(dataSource).query(RAW."""
 ----
 ====
 
-ORM mode should generally be preferred for its type-safe, readable syntax and portability. However, SQL Template mode is
+DSL mode should generally be preferred for its type-safe, readable syntax and portability. However, SQL Template mode is
 also available for those who prefer a more SQL-like approach or need to execute complex queries that may not be easily
 expressed in code. All ORM methods also support SQL Templates in a hybrid fashion, allowing for a seamless transition
-between ORM and SQL Template modes.
+between DSL and SQL Template modes.
 
 ==== one-to-one / many-to-one relationships
 
@@ -962,7 +962,7 @@ In this mode, Storm simply operates within the transaction context provided by S
 ==== Kotlin programmatic transactions
 
 In addition to declarative transaction models, Storm for Kotlin provides *full programmatic transaction control*
-for both **suspend functions** (coroutine-friendly, non-blocking access) and **regular non-suspend code** (blocking style).
+for both **suspend functions** (coroutine-friendly, non-blocking access) and **blocking functions**.
 
 Suspend transactions allow **context switching** without losing the active transaction, so you can offload CPU-bound work
 to another dispatcher while keeping the same database session and state.
@@ -974,7 +974,7 @@ automatically roll back long-running or stuck transactions.
 Example:
 [tabs]
 ====
-Programmatic Regular (Kotlin)::
+Programmatic (Kotlin)::
 +
 [source,kotlin]
 ----
@@ -984,11 +984,11 @@ transaction(isolation = REPEATABLE_READ, timeoutSeconds = 30) {
     orderRepositoryupdate(order.copy(pending = false))
 }
 ----
-Programmatic Suspend (Kotlin)::
+Programmatic Blocking (Kotlin)::
 +
 [source,kotlin]
 ----
-suspendTransaction(isolation = REPEATABLE_READ, timeoutSeconds = 30) {
+transactionBlocking(isolation = REPEATABLE_READ, timeoutSeconds = 30) {
     val orders = orderRepository.findPendingOrders()
 
     withContext(Dispatchers.Default) {
