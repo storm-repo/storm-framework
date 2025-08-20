@@ -197,7 +197,7 @@ internal class JdbcTransactionContext : TransactionContext {
             when (e.cause) {
                 is SQLTimeoutException -> {
                     // TimeoutJob may not have registered timeout yet.
-                    throw TransactionTimedOutException(e.message ?: "Transaction did not complete within timeout.", e)
+                    throw TransactionTimedOutException(e.message ?: "Transaction did not complete within timeout (${state.timeoutSeconds}s).", e)
                 }
                 else -> throw e
             }
