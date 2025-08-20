@@ -30,7 +30,7 @@ open class SpringManagedTransactionTest(
     @AfterEach
     fun resetDefaults() {
         // Restore baseline defaults: REQUIRED, isolation=null, timeout=null, readOnly=false.
-        setGlobalTransactionDefaults(
+        setGlobalTransactionOptions(
             propagation = REQUIRED,
             isolation = null,
             timeoutSeconds = null,
@@ -372,7 +372,7 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `global timeout applies to sync transaction`(): Unit = runBlocking {
-        setGlobalTransactionDefaults(timeoutSeconds = 1)
+        setGlobalTransactionOptions(timeoutSeconds = 1)
         assertThrows<TransactionTimedOutException> {
             transactionBlocking {
                 orm.deleteAll<Visit>()
@@ -389,9 +389,9 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `withThreadDefaults overrides global for sync transaction`(): Unit = runBlocking {
-        setGlobalTransactionDefaults(timeoutSeconds = 5) // Relaxed global
+        setGlobalTransactionOptions(timeoutSeconds = 5) // Relaxed global
         assertThrows<TransactionTimedOutException> {
-            withTransactionDefaultsBlocking(timeoutSeconds = 1) {
+            withTransactionOptionsBlocking(timeoutSeconds = 1) {
                 transactionBlocking {
                     orm.deleteAll<Visit>()
                     Thread.sleep(1500)
@@ -405,7 +405,7 @@ open class SpringManagedTransactionTest(
     @Test
     fun `withThreadDefaults is cleared after block`() = runBlocking {
         // Inside block -> short timeout
-        withTransactionDefaultsBlocking(timeoutSeconds = 1) {
+        withTransactionOptionsBlocking(timeoutSeconds = 1) {
             assertThrows<TransactionTimedOutException> {
                 transactionBlocking {
                     Thread.sleep(1500)
@@ -425,7 +425,7 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `explicit transaction args override thread defaults`(): Unit = runBlocking {
-        withTransactionDefaultsBlocking(timeoutSeconds = 5) {
+        withTransactionOptionsBlocking(timeoutSeconds = 5) {
             // Explicit 1s should win and time out
             assertThrows<TransactionTimedOutException> {
                 transactionBlocking(timeoutSeconds = 1) {
@@ -441,7 +441,7 @@ open class SpringManagedTransactionTest(
 
     @Test
     fun `global isolation default does not block writes (smoke)`(): Unit = runBlocking {
-        setGlobalTransactionDefaults(isolation = READ_COMMITTED)
+        setGlobalTransactionOptions(isolation = READ_COMMITTED)
         transactionBlocking {
             orm.deleteAll<Visit>()
         }

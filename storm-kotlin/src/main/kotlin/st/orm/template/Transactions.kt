@@ -55,12 +55,12 @@ fun <T> transactionBlocking(
     readOnly: Boolean?                   = null,
     block: Transaction.() -> T
 ): T {
-    val defaults = localTransactionDefaults.get() ?: globalTransactionDefaults.get()
+    val options = localTransactionOptions.get() ?: globalTransactionOptions.get()
     val transactionTemplate = getTransactionTemplate(
-        propagation = propagation ?: defaults.propagation,
-        isolation = isolation ?: defaults.isolation,
-        timeoutSeconds = timeoutSeconds ?: defaults.timeoutSeconds,
-        readOnly = readOnly ?: defaults.readOnly
+        propagation = propagation ?: options.propagation,
+        isolation = isolation ?: options.isolation,
+        timeoutSeconds = timeoutSeconds ?: options.timeoutSeconds,
+        readOnly = readOnly ?: options.readOnly
     )
     val contextHolder = transactionTemplate.contextHolder()
     contextHolder.get()?.let { existingCtx ->
@@ -114,18 +114,18 @@ suspend fun <T> transaction(
     block: suspend Transaction.() -> T
 ): T {
     val currentContext = currentCoroutineContext()
-    val defaults = currentContext[Scoped]?.defaults ?: globalTransactionDefaults.get()
+    val options = currentContext[Scoped]?.options ?: globalTransactionOptions.get()
     val transactionTemplate = getTransactionTemplate(
-        propagation = propagation ?: defaults.propagation,
-        isolation = isolation ?: defaults.isolation,
-        timeoutSeconds = timeoutSeconds ?: defaults.timeoutSeconds,
-        readOnly = readOnly ?: defaults.readOnly
+        propagation = propagation ?: options.propagation,
+        isolation = isolation ?: options.isolation,
+        timeoutSeconds = timeoutSeconds ?: options.timeoutSeconds,
+        readOnly = readOnly ?: options.readOnly
     )
     // Already in a transaction: re-use it and ensure the ThreadLocal holder is visible on this thread.
     currentContext[TransactionKey]?.context?.let { existing ->
         val elements = TransactionKey(existing) +
                 transactionTemplate.contextHolder().asContextElement(existing) +
-                localTransactionDefaults.asContextElement(defaults)             // Make the defaults available via the ThreadLocal in case the blocking variant is invoked from suspend context.
+                localTransactionOptions.asContextElement(options)             // Make the options available via the ThreadLocal in case the blocking variant is invoked from suspend context.
         return withContext(currentContext + elements) {
             execute(coroutineContext, transactionTemplate, existing, block)
         }
@@ -133,7 +133,7 @@ suspend fun <T> transaction(
     val newContext = transactionTemplate.newContext(true)
     val elements = TransactionKey(newContext) +
             transactionTemplate.contextHolder().asContextElement(newContext) +  // Make the context available via the ThreadLocal.
-            localTransactionDefaults.asContextElement(defaults)                 // Make the defaults available via the ThreadLocal in case the blocking variant is invoked from suspend context.
+            localTransactionOptions.asContextElement(options)                 // Make the options available via the ThreadLocal in case the blocking variant is invoked from suspend context.
     return withContext(currentContext + dispatcher + elements) { // Potentially add limitedParallelism(1) here in the future.
         // Just pass the elements, not the context, as the caller might have switched dispatchers. We just want to make
         // the transaction context available to the caller's coroutine.
@@ -211,24 +211,31 @@ private fun <T> execute(
     }, transactionContext)
 }
 
-// Global defaults.
-private val globalTransactionDefaults = AtomicReference(TransactionDefaults())
+/**
+ * Global transaction options that are applied to all transactions by default.
+ */
+private val globalTransactionOptions = AtomicReference(TransactionOptions())
 
-// Thread-local defaults for non-suspend code.
-private val localTransactionDefaults: ThreadLocal<TransactionDefaults?> = ThreadLocal.withInitial { null }
-
-// Coroutine context element for transaction defaults.
-private class Scoped(val defaults: TransactionDefaults) :
+/**
+ * Coroutine context element for transaction options that are applied to all transactions started in the current
+ * coroutine context.
+ */
+private class Scoped(val options: TransactionOptions) :
     AbstractCoroutineContextElement(Key) {
     companion object Key : CoroutineContext.Key<Scoped>
 }
 
 /**
- * Sets the global transaction defaults.
+ * Thread-local transaction options that are applied to all transactions started in the current thread.
+ */
+private val localTransactionOptions: ThreadLocal<TransactionOptions?> = ThreadLocal.withInitial { null }
+
+/**
+ * Sets the global transaction options.
  *
- * This affects *new* transactions that do not override defaults locally.
+ * This affects *new* transactions that do not override options locally.
  *
- * Typical usage: call once during application startup to configure defaults.
+ * Typical usage: call once during application startup to configure default options that apply to all transactions.
  *
  * @param propagation The transaction propagation behavior.
  * @param isolation The transaction isolation level.
@@ -236,14 +243,14 @@ private class Scoped(val defaults: TransactionDefaults) :
  * @param readOnly Whether the transaction is read-only.
  * @since 1.6
  */
-fun setGlobalTransactionDefaults(
+fun setGlobalTransactionOptions(
     propagation: TransactionPropagation? = null,
     isolation: TransactionIsolation?     = null,
     timeoutSeconds: Int?                 = null,
     readOnly: Boolean?                   = null
 ) {
-    val defaults = TransactionDefaults()
-    globalTransactionDefaults.set(defaults.copy(
+    val defaults = TransactionOptions()
+    globalTransactionOptions.set(defaults.copy(
         propagation = propagation ?: defaults.propagation,
         isolation = isolation ?: defaults.isolation,
         timeoutSeconds = timeoutSeconds ?: defaults.timeoutSeconds,
@@ -252,7 +259,7 @@ fun setGlobalTransactionDefaults(
 }
 
 /**
- * Set the default transaction settings for the current coroutine context.
+ * Set the default transaction options for the current coroutine context.
  *
  * This function is intended to be used in combination with [transaction].
  *
@@ -264,7 +271,7 @@ fun setGlobalTransactionDefaults(
  * @return The result of executing [block].
  * @since 1.6
  */
-suspend fun <T> withTransactionDefaults(
+suspend fun <T> withTransactionOptions(
     propagation: TransactionPropagation? = null,
     isolation: TransactionIsolation?     = null,
     timeoutSeconds: Int?                 = null,
@@ -272,8 +279,8 @@ suspend fun <T> withTransactionDefaults(
     block: suspend () -> T
 ): T {
     val currentContext = currentCoroutineContext()
-    val current = currentContext[Scoped]?.defaults ?: globalTransactionDefaults.get()
-    val scoped = TransactionDefaults().copy(
+    val current = currentContext[Scoped]?.options ?: globalTransactionOptions.get()
+    val scoped = TransactionOptions().copy(
         propagation    = propagation    ?: current.propagation,
         isolation      = isolation      ?: current.isolation,
         timeoutSeconds = timeoutSeconds ?: current.timeoutSeconds,
@@ -281,12 +288,12 @@ suspend fun <T> withTransactionDefaults(
     )
     return withContext(
         Scoped(scoped) +
-                localTransactionDefaults.asContextElement(scoped)   // Make the defaults available via the ThreadLocal in case the blocking variant is invoked from suspend context.
+                localTransactionOptions.asContextElement(scoped)   // Make the defaults available via the ThreadLocal in case the blocking variant is invoked from suspend context.
     ) { block() }
 }
 
 /**
- * Set the default transaction settings for the current thread.
+ * Set the default transaction options for the current thread.
  *
  * This function is intended to be used in combination with [transactionBlocking].
  *
@@ -298,17 +305,17 @@ suspend fun <T> withTransactionDefaults(
  * @return The result of executing [block].
  * @since 1.6
  */
-fun <T> withTransactionDefaultsBlocking(
+fun <T> withTransactionOptionsBlocking(
     propagation: TransactionPropagation? = null,
     isolation: TransactionIsolation?     = null,
     timeoutSeconds: Int?                 = null,
     readOnly: Boolean?                   = null,
     block: () -> T
 ): T {
-    val previous = localTransactionDefaults.get()
-    val current = previous ?: globalTransactionDefaults.get()
-    localTransactionDefaults.set(
-        TransactionDefaults(
+    val previous = localTransactionOptions.get()
+    val current = previous ?: globalTransactionOptions.get()
+    localTransactionOptions.set(
+        TransactionOptions(
             propagation = propagation ?: current.propagation,
             isolation = isolation ?: current.isolation,
             timeoutSeconds = timeoutSeconds ?: current.timeoutSeconds,
@@ -316,7 +323,7 @@ fun <T> withTransactionDefaultsBlocking(
         )
     )
     return try { block() } finally {
-        if (previous == null) localTransactionDefaults.remove() else localTransactionDefaults.set(previous)
+        if (previous == null) localTransactionOptions.remove() else localTransactionOptions.set(previous)
     }
 }
 

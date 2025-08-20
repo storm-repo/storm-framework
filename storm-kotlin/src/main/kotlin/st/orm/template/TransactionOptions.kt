@@ -16,7 +16,7 @@
 package st.orm.template
 
 /**
- * Internal class to hold transaction defaults.
+ * Internal class to hold transaction options.
  *
  * @param propagation The transaction propagation behavior.
  * @param isolation The transaction isolation level.
@@ -24,7 +24,7 @@ package st.orm.template
  * @param readOnly Whether the transaction is read-only.
  * @since 1.6
  */
-internal data class TransactionDefaults(
+internal data class TransactionOptions(
     val propagation: TransactionPropagation = TransactionPropagation.REQUIRED,
     val isolation: TransactionIsolation? = null,
     val timeoutSeconds: Int? = null,
