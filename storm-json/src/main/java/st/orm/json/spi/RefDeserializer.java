@@ -49,17 +49,22 @@ public class RefDeserializer extends JsonDeserializer<Ref<?>>
     }
 
     @Override
+    public Ref getNullValue(DeserializationContext ctxt) {
+        return Ref.ofNull();
+    }
+
+    @Override
     public Ref<?> deserialize(JsonParser p, DeserializationContext ctxt)
             throws IOException {
         if (wrapperType == null) {
-            throw new IllegalStateException("Wrapper type must be set for RefDeserializer");
+            throw new IllegalStateException("Wrapper type must be set for RefDeserializer.");
         }
-        // grab the T from Ref<T>
+        // Grab the T from Ref<T>.
         JavaType contentType = wrapperType.containedType(0);
         Class<? extends Record> target = (Class<? extends Record>) contentType.getRawClass();
         Class<?> pkType = REFLECTION.findPKType(target).orElseThrow(() -> new PersistenceException("No primary key type found for %s.".formatted(target.getSimpleName())));
         Object pk = p.readValueAs(pkType);
-        return pk == null ? Ref.ofNull() : refFactorySupplier.get().create(target, pk);
+        return refFactorySupplier.get().create(target, pk);
     }
 
     @Override
