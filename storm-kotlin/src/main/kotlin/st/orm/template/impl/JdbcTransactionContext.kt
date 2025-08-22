@@ -91,9 +91,13 @@ internal class JdbcTransactionContext : TransactionContext {
     private fun nowNanos(): Long = System.nanoTime()
 
     private fun TransactionState.remainingSeconds(): Int? =
-        deadlineNanos?.let { dl ->
-            val remNanos = dl - nowNanos()
-            if (remNanos <= 0L) 0 else (remNanos / 1_000_000_000L).toInt()
+        deadlineNanos?.let { deadline ->
+            val remaining = deadline - nowNanos()
+            when {
+                remaining <= 0L -> 0
+                remaining >= (Int.MAX_VALUE.toLong() * 1_000_000_000L) -> Int.MAX_VALUE
+                else -> (remaining / 1_000_000_000L).toInt()
+            }
         }
 
     private val stack = mutableListOf<TransactionState>()
@@ -197,7 +201,7 @@ internal class JdbcTransactionContext : TransactionContext {
             when (e.cause) {
                 is SQLTimeoutException -> {
                     // TimeoutJob may not have registered timeout yet.
-                    throw TransactionTimedOutException(e.message ?: "Transaction did not complete within timeout (${state.timeoutSeconds}s).", e)
+                    throw TransactionTimedOutException(e.message ?: "Did not complete within timeout (${state.timeoutSeconds}s).", e)
                 }
                 else -> throw e
             }
@@ -336,7 +340,7 @@ internal class JdbcTransactionContext : TransactionContext {
             val expiredAfter = state.deadlineNanos?.let { nowNanos() >= it } == true
             if (expiredAfter) {
                 throw TransactionTimedOutException(
-                    "Transaction did not complete within timeout (${state.timeoutSeconds}s)."
+                    "Did not complete within timeout (${state.timeoutSeconds}s)."
                 )
             }
             return
@@ -382,7 +386,10 @@ internal class JdbcTransactionContext : TransactionContext {
                 else -> {
                     // Joined REQUIRED or non-transactional scope (no connection):
                     logger.trace("Marking transaction for rollback (${state.transactionId}).")
-                    stack.lastOrNull()?.rollbackOnly = true
+                    stack.lastOrNull()?.apply {
+                        rollbackOnly = true
+                        rollbackInherited = true
+                    }
                 }
             }
         } catch (e: SQLException) {
@@ -390,7 +397,7 @@ internal class JdbcTransactionContext : TransactionContext {
         }
         if (!suppressException && expired) {
             throw TransactionTimedOutException(
-                "Transaction did not complete within timeout (${state.timeoutSeconds}s)."
+                "Did not complete within timeout (${state.timeoutSeconds}s)."
             )
         }
         if (state.rollbackInherited) {

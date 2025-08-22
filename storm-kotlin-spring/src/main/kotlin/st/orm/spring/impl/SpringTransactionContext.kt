@@ -219,7 +219,7 @@ internal class SpringTransactionContext : TransactionContext {
             rollback()
             when (e.cause) {
                 is SQLTimeoutException ->
-                    throw TransactionTimedOutException(e.message ?: "Transaction did not complete within timeout.", e)
+                    throw TransactionTimedOutException(e.message ?: "Did not complete within timeout.", e)
                 else -> throw e
             }
         }
@@ -328,7 +328,7 @@ internal class SpringTransactionContext : TransactionContext {
         try {
             state.transactionManager!!.commit(state.transactionStatus!!)
         } catch (e: org.springframework.transaction.TransactionTimedOutException) {
-            throw TransactionTimedOutException(e.message ?: "Transaction did not complete within timeout.")
+            throw TransactionTimedOutException(e.message ?: "Did not complete within timeout.")
         } catch (e: org.springframework.transaction.UnexpectedRollbackException) {
             // If Spring threw UR because some inner joined frame marked RO, surface a clean message
             throw UnexpectedRollbackException(
@@ -347,7 +347,7 @@ internal class SpringTransactionContext : TransactionContext {
             val expired = state.deadlineNanos?.let { nowNanos() >= it } == true
             if (expired) {
                 throw TransactionTimedOutException(
-                    "Transaction did not complete within timeout (${state.timeoutSeconds}s)."
+                    "Did not complete within timeout (${state.timeoutSeconds}s)."
                 )
             }
             return
@@ -355,14 +355,14 @@ internal class SpringTransactionContext : TransactionContext {
         try {
             state.transactionManager!!.rollback(state.transactionStatus!!)
         } catch (e: org.springframework.transaction.TransactionTimedOutException) {
-            throw TransactionTimedOutException(e.message ?: "Transaction did not complete within timeout.")
+            throw TransactionTimedOutException(e.message ?: "Did not complete within timeout.")
         } catch (e: Exception) {
             throw PersistenceException(e)
         }
         val expired = state.deadlineNanos?.let { nowNanos() >= it } == true
         if (expired) {
             throw TransactionTimedOutException(
-                "Transaction did not complete within timeout (${state.timeoutSeconds}s)."
+                "Did not complete within timeout (${state.timeoutSeconds}s)."
             )
         }
     }
