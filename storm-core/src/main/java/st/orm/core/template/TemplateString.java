@@ -28,7 +28,7 @@ public record TemplateString(@Nonnull List<String> fragments, @Nonnull List<Obje
 
     public static TemplateString EMPTY = new TemplateString(List.of(""), List.of());
 
-    public static TemplateString of(@Nonnull List<String> fragments, List<Object> values) {
+    public static TemplateString of(@Nonnull List<String> fragments, @Nonnull List<Object> values) {
         return new TemplateString(fragments, values);
     }
 

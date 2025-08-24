@@ -1,6 +1,7 @@
 package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -82,11 +83,12 @@ public interface TemplateBuilder {
     @FunctionalInterface
     interface Context {
         /**
-         * Insert an object: returns the intermediary string (always replaced by '\0') after registering.
+         * Insert an object and returns the intermediary string that will be replaced when interpolating.
+         *
          * @param o the object to inject
-         * @return a single-character string containing '\0'
+         * @return a single-character string containing '\0'.
          */
-        String insert(@Nonnull Object o);
+        String insert(@Nullable Object o);
     }
 
     /**

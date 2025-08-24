@@ -1,12 +1,11 @@
 module storm.spring {
-    requires storm.java21;
+    requires storm.java;
     requires spring.jdbc;
     requires spring.tx;
     requires spring.context;
     requires spring.beans;
     requires spring.boot;
     requires jakarta.annotation;
-    requires org.reflections;
     requires spring.core;
     requires spring.aop;
     requires org.slf4j;

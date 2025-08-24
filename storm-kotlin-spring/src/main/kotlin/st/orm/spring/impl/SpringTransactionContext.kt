@@ -1,9 +1,10 @@
 package st.orm.spring.impl
 
-import kotlinx.coroutines.*
+import org.slf4j.LoggerFactory
 import org.springframework.jdbc.datasource.DataSourceTransactionManager
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionDefinition
+import org.springframework.transaction.TransactionDefinition.*
 import org.springframework.transaction.TransactionStatus
 import st.orm.PersistenceException
 import st.orm.core.spi.TransactionCallback
@@ -11,9 +12,11 @@ import st.orm.core.spi.TransactionContext
 import st.orm.spring.SpringTransactionConfiguration
 import st.orm.template.TransactionTimedOutException
 import st.orm.template.UnexpectedRollbackException
+import java.sql.Connection.*
 import java.sql.PreparedStatement
 import java.sql.SQLTimeoutException
 import javax.sql.DataSource
+import kotlin.math.min
 
 /**
  * Internal implementation of transaction context management for Spring-managed transactions.
@@ -44,13 +47,20 @@ import javax.sql.DataSource
  * @since 1.5
  */
 internal class SpringTransactionContext : TransactionContext {
+    companion object {
+        val logger = LoggerFactory.getLogger("st.orm.transaction")
+    }
+
     /**
      * Internal class representing the state of a single transaction.
      *
-     * @property transactionStatus The Spring transaction status
-     * @property transactionManager The platform transaction manager handling this transaction
-     * @property dataSource The data source associated with this transaction
-     * @property transactionDefinition The definition of this transaction
+     * @property transactionStatus The Spring transaction status.
+     * @property transactionManager The platform transaction manager handling this transaction.
+     * @property dataSource The data source associated with this transaction.
+     * @property transactionDefinition The definition of this transaction.
+     * @property rollbackOnly Indicates if the transaction should be marked as rollback-only.
+     * @property timeoutSeconds The timeout in seconds for this transaction.
+     * @property deadlineNanos The deadline in nanoseconds for this transaction.
      */
     private data class TransactionState(
         var transactionStatus: TransactionStatus?            = null,
@@ -58,22 +68,26 @@ internal class SpringTransactionContext : TransactionContext {
         var dataSource: DataSource?                          = null,
         var transactionDefinition: TransactionDefinition?    = null,
         var rollbackOnly: Boolean                            = false,
-        var timeoutJob: Job?                                 = null,
-        var timedOut: Boolean                                = false
+        var timeoutSeconds: Int?                             = null,
+        var deadlineNanos: Long?                             = null
     )
 
     private val stack = mutableListOf<TransactionState>()
 
-    // Coroutine-based scheduler for timeouts.
-    private val timeoutScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-
     private val currentState: TransactionState
         get() = stack.lastOrNull() ?: throw IllegalStateException("No transaction active.")
 
+    private fun nowNanos(): Long = System.nanoTime()
 
-    /**
-     * Returns true if propagation is a boundary.
-     */
+    private fun Int.toDeadlineFromNowNanos(): Long =
+        nowNanos() + this.toLong() * 1_000_000_000L
+
+    private fun TransactionState.remainingSeconds(): Int? =
+        deadlineNanos?.let { dl ->
+            val rem = dl - nowNanos()
+            if (rem <= 0L) 0 else (rem / 1_000_000_000L).toInt()
+        }
+
     private fun isBoundary(propagation: Int?): Boolean =
         when (propagation) {
             TransactionDefinition.PROPAGATION_REQUIRES_NEW,
@@ -138,10 +152,16 @@ internal class SpringTransactionContext : TransactionContext {
             return TransactionContext.Decorator<T> { obj -> obj } // No-op.
         }
         return TransactionContext.Decorator { resource ->
-            val statement = resource as PreparedStatement
-            val timeout = currentState.transactionDefinition!!.timeout
-            if (timeout > 0) {
-                statement.queryTimeout = timeout
+            val preparedStatement = resource as PreparedStatement
+            // Dynamic remaining time; fall back to static definition timeout.
+            val remaining = currentState.remainingSeconds()
+            val seconds = when {
+                remaining != null && remaining > 0 -> remaining
+                remaining != null && remaining <= 0 -> 1 // Already expired; force fast timeout.
+                else -> currentState.timeoutSeconds
+            }
+            if (seconds != null && seconds > 0) {
+                preparedStatement.queryTimeout = seconds
             }
             resource
         }
@@ -151,35 +171,64 @@ internal class SpringTransactionContext : TransactionContext {
         definition: TransactionDefinition,
         callback: TransactionCallback<T>
     ): T {
-        val state = TransactionState(transactionDefinition = definition)
+        val state = TransactionState(
+            transactionDefinition = definition,
+            timeoutSeconds = definition.timeout.takeIf { it > 0 }
+        ).apply {
+            deadlineNanos = timeoutSeconds?.toDeadlineFromNowNanos()
+        }
+        with(state.transactionDefinition!!) {
+            logger.debug(
+                """
+                    Starting transaction:
+                        propagation: ${
+                    when (propagationBehavior) {
+                        PROPAGATION_REQUIRED -> "REQUIRED"
+                        PROPAGATION_REQUIRES_NEW -> "REQUIRES NEW"
+                        PROPAGATION_SUPPORTS -> "SUPPORTS"
+                        PROPAGATION_MANDATORY -> "MANDATORY"
+                        PROPAGATION_NOT_SUPPORTED -> "NOT SUPPORTED"
+                        PROPAGATION_NEVER -> "NEVER"
+                        PROPAGATION_NESTED -> "NESTED"
+                        else -> "UNKNOWN ($propagationBehavior)"
+                    }
+                }
+                        isolation: ${
+                    when (isolationLevel) {
+                        TRANSACTION_NONE -> "NONE"
+                        TRANSACTION_READ_UNCOMMITTED -> "READ_UNCOMMITTED"
+                        TRANSACTION_READ_COMMITTED -> "READ_COMMITTED"
+                        TRANSACTION_REPEATABLE_READ -> "REPEATABLE_READ"
+                        TRANSACTION_SERIALIZABLE -> "SERIALIZABLE"
+                        else -> "UNKNOWN (${state.transactionDefinition!!.isolationLevel})"
+                    }
+                }
+                        timeout: ${ if (timeout == -1) "<no timeout>" else "$timeout second(s)"}
+                        readOnly: ${state.transactionDefinition!!.isReadOnly}
+                """.trimIndent()
+            )
+        }
         stack.add(state)
         val result = try {
             callback.doInTransaction(object : st.orm.core.spi.TransactionStatus {
-                override fun isRollbackOnly(): Boolean =
-                    this@SpringTransactionContext.isRollbackOnly
-
-                override fun setRollbackOnly() {
-                    this@SpringTransactionContext.setRollbackOnly()
-                }
+                override fun isRollbackOnly(): Boolean = this@SpringTransactionContext.isRollbackOnly
+                override fun setRollbackOnly() { this@SpringTransactionContext.setRollbackOnly() }
             })
         } catch (e: Throwable) {
             // Let Spring roll back if a transaction was actually started for this frame.
             rollback()
             when (e.cause) {
                 is SQLTimeoutException ->
-                    throw TransactionTimedOutException(e.message ?: "Transaction did not complete within timeout.", e)
+                    throw TransactionTimedOutException(e.message ?: "Did not complete within timeout.", e)
                 else -> throw e
             }
         }
-        // Always delegate to commit() so Spring can detect/throw on global rollback-only.
         commit()
         return result as T
     }
 
     /**
      * Called by the ConnectionProvider before obtaining a JDBC Connection.
-     * Attaches [dataSource] to the current range (owner..current), starts Spring statuses,
-     * and applies any pending flags.
      */
     fun useDataSource(dataSource: DataSource) {
         val index = stack.lastIndex
@@ -238,55 +287,50 @@ internal class SpringTransactionContext : TransactionContext {
             val outer = stack[level - 1]
             state.dataSource = outer.dataSource ?: dataSource
             state.transactionManager = outer.transactionManager ?: resolveTransactionManager(dataSource)
+            // Reconcile deadlines: inner deadline = min(outer, requested).
+            val requested = state.timeoutSeconds?.toDeadlineFromNowNanos()
+            state.deadlineNanos = when {
+                outer.deadlineNanos == null && requested == null -> null
+                outer.deadlineNanos == null -> requested
+                requested == null -> outer.deadlineNanos
+                else -> min(outer.deadlineNanos!!, requested)
+            }
         } else {
             state.dataSource = dataSource
             state.transactionManager = resolveTransactionManager(dataSource)
+            // Root: deadline already set in execute(); keep it.
         }
         val transactionStatus = state.transactionManager!!.getTransaction(state.transactionDefinition)
         state.transactionStatus = transactionStatus
-        // Apply pending flags immediately.
         if (state.rollbackOnly) transactionStatus.setRollbackOnly()
-        // Schedule timeout, marking intent but not forcing DS init elsewhere.
-        state.transactionDefinition?.timeout?.let { seconds ->
-            if (seconds >= 0) {
-                state.timeoutJob = timeoutScope.launch {
-                    delay(seconds * 1000L)
-                    state.timedOut = true
-                    state.rollbackOnly = true
-                    // If a status already exists (this frame was started), reflect now.
-                    state.transactionStatus?.setRollbackOnly()
-                }
-            }
-        }
     }
 
     private fun commit() {
+        // If current state is marked rollbackOnly or expired, go to rollback path.
         currentState.let { state ->
-            // Cancel any pending timeout watcher.
-            state.timeoutJob?.let { job ->
-                when {
-                    job.isCompleted && !job.isCancelled -> state.timedOut = true
-                    job.isActive -> job.cancel()
-                }
-            }
-            if (state.rollbackOnly || state.timedOut) {
+            val expired = state.deadlineNanos?.let { nowNanos() >= it } == true
+            if (state.rollbackOnly || expired) {
                 rollback()
                 return
             }
         }
         val state = popState()
-        try {
-            state.transactionStatus?.let { st ->
-                state.transactionManager!!.commit(st)
-            }
-        } catch (e: org.springframework.transaction.TransactionTimedOutException) {
-            throw TransactionTimedOutException(e.message ?: "Transaction did not complete within timeout.")
-        } catch (e: org.springframework.transaction.UnexpectedRollbackException) {
-            if (state.timedOut) {
+        // If this frame never touched a DataSource/started a status, still enforce timeout deterministically.
+        if (state.transactionStatus == null) {
+            val expiredAfter = state.deadlineNanos?.let { nowNanos() >= it } == true
+            if (expiredAfter) {
                 throw TransactionTimedOutException(
-                    "Transaction did not complete within timeout (${state.transactionDefinition?.timeout}s)."
+                    "Transaction did not complete within timeout (${state.timeoutSeconds}s)."
                 )
             }
+            return
+        }
+        try {
+            state.transactionManager!!.commit(state.transactionStatus!!)
+        } catch (e: org.springframework.transaction.TransactionTimedOutException) {
+            throw TransactionTimedOutException(e.message ?: "Did not complete within timeout.")
+        } catch (e: org.springframework.transaction.UnexpectedRollbackException) {
+            // If Spring threw UR because some inner joined frame marked RO, surface a clean message
             throw UnexpectedRollbackException(
                 e.message ?: "Transaction was marked rollback-only by a joined scope.",
                 e
@@ -298,25 +342,27 @@ internal class SpringTransactionContext : TransactionContext {
 
     private fun rollback() {
         val state = popState()
-        // Cancel any pending timeout watcher.
-        state.timeoutJob?.let { job ->
-            when {
-                job.isCompleted && !job.isCancelled -> state.timedOut = true
-                job.isActive -> job.cancel()
+        // If status never started, just check deadline and throw appropriately.
+        if (state.transactionStatus == null) {
+            val expired = state.deadlineNanos?.let { nowNanos() >= it } == true
+            if (expired) {
+                throw TransactionTimedOutException(
+                    "Did not complete within timeout (${state.timeoutSeconds}s)."
+                )
             }
+            return
         }
         try {
-            state.transactionStatus?.let { st ->
-                state.transactionManager!!.rollback(st)
-            }
+            state.transactionManager!!.rollback(state.transactionStatus!!)
         } catch (e: org.springframework.transaction.TransactionTimedOutException) {
-            throw TransactionTimedOutException(e.message ?: "Transaction did not complete within timeout.")
+            throw TransactionTimedOutException(e.message ?: "Did not complete within timeout.")
         } catch (e: Exception) {
             throw PersistenceException(e)
         }
-        if (state.timedOut) {
+        val expired = state.deadlineNanos?.let { nowNanos() >= it } == true
+        if (expired) {
             throw TransactionTimedOutException(
-                "Transaction did not complete within timeout (${state.transactionDefinition!!.timeout}s)."
+                "Did not complete within timeout (${state.timeoutSeconds}s)."
             )
         }
     }

@@ -41,14 +41,14 @@ open class FlowTest(
 
     @Test
     fun `selectAll with suspend transaction returns all visits`(): Unit = runBlocking {
-        suspendTransaction {
+        transaction {
             orm.selectAll<Visit>().count() shouldBe 14
         }
     }
 
     @Test
     fun `selectByRef with suspend transaction returns all visits when given all refs`(): Unit = runBlocking {
-        suspendTransaction {
+        transaction {
             val repository = orm.entity(Visit::class)
             val refs = repository.selectAllRef()
             repository.selectByRef(refs).count() shouldBe 14
@@ -57,7 +57,7 @@ open class FlowTest(
 
     @Test
     fun `delete with suspend transaction removes all visits`(): Unit = runBlocking {
-        suspendTransaction {
+        transaction {
             val repository = orm.entity(Visit::class)
             val entities = repository.selectAll()
             repository.delete(entities)

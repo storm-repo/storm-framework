@@ -222,4 +222,16 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
     public String forUpdateLockHint() {
         return "FOR UPDATE";
     }
+
+    /**
+     * Returns the SQL statement for getting the next value of the given sequence.
+     *
+     * @param sequenceName the name of the sequence.
+     * @return the SQL statement for getting the next value of the given sequence.
+     * @since 1.6
+     */
+    @Override
+    public String sequenceNextVal(String sequenceName) {
+        return getSafeIdentifier(sequenceName) + ".NEXTVAL";
+    }
 }

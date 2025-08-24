@@ -18,8 +18,12 @@ CREATE TABLE owner (
     version integer DEFAULT 0
 );
 
+CREATE SEQUENCE pet_id_seq
+    START WITH 1
+    INCREMENT BY 1;
+
 CREATE TABLE pet (
-    id serial PRIMARY KEY,
+    id integer PRIMARY KEY DEFAULT nextval('pet_id_seq'),
     name varchar(255),
     birth_date date,
     owner_id integer,

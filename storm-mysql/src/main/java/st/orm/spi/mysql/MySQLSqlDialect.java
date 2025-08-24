@@ -16,6 +16,7 @@
 package st.orm.spi.mysql;
 
 import jakarta.annotation.Nonnull;
+import st.orm.PersistenceException;
 import st.orm.core.spi.DefaultSqlDialect;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplateException;
@@ -235,5 +236,17 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
         // Taking the most basic approach that is supported by most database in test (containers).
         // For production use, ensure the right dialect is used.
         return "LIMIT %d OFFSET %d".formatted(limit, offset);
+    }
+
+    /**
+     * Returns the SQL statement for getting the next value of the given sequence.
+     *
+     * @param sequenceName the name of the sequence.
+     * @return the SQL statement for getting the next value of the given sequence.
+     * @since 1.6
+     */
+    @Override
+    public String sequenceNextVal(String sequenceName) {
+        throw new PersistenceException("MySQL does not support sequence-based generation.");
     }
 }
