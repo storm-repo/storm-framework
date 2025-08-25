@@ -386,9 +386,14 @@ internal class JdbcTransactionContext : TransactionContext {
                 else -> {
                     // Joined REQUIRED or non-transactional scope (no connection):
                     logger.trace("Marking transaction for rollback (${state.transactionId}).")
-                    stack.lastOrNull()?.apply {
-                        rollbackOnly = true
-                        rollbackInherited = true
+                    // Propagate to outer joined frames up to (and including) the owning frame, but stop at a savepoint boundary.
+                    val lastIndex = stack.lastIndex
+                    for (i in lastIndex downTo 0) {
+                        val state = stack[i]
+                        if (state.savepoint != null) break          // Don't cross NESTED boundary.
+                        state.rollbackOnly = true
+                        state.rollbackInherited = true              // Indicates caller-triggered.
+                        if (state.ownsConnection) break             // Stop at the owner (could be REQUIRES_NEW).
                     }
                 }
             }
@@ -400,7 +405,7 @@ internal class JdbcTransactionContext : TransactionContext {
                 "Did not complete within timeout (${state.timeoutSeconds}s)."
             )
         }
-        if (state.rollbackInherited) {
+        if (!suppressException && state.rollbackInherited) {
             throw UnexpectedRollbackException("Transaction was marked rollback-only by a joined scope.")
         }
     }

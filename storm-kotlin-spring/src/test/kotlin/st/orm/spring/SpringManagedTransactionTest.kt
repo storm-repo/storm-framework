@@ -366,6 +366,34 @@ open class SpringManagedTransactionTest(
         orm.exists<Visit>().shouldBeTrue()
     }
 
+    @Test
+    fun `inner transaction fails with exception should result in unexpected rollback exception if inner exception is ignored`(): Unit = runBlocking {
+        assertThrows<UnexpectedRollbackException> {
+            transactionBlocking(propagation = REQUIRED) {
+                runCatching {
+                    transactionBlocking(propagation = REQUIRED) {
+                        orm.deleteAll<Visit>()
+                        throw IllegalStateException("Something went wrong")
+                    }
+                }
+            }
+        }
+        orm.exists<Visit>().shouldBeTrue()
+    }
+
+    @Test
+    fun `inner transaction fails with exception should not result in unexpected rollback exception if inner exception falls through`(): Unit = runBlocking {
+        assertThrows<IllegalStateException> {
+            transactionBlocking(propagation = REQUIRED) {
+                transactionBlocking(propagation = REQUIRED) {
+                    orm.deleteAll<Visit>()
+                    throw IllegalStateException("Something went wrong")
+                }
+            }
+        }
+        orm.exists<Visit>().shouldBeTrue()
+    }
+
     /**
      * Global defaults.
      */
