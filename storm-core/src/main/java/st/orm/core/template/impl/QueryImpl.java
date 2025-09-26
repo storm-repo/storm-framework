@@ -24,12 +24,24 @@ import st.orm.core.template.PreparedQuery;
 import st.orm.core.template.Query;
 import st.orm.core.template.SqlTemplateException;
 
+import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Timestamp;
-import java.util.Date;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.util.Calendar;
 import java.util.Objects;
+import java.util.TimeZone;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -340,36 +352,111 @@ class QueryImpl implements Query {
             Object[] args = new Object[columnCount];
             Class<?>[] types = mapper.getParameterTypes();
             for (int i = 0; i < columnCount; i++) {
-                if (Date.class == types[i]) {
-                    // Special case because would return a java.sql.Date by default.
-                    Timestamp timestamp = resultSet.getTimestamp(i + 1);
-                    if (timestamp != null) {
-                        args[i] = new Date(timestamp.getTime());
-                    } else {
-                        args[i] = null;
-                    }
-                } else {
-                    args[i] = switch (types[i]) {
-                        case Class<?> c when c == Short.TYPE -> resultSet.getShort(i + 1);
-                        case Class<?> c when c == Integer.TYPE -> resultSet.getInt(i + 1);
-                        case Class<?> c when c == Long.TYPE -> resultSet.getLong(i + 1);
-                        case Class<?> c when c == Float.TYPE -> resultSet.getFloat(i + 1);
-                        case Class<?> c when c == Double.TYPE -> resultSet.getDouble(i + 1);
-                        case Class<?> c when c == Byte.TYPE -> resultSet.getByte(i + 1);
-                        case Class<?> c when c == Boolean.TYPE -> resultSet.getBoolean(i + 1);
-                        case Class<?> c when c == String.class -> resultSet.getString(i + 1);
-                        case Class<?> c when c.isEnum() -> resultSet.getString(i + 1);  // Enum is read as string and taken care of by object mapper.
-                        default -> resultSet.getObject(i + 1, types[i]);
-                    };
-                    if (resultSet.wasNull()) {
-                        args[i] = null;
-                    }
-                }
+                args[i] = readColumnValue(resultSet, i + 1, types[i], ZoneOffset.UTC);
             }
             return mapper.newInstance(args);
         } catch (SQLException e) {
             throw new PersistenceException(e);
         }
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private static Object readColumnValue(@Nonnull ResultSet resultSet,
+                                          int columnIndex,
+                                          @Nonnull Class<?> targetType,
+                                          @Nonnull ZoneId databaseZoneId) throws SQLException {
+        Object value = switch (targetType) {
+            case Class<?> c when c == Short.TYPE       -> resultSet.getShort(columnIndex);
+            case Class<?> c when c == Integer.TYPE     -> resultSet.getInt(columnIndex);
+            case Class<?> c when c == Long.TYPE        -> resultSet.getLong(columnIndex);
+            case Class<?> c when c == Float.TYPE       -> resultSet.getFloat(columnIndex);
+            case Class<?> c when c == Double.TYPE      -> resultSet.getDouble(columnIndex);
+            case Class<?> c when c == Byte.TYPE        -> resultSet.getByte(columnIndex);
+            case Class<?> c when c == Boolean.TYPE     -> resultSet.getBoolean(columnIndex);
+            case Class<?> c when c == String.class     -> resultSet.getString(columnIndex);
+            case Class<?> c when c == BigDecimal.class -> resultSet.getBigDecimal(columnIndex);
+            case Class<?> c when c == byte[].class     -> resultSet.getBytes(columnIndex);
+            case Class<?> c when c == UUID.class       -> {
+                try { yield resultSet.getObject(columnIndex, UUID.class); }
+                catch (SQLFeatureNotSupportedException e) {
+                    String text = resultSet.getString(columnIndex);
+                    yield text != null ? UUID.fromString(text) : null;
+                }
+            }
+            case Class<?> c when c.isEnum() -> resultSet.getString(columnIndex);
+            // Temporal & legacy SQL types.
+            default -> {
+                // Create a single Calendar only for temporal branches.
+                final Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone(databaseZoneId));
+                if (targetType == java.util.Date.class) {
+                    Timestamp timestamp = resultSet.getTimestamp(columnIndex, calendar);
+                    yield timestamp != null ? new java.util.Date(timestamp.getTime()) : null;
+                }
+                if (targetType == Calendar.class) {
+                    Timestamp timestamp = resultSet.getTimestamp(columnIndex, calendar);
+                    if (timestamp == null) yield null;
+                    Calendar out = (Calendar) calendar.clone();
+                    out.setTimeInMillis(timestamp.getTime());
+                    yield out;
+                }
+                if (targetType == java.sql.Timestamp.class) {
+                    yield resultSet.getTimestamp(columnIndex, calendar);
+                }
+                if (targetType == java.sql.Date.class) {
+                    yield resultSet.getDate(columnIndex, calendar);
+                }
+                if (targetType == java.sql.Time.class) {
+                    yield resultSet.getTime(columnIndex, calendar);
+                }
+                // java.time: prefer driver-native; fall back to Calendar-based reads.
+                try {
+                    if (targetType == LocalDateTime.class) {
+                        try { yield resultSet.getObject(columnIndex, LocalDateTime.class); }
+                        catch (SQLFeatureNotSupportedException ignored) {}
+                        Timestamp ts = resultSet.getTimestamp(columnIndex, calendar);
+                        yield ts != null ? ts.toLocalDateTime() : null;
+                    }
+                    if (targetType == LocalDate.class) {
+                        try { yield resultSet.getObject(columnIndex, LocalDate.class); }
+                        catch (SQLFeatureNotSupportedException ignored) {}
+                        java.sql.Date d = resultSet.getDate(columnIndex, calendar);
+                        yield d != null ? d.toLocalDate() : null;
+                    }
+                    if (targetType == LocalTime.class) {
+                        try { yield resultSet.getObject(columnIndex, LocalTime.class); }
+                        catch (SQLFeatureNotSupportedException ignored) {}
+                        java.sql.Time t = resultSet.getTime(columnIndex, calendar);
+                        yield t != null ? t.toLocalTime() : null;
+                    }
+                    if (targetType == Instant.class) {
+                        Timestamp ts = resultSet.getTimestamp(columnIndex, calendar);
+                        yield ts != null ? ts.toInstant() : null;
+                    }
+                    if (targetType == OffsetDateTime.class) {
+                        try { yield resultSet.getObject(columnIndex, OffsetDateTime.class); }
+                        catch (SQLFeatureNotSupportedException ignored) {}
+                        Timestamp ts = resultSet.getTimestamp(columnIndex, calendar);
+                        yield ts != null ? OffsetDateTime.ofInstant(ts.toInstant(), databaseZoneId) : null;
+                    }
+                    if (targetType == ZonedDateTime.class) {
+                        try { yield resultSet.getObject(columnIndex, ZonedDateTime.class); }
+                        catch (SQLFeatureNotSupportedException ignored) {}
+                        Timestamp ts = resultSet.getTimestamp(columnIndex, calendar);
+                        yield ts != null ? ZonedDateTime.ofInstant(ts.toInstant(), databaseZoneId) : null;
+                    }
+                } catch (SQLFeatureNotSupportedException ignored) {
+                    // Continue to generic fallback.
+                }
+                // Ask the driver; if unsupported, get raw Object.
+                try { yield resultSet.getObject(columnIndex, targetType); }
+                catch (SQLFeatureNotSupportedException e) { yield resultSet.getObject(columnIndex); }
+            }
+        };
+        // Convert default 0/false from primitive getters to null on SQL NULL.
+        if (targetType.isPrimitive() && resultSet.wasNull()) {
+            return null;
+        }
+        return value;
     }
 
     @Override
