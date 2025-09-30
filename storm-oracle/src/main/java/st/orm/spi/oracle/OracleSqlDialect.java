@@ -84,11 +84,11 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
     }
 
     private static final Set<String> ORACLE_RESERVED = Stream.concat(ANSI_KEYWORDS.stream(), Stream.of(
-            "ACCESS", "AUDIT", "CLUSTER", "COMMENT", "COMPRESS", "EXCLUSIVE", "FILE",
-            "IDENTIFIED", "INCREMENT", "INITIAL", "INTERSECT", "LOCK", "LONG", "MAXEXTENTS",
-            "MLSLABEL", "MODE", "MODIFY", "NOWAIT", "OFFLINE", "ONLINE", "PCTFREE",
-            "RAW", "ROWID", "ROWNUM", "SESSION", "SHARE", "SUCCESSFUL", "SYNONYM",
-            "UID", "VALIDATE", "VARCHAR2", "VIEW")).collect(toSet());
+            "ACCESS", "AUDIT", "CLUSTER", "COMMENT", "COMPRESS", "EXCLUSIVE", "FILE", "IDENTIFIED",
+            "INCREMENT", "INDEX", "INITIAL", "LOCK", "LONG", "MAXEXTENTS", "MLSLABEL", "MODE", "MODIFY", "NOWAIT",
+            "OFFLINE", "ONLINE", "PCTFREE", "RAW", "ROWID", "ROWNUM", "SESSION", "SHARE", "SUCCESSFUL", "SYNONYM",
+            "UID", "VALIDATE", "VARCHAR2", "VIEW"
+    )).collect(toSet());
 
     /**
      * Indicates whether the given name is a keyword in this SQL dialect.

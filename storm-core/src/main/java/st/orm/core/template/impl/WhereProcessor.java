@@ -197,10 +197,14 @@ final class WhereProcessor implements ElementProcessor<Where> {
                 assert pkNames.size() == 1;
                 values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", pkNames.getFirst()), id);
             } else {
-                var nestedPkComponents = RecordReflection.getRecordComponents(pkComponent.getType());
-                assert pkNames.size() == nestedPkComponents.size();
-                for (int i = 0; i < nestedPkComponents.size(); i++) {
-                    values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", pkNames.get(i)), validatePk(REFLECTION.invokeComponent(nestedPkComponents.get(i), id), nestedPkComponents.get(i)));
+                if (REFLECTION.isAnnotationPresent(pkComponent, FK.class)) {
+                    values.putAll(getFkValues(REFLECTION.invokeComponent(pkComponent, record), pkComponent, alias));
+                } else {
+                    var nestedPkComponents = RecordReflection.getRecordComponents(pkComponent.getType());
+                    assert pkNames.size() == nestedPkComponents.size();
+                    for (int i = 0; i < nestedPkComponents.size(); i++) {
+                        values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", pkNames.get(i)), validatePk(REFLECTION.invokeComponent(nestedPkComponents.get(i), id), nestedPkComponents.get(i)));
+                    }
                 }
             }
             if (updating) {
@@ -221,6 +225,9 @@ final class WhereProcessor implements ElementProcessor<Where> {
     private SequencedMap<String, Object> getFkValues(@Nullable Object id,
                                                      @Nonnull RecordComponent fkComponent,
                                                      @Nonnull String alias) throws SqlTemplateException {
+        if (id instanceof Record record) {
+            return getFkValues(record, fkComponent, alias);
+        }
         try {
             var values = new LinkedHashMap<String, Object>();
             Class<? extends Record> fkType;
@@ -401,11 +408,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
                             () -> new SqlTemplateException("Table %s not found at %s.".formatted(recordType.getSimpleName(), searchPath)));
                 }
                 if (REFLECTION.isAnnotationPresent(component, FK.class)) {
-                    if (value instanceof Record record) {
-                        values.putAll(getFkValues(record, component, alias));
-                    } else {
-                        values.putAll(getFkValues(value, component, alias));
-                    }
+                    values.putAll(getFkValues(value, component, alias));
                 } else {
                     values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", getColumnName(component, template.columnNameResolver())), value);
                 }

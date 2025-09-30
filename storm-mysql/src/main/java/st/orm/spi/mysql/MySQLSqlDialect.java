@@ -84,15 +84,15 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
     }
 
     private static final Set<String> MYSQL_KEYWORDS = Stream.concat(ANSI_KEYWORDS.stream(), Stream.of(
-            "ACCESSIBLE", "CHANGE", "DATABASE", "DAY_HOUR", "DAY_MINUTE", "DAY_SECOND",
-            "DELAYED", "DISTINCTROW", "DIV", "ENCLOSED", "ESCAPED", "EXPLAIN", "FULLTEXT",
-            "HIGH_PRIORITY", "HOUR_MICROSECOND", "HOUR_SECOND", "IGNORE", "INFILE",
-            "INT1", "INT2", "INT3", "INT4", "INT8", "KEYS", "LINES", "LOAD", "LOW_PRIORITY",
-            "MATCH", "MEDIUMINT", "MIDDLEINT", "MODIFIES", "OPTION", "OPTIONALLY",
-            "OUTFILE", "PARTITION", "PRIVILEGES", "REQUIRE", "RESIGNAL", "SCHEMAS", "SHOW",
-            "SQL_BIG_RESULT", "SQL_CALC_FOUND_ROWS", "SQL_SMALL_RESULT", "STRAIGHT_JOIN",
-            "TERMINATED", "TINYINT", "UNSIGNED", "UTC_DATE", "UTC_TIME", "UTC_TIMESTAMP",
-            "XOR", "ZEROFILL")).collect(toSet());
+            "ACCESSIBLE", "ANALYZE", "CHANGE", "CHECKSUM", "DATABASE", "DAY_HOUR", "DAY_MINUTE", "DAY_SECOND",
+            "DELAYED", "DESCRIBE", "DISTINCTROW", "DIV", "DO", "ENCLOSED", "ESCAPED", "EXPLAIN", "FORCE",
+            "FULLTEXT", "GENERATED", "HIGH_PRIORITY", "HOUR_MICROSECOND", "HOUR_SECOND", "IGNORE", "INDEX",
+            "INFILE", "INT1", "INT2", "INT3", "INT4", "INT8", "KEY", "KEYS", "LINES", "LOAD", "LOW_PRIORITY",
+            "MEDIUMINT", "MIDDLEINT", "MODIFIES", "OPTIMIZE", "OPTION", "OPTIONALLY", "OUTFILE", "PRIVILEGES",
+            "PURGE", "REQUIRE", "RESIGNAL", "SCHEMAS", "SHOW", "SQL_BIG_RESULT", "SQL_CALC_FOUND_ROWS",
+            "SQL_SMALL_RESULT", "STRAIGHT_JOIN", "TERMINATED", "TINYINT", "UNSIGNED", "UTC_DATE", "UTC_TIME",
+            "UTC_TIMESTAMP", "VIRTUAL", "VISIBLE", "INVISIBLE", "XOR", "ZEROFILL"
+    )).collect(toSet());
 
     /**
      * Indicates whether the given name is a keyword in this SQL dialect.

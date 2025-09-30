@@ -264,7 +264,6 @@ public class TemplatePreparedStatementIntegrationTest {
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
 
-
     @Test
     public void testVisitWithAlias() {
         @DbTable("visit")

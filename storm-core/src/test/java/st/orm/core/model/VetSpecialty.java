@@ -4,7 +4,6 @@ import jakarta.annotation.Nonnull;
 import lombok.Builder;
 import st.orm.Entity;
 import st.orm.FK;
-import st.orm.GenerationStrategy;
 import st.orm.PK;
 import st.orm.Persist;
 
