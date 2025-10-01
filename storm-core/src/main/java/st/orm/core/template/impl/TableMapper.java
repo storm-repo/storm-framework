@@ -61,7 +61,7 @@ final class TableMapper {
         var matches = findMappings(tableMappings, rootTable, path);
         if (matches.size() == 1) {
             var match = matches.getFirst();
-            tableUse.addReferencedTable(match.source());
+            tableUse.addReferencedTable(match.source(), match.alias());
             return match;
         }
         var paths = tableMappings.stream()

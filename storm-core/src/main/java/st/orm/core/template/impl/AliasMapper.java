@@ -81,36 +81,6 @@ final class AliasMapper {
         return Stream.concat(local, global);
     }
 
-//    /**
-//     * Retrieves all aliases for the specified table, including those from the parent. Note that the stream may
-//     * contain duplicates as parents may contain the same aliases.
-//     *
-//     * @param table the table to retrieve the aliases for.
-//     * @param scope INNER to include local and outer aliases, OUTER to include outer aliases only and CASCADE to
-//     *              include all aliases.
-//     * @param precedingTable the table that precedes {@code table} in the join chain.
-//     */
-//    private Stream<String> aliases(@Nonnull Class<? extends Record> table,
-//                                   @Nonnull st.orm.foundation.ResolveScope scope,
-//                                   @Nullable Class<? extends Record> precedingTable) {
-//        if (precedingTable != null) {
-//            tableUse.addAutoJoinTable(table, precedingTable);
-//        } else {
-//            tableUse.addReferencedTable(table);
-//        }
-//        var local = switch (scope) {
-//            case INNER, CASCADE -> aliasMap.getOrDefault(table, List.of()).stream()
-//                    .map(TableAlias::alias);
-//            case OUTER -> Stream.<String>of();
-//        };
-//        var global = switch (scope) {
-//            case INNER -> Stream.<String>of();
-//            case CASCADE, OUTER ->
-//                    parent == null ? Stream.<String>of() : parent.aliases(table, CASCADE, precedingTable);   // Use CASCADE to include parents recursively.
-//        };
-//        return Stream.concat(local, global);
-//    }
-
     /**
      * Recursively collects all alias entries for a given table and optional component path,
      * tagging each with its nesting depth (0 = current level, 1 = parent, etc.).
@@ -218,7 +188,7 @@ final class AliasMapper {
                            @Nonnull Supplier<SqlTemplateException> exceptionSupplier) throws SqlTemplateException {
         var table = metamodel.table();
         String path = table.componentPath();
-        return getAlias(table.componentType(), path.isEmpty() ? null : path, scope, null, dialect, exceptionSupplier);
+        return getAlias(table.componentType(), path.isEmpty() ? null : path, scope, dialect, exceptionSupplier);
     }
 
     /**
@@ -237,49 +207,7 @@ final class AliasMapper {
                            @Nullable String path,
                            @Nonnull ResolveScope scope,
                            @Nonnull SqlDialect dialect) throws SqlTemplateException {
-        return getAlias(table, path, scope, null, dialect);
-    }
-
-    /**
-     * Returns the alias for the table at the specified path.
-     *
-     * <p><strong>Note:</strong> The alias returned is safe for use in SQL and does not require escaping.</p>
-     *
-     * @param table the table to get the alias for.
-     * @param path the path of the table (optional).
-     * @param scope the scope to resolve the alias in.
-     * @param dialect the SQL dialect to use in case the alias is based on table name and potentially requires escaping.
-     * @param exceptionSupplier the exception supplier to use in case the alias could not be resolved.
-     * @return the alias for the table at the specified path.
-     * @throws SqlTemplateException if the alias could not be resolved.
-     */
-    public String getAlias(@Nonnull Class<? extends Record> table,
-                           @Nullable String path,
-                           @Nonnull ResolveScope scope,
-                           @Nonnull SqlDialect dialect,
-                           @Nonnull Supplier<SqlTemplateException> exceptionSupplier) throws SqlTemplateException {
-        return getAlias(table, path, scope, null, dialect, exceptionSupplier);
-    }
-
-    /**
-     * Returns the alias for the table at the specified path.
-     *
-     * <p><strong>Note:</strong> The alias returned is safe for use in SQL and does not require escaping.</p>
-     *
-     * @param table the table to get the alias for.
-     * @param path the path of the table (optional).
-     * @param scope the scope to resolve the alias in.
-     * @param autoJoinTable the table that is auto-joined to the specified table (optional).
-     * @param dialect the SQL dialect to use in case the alias is based on table name and potentially requires escaping.
-     * @return the alias for the table at the specified path.
-     * @throws SqlTemplateException if the alias could not be resolved.
-     */
-    public String getAlias(@Nonnull Class<? extends Record> table,
-                           @Nullable String path,
-                           @Nonnull ResolveScope scope,
-                           @Nullable Class<? extends Record> autoJoinTable,
-                           @Nonnull SqlDialect dialect) throws SqlTemplateException {
-        return getAlias(table, path, scope, autoJoinTable, dialect,
+        return getAlias(table, path, scope, dialect,
                 () -> path != null
                         ? new SqlTemplateException("Alias for %s not found at path: '%s'.".formatted(table.getSimpleName(), path))
                         : new SqlTemplateException("Alias for %s not found.".formatted(table.getSimpleName())));
@@ -293,7 +221,6 @@ final class AliasMapper {
      * @param table the table to get the alias for.
      * @param path the path of the table (optional).
      * @param scope the scope to resolve the alias in.
-     * @param autoJoinTable the table that is auto-joined to the specified table (optional).
      * @param dialect the SQL dialect to use in case the alias is based on table name and potentially requires escaping.
      * @param exceptionSupplier the exception supplier to use in case the alias could not be resolved.
      * @return the alias for the table at the specified path.
@@ -302,10 +229,9 @@ final class AliasMapper {
     public String getAlias(@Nonnull Class<? extends Record> table,
                            @Nullable String path,
                            @Nonnull ResolveScope scope,
-                           @Nullable Class<? extends Record> autoJoinTable,
                            @Nonnull SqlDialect dialect,
                            @Nonnull Supplier<SqlTemplateException> exceptionSupplier) throws SqlTemplateException {
-        var alias = findAlias(table, path, scope, autoJoinTable).orElse("");
+        var alias = findAlias(table, path, scope).orElse("");
         if (!alias.isEmpty()) {
             return alias;
         }
@@ -348,12 +274,7 @@ final class AliasMapper {
             }
         }
         if (entry.level() == 0) {
-            // Only register usage in the current scope.
-            if (autoJoinTable != null) {
-                tableUse.addAutoJoinTable(autoJoinTable, table);
-            } else {
-                tableUse.addReferencedTable(table);
-            }
+            tableUse.addReferencedTable(table, entry.alias());
         }
         return Optional.of(entry.alias());
     }
@@ -361,22 +282,23 @@ final class AliasMapper {
     public String generateAlias(@Nonnull Class<? extends Record> table,
                                 @Nullable String path,
                                 @Nonnull SqlDialect dialect) throws SqlTemplateException {
-        return generateAlias(table, path, null, dialect);
+        return generateAlias(table, path, null, null, dialect);
     }
 
     public String generateAlias(@Nonnull Class<? extends Record> table,
                                 @Nullable String path,
                                 @Nullable Class<? extends Record> autoJoinTable,
+                                @Nullable String autoJoinAlias,
                                 @Nonnull SqlDialect dialect) throws SqlTemplateException {
-        if (autoJoinTable != null) {
-            tableUse.addAutoJoinTable(table, autoJoinTable);
-        } else {
-            tableUse.addReferencedTable(table);
-        }
         String alias = generateAlias(table,
                 proposedAlias -> aliases().noneMatch(proposedAlias::equals), dialect);    // Take all aliases into account to prevent unnecessary shadowing.
         if (alias.isEmpty()) {
             throw new SqlTemplateException("Failed to generate alias for %s.".formatted(table.getSimpleName()));
+        }
+        if (autoJoinTable != null && autoJoinAlias != null) {
+            tableUse.addAutoJoinTable(table, alias, autoJoinTable, autoJoinAlias);
+        } else {
+            tableUse.addReferencedTable(table, alias);
         }
         aliasMap.computeIfAbsent(table, ignore -> new LinkedHashSet<>()).add(new TableAlias(table, path, alias));
         return alias;

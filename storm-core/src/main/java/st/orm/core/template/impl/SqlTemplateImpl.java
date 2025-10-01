@@ -877,17 +877,17 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 if (componentType == recordType) {
                     throw new SqlTemplateException("Self-referencing FK annotation is not allowed: %s. FK must be marked as Ref.".formatted(recordType.getSimpleName()));
                 }
-                // We may detect that the component is already by present by checking
+                // We may detect that the component is already present by checking
                 // aliasMap.containsKey(componentType), but we'll handle duplicate joins later to detect such issues
                 // in a unified way (auto join vs manual join).
                 String fromAlias;
                 if (fkName == null) {
-                    fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, componentType, dialect,
+                    fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, dialect,
                             () -> new SqlTemplateException("Table %s for From not found at path %s.".formatted(recordType.getSimpleName(), fkPath)));   // Use local resolve mode to prevent shadowing.
                 } else {
                     fromAlias = fkName;
                 }
-                String alias = aliasMapper.generateAlias(componentType, pkPath, recordType, dialect);
+                String alias = aliasMapper.generateAlias(componentType, pkPath, recordType, fromAlias, dialect);
                 tableMapper.mapForeignKey(table, componentType, fromAlias, component, rootTable, fkPath);
                 // We will only make primary keys available for mapping if the table is not part of the entity graph,
                 // because the entities can already be resolved by their foreign keys.
@@ -912,7 +912,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 Class<? extends Record> componentType = (Class<? extends Record>) component.getType();
                 String fromAlias;
                 if (fkName == null) {
-                    fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, componentType, dialect,
+                    fromAlias = aliasMapper.getAlias(recordType, fkPath, INNER, dialect,
                             () -> new SqlTemplateException("Table %s for From not found at path %s.".formatted(recordType.getSimpleName(), fkPath)));   // Use local resolve mode to prevent shadowing.
                 } else {
                     fromAlias = fkName;
