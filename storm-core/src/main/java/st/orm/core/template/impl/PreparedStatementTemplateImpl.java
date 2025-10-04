@@ -45,17 +45,33 @@ import st.orm.core.template.TemplateString;
 import javax.sql.DataSource;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.util.Calendar;
 import java.util.List;
+import java.util.TimeZone;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import static st.orm.core.spi.Providers.getConnection;
 import static st.orm.core.spi.Providers.releaseConnection;
 import static st.orm.core.template.SqlTemplate.PS;
 import static st.orm.core.template.impl.ExceptionHelper.getExceptionTransformer;
+import static st.orm.core.template.impl.LazySupplier.lazy;
 
 public final class PreparedStatementTemplateImpl implements PreparedStatementTemplate, QueryFactory {
 
@@ -243,10 +259,11 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
 
     private BatchListener getBatchListener(@Nonnull PreparedStatement preparedStatement,
                                            @Nonnull List<Parameter> parameters) {
+        var calendarSupplier = lazy(() -> Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
         return batchParameters -> {
             try {
-                setParameters(preparedStatement, parameters);
-                setParameters(preparedStatement, batchParameters);
+                setParameters(preparedStatement, parameters, calendarSupplier);
+                setParameters(preparedStatement, batchParameters, calendarSupplier);
                 preparedStatement.addBatch();
             } catch (SQLException e) {
                 throw new PersistenceException(e);
@@ -254,33 +271,68 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         };
     }
 
-    private void setParameters(@Nonnull PreparedStatement preparedStatement,
-                               @Nonnull List<? extends Parameter> parameters) throws SQLException {
+    private static void setParameters(@Nonnull PreparedStatement preparedStatement,
+                                      @Nonnull List<? extends Parameter> parameters) throws SQLException {
+        var calendarSupplier = lazy(() -> Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
+        setParameters(preparedStatement, parameters, calendarSupplier);
+    }
+
+    private static void setParameters(@Nonnull PreparedStatement preparedStatement,
+                                      @Nonnull List<? extends Parameter> parameters,
+                                      @Nonnull Supplier<Calendar> calendarSupplier) throws SQLException {
         for (var parameter : parameters) {
-            var dbValue = parameter.dbValue();
             switch (parameter) {
                 case PositionalParameter p -> {
-                    switch (dbValue) {
-                        case null      -> preparedStatement.setObject(p.position(), null);
-                        case Short s   -> preparedStatement.setShort(p.position(), s);
-                        case Integer i -> preparedStatement.setInt(p.position(), i);
-                        case Long l    -> preparedStatement.setLong(p.position(), l);
-                        case Float f   -> preparedStatement.setFloat(p.position(), f);
-                        case Double d  -> preparedStatement.setDouble(p.position(), d);
-                        case Byte b    -> preparedStatement.setByte(p.position(), b);
-                        case Boolean b -> preparedStatement.setBoolean(p.position(), b);
-                        case String s  -> preparedStatement.setString(p.position(), s);
-                        case java.sql.Date d -> preparedStatement.setDate(p.position(), d);
-                        case java.sql.Time t -> preparedStatement.setTime(p.position(), t);
-                        case java.sql.Timestamp t -> preparedStatement.setTimestamp(p.position(), t);
-                        // Always write enums as String. Ordinal option is handled at the ORM level.
-                        case Enum<?> e -> preparedStatement.setString(p.position(), e.name());
-                        default -> preparedStatement.setObject(p.position(), dbValue);
+                    final int idx = p.position();
+                    final Object v = p.dbValue();
+                    switch (v) {
+                        case null              -> preparedStatement.setObject(idx, null);
+                        case Short s           -> preparedStatement.setShort(idx, s);
+                        case Integer i         -> preparedStatement.setInt(idx, i);
+                        case Long l            -> preparedStatement.setLong(idx, l);
+                        case Float f           -> preparedStatement.setFloat(idx, f);
+                        case Double d          -> preparedStatement.setDouble(idx, d);
+                        case Byte b            -> preparedStatement.setByte(idx, b);
+                        case Boolean b         -> preparedStatement.setBoolean(idx, b);
+                        case String s          -> preparedStatement.setString(idx, s);
+                        case BigDecimal bd     -> preparedStatement.setBigDecimal(idx, bd);
+                        case byte[] bytes      -> preparedStatement.setBytes(idx, bytes);
+                        case java.sql.Date d   -> preparedStatement.setDate(idx, d);
+                        case Time t            -> preparedStatement.setTime(idx, t);
+                        case Timestamp ts      -> preparedStatement.setTimestamp(idx, ts, calendarSupplier.get());
+                        case Enum<?> e         -> preparedStatement.setString(idx, e.name());   // Enum handled by ORM layer.
+                        // java.time using vendor-safe approach.
+                        case LocalDate ld      -> preparedStatement.setDate(idx, java.sql.Date.valueOf(ld));
+                        case LocalTime lt      -> preparedStatement.setTime(idx, java.sql.Time.valueOf(lt));
+                        case LocalDateTime ldt -> preparedStatement.setTimestamp(idx, Timestamp.valueOf(ldt));
+                        case OffsetDateTime odt-> preparedStatement.setTimestamp(idx, Timestamp.from(odt.toInstant()), calendarSupplier.get());
+                        case ZonedDateTime zdt -> preparedStatement.setTimestamp(idx, Timestamp.from(zdt.toInstant()), calendarSupplier.get());
+                        case Instant inst      -> preparedStatement.setTimestamp(idx, Timestamp.from(inst), calendarSupplier.get());
+                        default                -> preparedStatement.setObject(idx, v);
                     }
                 }
-                case NamedParameter ignore -> throw new SQLException("Named parameters not supported for PreparedStatement.");
+                case NamedParameter ignored ->
+                        throw new SQLException("Named parameters not supported for PreparedStatement.");
             }
         }
+    }
+
+    @FunctionalInterface
+    interface SqlRunnable { void run() throws SQLException; }
+
+    private static void setObjectOr(PreparedStatement ps,
+                                    AtomicBoolean supportsSetObject,
+                                    SqlRunnable typedSetter,
+                                    SqlRunnable legacyFallback) throws SQLException {
+        if (supportsSetObject.get()) {
+            try {
+                typedSetter.run();
+                return;
+            } catch (SQLFeatureNotSupportedException e) {
+                supportsSetObject.set(false);
+            }
+        }
+        legacyFallback.run();
     }
 
     /**

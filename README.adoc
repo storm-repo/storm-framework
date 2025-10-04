@@ -45,13 +45,13 @@ Maven (Java)::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-java21</artifactId>
-    <version>1.6.0</version>
+    <version>1.6.1</version>
     <scope>compile</scope>
 </dependency>
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-core</artifactId>
-    <version>1.6.0</version>
+    <version>1.6.1</version>
     <scope>runtime</scope>
 </dependency>
 ----
@@ -59,15 +59,15 @@ Gradle (Java)::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-java21:1.6.0'
-runtimeOnly 'st.orm:storm-core:1.6.0'
+implementation 'st.orm:storm-java21:1.6.1'
+runtimeOnly 'st.orm:storm-core:1.6.1'
 ----
 Gradle (Kotlin)::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-kotlin:1.6.0'
-runtimeOnly 'st.orm:storm-core:1.6.0'
+implementation 'st.orm:storm-kotlin:1.6.1'
+runtimeOnly 'st.orm:storm-core:1.6.1'
 ----
 ====
 
@@ -291,8 +291,7 @@ DSL (Kotlin)::
 +
 [source,kotlin]
 ----
-val user: User? = ORMTemplate.of(dataSource)
-    .find { User_.email eq email }   // Type-safe!
+val user: User? = ORMTemplate.of(dataSource).find { User_.email eq email }   // Type-safe!
 ----
 SQL Template::
 +
@@ -331,7 +330,7 @@ DSL (Java)::
 +
 [source,java]
 ----
-List<User> usersInCity = ORMTemplate.of(dataSource).entity(User.class)
+List<User> usersInCity = orm.entity(User.class)
     .select()
     .where(User_.city, EQUALS, city)    // Type-safe!
     .getResultList();
@@ -340,14 +339,13 @@ DSL (Kotlin)::
 +
 [source,kotlin]
 ----
-val usersInCity: List<User> = ORMTemplate.of(dataSource)
-    .findAll { User_.city eq city }     // Type-safe!
+val usersInCity: List<User> = orm.findAll { User_.city eq city }     // Type-safe!
 ----
 SQL Template::
 +
 [source,java]
 ----
-List<User> usersInCity = ORMTemplate.of(dataSource).query(RAW."""
+List<User> usersInCity = orm.query(RAW."""
         SELECT \{User.class}
         FROM \{User.class}
         WHERE \{city}""")
@@ -401,7 +399,7 @@ DSL (Java)::
 +
 [source,java]
 ----
-List<UserRole> userRoles = ORMTemplate.of(dataSource).entity(UserRole.class)
+List<UserRole> userRoles = orm.entity(UserRole.class)
     .select()
     .where(UserRole_.role, EQUALS, role)    // Type-safe!
     .getResultList();
@@ -410,14 +408,13 @@ DSL (Kotlin)::
 +
 [source,kotlin]
 ----
-val userRoles: List<User> = ORMTemplate.of(dataSource)
-    .findAll { UserRole_.role eq role }     // Type-safe!
+val userRoles: List<User> = orm.findAll { UserRole_.role eq role }     // Type-safe!
 ----
 SQL Template::
 +
 [source,java]
 ----
-List<UserRole> userRoles = ORMTemplate.of(dataSource).query(RAW."""
+List<UserRole> userRoles = orm.query(RAW."""
         SELECT \{UserRole.class}
         FROM \{UserRole.class}
         WHERE \{role}""")
@@ -434,7 +431,7 @@ DSL (Java)::
 +
 [source,java]
 ----
-List<Role> roles = ORMTemplate.of(dataSource).entity(Role.class)
+List<Role> roles = orm.entity(Role.class)
     .select()
     .innerJoin(UserRole.class).on(Role.class)
     .where(UserRole_.user, EQUALS, user)    // Type-safe!
@@ -444,7 +441,7 @@ DSL (Kotlin)::
 +
 [source,kotlin]
 ----
-val roles: List<Role> = ORMTemplate.of(dataSource)
+val roles: List<Role> = orm.entity(Role::class)
     .select()
     .innerJoin(UserRole::class).on(Role::class)
     .whereAny(UserRole_.user eq user)    // Type-safe!
@@ -454,7 +451,7 @@ SQL Template::
 +
 [source,java]
 ----
-List<Role> roles = ORMTemplate.of(dataSource).query(RAW."""
+List<Role> roles = orm.query(RAW."""
         SELECT \{Role.class}
         FROM \{Role.class}
         INNER JOIN \{UserRole.class} ON \{UserRole_.role} = \{Role_.id}
@@ -475,7 +472,7 @@ DSL (Java)::
 +
 [source,java]
 ----
-List<User> users = ORMTemplate.of(dataSource).entity(User.class)
+List<User> users = orm.entity(User.class)
     .select()
     .where(it -> it.where(User_.city, EQUALS, city)
             .and(it.where(User_.birthDate, LESS_THAN, LocalDate.of(2000, 1, 1))))
@@ -485,7 +482,7 @@ DSL (Kotlin)::
 +
 [source,kotlin]
 ----
-val users: List<User> = ORMTemplate.of(dataSource)
+val users: List<User> = orm.entity(User::class)
     .select()
     .where(
         (User_.city eq city)
@@ -497,7 +494,7 @@ SQL Template::
 +
 [source,java]
 ----
-List<User> users = ORMTemplate.of(dataSource).query(RAW."""
+List<User> users = orm.query(RAW."""
         SELECT \{User.class}
         FROM \{User.class}
         WHERE \{city}
@@ -540,7 +537,7 @@ DSL (Java)::
 +
 [source,java]
 ----
-List<GroupedByCity> counts = ORMTemplate.of(dataSource).entity(User.class)
+List<GroupedByCity> counts = orm.entity(User.class)
     .select(GroupedByCity.class, RAW."\{City.class}, COUNT(*)")
     .groupBy(User_.city)
     .getResultList();
@@ -549,7 +546,7 @@ DSL (Kotlin)::
 +
 [source,kotlin]
 ----
-val count: List<GroupedByCity> = ORMTemplate.of(dataSource)
+val count: List<GroupedByCity> = orm.entity(User::class)
     .select(GroupedByCity::class) { "${t(City::class)}, COUNT(*)" }
     .groupBy(User_.city)
     .resultList
@@ -558,7 +555,7 @@ SQL Template::
 +
 [source,java]
 ----
-List<GroupedByCity> counts = ORMTemplate.of(dataSource).query(RAW."""
+List<GroupedByCity> counts = orm.query(RAW."""
         SELECT \{City.class}, COUNT(*)
         FROM \{User.class}
         GROUP BY \{User_.city}""")
@@ -582,7 +579,7 @@ DSL (Java)::
 +
 [source,java]
 ----
-List<User> users = ORMTemplate.of(dataSource).entity(User.class)
+List<User> users = orm.entity(User.class)
     .select()
     .orderBy(User_.birthDate)
     .getResultList();
@@ -591,7 +588,7 @@ DSL (Kotlin)::
 +
 [source,kotlin]
 ----
-val users: List<User> = ORMTemplate.of(dataSource)
+val users: List<User> = orm.entity(User::class)
     .select()
     .orderBy(User_.birthDate)
     .resultList
@@ -600,7 +597,7 @@ SQL Template::
 +
 [source,java]
 ----
-List<User> users = ORMTemplate.of(dataSource).query(RAW."""
+List<User> users = orm.query(RAW."""
         SELECT \{User.class}
         FROM \{User.class}
         ORDER BY \{User_.birthDate}""")
@@ -788,7 +785,7 @@ DSL (Java)::
 [source,java]
 ----
 Role role = ...;
-List<Ref<User>> users = ORMTemplate.of(dataSource).entity(UserRole.class)
+List<Ref<User>> users = orm.entity(UserRole.class)
     .selectRef(User.class)
     .where(UserRole_.role, role)
     .getResultList();
@@ -798,7 +795,7 @@ DSL (Kotlin)::
 [source,kotlin]
 ----
 val role: Role = ...
-val users: List<Ref<User>> = ORMTemplate.of(dataSource)
+val users: List<Ref<User>> = orm.entity(UserRole::class)
     .selectRef(User::class)
     .where(UserRole_.role eq role)
     .resultList
@@ -808,7 +805,7 @@ SQL Template::
 [source,java]
 ----
 Role role = ...;
-List<Ref<User>> users = ORMTemplate.of(dataSource).query(RAW."""
+List<Ref<User>> users = orm.query(RAW."""
         SELECT \{select(User.class, SelectMode.PK)}
         FROM \{UserRole.class}
         WHERE \{role}""")
@@ -827,7 +824,7 @@ DSL (Java)::
 [source,java]
 ----
 List<Ref<User>> users = ...;
-List<Role> roles = ORMTemplate.of(dataSource).entity(UserRole.class)
+List<Role> roles = orm.entity(UserRole.class)
     .select(Role.class)
     .distinct()
     .whereRef(UserRole_.user, users)
@@ -838,7 +835,7 @@ DSL (Kotlin)::
 [source,kotlin]
 ----
 val users: List<Ref<User>> = ...;
-val roles: List<Role> = ORMTemplate.of(dataSource)
+val roles: List<Role> = orm.entity(UserRole::class)
     .select(Role::class)
     .distinct()
     .where(UserRole_.user inRefs users)
@@ -849,7 +846,7 @@ SQL Template::
 [source,java]
 ----
 List<Ref<User>> users = ...;
-List<Role> roles = ORMTemplate.of(dataSource).query(RAW."""
+List<Role> roles = orm.query(RAW."""
         SELECT DISTINCT \{Role.class}
         FROM \{UserRole.class}
         WHERE \{users}""")
@@ -893,7 +890,7 @@ DSL (Java)::
 +
 [source,java]
 ----
-Map<Ref<City>, Long> counts = ORMTemplate.of(dataSource).entity(User.class)
+Map<Ref<City>, Long> counts = orm.entity(User.class)
         .select(GroupedByCity.class, RAW."\{select(City.class, SelectMode.PK)}, COUNT(*)")
         .groupBy(User_.city)
         .getResultList().stream()
@@ -903,7 +900,7 @@ DSL (Kotlin)::
 +
 [source,kotlin]
 ----
-val counts: Map<Ref<City>, Long> = ORMTemplate.of(dataSource)
+val counts: Map<Ref<City>, Long> = orm.entity(User::class)
         .select(GroupedByCity::class) { "${t(select(City::class, SelectMode.PK))}, COUNT(*)" }
         .groupBy(User_.city)
         .resultList
@@ -913,7 +910,7 @@ SQL Template::
 +
 [source,java]
 ----
-Map<Ref<City>, Long> counts = ORMTemplate.of(dataSource).query(RAW."""
+Map<Ref<City>, Long> counts = orm.query(RAW."""
         SELECT \{select(City.class, SelectMode.PK)}, COUNT(*)
         FROM \{User.class}
         GROUP BY \{User_.city}""")
@@ -1203,7 +1200,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-oracle</artifactId>
-    <version>1.6.0</version>
+    <version>1.6.1</version>
     <scope>runtime</scope>
 </dependency>
 ----
@@ -1211,7 +1208,7 @@ Gradle::
 +
 [source,groovy]
 ----
-runtimeOnly 'st.orm:storm-oracle:1.6.0'
+runtimeOnly 'st.orm:storm-oracle:1.6.1'
 ----
 ====
 
@@ -1233,7 +1230,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-metamodel-processor</artifactId>
-    <version>1.6.0</version>
+    <version>1.6.1</version>
     <scope>provided</scope>
 </dependency>
 ----
@@ -1241,7 +1238,7 @@ Gradle::
 +
 [source,groovy]
 ----
-annotationProcessor 'st.orm:storm-metamodel-processor:1.6.0'
+annotationProcessor 'st.orm:storm-metamodel-processor:1.6.1'
 ----
 ====
 
@@ -1306,7 +1303,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-json</artifactId>
-    <version>1.6.0</version>
+    <version>1.6.1</version>
     <scope>compile</scope>
 </dependency>
 ----
@@ -1314,7 +1311,7 @@ Gradle::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-json:1.6.0'
+implementation 'st.orm:storm-json:1.6.1'
 ----
 ====
 
@@ -1442,7 +1439,7 @@ Maven (Java)::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-spring</artifactId>
-    <version>1.6.0</version>
+    <version>1.6.1</version>
     <scope>compile</scope>
 </dependency>
 ----
@@ -1450,7 +1447,7 @@ Gradle (Java)::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-spring:1.6.0'
+implementation 'st.orm:storm-spring:1.6.1'
 ----
 Maven (Kotlin)::
 +
@@ -1459,7 +1456,7 @@ Maven (Kotlin)::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-kotlin-spring</artifactId>
-    <version>1.6.0</version>
+    <version>1.6.1</version>
     <scope>compile</scope>
 </dependency>
 ----
@@ -1467,7 +1464,7 @@ Gradle (Kotlin)::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-kotlin-spring:1.6.0'
+implementation 'st.orm:storm-kotlin-spring:1.6.1'
 ----
 ====
 

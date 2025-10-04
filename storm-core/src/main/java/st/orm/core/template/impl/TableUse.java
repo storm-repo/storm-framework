@@ -17,6 +17,8 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -28,24 +30,47 @@ import java.util.Set;
  * @since 1.1
  */
 class TableUse {
-    private final Set<Class<? extends Record>> referencedTables;
-    private final Map<Class<? extends Record>, Set<Class<? extends Record>>> precedingTables;
+    private final Set<TableAlias> referencedTables;
+    private final Map<TableAlias, Set<TableAlias>> precedingTables;
+
+    private record TableAlias(Class<? extends Record> table, String alias) {}
 
     TableUse() {
         this.referencedTables = new HashSet<>();
         this.precedingTables = new HashMap<>();
     }
 
-    public void addReferencedTable(@Nonnull Class<? extends Record> table) {
-        referencedTables.add(table);
-        referencedTables.addAll(precedingTables.getOrDefault(table, Set.of()));
+    public void addReferencedTable(@Nonnull Class<? extends Record> table, @Nonnull String alias) {
+        markAsReferencedWithAncestors(new TableAlias(table, alias));
     }
 
-    public void addAutoJoinTable(@Nonnull Class<? extends Record> joinTable, @Nonnull Class<? extends Record> precedingTable) {
-        precedingTables.computeIfAbsent(joinTable, ignore -> new HashSet<>()).add(precedingTable);
+    public void addAutoJoinTable(@Nonnull Class<? extends Record> joinTable, @Nonnull String joinAlias,
+                                 @Nonnull Class<? extends Record> precedingTable, @Nonnull String precedingAlias) {
+        var child  = new TableAlias(joinTable, joinAlias);
+        var parent = new TableAlias(precedingTable, precedingAlias);
+        precedingTables.computeIfAbsent(child, ignore -> new HashSet<>()).add(parent);
+        if (referencedTables.contains(child)) {
+            markAsReferencedWithAncestors(parent);
+        }
     }
 
-    public boolean isReferencedTable(@Nonnull Class<? extends Record> table) {
-        return referencedTables.contains(table);
+    public boolean isReferenced(@Nonnull Class<? extends Record> table, @Nonnull String alias) {
+        return referencedTables.contains(new TableAlias(table, alias));
+    }
+
+    private void markAsReferencedWithAncestors(@Nonnull TableAlias start) {
+        Deque<TableAlias> stack = new ArrayDeque<>();
+        Set<TableAlias> visited = new HashSet<>();
+        stack.push(start);
+        while (!stack.isEmpty()) {
+            var current = stack.pop();
+            if (!visited.add(current)) {
+                continue;
+            }
+            referencedTables.add(current);
+            for (var parent : precedingTables.getOrDefault(current, Set.of())) {
+                if (!visited.contains(parent)) stack.push(parent);
+            }
+        }
     }
 }

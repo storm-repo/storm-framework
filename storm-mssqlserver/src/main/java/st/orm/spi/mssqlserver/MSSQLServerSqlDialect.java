@@ -78,10 +78,13 @@ public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDiale
     }
 
     private static final Set<String> MSSQL_RESERVED = Stream.concat(ANSI_KEYWORDS.stream(), Stream.of(
-            "CLOSE", "COMPUTE", "CONTAINS", "CONTAINSTABLE", "FREETEXT", "FREETEXTTABLE",
-            "LINENO", "MERGE", "PIVOT", "RAISERROR", "READTEXT", "REPLICATION", "ROWCOUNT",
-            "ROWGUIDCOL", "SEQUENCE", "TRY_CONVERT", "TSEQUAL", "UNPIVOT", "UPDATETEXT",
-            "WRITETEXT")).collect(toSet());
+            "BACKUP", "BREAK", "BROWSE", "BULK", "CHECKPOINT", "CLUSTERED", "COMPUTE", "CONTAINS",
+            "CONTAINSTABLE", "DENY", "DUMP", "ERRLVL", "EXTERNAL", "FREETEXT", "FREETEXTTABLE", "HOLDLOCK",
+            "IDENTITY_INSERT", "IDENTITYCOL", "INDEX", "KILL", "LINENO", "MERGE", "NOCHECK", "NONCLUSTERED",
+            "OFFSETS", "PERCENT", "PLAN", "PIVOT", "PRINT", "PROC", "RAISERROR", "READTEXT", "REPLICATION", "ROWCOUNT",
+            "ROWGUIDCOL", "RULE", "SAVE", "SEQUENCE", "STATISTICS", "TEXTSIZE", "TOP", "TRAN", "TRANSACTION",
+            "TRUNCATE", "TRY_CONVERT", "TSEQUAL", "UNPIVOT", "UPDATETEXT", "WAITFOR", "WHILE", "WRITETEXT"
+    )).collect(toSet());
 
     /**
      * Indicates whether the given name is a keyword in this SQL dialect.

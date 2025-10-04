@@ -24,20 +24,33 @@ import st.orm.core.template.PreparedQuery;
 import st.orm.core.template.Query;
 import st.orm.core.template.SqlTemplateException;
 
+import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Time;
 import java.sql.Timestamp;
-import java.util.Date;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.util.Calendar;
 import java.util.Objects;
+import java.util.TimeZone;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static java.lang.Integer.toHexString;
 import static java.lang.System.identityHashCode;
 import static java.util.stream.Stream.generate;
+import static st.orm.core.template.impl.LazySupplier.lazy;
 import static st.orm.core.template.impl.ObjectMapperFactory.getObjectMapper;
 
+@SuppressWarnings("ALL")
 class QueryImpl implements Query {
     private final RefFactory refFactory;
     private final Function<Boolean, PreparedStatement> statement;
@@ -339,37 +352,78 @@ class QueryImpl implements Query {
             }
             Object[] args = new Object[columnCount];
             Class<?>[] types = mapper.getParameterTypes();
+            var calendarSupplier = lazy(() -> Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
             for (int i = 0; i < columnCount; i++) {
-                if (Date.class == types[i]) {
-                    // Special case because would return a java.sql.Date by default.
-                    Timestamp timestamp = resultSet.getTimestamp(i + 1);
-                    if (timestamp != null) {
-                        args[i] = new Date(timestamp.getTime());
-                    } else {
-                        args[i] = null;
-                    }
-                } else {
-                    args[i] = switch (types[i]) {
-                        case Class<?> c when c == Short.TYPE -> resultSet.getShort(i + 1);
-                        case Class<?> c when c == Integer.TYPE -> resultSet.getInt(i + 1);
-                        case Class<?> c when c == Long.TYPE -> resultSet.getLong(i + 1);
-                        case Class<?> c when c == Float.TYPE -> resultSet.getFloat(i + 1);
-                        case Class<?> c when c == Double.TYPE -> resultSet.getDouble(i + 1);
-                        case Class<?> c when c == Byte.TYPE -> resultSet.getByte(i + 1);
-                        case Class<?> c when c == Boolean.TYPE -> resultSet.getBoolean(i + 1);
-                        case Class<?> c when c == String.class -> resultSet.getString(i + 1);
-                        case Class<?> c when c.isEnum() -> resultSet.getString(i + 1);  // Enum is read as string and taken care of by object mapper.
-                        default -> resultSet.getObject(i + 1, types[i]);
-                    };
-                    if (resultSet.wasNull()) {
-                        args[i] = null;
-                    }
-                }
+                args[i] = readColumnValue(resultSet, i + 1, types[i], calendarSupplier);
             }
             return mapper.newInstance(args);
         } catch (SQLException e) {
             throw new PersistenceException(e);
         }
+    }
+
+    private static Object readColumnValue(
+            @Nonnull ResultSet rs,
+            int columnIndex,
+            @Nonnull Class<?> targetType,
+            @Nonnull Supplier<Calendar> calendarSupplier
+    ) throws SQLException {
+        Object value = switch (targetType) {
+            // Primitives & basics.
+            case Class<?> c when c == Short.TYPE || c == Short.class     -> rs.getShort(columnIndex);
+            case Class<?> c when c == Integer.TYPE || c == Integer.class -> rs.getInt(columnIndex);
+            case Class<?> c when c == Long.TYPE || c == Long.class       -> rs.getLong(columnIndex);
+            case Class<?> c when c == Float.TYPE || c == Float.class     -> rs.getFloat(columnIndex);
+            case Class<?> c when c == Double.TYPE || c == Double.class   -> rs.getDouble(columnIndex);
+            case Class<?> c when c == Byte.TYPE || c == Byte.class       -> rs.getByte(columnIndex);
+            case Class<?> c when c == Boolean.TYPE || c == Boolean.class -> rs.getBoolean(columnIndex);
+            case Class<?> c when c == String.class                       -> rs.getString(columnIndex);
+            case Class<?> c when c == BigDecimal.class                   -> rs.getBigDecimal(columnIndex);
+            case Class<?> c when c == byte[].class                       -> rs.getBytes(columnIndex);
+            case Class<?> c when c.isEnum()                              -> rs.getString(columnIndex); // Enum handled by mapper.
+            case Class<?> c when c == java.util.Date.class -> {
+                Timestamp ts = rs.getTimestamp(columnIndex, calendarSupplier.get());
+                yield ts != null ? new java.util.Date(ts.getTime()) : null;
+            }
+            case Class<?> c when c == Calendar.class -> {
+                Timestamp ts = rs.getTimestamp(columnIndex, calendarSupplier.get());
+                if (ts == null) yield null;
+                Calendar out = (Calendar) calendarSupplier.get().clone();
+                out.setTimeInMillis(ts.getTime());
+                yield out;
+            }
+            case Class<?> c when c == Timestamp.class     -> rs.getTimestamp(columnIndex, calendarSupplier.get());
+            case Class<?> c when c == java.sql.Date.class -> rs.getDate(columnIndex);
+            case Class<?> c when c == Time.class          -> rs.getTime(columnIndex);
+            // java.time using vendor-safe approach.
+            case Class<?> c when c == LocalDateTime.class -> {
+                Timestamp ts = rs.getTimestamp(columnIndex);
+                yield ts != null ? ts.toLocalDateTime() : null;
+            }
+            case Class<?> c when c == LocalDate.class -> {
+                java.sql.Date d = rs.getDate(columnIndex);
+                yield d != null ? d.toLocalDate() : null;
+            }
+            case Class<?> c when c == LocalTime.class -> {
+                Time t = rs.getTime(columnIndex);
+                yield t != null ? t.toLocalTime() : null;
+            }
+            case Class<?> c when c == Instant.class -> {
+                Timestamp ts = rs.getTimestamp(columnIndex, calendarSupplier.get());
+                yield ts != null ? ts.toInstant() : null;
+            }
+            case Class<?> c when c == OffsetDateTime.class -> {
+                Timestamp ts = rs.getTimestamp(columnIndex, calendarSupplier.get());
+                yield ts != null ? OffsetDateTime.ofInstant(ts.toInstant(), ZoneOffset.UTC) : null;
+            }
+            case Class<?> c when c == ZonedDateTime.class -> {
+                Timestamp ts = rs.getTimestamp(columnIndex, calendarSupplier.get());
+                yield ts != null ? ZonedDateTime.ofInstant(ts.toInstant(), ZoneOffset.UTC) : null;
+            }
+            default -> rs.getObject(columnIndex);
+        };
+        if (rs.wasNull()) return null;
+        return value;
     }
 
     @Override

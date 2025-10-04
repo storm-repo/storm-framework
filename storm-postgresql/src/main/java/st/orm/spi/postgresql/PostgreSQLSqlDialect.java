@@ -74,9 +74,9 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
     }
 
     private static final Set<String> POSTGRESQL_KEYWORDS = Stream.concat(ANSI_KEYWORDS.stream(), Stream.of(
-            "ANALYSE", "ILIKE", "INITIALLY", "LATERAL", "LEADING", "LIMIT", "LOCALTIME",
-            "LOCALTIMESTAMP", "OFFSET", "PLACING", "RETURNING", "SYMMETRIC", "TABLESAMPLE",
-            "UNNEST", "VARIADIC", "VERBOSE", "WITHIN GROUP")).collect(toSet());
+            "ANALYSE", "BIGSERIAL", "ILIKE", "INDEX", "INITIALLY", "LIMIT", "PLACING",
+            "RETURNING", "SERIAL", "SMALLSERIAL", "UNLOGGED", "VARIADIC", "VERBOSE", "WITHIN GROUP", "XML"
+    )).collect(toSet());
 
     /**
      * Indicates whether the given name is a keyword in this SQL dialect.
