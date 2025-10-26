@@ -81,7 +81,9 @@ final class RecordValidation {
                 || type == String.class
                 || type == UUID.class
                 || type == BigInteger.class
-                || type.isEnum())) {
+                || type.isEnum()
+                || type == Ref.class)
+        ) {
             return false;
         }
         return true;
