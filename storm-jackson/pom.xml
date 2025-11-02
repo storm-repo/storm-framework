@@ -9,9 +9,9 @@
         <version>1.7.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
-    <artifactId>storm-oracle</artifactId>
-    <name>Storm Oracle</name>
-    <description>Oracle extensions for Storm.</description>
+    <artifactId>storm-jackson</artifactId>
+    <name>Storm Jackson</name>
+    <description>Jackson Json extensions for Storm.</description>
     <url>https://github.com/storm-repo/storm-framework</url>
     <licenses>
         <license>
@@ -38,8 +38,11 @@
                 <configuration>
                     <argLine>
                         --add-opens java.base/java.lang=ALL-UNNAMED
-                        --add-opens storm.oracle/st.orm.spi.oracle=ALL-UNNAMED
-                        --add-opens storm.oracle/st.orm.spi.oracle=storm.core
+                        --add-opens storm.core/st.orm.core=ALL-UNNAMED
+                        --add-opens storm.jackson/st.orm.jackson=storm.core
+                        --add-opens storm.jackson/st.orm.jackson.model=storm.core
+                        --add-opens storm.jackson/st.orm.jackson=com.fasterxml.jackson.databind
+                        --add-opens storm.jackson/st.orm.jackson.model=com.fasterxml.jackson.databind
                     </argLine>
                 </configuration>
             </plugin>
@@ -47,14 +50,9 @@
     </build>
     <dependencies>
         <dependency>
-            <groupId>jakarta.annotation</groupId>
-            <artifactId>jakarta.annotation-api</artifactId>
-        </dependency>
-        <dependency>
             <groupId>st.orm</groupId>
             <artifactId>storm-foundation</artifactId>
             <version>${project.version}</version>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>st.orm</groupId>
@@ -62,7 +60,21 @@
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>
-        <!-- Test -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>[2.12.0,)</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>[2.12.0,)</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>[2.12.0,)</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -90,24 +102,13 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>testcontainers</artifactId>
+            <groupId>org.mariadb.jdbc</groupId>
+            <artifactId>mariadb-java-client</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>oracle-free</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.oracle.database.jdbc</groupId>
-            <artifactId>ojdbc8</artifactId>
-            <version>19.8.0.0</version>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
