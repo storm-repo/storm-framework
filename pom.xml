@@ -9,11 +9,11 @@
         <kotlin.version>2.0.21</kotlin.version>
         <kotlin.coroutines.version>1.9.0</kotlin.coroutines.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <spring-boot.version>3.5.4</spring-boot.version>
+        <spring-boot.version>3.5.6</spring-boot.version>
     </properties>
     <groupId>st.orm</groupId>
     <artifactId>storm-framework</artifactId>
-    <version>1.6.2</version>
+    <version>1.7.0</version>
     <packaging>pom</packaging>
     <name>Storm Framework</name>
     <description>A SQL Template and ORM framework, focusing on modernizing and simplifying database programming.</description>
@@ -39,7 +39,7 @@
         <module>storm-metamodel-processor</module>
         <module>storm-foundation</module>
         <module>storm-core</module>
-        <module>storm-json</module>
+        <module>storm-jackson</module>
         <module>storm-oracle</module>
         <module>storm-mysql</module>
         <module>storm-mariadb</module>
