@@ -660,9 +660,6 @@ final class WhereProcessor implements ElementProcessor<Where> {
             if (o == null) {
                 throw new SqlTemplateException("Null object not allowed, use IS_NULL operator instead.");
             }
-            if (o instanceof Ref<?> ref && ref.isNull()) {
-                throw new SqlTemplateException("Null Ref not allowed, use IS_NULL operator instead.");
-            }
             Object v = o instanceof Ref<?> ref ? ref.id() : o;
             assert v != null;
             Class<?> elementType = v.getClass();

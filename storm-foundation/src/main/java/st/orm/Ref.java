@@ -16,7 +16,6 @@
 package st.orm;
 
 import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 
 import static java.util.Objects.requireNonNull;
 
@@ -37,56 +36,12 @@ import static java.util.Objects.requireNonNull;
  */
 public interface Ref<T extends Record> {
 
-    Ref<?> NULL = new AbstractRef<>() {
-        @Override
-        public Class<Record> type() {
-            return Record.class;
-        }
-
-        @Override
-        public Object id() {
-            return null;
-        }
-
-        @Override
-        public Record fetch() {
-            return null;
-        }
-
-        @Override
-        public void unload() {
-        }
-    };
-
     /**
      * The type of the record.
      *
      * @return the type of the record.
      */
     Class<T> type();
-
-    /**
-     * Creates a ref instance with a null value. This can be used to represent a null value for a foreign key
-     * reference.
-     *
-     * @return ref instance.
-     * @param <T> record type.
-     */
-    static <T extends Record> Ref<T> ofNull() {
-        //noinspection unchecked
-        return (Ref<T>) NULL;
-    }
-
-    /**
-     * Creates a ref instance with the specified {@code entity}, if non-null, otherwise returns a null ref instance.
-     *
-     * @param entity the entity to wrap in a ref, or null if no entity is provided.
-     * @return ref instance.
-     * @param <E> record type.
-     */
-    static <E extends Record & Entity<?>> Ref<E> ofNullable(@Nullable E entity) {
-        return entity == null ? ofNull() : of(entity);
-    }
 
     /**
      * Creates a fully loaded ref instance that wraps the given entity.
@@ -120,20 +75,6 @@ public interface Ref<T extends Record> {
             public void unload() {
             }
         };
-    }
-
-    /**
-     * Creates a ref instance with the specified {@code projection} and {@code id}, if both non-null, otherwise returns
-     * a null ref instance.
-     *
-     * @param projection the projection to wrap in a ref, or null if no projection is provided.
-     * @param id the primary key of the projection, or null if no primary key is provided.
-     * @return ref instance.
-     * @param <P> the type of the projection.
-     * @param <ID> the type of the primary key.
-     */
-    static <P extends Record & Projection<ID>, ID> Ref<P> ofNullable(@Nullable P projection, @Nullable ID id)  {
-        return projection == null || id == null ? ofNull() : of(projection, id);
     }
 
     /**
@@ -199,15 +140,6 @@ public interface Ref<T extends Record> {
     static <ID, P extends Record & Projection<ID>> ID projectionId(@Nonnull Ref<P> ref) {
         //noinspection unchecked
         return (ID) ref.id();
-    }
-
-    /**
-     * Returns true if the ref instance represents a null value.
-     *
-     * @return true if the ref instance represents a null value.
-     */
-    default boolean isNull() {
-        return id() == null;
     }
 
     /**

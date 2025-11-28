@@ -11,7 +11,6 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import st.orm.GenerationStrategy;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
 import st.orm.DbColumn;
@@ -70,6 +69,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -92,6 +92,7 @@ import static st.orm.ResolveScope.INNER;
 import static st.orm.ResolveScope.OUTER;
 import static st.orm.core.template.TemplateString.wrap;
 
+@SuppressWarnings("ALL")
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
 @DataJpaTest(showSql = false)
@@ -184,15 +185,6 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testSelectByColumnRef() {
         assertEquals(1, ORMTemplate.of(dataSource).entity(Pet.class).select().where(Pet_.owner, Ref.of(Owner.builder().id(1).build())).getResultCount());
-    }
-
-    @Test
-    public void testSelectByColumnNullRef() {
-        PersistenceException e = assertThrows(PersistenceException.class, () -> {
-            ORMTemplate.of(dataSource).entity(Pet.class).select().where(Pet_.owner, Ref.ofNull()).getResultCount();
-        });
-        assertInstanceOf(SqlTemplateException.class, e.getCause());
-
     }
 
     @Test
@@ -314,7 +306,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var visit = ORMTemplate.of(dataSource).entity(VisitWithNullablePetRef.class).getById(1);
         //noinspection DataFlowIssue
         var pet = visit.pet().fetch();
-        assertFalse(visit.pet().isNull());
+        assertNotNull(visit.pet());
         //noinspection DataFlowIssue
         assertEquals("Jean", pet.owner().firstName());
         assertSame(pet, visit.pet().fetch());
@@ -426,7 +418,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     void testInsertPetRefWithNull() {
         var e = assertThrows(PersistenceException.class, () -> {
             var repository = ORMTemplate.of(dataSource).entity(VisitWithNonnullPetRef.class);
-            VisitWithNonnullPetRef visit = new VisitWithNonnullPetRef(0, LocalDate.now(), "test", Ref.ofNull());
+            VisitWithNonnullPetRef visit = new VisitWithNonnullPetRef(0, LocalDate.now(), "test", null);
             repository.insert(visit);
         });
         assertInstanceOf(SqlTemplateException.class, e.getCause());
@@ -458,7 +450,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     void testInsertNullablePetRefWithNull() {
         var e = assertThrows(PersistenceException.class, () -> {
             var repository = ORMTemplate.of(dataSource).entity(VisitWithNullablePetRef.class);
-            VisitWithNullablePetRef visit = new VisitWithNullablePetRef(0, LocalDate.now(), "test", Ref.ofNull(), Instant.now());
+            VisitWithNullablePetRef visit = new VisitWithNullablePetRef(0, LocalDate.now(), "test", null, Instant.now());
             repository.insert(visit);
         });
         assertInstanceOf(SQLIntegrityConstraintViolationException.class, e.getCause());
@@ -469,7 +461,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var e = assertThrows(PersistenceException.class, () -> {
             var repository = ORMTemplate.of(dataSource).entity(VisitWithNullablePetRef.class);
             var visit = repository.getById(1);
-            repository.update(visit.toBuilder().pet(Ref.ofNull()).build());
+            repository.update(visit.toBuilder().pet(null).build());
         });
         assertInstanceOf(SQLIntegrityConstraintViolationException.class, e.getCause());
     }
@@ -482,7 +474,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         var visitFromDb = visitRepository.getById(id);
         assertEquals(id, visitFromDb.id());
         //noinspection DataFlowIssue
-        assertFalse(visitFromDb.pet().isNull());
+        assertNotNull(visitFromDb.pet());
         assertEquals(1, visitFromDb.pet().fetch().id());
     }
 
@@ -490,8 +482,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void testSelectNullOwnerRef() {
         try (var stream = ORMTemplate.of(dataSource).entity(PetWithNullableOwnerRef.class).selectAll()) {
             var pet = stream.filter(p -> p.name().equals("Sly")).findFirst().orElseThrow();
-            assertTrue(pet.owner().isNull());
-            assertNull(pet.owner().fetch());
+            assertNull(pet.owner());
         }
     }
 

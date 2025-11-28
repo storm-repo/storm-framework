@@ -16,7 +16,6 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
-import st.orm.Ref;
 import st.orm.PK;
 import st.orm.core.spi.RefFactory;
 import st.orm.core.template.SqlTemplateException;
@@ -139,7 +138,7 @@ public final class ObjectMapperFactory {
             for (int i = 0; i < parameterTypes.length; i++) {
                 Object arg = args[i];
                 Class<?> paramType = parameterTypes[i];
-                if (arg == null || (arg instanceof Ref<?> l && l.isNull())) {
+                if (arg == null) {
                     if (isNonnull(parameters[i])) {
                         throw new SqlTemplateException("Non-null argument of %s (%s) is null at position %d."
                                 .formatted(constructor.getDeclaringClass().getSimpleName(), parameters[i].getName(), offset + i + 1));

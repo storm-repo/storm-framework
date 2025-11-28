@@ -278,7 +278,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         @Override
         public <T extends Record> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
             return getResultStream(pkType)
-                    .map(id -> id == null ? Ref.ofNull() : refFactory.create(type, id));
+                    .map(pk -> pk == null ? null : refFactory.create(type, pk));
         }
 
         @Override

@@ -719,8 +719,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <T, ID, V> findRefBy(field: Metamodel<P, V>, value: V): Ref<P> =
-        selectRef().where(field, EQUALS, value).optionalResult ?: Ref.ofNull()
+    fun <T, ID, V> findRefBy(field: Metamodel<P, V>, value: V): Ref<P>? =
+        selectRef().where(field, EQUALS, value).optionalResult
 
     /**
      * Retrieves an optional entity of type [T] based on a single field and its value.
@@ -730,8 +730,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V : Record> findRefBy(field: Metamodel<P, V>, value: Ref<V>): Ref<P> =
-        selectRef().where(field, value).optionalResult ?: Ref.ofNull()
+    fun <V : Record> findRefBy(field: Metamodel<P, V>, value: Ref<V>): Ref<P>? =
+        selectRef().where(field, value).optionalResult
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -943,8 +943,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      */
     fun findRef(
         predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>
-    ): Ref<P> =
-        selectRef().whereBuilder(predicate).optionalResult ?: Ref.ofNull()
+    ): Ref<P>? =
+        selectRef().whereBuilder(predicate).optionalResult
 
     /**
      * Retrieves an optional entity of type [T] matching the specified predicate.
@@ -954,8 +954,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      */
     fun findRef(
         predicate: PredicateBuilder<P, *, *>
-    ): Ref<P> =
-        selectRef().where(predicate).optionalResult ?: Ref.ofNull()
+    ): Ref<P>? =
+        selectRef().where(predicate).optionalResult
 
     /**
      * Retrieves a single entity of type [T] matching the specified predicate.

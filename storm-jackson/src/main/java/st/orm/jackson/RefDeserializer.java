@@ -50,7 +50,7 @@ public class RefDeserializer extends JsonDeserializer<Ref<?>>
 
     @Override
     public Ref getNullValue(DeserializationContext ctxt) {
-        return Ref.ofNull();
+        return null;
     }
 
     @Override

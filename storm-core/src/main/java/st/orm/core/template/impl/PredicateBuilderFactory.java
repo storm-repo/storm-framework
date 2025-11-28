@@ -20,7 +20,6 @@ import st.orm.Metamodel;
 import st.orm.Operator;
 import st.orm.Ref;
 import st.orm.core.template.PredicateBuilder;
-import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.Elements.ObjectExpression;
 import st.orm.core.template.impl.QueryBuilderImpl.PredicateBuilderImpl;
 
