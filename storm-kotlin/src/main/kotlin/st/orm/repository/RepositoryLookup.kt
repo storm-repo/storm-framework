@@ -511,15 +511,15 @@ inline fun <reified T, V> RepositoryLookup.getBy(field: Metamodel<T, V>, value: 
  * @return an optional entity, or null if none found.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.findRefBy(field: Metamodel<T, V>, value: V): Ref<T>
+inline fun <reified T, V> RepositoryLookup.findRefBy(field: Metamodel<T, V>, value: V): Ref<T>?
         where T : Record = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
     .let { repository ->
         when (repository) {
-            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().where(field, EQUALS, value).optionalResult ?: Ref.ofNull()
-            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().where(field, EQUALS, value).optionalResult ?: Ref.ofNull()
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().where(field, EQUALS, value).optionalResult
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().where(field, EQUALS, value).optionalResult
             else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
         }
     }
@@ -533,15 +533,15 @@ inline fun <reified T, V> RepositoryLookup.findRefBy(field: Metamodel<T, V>, val
  * @return an optional entity, or null if none found.
  */
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T, V> RepositoryLookup.findRefBy(field: Metamodel<T, V>, value: Ref<V>): Ref<T>
+inline fun <reified T, V> RepositoryLookup.findRefBy(field: Metamodel<T, V>, value: Ref<V>): Ref<T>?
         where T : Record, V : Record = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
     .let { repository ->
         when (repository) {
-            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().where(field, value).optionalResult ?: Ref.ofNull()
-            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().where(field, value).optionalResult ?: Ref.ofNull()
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().where(field, value).optionalResult
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().where(field, value).optionalResult
             else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
         }
     }
@@ -909,14 +909,14 @@ inline fun <reified T> RepositoryLookup.find(predicate: PredicateBuilder<T, T, *
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.findRef(
     noinline predicate: WhereBuilder<T, Ref<T>, *>.() -> PredicateBuilder<T, *, *>
-): Ref<T> where T : Record = this::class
+): Ref<T>? where T : Record = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
     .let { repository ->
         when (repository) {
-            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().whereBuilder(predicate).optionalResult ?: Ref.ofNull()
-            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().whereBuilder(predicate).optionalResult ?: Ref.ofNull()
+            is EntityRepository<*, *> -> (repository as EntityRepository<T, *>).selectRef().whereBuilder(predicate).optionalResult
+            is ProjectionRepository<*, *> -> (repository as ProjectionRepository<T, *>).selectRef().whereBuilder(predicate).optionalResult
             else -> error("Type ${T::class.simpleName} must be either Entity or Projection")
         }
     }

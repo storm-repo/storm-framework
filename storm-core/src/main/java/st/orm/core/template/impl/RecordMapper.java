@@ -195,7 +195,7 @@ final class RecordMapper {
     private static final Pattern INT_PATTERN = Pattern.compile("\\d+");
 
     private static boolean isArgNull(@Nullable Object arg) {
-        return arg == null || (arg instanceof Ref<?> r && r.isNull());
+        return arg == null;
     }
 
     /**
@@ -240,7 +240,7 @@ final class RecordMapper {
                 AdaptArgumentsResult result = adaptArguments(recordParamTypes, recordComponents, args, currentIndex, refFactory, nullable, interner);
                 if (!nonnull && Arrays.stream(args, currentIndex, result.offset()).allMatch(RecordMapper::isArgNull)) {
                     // All elements are null and the record is nullable, so we can set the argument to null.
-                    arg = Ref.class.isAssignableFrom(paramType) ? Ref.ofNull() : null;
+                    arg = null;
                 } else{
                     RecordComponent nullViolation = null;
                     Object[] recordArgs = result.arguments();
@@ -256,7 +256,7 @@ final class RecordMapper {
                             throw new SqlTemplateException("Argument for non-null component '%s.%s' is null.".formatted(nullViolation.getDeclaringRecord().getSimpleName(), nullViolation.getName()));
                         }
                         // One of the parent elements is nullable.
-                        arg = Ref.class.isAssignableFrom(paramType) ? Ref.ofNull() : null;
+                        arg = null;
                     } else {
                         // Using the weak interner to use canonical instances of nested records. The interner uses weak
                         // references to allow interning being used even in the event of (infinite) result streams. If the
@@ -286,7 +286,7 @@ final class RecordMapper {
                 arg = EnumMapper.getFactory(1, paramType).orElseThrow().newInstance(new Object[] { v });
             } else if (Ref.class.isAssignableFrom(paramType)) {
                 Object pk = args[currentIndex++];
-                arg = pk == null ? Ref.ofNull() : refFactory.create(getRefRecordType(components.get(i)), pk);
+                arg = pk == null ? null : refFactory.create(getRefRecordType(components.get(i)), pk);
             } else {
                 arg = args[currentIndex++];
             }
