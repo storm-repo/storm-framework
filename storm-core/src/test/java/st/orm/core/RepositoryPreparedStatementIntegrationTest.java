@@ -11,6 +11,8 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import st.orm.Convert;
+import st.orm.Converter;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
 import st.orm.DbColumn;
@@ -67,7 +69,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -404,13 +405,113 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertInstanceOf(SqlTemplateException.class, e.getCause());
     }
 
+    public record AutoDate(String value) {}
+    public record CustomDate(String value) {}
+
+    public static class AutoConverter implements Converter<LocalDate, AutoDate> {
+        @Override
+        public boolean autoApply() {
+            return true;
+        }
+
+        @Override
+        public LocalDate toDatabase(@Nullable AutoDate value) {
+            return value == null ? null : LocalDate.parse(value.value());
+        }
+
+        @Override
+        public AutoDate fromDatabase(@Nullable LocalDate dbValue) {
+            return new AutoDate(dbValue == null ? null : dbValue.toString());
+        }
+    }
+
+    public static class CustomConverter implements Converter<LocalDate, CustomDate> {
+        @Override
+        public LocalDate toDatabase(@Nullable CustomDate value) {
+            return value == null ? null : LocalDate.parse(value.value());
+        }
+
+        @Override
+        public CustomDate fromDatabase(@Nullable LocalDate dbValue) {
+            return new CustomDate(dbValue == null ? null : dbValue.toString());
+        }
+    }
+
+    @Builder(toBuilder = true)
+    @DbTable("visit")
+    public record VisitWithAutoConverter(
+            @PK Integer id,
+            @Nonnull AutoDate visitDate,
+            @Nullable String description,
+            @Nonnull @FK Ref<Pet> pet
+    ) implements Entity<Integer> {
+    }
+
+    @Builder(toBuilder = true)
+    @DbTable("visit")
+    public record VisitWithDisabledConverter(
+            @PK Integer id,
+            @Nonnull @Convert(disableConversion = true) AutoDate visitDate,
+            @Nullable String description,
+            @Nonnull @FK Ref<Pet> pet
+    ) implements Entity<Integer> {
+    }
+
+    @Builder(toBuilder = true)
+    @DbTable("visit")
+    public record VisitWithCustomConverter(
+            @PK Integer id,
+            @Nonnull @Convert(converter = CustomConverter.class) CustomDate visitDate,
+            @Nullable String description,
+            @Nonnull @FK Ref<Pet> pet
+    ) implements Entity<Integer> {
+    }
+
+    @Builder(toBuilder = true)
+    @DbTable("visit")
+    public record VisitWithoutConverter(
+            @PK Integer id,
+            @Nonnull CustomDate visitDate,
+            @Nullable String description,
+            @Nonnull @FK Ref<Pet> pet
+    ) implements Entity<Integer> {
+    }
+
+    @Test
+    void testAutoConverter() {
+        var list = ORMTemplate.of(dataSource).entity(VisitWithAutoConverter.class).findAll();
+        assertEquals("2023-01-01", list.stream().findFirst().get().visitDate().value());
+    }
+
+    @Test
+    void testDisabledConverter() {
+        var e = assertThrows(PersistenceException.class, () -> {
+            ORMTemplate.of(dataSource).entity(VisitWithDisabledConverter.class).findAll();
+        });
+        assertInstanceOf(JdbcSQLSyntaxErrorException.class, e.getCause());
+    }
+
+    @Test
+    void testCustomConverter() {
+        var list = ORMTemplate.of(dataSource).entity(VisitWithAutoConverter.class).findAll();
+        assertEquals("2023-01-01", list.stream().findFirst().get().visitDate().value());
+    }
+
+    @Test
+    void testWithoutConverter() {
+        var e = assertThrows(PersistenceException.class, () -> {
+            ORMTemplate.of(dataSource).entity(VisitWithoutConverter.class).findAll();
+        });
+        assertInstanceOf(JdbcSQLSyntaxErrorException.class, e.getCause());
+    }
+
     @Builder(toBuilder = true)
     @DbTable("visit")
     public record VisitWithNonnullPetRef(
             @PK Integer id,
             @Nonnull LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Ref<Pet> pet
+            @Nonnull @FK Ref<Pet> peto
     ) implements Entity<Integer> {
     }
 

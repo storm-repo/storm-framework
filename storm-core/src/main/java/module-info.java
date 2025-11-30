@@ -20,6 +20,7 @@ module storm.core {
     requires org.slf4j;
     provides st.orm.core.spi.ORMReflectionProvider with st.orm.core.spi.DefaultORMReflectionProviderImpl;
     provides st.orm.core.spi.EntityRepositoryProvider with st.orm.core.spi.DefaultEntityRepositoryProviderImpl;
+    provides st.orm.core.spi.ORMConverterProvider with st.orm.core.spi.DefaultORMConverterProviderImpl;
     provides st.orm.core.spi.ProjectionRepositoryProvider with st.orm.core.spi.DefaultProjectionRepositoryProviderImpl;
     provides st.orm.core.spi.QueryBuilderProvider with st.orm.core.spi.DefaultQueryBuilderProviderImpl;
     provides st.orm.core.spi.SqlDialectProvider with st.orm.core.spi.DefaultSqlDialectProviderImpl;

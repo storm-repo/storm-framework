@@ -31,6 +31,7 @@ import java.lang.reflect.RecordComponent;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
@@ -219,6 +220,11 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
                 || component.getType().isPrimitive()
                 || (JAVAX_NONNULL != null && component.isAnnotationPresent(JAVAX_NONNULL))
                 || (JAKARTA_NONNULL != null && component.isAnnotationPresent(JAKARTA_NONNULL));
+    }
+
+    @Override
+    public List<Class<?>> getSubTypesOf(@Nonnull Class<?> type) {
+        return ClasspathScanner.getSubTypesOf(type);
     }
 
     @Override

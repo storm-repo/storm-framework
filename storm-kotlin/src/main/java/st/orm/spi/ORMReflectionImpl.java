@@ -40,6 +40,7 @@ import java.lang.reflect.RecordComponent;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Supplier;
@@ -245,6 +246,11 @@ public class ORMReflectionImpl implements ORMReflection {
                 return defaultReflection.isNonnull(component);
             }
         });
+    }
+
+    @Override
+    public List<Class<?>> getSubTypesOf(@Nonnull Class<?> type) {
+        return defaultReflection.getSubTypesOf(type);
     }
 
     @Override
