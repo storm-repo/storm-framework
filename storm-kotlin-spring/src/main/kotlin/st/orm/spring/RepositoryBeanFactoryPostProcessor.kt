@@ -150,24 +150,17 @@ open class RepositoryBeanFactoryPostProcessor :
     }
 
     /**
-     * Reflectively check for any @NoRepositoryBean.
-     * Works with either your own annotation or Spring Data’s (org.springframework.data.repository.NoRepositoryBean).
+     * Reflectively check for @NoRepositoryBean.
      */
     private fun hasNoRepositoryBeanAnnotation(type: Class<*>): Boolean {
-        if (type.annotations.any { it.annotationClass.simpleName == "NoRepositoryBean" }) return true
-        val candidates = listOf(
-            "org.springframework.data.repository.NoRepositoryBean",
-            "st.orm.spring.NoRepositoryBean"
-        )
-        for (fullyQualifiedName in candidates) {
-            val loaded: Class<*> = runCatching { Class.forName(fullyQualifiedName, false, type.classLoader) }
-                .getOrNull() ?: continue
-            if (Annotation::class.java.isAssignableFrom(loaded)) {
-                @Suppress("UNCHECKED_CAST")
-                val annotationType = loaded as Class<out kotlin.Annotation>
-                if (type.isAnnotationPresent(annotationType)) {
-                    return true
-                }
+        val fullyQualifiedName = "org.springframework.data.repository.NoRepositoryBean"
+        val loaded: Class<*> = runCatching { Class.forName(fullyQualifiedName, false, type.classLoader) }
+            .getOrNull() ?: return false
+        if (Annotation::class.java.isAssignableFrom(loaded)) {
+            @Suppress("UNCHECKED_CAST")
+            val annotationType = loaded as Class<out kotlin.Annotation>
+            if (type.isAnnotationPresent(annotationType)) {
+                return true
             }
         }
         return false

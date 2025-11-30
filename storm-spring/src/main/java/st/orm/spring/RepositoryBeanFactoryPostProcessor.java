@@ -150,32 +150,20 @@ public class RepositoryBeanFactoryPostProcessor
     }
 
     /**
-     * Reflectively check for any @NoRepositoryBean without a hard dependency.
-     * Works with Spring Data's and/or your own annotation if present.
+     * Reflectively check for @NoRepositoryBean.
      */
     private boolean hasNoRepositoryBeanAnnotation(Class<?> type) {
-        // Fast path: simple-name match on direct annotations (no class loading).
-        for (Annotation a : type.getAnnotations()) {
-            if ("NoRepositoryBean".equals(a.annotationType().getSimpleName())) {
-                return true;
-            }
+        String fullyQualifiedName = "org.springframework.data.repository.NoRepositoryBean";
+        Class<?> loaded;
+        try {
+            loaded = Class.forName(fullyQualifiedName, false, type.getClassLoader());
+        } catch (ClassNotFoundException e) {
+            return false;
         }
-        String[] candidates = new String[] {
-                "org.springframework.data.repository.NoRepositoryBean",
-                "st.orm.spring.NoRepositoryBean"
-        };
-        for (String fullyQualifiedName : candidates) {
-            Class<?> loaded;
-            try {
-                loaded = Class.forName(fullyQualifiedName, false, type.getClassLoader());
-            } catch (ClassNotFoundException e) {
-                continue;
-            }
-            if (Annotation.class.isAssignableFrom(loaded)) {
-                var annotationType = (Class<? extends Annotation>) loaded;
-                if (type.isAnnotationPresent(annotationType)) {
-                    return true;
-                }
+        if (Annotation.class.isAssignableFrom(loaded)) {
+            var annotationType = (Class<? extends Annotation>) loaded;
+            if (type.isAnnotationPresent(annotationType)) {
+                return true;
             }
         }
         return false;
