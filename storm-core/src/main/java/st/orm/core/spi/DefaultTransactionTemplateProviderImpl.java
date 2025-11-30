@@ -18,12 +18,10 @@ package st.orm.core.spi;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.PersistenceException;
 import st.orm.core.spi.Orderable.AfterAny;
-import st.orm.core.spi.Orderable.BeforeAny;
 
 import java.util.Optional;
 
 import static java.util.Optional.empty;
-import static java.util.Optional.ofNullable;
 
 @AfterAny
 public class DefaultTransactionTemplateProviderImpl implements TransactionTemplateProvider {

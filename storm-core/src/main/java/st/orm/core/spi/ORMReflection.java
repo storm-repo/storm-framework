@@ -24,6 +24,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.RecordComponent;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Provides pluggable reflection support for the ORM to support different JVM languages, such as Java and Kotlin.
@@ -113,6 +114,14 @@ public interface ORMReflection {
      * @return true if the specified component has a non-null annotation, false otherwise.
      */
     boolean isNonnull(@Nonnull RecordComponent component);
+
+    /**
+     * Returns the subtypes of the specified type.
+     *
+     * @param type the type to get the subtypes for.
+     * @return the subtypes of the specified type.
+     */
+    List<Class<?>> getSubTypesOf(@Nonnull Class<?> type);
 
     /**
      * Returns the permitted subclasses of the specified sealed class.
