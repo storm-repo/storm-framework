@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.Convert;
 import st.orm.Converter;
+import st.orm.DefaultConverter;
 import st.orm.PersistenceException;
 
 import java.lang.reflect.Modifier;
@@ -27,10 +28,8 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -38,29 +37,30 @@ import static java.util.Objects.requireNonNull;
  * @since 1.7
  */
 public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
-    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.sql");
+    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.converter");
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
     /**
-     * Entry describing a discovered auto-apply converter.
+     * Entry describing a discovered default converter.
      */
-    private record ConverterEntry(Converter<?, ?> converter, Class<?> databaseType, Class<?> entityType) {}
+    private record ConverterEntry(Converter<?, ?> converter, Class<?> databaseType, Class<?> entityType) {
+    }
 
-    private record ConverterTypes(Class<?> databaseType, Class<?> entityType) {}
+    private record ConverterTypes(Class<?> databaseType, Class<?> entityType) {
+    }
 
     /**
-     * All auto-apply converters discovered once at startup.
+     * All default converters discovered once at startup.
      */
-    private static final List<ConverterEntry> AUTO_APPLY_CONVERTERS = scanAutoApplyConverters();
+    private static final List<ConverterEntry> DEFAULT_CONVERTERS = scanDefaultConverters();
 
-    private static List<ConverterEntry> scanAutoApplyConverters() {
+    private static List<ConverterEntry> scanDefaultConverters() {
         List<ConverterEntry> result = new ArrayList<>();
-        List<Class<?>> converterTypes = REFLECTION.getSubTypesOf(Converter.class);
+        var converterTypes = REFLECTION.getSubTypesOf(Converter.class);
         for (Class<?> converterClass : converterTypes) {
             if (converterClass.isInterface() || Modifier.isAbstract(converterClass.getModifiers())) {
                 continue;
             }
-            // Skip non-static inner classes (cannot be instantiated)
             if (converterClass.isMemberClass() && !Modifier.isStatic(converterClass.getModifiers())) {
                 LOGGER.warn("Skipping non-static inner Converter class {} as it cannot be instantiated.", converterClass.getName());
                 continue;
@@ -68,15 +68,17 @@ public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
             if (!Converter.class.isAssignableFrom(converterClass)) {
                 continue;
             }
+            // Only pick converters annotated as default.
+            DefaultConverter defaultConverter = REFLECTION.getAnnotation(converterClass, DefaultConverter.class);
+            if (defaultConverter == null) {
+                continue;
+            }
             ConverterTypes genericTypes = resolveConverterTypes(converterClass);
             if (genericTypes == null) {
-                // Cannot resolve generics, skip auto-apply for this class.
+                // Cannot resolve generics, skip this default converter.
                 continue;
             }
             Converter<?, ?> converterInstance = instantiateConverter(converterClass);
-            if (!converterInstance.autoApply()) {
-                continue;
-            }
             ConverterEntry entry = new ConverterEntry(
                     converterInstance,
                     genericTypes.databaseType,
@@ -91,14 +93,12 @@ public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
         try {
             return (Converter<?, ?>) converterClass.getDeclaredConstructor().newInstance();
         } catch (ReflectiveOperationException e) {
-            throw new PersistenceException(
-                    "Failed to instantiate converter " + converterClass.getName(), e
-            );
+            throw new PersistenceException("Failed to instantiate converter " + converterClass.getName(), e);
         }
     }
 
     /**
-     * Resolve the generic <D, E> types of a Converter<D, E> implementation class.
+     * Resolve the generic &lt;D, E&gt; types of a Converter&lt;D, E&gt; implementation class.
      */
     private static ConverterTypes resolveConverterTypes(@Nonnull Class<?> converterClass) {
         // Check all directly implemented interfaces.
@@ -138,7 +138,6 @@ public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
     @Override
     public Optional<ORMConverter> getConverter(@Nonnull RecordComponent component) {
         requireNonNull(component, "component");
-        // 1) Check for @Convert on the component
         Convert convert = REFLECTION.getAnnotation(component, Convert.class);
         if (convert != null) {
             if (convert.disableConversion()) {
@@ -147,25 +146,25 @@ public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
             }
             Class<?> explicitConverterClass = convert.converter();
             if (explicitConverterClass != Void.class) {
-                // Explicit converter specified, takes precedence over auto-apply.
+                // Explicit converter specified, takes precedence over default converters.
                 return Optional.of(createExplicitConverter(component, explicitConverterClass));
             }
         }
-        // 2) No explicit converter: try to find a single matching auto-apply converter.
-        return resolveAutoApplyConverter(component);
+        // No explicit converter: try to find a single matching default converter.
+        return resolveDefaultConverter(component);
     }
 
-    private Optional<ORMConverter> resolveAutoApplyConverter(@Nonnull RecordComponent component) {
-        Class<?> attributeType = component.getType();
+    private Optional<ORMConverter> resolveDefaultConverter(@Nonnull RecordComponent component) {
+        Class<?> fieldType = component.getType();
         ConverterEntry match = null;
-        for (ConverterEntry entry : AUTO_APPLY_CONVERTERS) {
+        for (ConverterEntry entry : DEFAULT_CONVERTERS) {
             // A converter's entity type must be assignable from the record component type.
-            if (entry.entityType.isAssignableFrom(attributeType)) {
+            if (entry.entityType.isAssignableFrom(fieldType)) {
                 if (match != null && match != entry) {
-                    // Ambiguous: multiple auto-apply converters match this attribute.
+                    // Ambiguous: multiple default converters match this field type.
                     throw new PersistenceException(
-                            "Multiple auto-apply converters match attribute type " +
-                                    attributeType.getName() + " for component " +
+                            "Multiple default converters match " +
+                                    fieldType.getSimpleName() + " type for component " +
                                     component.getDeclaringRecord().getName() + "." +
                                     component.getName() +
                                     ". Use @Convert(converter = ...) or disableConversion = true."
@@ -185,7 +184,8 @@ public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
         return Optional.of(ormConverter);
     }
 
-    private ORMConverter createExplicitConverter(@Nonnull RecordComponent component, @Nonnull Class<?> converterClass) {
+    private ORMConverter createExplicitConverter(@Nonnull RecordComponent component,
+                                                 @Nonnull Class<?> converterClass) {
         if (!Converter.class.isAssignableFrom(converterClass)) {
             throw new PersistenceException(
                     "@Convert on " + component.getDeclaringRecord().getName() + "." +
