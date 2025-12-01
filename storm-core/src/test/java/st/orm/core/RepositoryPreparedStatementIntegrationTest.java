@@ -13,6 +13,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import st.orm.Convert;
 import st.orm.Converter;
+import st.orm.DefaultConverter;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
 import st.orm.DbColumn;
@@ -408,12 +409,8 @@ public class RepositoryPreparedStatementIntegrationTest {
     public record AutoDate(String value) {}
     public record CustomDate(String value) {}
 
+    @DefaultConverter
     public static class AutoConverter implements Converter<LocalDate, AutoDate> {
-        @Override
-        public boolean autoApply() {
-            return true;
-        }
-
         @Override
         public LocalDate toDatabase(@Nullable AutoDate value) {
             return value == null ? null : LocalDate.parse(value.value());
@@ -439,7 +436,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Builder(toBuilder = true)
     @DbTable("visit")
-    public record VisitWithAutoConverter(
+    public record VisitWithDefaultConverter(
             @PK Integer id,
             @Nonnull AutoDate visitDate,
             @Nullable String description,
@@ -478,8 +475,8 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
-    void testAutoConverter() {
-        var list = ORMTemplate.of(dataSource).entity(VisitWithAutoConverter.class).findAll();
+    void testDefaultConverter() {
+        var list = ORMTemplate.of(dataSource).entity(VisitWithDefaultConverter.class).findAll();
         assertEquals("2023-01-01", list.stream().findFirst().get().visitDate().value());
     }
 
@@ -493,7 +490,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     void testCustomConverter() {
-        var list = ORMTemplate.of(dataSource).entity(VisitWithAutoConverter.class).findAll();
+        var list = ORMTemplate.of(dataSource).entity(VisitWithDefaultConverter.class).findAll();
         assertEquals("2023-01-01", list.stream().findFirst().get().visitDate().value());
     }
 
