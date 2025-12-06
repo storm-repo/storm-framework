@@ -16,6 +16,7 @@
 package st.orm.template;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.JoinType;
 import st.orm.Metamodel;
 import st.orm.Operator;
@@ -41,7 +42,7 @@ import static st.orm.Operator.IN;
  * @param <R> the type of the result.
  * @param <ID> the type of the primary key.
  */
-public abstract class QueryBuilder<T extends Record, R, ID> {
+public abstract class QueryBuilder<T extends Data, R, ID> {
 
     /**
      * Returns a typed query builder for the specified primary key type.
@@ -77,7 +78,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    public abstract QueryBuilder<T, R, ID> crossJoin(@Nonnull Class<? extends Record> relation);
+    public abstract QueryBuilder<T, R, ID> crossJoin(@Nonnull Class<? extends Data> relation);
 
     /**
      * Adds an inner join to the query.
@@ -85,7 +86,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    public abstract TypedJoinBuilder<T, R, ID> innerJoin(@Nonnull Class<? extends Record> relation);
+    public abstract TypedJoinBuilder<T, R, ID> innerJoin(@Nonnull Class<? extends Data> relation);
 
     /**
      * Adds a left join to the query.
@@ -93,7 +94,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    public abstract TypedJoinBuilder<T, R, ID> leftJoin(@Nonnull Class<? extends Record> relation);
+    public abstract TypedJoinBuilder<T, R, ID> leftJoin(@Nonnull Class<? extends Data> relation);
 
     /**
      * Adds a right join to the query.
@@ -101,7 +102,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    public abstract TypedJoinBuilder<T, R, ID> rightJoin(@Nonnull Class<? extends Record> relation);
+    public abstract TypedJoinBuilder<T, R, ID> rightJoin(@Nonnull Class<? extends Data> relation);
 
     /**
      * Adds a join of the specified type to the query.
@@ -111,7 +112,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    public abstract TypedJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull Class<? extends Record> relation, @Nonnull String alias);
+    public abstract TypedJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull Class<? extends Data> relation, @Nonnull String alias);
 
     /**
      * Adds a cross join to the query.
@@ -242,7 +243,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @return the predicate builder.
      * @since 1.3
      */
-    public final <V extends Record> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull Ref<V> ref) {
+    public final <V extends Data> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull Ref<V> ref) {
         return where(predicate -> predicate.where(path, ref));
     }
 
@@ -254,7 +255,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    public final <V extends Record> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<V> it) {
+    public final <V extends Data> QueryBuilder<T, R, ID> where(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<V> it) {
         return where(path, IN, it);
     }
 
@@ -267,7 +268,7 @@ public abstract class QueryBuilder<T extends Record, R, ID> {
      * @return the predicate builder.
      * @since 1.3
      */
-    public final <V extends Record> QueryBuilder<T, R, ID> whereRef(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
+    public final <V extends Data> QueryBuilder<T, R, ID> whereRef(@Nonnull Metamodel<T, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
         return where(predicate -> predicate.whereRef(path, it));
     }
 

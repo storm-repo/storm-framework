@@ -6,14 +6,16 @@
         <java.version>21</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
+        <gradle.version>8.2</gradle.version>
         <kotlin.version>2.0.21</kotlin.version>
+        <kotlin.ksp.version>2.0.21-1.0.25</kotlin.ksp.version>
         <kotlin.coroutines.version>1.9.0</kotlin.coroutines.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>3.5.6</spring-boot.version>
     </properties>
     <groupId>st.orm</groupId>
     <artifactId>storm-framework</artifactId>
-    <version>1.7.0</version>
+    <version>1.7.1</version>
     <packaging>pom</packaging>
     <name>Storm Framework</name>
     <description>A SQL Template and ORM framework, focusing on modernizing and simplifying database programming.</description>
@@ -37,6 +39,7 @@
     </scm>
     <modules>
         <module>storm-metamodel-processor</module>
+        <module>storm-metamodel-ksp</module>
         <module>storm-foundation</module>
         <module>storm-core</module>
         <module>storm-jackson</module>
@@ -50,6 +53,8 @@
         <module>storm-kotlin</module>
         <module>storm-kotlin-validator</module>
         <module>storm-kotlin-spring</module>
+        <module>storm-record-processor</module>
+        <module>storm-gradle-plugin</module>
     </modules>
     <dependencyManagement>
         <dependencies>
@@ -157,17 +162,17 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.sonatype.central</groupId>
-                <artifactId>central-publishing-maven-plugin</artifactId>
-                <version>0.7.0</version>
-                <extensions>true</extensions>
-                <configuration>
-                    <publishingServerId>central</publishingServerId>
-                    <autoPublish>true</autoPublish>
-                    <waitUntil>uploaded</waitUntil>
-                </configuration>
-            </plugin>
+<!--            <plugin>-->
+<!--                <groupId>org.sonatype.central</groupId>-->
+<!--                <artifactId>central-publishing-maven-plugin</artifactId>-->
+<!--                <version>0.7.0</version>-->
+<!--                <extensions>true</extensions>-->
+<!--                <configuration>-->
+<!--                    <publishingServerId>central</publishingServerId>-->
+<!--                    <autoPublish>true</autoPublish>-->
+<!--                    <waitUntil>uploaded</waitUntil>-->
+<!--                </configuration>-->
+<!--            </plugin>-->
         </plugins>
     </build>
 </project>

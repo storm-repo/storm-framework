@@ -17,13 +17,14 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Data;
 import st.orm.core.template.impl.TableName;
 import st.orm.Metamodel;
 import st.orm.PersistenceException;
+import st.orm.mapping.RecordField;
 import st.orm.template.Column;
 import st.orm.template.Model;
 
-import java.lang.reflect.RecordComponent;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
@@ -34,15 +35,15 @@ import static java.util.List.copyOf;
 /**
  * Represents the model of an entity.
  */
-public record ModelImpl<E extends Record, ID>(
+public record ModelImpl<E extends Data, ID>(
         @Nonnull st.orm.core.template.impl.ModelImpl<E, ID> core,
         @Nonnull TableName tableName,
         @Nonnull Class<E> type,
         @Nonnull Class<ID> primaryKeyType,
         @Nonnull List<Column> columns,
         @Nonnull List<Metamodel<E, ?>> metamodels,
-        @Nonnull Optional<RecordComponent> primaryKeyComponent,
-        @Nonnull List<RecordComponent> foreignKeyComponents) implements Model<E, ID> {
+        @Nonnull Optional<RecordField> primaryKeyField,
+        @Nonnull List<RecordField> foreignKeyFields) implements Model<E, ID> {
 
     public ModelImpl {
         columns = copyOf(columns); // Defensive copy.
@@ -59,8 +60,8 @@ public record ModelImpl<E extends Record, ID>(
                         .map(Column.class::cast)
                         .toList(),
                 model.metamodels(),
-                model.primaryKeyComponent(),
-                model.foreignKeyComponents()
+                model.primaryKeyField(),
+                model.foreignKeyFields()
         );
     }
 
@@ -100,16 +101,16 @@ public record ModelImpl<E extends Record, ID>(
     }
 
     /**
-     * Extracts the value for the specified record component from the given record.
+     * Extracts the value for the specified record field from the given record.
      *
-     * @param component the record component to extract the value for.
+     * @param field the record field to extract the value for.
      * @param record the record to extract the value from.
-     * @return the value for the specified record component from the given record.
+     * @return the value for the specified record field from the given record.
      * @since 1.3
      */
     @Override
-    public Object getValue(@Nonnull RecordComponent component, @Nonnull E record) {
-        return core.getValue(component, record);
+    public Object getValue(@Nonnull RecordField field, @Nonnull E record) {
+        return core.getValue(field, record);
     }
 
     /**

@@ -24,7 +24,6 @@ import java.time.LocalDate
 /**
  * Simple business object representing a pet.
  */
-@JvmRecord
 data class Pet(
     @PK val id: Int = 0,
     val name: String,

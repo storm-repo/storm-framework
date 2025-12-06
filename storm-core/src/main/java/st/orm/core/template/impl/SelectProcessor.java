@@ -28,8 +28,9 @@ import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Select;
+import st.orm.mapping.RecordField;
+import st.orm.mapping.RecordType;
 
-import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,6 +40,8 @@ import static st.orm.ResolveScope.INNER;
 import static st.orm.core.spi.Providers.getORMConverter;
 import static st.orm.core.template.impl.RecordReflection.getColumnName;
 import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
+import static st.orm.core.template.impl.RecordReflection.getRecordType;
+import static st.orm.core.template.impl.RecordReflection.isRecord;
 import static st.orm.core.template.impl.SqlTemplateImpl.toPathString;
 
 /**
@@ -71,10 +74,10 @@ final class SelectProcessor implements ElementProcessor<Select> {
     public ElementResult process(@Nonnull Select select) throws SqlTemplateException {
         // Resolve the path of type, starting from the primary table. This will help in resolving the alias in case the
         // same table is used multiple times.
-        List<RecordComponent> path = null;
+        List<RecordField> path = null;
         String pathString = null;
         if (primaryTable != null) {
-            List<RecordComponent> pathList = resolvePath(primaryTable.table(), select.table());
+            List<RecordField> pathList = resolvePath(getRecordType(primaryTable.table()), getRecordType(select.table()));
             if (pathList != null) {
                 path = pathList;
                 pathString = toPathString(pathList);
@@ -86,8 +89,8 @@ final class SelectProcessor implements ElementProcessor<Select> {
             resolvedAlias = aliasMapper.findAlias(select.table(), null, INNER);
         }
         var alias = resolvedAlias.orElse("");
-        var columns = getColumnsString(select.table(), select.mode(), path, aliasMapper,
-                primaryTable == null ? null : primaryTable.table(), alias, false);
+        var columns = getColumnsString(getRecordType(select.table()), select.mode(), path, aliasMapper,
+                primaryTable == null ? null : getRecordType(primaryTable.table()), alias, false);
         if (!columns.isEmpty()) {
             columns.removeLast();
         }
@@ -100,9 +103,9 @@ final class SelectProcessor implements ElementProcessor<Select> {
     // base.
     //
 
-    private void checkAlias(@Nonnull String alias, @Nonnull Class<?> type) throws SqlTemplateException {
+    private void checkAlias(@Nonnull String alias, @Nonnull RecordType type) throws SqlTemplateException {
         if (alias.isEmpty()) {
-            throw new SqlTemplateException("Table %s not found in table graph.".formatted(type.getSimpleName()));
+            throw new SqlTemplateException("Table %s not found in table graph.".formatted(type.type().getSimpleName()));
         }
     }
 
@@ -119,23 +122,23 @@ final class SelectProcessor implements ElementProcessor<Select> {
      * @return a list of columns as a SQL string.
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
-    private List<String> getColumnsString(@Nonnull Class<? extends Record> type,
+    private List<String> getColumnsString(@Nonnull RecordType type,
                                           @Nonnull SelectMode mode,
-                                          @Nullable List<RecordComponent> path,
+                                          @Nullable List<RecordField> path,
                                           @Nonnull AliasMapper aliasMapper,
-                                          @Nullable Class<? extends Record> primaryTable,
+                                          @Nullable RecordType primaryTable,
                                           @Nonnull String alias,
                                           boolean isPk) throws SqlTemplateException {
         var columns = new ArrayList<String>();
-        for (var component : RecordReflection.getRecordComponents(type)) {
-            boolean pk = isPk || REFLECTION.isAnnotationPresent(component, PK.class);
-            boolean fk = REFLECTION.isAnnotationPresent(component, FK.class);
-            boolean ref = Ref.class.isAssignableFrom(component.getType());
-            var converter = getORMConverter(component).orElse(null);
+        for (var field : type.fields()) {
+            boolean pk = isPk || field.isAnnotationPresent(PK.class);
+            boolean fk = field.isAnnotationPresent(FK.class);
+            boolean ref = Ref.class.isAssignableFrom(field.type());
+            var converter = getORMConverter(field).orElse(null);
             if (converter != null) {
                 if (mode != SelectMode.PK) {
                     checkAlias(alias, type);
-                    converter.getColumns(c -> getColumnName(c, template.columnNameResolver())).forEach(name -> {
+                    converter.getColumns(f -> getColumnName(f, template.columnNameResolver())).forEach(name -> {
                         columns.add(dialectTemplate.process("\0.\0", alias, name));
                         columns.add(", ");
                     });
@@ -143,35 +146,34 @@ final class SelectProcessor implements ElementProcessor<Select> {
             } else if (fk && (mode != SelectMode.NESTED || ref)) {   // Use foreign key column if not nested or if ref.
                 if (mode != SelectMode.PK) {
                     checkAlias(alias, type);
-                    getForeignKeys(component, template.foreignKeyResolver(), template.columnNameResolver()).forEach(name -> {
+                    getForeignKeys(field, template.foreignKeyResolver(), template.columnNameResolver()).forEach(name -> {
                         columns.add(dialectTemplate.process("\0.\0", alias, name));
                         columns.add(", ");
                     });
                 }
-            } else if (component.getType().isRecord()) {
+            } else if (isRecord(field.type())) {
                 if (mode != SelectMode.PK || pk) {
-                    @SuppressWarnings("unchecked")
-                    var recordType = (Class<? extends Record>) component.getType();
-                    List<RecordComponent> newPath;
+                    RecordType fieldType = getRecordType(field.type());
+                    List<RecordField> newPath;
                     if (path != null) {
                         newPath = new ArrayList<>(path);
-                        newPath.add(component);
+                        newPath.add(field);
                         newPath = copyOf(newPath);
-                    } else if (recordType == primaryTable) {
+                    } else if (primaryTable != null && primaryTable.type() == fieldType.type()) {
                         newPath = List.of();
                     } else {
                         newPath = null;
                     }
-                    columns.addAll(getColumnsString(recordType, mode, newPath, aliasMapper, primaryTable,
-                            getAlias(recordType, newPath, alias, aliasMapper, template.dialect()), pk));
+                    columns.addAll(getColumnsString(fieldType, mode, newPath, aliasMapper, primaryTable,
+                            getAlias(fieldType, newPath, alias, aliasMapper, template.dialect()), pk));
                 }
             } else {
                 if (ref) {
-                    throw new SqlTemplateException("Ref component '%s.%s' is not a foreign key.".formatted(component.getDeclaringRecord().getSimpleName(), component.getName()));
+                    throw new SqlTemplateException("Ref component '%s.%s' is not a foreign key.".formatted(type.type().getSimpleName(), field.name()));
                 }
                 if (mode != SelectMode.PK || pk) {
                     checkAlias(alias, type);
-                    var name = getColumnName(component, template.columnNameResolver());
+                    var name = getColumnName(field, template.columnNameResolver());
                     columns.add(dialectTemplate.process("\0.\0", alias, name));
                     columns.add(", ");
                 }
@@ -191,44 +193,47 @@ final class SelectProcessor implements ElementProcessor<Select> {
      * @return the alias of the record type for the given path.
      * @throws SqlTemplateException if the alias is not found.
      */
-    private static String getAlias(@Nonnull Class<? extends Record> type,
-                                   @Nullable List<RecordComponent> path,
+    private static String getAlias(@Nonnull RecordType type,
+                                   @Nullable List<RecordField> path,
                                    @Nonnull String alias,
                                    @Nonnull AliasMapper aliasMapper,
                                    @Nonnull SqlDialect dialect) throws SqlTemplateException {
+        if (!type.isDataType()) {
+            return alias;
+        }
         if (path == null) {
-            var result = aliasMapper.findAlias(type, null, INNER);
+            var result = aliasMapper.findAlias(type.requireDataType(), null, INNER);
             if (result.isPresent()) {
                 return result.get();
             }
             if (alias.isEmpty()) {
-                throw new SqlTemplateException("Alias not found for %s".formatted(type.getSimpleName()));
+                throw new SqlTemplateException("Alias not found for %s".formatted(type.type().getSimpleName()));
             }
             return alias;
         }
         String p = toPathString(path);
         if (!path.isEmpty()) {
-            RecordComponent lastComponent = path.getLast();
-            if (REFLECTION.isAnnotationPresent(lastComponent, FK.class)) {
+            RecordField lastField = path.getLast();
+            if (lastField.isAnnotationPresent(FK.class)) {
                 // Path is implicit. First try the path, if not found, try without the path.
-                var resolvedAlias = aliasMapper.findAlias(type, p, INNER);
+                var resolvedAlias = aliasMapper.findAlias(type.requireDataType(), p, INNER);
                 if (resolvedAlias.isPresent()) {
                     return resolvedAlias.get();
                 }
-                return aliasMapper.findAlias(type, null, INNER)
-                        .orElseThrow(() -> new SqlTemplateException("Table %s for column not found at %s.".formatted(type.getSimpleName(), p)));
+                return aliasMapper.findAlias(type.requireDataType(), null, INNER)
+                        .orElseThrow(() -> new SqlTemplateException("Table %s for column not found at %s.".formatted(type.type().getSimpleName(), p)));
             }
-            if (REFLECTION.isAnnotationPresent(lastComponent, PK.class)) {
+            if (lastField.isAnnotationPresent(PK.class)) {
                 return alias;
             }
-            if (getORMConverter(lastComponent).isEmpty()
-                    && !aliasMapper.exists(type, INNER)) { // Check needed for records without annotations.
+            if (getORMConverter(lastField).isEmpty()
+                    && !aliasMapper.exists(type.requireDataType(), INNER)) { // Check needed for records without annotations.
                 return alias; // @Inline is implicitly assumed.
             }
         }
         // Fallback for records without annotations.
-        return aliasMapper.getAlias(Metamodel.root(type), INNER, dialect, () ->
-                new SqlTemplateException("Table %s for column not found.".formatted(type.getSimpleName())));
+        return aliasMapper.getAlias(Metamodel.root(type.type()), INNER, dialect, () ->
+                new SqlTemplateException("Table %s for column not found.".formatted(type.type().getSimpleName())));
     }
 
     /**
@@ -239,15 +244,15 @@ final class SelectProcessor implements ElementProcessor<Select> {
      * @return the path from the root to the target record type.
      * @throws SqlTemplateException if the path is ambiguous.
      */
-    private static @Nullable List<RecordComponent> resolvePath(@Nonnull Class<? extends Record> root,
-                                                               @Nonnull Class<? extends Record> target) throws SqlTemplateException{
-        List<RecordComponent> path = new ArrayList<>();
-        List<RecordComponent> searchPath = new ArrayList<>(); // Temporary path for exploration.
+    private static @Nullable List<RecordField> resolvePath(@Nonnull RecordType root,
+                                                           @Nonnull RecordType target) throws SqlTemplateException{
+        List<RecordField> path = new ArrayList<>();
+        List<RecordField> searchPath = new ArrayList<>(); // Temporary path for exploration.
         int pathsFound = resolvePath(root, target, searchPath, path, 0);
         if (pathsFound == 0) {
             return null;
         } else if (pathsFound > 1) {
-            throw new SqlTemplateException("Multiple paths to the target %s found in %s.".formatted(target.getSimpleName(), root.getSimpleName()));
+            throw new SqlTemplateException("Multiple paths to the target %s found in %s.".formatted(target.type().getSimpleName(), root.type().getSimpleName()));
         }
         return path;
     }
@@ -262,30 +267,32 @@ final class SelectProcessor implements ElementProcessor<Select> {
      * @param pathsFound the number of paths found.
      * @return the number of paths found.
      */
-    private static int resolvePath(@Nonnull Class<? extends Record> current,
-                                   @Nonnull Class<? extends Record> target,
-                                   @Nonnull List<RecordComponent> searchPath,
-                                   @Nonnull List<RecordComponent> path,
+    private static int resolvePath(@Nonnull RecordType current,
+                                   @Nonnull RecordType target,
+                                   @Nonnull List<RecordField> searchPath,
+                                   @Nonnull List<RecordField> path,
                                    int pathsFound) {
-        if (current == target) {
+        if (current.type() == target.type()) {
             if (pathsFound == 0) {
                 path.clear();
                 path.addAll(searchPath);
             }
             return pathsFound + 1;
         }
-        for (RecordComponent component : RecordReflection.getRecordComponents(current)) {
-            Class<?> componentType = component.getType();
-            if (componentType.isRecord() && REFLECTION.isAnnotationPresent(component, FK.class)) {
-                searchPath.add(component);
-                //noinspection unchecked
-                pathsFound = resolvePath((Class<? extends Record>) componentType, target, searchPath, path, pathsFound);
+        for (RecordField field : current.fields()) {
+            if (!isRecord(field.type())) {
+                continue;
+            }
+            RecordType fieldType = getRecordType(field.type());
+            if (field.isAnnotationPresent(FK.class)) {
+                searchPath.add(field);
+                pathsFound = resolvePath(fieldType, target, searchPath, path, pathsFound);
                 if (pathsFound > 1) {
                     return pathsFound; // Early return if multiple paths are found.
                 }
                 searchPath.removeLast();
-            } else if (componentType == target) {
-                searchPath.add(component);
+            } else if (fieldType.type() == target.type()) {
+                searchPath.add(field);
                 pathsFound++;
                 if (pathsFound == 1) {
                     path.clear();

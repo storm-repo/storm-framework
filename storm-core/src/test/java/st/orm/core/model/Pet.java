@@ -22,6 +22,7 @@ import st.orm.Entity;
 import st.orm.FK;
 import st.orm.PK;
 import st.orm.Persist;
+import st.orm.Ref;
 
 import java.time.LocalDate;
 
@@ -33,6 +34,6 @@ public record Pet(
         @PK Integer id,
         @Nonnull String name,
         @Nonnull @Persist(updatable = false) LocalDate birthDate,
-        @Nonnull @FK @Persist(updatable = false) PetType type,
+        @Nonnull @FK @Persist(updatable = false) Ref<PetType> type,
         @Nullable @FK Owner owner
 ) implements Entity<Integer> {}

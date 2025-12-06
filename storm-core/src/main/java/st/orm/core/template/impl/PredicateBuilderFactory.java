@@ -16,6 +16,7 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.Metamodel;
 import st.orm.Operator;
 import st.orm.Ref;
@@ -46,7 +47,7 @@ public interface PredicateBuilderFactory {
      * @param <V> the type of the values
      * @return a new instance of {@link PredicateBuilder}
      */
-    static <T extends Record, R, V> PredicateBuilder<T, R, ?> create(
+    static <T extends Data, R, V> PredicateBuilder<T, R, ?> create(
             @Nonnull Metamodel<?, V> path,
             @Nonnull Operator operator,
             @Nonnull Iterable<V> o) {
@@ -64,7 +65,7 @@ public interface PredicateBuilderFactory {
      * @param <V> the type of the values
      * @return a new instance of {@link PredicateBuilder}
      */
-    static <T extends Record, R, V extends Record> PredicateBuilder<T, R, ?> createRef(
+    static <T extends Data, R, V extends Data> PredicateBuilder<T, R, ?> createRef(
             @Nonnull Metamodel<?, V> path,
             @Nonnull Operator operator,
             @Nonnull Iterable<Ref<V>> o) {
@@ -83,7 +84,7 @@ public interface PredicateBuilderFactory {
      * @param <V> the type of the values
      * @return a new instance of {@link PredicateBuilder}
      */
-    static <T extends Record, R, ID, V> PredicateBuilder<T, R, ID> createWithId(
+    static <T extends Data, R, ID, V> PredicateBuilder<T, R, ID> createWithId(
             @Nonnull Metamodel<?, V> path,
             @Nonnull Operator operator,
             @Nonnull Iterable<V> o) {
@@ -101,7 +102,7 @@ public interface PredicateBuilderFactory {
      * @param <V> the type of the values
      * @return a new instance of {@link PredicateBuilder}
      */
-    static <T extends Record, R, ID, V extends Record> PredicateBuilder<T, R, ID> createRefWithId(
+    static <T extends Data, R, ID, V extends Data> PredicateBuilder<T, R, ID> createRefWithId(
             @Nonnull Metamodel<?, V> path,
             @Nonnull Operator operator,
             @Nonnull Iterable<Ref<V>> o) {

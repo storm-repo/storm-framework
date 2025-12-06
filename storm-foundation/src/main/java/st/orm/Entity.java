@@ -24,12 +24,12 @@ import static st.orm.EntityHelper.getId;
  *
  * @param <ID> the type of the entity's primary key.
  */
-public interface Entity<ID> {
+public interface Entity<ID> extends Data {
 
     /**
      * Returns the primary key of the entity.
      *
-     * <p>The primary key can be any type, such as a {@code Integer} or {@code Long}, but records representing compound
+     * <p>The primary key can be any type, such as a {@code Integer} or {@code Long}, but entities with compound
      * keys are also supported.</p>
      *
      * @return the primary key of the entity.

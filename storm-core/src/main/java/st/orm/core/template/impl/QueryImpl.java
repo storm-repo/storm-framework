@@ -17,6 +17,7 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Data;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.core.spi.RefFactory;
@@ -240,7 +241,7 @@ class QueryImpl implements Query {
      * @since 1.3
      */
     @Override
-    public <T extends Record> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
+    public <T extends Data> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
         return getResultStream(pkType)
                 .map(pk -> pk == null ? null : refFactory.create(type, pk));
     }

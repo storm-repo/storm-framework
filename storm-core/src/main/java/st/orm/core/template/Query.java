@@ -16,6 +16,7 @@
 package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
 import st.orm.PersistenceException;
@@ -165,7 +166,7 @@ public interface Query {
      * @throws PersistenceException if the query fails.
      * @since 1.3
      */
-    default <T extends Record> List<Ref<T>> getRefList(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
+    default <T extends Data> List<Ref<T>> getRefList(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
         try (var stream = getRefStream(type, pkType)) {
             return stream.toList();
         }
@@ -230,7 +231,7 @@ public interface Query {
      * @throws PersistenceException if the query fails.
      * @since 1.3
      */
-    <T extends Record> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType);
+    <T extends Data> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType);
 
     /**
      * Returns true if the query is version aware, false otherwise.

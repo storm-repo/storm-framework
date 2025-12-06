@@ -16,6 +16,7 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.template.PreparedQuery;
 
 import java.util.stream.Stream;
@@ -30,7 +31,7 @@ public class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
     }
 
     @Override
-    public void addBatch(@Nonnull Record record) {
+    public void addBatch(@Nonnull Data record) {
         core.addBatch(record);
     }
 

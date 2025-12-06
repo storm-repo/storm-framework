@@ -15,6 +15,7 @@
  */
 package st.orm.template.impl
 
+import st.orm.Data
 import st.orm.Ref
 import st.orm.template.PreparedQuery
 import st.orm.template.Query
@@ -108,7 +109,7 @@ open class QueryImpl(private val core: st.orm.core.template.Query) : Query {
      * @throws st.orm.PersistenceException if the query fails.
      * @since 1.3
      */
-    override fun <T : Record> getRefStream(
+    override fun <T : Data> getRefStream(
         type: KClass<T>,
         pkType: KClass<*>
     ): Stream<Ref<T>> {

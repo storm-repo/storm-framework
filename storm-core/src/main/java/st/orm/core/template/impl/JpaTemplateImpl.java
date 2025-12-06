@@ -20,6 +20,7 @@ import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceException;
 import st.orm.BindVars;
+import st.orm.Data;
 import st.orm.Ref;
 import st.orm.core.spi.RefFactory;
 import st.orm.core.spi.RefFactoryImpl;
@@ -28,8 +29,8 @@ import st.orm.core.template.Query;
 import st.orm.core.spi.Provider;
 import st.orm.core.spi.Providers;
 import st.orm.core.spi.QueryFactory;
-import st.orm.config.ColumnNameResolver;
-import st.orm.config.ForeignKeyResolver;
+import st.orm.mapping.ColumnNameResolver;
+import st.orm.mapping.ForeignKeyResolver;
 import st.orm.core.template.JpaTemplate;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.Sql;
@@ -38,7 +39,7 @@ import st.orm.core.template.SqlTemplate.NamedParameter;
 import st.orm.core.template.SqlTemplate.PositionalParameter;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TableAliasResolver;
-import st.orm.config.TableNameResolver;
+import st.orm.mapping.TableNameResolver;
 import st.orm.core.template.TemplateString;
 
 import java.util.List;
@@ -51,6 +52,10 @@ import static jakarta.persistence.TemporalType.TIMESTAMP;
 import static st.orm.core.template.SqlTemplate.PS;
 
 public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
+
+    static {
+        RecordValidation.init();
+    }
 
     @FunctionalInterface
     private interface TemplateProcessor {
@@ -276,7 +281,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         }
 
         @Override
-        public <T extends Record> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
+        public <T extends Data> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
             return getResultStream(pkType)
                     .map(pk -> pk == null ? null : refFactory.create(type, pk));
         }
@@ -305,7 +310,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         }
 
         @Override
-        public void addBatch(@Nonnull Record record) {
+        public void addBatch(@Nonnull Data record) {
             throw new UnsupportedOperationException("Not supported by JPA.");
         }
 

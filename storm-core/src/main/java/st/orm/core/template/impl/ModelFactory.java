@@ -16,6 +16,7 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.DbColumn;
 import st.orm.FK;
 import st.orm.GenerationStrategy;
@@ -27,6 +28,8 @@ import st.orm.PersistenceException;
 import st.orm.Version;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
+import st.orm.mapping.RecordField;
+import st.orm.mapping.RecordType;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplateException;
@@ -43,9 +46,11 @@ import static st.orm.core.spi.Providers.getORMConverter;
 import static st.orm.core.template.impl.RecordReflection.getColumnName;
 import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
 import static st.orm.core.template.impl.RecordReflection.getGenerationStrategy;
-import static st.orm.core.template.impl.RecordReflection.getRefRecordType;
+import static st.orm.core.template.impl.RecordReflection.getRecordType;
+import static st.orm.core.template.impl.RecordReflection.getRefDataType;
 import static st.orm.core.template.impl.RecordReflection.getSequence;
 import static st.orm.core.template.impl.RecordReflection.getTableName;
+import static st.orm.core.template.impl.RecordReflection.isRecord;
 
 /**
  * Factory for creating models.
@@ -68,47 +73,51 @@ final class ModelFactory {
      * @param <ID> the primary key type.
      * @throws SqlTemplateException if an error occurs while creating the model.
      */
-    static <T extends Record, ID> Model<T, ID> getModel(
+    static <T extends Data, ID> Model<T, ID> getModel(
             @Nonnull ModelBuilderImpl builder,
             @Nonnull Class<T> type,
             boolean requirePrimaryKey) throws SqlTemplateException {
         try {
             //noinspection unchecked
             return (Model<T, ID>) MODEL_CACHE.computeIfAbsent(type, ignore -> {
+                RecordType recordType = getRecordType(type);
                 AtomicInteger index = new AtomicInteger(1);
                 AtomicInteger primaryKeyIndex = new AtomicInteger(1);
                 List<Column> columns = new ArrayList<>();
                 List<Metamodel<T, ?>> metamodels = new ArrayList<>();
-                RecordComponent pkComponent = null;
-                List<RecordComponent> fkComponents = new ArrayList<>();
+                RecordField pkField = null;
+                List<RecordField> fkFields = new ArrayList<>();
                 try {
-                    var components = type.getRecordComponents();
-                    if (components == null) {
-                        throw new SqlTemplateException("No record components found for type: %s.".formatted(type.getSimpleName()));
-                    }
-                    for (var component : type.getRecordComponents()) {
-                        boolean primaryKey = REFLECTION.isAnnotationPresent(component, PK.class);
-                        boolean foreignKey = REFLECTION.isAnnotationPresent(component, FK.class);
-                        Metamodel<T, ?> model = Metamodel.of(type, component.getName());
-                        var list = createColumns(builder, component, primaryKey, getGenerationStrategy(component),
-                                getSequence(component), false, index, primaryKeyIndex);
+                    for (var field : recordType.fields()) {
+                        boolean primaryKey = field.isAnnotationPresent(PK.class);
+                        boolean foreignKey = field.isAnnotationPresent(FK.class);
+                        Metamodel<T, ?> model = Metamodel.of(type, field.name());
+                        var list = createColumns(builder, field, primaryKey, getGenerationStrategy(field),
+                                getSequence(field), false, index, primaryKeyIndex);
                         columns.addAll(list);
                         metamodels.addAll(nCopies(list.size(), model));
                         if (primaryKey) {
-                            pkComponent = component;
+                            pkField = field;
                         }
                         if (foreignKey) {
-                            fkComponents.add(component);
+                            fkFields.add(field);
                         }
                     }
                     assert columns.size() == metamodels.size();
                     var tableName = getTableName(type, builder.tableNameResolver());
-                    //noinspection unchecked
-                    Class<ID> pkType = (Class<ID>) REFLECTION.findPKType(type).orElse(Void.class);
-                    if (requirePrimaryKey && pkType == Void.class) {
+                    var pkType = RecordReflection.findPkField(type).map(RecordField::type).orElse(null);
+                    if (requirePrimaryKey && pkType == null) {
                         throw new PersistenceException("No primary key found for type: %s".formatted(type.getSimpleName()));
                     }
-                    return new ModelImpl<>(tableName, type, pkType, columns, metamodels, ofNullable(pkComponent), fkComponents);
+                    //noinspection unchecked
+                    return new ModelImpl<>(
+                            tableName,
+                            type,
+                            pkType != null ? (Class<ID>) pkType : (Class<ID>) Void.class,
+                            columns,
+                            metamodels,
+                            ofNullable(pkField),
+                            fkFields);
                 } catch (SqlTemplateException e) {
                     throw new RuntimeException(e);
                 }
@@ -128,7 +137,7 @@ final class ModelFactory {
      * Creates columns for a record component.
      *
      * @param builder the model builder.
-     * @param component the record component.
+     * @param field the record field.
      * @param primaryKey whether the column is a primary key.
      * @param generation the generation strategy.
      * @param sequence the sequence name.
@@ -137,7 +146,7 @@ final class ModelFactory {
      * @return the columns for the record component.
      */
     private static List<Column> createColumns(@Nonnull ModelBuilder builder,
-                                              @Nonnull RecordComponent component,
+                                              @Nonnull RecordField field,
                                               boolean primaryKey,
                                               @Nonnull GenerationStrategy generation,
                                               @Nonnull String sequence,
@@ -145,7 +154,7 @@ final class ModelFactory {
                                               @Nonnull AtomicInteger index,
                                               @Nonnull AtomicInteger primaryKeyIndex) {
         try {
-            var converter = getORMConverter(component).orElse(null);
+            var converter = getORMConverter(field).orElse(null);
             if (converter != null) {
                 var columnTypes = converter.getParameterTypes();
                 var expected = converter.getParameterCount();
@@ -167,52 +176,49 @@ final class ModelFactory {
                 }
                 return columns;
             }
-            boolean foreignKey = REFLECTION.isAnnotationPresent(component, FK.class);
-            Class<?> componentType = component.getType();
-            if (componentType.isRecord() && !foreignKey) {
+            boolean foreignKey = field.isAnnotationPresent(FK.class);
+            if (isRecord(field.type()) && !foreignKey) {
                 if (!primaryKey) {
-                    if (REFLECTION.isAnnotationPresent(component, DbColumn.class)) {
+                    if (field.isAnnotationPresent(DbColumn.class)) {
                         // @Inline is implicitly assumed.
-                        throw new SqlTemplateException("DbColumn annotation is not allowed for @Inline records: %s.%s.".formatted(component.getDeclaringRecord().getSimpleName(), component.getName()));
+                        throw new SqlTemplateException("DbColumn annotation is not allowed for @Inline records: %s.%s.".formatted(field.type().getSimpleName(), field.name()));
                     }
                 }
-                return RecordReflection.getRecordComponents(componentType).stream()
-                        .flatMap(c -> createColumns(builder, c, primaryKey, generation, sequence, !REFLECTION.isNonnull(component), index, primaryKeyIndex).stream())
+                return getRecordType(field.type()).fields().stream()
+                        .flatMap(child -> createColumns(builder, child, primaryKey, generation, sequence, field.nullable(), index, primaryKeyIndex).stream())
                         .toList();
             }
-            boolean nullable = parentNullable || !REFLECTION.isNonnull(component);
-            Persist persist = REFLECTION.getAnnotation(component, Persist.class);
-            boolean version = REFLECTION.isAnnotationPresent(component, Version.class);
+            boolean nullable = parentNullable || field.nullable();
+            Persist persist = field.getAnnotation(Persist.class);
+            boolean version = field.isAnnotationPresent(Version.class);
             boolean insertable = persist == null || persist.insertable();
             boolean updatable = persist == null || persist.updatable();
-            boolean ref = Ref.class.isAssignableFrom(componentType);
+            boolean ref = Ref.class.isAssignableFrom(field.type());
+            var dataType = field.type();
             if (ref) {
                 try {
-                    componentType = getRefRecordType(component);
+                    dataType = getRefDataType(field);
                 } catch (SqlTemplateException e) {
                     throw new PersistenceException(e);
                 }
             }
             if (foreignKey) {
-                List<ColumnName> columnNames = getForeignKeys(component, builder.foreignKeyResolver(), builder.columnNameResolver());
-                //noinspection unchecked
-                List<RecordComponent> pkComponents = RecordReflection.getNestedPkComponents((Class<? extends Record>) componentType).toList();
+                List<ColumnName> columnNames = getForeignKeys(field, builder.foreignKeyResolver(), builder.columnNameResolver());
                 List<Column> columns = new ArrayList<>(columnNames.size());
                 for (int i = 0; i < columnNames.size(); i++) {
                     var columnName = columnNames.get(i);
-                    var recordComponent = pkComponents.get(i);
                     KeyIndex pk = primaryKey ? new KeyIndex(1, 1) : null;
                     KeyIndex fk = new KeyIndex(i + 1, columnNames.size());
                     //noinspection ConstantValue
-                    columns.add(new ColumnImpl(columnName, index.getAndIncrement(), componentType,
+                    columns.add(new ColumnImpl(columnName, index.getAndIncrement(), dataType,
                             pk != null, generation, sequence, fk != null,
                             nullable, insertable, updatable, version, ref));
                 }
                 return columns;
             }
-            ColumnName columnName = getColumnName(component, builder.columnNameResolver());
+            ColumnName columnName = getColumnName(field, builder.columnNameResolver());
             KeyIndex pk = primaryKey ? new KeyIndex(1, 1) : null;
-            return List.of(new ColumnImpl(columnName, index.getAndIncrement(), componentType,
+            return List.of(new ColumnImpl(columnName, index.getAndIncrement(), dataType,
                     pk != null, generation, sequence, false,
                     nullable, insertable, updatable, version, ref));
         } catch (SqlTemplateException e) {

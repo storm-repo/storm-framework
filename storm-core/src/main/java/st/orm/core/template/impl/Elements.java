@@ -17,6 +17,7 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Data;
 import st.orm.Element;
 import st.orm.ResolveScope;
 import st.orm.BindVars;
@@ -36,18 +37,18 @@ public final class Elements {
     private Elements() {
     }
 
-    public record Select(@Nonnull Class<? extends Record> table, @Nonnull SelectMode mode) implements Element {
+    public record Select(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode) implements Element {
         public Select {
             requireNonNull(table, "table");
             requireNonNull(mode, "mode");
         }
-        public Select(@Nonnull Class<? extends Record> table) {
+        public Select(@Nonnull Class<? extends Data> table) {
             this(table, NESTED);
         }
     }
 
-    public record Insert(@Nonnull Class<? extends Record> table, boolean ignoreAutoGenerate) implements Element {
-        public Insert(@Nonnull Class<? extends Record> table) {
+    public record Insert(@Nonnull Class<? extends Data> table, boolean ignoreAutoGenerate) implements Element {
+        public Insert(@Nonnull Class<? extends Data> table) {
             this(table, false);
         }
         public Insert {
@@ -55,23 +56,23 @@ public final class Elements {
         }
     }
 
-    public record Values(@Nullable Iterable<? extends Record> records, @Nullable BindVars bindVars, boolean ignoreAutoGenerate) implements Element {
-        public Values(@Nullable Iterable<? extends Record> records, @Nullable BindVars bindVars) {
+    public record Values(@Nullable Iterable<? extends Data> records, @Nullable BindVars bindVars, boolean ignoreAutoGenerate) implements Element {
+        public Values(@Nullable Iterable<? extends Data> records, @Nullable BindVars bindVars) {
             this(records, bindVars, false);
         }
     }
 
-    public record Update(@Nonnull Class<? extends Record> table, @Nonnull String alias) implements Element {
+    public record Update(@Nonnull Class<? extends Data> table, @Nonnull String alias) implements Element {
         public Update {
             requireNonNull(table, "table");
             requireNonNull(alias, "alias");
         }
-        public Update(@Nonnull Class<? extends Record> table) {
+        public Update(@Nonnull Class<? extends Data> table) {
             this(table, "");
         }
     }
 
-    public record Set(@Nullable Record record, @Nullable BindVars bindVars) implements Element {}
+    public record Set(@Nullable Data record, @Nullable BindVars bindVars) implements Element {}
 
     public sealed interface Expression {}
     public record ObjectExpression(@Nullable Metamodel<?, ?> metamodel, @Nonnull Operator operator, @Nonnull Object object) implements Expression {
@@ -90,22 +91,22 @@ public final class Elements {
 
     public record Where(@Nullable Expression expression, @Nullable BindVars bindVars) implements Element {}
 
-    public record Delete(@Nonnull Class<? extends Record> table, @Nonnull String alias) implements Element {
+    public record Delete(@Nonnull Class<? extends Data> table, @Nonnull String alias) implements Element {
         public Delete {
             requireNonNull(table, "table");
             requireNonNull(alias, "alias");
         }
-        public Delete(@Nonnull Class<? extends Record> table) {
+        public Delete(@Nonnull Class<? extends Data> table) {
             this(table, "");
         }
     }
 
     public sealed interface Source {}
-    public record TableSource(@Nonnull Class<? extends Record> table) implements Source {}
+    public record TableSource(@Nonnull Class<? extends Data> table) implements Source {}
     public record TemplateSource(@Nonnull TemplateString template) implements Source {}
 
     public sealed interface Target {}
-    public record TableTarget(@Nonnull Class<? extends Record> table) implements Target {}
+    public record TableTarget(@Nonnull Class<? extends Data> table) implements Target {}
     public record TemplateTarget(@Nonnull TemplateString template) implements Target {}
 
     public record From(@Nonnull Source source, @Nonnull String alias, boolean autoJoin) implements Element {
@@ -113,7 +114,7 @@ public final class Elements {
             requireNonNull(source, "source");
             requireNonNull(alias, "alias");
         }
-        public From(@Nonnull Class<? extends Record> table, boolean autoJoin) {
+        public From(@Nonnull Class<? extends Data> table, boolean autoJoin) {
             this(new TableSource(table), "", autoJoin);
         }
         public From(@Nonnull TemplateString template) {
@@ -121,17 +122,17 @@ public final class Elements {
         }
     }
 
-    public record Table(@Nonnull Class<? extends Record> table, @Nonnull String alias) implements Element {
+    public record Table(@Nonnull Class<? extends Data> table, @Nonnull String alias) implements Element {
         public Table {
             requireNonNull(table, "table");
             requireNonNull(alias, "alias");
         }
-        public Table(@Nonnull Class<? extends Record> table) {
+        public Table(@Nonnull Class<? extends Data> table) {
             this(table, "");
         }
     }
 
-    public record Alias(@Nonnull Class<? extends Record> table, @Nonnull ResolveScope scope) implements Element {
+    public record Alias(@Nonnull Class<? extends Data> table, @Nonnull ResolveScope scope) implements Element {
         public Alias {
             requireNonNull(table, "table");
             requireNonNull(scope, "scope");
@@ -156,7 +157,7 @@ public final class Elements {
         }
     }
 
-    public record BindVar(@Nonnull BindVars bindVars, @Nonnull Function<Record, ?> extractor) implements Element {
+    public record BindVar(@Nonnull BindVars bindVars, @Nonnull Function<Data, ?> extractor) implements Element {
         public BindVar {
             requireNonNull(bindVars, "bindVars");
             requireNonNull(extractor, "extractor");

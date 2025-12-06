@@ -17,9 +17,10 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Data;
 import st.orm.core.template.SqlTemplateException;
+import st.orm.mapping.RecordField;
 
-import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -36,23 +37,23 @@ import static st.orm.core.template.impl.SqlTemplateImpl.multiplePathsFoundExcept
  */
 final class TableMapper {
     record Mapping(
-            @Nonnull Class<? extends Record> source,
+            @Nonnull Class<? extends Data> source,
             @Nonnull String alias,
-            @Nonnull RecordComponent component,
+            @Nonnull RecordField field,
             boolean primaryKey,
-            @Nullable Class<? extends Record> rootTable,
+            @Nullable Class<? extends Data> rootTable,
             @Nullable String pkPath
     ) {}
 
     private final TableUse tableUse;
-    private final Map<Class<? extends Record>, List<Mapping>> mappings;
+    private final Map<Class<? extends Data>, List<Mapping>> mappings;
 
     TableMapper(@Nonnull TableUse tableUse) {
         this.tableUse = tableUse;
         this.mappings = new HashMap<>();
     }
 
-    public Mapping getMapping(@Nonnull Class<? extends Record> table, @Nullable Class<? extends Record> rootTable, @Nullable String path) throws SqlTemplateException {
+    public Mapping getMapping(@Nonnull Class<? extends Data> table, @Nullable Class<? extends Data> rootTable, @Nullable String path) throws SqlTemplateException {
         // While it might seem appropriate to return the mapping at the root level when the path is null or empty,
         // doing so can lead to unexpected results if a field is added at the root level in the future.
         // Such an addition would cause the search to switch to that root element, altering the semantics of the query.
@@ -77,35 +78,35 @@ final class TableMapper {
     }
 
     public void mapPrimaryKey(
-            @Nonnull Class<? extends Record> source,
-            @Nonnull Class<? extends Record> target,
+            @Nonnull Class<? extends Data> source,
+            @Nonnull Class<? extends Data> target,
             @Nonnull String alias,
-            @Nonnull RecordComponent component,
-            @Nonnull Class<? extends Record> rootTable,
+            @Nonnull RecordField field,
+            @Nonnull Class<? extends Data> rootTable,
             @Nullable String path) {
         mappings.computeIfAbsent(target, ignore -> new ArrayList<>())
-                .add(new Mapping(source, alias, component, true, rootTable, getPath(component, path)));
+                .add(new Mapping(source, alias, field, true, rootTable, getPath(field, path)));
     }
 
     public void mapForeignKey(
-            @Nonnull Class<? extends Record> source,
-            @Nonnull Class<? extends Record> target,
+            @Nonnull Class<? extends Data> source,
+            @Nonnull Class<? extends Data> target,
             @Nonnull String alias,
-            @Nonnull RecordComponent component,
-            @Nonnull Class<? extends Record> rootTable,
+            @Nonnull RecordField field,
+            @Nonnull Class<? extends Data> rootTable,
             @Nullable String path) {
         mappings.computeIfAbsent(target, ignore -> new ArrayList<>())
-                .add(new Mapping(source, alias, component, false, rootTable, getPath(component, path)));
+                .add(new Mapping(source, alias, field, false, rootTable, getPath(field, path)));
     }
 
-    private static String getPath(@Nonnull RecordComponent component, @Nullable String path) {
+    private static String getPath(@Nonnull RecordField field, @Nullable String path) {
         if (path == null) {
             return null;
         }
         if (path.isEmpty()) {
-            return component.getName();
+            return field.name();
         }
-        return "%s.%s".formatted(path, component.getName());
+        return "%s.%s".formatted(path, field.name());
     }
 
     /**
@@ -124,7 +125,7 @@ final class TableMapper {
         return count;
     }
 
-    private static List<Mapping> findMappings(@Nonnull List<Mapping> mappings, @Nullable Class<? extends Record> rootTable, @Nullable String path) {
+    private static List<Mapping> findMappings(@Nonnull List<Mapping> mappings, @Nullable Class<? extends Data> rootTable, @Nullable String path) {
         var mapped = mappings.stream()
                 .filter(m -> m.pkPath() != null)    // Only include singular pk mappings.
                 .filter(m -> rootTable == null || rootTable == m.rootTable())  // Only include mappings if they originate from the same root table to properly use manually added join tables.
@@ -138,7 +139,7 @@ final class TableMapper {
         ).toList();
     }
 
-    private SqlTemplateException notFoundException(@Nonnull Class<? extends Record> table, @Nullable String path, @Nonnull List<String> paths) {
+    private SqlTemplateException notFoundException(@Nonnull Class<? extends Data> table, @Nullable String path, @Nonnull List<String> paths) {
         if (paths.isEmpty()) {
             return new SqlTemplateException("%s not found %s.".formatted(table.getSimpleName(), path == null ? "in table graph" : "at path: '%s'".formatted(path)));
         }

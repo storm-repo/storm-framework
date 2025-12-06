@@ -16,6 +16,7 @@
 package st.orm.core.repository;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.FK;
 import st.orm.Inline;
 import st.orm.Ref;
@@ -162,7 +163,7 @@ import java.util.stream.Stream;
  * @param <E> the type of entity managed by this repository.
  * @param <ID> the type of the primary key of the entity.
  */
-public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Repository {
+public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
 
     /**
      * Returns the default batch size applied by the repository.
@@ -289,7 +290,7 @@ public interface EntityRepository<E extends Record & Entity<ID>, ID> extends Rep
      * @return a new query builder for selecting refs to entities.
      * @since 1.3
      */
-    <R extends Record> QueryBuilder<E, Ref<R>, ID> selectRef(@Nonnull Class<R> refType);
+    <R extends Data> QueryBuilder<E, Ref<R>, ID> selectRef(@Nonnull Class<R> refType);
 
     /**
      * Creates a new query builder for delete entities of the type managed by this repository.

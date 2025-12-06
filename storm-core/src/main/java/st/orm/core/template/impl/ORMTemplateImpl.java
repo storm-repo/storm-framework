@@ -63,7 +63,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
      * @return the repository for the given entity type.
      */
     @Override
-    public <T extends Record & Entity<ID>, ID> EntityRepository<T, ID> entity(@Nonnull Class<T> type) {
+    public <T extends Entity<ID>, ID> EntityRepository<T, ID> entity(@Nonnull Class<T> type) {
         try {
             return getEntityRepository(this, modelBuilder.build(type, true), providerFilter == null ? ignore -> true : providerFilter);
         } catch (SqlTemplateException e) {
@@ -80,7 +80,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
      * @return the repository for the given projection type.
      */
     @Override
-    public <T extends Record & Projection<ID>, ID> ProjectionRepository<T, ID> projection(@Nonnull Class<T> type) {
+    public <T extends Projection<ID>, ID> ProjectionRepository<T, ID> projection(@Nonnull Class<T> type) {
         try {
             return getProjectionRepository(this, modelBuilder.build(type, false), providerFilter == null ? ignore -> true : providerFilter);
         } catch (SqlTemplateException e) {
@@ -140,7 +140,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
         });
     }
 
-    private <T extends Record & Entity<ID>, ID> Optional<EntityRepository<T, ID>> createEntityRepository(@Nonnull Class<?> type) {
+    private <T extends Entity<ID>, ID> Optional<EntityRepository<T, ID>> createEntityRepository(@Nonnull Class<?> type) {
         if (!EntityRepository.class.isAssignableFrom(type)) {
             return Optional.empty();
         }
@@ -148,7 +148,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
         return findGenericClass(type, EntityRepository.class, 0).map(cls -> entity((Class<T>) (Object) cls));
     }
 
-    private <T extends Record & Projection<ID>, ID> Optional<ProjectionRepository<T, ID>> createProjectionRepository(@Nonnull Class<?> type) {
+    private <T extends Projection<ID>, ID> Optional<ProjectionRepository<T, ID>> createProjectionRepository(@Nonnull Class<?> type) {
         if (!ProjectionRepository.class.isAssignableFrom(type)) {
             return Optional.empty();
         }
@@ -167,7 +167,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     }
 
     @SuppressWarnings("SameParameterValue")
-    private static <T extends Record & Entity<?>> Optional<Class<T>> findGenericClass(@Nonnull Class<?> clazz,
+    private static <T extends Entity<?>> Optional<Class<T>> findGenericClass(@Nonnull Class<?> clazz,
                                                                                       @Nonnull Class<?> targetInterface,
                                                                                       int typeArgumentIndex) {
         //noinspection unchecked

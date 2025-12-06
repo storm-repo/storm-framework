@@ -16,6 +16,7 @@
 package st.orm.core.repository.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.Entity;
 import st.orm.GenerationStrategy;
 import st.orm.Ref;
@@ -50,7 +51,7 @@ import static st.orm.core.template.TemplateString.raw;
  * @param <ID> the type of the primary key of the entity.
  */
 @SuppressWarnings("DuplicatedCode")
-public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
+public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         extends BaseRepositoryImpl<E, ID>
         implements EntityRepository<E, ID> {
 
@@ -800,7 +801,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
             return;
         }
         var query = querySupplier.get();
-        batch.stream().map(e -> validateInsert(e, ignoreAutoGenerate)).map(Record.class::cast).forEach(query::addBatch);
+        batch.stream().map(e -> validateInsert(e, ignoreAutoGenerate)).map(Data.class::cast).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 1)) {
             throw new PersistenceException("Batch insert failed.");
@@ -816,7 +817,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
             return List.of();
         }
         var query = querySupplier.get();
-        batch.stream().map(e -> validateInsert(e, ignoreAutoGenerate)).map(Record.class::cast).forEach(query::addBatch);
+        batch.stream().map(e -> validateInsert(e, ignoreAutoGenerate)).map(Data.class::cast).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 1)) {
             throw new PersistenceException("Batch insert failed.");
@@ -881,7 +882,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
             return;
         }
         var query = querySupplier.get();
-        batch.stream().map(this::validateUpdate).map(Record.class::cast).forEach(query::addBatch);
+        batch.stream().map(this::validateUpdate).map(Data.class::cast).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (query.isVersionAware() && IntStream.of(result).anyMatch(r -> r == 0)) {
             throw new OptimisticLockException("Update failed due to optimistic lock.");
@@ -895,7 +896,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
             return List.of();
         }
         var query = querySupplier.get();
-        batch.stream().map(this::validateUpdate).map(Record.class::cast).forEach(query::addBatch);
+        batch.stream().map(this::validateUpdate).map(Data.class::cast).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (query.isVersionAware() && IntStream.of(result).anyMatch(r -> r == 0)) {
             throw new OptimisticLockException("Update failed due to optimistic lock.");
@@ -989,7 +990,7 @@ public class EntityRepositoryImpl<E extends Record & Entity<ID>, ID>
                 DELETE FROM \0
                 WHERE \0""", model.type(), bindVars)).prepare()) {
             chunked(entities, batchSize).forEach(slice -> {
-                slice.stream().map(this::validateDelete).map(Record.class::cast).forEach(query::addBatch);
+                slice.stream().map(this::validateDelete).map(Data.class::cast).forEach(query::addBatch);
                 int[] result = query.executeBatch();
                 if (IntStream.of(result).anyMatch(r -> r != 1)) {
                     throw new PersistenceException("Batch delete failed.");

@@ -16,6 +16,7 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.core.template.SqlTemplate.PositionalParameter;
 import st.orm.BindVars;
 import st.orm.PersistenceException;
@@ -36,7 +37,7 @@ import static java.lang.System.identityHashCode;
  * events.</p>
  */
 final class BindVarsImpl implements BindVars, BindVariables {
-    private final List<Function<Record, List<PositionalParameter>>> parameterExtractors;
+    private final List<Function<Data, List<PositionalParameter>>> parameterExtractors;
     private BatchListener batchListener;
     private RecordListener recordListener;
 
@@ -111,7 +112,7 @@ final class BindVarsImpl implements BindVars, BindVariables {
      *
      * @param parameterExtractor the function that extracts positional parameters from a record.
      */
-    void addParameterExtractor(@Nonnull Function<Record, List<PositionalParameter>> parameterExtractor) {
+    void addParameterExtractor(@Nonnull Function<Data, List<PositionalParameter>> parameterExtractor) {
         parameterExtractors.add(parameterExtractor);
     }
 

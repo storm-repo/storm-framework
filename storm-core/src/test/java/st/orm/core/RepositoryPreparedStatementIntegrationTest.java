@@ -13,6 +13,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import st.orm.Convert;
 import st.orm.Converter;
+import st.orm.Data;
 import st.orm.DefaultConverter;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
@@ -216,7 +217,7 @@ public class RepositoryPreparedStatementIntegrationTest {
                 }
 
                 @Override
-                public Metamodel<Visit, ? extends Record> table() {
+                public Metamodel<Visit, ?> table() {
                     return model.table();
                 }
 
@@ -226,12 +227,12 @@ public class RepositoryPreparedStatementIntegrationTest {
                 }
 
                 @Override
-                public Class<String> componentType() {
-                    return model.componentType();
+                public Class<String> fieldType() {
+                    return model.fieldType();
                 }
 
                 @Override
-                public String component() {
+                public String field() {
                     return "names"; // Invalid name.
                 }
             };
@@ -508,7 +509,7 @@ public class RepositoryPreparedStatementIntegrationTest {
             @PK Integer id,
             @Nonnull LocalDate visitDate,
             @Nullable String description,
-            @Nonnull @FK Ref<Pet> peto
+            @Nonnull @FK Ref<Pet> pet
     ) implements Entity<Integer> {
     }
 
@@ -597,7 +598,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWithWrapper() {
-        record Wrapper(Pet pet) {}
+        record Wrapper(Pet pet) implements Data {}
         var pets = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class, Wrapper.class)
                 .getResultList();
@@ -606,7 +607,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWithWrapperNullOwner() {
-        record Wrapper(Pet pet) {}
+        record Wrapper(Pet pet) implements Data {}
         var wrapper = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class, Wrapper.class)
                 .where(Pet_.id, EQUALS, 13)
@@ -622,7 +623,7 @@ public class RepositoryPreparedStatementIntegrationTest {
                 @PK Integer id,
                 @Nonnull OwnerWrapper owner
         ) implements Entity<Integer> {}
-        record Wrapper(Pet pet) {}
+        record Wrapper(Pet pet) implements Data {}
         var wrapper = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class, Wrapper.class)
                 .where(raw("\0.id = \0", Pet.class, 13))
@@ -1513,10 +1514,9 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testSelectCompoundFKDbColumns() {
         String expectedSql = """
-                SELECT vwdc.id, vwdc.visit_date, vwdc.description, p.id, p.name, p.birth_date, pt.id, pt.name, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version, vs.vet_id, vs.specialty_id, v.id, v.first_name, v.last_name, s.id, s.name, vwdc."timestamp"
+                SELECT vwdc.id, vwdc.visit_date, vwdc.description, p.id, p.name, p.birth_date, p.type_id, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version, vs.vet_id, vs.specialty_id, v.id, v.first_name, v.last_name, s.id, s.name, vwdc."timestamp"
                 FROM visit vwdc
                 INNER JOIN pet p ON vwdc.pet_id = p.id
-                INNER JOIN pet_type pt ON p.type_id = pt.id
                 LEFT JOIN owner o ON p.owner_id = o.id
                 LEFT JOIN city c ON o.city_id = c.id
                 LEFT JOIN vet_specialty vs ON vwdc.test1 = vs.vet_id AND vwdc.test2 = vs.specialty_id
@@ -1556,10 +1556,9 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testSelectCompoundFKNestedDbColumns() {
         String expectedSql = """
-                SELECT vwndc.id, vwndc.visit_date, vwndc.description, p.id, p.name, p.birth_date, pt.id, pt.name, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version, vsdc.vet_id, vsdc.specialty_id, v.id, v.first_name, v.last_name, s.id, s.name, vwndc."timestamp"
+                SELECT vwndc.id, vwndc.visit_date, vwndc.description, p.id, p.name, p.birth_date, p.type_id, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version, vsdc.vet_id, vsdc.specialty_id, v.id, v.first_name, v.last_name, s.id, s.name, vwndc."timestamp"
                 FROM visit vwndc
                 INNER JOIN pet p ON vwndc.pet_id = p.id
-                INNER JOIN pet_type pt ON p.type_id = pt.id
                 LEFT JOIN owner o ON p.owner_id = o.id
                 LEFT JOIN city c ON o.city_id = c.id
                 LEFT JOIN vet_specialty vsdc ON vwndc.vet_id = vsdc.test1 AND vwndc.specialty_id = vsdc.test2

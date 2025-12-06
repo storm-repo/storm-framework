@@ -16,6 +16,7 @@
 package st.orm.spring.model;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Entity;
 import st.orm.PK;
 
 /**
@@ -24,4 +25,5 @@ import st.orm.PK;
 public record PetType(
         @PK Integer id,
         @Nonnull String name
-) {}
+) implements Entity<Integer> {
+}

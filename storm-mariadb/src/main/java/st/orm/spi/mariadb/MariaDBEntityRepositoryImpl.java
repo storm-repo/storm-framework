@@ -38,7 +38,7 @@ import static st.orm.core.template.impl.StringTemplates.flatten;
 /**
  * Implementation of {@link EntityRepository} for MariaDB.
  */
-public class MariaDBEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
+public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
         extends MySQLEntityRepositoryImpl<E, ID> {
 
     public MariaDBEntityRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {

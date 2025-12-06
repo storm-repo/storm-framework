@@ -17,9 +17,10 @@ package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Data;
 import st.orm.Metamodel;
+import st.orm.mapping.RecordField;
 
-import java.lang.reflect.RecordComponent;
 import java.util.List;
 import java.util.Optional;
 import java.util.SequencedMap;
@@ -30,7 +31,7 @@ import java.util.SequencedMap;
  * @param <E> the type of the entity or projection.
  * @param <ID> the type of the primary key, or {@code Void} in case of a projection without a primary key.
  */
-public interface Model<E extends Record, ID> {
+public interface Model<E extends Data, ID> {
 
     /**
      * Returns the schema, or an empty String if the schema is not specified.
@@ -75,21 +76,21 @@ public interface Model<E extends Record, ID> {
     List<Column> columns();
 
     /**
-     * Returns the primary key component for the given record. The optional is empty if the record does not have a
+     * Returns the primary key field for the given record. The optional is empty if the record does not have a
      * primary key.
      *
-     * @return an {@link Optional} containing the primary key component if it exists.
+     * @return an {@link Optional} containing the primary key field if it exists.
      * @since 1.3
      */
-    Optional<RecordComponent> primaryKeyComponent();
+    Optional<RecordField> primaryKeyField();
 
     /**
      * Returns the foreign keys for the given record.
      *
-     * @return a list of foreign key components for the given record.
+     * @return a list of foreign key fields for the given record.
      * @since 1.3
      */
-    List<RecordComponent> foreignKeyComponents();
+    List<RecordField> foreignKeyFields();
 
     /**
      * <p>This method is used to check if the primary key of the entity is a default value. This is useful when
@@ -102,14 +103,14 @@ public interface Model<E extends Record, ID> {
     boolean isDefaultPrimaryKey(@Nullable ID pk);
 
     /**
-     * Extracts the value for the specified record component from the given record.
+     * Extracts the value for the specified record field from the given record.
      *
-     * @param component the record component to extract the value for.
+     * @param field the record field to extract the value for.
      * @param record the record to extract the value from.
-     * @return the value for the specified record component from the given record.
+     * @return the value for the specified record field from the given record.
      * @since 1.3
      */
-    Object getValue(@Nonnull RecordComponent component, @Nonnull E record);
+    Object getValue(@Nonnull RecordField field, @Nonnull E record);
 
     /**
      * Extracts the value for the specified column from the given record.

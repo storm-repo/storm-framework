@@ -16,6 +16,7 @@
 package st.orm.template;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 
 import static java.lang.StringTemplate.RAW;
 import static st.orm.SelectMode.FLAT;
@@ -39,7 +40,7 @@ public interface SubqueryTemplate {
      * @param <T> the table type to select from.
      * @return the subquery builder.
      */
-    default <T extends Record> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType) {
+    default <T extends Data> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType) {
         return subquery(fromType, fromType);
     }
 
@@ -52,8 +53,8 @@ public interface SubqueryTemplate {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    default <T extends Record, R extends Record> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType,
-                                                                                @Nonnull Class<R> selectType) {
+    default <T extends Data, R extends Data> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType,
+                                                                            @Nonnull Class<R> selectType) {
         return subquery(fromType, RAW."\{select(selectType, FLAT)}");
     }
 
@@ -65,6 +66,6 @@ public interface SubqueryTemplate {
      * @return the subquery builder.
      * @param <T> the table type to select from.
      */
-    <T extends Record> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType,
-                                                      @Nonnull StringTemplate template);
+    <T extends Data> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType,
+                                                    @Nonnull StringTemplate template);
 }

@@ -17,9 +17,11 @@ package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Data;
 import st.orm.Entity;
 import st.orm.Ref;
 import st.orm.Projection;
+import st.orm.mapping.RecordField;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.template.Model;
 import st.orm.core.repository.ProjectionRepository;
@@ -31,7 +33,6 @@ import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.LazySupplier;
 
 import javax.sql.DataSource;
-import java.lang.reflect.RecordComponent;
 import java.sql.Connection;
 import java.util.Collections;
 import java.util.List;
@@ -114,10 +115,14 @@ public final class Providers {
     private static final AtomicReference<ORMReflection> ORM_REFLECTION = new AtomicReference<>();
 
     /**
-     * Represents a key for a component, as RecordComponents don't have a proper equals/hashCode implementation.
+     * Represents a key for a record field.
      */
-    record ComponentKey(Class<?> record, String name) {}
-    private static final Map<ComponentKey, Optional<ORMConverter>> ORM_CONVERTERS = new ConcurrentHashMap<>();
+    record FieldKey(Class<?> declaringType, String name) {
+        FieldKey(RecordField field) {
+            this(field.declaringType(), field.name());
+        }
+    }
+    private static final Map<FieldKey, Optional<ORMConverter>> ORM_CONVERTERS = new ConcurrentHashMap<>();
 
     public static ORMReflection getORMReflection() {
         return ORM_REFLECTION.updateAndGet(value -> requireNonNullElseGet(value, () -> Orderable.sort(ORM_REFLECTION_PROVIDERS.get().stream())
@@ -126,16 +131,16 @@ public final class Providers {
                 .orElseThrow()));
     }
 
-    public static Optional<ORMConverter> getORMConverter(@Nonnull RecordComponent component) {
-        return ORM_CONVERTERS.computeIfAbsent(new ComponentKey(component.getDeclaringRecord(), component.getName()), ignore ->
+    public static Optional<ORMConverter> getORMConverter(@Nonnull RecordField field) {
+        return ORM_CONVERTERS.computeIfAbsent(new FieldKey(field), ignore ->
                 Orderable.sort(ORM_CONVERTER_PROVIDERS.get().stream())
-                        .map(p -> p.getConverter(component))
+                        .map(p -> p.getConverter(field))
                         .filter(Optional::isPresent)
                         .map(Optional::get)
                         .findFirst());
     }
 
-    public static <ID, E extends Record & Entity<ID>> EntityRepository<E, ID> getEntityRepository(
+    public static <ID, E extends Entity<ID>> EntityRepository<E, ID> getEntityRepository(
             @Nonnull ORMTemplate ormTemplate,
             @Nonnull Model<E, ID> model,
             @Nonnull Predicate<? super EntityRepositoryProvider> filter) {
@@ -146,7 +151,7 @@ public final class Providers {
                 .orElseThrow();
     }
 
-    public static <ID, P extends Record & Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(
+    public static <ID, P extends Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(
             @Nonnull ORMTemplate ormTemplate,
             @Nonnull Model<P, ID> model,
             @Nonnull Predicate<? super ProjectionRepositoryProvider> filter) {
@@ -157,7 +162,7 @@ public final class Providers {
                 .orElseThrow();
     }
 
-    public static <T extends Record, R, ID> QueryBuilder<T, R, ID> selectFrom(
+    public static <T extends Data, R, ID> QueryBuilder<T, R, ID> selectFrom(
             @Nonnull QueryTemplate queryTemplate,
             @Nonnull Class<T> fromType,
             @Nonnull Class<R> selectType,
@@ -170,7 +175,7 @@ public final class Providers {
                 .orElseThrow();
     }
 
-    public static <T extends Record, R extends Record, ID> QueryBuilder<T, Ref<R>, ID> selectRefFrom(
+    public static <T extends Data, R extends Data, ID> QueryBuilder<T, Ref<R>, ID> selectRefFrom(
             @Nonnull QueryTemplate queryTemplate,
             @Nonnull Class<T> fromType,
             @Nonnull Class<R> refType,
@@ -182,7 +187,7 @@ public final class Providers {
                 .orElseThrow();
     }
 
-    public static <T extends Record, ID> QueryBuilder<T, ?, ID> deleteFrom(
+    public static <T extends Data, ID> QueryBuilder<T, ?, ID> deleteFrom(
             @Nonnull QueryTemplate queryTemplate,
             @Nonnull Class<T> fromType,
             @Nonnull Supplier<Model<T, ID>> modelSupplier) {

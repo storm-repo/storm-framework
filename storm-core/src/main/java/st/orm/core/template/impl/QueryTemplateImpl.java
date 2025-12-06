@@ -17,6 +17,7 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
+import st.orm.Data;
 import st.orm.Ref;
 import st.orm.PersistenceException;
 import st.orm.core.spi.RefFactory;
@@ -65,7 +66,7 @@ class QueryTemplateImpl implements QueryTemplate {
      * Create a new bind variables instance that can be used to add bind variables to a batch.
      *
      * @return a new bind variables instance.
-     * @see PreparedQuery#addBatch(Record)
+     * @see PreparedQuery#addBatch(Data)
      */
     @Override
     public BindVars createBindVars() {
@@ -84,7 +85,7 @@ class QueryTemplateImpl implements QueryTemplate {
      * @since 1.3
      */
     @Override
-    public <E extends Record, ID> Ref<E> ref(@Nonnull Class<E> type, @Nonnull ID id) {
+    public <E extends Data, ID> Ref<E> ref(@Nonnull Class<E> type, @Nonnull ID id) {
         return refFactory.create(type, id);
     }
 
@@ -100,7 +101,7 @@ class QueryTemplateImpl implements QueryTemplate {
      * @since 1.3
      */
     @Override
-    public <E extends Record, ID> Ref<E> ref(@Nonnull E entity, @Nonnull ID id) {
+    public <E extends Data, ID> Ref<E> ref(@Nonnull E entity, @Nonnull ID id) {
         return refFactory.create(entity, id);
     }
 
@@ -116,7 +117,7 @@ class QueryTemplateImpl implements QueryTemplate {
      * @since 1.3
      */
     @Override
-    public <T extends Record, ID> Model<T, ID> model(@Nonnull Class<T> type, boolean requirePrimaryKey) {
+    public <T extends Data, ID> Model<T, ID> model(@Nonnull Class<T> type, boolean requirePrimaryKey) {
         try {
             return modelBuilder.build(type, requirePrimaryKey);
         } catch (SqlTemplateException e) {
@@ -135,7 +136,7 @@ class QueryTemplateImpl implements QueryTemplate {
      * @param <R> the result type.
      */
     @Override
-    public <T extends Record, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType, @Nonnull Class<R> selectType, @Nonnull TemplateString template) {
+    public <T extends Data, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType, @Nonnull Class<R> selectType, @Nonnull TemplateString template) {
         return Providers.selectFrom(this, fromType, selectType, template, false, modelBuilder.supplier(fromType, true));
     }
 
@@ -147,7 +148,7 @@ class QueryTemplateImpl implements QueryTemplate {
      * @param <T> the table type to delete from.
      */
     @Override
-    public <T extends Record> QueryBuilder<T, ?, ?> deleteFrom(@Nonnull Class<T> fromType) {
+    public <T extends Data> QueryBuilder<T, ?, ?> deleteFrom(@Nonnull Class<T> fromType) {
         return Providers.deleteFrom(this, fromType, modelBuilder.supplier(fromType, true));
     }
 
@@ -160,7 +161,7 @@ class QueryTemplateImpl implements QueryTemplate {
      * @param <T> the table type to select from.
      */
     @Override
-    public <T extends Record> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType, @Nonnull TemplateString template) {
+    public <T extends Data> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType, @Nonnull TemplateString template) {
         return Providers.selectFrom(this, fromType, Void.class, template, true, modelBuilder.supplier(fromType, true));
     }
 

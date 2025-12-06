@@ -18,6 +18,7 @@ package st.orm.core.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.BindVars;
+import st.orm.Data;
 import st.orm.Element;
 import st.orm.FK;
 import st.orm.Metamodel;
@@ -40,8 +41,9 @@ import st.orm.core.template.impl.Elements.TemplateExpression;
 import st.orm.core.template.impl.Elements.Unsafe;
 import st.orm.core.template.impl.Elements.Where;
 import st.orm.core.template.impl.TableMapper.Mapping;
+import st.orm.mapping.RecordField;
+import st.orm.mapping.RecordType;
 
-import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -59,10 +61,12 @@ import static st.orm.ResolveScope.INNER;
 import static st.orm.core.spi.Providers.getORMConverter;
 import static st.orm.core.template.impl.RecordReflection.getColumnName;
 import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
-import static st.orm.core.template.impl.RecordReflection.getPkComponent;
+import static st.orm.core.template.impl.RecordReflection.findPkField;
 import static st.orm.core.template.impl.RecordReflection.getPrimaryKeys;
-import static st.orm.core.template.impl.RecordReflection.getRefRecordType;
-import static st.orm.core.template.impl.RecordReflection.getVersionComponent;
+import static st.orm.core.template.impl.RecordReflection.getRecordType;
+import static st.orm.core.template.impl.RecordReflection.getRefDataType;
+import static st.orm.core.template.impl.RecordReflection.getVersionField;
+import static st.orm.core.template.impl.RecordReflection.isRecord;
 import static st.orm.core.template.impl.SqlParser.removeComments;
 
 /**
@@ -144,17 +148,17 @@ final class WhereProcessor implements ElementProcessor<Where> {
      * @return the bind-vars string for the specified record type.
      * @throws SqlTemplateException if the bind-vars string cannot be resolved.
      */
-    private List<String> getBindVarsColumns(@Nonnull Class<? extends Record> recordType,
+    private List<String> getBindVarsColumns(@Nonnull Class<? extends Data> recordType,
                                             @Nonnull String alias,
                                             boolean updating) throws SqlTemplateException {
-        var pkComponent = getPkComponent(recordType).orElseThrow(() ->
+        var pkComponent = findPkField(recordType).orElseThrow(() ->
                 new SqlTemplateException("Primary key not found for %s.".formatted(recordType.getSimpleName())));
         List<String> names = new ArrayList<>();
         getPrimaryKeys(pkComponent, template.foreignKeyResolver(), template.columnNameResolver()).stream()
                 .map(columnName -> dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", columnName))
                 .forEach(names::add);
         if (updating) {
-            var versionComponent = getVersionComponent(recordType).orElse(null);
+            var versionComponent = getVersionField(recordType).orElse(null);
             if (versionComponent != null) {
                 names.add(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", getColumnName(versionComponent, template.columnNameResolver())));
             }
@@ -163,54 +167,55 @@ final class WhereProcessor implements ElementProcessor<Where> {
     }
 
     @SuppressWarnings("DuplicatedCode")
-    private Object validatePk(@Nullable Object id, @Nonnull RecordComponent component) throws SqlTemplateException {
+    private Object validatePk(@Nullable Object id, @Nonnull RecordField field) throws SqlTemplateException {
         if (id == null) {
-            throw new SqlTemplateException("Null primary key value for %s.%s.".formatted(component.getType(), component.getName()));
+            throw new SqlTemplateException("Null primary key value for %s.%s.".formatted(field.type(), field.name()));
         }
         if (REFLECTION.isDefaultValue(id)) {
-            throw new SqlTemplateException("Default primary key value for %s.%s.".formatted(component.getType(), component.getName()));
+            throw new SqlTemplateException("Default primary key value for %s.%s.".formatted(field.type(), field.name()));
         }
         return id;
     }
 
     @SuppressWarnings("DuplicatedCode")
-    private Object validateFk(@Nullable Object id, @Nonnull RecordComponent component) throws SqlTemplateException {
+    private Object validateFk(@Nullable Object id, @Nonnull RecordField field) throws SqlTemplateException {
         if (id == null) {
-            throw new SqlTemplateException("Null foreign key value for %s.%s.".formatted(component.getType(), component.getName()));
+            throw new SqlTemplateException("Null foreign key value for %s.%s.".formatted(field.type(), field.name()));
         }
         if (REFLECTION.isDefaultValue(id)) {
-            throw new SqlTemplateException("Default foreign key value for %s.%s.".formatted(component.getType(), component.getName()));
+            throw new SqlTemplateException("Default foreign key value for %s.%s.".formatted(field.type(), field.name()));
         }
         return id;
     }
 
     @SuppressWarnings("DuplicatedCode")
-    private SequencedMap<String, Object> getPkValues(@Nonnull Record record,
-                                                     @Nonnull RecordComponent pkComponent,
+    private SequencedMap<String, Object> getPkValues(@Nonnull Data record,
+                                                     @Nonnull RecordField pkField,
                                                      @Nonnull String alias,
                                                      boolean updating) throws SqlTemplateException {
         try {
             var values = new LinkedHashMap<String, Object>();
-            var pkNames = getPrimaryKeys(pkComponent, template.foreignKeyResolver(), template.columnNameResolver());
-            var id = validatePk(REFLECTION.invokeComponent(pkComponent, record), pkComponent);
-            if (!pkComponent.getType().isRecord()) {
+            var pkNames = getPrimaryKeys(pkField, template.foreignKeyResolver(), template.columnNameResolver());
+            var id = validatePk(REFLECTION.invoke(pkField, record), pkField);
+            if (!isRecord(pkField.type())) {
                 assert pkNames.size() == 1;
                 values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", pkNames.getFirst()), id);
             } else {
-                if (REFLECTION.isAnnotationPresent(pkComponent, FK.class)) {
-                    values.putAll(getFkValues(REFLECTION.invokeComponent(pkComponent, record), pkComponent, alias));
+                if (pkField.isAnnotationPresent(FK.class)) {
+                    values.putAll(getFkValues(REFLECTION.invoke(pkField, record), pkField, alias));
                 } else {
-                    var nestedPkComponents = RecordReflection.getRecordComponents(pkComponent.getType());
-                    assert pkNames.size() == nestedPkComponents.size();
-                    for (int i = 0; i < nestedPkComponents.size(); i++) {
-                        values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", pkNames.get(i)), validatePk(REFLECTION.invokeComponent(nestedPkComponents.get(i), id), nestedPkComponents.get(i)));
+                    RecordType pkType = getRecordType(pkField.type());
+                    var nestedPkFields = pkType.fields();
+                    assert pkNames.size() == nestedPkFields.size();
+                    for (int i = 0; i < nestedPkFields.size(); i++) {
+                        values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", pkNames.get(i)), validatePk(REFLECTION.invoke(nestedPkFields.get(i), id), nestedPkFields.get(i)));
                     }
                 }
             }
             if (updating) {
-                var versionComponent = getVersionComponent(record.getClass()).orElse(null);
-                if (versionComponent != null) {
-                    values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", getColumnName(versionComponent, template.columnNameResolver())), REFLECTION.invokeComponent(versionComponent, record));
+                var versionField = getVersionField(record.getClass()).orElse(null);
+                if (versionField != null) {
+                    values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", getColumnName(versionField, template.columnNameResolver())), REFLECTION.invoke(versionField, record));
                 }
             }
             return values;
@@ -221,33 +226,34 @@ final class WhereProcessor implements ElementProcessor<Where> {
         }
     }
 
-    @SuppressWarnings({"DuplicatedCode", "unchecked"})
+    @SuppressWarnings("DuplicatedCode")
     private SequencedMap<String, Object> getFkValues(@Nullable Object id,
-                                                     @Nonnull RecordComponent fkComponent,
+                                                     @Nonnull RecordField fkField,
                                                      @Nonnull String alias) throws SqlTemplateException {
         if (id instanceof Record record) {
-            return getFkValues(record, fkComponent, alias);
+            return getFkValues(record, fkField, alias);
         }
         try {
             var values = new LinkedHashMap<String, Object>();
-            Class<? extends Record> fkType;
-            if (Ref.class.isAssignableFrom(fkComponent.getType())) {
-                fkType = getRefRecordType(fkComponent);
+            Class<? extends Data> fkType;
+            if (Ref.class.isAssignableFrom(fkField.type())) {
+                fkType = getRefDataType(fkField);
             } else {
-                fkType = (Class<? extends Record>) fkComponent.getType();
+                fkType = fkField.requireDataType();
             }
-            var fkNames = getForeignKeys(fkComponent, template.foreignKeyResolver(), template.columnNameResolver());
-            var pkComponent = getPkComponent(fkType).orElseThrow(() ->
+            var fkNames = getForeignKeys(fkField, template.foreignKeyResolver(), template.columnNameResolver());
+            var pkField = findPkField(fkType).orElseThrow(() ->
                     new SqlTemplateException("Primary key not found for %s.".formatted(fkType.getSimpleName())));
-            if (!pkComponent.getType().isRecord()) {
+            if (!isRecord(pkField.type())) {
                 assert fkNames.size() == 1;
                 values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", fkNames.getFirst()), REFLECTION.isDefaultValue(id) ? null : id);
                 return values;
             } else {
-                var nestedPkComponents = RecordReflection.getRecordComponents(pkComponent.getType());
-                assert fkNames.size() == nestedPkComponents.size();
-                for (int i = 0; i < nestedPkComponents.size(); i++) {
-                    values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", fkNames.get(i)), id == null ? null : validateFk(REFLECTION.invokeComponent(nestedPkComponents.get(i), id), nestedPkComponents.get(i)));
+                RecordType pkType = getRecordType(pkField.type());
+                var nestedPkFields = pkType.fields();
+                assert fkNames.size() == nestedPkFields.size();
+                for (int i = 0; i < nestedPkFields.size(); i++) {
+                    values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", fkNames.get(i)), id == null ? null : validateFk(REFLECTION.invoke(nestedPkFields.get(i), id), nestedPkFields.get(i)));
                 }
             }
             return values;
@@ -258,32 +264,33 @@ final class WhereProcessor implements ElementProcessor<Where> {
         }
     }
 
-    @SuppressWarnings({"DuplicatedCode", "unchecked"})
-    private SequencedMap<String, Object> getFkValues(@Nullable Record record,
-                                                     @Nonnull RecordComponent fkComponent,
+    @SuppressWarnings({"DuplicatedCode"})
+    private SequencedMap<String, Object> getFkValues(@Nullable Data record,
+                                                     @Nonnull RecordField fkField,
                                                      @Nonnull String alias) throws SqlTemplateException {
         try {
             var values = new LinkedHashMap<String, Object>();
-            var fkNames = getForeignKeys(fkComponent, template.foreignKeyResolver(), template.columnNameResolver());
-            Class<? extends Record> fkType;
-            if (Ref.class.isAssignableFrom(fkComponent.getType())) {
-                fkType = getRefRecordType(fkComponent);
+            var fkNames = getForeignKeys(fkField, template.foreignKeyResolver(), template.columnNameResolver());
+            Class<? extends Data> fkType;
+            if (Ref.class.isAssignableFrom(fkField.type())) {
+                fkType = getRefDataType(fkField);
             } else {
-                fkType = (Class<? extends Record>) fkComponent.getType();
+                fkType = fkField.requireDataType();
             }
-            var pkComponent = getPkComponent(fkType).orElseThrow(() ->
+            var pkField = findPkField(fkType).orElseThrow(() ->
                     new SqlTemplateException("Primary key not found for %s.".formatted(fkType.getSimpleName())));
-            if (!pkComponent.getType().isRecord()) {
+            if (!isRecord(pkField.type())) {
                 assert fkNames.size() == 1;
-                var id = record == null ? null : REFLECTION.invokeComponent(pkComponent, record);
+                var id = record == null ? null : REFLECTION.invoke(pkField, record);
                 values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", fkNames.getFirst()), REFLECTION.isDefaultValue(id) ? null : id);
                 return values;
             } else {
-                var pk = record == null ? null : REFLECTION.invokeComponent(pkComponent, record);
-                var nestedPkComponents = RecordReflection.getRecordComponents(pkComponent.getType());
-                assert fkNames.size() == nestedPkComponents.size();
-                for (int i = 0; i < nestedPkComponents.size(); i++) {
-                    values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", fkNames.get(i)), pk == null ? null : validateFk(REFLECTION.invokeComponent(nestedPkComponents.get(i), pk), nestedPkComponents.get(i)));
+                RecordType fieldType = getRecordType(pkField.type());
+                var pk = record == null ? null : REFLECTION.invoke(pkField, record);
+                var nestedPkFields = fieldType.fields();
+                assert fkNames.size() == nestedPkFields.size();
+                for (int i = 0; i < nestedPkFields.size(); i++) {
+                    values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", fkNames.get(i)), pk == null ? null : validateFk(REFLECTION.invoke(nestedPkFields.get(i), pk), nestedPkFields.get(i)));
                 }
             }
             return values;
@@ -306,25 +313,25 @@ final class WhereProcessor implements ElementProcessor<Where> {
      * @return the map of column names and values for the specified record.
      * @throws SqlTemplateException if the values cannot be mapped.
      */
-    private SequencedMap<String, Object> getValues(@Nonnull Record record,
+    private SequencedMap<String, Object> getValues(@Nonnull Data record,
                                                    @Nullable String path,
-                                                   @Nonnull Class<? extends Record> primaryTable,
-                                                   @Nonnull Class<? extends Record> rootTable,
+                                                   @Nonnull Class<? extends Data> primaryTable,
+                                                   @Nonnull Class<? extends Data> rootTable,
                                                    @Nonnull String alias,
                                                    boolean updating) throws SqlTemplateException {
         try {
             if (rootTable.isInstance(record)) {
-                RecordComponent pkComponent = getPkComponent(record.getClass()).orElseThrow(() ->
+                RecordField pkField = findPkField(record.getClass()).orElseThrow(() ->
                         new SqlTemplateException("Primary key not found for %s.".formatted(record.getClass().getSimpleName())));
-                return getPkValues(record, pkComponent, alias, updating);
+                return getPkValues(record, pkField, alias, updating);
             }
             String searchPath = rootTable != primaryTable && path != null && path.isEmpty() ? null : path;
             Mapping mapping = tableMapper.getMapping(record.getClass(), searchPath == null ? null : rootTable, searchPath);
             String a = mapping.alias();
             if (mapping.primaryKey()) {
-                return getPkValues(record, mapping.component(), a, false);  // Updating is only supported for root tables.
+                return getPkValues(record, mapping.field(), a, false);  // Updating is only supported for root tables.
             }
-            return getFkValues(record, mapping.component(), a); // Updating is only supported for root tables.
+            return getFkValues(record, mapping.field(), a); // Updating is only supported for root tables.
         } catch (SqlTemplateException e) {
             throw e;
         } catch (Throwable t) {
@@ -336,29 +343,30 @@ final class WhereProcessor implements ElementProcessor<Where> {
      * Maps the values of the specified {@code id} to a map of column names and values.
      *
      * @param id the id to map the values for (optional).
-     * @param recordType the record type.
+     * @param dataType the record type.
      * @param alias the alias to use for the column names.
      * @return the map of column names and values for the specified id.
      * @throws SqlTemplateException if the values cannot be mapped.
      */
     @SuppressWarnings("DuplicatedCode")
     private SequencedMap<String, Object> getValues(@Nullable Object id,
-                                                   @Nonnull Class<? extends Record> recordType,
+                                                   @Nonnull Class<? extends Data> dataType,
                                                    @Nonnull String alias) throws SqlTemplateException {
         try {
             var values = new LinkedHashMap<String, Object>();
-            RecordComponent pkComponent = getPkComponent(recordType).orElseThrow(() ->
-                    new SqlTemplateException("Primary key not found for %s".formatted(recordType.getSimpleName())));
-            var pkNames = getPrimaryKeys(pkComponent, template.foreignKeyResolver(), template.columnNameResolver());
-            if (!pkComponent.getType().isRecord()) {
+            RecordField pkField = findPkField(dataType).orElseThrow(() ->
+                    new SqlTemplateException("Primary key not found for %s".formatted(dataType.getSimpleName())));
+            var pkNames = getPrimaryKeys(pkField, template.foreignKeyResolver(), template.columnNameResolver());
+            if (!isRecord(pkField.type())) {
                 assert pkNames.size() == 1;
                 values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", pkNames.getFirst()), id);
                 return values;
             }
-            var nestedPkComponents = RecordReflection.getRecordComponents(pkComponent.getType());
-            assert pkNames.size() == nestedPkComponents.size();
-            for (int i = 0; i < nestedPkComponents.size(); i++) {
-                values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", pkNames.get(i)), id == null ? null : REFLECTION.invokeComponent(nestedPkComponents.get(i), id));
+            RecordType pkType = getRecordType(pkField.type());
+            var nestedPkFields = pkType.fields();
+            assert pkNames.size() == nestedPkFields.size();
+            for (int i = 0; i < nestedPkFields.size(); i++) {
+                values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", pkNames.get(i)), id == null ? null : REFLECTION.invoke(nestedPkFields.get(i), id));
             }
             return values;
         } catch (SqlTemplateException e) {
@@ -380,37 +388,37 @@ final class WhereProcessor implements ElementProcessor<Where> {
      */
     private SequencedMap<String, Object> getValues(@Nullable Object value,
                                                    @Nonnull String path,
-                                                   @Nonnull Class<? extends Record> primaryTable,
-                                                   @Nonnull Class<? extends Record> recordType) throws SqlTemplateException {
+                                                   @Nonnull Class<? extends Data> primaryTable,
+                                                   @Nonnull RecordType recordType) throws SqlTemplateException {
         return getValuesForPath(value, path, primaryTable, recordType, 0, null, 0);
     }
 
     private SequencedMap<String, Object> getNestedValuesAtPath(
             @Nullable Object value,
-            @Nonnull Class<? extends Record> primaryTable,
-            @Nonnull Class<? extends Record> recordType,
+            @Nonnull Class<? extends Data> primaryTable,
+            @Nonnull RecordType recordType,
             int depth,
             int inlineDepth,
             @Nonnull String[] parts,
-            @Nonnull List<RecordComponent> components
+            @Nonnull List<RecordField> fields
     ) throws SqlTemplateException {
         var values = new LinkedHashMap<String, Object>();
         String name = parts[depth];
-        for (var component : components) {
-            if (component.getName().equals(name)) {
+        for (var field : fields) {
+            if (field.name().equals(name)) {
                 String searchPath = Stream.of(parts).limit(depth - inlineDepth).collect(joining("."));
                 String alias;
-                if (recordType != primaryTable && searchPath.isEmpty()) {
-                    alias = aliasMapper.getAlias(recordType, null, INNER, template.dialect(),
-                            () -> new SqlTemplateException("Table %s not found at %s.".formatted(recordType.getSimpleName(), searchPath)));
+                if (recordType.type() != primaryTable && searchPath.isEmpty()) {
+                    alias = aliasMapper.getAlias(recordType.requireDataType(), null, INNER, template.dialect(),
+                            () -> new SqlTemplateException("Table %s not found at %s.".formatted(recordType.type().getSimpleName(), searchPath)));
                 } else {
-                    alias = aliasMapper.getAlias(recordType, searchPath, INNER, template.dialect(),
-                            () -> new SqlTemplateException("Table %s not found at %s.".formatted(recordType.getSimpleName(), searchPath)));
+                    alias = aliasMapper.getAlias(recordType.requireDataType(), searchPath, INNER, template.dialect(),
+                            () -> new SqlTemplateException("Table %s not found at %s.".formatted(recordType.type().getSimpleName(), searchPath)));
                 }
-                if (REFLECTION.isAnnotationPresent(component, FK.class)) {
-                    values.putAll(getFkValues(value, component, alias));
+                if (field.isAnnotationPresent(FK.class)) {
+                    values.putAll(getFkValues(value, field, alias));
                 } else {
-                    values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", getColumnName(component, template.columnNameResolver())), value);
+                    values.put(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", getColumnName(field, template.columnNameResolver())), value);
                 }
                 break;
             }
@@ -421,38 +429,36 @@ final class WhereProcessor implements ElementProcessor<Where> {
     private SequencedMap<String, Object> getNestedValuesForPath(
             @Nullable Object value,
             @Nonnull String path,
-            @Nonnull Class<? extends Record> primaryTable,
-            @Nonnull Class<? extends Record> recordType,
+            @Nonnull Class<? extends Data> primaryTable,
+            @Nonnull RecordType recordType,
             int depth,
             int inlineDepth,
             @Nonnull String[] parts,
-            @Nonnull List<RecordComponent> components
+            @Nonnull List<RecordField> fields
     ) throws SqlTemplateException {
         var values = new LinkedHashMap<String, Object>();
-        for (var component : components) {
-            if (component.getName().equals(parts[depth])) {
-                if (component.getType().isRecord()) {
-                    var converter = getORMConverter(component);
+        for (var field : fields) {
+            if (field.name().equals(parts[depth])) {
+                if (isRecord(field.type())) {
+                    var converter = getORMConverter(field);
                     if (converter.isPresent()) {
                         continue;
                     }
-                    boolean fk = REFLECTION.isAnnotationPresent(component, FK.class);
-                    Class<? extends Record> type;
-                    Class<? extends Record> inlineType;
+                    boolean fk = field.isAnnotationPresent(FK.class);
+                    RecordType type;
+                    RecordType inlineType;
                     if (fk) {
-                        //noinspection unchecked
-                        type = (Class<? extends Record>) component.getType();
-                        if (Ref.class.isAssignableFrom(type)) {
+                        if (Ref.class.isAssignableFrom(field.type())) {
                             // Cannot traverse components of a Ref.
                             continue;
                         }
+                        type = getRecordType(field.type());
                         inlineType = null;
                         inlineDepth = 0;
                     } else {    // Can either be PK or Inline.
                         // Assuming @Inline; No need to check for optional annotation.
                         type = recordType;
-                        //noinspection unchecked
-                        inlineType = (Class<? extends Record>) component.getType();
+                        inlineType = getRecordType(field.type());
                     }
                     values.putAll(getValuesForPath(value, path, primaryTable, type, depth + 1,
                             inlineType, inlineDepth + (inlineType != null ? 1 : 0)));
@@ -478,19 +484,19 @@ final class WhereProcessor implements ElementProcessor<Where> {
      */
     private SequencedMap<String, Object> getValuesForPath(@Nullable Object value,
                                                           @Nonnull String path,
-                                                          @Nonnull Class<? extends Record> primaryTable,
-                                                          @Nonnull Class<? extends Record> recordType,
+                                                          @Nonnull Class<? extends Data> primaryTable,
+                                                          @Nonnull RecordType recordType,
                                                           int depth,
-                                                          @Nullable Class<? extends Record> inlineParentType,
+                                                          @Nullable RecordType inlineParentType,
                                                           int inlineDepth) throws SqlTemplateException {
-        assert value == null || !value.getClass().isRecord();
+        assert value == null || !isRecord(value.getClass());
         assert !(value instanceof Ref);
         var parts = path.split("\\.");
-        var components = RecordReflection.getRecordComponents(inlineParentType != null ? inlineParentType : recordType);
+        var fields = (inlineParentType != null ? inlineParentType : recordType).fields();
         if (parts.length == depth + 1) {
-            return getNestedValuesAtPath(value, primaryTable, recordType, depth, inlineDepth, parts, components);
+            return getNestedValuesAtPath(value, primaryTable, recordType, depth, inlineDepth, parts, fields);
         }
-        return getNestedValuesForPath(value, path, primaryTable, recordType, depth, inlineDepth, parts, components);
+        return getNestedValuesForPath(value, path, primaryTable, recordType, depth, inlineDepth, parts, fields);
     }
 
     /**
@@ -519,9 +525,8 @@ final class WhereProcessor implements ElementProcessor<Where> {
                     case Param p -> parts.add(new ParamProcessor(templateProcessor).process(p).get());
                     case Ref<?> r -> parts.add(getObjectExpressionString(r));
                     case Record r -> parts.add(getObjectExpressionString(r));
-                    case Class<?> c when c.isRecord() -> //noinspection unchecked
-                            parts.add(dialectTemplate.process(TemplateString.of(aliasMapper.getAlias(Metamodel.root((Class<? extends Record>) c), CASCADE, template.dialect()))));
-                    case Object k when REFLECTION.isSupportedType(k) -> parts.add(dialectTemplate.process(TemplateString.of(aliasMapper.getAlias(Metamodel.root(REFLECTION.getRecordType(k)), CASCADE, template.dialect()))));
+                    case Class<?> c -> parts.add(dialectTemplate.process(TemplateString.of(aliasMapper.getAlias(Metamodel.root(REFLECTION.getDataType(c)), CASCADE, template.dialect()))));
+                    case Object k when REFLECTION.isSupportedType(k) -> parts.add(dialectTemplate.process(TemplateString.of(aliasMapper.getAlias(Metamodel.root(REFLECTION.getDataType(k)), CASCADE, template.dialect()))));
                     case Stream<?> ignore -> throw new SqlTemplateException("Stream not supported in expression.");
                     case Query ignore -> throw new SqlTemplateException("Query not supported in expression. Use QueryBuilder instead.");
                     case Element e -> throw new SqlTemplateException("Unsupported element type in expression: %s.".formatted(e.getClass().getSimpleName()));
@@ -633,7 +638,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
     private String getObjectExpressionString(@Nullable Metamodel<?, ?> metamodel,
                                              @Nonnull Operator operator,
                                              @Nonnull Object object) throws SqlTemplateException {
-        Class<? extends Record> rootTable;
+        Class<? extends Data> rootTable;
         String path;
         String alias;
         Class<?> pkType;
@@ -643,11 +648,11 @@ final class WhereProcessor implements ElementProcessor<Where> {
         if (metamodel == null) {
             rootTable = primaryTable.table();
             alias = primaryTable.alias();
-            pkType = REFLECTION.findPKType(primaryTable.table()).orElse(null);
+            pkType = findPkField(primaryTable.table()).map(RecordField::type).orElse(null);
             path = null;
         } else {
-            rootTable = metamodel.root();
-            path = metamodel.componentPath();
+            rootTable = getRecordType(metamodel.root()).requireDataType();
+            path = metamodel.fieldPath();
             alias = aliasMapper.getAlias(rootTable, null, INNER, template.dialect(),
                     () -> new SqlTemplateException("Table %s not found.".formatted(rootTable.getSimpleName())));
             pkType = null;  // PKs only supported when using primaryTable directly.
@@ -662,7 +667,6 @@ final class WhereProcessor implements ElementProcessor<Where> {
             }
             Object v = o instanceof Ref<?> ref ? ref.id() : o;
             assert v != null;
-            Class<?> elementType = v.getClass();
             Map<String, Object> valueMap;
             if (metamodel == null) {
                 if (isPrimaryKeyValue(v, pkType)) {
@@ -670,9 +674,8 @@ final class WhereProcessor implements ElementProcessor<Where> {
                     if (valueMap.isEmpty()) {
                         throw new SqlTemplateException("Failed to find primary key field for %s table.".formatted(rootTable.getSimpleName()));
                     }
-                } else if (elementType.isRecord()) {
-                    assert v instanceof Record;
-                    valueMap = getValues((Record) v, null, primaryTable.table(), rootTable, alias, versionAware.getPlain());
+                } else if (v instanceof Data) {
+                    valueMap = getValues((Data) v, null, primaryTable.table(), rootTable, alias, versionAware.getPlain());
                     if (valueMap.isEmpty()) {
                         throw new SqlTemplateException("Failed to find %s record on %s table graph.".formatted(o.getClass().getSimpleName(), rootTable.getSimpleName()));
                     }
@@ -680,15 +683,14 @@ final class WhereProcessor implements ElementProcessor<Where> {
                     throw new SqlTemplateException("Specify a metamodel to uniquely identify a field.");
                 }
             } else {
-                if (elementType.isRecord()) {
-                    assert v instanceof Record;
-                    valueMap = getValues((Record) v, path, primaryTable.table(), rootTable, alias, versionAware.getPlain());
+                if (v instanceof Data) {
+                    valueMap = getValues((Data) v, path, primaryTable.table(), rootTable, alias, versionAware.getPlain());
                     if (valueMap.isEmpty()) {
                         throw new SqlTemplateException("Failed to find field for %s argument on %s table graph.".formatted(o.getClass().getSimpleName(), rootTable.getSimpleName()));
                     }
                 } else {
                     assert path != null;
-                    valueMap = getValues(v, path, primaryTable.table(), rootTable);
+                    valueMap = getValues(v, path, primaryTable.table(), getRecordType(rootTable));
                     if (valueMap.isEmpty()) {
                         throw new SqlTemplateException("Failed to find field for %s argument on %s table at path '%s'.".formatted(o.getClass().getSimpleName(), rootTable.getSimpleName(), path));
                     }
@@ -715,7 +717,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
         }
         if (column == null) {
             var valueMap = path != null
-                    ? getValues(null, path, primaryTable.table(), rootTable)
+                    ? getValues(null, path, primaryTable.table(), getRecordType(rootTable))
                     : getValues(null, rootTable, alias);
             if (valueMap.size() == 1) {
                 column = valueMap.sequencedKeySet().getFirst();

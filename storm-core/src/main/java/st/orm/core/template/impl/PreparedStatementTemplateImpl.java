@@ -27,8 +27,8 @@ import st.orm.core.template.Query;
 import st.orm.core.spi.Provider;
 import st.orm.core.spi.Providers;
 import st.orm.core.spi.QueryFactory;
-import st.orm.config.ColumnNameResolver;
-import st.orm.config.ForeignKeyResolver;
+import st.orm.mapping.ColumnNameResolver;
+import st.orm.mapping.ForeignKeyResolver;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.PreparedStatementTemplate;
 import st.orm.core.template.Sql;
@@ -39,7 +39,7 @@ import st.orm.core.template.SqlTemplate.Parameter;
 import st.orm.core.template.SqlTemplate.PositionalParameter;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TableAliasResolver;
-import st.orm.config.TableNameResolver;
+import st.orm.mapping.TableNameResolver;
 import st.orm.core.template.TemplateString;
 
 import javax.sql.DataSource;
@@ -62,7 +62,6 @@ import java.time.ZonedDateTime;
 import java.util.Calendar;
 import java.util.List;
 import java.util.TimeZone;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -74,6 +73,10 @@ import static st.orm.core.template.impl.ExceptionHelper.getExceptionTransformer;
 import static st.orm.core.template.impl.LazySupplier.lazy;
 
 public final class PreparedStatementTemplateImpl implements PreparedStatementTemplate, QueryFactory {
+
+    static {
+        RecordValidation.init();
+    }
 
     @FunctionalInterface
     private interface TemplateProcessor {

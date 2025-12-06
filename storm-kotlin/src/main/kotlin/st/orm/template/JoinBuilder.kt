@@ -15,6 +15,8 @@
  */
 package st.orm.template
 
+import st.orm.Data
+
 /**
  * A builder for constructing join clause of the query using custom join conditions.
  *
@@ -22,15 +24,15 @@ package st.orm.template
  * @param <R> the type of the result.
  * @param <ID> the type of the primary key.
  */
-interface JoinBuilder<T : Record, R, ID> {
+interface JoinBuilder<T : Data, R, ID> {
     /**
      * Specifies the join condition using a custom expression.
      *
      * @param template the condition to join on.
      * @return the query builder.
      */
-    fun on(builder: TemplateBuilder): QueryBuilder<T, R, ID> {
-        return on(builder.build())
+    fun on(template: TemplateBuilder): QueryBuilder<T, R, ID> {
+        return on(template.build())
     }
 
     /**

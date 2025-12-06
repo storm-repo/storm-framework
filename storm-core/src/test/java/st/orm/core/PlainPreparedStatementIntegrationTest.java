@@ -61,9 +61,8 @@ public class PlainPreparedStatementIntegrationTest {
     @Test
     public void testSelectPetTyped() {
         try (var query = ORMTemplate.of(dataSource).query("""
-                SELECT p.id, p.name, p.birth_date, pt.id, pt.name, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version
+                SELECT p.id, p.name, p.birth_date, p.type_id, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version
                 FROM pet p
-                  INNER JOIN pet_type pt ON p.type_id = pt.id
                   INNER JOIN owner o ON p.owner_id = o.id
                   INNER JOIN city c ON o.city_id = c.id""").prepare();
              var stream = query.getResultStream(Pet.class)) {
@@ -76,9 +75,8 @@ public class PlainPreparedStatementIntegrationTest {
     public void testSelectPetTypedWithFilter() {
         String nameFilter = "%y%";
         try (var query = ORMTemplate.of(dataSource).query(raw("""
-                SELECT p.id, p.name, p.birth_date, pt.id, pt.name, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version
+                SELECT p.id, p.name, p.birth_date, p.type_id, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version
                 FROM pet p
-                  INNER JOIN pet_type pt ON p.type_id = pt.id
                   INNER JOIN owner o ON p.owner_id = o.id
                   INNER JOIN city c ON o.city_id = c.id
                 WHERE p.name LIKE \0""", nameFilter)).prepare();
@@ -204,9 +202,8 @@ public class PlainPreparedStatementIntegrationTest {
     @Test
     public void testSelectPetWithoutOwnerWithNullableOwner() {
         try (var query = ORMTemplate.of(dataSource).query("""
-                SELECT p.id, p.name, p.birth_date, pt.id, pt.name, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version
+                SELECT p.id, p.name, p.birth_date, p.type_id, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version
                 FROM pet p
-                  INNER JOIN pet_type pt ON p.type_id = pt.id
                   LEFT OUTER JOIN owner o ON p.owner_id = o.id AND 1 <> 1
                   LEFT OUTER JOIN city c ON o.city_id = c.id""").prepare();
              var stream = query.getResultStream(Pet.class)) {

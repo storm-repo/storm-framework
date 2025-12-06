@@ -17,6 +17,7 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Data;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplateException;
@@ -31,7 +32,7 @@ import java.util.function.Predicate;
  * @param <ID> the primary key type.
  * @since 1.2
  */
-public interface ModelMapper<T extends Record, ID> {
+public interface ModelMapper<T extends Data, ID> {
 
     /**
      * Creates a new instance of the model mapper for the given model.
@@ -41,7 +42,7 @@ public interface ModelMapper<T extends Record, ID> {
      * @param <T> the record type.
      * @param <ID> the primary key type.
      */
-    static <T extends Record, ID> ModelMapper<T, ID> of(@Nonnull Model<T, ID> model) {
+    static <T extends Data, ID> ModelMapper<T, ID> of(@Nonnull Model<T, ID> model) {
         return new ModelMapperImpl<>(model);
     }
 

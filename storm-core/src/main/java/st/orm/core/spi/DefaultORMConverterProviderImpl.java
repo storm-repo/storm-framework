@@ -22,10 +22,10 @@ import st.orm.Convert;
 import st.orm.Converter;
 import st.orm.DefaultConverter;
 import st.orm.PersistenceException;
+import st.orm.mapping.RecordField;
 
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
@@ -69,7 +69,7 @@ public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
                 continue;
             }
             // Only pick converters annotated as default.
-            DefaultConverter defaultConverter = REFLECTION.getAnnotation(converterClass, DefaultConverter.class);
+            DefaultConverter defaultConverter = converterClass.getAnnotation(DefaultConverter.class);
             if (defaultConverter == null) {
                 continue;
             }
@@ -130,15 +130,15 @@ public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
     }
 
     /**
-     * Retrieves the converter for the specified record component.
+     * Retrieves the converter for the specified record field.
      *
-     * @param component the record component for which to get the converter
+     * @param field the record field for which to get the converter.
      * @return an Optional containing the ORMConverter if available, or empty if not supported.
      */
     @Override
-    public Optional<ORMConverter> getConverter(@Nonnull RecordComponent component) {
-        requireNonNull(component, "component");
-        Convert convert = REFLECTION.getAnnotation(component, Convert.class);
+    public Optional<ORMConverter> getConverter(@Nonnull RecordField field) {
+        requireNonNull(field, "component");
+        Convert convert = field.getAnnotation(Convert.class);
         if (convert != null) {
             if (convert.disableConversion()) {
                 // Explicitly disabled.
@@ -147,26 +147,25 @@ public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
             Class<?> explicitConverterClass = convert.converter();
             if (explicitConverterClass != Void.class) {
                 // Explicit converter specified, takes precedence over default converters.
-                return Optional.of(createExplicitConverter(component, explicitConverterClass));
+                return Optional.of(createExplicitConverter(field, explicitConverterClass));
             }
         }
         // No explicit converter: try to find a single matching default converter.
-        return resolveDefaultConverter(component);
+        return resolveDefaultConverter(field);
     }
 
-    private Optional<ORMConverter> resolveDefaultConverter(@Nonnull RecordComponent component) {
-        Class<?> fieldType = component.getType();
+    private Optional<ORMConverter> resolveDefaultConverter(@Nonnull RecordField field) {
         ConverterEntry match = null;
         for (ConverterEntry entry : DEFAULT_CONVERTERS) {
             // A converter's entity type must be assignable from the record component type.
-            if (entry.entityType.isAssignableFrom(fieldType)) {
+            if (entry.entityType.isAssignableFrom(field.type())) {
                 if (match != null && match != entry) {
                     // Ambiguous: multiple default converters match this field type.
                     throw new PersistenceException(
                             "Multiple default converters match " +
-                                    fieldType.getSimpleName() + " type for component " +
-                                    component.getDeclaringRecord().getName() + "." +
-                                    component.getName() +
+                                    field.type().getSimpleName() + " type for component " +
+                                    field.type().getName() + "." +
+                                    field.name() +
                                     ". Use @Convert(converter = ...) or disableConversion = true."
                     );
                 }
@@ -180,16 +179,16 @@ public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
         Converter<Object, Object> converter = (Converter<Object, Object>) match.converter;
         @SuppressWarnings("unchecked")
         Class<Object> dbType = (Class<Object>) match.databaseType;
-        ORMConverter ormConverter = new DefaultORMConverterImpl<>(component, converter, dbType);
+        ORMConverter ormConverter = new DefaultORMConverterImpl<>(field, converter, dbType);
         return Optional.of(ormConverter);
     }
 
-    private ORMConverter createExplicitConverter(@Nonnull RecordComponent component,
+    private ORMConverter createExplicitConverter(@Nonnull RecordField field,
                                                  @Nonnull Class<?> converterClass) {
         if (!Converter.class.isAssignableFrom(converterClass)) {
             throw new PersistenceException(
-                    "@Convert on " + component.getDeclaringRecord().getName() + "." +
-                            component.getName() + " refers to " + converterClass.getName() +
+                    "@Convert on " + field.type().getName() + "." +
+                            field.name() + " refers to " + converterClass.getName() +
                             " which does not implement " + Converter.class.getName()
             );
         }
@@ -199,8 +198,8 @@ public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
         } catch (ReflectiveOperationException e) {
             throw new PersistenceException(
                     "Failed to instantiate converter " + converterClass.getName() +
-                            " for component " + component.getDeclaringRecord().getName() + "." +
-                            component.getName(),
+                            " for component " + field.type().getName() + "." +
+                            field.name(),
                     e
             );
         }
@@ -208,14 +207,14 @@ public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
         if (types == null) {
             throw new PersistenceException(
                     "Cannot resolve generic types for converter " + converterClass.getName() +
-                            " used on " + component.getDeclaringRecord().getName() + "." +
-                            component.getName()
+                            " used on " + field.type().getName() + "." +
+                            field.name()
             );
         }
         @SuppressWarnings("unchecked")
         Converter<Object, Object> typedConverter = (Converter<Object, Object>) converter;
         @SuppressWarnings("unchecked")
         Class<Object> dbType = (Class<Object>) types.databaseType;
-        return new DefaultORMConverterImpl<>(component, typedConverter, dbType);
+        return new DefaultORMConverterImpl<>(field, typedConverter, dbType);
     }
 }

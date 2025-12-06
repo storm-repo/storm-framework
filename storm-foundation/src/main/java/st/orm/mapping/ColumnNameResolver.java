@@ -13,30 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.config;
+package st.orm.mapping;
 
 import jakarta.annotation.Nonnull;
 
-import java.lang.reflect.RecordComponent;
-
 /**
- * Resolves the column name for a foreign key component.
+ * Resolves the column name for a record component.
  */
 @FunctionalInterface
-public interface ForeignKeyResolver {
+public interface ColumnNameResolver {
 
     /**
-     * The default foreign key resolver used by the ORM template.
+     * The default column name resolver used by the ORM template.
      */
-    ForeignKeyResolver DEFAULT = camelCaseToSnakeCase();
+    ColumnNameResolver DEFAULT = camelCaseToSnakeCase();
 
     /**
      * Resolves the column name for a record component using camel case to snake case conversion.
      *
      * @return the column name resolver.
      */
-    static ForeignKeyResolver camelCaseToSnakeCase() {
-        return (component, ignore) -> NameResolver.camelCaseToSnakeCase(component.getName()) + "_id";
+    static ColumnNameResolver camelCaseToSnakeCase() {
+        return field -> NameResolver.camelCaseToSnakeCase(field.name());
     }
 
     /**
@@ -45,17 +43,15 @@ public interface ForeignKeyResolver {
      * @param resolver the column name resolver to wrap.
      * @return the column name resolver.
      */
-    static ForeignKeyResolver toUpperCase(@Nonnull ForeignKeyResolver resolver) {
-        return (component, type) -> resolver.resolveColumnName(component, type).toUpperCase();
+    static ColumnNameResolver toUpperCase(@Nonnull ColumnNameResolver resolver) {
+        return component -> resolver.resolveColumnName(component).toUpperCase();
     }
 
     /**
-     * Resolves the column name for a foreign key record type.
+     * Resolves the column name for a record component.
      *
-     * @param component the record component
-     * @param type the record type to resolve the column name for.
+     * @param field the record field
      * @return the column name.
      */
-    String resolveColumnName(@Nonnull RecordComponent component,
-                             @Nonnull Class<? extends Record> type);
+    String resolveColumnName(@Nonnull RecordField field);
 }

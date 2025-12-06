@@ -23,7 +23,6 @@ import st.orm.Version
  * Simple domain object representing an owner.
  *
  */
-@JvmRecord
 data class Owner(
     @PK val id: Int = 0,
     override val firstName: String,

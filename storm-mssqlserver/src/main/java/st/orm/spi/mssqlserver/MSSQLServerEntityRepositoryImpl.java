@@ -16,6 +16,7 @@
 package st.orm.spi.mssqlserver;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.repository.impl.EntityRepositoryImpl;
@@ -61,7 +62,7 @@ import static st.orm.core.template.impl.StringTemplates.flatten;
 /**
  * Implementation of {@link EntityRepository} for SQL Server.
  */
-public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
+public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
         extends EntityRepositoryImpl<E, ID> {
 
     public MSSQLServerEntityRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
@@ -461,7 +462,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
             return;
         }
         var query = querySupplier.get();
-        batch.stream().map(this::validateUpsert).map(Record.class::cast).forEach(query::addBatch);
+        batch.stream().map(this::validateUpsert).map(Data.class::cast).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
             throw new PersistenceException("Batch upsert failed.");
@@ -473,7 +474,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
             return List.of();
         }
         var query = querySupplier.get();
-        batch.stream().map(this::validateUpsert).map(Record.class::cast).forEach(query::addBatch);
+        batch.stream().map(this::validateUpsert).map(Data.class::cast).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
             throw new PersistenceException("Batch upsert failed.");

@@ -15,6 +15,7 @@
  */
 package st.orm.template
 
+import st.orm.Data
 import st.orm.SelectMode.FLAT
 import st.orm.template.Templates.select
 import kotlin.reflect.KClass
@@ -36,7 +37,7 @@ interface SubqueryTemplate {
      * @param <T> the table type to select from.
      * @return the subquery builder.
      */
-    fun <T : Record> subquery(fromType: KClass<T>): QueryBuilder<T, *, *> {
+    fun <T : Data> subquery(fromType: KClass<T>): QueryBuilder<T, *, *> {
         return subquery(fromType, fromType)
     }
 
@@ -49,7 +50,7 @@ interface SubqueryTemplate {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    fun <T : Record, R : Record> subquery(fromType: KClass<T>, selectType: KClass<R>): QueryBuilder<T, *, *> {
+    fun <T : Data, R : Data> subquery(fromType: KClass<T>, selectType: KClass<R>): QueryBuilder<T, *, *> {
         return subquery(fromType) { t(select(selectType, FLAT)) }
     }
 
@@ -61,7 +62,7 @@ interface SubqueryTemplate {
      * @return the subquery builder.
      * @param <T> the table type to select from.
      */
-    fun <T : Record> subquery(fromType: KClass<T>, builder: TemplateBuilder): QueryBuilder<T, *, *> {
+    fun <T : Data> subquery(fromType: KClass<T>, builder: TemplateBuilder): QueryBuilder<T, *, *> {
         return subquery(fromType, builder.build())
     }
 
@@ -73,5 +74,5 @@ interface SubqueryTemplate {
      * @return the subquery builder.
      * @param <T> the table type to select from.
      */
-    fun <T : Record> subquery(fromType: KClass<T>, template: TemplateString): QueryBuilder<T, *, *>
+    fun <T : Data> subquery(fromType: KClass<T>, template: TemplateString): QueryBuilder<T, *, *>
 }

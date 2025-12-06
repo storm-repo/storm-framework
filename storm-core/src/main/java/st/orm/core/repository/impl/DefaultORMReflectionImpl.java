@@ -17,8 +17,14 @@ package st.orm.core.repository.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Data;
+import st.orm.Entity;
 import st.orm.PK;
+import st.orm.PersistenceException;
+import st.orm.core.spi.ClasspathScanner;
 import st.orm.core.spi.ORMReflection;
+import st.orm.mapping.RecordField;
+import st.orm.mapping.RecordType;
 
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
@@ -31,19 +37,60 @@ import java.lang.reflect.RecordComponent;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
+import static java.util.Arrays.asList;
+import static java.util.Arrays.stream;
+import static java.util.Objects.requireNonNull;
 import static java.util.Optional.empty;
 
 public final class DefaultORMReflectionImpl implements ORMReflection {
-    private static final Map<Class<? extends Record>, Optional<Constructor<?>>> CONSTRUCTOR_CACHE = new ConcurrentHashMap<>();
-    private static final Map<Class<? extends Record>, Optional<Class<?>>> PK_TYPE_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Optional<RecordType>> TYPE_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Optional<RecordField>> PK_FIELD_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Optional<Constructor<?>>> CONSTRUCTOR_CACHE = new ConcurrentHashMap<>();
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <ID, E extends Entity<ID>> ID getId(@Nonnull E entity) {
+        return PK_FIELD_CACHE.computeIfAbsent(entity.getClass(), ignore ->
+            getRecordType(entity.getClass()).fields().stream()
+                .filter(field -> field.isAnnotationPresent(PK.class))
+                .findFirst()
+        )
+                .map(field -> (ID) invoke(field, entity))
+                .orElseThrow(() -> new PersistenceException("No PK found for %s.".formatted(entity.getClass().getName())));
+    }
 
     @Override
-    public Optional<Constructor<?>> findCanonicalConstructor(@Nonnull Class<? extends Record> type) {
-        assert type.isRecord();
+    public Optional<RecordType> findRecordType(@Nonnull Class<?> type) {
+        return TYPE_CACHE.computeIfAbsent(type, ignore -> {
+            if (!type.isRecord()) {
+                return empty();
+            }
+            return findCanonicalConstructor(type)
+                    .map(constructor -> new RecordType(
+                            type,
+                            constructor,
+                            asList(type.getAnnotations()),
+                            stream(requireNonNull(type.getRecordComponents(), "getRecordComponents should not return null"))
+                                    .map(component -> new RecordField(
+                                            component.getDeclaringRecord(),
+                                            component.getName(),
+                                            component.getType(),
+                                            component.getGenericType(),
+                                            !isNonnull(component),
+                                            component.getAccessor(),
+                                            asList(component.getAnnotations())
+                                        )
+                                    )
+                                    .toList()
+                        )
+                    );
+        });
+    }
+
+    private Optional<Constructor<?>> findCanonicalConstructor(@Nonnull Class<?> type) {
         return CONSTRUCTOR_CACHE.computeIfAbsent(type, ignore -> {
             RecordComponent[] components = type.getRecordComponents();
             Constructor<?>[] constructors = type.getDeclaredConstructors();
@@ -69,59 +116,26 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
     }
 
     @Override
-    public Optional<Class<?>> findPKType(@Nonnull Class<? extends Record> recordType) {
-        assert recordType.isRecord();
-        return PK_TYPE_CACHE.computeIfAbsent(recordType, ignore -> {
-            RecordComponent[] components = recordType.getRecordComponents();
-            Class<?> pkType = null;
-            for (RecordComponent component : components) {
-                if (component.isAnnotationPresent(PK.class)) {
-                    if (pkType != null) {
-                        // Found multiple components with @PK annotation, throwing an exception.
-                        throw new IllegalArgumentException("Multiple components are annotated with @PK.");
-                    }
-                    pkType = component.getType();
-                }
-            }
-            // May be null if no @PK annotation found.
-            return Optional.ofNullable(pkType);
-        });
-    }
-
-    @Override
-    public boolean isAnnotationPresent(@Nonnull RecordComponent component, @Nonnull Class<? extends Annotation> annotationType) {
-        return getAnnotation(component, annotationType) != null;
-    }
-
-    @Override
-    public boolean isAnnotationPresent(@Nonnull Class<?> type, @Nonnull Class<? extends Annotation> annotationType) {
-        return getAnnotation(type, annotationType) != null;
-    }
-
-    @Override
-    public <A extends Annotation> A getAnnotation(@Nonnull RecordComponent component, @Nonnull Class<A> annotationType) {
-        return component.getAnnotation(annotationType);
-    }
-
-    @Override
-    public <A extends Annotation> A[] getAnnotations(@Nonnull RecordComponent component, @Nonnull Class<A> annotationType) {
-        return component.getAnnotationsByType(annotationType);
-    }
-
-    @Override
-    public <A extends Annotation> A getAnnotation(@Nonnull Class<?> type, @Nonnull Class<A> annotationType) {
-        return type.getAnnotation(annotationType);
-    }
-
-    @Override
     public Class<?> getType(@Nonnull Object o) {
+        if (!(o instanceof Class<?>)) {
+            throw new PersistenceException("Unsupported type: %s".formatted(o.getClass().getName()));
+        }
+        if (!Data.class.isAssignableFrom((Class<?>) o)) {
+            throw new PersistenceException("Not a Data type: %s".formatted(((Class<?>) o).getName()));
+        }
         return (Class<?>) o;
     }
 
     @Override
-    public Class<? extends Record> getRecordType(@Nonnull Object clazz) {
+    public Class<? extends Data> getDataType(@Nonnull Object clazz) {
+        if (!(clazz instanceof Class<?>)) {
+            throw new PersistenceException("Unsupported type: %s".formatted(clazz.getClass().getName()));
+        }
+        if (!Data.class.isAssignableFrom((Class<?>) clazz)) {
+            throw new PersistenceException("Not a Data type: %s".formatted(clazz.getClass().getName()));
+        }
         //noinspection unchecked
-        return (Class<? extends Record>) clazz;
+        return (Class<? extends Data>) clazz;
     }
 
     @Override
@@ -214,8 +228,7 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
         }
     }).get();
 
-    @Override
-    public boolean isNonnull(@Nonnull RecordComponent component) {
+    private boolean isNonnull(@Nonnull RecordComponent component) {
         return component.isAnnotationPresent(PK.class)
                 || component.getType().isPrimitive()
                 || (JAVAX_NONNULL != null && component.isAnnotationPresent(JAVAX_NONNULL))
@@ -223,21 +236,21 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
     }
 
     @Override
-    public List<Class<?>> getSubTypesOf(@Nonnull Class<?> type) {
+    public <T> List<Class<? extends T>> getSubTypesOf(@Nonnull Class<T> type) {
         return ClasspathScanner.getSubTypesOf(type);
     }
 
     @Override
-    public List<Class<?>> getPermittedSubclasses(@Nonnull Class<?> sealedClass) {
+    public <T> List<Class<? extends T>> getPermittedSubclasses(@Nonnull Class<T> sealedClass) {
         Class<?>[] classes = sealedClass.getPermittedSubclasses();
         if (classes == null) {
             return List.of();
         }
-        return List.of(classes);
+        //noinspection unchecked
+        return (List<Class<? extends T>>) (Object) List.of(classes);
     }
 
-    @Override
-    public Object invokeComponent(@Nonnull RecordComponent component, @Nonnull Object record) throws Throwable {
+    private Object invokeComponent(@Nonnull RecordComponent component, @Nonnull Object record) throws Throwable {
         Method method = component.getAccessor();
         try {
             method.setAccessible(true);
@@ -250,6 +263,38 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
     @Override
     public boolean isDefaultMethod(@Nonnull Method method) {
         return method.isDefault();
+    }
+
+    @Override
+    public Object invoke(@Nonnull RecordType type, @Nonnull Object[] args) {
+        try {
+            try {
+                // Method is expected to be accessible.
+                return type.constructor().newInstance(args);
+            } catch (InvocationTargetException e) {
+                throw e.getTargetException();
+            }
+        } catch (PersistenceException e) {
+            throw e;
+        } catch (Throwable t) {
+            throw new PersistenceException(t);
+        }
+    }
+
+    @Override
+    public Object invoke(@Nonnull RecordField field, @Nonnull Object record) {
+        try {
+            try {
+                // Method is expected to be accessible.
+                return field.method().invoke(record);
+            } catch (InvocationTargetException e) {
+                throw e.getTargetException();
+            }
+        } catch (PersistenceException e) {
+            throw e;
+        } catch (Throwable t) {
+            throw new PersistenceException(t);
+        }
     }
 
     @Override

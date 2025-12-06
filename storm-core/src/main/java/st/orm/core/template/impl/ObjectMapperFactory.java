@@ -16,9 +16,13 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.PK;
+import st.orm.core.spi.ORMReflection;
+import st.orm.core.spi.Providers;
 import st.orm.core.spi.RefFactory;
 import st.orm.core.template.SqlTemplateException;
+import st.orm.mapping.RecordType;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
@@ -31,11 +35,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 import static java.util.Optional.empty;
+import static st.orm.core.template.impl.RecordReflection.getRecordType;
+import static st.orm.core.template.impl.RecordReflection.isRecord;
+import static st.orm.core.template.impl.RecordValidation.validateDataType;
 
 /**
  * Factory for creating instances of a specific type.
  */
 public final class ObjectMapperFactory {
+
+    private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
     private ObjectMapperFactory() {
     }
@@ -55,8 +64,12 @@ public final class ObjectMapperFactory {
         if (type.isPrimitive()) {
             return PrimitiveMapper.getFactory(columnCount, type);
         }
-        if (type.isRecord()) {
-            return RecordMapper.getFactory(columnCount, type, refFactory);
+        if (Data.class.isAssignableFrom(type)) {
+            //noinspection unchecked
+            validateDataType((Class<? extends Data>) type, false);
+        }
+        if (isRecord(type)) {
+            return RecordMapper.getFactory(columnCount, getRecordType(type), refFactory);
         }
         if (type.isEnum()) {
             return EnumMapper.getFactory(columnCount, type);

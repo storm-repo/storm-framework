@@ -30,8 +30,8 @@ import jakarta.annotation.Nullable;
  *     <li><strong>Explicit conversion</strong>
  *         A converter can be selected directly through {@link st.orm.Convert @Convert}.</li>
  *     <li><strong>Auto-apply</strong>
- *         A converter can opt in by overriding {@link #autoApply()} and returning {@code true}. Auto-apply converters
- *         are used only when no explicit converter is present.</li>
+ *         A converter can be automatically applied by marking the class with {@link DefaultConverter}. Default
+ *         converters are used only when no explicit converter is present.</li>
  *     <li><strong>No conversion</strong>
  *         If a component has neither an explicit converter nor an applicable auto-apply converter, Storm uses the
  *         built-in mapping.</li>
@@ -45,17 +45,6 @@ import jakarta.annotation.Nullable;
  * @since 1.7
  */
 public interface Converter<D, E> {
-
-    /**
-     * Indicates whether this converter should be picked up automatically when a component type matches and no explicit
-     * converter is set.
-     *
-     * <p>The default is {@code false}. Override and return {@code true} to make the converter eligible for auto-apply
-     * resolution.</p>
-     */
-    default boolean autoApply() {
-        return false;
-    }
 
     /**
      * Converts an entity value to a database column value.

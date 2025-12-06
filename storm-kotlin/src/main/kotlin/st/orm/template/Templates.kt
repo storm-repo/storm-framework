@@ -17,7 +17,6 @@ package st.orm.template
 
 import jakarta.persistence.EntityManager
 import st.orm.*
-import st.orm.Element
 import st.orm.core.template.impl.Elements
 import st.orm.core.template.impl.Elements.ObjectExpression
 import st.orm.core.template.impl.Elements.TemplateSource
@@ -163,7 +162,7 @@ object Templates {
      * include only the primary key fields.
      * @return an [Element] representing the SELECT clause for the specified table.
      */
-    fun select(table: KClass<out Record>): Element {
+    fun select(table: KClass<out Data>): Element {
         return Elements.Select(table.java, SelectMode.NESTED)
     }
     /**
@@ -191,7 +190,7 @@ object Templates {
      * @param table the [Class] object representing the table record.
      * @return an [Element] representing the SELECT clause for the specified table.
      */
-    fun select(table: KClass<out Record>, mode: SelectMode = SelectMode.NESTED): Element {
+    fun select(table: KClass<out Data>, mode: SelectMode = SelectMode.NESTED): Element {
         return Elements.Select(table.java, mode)
     }
 
@@ -222,7 +221,7 @@ object Templates {
      * @param autoJoin if `true`, automatically join all foreign keys listed in the record.
      * @return an [Element] representing the FROM clause for the specified table.
      */
-    fun from(table: KClass<out Record>, autoJoin: Boolean): Element {
+    fun from(table: KClass<out Data>, autoJoin: Boolean): Element {
         return Elements.From(table.java, autoJoin)
     }
 
@@ -246,7 +245,7 @@ object Templates {
      * @param autoJoin if `true`, automatically join all foreign keys listed in the record.
      * @return an [Element] representing the FROM clause for the specified table.
      */
-    fun from(table: KClass<out Record>, alias: String, autoJoin: Boolean): Element {
+    fun from(table: KClass<out Data>, alias: String, autoJoin: Boolean): Element {
         return Elements.From(Elements.TableSource(table.java), Objects.requireNonNull(alias, "alias"), autoJoin)
     }
 
@@ -327,7 +326,7 @@ object Templates {
      * @param table the [Class] object representing the table record.
      * @return an [Element] representing the INSERT clause for the specified table.
      */
-    fun insert(table: KClass<out Record>): Element {
+    fun insert(table: KClass<out Data>): Element {
         return Elements.Insert(table.java)
     }
 
@@ -360,7 +359,7 @@ object Templates {
      * key value (e.g., migrations, data exports).
      * @return an [Element] representing the INSERT clause for the specified table.
      */
-    fun insert(table: KClass<out Record>, ignoreAutoGenerate: Boolean): Element {
+    fun insert(table: KClass<out Data>, ignoreAutoGenerate: Boolean): Element {
         return Elements.Insert(table.java, ignoreAutoGenerate)
     }
 
@@ -368,7 +367,7 @@ object Templates {
      * Generates a VALUES clause for the specified record instance(s).
      *
      *
-     * This method creates a `VALUES` clause using the provided [Record] instance(s).
+     * This method creates a `VALUES` clause using the provided [Data] instance(s).
      * It is intended to be used within SQL string templates to dynamically construct INSERT statements with
      * the given values.
      *
@@ -382,20 +381,20 @@ object Templates {
      * For convenience, you can also use the shorthand notation. The SQL template engine automatically
      * detects that a VALUES element is required based on its placement in the query:
      * <pre>`INSERT INTO \{MyTable.class}
-     * VALUES \{new Record[] {entity1, entity2}}
+     * VALUES \{new Data[] {entity1, entity2}}
     `</pre> *
      *
      *
-     * Here, `entity1`, `entity2`, etc., are instances of the `Record` class containing
+     * Here, `entity1`, `entity2`, etc., are instances of the `Data` class containing
      * the values to be inserted.
      *
-     * @param r one or more [Record] instances containing the values to be inserted.
+     * @param r one or more [Data] instances containing the values to be inserted.
      * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
      * provided primary key value. Use this flag only when intentionally providing the primary
      * key value (e.g., migrations, data exports).
      * @return an [Element] representing the VALUES clause with the specified records.
      */
-    fun values(r: Record, ignoreAutoGenerate: Boolean): Element {
+    fun values(r: Data, ignoreAutoGenerate: Boolean): Element {
         return Elements.Values(listOf(r), null, ignoreAutoGenerate)
     }
 
@@ -403,7 +402,7 @@ object Templates {
      * Generates a VALUES clause for the specified record instance(s).
      *
      *
-     * This method creates a `VALUES` clause using the provided [Record] instance(s).
+     * This method creates a `VALUES` clause using the provided [Data] instance(s).
      * It is intended to be used within SQL string templates to dynamically construct INSERT statements with
      * the given values.
      *
@@ -417,17 +416,17 @@ object Templates {
      * For convenience, you can also use the shorthand notation. The SQL template engine automatically
      * detects that a VALUES element is required based on its placement in the query:
      * <pre>`INSERT INTO \{MyTable.class}
-     * VALUES \{new Record[] {entity1, entity2}}
+     * VALUES \{new Data[] {entity1, entity2}}
     `</pre> *
      *
      *
-     * Here, `entity1`, `entity2`, etc., are instances of the `Record` class containing
+     * Here, `entity1`, `entity2`, etc., are instances of the `Data` class containing
      * the values to be inserted.
      *
-     * @param r one or more [Record] instances containing the values to be inserted.
+     * @param r one or more [Data] instances containing the values to be inserted.
      * @return an [Element] representing the VALUES clause with the specified records.
      */
-    fun values(vararg r: Record): Element {
+    fun values(vararg r: Data): Element {
         return Elements.Values(listOf(*r), null)
     }
 
@@ -435,7 +434,7 @@ object Templates {
      * Generates a VALUES clause for the specified iterable of record instances.
      *
      *
-     * This method creates a `VALUES` clause using the provided [Iterable] of [Record] instances.
+     * This method creates a `VALUES` clause using the provided [Iterable] of [Data] instances.
      * It is intended to be used within SQL string templates to dynamically construct INSERT statements with
      * the given values.
      *
@@ -453,13 +452,13 @@ object Templates {
     `</pre> *
      *
      *
-     * Here, `records` is an [Iterable] of `Record` instances containing
+     * Here, `records` is an [Iterable] of `Data` instances containing
      * the values to be inserted.
      *
-     * @param records an [Iterable] of [Record] instances containing the values to be inserted.
+     * @param records an [Iterable] of [Data] instances containing the values to be inserted.
      * @return an [Element] representing the VALUES clause with the specified records.
      */
-    fun values(records: Iterable<Record>): Element {
+    fun values(records: Iterable<Data>): Element {
         return Elements.Values(records, null)
     }
 
@@ -467,7 +466,7 @@ object Templates {
      * Generates a VALUES clause for the specified iterable of record instances.
      *
      *
-     * This method creates a `VALUES` clause using the provided [Iterable] of [Record] instances.
+     * This method creates a `VALUES` clause using the provided [Iterable] of [Data] instances.
      * It is intended to be used within SQL string templates to dynamically construct INSERT statements with
      * the given values.
      *
@@ -485,16 +484,16 @@ object Templates {
     `</pre> *
      *
      *
-     * Here, `records` is an [Iterable] of `Record` instances containing
+     * Here, `records` is an [Iterable] of `Data` instances containing
      * the values to be inserted.
      *
-     * @param records an [Iterable] of [Record] instances containing the values to be inserted.
+     * @param records an [Iterable] of [Data] instances containing the values to be inserted.
      * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
      * provided primary key value. Use this flag only when intentionally providing the primary
      * key value (e.g., migrations, data exports).
      * @return an [Element] representing the VALUES clause with the specified records.
      */
-    fun values(records: Iterable<Record>, ignoreAutoGenerate: Boolean): Element {
+    fun values(records: Iterable<Data>, ignoreAutoGenerate: Boolean): Element {
         return Elements.Values(records, null, ignoreAutoGenerate)
     }
 
@@ -598,12 +597,12 @@ object Templates {
     `</pre> *
      *
      *
-     * Here, `record` is an instance of the `Record` class containing the values to be updated.
+     * Here, `record` is an instance of the `Data` class containing the values to be updated.
      *
      * @param table the [Class] object representing the table record.
      * @return an [Element] representing the UPDATE clause for the specified table.
      */
-    fun update(table: KClass<out Record>): Element {
+    fun update(table: KClass<out Data>): Element {
         return Elements.Update(table.java)
     }
 
@@ -623,13 +622,13 @@ object Templates {
     `</pre> *
      *
      *
-     * Here, `record` is an instance of the `Record` class containing the values to be updated.
+     * Here, `record` is an instance of the `Data` class containing the values to be updated.
      *
      * @param table the [Class] object representing the table record.
      * @param alias the alias to use for the table in the query. The alias must not require escaping.
      * @return an [Element] representing the UPDATE clause for the specified table with alias.
      */
-    fun update(table: KClass<out Record>, alias: String): Element {
+    fun update(table: KClass<out Data>, alias: String): Element {
         return Elements.Update(table.java, alias)
     }
 
@@ -637,7 +636,7 @@ object Templates {
      * Generates a SET clause for the specified record.
      *
      *
-     * This method creates a `SET` clause using the provided [Record] instance. It is intended to be used
+     * This method creates a `SET` clause using the provided [Data] instance. It is intended to be used
      * within SQL string templates to dynamically construct UPDATE statements with the given values.
      *
      *
@@ -656,12 +655,12 @@ object Templates {
     `</pre> *
      *
      *
-     * Here, `record` is an instance of the `Record` class containing the values to be set.
+     * Here, `record` is an instance of the `Data` class containing the values to be set.
      *
-     * @param record the [Record] instance containing the values to be set.
+     * @param record the [Data] instance containing the values to be set.
      * @return an [Element] representing the SET clause with the specified record.
      */
-    fun set(record: Record): Element {
+    fun set(record: Data): Element {
         return Elements.Set(Objects.requireNonNull(record, "record"), null)
     }
 
@@ -718,7 +717,7 @@ object Templates {
      *
      *  * Primitive values matching the primary key of the root table.
      *  * Instances of [Record] matching the compound primary key of the root table.
-     *  * Instances of [Record] representing records of related (foreign key) tables in the hierarchy of the
+     *  * Instances of [Data] representing records of related (foreign key) tables in the hierarchy of the
      * root table.
      *
      *
@@ -782,7 +781,7 @@ object Templates {
      *
      *  * Primitive values matching the primary key of the root table.
      *  * Instances of [Record] matching the compound primary key of the root table.
-     *  * Instances of [Record] representing records of related (foreign key) tables in the hierarchy of the
+     *  * Instances of [Data] representing records of related (foreign key) tables in the hierarchy of the
      * root table.
      *
      *
@@ -971,7 +970,7 @@ object Templates {
     `</pre> *
      *
      *
-     * Here, `record` is an instance of the [Record] class containing the criteria for deletion.
+     * Here, `record` is an instance of the [Data] class containing the criteria for deletion.
      *
      *
      * **Note:** In most databases, specifying the table in the DELETE clause is not
@@ -984,7 +983,7 @@ object Templates {
      * @param table the [Class] object representing the table record.
      * @return an [Element] representing the DELETE clause for the specified table.
      */
-    fun delete(table: KClass<out Record>): Element {
+    fun delete(table: KClass<out Data>): Element {
         return Elements.Delete(table.java)
     }
 
@@ -1003,7 +1002,7 @@ object Templates {
     `</pre> *
      *
      *
-     * Here, `record` is an instance of the [Record] class containing the criteria for deletion.
+     * Here, `record` is an instance of the [Data] class containing the criteria for deletion.
      *
      *
      * **Note:** In most databases, specifying the table in the DELETE clause with an alias
@@ -1017,7 +1016,7 @@ object Templates {
      * @param alias the alias to use for the table in the query. The alias must not require escaping.
      * @return an [Element] representing the DELETE clause for the specified table with an alias.
      */
-    fun delete(table: KClass<out Record>, alias: String): Element {
+    fun delete(table: KClass<out Data>, alias: String): Element {
         return Elements.Delete(table.java, alias)
     }
 
@@ -1060,7 +1059,7 @@ object Templates {
      * @param table the [Class] object representing the table record.
      * @return an [Element] representing the table.
      */
-    fun table(table: KClass<out Record>): Element {
+    fun table(table: KClass<out Data>): Element {
         return Elements.Table(table.java)
     }
 
@@ -1086,7 +1085,7 @@ object Templates {
      * @param alias the alias to use for the table in the query. The alias must not require escaping.
      * @return an [Element] representing the table with an alias.
      */
-    fun table(table: KClass<out Record>, alias: String): Element {
+    fun table(table: KClass<out Data>, alias: String): Element {
         return Elements.Table(table.java, alias)
     }
 
@@ -1122,7 +1121,7 @@ object Templates {
      * @param table the [Class] object representing the table record.
      * @return an [Element] representing the table's alias.
      */
-    fun alias(table: KClass<out Record>): Element {
+    fun alias(table: KClass<out Data>): Element {
         return Elements.Alias(table.java, ResolveScope.CASCADE)
     }
 
@@ -1160,7 +1159,7 @@ object Templates {
      * aliases, LOCAL to include local aliases only, and OUTER to include outer aliases only.
      * @return an [Element] representing the table's alias.
      */
-    fun alias(table: KClass<out Record>, scope: ResolveScope): Element {
+    fun alias(table: KClass<out Data>, scope: ResolveScope): Element {
         return Elements.Alias(table.java, scope)
     }
 
@@ -1476,7 +1475,7 @@ object Templates {
      * @param extractor the function used to extract the value from the record for the bind variable.
      * @return a new [Element] representing the bind variable.
      */
-    fun bindVar(bindVars: BindVars, extractor: (Record) -> Any): Element {
+    fun bindVar(bindVars: BindVars, extractor: (Data) -> Any): Element {
         return Elements.BindVar(bindVars, extractor)
     }
 

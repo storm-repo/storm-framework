@@ -6,7 +6,7 @@
     <parent>
         <groupId>st.orm</groupId>
         <artifactId>storm-framework</artifactId>
-        <version>1.7.0</version>
+        <version>1.7.1</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>storm-kotlin-spring</artifactId>
@@ -45,7 +45,6 @@
                         --add-opens storm.kotlin.spring/st.orm.spring.model=ALL-UNNAMED
                         --add-opens storm.kotlin.spring/st.orm.spring=kotlin.reflect
                         --add-opens storm.kotlin.spring/st.orm.spring=spring.core
-                        --add-opens storm.kotlin.spring/st.orm.spring.model=storm.foundation
                         --add-opens storm.kotlin.spring/st.orm.spring.model=storm.kotlin
                         --add-opens storm.kotlin.spring/st.orm.spring.model=storm.core
                         -Dstorm.ansiEscaping=true

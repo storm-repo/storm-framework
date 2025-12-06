@@ -36,7 +36,7 @@ import kotlin.reflect.KClass
  * @param <R> the type of the result.
  * @param <ID> the type of the primary key.
  */
-interface QueryBuilder<T : Record, R, ID> {
+interface QueryBuilder<T : Data, R, ID> {
     /**
      * Returns a typed query builder for the specified primary key type.
      *
@@ -71,7 +71,7 @@ interface QueryBuilder<T : Record, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    fun crossJoin(relation: KClass<out Record>): QueryBuilder<T, R, ID>
+    fun crossJoin(relation: KClass<out Data>): QueryBuilder<T, R, ID>
 
     /**
      * Adds an inner join to the query.
@@ -79,7 +79,7 @@ interface QueryBuilder<T : Record, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    fun innerJoin(relation: KClass<out Record>): TypedJoinBuilder<T, R, ID>
+    fun innerJoin(relation: KClass<out Data>): TypedJoinBuilder<T, R, ID>
 
     /**
      * Adds a left join to the query.
@@ -87,7 +87,7 @@ interface QueryBuilder<T : Record, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    fun leftJoin(relation: KClass<out Record>): TypedJoinBuilder<T, R, ID>
+    fun leftJoin(relation: KClass<out Data>): TypedJoinBuilder<T, R, ID>
 
     /**
      * Adds a right join to the query.
@@ -95,7 +95,7 @@ interface QueryBuilder<T : Record, R, ID> {
      * @param relation the relation to join.
      * @return the query builder.
      */
-    fun rightJoin(relation: KClass<out Record>): TypedJoinBuilder<T, R, ID>
+    fun rightJoin(relation: KClass<out Data>): TypedJoinBuilder<T, R, ID>
 
     /**
      * Adds a join of the specified type to the query.
@@ -107,7 +107,7 @@ interface QueryBuilder<T : Record, R, ID> {
      */
     fun join(
         type: JoinType,
-        relation: KClass<out Record>,
+        relation: KClass<out Data>,
         alias: String
     ): TypedJoinBuilder<T, R, ID>
 
@@ -294,7 +294,7 @@ interface QueryBuilder<T : Record, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    fun <V : Record> where(path: Metamodel<T, V>, record: V): QueryBuilder<T, R, ID> {
+    fun <V : Data> where(path: Metamodel<T, V>, record: V): QueryBuilder<T, R, ID> {
         return where(path, EQUALS, record)
     }
 
@@ -307,7 +307,7 @@ interface QueryBuilder<T : Record, R, ID> {
      * @return the predicate builder.
      * @since 1.3
      */
-    fun <V : Record> where(path: Metamodel<T, V>, ref: Ref<V>): QueryBuilder<T, R, ID> {
+    fun <V : Data> where(path: Metamodel<T, V>, ref: Ref<V>): QueryBuilder<T, R, ID> {
         return whereBuilder { where(path, ref) }
     }
 
@@ -319,7 +319,7 @@ interface QueryBuilder<T : Record, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    fun <V : Record> where(path: Metamodel<T, V>, it: Iterable<V>): QueryBuilder<T, R, ID> {
+    fun <V : Data> where(path: Metamodel<T, V>, it: Iterable<V>): QueryBuilder<T, R, ID> {
         return where(path, IN, it)
     }
 
@@ -332,7 +332,7 @@ interface QueryBuilder<T : Record, R, ID> {
      * @return the predicate builder.
      * @since 1.3
      */
-    fun <V : Record> whereRef(
+    fun <V : Data> whereRef(
         path: Metamodel<T, V>,
         it: Iterable<Ref<V>>
     ): QueryBuilder<T, R, ID> {
@@ -922,112 +922,112 @@ interface QueryBuilder<T : Record, R, ID> {
 /**
  * Infix function to create a predicate to check if a field is in a list of values.
  */
-inline infix fun <reified T : Record, reified V> Metamodel<T, V>.inList(value: Iterable<V>): PredicateBuilder<T, T, *> =
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.inList(value: Iterable<V>): PredicateBuilder<T, T, *> =
     create(this, IN, value)
 
 /**
  * Infix function to create a predicate to check if a field is in a list of references.
  */
-inline infix fun <reified T : Record, reified V : Record> Metamodel<T, V>.inRefs(value: Iterable<Ref<V>>): PredicateBuilder<T, T, *> =
+inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.inRefs(value: Iterable<Ref<V>>): PredicateBuilder<T, T, *> =
     createRef(this, IN, value)
 
 /**
  * Infix function to create a predicate to check if a field is not in a list of values.
  */
-inline infix fun <reified T : Record, reified V> Metamodel<T, V>.notInList(value: Iterable<V>): PredicateBuilder<T, T, *> =
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.notInList(value: Iterable<V>): PredicateBuilder<T, T, *> =
     create(this, NOT_IN, value)
 
 /**
  * Infix function to create a predicate to check if a field is not in a list of references.
  */
-inline infix fun <reified T : Record, reified V : Record> Metamodel<T, V>.notInRefs(value: Iterable<Ref<V>>): PredicateBuilder<T, T, *> =
+inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.notInRefs(value: Iterable<Ref<V>>): PredicateBuilder<T, T, *> =
     createRef(this, NOT_IN, value)
 
 /**
  * Infix functions to create a predicate to check if a field is equal to a value.
  */
-inline infix fun <reified T : Record, reified V> Metamodel<T, V>.eq(value: V): PredicateBuilder<T, T, *> =
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.eq(value: V): PredicateBuilder<T, T, *> =
     create(this, EQUALS, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is equal to a reference.
  */
-inline infix fun <reified T : Record, reified V : Record> Metamodel<T, V>.eq(value: Ref<V>): PredicateBuilder<T, T, *> =
+inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.eq(value: Ref<V>): PredicateBuilder<T, T, *> =
     createRef(this, EQUALS, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is not equal to a value.
  */
-inline infix fun <reified T : Record, reified V> Metamodel<T, V>.neq(value: V): PredicateBuilder<T, T, *> =
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.neq(value: V): PredicateBuilder<T, T, *> =
     create(this, NOT_EQUALS, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is not equal to a reference.
  */
-inline infix fun <reified T : Record, reified V : Record> Metamodel<T, V>.neq(value: Ref<V>): PredicateBuilder<T, T, *> =
+inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.neq(value: Ref<V>): PredicateBuilder<T, T, *> =
     createRef(this, NOT_EQUALS, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is like a value.
  */
-inline infix fun <reified T : Record, reified V> Metamodel<T, V>.like(value: V): PredicateBuilder<T, T, *> =
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.like(value: V): PredicateBuilder<T, T, *> =
     create(this, LIKE, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is not like a value.
  */
-inline infix fun <reified T : Record, reified V> Metamodel<T, V>.notLike(value: V): PredicateBuilder<T, T, *> =
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.notLike(value: V): PredicateBuilder<T, T, *> =
     create(this, NOT_LIKE, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is greater than a value.
  */
-inline infix fun <reified T : Record, reified V> Metamodel<T, V>.greater(value: V): PredicateBuilder<T, T, *> =
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.greater(value: V): PredicateBuilder<T, T, *> =
     create(this, GREATER_THAN, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is less than a value.
  */
-inline infix fun <reified T : Record, reified V> Metamodel<T, V>.less(value: V): PredicateBuilder<T, T, *> =
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.less(value: V): PredicateBuilder<T, T, *> =
     create(this, LESS_THAN, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is greater than or equal to a value.
  */
-inline infix fun <reified T : Record, reified V> Metamodel<T, V>.greaterEq(value: V): PredicateBuilder<T, T, *> =
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.greaterEq(value: V): PredicateBuilder<T, T, *> =
     create(this, GREATER_THAN_OR_EQUAL, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is less than or equal to a value.
  */
-inline infix fun <reified T : Record, reified V> Metamodel<T, V>.lessEq(value: V): PredicateBuilder<T, T, *> =
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.lessEq(value: V): PredicateBuilder<T, T, *> =
     create(this, LESS_THAN_OR_EQUAL, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is between two values.
  */
-fun <T : Record, V> Metamodel<T, V>.between(left: V, right: V): PredicateBuilder<T, T, *> =
+fun <T : Data, V> Metamodel<T, V>.between(left: V, right: V): PredicateBuilder<T, T, *> =
     create(this, BETWEEN, listOf(left, right))
 /**
  * Infix functions to create a predicate to check if a field is true.
  */
-fun <T : Record, V> Metamodel<T, V>.isTrue(): PredicateBuilder<T, T, *> =
+fun <T : Data, V> Metamodel<T, V>.isTrue(): PredicateBuilder<T, T, *> =
     create(this, IS_TRUE, emptyList())
 
 /**
  * Infix functions to create a predicate to check if a field is false.
  */
-fun <T : Record, V> Metamodel<T, V>.isFalse(): PredicateBuilder<T, T, *> =
+fun <T : Data, V> Metamodel<T, V>.isFalse(): PredicateBuilder<T, T, *> =
     create(this, IS_FALSE, emptyList())
 
 /**
  * Infix functions to create a predicate to check if a field is null.
  */
-fun <T : Record, V> Metamodel<T, V>.isNull(): PredicateBuilder<T, T, *> =
+fun <T : Data, V> Metamodel<T, V>.isNull(): PredicateBuilder<T, T, *> =
     create(this, IS_NULL, emptyList())
 
 /**
  * Infix functions to create a predicate to check if a field is not null.
  */
-fun <T : Record, V> Metamodel<T, V>.isNotNull(): PredicateBuilder<T, T, *> =
+fun <T : Data, V> Metamodel<T, V>.isNotNull(): PredicateBuilder<T, T, *> =
     create(this, IS_NOT_NULL, emptyList())

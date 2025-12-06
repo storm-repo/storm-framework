@@ -18,6 +18,7 @@ package st.orm.core.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.AbstractMetamodel;
+import st.orm.Data;
 import st.orm.FK;
 import st.orm.Metamodel;
 import st.orm.PersistenceException;
@@ -25,11 +26,11 @@ import st.orm.Ref;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
 import st.orm.core.template.SqlTemplateException;
+import st.orm.mapping.RecordField;
 
-import java.lang.reflect.RecordComponent;
-
-import static st.orm.core.template.impl.RecordReflection.getRecordComponent;
-import static st.orm.core.template.impl.RecordReflection.getRefRecordType;
+import static st.orm.core.template.impl.RecordReflection.getRecordField;
+import static st.orm.core.template.impl.RecordReflection.getRefDataType;
+import static st.orm.core.template.impl.RecordReflection.isRecord;
 
 /**
  * Implementation that is used by the generated models.
@@ -51,7 +52,7 @@ public final class MetamodelFactory {
      * @return a new metamodel for the given record type.
      * @param <T> the root table type.
      */
-    public static <T extends Record> Metamodel<T, T> root(@Nonnull Class<T> table) {
+    public static <T extends Data> Metamodel<T, T> root(@Nonnull Class<T> table) {
         return new AbstractMetamodel<>(table) { };
     }
 
@@ -69,11 +70,11 @@ public final class MetamodelFactory {
      * @throws PersistenceException if the metamodel cannot be created for the root rootTable and path.
      */
     @SuppressWarnings("unchecked")
-    public static <T extends Record, E> Metamodel<T, E> of(@Nonnull Class<T> rootTable, @Nonnull String path) {
+    public static <T extends Data, E> Metamodel<T, E> of(@Nonnull Class<T> rootTable, @Nonnull String path) {
         Class<E> componentType;
         String effectivePath;
         String effectiveComponent;
-        Metamodel<T, ? extends Record> tableModel;
+        Metamodel<T, ? extends Data> tableModel;
         boolean isColumn = false;
         if (path.isEmpty()) {
             componentType = (Class<E>) rootTable;
@@ -82,19 +83,18 @@ public final class MetamodelFactory {
             tableModel = null;
         } else {
             try {
-                RecordComponent component = getRecordComponent(rootTable, path);
-                if (Ref.class.isAssignableFrom(component.getType())) {
+                RecordField field = getRecordField(rootTable, path);
+                if (Ref.class.isAssignableFrom(field.type())) {
                     int index = path.lastIndexOf('.');
                     effectivePath = index == -1 ? "" : path.substring(0, path.lastIndexOf('.')); // Remove last component.
-                    effectiveComponent = component.getName();
-                    componentType = (Class<E>) getRefRecordType(component);
+                    effectiveComponent = field.name();
+                    componentType = (Class<E>) getRefDataType(field);
                     isColumn = true;
                 } else {
                     effectivePath = path;
-                    effectiveComponent = component.getName();
-                    componentType = (Class<E>) component.getType();
-                    if (!component.getType().isRecord() ||
-                            REFLECTION.isAnnotationPresent(component, FK.class)) {
+                    effectiveComponent = field.name();
+                    componentType = (Class<E>) field.type();
+                    if (!isRecord(field.type()) || field.isAnnotationPresent(FK.class)) {
                         isColumn = true;
                     }
                     do {
@@ -103,11 +103,11 @@ public final class MetamodelFactory {
                         if (effectivePath.isEmpty()) {
                             break;
                         }
-                        component = getRecordComponent(rootTable, effectivePath);
-                        if (!component.getDeclaringRecord().isRecord() || REFLECTION.isAnnotationPresent(component, FK.class)) {
+                        field = getRecordField(rootTable, effectivePath);
+                        if (field.isAnnotationPresent(FK.class)) {
                             break;
                         }
-                        effectiveComponent = "%s.%s".formatted(component.getName(), effectiveComponent);
+                        effectiveComponent = "%s.%s".formatted(field.name(), effectiveComponent);
                     } while (effectivePath.contains("."));
                 }
             } catch (SqlTemplateException e) {
@@ -119,23 +119,18 @@ public final class MetamodelFactory {
     }
 
 
-    private record SimpleMetamodel<T extends Record, E>(@Nonnull Class<T> root,
-                                                        @Nonnull String path,
-                                                        @Nonnull Class<E> componentType,
-                                                        @Nonnull String component,
-                                                        boolean isColumn,
-                                                        @Nullable Metamodel<T, ? extends Record> table) implements Metamodel<T, E> {
+    private record SimpleMetamodel<T extends Data, E>(@Nonnull Class<T> root,
+                                                      @Nonnull String path,
+                                                      @Nonnull Class<E> fieldType,
+                                                      @Nonnull String field,
+                                                      boolean isColumn,
+                                                      @Nullable Metamodel<T, ? extends Data> table) implements Metamodel<T, E> {
 
-        public SimpleMetamodel {
-            if (!root.isRecord()) {
-                throw new PersistenceException("Table must be a record type: %s.".formatted(root.getSimpleName()));
-            }
-        }
-
+        @SuppressWarnings("NullableProblems")
         @Override
         public String toString() {
             return "Metamodel{root=%s, type=%s, path='%s', component='%s'}"
-                    .formatted(root.getSimpleName(), componentType.getSimpleName(), path, component);
+                    .formatted(root.getSimpleName(), fieldType.getSimpleName(), path, field);
         }
     }
 }

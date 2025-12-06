@@ -6,7 +6,7 @@
     <parent>
         <groupId>st.orm</groupId>
         <artifactId>storm-framework</artifactId>
-        <version>1.7.0</version>
+        <version>1.7.1</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>storm-spring</artifactId>
@@ -76,7 +76,6 @@
                         --add-opens storm.spring/st.orm.spring=ALL-UNNAMED
                         --add-opens storm.spring/st.orm.spring.model=ALL-UNNAMED
                         --add-opens storm.spring/st.orm.spring=spring.core
-                        --add-opens storm.spring/st.orm.spring.model=storm.foundation
                         --add-opens storm.spring/st.orm.spring.model=storm.java
                         --add-opens storm.spring/st.orm.spring.model=storm.core
                         -Dstorm.ansiEscaping=true

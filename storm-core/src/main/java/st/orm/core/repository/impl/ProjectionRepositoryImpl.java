@@ -28,7 +28,7 @@ import st.orm.core.template.ORMTemplate;
  * @param <P> the type of projection managed by this repository.
  * @param <ID> the type of the primary key of the projection, or {@link Void} if the projection has no primary key.
  */
-public final class ProjectionRepositoryImpl<P extends Record & Projection<ID>, ID>
+public final class ProjectionRepositoryImpl<P extends Projection<ID>, ID>
         extends BaseRepositoryImpl<P, ID>
         implements ProjectionRepository<P, ID> {
 

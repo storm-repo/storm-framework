@@ -15,7 +15,7 @@
  */
 package st.orm.template.impl
 
-import jakarta.annotation.Nonnull
+import st.orm.Data
 import st.orm.Metamodel
 import st.orm.Operator
 import st.orm.Ref
@@ -34,7 +34,7 @@ import st.orm.template.impl.QueryBuilderImpl.PredicateBuilderImpl
  * @param <V> the type of the values
  * @return a new instance of [PredicateBuilder]
 */
-fun <T : Record, R, V> create(
+fun <T : Data, R, V> create(
     path: Metamodel<*, V>,
     operator: Operator,
     o: Iterable<V>
@@ -53,7 +53,7 @@ fun <T : Record, R, V> create(
  * @param <V> the type of the values
  * @return a new instance of [PredicateBuilder]
  */
-fun <T : Record, R, V : Record> createRef(
+fun <T : Data, R, V : Data> createRef(
     path: Metamodel<*, V>,
     operator: Operator,
     o: Iterable<Ref<V>>
@@ -73,7 +73,7 @@ fun <T : Record, R, V : Record> createRef(
  * @param <V> the type of the values
  * @return a new instance of [PredicateBuilder]
  */
-fun <T : Record, R, ID, V> createWithId(
+fun <T : Data, R, ID, V> createWithId(
     path: Metamodel<*, V>,
     operator: Operator,
     o: Iterable<V>
@@ -93,7 +93,7 @@ fun <T : Record, R, ID, V> createWithId(
  * @param <V> the type of the values
  * @return a new instance of [PredicateBuilder]
  */
-fun <T : Record, R, ID, V : Record> createRefWithId(
+fun <T : Data, R, ID, V : Data> createRefWithId(
     path: Metamodel<*, V>,
     operator: Operator,
     o: Iterable<Ref<V>>

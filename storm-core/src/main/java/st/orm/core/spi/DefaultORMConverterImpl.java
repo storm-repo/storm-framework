@@ -18,9 +18,9 @@ package st.orm.core.spi;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Converter;
+import st.orm.mapping.RecordField;
 import st.orm.core.template.SqlTemplateException;
 
-import java.lang.reflect.RecordComponent;
 import java.util.List;
 
 import static java.util.Collections.singletonList;
@@ -36,19 +36,19 @@ import static java.util.Objects.requireNonNull;
 public final class DefaultORMConverterImpl<D, E> implements ORMConverter {
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
-    private final RecordComponent component;
+    private final RecordField field;
     private final Converter<D, E> converter;
     private final Class<D> databaseType;
 
     /**
-     * @param component   the record component this converter is bound to
-     * @param converter   the value converter (entity ↔ database)
-     * @param databaseType the JDBC-facing / database column Java type (D)
+     * @param field the record field this converter is bound to.
+     * @param converter the value converter (object to database).
+     * @param databaseType the JDBC-facing / database column Java type (D).
      */
-    public DefaultORMConverterImpl(@Nonnull RecordComponent component,
+    public DefaultORMConverterImpl(@Nonnull RecordField field,
                                    @Nonnull Converter<D, E> converter,
                                    @Nonnull Class<D> databaseType) {
-        this.component = requireNonNull(component, "component");
+        this.field = requireNonNull(field, "field");
         this.converter = requireNonNull(converter, "converter");
         this.databaseType = requireNonNull(databaseType, "databaseType");
     }
@@ -87,7 +87,7 @@ public final class DefaultORMConverterImpl<D, E> implements ORMConverter {
     @Override
     public List<Name> getColumns(@Nonnull NameResolver nameResolver) throws SqlTemplateException {
         requireNonNull(nameResolver, "nameResolver");
-        return List.of(nameResolver.getName(component));
+        return List.of(nameResolver.getName(field));
     }
 
     /**
@@ -99,12 +99,12 @@ public final class DefaultORMConverterImpl<D, E> implements ORMConverter {
      * @return the values to be used in the SQL template.
      */
     @Override
-    public List<Object> toDatabase(@Nullable Record record) throws SqlTemplateException {
+    public List<Object> toDatabase(@Nullable Object record) throws SqlTemplateException {
         try {
             @SuppressWarnings("unchecked")
             E value = record == null
                     ? null
-                    : (E) REFLECTION.invokeComponent(component, record);
+                    : (E) REFLECTION.invoke(field, record);
             D dbValue = converter.toDatabase(value);
             return singletonList(dbValue);
         } catch (Throwable e) {

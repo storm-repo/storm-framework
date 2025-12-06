@@ -16,6 +16,7 @@
 package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 
 /**
  * A builder for constructing the predicates of the WHERE clause of the query.
@@ -24,7 +25,7 @@ import jakarta.annotation.Nonnull;
  * @param <R>  the type of the result.
  * @param <ID> the type of the primary key.
  */
-public interface PredicateBuilder<T extends Record, R, ID> {
+public interface PredicateBuilder<T extends Data, R, ID> {
 
     /**
      * Adds a predicate to the WHERE clause using an AND condition.
@@ -46,7 +47,7 @@ public interface PredicateBuilder<T extends Record, R, ID> {
      * @param predicate the predicate to add.
      * @return the predicate builder.
      */
-    <TX extends Record, RX, IDX> PredicateBuilder<TX, RX, IDX> andAny(@Nonnull PredicateBuilder<TX, RX, IDX> predicate);
+    <TX extends Data, RX, IDX> PredicateBuilder<TX, RX, IDX> andAny(@Nonnull PredicateBuilder<TX, RX, IDX> predicate);
 
     /**
      * Adds a predicate to the WHERE clause using an AND condition.
@@ -79,7 +80,7 @@ public interface PredicateBuilder<T extends Record, R, ID> {
      * @param predicate the predicate to add.
      * @return the predicate builder.
      */
-    <TX extends Record, RX, IDX> PredicateBuilder<TX, RX, IDX> orAny(@Nonnull PredicateBuilder<TX, RX, IDX> predicate);
+    <TX extends Data, RX, IDX> PredicateBuilder<TX, RX, IDX> orAny(@Nonnull PredicateBuilder<TX, RX, IDX> predicate);
 
     /**
      * Adds a predicate to the WHERE clause using an OR condition.

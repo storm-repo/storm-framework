@@ -16,6 +16,7 @@
 package st.orm.spi.postgresql;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.repository.impl.EntityRepositoryImpl;
@@ -55,14 +56,14 @@ import static st.orm.core.template.impl.StringTemplates.flatten;
 /**
  * Implementation of {@link EntityRepository} for PostgreSQL.
  */
-public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
+public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
         extends EntityRepositoryImpl<E, ID> {
 
     public PostgreSQLEntityRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
         super(ormTemplate, model);
     }
 
-    private TemplateString getVersionString(@Nonnull Class<? extends Record> type, @Nonnull Column column) {
+    private TemplateString getVersionString(@Nonnull Class<? extends Data> type, @Nonnull Column column) {
         TemplateString columnName = TemplateString.of(column.qualifiedName(ormTemplate.dialect()));
         TemplateString updateExpression = switch (column.type()) {
             case Class<?> c when Integer.TYPE.isAssignableFrom(c)
@@ -315,7 +316,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
             return;
         }
         var query = querySupplier.get();
-        batch.stream().map(this::validateUpsert).map(Record.class::cast).forEach(query::addBatch);
+        batch.stream().map(this::validateUpsert).map(Data.class::cast).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
             throw new PersistenceException("Batch upsert failed.");
@@ -327,7 +328,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
             return List.of();
         }
         var query = querySupplier.get();
-        batch.stream().map(this::validateUpsert).map(Record.class::cast).forEach(query::addBatch);
+        batch.stream().map(this::validateUpsert).map(Data.class::cast).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
             throw new PersistenceException("Batch upsert failed.");

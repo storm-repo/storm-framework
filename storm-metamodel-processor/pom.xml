@@ -5,12 +5,12 @@
     <parent>
         <groupId>st.orm</groupId>
         <artifactId>storm-framework</artifactId>
-        <version>1.7.0</version>
+        <version>1.7.1</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>storm-metamodel-processor</artifactId>
     <name>Storm Metamodel Processor</name>
-    <description>Metamodel extensions for Storm.</description>
+    <description>Metamodel extensions for Java.</description>
     <url>https://github.com/storm-repo/storm-framework</url>
     <licenses>
         <license>

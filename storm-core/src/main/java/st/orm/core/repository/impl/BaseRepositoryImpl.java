@@ -16,6 +16,7 @@
 package st.orm.core.repository.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.Ref;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
@@ -44,7 +45,7 @@ import static st.orm.core.template.TemplateString.wrap;
 /**
  * Base implementation for all repositories.
  */
-abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
+abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
 
     protected final ORMTemplate ormTemplate;
     protected final Model<E, ID> model;
@@ -191,7 +192,7 @@ abstract class BaseRepositoryImpl<E extends Record, ID> implements Repository {
      * @return a new query builder for selecting refs to entities.
      * @since 1.3
      */
-    public <R extends Record> QueryBuilder<E, Ref<R>, ID> selectRef(@Nonnull Class<R> refType) {
+    public <R extends Data> QueryBuilder<E, Ref<R>, ID> selectRef(@Nonnull Class<R> refType) {
         var pkType = ormTemplate.model(refType, true).primaryKeyType();
         return selectRefFrom(ormTemplate, model.type(), refType, pkType, () -> model);
     }

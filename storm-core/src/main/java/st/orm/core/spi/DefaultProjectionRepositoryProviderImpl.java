@@ -30,7 +30,7 @@ import st.orm.core.template.ORMTemplate;
 public class DefaultProjectionRepositoryProviderImpl implements ProjectionRepositoryProvider {
 
     @Override
-    public <ID, P extends Record & Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(
+    public <ID, P extends Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(
             @Nonnull ORMTemplate ormTemplate,
             @Nonnull Model<P, ID> model) {
         return new ProjectionRepositoryImpl<>(ormTemplate, model);

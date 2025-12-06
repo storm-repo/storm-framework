@@ -28,7 +28,7 @@ import st.orm.Entity;
 public class OracleEntityRepositoryProviderImpl implements EntityRepositoryProvider {
 
     @Override
-    public <ID, E extends Record & Entity<ID>> EntityRepository<E, ID> getEntityRepository(
+    public <ID, E extends Entity<ID>> EntityRepository<E, ID> getEntityRepository(
             @Nonnull ORMTemplate ormTemplate,
             @Nonnull Model<E, ID> model) {
         return new OracleEntityRepositoryImpl<>(ormTemplate, model);

@@ -26,4 +26,4 @@ import st.orm.Ref
  * val myEntityRef = myEntity.ref()
  * ```
  */
-fun <E> E.ref(): Ref<E> where E : Record, E : Entity<*> = Ref.of(this)
+fun <E : Entity<*>> E.ref(): Ref<E> = Ref.of(this)

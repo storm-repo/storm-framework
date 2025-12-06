@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.Data;
 import st.orm.core.model.Address;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
@@ -54,6 +55,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static st.orm.GenerationStrategy.NONE;
 import static st.orm.core.template.Templates.alias;
 import static st.orm.core.template.Templates.from;
 import static st.orm.core.template.Templates.insert;
@@ -64,7 +66,6 @@ import static st.orm.core.template.Templates.table;
 import static st.orm.core.template.Templates.update;
 import static st.orm.core.template.Templates.values;
 import static st.orm.core.template.Templates.where;
-import static st.orm.core.template.ORMTemplate.of;
 import static st.orm.core.template.SqlInterceptor.observe;
 import static st.orm.core.template.TemplateString.raw;
 import static st.orm.Operator.BETWEEN;
@@ -149,8 +150,8 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectPetWithRecord() {
-        record Owner(String firstName, String lastName, String telephone) {}
-        record Pet(String name, LocalDate birthDate, Owner owner) {}
+        record Owner(String firstName, String lastName, String telephone) implements Data {}
+        record Pet(String name, LocalDate birthDate, Owner owner) implements Data {}
         String nameFilter = "%y%";
         var query = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
@@ -271,7 +272,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 int id,
                 LocalDate visitDate,
                 String description
-        ) {}
+        ) implements Data {}
         LocalDate localDate = LocalDate.of(2023, 1, 9);
         ZonedDateTime zonedDateTime = localDate.atStartOfDay(ZoneId.of("UTC"));
         Date date = Date.from(zonedDateTime.toInstant());
@@ -291,7 +292,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 int id,
                 LocalDate visitDate,
                 String description
-        ) {}
+        ) implements Data {}
         LocalDate localDate = LocalDate.of(2023, 1, 9);
         ZonedDateTime zonedDateTime = localDate.atStartOfDay(ZoneId.of("UTC"));
         Date date = Date.from(zonedDateTime.toInstant());
@@ -311,7 +312,7 @@ public class TemplatePreparedStatementIntegrationTest {
                 int id,
                 LocalDate visitDate,
                 String description
-        ) {}
+        ) implements Data {}
         Calendar calendar = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
         calendar.set(2023, Calendar.JANUARY, 9, 0, 0, 0);
         calendar.set(Calendar.MILLISECOND, 0);
@@ -559,7 +560,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testWith() {
-        record FilteredPet(int id, @FK Owner owner) {}
+        record FilteredPet(int id, @FK Owner owner) implements Data {}
         String nameFilter = "%y%";
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 WITH filtered_pet AS (
@@ -581,8 +582,8 @@ public class TemplatePreparedStatementIntegrationTest {
                 String firstName,
                 String lastName,
                 Address address,
-                String telephone) {}
-        record FilteredPet(int id, @FK Owner owner) {}
+                String telephone) implements Data {}
+        record FilteredPet(int id, @FK Owner owner) implements Data {}
         String nameFilter = "%y%";
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 WITH filtered_pet AS (
@@ -660,7 +661,7 @@ public class TemplatePreparedStatementIntegrationTest {
     @DbTable("vet_specialty")
     public record VetSpecialtyRefPk(
             // PK does not reflect the database, but suffices for the test case.
-            @PK @FK @DbColumn("vet_id") Ref<Vet> id,
+            @PK(generation = NONE) @FK @DbColumn("vet_id") Ref<Vet> id,
             @Nonnull @FK Specialty specialty) implements Entity<Ref<Vet>> {
     }
 
@@ -772,7 +773,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testUpdateSetWhere() {
-        var update = new Pet(1, "Leona", LocalDate.now(), PetType.builder().id(1).build(), Owner.builder().id(1).build());
+        var update = new Pet(1, "Leona", LocalDate.now(), Ref.of(PetType.builder().id(1).build()), Owner.builder().id(1).build());
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 UPDATE \0
                 SET \0
@@ -791,7 +792,7 @@ public class TemplatePreparedStatementIntegrationTest {
     public void testUpdateSetWhereWithAlias() {
         var update = petRepository.findById(1).toBuilder()
                 .name("Leona")
-                .type(PetType.builder().id(1).build())
+                .type(Ref.of(PetType.builder().id(1).build()))
                 .build();
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 UPDATE \0
@@ -820,7 +821,7 @@ public class TemplatePreparedStatementIntegrationTest {
             @Nonnull @Persist(updatable = false) LocalDate birthDate,
             @Nonnull @FK @Persist @DbColumn("type_id") PetType petType,
             @Nullable @FK Owner owner
-    ) {}
+    ) implements Data {}
 
     @Test
     public void testUpdateSetWhereWithAliasAndUpdatableType() {
@@ -853,9 +854,8 @@ public class TemplatePreparedStatementIntegrationTest {
     @Test
     public void testUpdateSetWhereWithAliasClash() {
         String expectedSql = """
-                SELECT p.id, p.name, p.birth_date, pt.id, pt.name, o1.id, o1.first_name, o1.last_name, o1.address, c1.id, c1.name, o1.telephone, o1.version
+                SELECT p.id, p.name, p.birth_date, p.type_id, o1.id, o1.first_name, o1.last_name, o1.address, c1.id, c1.name, o1.telephone, o1.version
                 FROM pet p
-                INNER JOIN pet_type pt ON p.type_id = pt.id
                 LEFT JOIN owner o1 ON p.owner_id = o1.id
                 LEFT JOIN city c1 ON o1.city_id = c1.id
                 INNER JOIN owner o ON p.owner_id = o.id
@@ -902,7 +902,7 @@ public class TemplatePreparedStatementIntegrationTest {
             @Nonnull @Persist(updatable = false) LocalDate birthDate,
             @Nonnull @FK @DbColumn("type_id") PetType petType,
             @Nullable @FK Owner owner
-    ) {}
+    ) implements Data {}
 
     @Test
     public void testUpdateSetWhereWithAliasAndUpdatableTypeWithoutPersist() {

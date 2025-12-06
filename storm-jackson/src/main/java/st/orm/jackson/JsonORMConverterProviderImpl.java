@@ -22,8 +22,8 @@ import st.orm.core.spi.ORMConverterProvider;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
 import st.orm.Json;
+import st.orm.mapping.RecordField;
 
-import java.lang.reflect.RecordComponent;
 import java.util.Optional;
 
 import static java.util.Optional.empty;
@@ -38,22 +38,22 @@ public class JsonORMConverterProviderImpl implements ORMConverterProvider {
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
     /**
-     * Retrieves the converter for the specified record component.
+     * Retrieves the converter for the specified record field.
      *
-     * @param component the record component for which to get the converter
+     * @param field the record field for which to get the converter.
      * @return an Optional containing the ORMConverter if available, or empty if not supported.
      */
     @Override
-    public Optional<ORMConverter> getConverter(@Nonnull RecordComponent component) {
-        Json json = REFLECTION.getAnnotation(component, Json.class);
+    public Optional<ORMConverter> getConverter(@Nonnull RecordField field) {
+        Json json = field.getAnnotation(Json.class);
         if (json == null) {
             return empty();
         }
         TypeReference<?> typeRef = new TypeReference<>() {
             public java.lang.reflect.Type getType() {
-                return component.getGenericType();
+                return field.genericType();
             }
         };
-        return Optional.of(new JsonORMConverterImpl(component, typeRef, json));
+        return Optional.of(new JsonORMConverterImpl(field, typeRef, json));
     }
 }

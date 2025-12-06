@@ -17,7 +17,7 @@ package st.orm.template;
 
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.EntityManager;
-import st.orm.config.TemplateDecorator;
+import st.orm.mapping.TemplateDecorator;
 import st.orm.repository.EntityRepository;
 import st.orm.repository.ProjectionRepository;
 import st.orm.repository.RepositoryLookup;
