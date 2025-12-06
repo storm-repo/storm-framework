@@ -40,7 +40,7 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) : Quer
      * @param <ID> the type of the entity's primary key.
      * @return the repository for the given entity type.
      */
-    override fun <T, ID : Any> entity(type: KClass<T>): EntityRepository<T, ID> where T : Record, T : Entity<ID> {
+    override fun <T : Entity<ID>, ID : Any> entity(type: KClass<T>): EntityRepository<T, ID> {
         return EntityRepositoryImpl(core.entity(type.java))
     }
 
@@ -52,7 +52,7 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) : Quer
      * @param <ID> the type of the projection's primary key, or Void if the projection specifies no primary key.
      * @return the repository for the given projection type.
      */
-    override fun <T, ID: Any> projection(type: KClass<T>): ProjectionRepository<T, ID> where T : Record, T : Projection<ID> {
+    override fun <T : Projection<ID>, ID: Any> projection(type: KClass<T>): ProjectionRepository<T, ID> {
         return ProjectionRepositoryImpl(core.projection(type.java))
     }
 

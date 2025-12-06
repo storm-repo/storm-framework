@@ -18,10 +18,10 @@ package st.orm.core.template;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
-import st.orm.config.ColumnNameResolver;
-import st.orm.config.ForeignKeyResolver;
-import st.orm.config.TableNameResolver;
-import st.orm.config.TemplateDecorator;
+import st.orm.mapping.ColumnNameResolver;
+import st.orm.mapping.ForeignKeyResolver;
+import st.orm.mapping.TableNameResolver;
+import st.orm.mapping.TemplateDecorator;
 import st.orm.core.spi.Provider;
 import st.orm.core.template.impl.JpaTemplateImpl;
 

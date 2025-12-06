@@ -22,18 +22,24 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
+import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
 import st.orm.core.spi.RefFactory;
+import st.orm.mapping.RecordField;
 
 import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.function.Supplier;
 
 @SuppressWarnings("ALL")
 public class RefDeserializer extends JsonDeserializer<Ref<?>>
         implements ContextualDeserializer {
+    private static final ConcurrentMap<Class<?>, Class<?>> PK_CACHE = new ConcurrentHashMap<>();
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
     private final JavaType wrapperType;
     private final Supplier<RefFactory> refFactorySupplier;
@@ -61,9 +67,17 @@ public class RefDeserializer extends JsonDeserializer<Ref<?>>
         }
         // Grab the T from Ref<T>.
         JavaType contentType = wrapperType.containedType(0);
-        Class<? extends Record> target = (Class<? extends Record>) contentType.getRawClass();
-        Class<?> pkType = REFLECTION.findPKType(target)
-                .orElseThrow(() -> new PersistenceException("No primary key type found for %s.".formatted(target.getSimpleName())));
+        Class<? extends Data> target = (Class<? extends Data>) contentType.getRawClass();
+        Class<?> pkType = PK_CACHE.computeIfAbsent(target, ignore ->
+                REFLECTION.getRecordType(target).fields().stream()
+                        .filter(field -> field.isAnnotationPresent(PK.class))
+                        .findFirst()
+                        .map(RecordField::type)
+                        .orElse(null)
+        );
+        if (pkType == null) {
+            throw new PersistenceException("No primary key type found for %s.".formatted(target.getSimpleName()));
+        }
         Object pk = p.readValueAs(pkType);
         return refFactorySupplier.get().create(target, pk);
     }

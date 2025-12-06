@@ -51,5 +51,5 @@ package st.orm;
  *
  * @param <ID> the type of the projection's primary key, or Void if the projection has no primary key.
  */
-public interface Projection<ID> {
+public interface Projection<ID> extends Data {
 }

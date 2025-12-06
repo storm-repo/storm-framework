@@ -37,7 +37,7 @@ public interface BindVars {
          * @param record the record that is being processed.
          * @since 1.2
          */
-        void onRecord(@Nonnull Record record);
+        void onRecord(@Nonnull Data record);
     }
 
     /**

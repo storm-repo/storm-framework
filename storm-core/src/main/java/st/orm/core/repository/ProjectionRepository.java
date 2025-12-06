@@ -16,6 +16,7 @@
 package st.orm.core.repository;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.Ref;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
@@ -41,7 +42,7 @@ import java.util.stream.Stream;
  * @param <P> the type of projection managed by this repository.
  * @param <ID> the type of the primary key of the projection, or {@link Void} if the projection has no primary key.
  */
-public interface ProjectionRepository<P extends Record & Projection<ID>, ID> extends Repository {
+public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repository {
     
     /**
      * Returns the default slice size applied by the repository.
@@ -134,7 +135,7 @@ public interface ProjectionRepository<P extends Record & Projection<ID>, ID> ext
      * @return a new query builder for selecting refs to projections.
      * @since 1.3
      */
-    <R extends Record> QueryBuilder<P, Ref<R>, ID> selectRef(@Nonnull Class<R> refType);
+    <R extends Data> QueryBuilder<P, Ref<R>, ID> selectRef(@Nonnull Class<R> refType);
 
     // Base methods.
 

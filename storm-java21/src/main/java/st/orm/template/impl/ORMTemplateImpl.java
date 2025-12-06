@@ -55,7 +55,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
      * @return the repository for the given entity type.
      */
     @Override
-    public <T extends Record & Entity<ID>, ID> EntityRepository<T, ID> entity(@Nonnull Class<T> type) {
+    public <T extends Entity<ID>, ID> EntityRepository<T, ID> entity(@Nonnull Class<T> type) {
         return new EntityRepositoryImpl<>(core.entity(type));
     }
 
@@ -68,7 +68,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
      * @return the repository for the given projection type.
      */
     @Override
-    public <T extends Record & Projection<ID>, ID> ProjectionRepository<T, ID> projection(@Nonnull Class<T> type) {
+    public <T extends Projection<ID>, ID> ProjectionRepository<T, ID> projection(@Nonnull Class<T> type) {
         return new ProjectionRepositoryImpl<>(core.projection(type));
     }
 
@@ -128,7 +128,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     }
 
     @SuppressWarnings("unchecked")
-    private <T extends Record & Entity<ID>, ID> Optional<EntityRepository<T, ID>> createEntityRepository(@Nonnull Class<?> type) {
+    private <T extends Entity<ID>, ID> Optional<EntityRepository<T, ID>> createEntityRepository(@Nonnull Class<?> type) {
         if (EntityRepository.class.isAssignableFrom(type)) {
             Class<?> entityClass = null;
             // Attempt to find the generic interface that directly extends Repository.
@@ -155,7 +155,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     }
 
     @SuppressWarnings("unchecked")
-    private <T extends Record & Projection<ID>, ID> Optional<ProjectionRepository<T, ID>> createProjectionRepository(@Nonnull Class<?> type) {
+    private <T extends Projection<ID>, ID> Optional<ProjectionRepository<T, ID>> createProjectionRepository(@Nonnull Class<?> type) {
         if (ProjectionRepository.class.isAssignableFrom(type)) {
             Class<?> projectionClass = null;
             // Attempt to find the generic interface that directly extends Repository.

@@ -17,6 +17,7 @@ package st.orm.core.model;
 
 import jakarta.annotation.Nonnull;
 import lombok.Builder;
+import st.orm.Entity;
 import st.orm.PK;
 
 /**
@@ -26,4 +27,4 @@ import st.orm.PK;
 public record PetType(
         @PK Integer id,
         @Nonnull String name
-) {}
+) implements Entity<Integer> {}

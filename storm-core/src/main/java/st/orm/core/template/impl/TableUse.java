@@ -16,6 +16,7 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -33,19 +34,19 @@ class TableUse {
     private final Set<TableAlias> referencedTables;
     private final Map<TableAlias, Set<TableAlias>> precedingTables;
 
-    private record TableAlias(Class<? extends Record> table, String alias) {}
+    private record TableAlias(Class<?> table, String alias) {}
 
     TableUse() {
         this.referencedTables = new HashSet<>();
         this.precedingTables = new HashMap<>();
     }
 
-    public void addReferencedTable(@Nonnull Class<? extends Record> table, @Nonnull String alias) {
+    public void addReferencedTable(@Nonnull Class<?> table, @Nonnull String alias) {
         markAsReferencedWithAncestors(new TableAlias(table, alias));
     }
 
-    public void addAutoJoinTable(@Nonnull Class<? extends Record> joinTable, @Nonnull String joinAlias,
-                                 @Nonnull Class<? extends Record> precedingTable, @Nonnull String precedingAlias) {
+    public void addAutoJoinTable(@Nonnull Class<? extends Data> joinTable, @Nonnull String joinAlias,
+                                 @Nonnull Class<? extends Data> precedingTable, @Nonnull String precedingAlias) {
         var child  = new TableAlias(joinTable, joinAlias);
         var parent = new TableAlias(precedingTable, precedingAlias);
         precedingTables.computeIfAbsent(child, ignore -> new HashSet<>()).add(parent);
@@ -54,7 +55,7 @@ class TableUse {
         }
     }
 
-    public boolean isReferenced(@Nonnull Class<? extends Record> table, @Nonnull String alias) {
+    public boolean isReferenced(@Nonnull Class<? extends Data> table, @Nonnull String alias) {
         return referencedTables.contains(new TableAlias(table, alias));
     }
 

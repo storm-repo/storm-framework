@@ -16,6 +16,7 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.PersistenceException;
 import st.orm.core.template.Query;
 import st.orm.core.template.Column;
@@ -39,7 +40,7 @@ import static st.orm.core.template.TemplateString.wrap;
  * @param <T> the type of the table being queried.
  * @param <ID> the type of the primary key.
  */
-public class DeleteBuilderImpl<T extends Record, ID> extends QueryBuilderImpl<T, Object, ID> {
+public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, Object, ID> {
 
     private final boolean safe;
 

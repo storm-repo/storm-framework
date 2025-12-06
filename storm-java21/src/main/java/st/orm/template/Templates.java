@@ -19,6 +19,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import st.orm.BindVars;
+import st.orm.Data;
 import st.orm.Metamodel;
 import st.orm.Operator;
 import st.orm.ResolveScope;
@@ -188,7 +189,7 @@ public interface Templates {
      * @param table the {@link Class} object representing the table record.
      * @return an {@link Element} representing the SELECT clause for the specified table.
      */
-    static Element select(Class<? extends Record> table) {
+    static Element select(Class<? extends Data> table) {
         return select(table, NESTED);
     }
 
@@ -218,7 +219,7 @@ public interface Templates {
      * include only the primary key fields.
      * @return an {@link Element} representing the SELECT clause for the specified table.
      */
-    static Element select(@Nonnull Class<? extends Record> table, @Nonnull SelectMode mode) {
+    static Element select(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode) {
         return new Select(table, mode);
     }
 
@@ -248,7 +249,7 @@ public interface Templates {
      * @param autoJoin if {@code true}, automatically join all foreign keys listed in the record.
      * @return an {@link Element} representing the FROM clause for the specified table.
      */
-    static Element from(@Nonnull Class<? extends Record> table, boolean autoJoin) {
+    static Element from(@Nonnull Class<? extends Data> table, boolean autoJoin) {
         return new From(table, autoJoin);
     }
 
@@ -271,7 +272,7 @@ public interface Templates {
      * @param autoJoin if {@code true}, automatically join all foreign keys listed in the record.
      * @return an {@link Element} representing the FROM clause for the specified table.
      */
-    static Element from(@Nonnull Class<? extends Record> table, @Nonnull String alias, boolean autoJoin) {
+    static Element from(@Nonnull Class<? extends Data> table, @Nonnull String alias, boolean autoJoin) {
         return new From(new TableSource(table), requireNonNull(alias, "alias"), autoJoin);
     }
 
@@ -322,7 +323,7 @@ public interface Templates {
      * @param table the {@link Class} object representing the table record.
      * @return an {@link Element} representing the INSERT clause for the specified table.
      */
-    static Element insert(@Nonnull Class<? extends Record> table) {
+    static Element insert(@Nonnull Class<? extends Data> table) {
         return new Insert(table);
     }
 
@@ -353,14 +354,14 @@ public interface Templates {
      *                           key value (e.g., migrations, data exports).
      * @return an {@link Element} representing the INSERT clause for the specified table.
      */
-    static Element insert(@Nonnull Class<? extends Record> table, boolean ignoreAutoGenerate) {
+    static Element insert(@Nonnull Class<? extends Data> table, boolean ignoreAutoGenerate) {
         return new Insert(table, ignoreAutoGenerate);
     }
 
     /**
      * Generates a VALUES clause for the specified record instance(s).
      *
-     * <p>This method creates a {@code VALUES} clause using the provided {@link Record} instance(s).
+     * <p>This method creates a {@code VALUES} clause using the provided {@link Data} instance(s).
      * It is intended to be used within SQL string templates to dynamically construct INSERT statements with
      * the given values.
      *
@@ -374,26 +375,26 @@ public interface Templates {
      * detects that a VALUES element is required based on its placement in the query:
      * <pre>{@code
      * INSERT INTO \{MyTable.class}
-     * VALUES \{new Record[] {entity1, entity2}}
+     * VALUES \{new Data[] {entity1, entity2}}
      * }</pre>
      *
-     * <p>Here, {@code entity1}, {@code entity2}, etc., are instances of the {@code Record} class containing
+     * <p>Here, {@code entity1}, {@code entity2}, etc., are instances of the {@code Data} class containing
      * the values to be inserted.
      *
-     * @param r one or more {@link Record} instances containing the values to be inserted.
+     * @param r one or more {@link Data} instances containing the values to be inserted.
      * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
      *                           provided primary key value. Use this flag only when intentionally providing the primary
      *                           key value (e.g., migrations, data exports).
      * @return an {@link Element} representing the VALUES clause with the specified records.
      */
-    static Element values(@Nonnull Record r, boolean ignoreAutoGenerate) {
+    static Element values(@Nonnull Data r, boolean ignoreAutoGenerate) {
         return new Values(List.of(r), null, ignoreAutoGenerate);
     }
 
     /**
      * Generates a VALUES clause for the specified record instance(s).
      *
-     * <p>This method creates a {@code VALUES} clause using the provided {@link Record} instance(s).
+     * <p>This method creates a {@code VALUES} clause using the provided {@link Data} instance(s).
      * It is intended to be used within SQL string templates to dynamically construct INSERT statements with
      * the given values.
      *
@@ -407,23 +408,23 @@ public interface Templates {
      * detects that a VALUES element is required based on its placement in the query:
      * <pre>{@code
      * INSERT INTO \{MyTable.class}
-     * VALUES \{new Record[] {entity1, entity2}}
+     * VALUES \{new Data[] {entity1, entity2}}
      * }</pre>
      *
-     * <p>Here, {@code entity1}, {@code entity2}, etc., are instances of the {@code Record} class containing
+     * <p>Here, {@code entity1}, {@code entity2}, etc., are instances of the {@code Data} class containing
      * the values to be inserted.
      *
-     * @param r one or more {@link Record} instances containing the values to be inserted.
+     * @param r one or more {@link Data} instances containing the values to be inserted.
      * @return an {@link Element} representing the VALUES clause with the specified records.
      */
-    static Element values(@Nonnull Record... r) {
+    static Element values(@Nonnull Data... r) {
         return new Values(Arrays.asList(r), null);
     }
 
     /**
      * Generates a VALUES clause for the specified iterable of record instances.
      *
-     * <p>This method creates a {@code VALUES} clause using the provided {@link Iterable} of {@link Record} instances.
+     * <p>This method creates a {@code VALUES} clause using the provided {@link Iterable} of {@link Data} instances.
      * It is intended to be used within SQL string templates to dynamically construct INSERT statements with
      * the given values.
      *
@@ -440,20 +441,20 @@ public interface Templates {
      * VALUES \{records}
      * }</pre>
      *
-     * <p>Here, {@code records} is an {@link Iterable} of {@code Record} instances containing
+     * <p>Here, {@code records} is an {@link Iterable} of {@code Data} instances containing
      * the values to be inserted.
      *
-     * @param records an {@link Iterable} of {@link Record} instances containing the values to be inserted.
+     * @param records an {@link Iterable} of {@link Data} instances containing the values to be inserted.
      * @return an {@link Element} representing the VALUES clause with the specified records.
      */
-    static Element values(@Nonnull Iterable<? extends Record> records) {
+    static Element values(@Nonnull Iterable<? extends Data> records) {
         return new Values(records, null);
     }
 
     /**
      * Generates a VALUES clause for the specified iterable of record instances.
      *
-     * <p>This method creates a {@code VALUES} clause using the provided {@link Iterable} of {@link Record} instances.
+     * <p>This method creates a {@code VALUES} clause using the provided {@link Iterable} of {@link Data} instances.
      * It is intended to be used within SQL string templates to dynamically construct INSERT statements with
      * the given values.
      *
@@ -470,16 +471,16 @@ public interface Templates {
      * VALUES \{records}
      * }</pre>
      *
-     * <p>Here, {@code records} is an {@link Iterable} of {@code Record} instances containing
+     * <p>Here, {@code records} is an {@link Iterable} of {@code Data} instances containing
      * the values to be inserted.
      *
-     * @param records an {@link Iterable} of {@link Record} instances containing the values to be inserted.
+     * @param records an {@link Iterable} of {@link Data} instances containing the values to be inserted.
      * @param ignoreAutoGenerate true to ignore the auto-generate flag on the primary key and explicitly insert the
      *                           provided primary key value. Use this flag only when intentionally providing the primary
      *                           key value (e.g., migrations, data exports).
      * @return an {@link Element} representing the VALUES clause with the specified records.
      */
-    static Element values(@Nonnull Iterable<? extends Record> records, boolean ignoreAutoGenerate) {
+    static Element values(@Nonnull Iterable<? extends Data> records, boolean ignoreAutoGenerate) {
         return new Values(records, null, ignoreAutoGenerate);
     }
 
@@ -577,12 +578,12 @@ public interface Templates {
      * WHERE \{record}
      * }</pre>
      *
-     * <p>Here, {@code record} is an instance of the {@code Record} class containing the values to be updated.
+     * <p>Here, {@code record} is an instance of the {@code Data} class containing the values to be updated.
      *
      * @param table the {@link Class} object representing the table record.
      * @return an {@link Element} representing the UPDATE clause for the specified table.
      */
-    static Element update(@Nonnull Class<? extends Record> table) {
+    static Element update(@Nonnull Class<? extends Data> table) {
         return new Update(table);
     }
 
@@ -600,20 +601,20 @@ public interface Templates {
      * WHERE \{where(record)}
      * }</pre>
      *
-     * <p>Here, {@code record} is an instance of the {@code Record} class containing the values to be updated.
+     * <p>Here, {@code record} is an instance of the {@code Data} class containing the values to be updated.
      *
      * @param table the {@link Class} object representing the table record.
      * @param alias the alias to use for the table in the query. The alias must not require escaping.
      * @return an {@link Element} representing the UPDATE clause for the specified table with alias.
      */
-    static Element update(@Nonnull Class<? extends Record> table, @Nonnull String alias) {
+    static Element update(@Nonnull Class<? extends Data> table, @Nonnull String alias) {
         return new Update(table, alias);
     }
 
     /**
      * Generates a SET clause for the specified record.
      *
-     * <p>This method creates a {@code SET} clause using the provided {@link Record} instance. It is intended to be used
+     * <p>This method creates a {@code SET} clause using the provided {@link Data} instance. It is intended to be used
      * within SQL string templates to dynamically construct UPDATE statements with the given values.
      *
      * <p>Example usage in a string template:
@@ -631,12 +632,12 @@ public interface Templates {
      * WHERE \{record}
      * }</pre>
      *
-     * <p>Here, {@code record} is an instance of the {@code Record} class containing the values to be set.
+     * <p>Here, {@code record} is an instance of the {@code Data} class containing the values to be set.
      *
-     * @param record the {@link Record} instance containing the values to be set.
+     * @param record the {@link Data} instance containing the values to be set.
      * @return an {@link Element} representing the SET clause with the specified record.
      */
-    static Element set(@Nonnull Record record) {
+    static Element set(@Nonnull Data record) {
         return new Set(requireNonNull(record, "record"), null);
     }
 
@@ -689,7 +690,7 @@ public interface Templates {
      * <ul>
      *   <li>Primitive values matching the primary key of the root table.</li>
      *   <li>Instances of {@link Record} matching the compound primary key of the root table.</li>
-     *   <li>Instances of {@link Record} representing records of related (foreign key) tables in the hierarchy of the
+     *   <li>Instances of {@link Data} representing records of related (foreign key) tables in the hierarchy of the
      *   root table.</li>
      * </ul>
      *
@@ -749,7 +750,7 @@ public interface Templates {
      * <ul>
      *   <li>Primitive values matching the primary key of the root table.</li>
      *   <li>Instances of {@link Record} matching the compound primary key of the root table.</li>
-     *   <li>Instances of {@link Record} representing records of related (foreign key) tables in the hierarchy of the
+     *   <li>Instances of {@link Data} representing records of related (foreign key) tables in the hierarchy of the
      *   root table.</li>
      * </ul>
      *
@@ -922,7 +923,7 @@ public interface Templates {
      * WHERE \{record}
      * }</pre>
      *
-     * <p>Here, {@code record} is an instance of the {@link Record} class containing the criteria for deletion.
+     * <p>Here, {@code record} is an instance of the {@link Data} class containing the criteria for deletion.
      *
      * <p><strong>Note:</strong> In most databases, specifying the table in the DELETE clause is not
      * necessary, or even disallowed; the DELETE statement is usually constructed with only a FROM clause:</p>
@@ -935,7 +936,7 @@ public interface Templates {
      * @param table the {@link Class} object representing the table record.
      * @return an {@link Element} representing the DELETE clause for the specified table.
      */
-    static Element delete(@Nonnull Class<? extends Record> table) {
+    static Element delete(@Nonnull Class<? extends Data> table) {
         return new Delete(table);
     }
 
@@ -952,7 +953,7 @@ public interface Templates {
      * WHERE \{where(record)}
      * }</pre>
      *
-     * <p>Here, {@code record} is an instance of the {@link Record} class containing the criteria for deletion.
+     * <p>Here, {@code record} is an instance of the {@link Data} class containing the criteria for deletion.
      *
      * <p><strong>Note:</strong> In most databases, specifying the table in the DELETE clause with an alias
      * is not necessary; the DELETE statement can be constructed with only a FROM clause and an alias:</p>
@@ -966,7 +967,7 @@ public interface Templates {
      * @param alias the alias to use for the table in the query. The alias must not require escaping.
      * @return an {@link Element} representing the DELETE clause for the specified table with an alias.
      */
-    static Element delete(@Nonnull Class<? extends Record> table, @Nonnull String alias) {
+    static Element delete(@Nonnull Class<? extends Data> table, @Nonnull String alias) {
         return new Delete(table, alias);
     }
 
@@ -1007,7 +1008,7 @@ public interface Templates {
      * @param table the {@link Class} object representing the table record.
      * @return an {@link Element} representing the table.
      */
-    static Element table(@Nonnull Class<? extends Record> table) {
+    static Element table(@Nonnull Class<? extends Data> table) {
         return new Table(table);
     }
 
@@ -1032,7 +1033,7 @@ public interface Templates {
      * @param alias the alias to use for the table in the query. The alias must not require escaping.
      * @return an {@link Element} representing the table with an alias.
      */
-    static Element table(@Nonnull Class<? extends Record> table, @Nonnull String alias) {
+    static Element table(@Nonnull Class<? extends Data> table, @Nonnull String alias) {
         return new Table(table, alias);
     }
 
@@ -1066,7 +1067,7 @@ public interface Templates {
      * @param table the {@link Class} object representing the table record.
      * @return an {@link Element} representing the table's alias.
      */
-    static Element alias(@Nonnull Class<? extends Record> table) {
+    static Element alias(@Nonnull Class<? extends Data> table) {
         return new Alias(table, CASCADE);
     }
 
@@ -1102,7 +1103,7 @@ public interface Templates {
      *        aliases, LOCAL to include local aliases only, and OUTER to include outer aliases only.
      * @return an {@link Element} representing the table's alias.
      */
-    static Element alias(@Nonnull Class<? extends Record> table, @Nonnull ResolveScope scope) {
+    static Element alias(@Nonnull Class<? extends Data> table, @Nonnull ResolveScope scope) {
         return new Alias(table, scope);
     }
 
@@ -1392,7 +1393,7 @@ public interface Templates {
      * @param extractor the function used to extract the value from the record for the bind variable.
      * @return a new {@link Element} representing the bind variable.
      */
-    static Element bindVar(@Nonnull BindVars bindVars, @Nonnull Function<Record, ?> extractor) {
+    static Element bindVar(@Nonnull BindVars bindVars, @Nonnull Function<Data, ?> extractor) {
         return new BindVar(bindVars, extractor);
     }
 

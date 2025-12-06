@@ -16,6 +16,7 @@
 package st.orm.repository
 
 import kotlinx.coroutines.flow.Flow
+import st.orm.Data
 import st.orm.Metamodel
 import st.orm.Operator.EQUALS
 import st.orm.Operator.IN
@@ -38,7 +39,7 @@ import kotlin.reflect.KClass
  * @param <P> the type of projection managed by this repository.
  * @param <ID> the type of the primary key of the projection, or [Void] if the projection has no primary key.
  */
-interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : Projection<ID> {
+interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID> {
     /**
      * Returns the projection model associated with this repository.
      *
@@ -135,7 +136,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @return a new query builder for selecting refs to projections.
      * @since 1.3
      */
-    fun <R : Record> selectRef(refType: KClass<R>): QueryBuilder<P, Ref<R>, ID>
+    fun <R : Data> selectRef(refType: KClass<R>): QueryBuilder<P, Ref<R>, ID>
 
     // Base methods.
     /**
@@ -570,7 +571,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V : Record> findBy(field: Metamodel<P, V>, value: Ref<V>): P? =
+    fun <V : Data> findBy(field: Metamodel<P, V>, value: Ref<V>): P? =
         select().where(field, value).optionalResult
 
     /**
@@ -611,7 +612,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V : Record> findAllBy(field: Metamodel<P, V>, value: Ref<V>): List<P> =
+    fun <V : Data> findAllBy(field: Metamodel<P, V>, value: Ref<V>): List<P> =
         select().where(field, value).resultList
 
     /**
@@ -630,7 +631,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Record> selectBy(field: Metamodel<P, V>, value: Ref<V>): Flow<P> =
+    fun <V : Data> selectBy(field: Metamodel<P, V>, value: Ref<V>): Flow<P> =
         select().where(field, value).resultFlow
 
     /**
@@ -671,7 +672,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Record> findAllByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): List<P> =
+    fun <V : Data> findAllByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): List<P> =
         select().whereRef(field, values).resultList
 
     /**
@@ -682,7 +683,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param values Iterable of values to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Record> selectByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): Flow<P> =
+    fun <V : Data> selectByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): Flow<P> =
         select().whereRef(field, values).resultFlow
 
     /**
@@ -708,7 +709,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V : Record> getBy(field: Metamodel<P, V>, value: Ref<V>): P =
+    fun <V : Data> getBy(field: Metamodel<P, V>, value: Ref<V>): P =
         select().where(field, value).singleResult
 
     /**
@@ -730,7 +731,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V : Record> findRefBy(field: Metamodel<P, V>, value: Ref<V>): Ref<P>? =
+    fun <V : Data> findRefBy(field: Metamodel<P, V>, value: Ref<V>): Ref<P>? =
         selectRef().where(field, value).optionalResult
 
     /**
@@ -771,7 +772,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V : Record> findAllRefBy(field: Metamodel<P, V>, value: Ref<V>): List<Ref<P>> =
+    fun <V : Data> findAllRefBy(field: Metamodel<P, V>, value: Ref<V>): List<Ref<P>> =
         selectRef().where(field, value).resultList
 
     /**
@@ -790,7 +791,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Record> selectRefBy(field: Metamodel<P, V>, value: Ref<V>): Flow<Ref<P>> =
+    fun <V : Data> selectRefBy(field: Metamodel<P, V>, value: Ref<V>): Flow<Ref<P>> =
         selectRef().where(field, value).resultFlow
 
     /**
@@ -801,7 +802,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Record> findAllRefBy(field: Metamodel<P, V>, values: Iterable<V>): List<Ref<P>> =
+    fun <V : Data> findAllRefBy(field: Metamodel<P, V>, values: Iterable<V>): List<Ref<P>> =
         selectRef().where(field, IN, values).resultList
 
     /**
@@ -831,7 +832,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Record> findAllRefByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): List<Ref<P>> =
+    fun <V : Data> findAllRefByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): List<Ref<P>> =
         selectRef().whereRef(field, values).resultList
 
     /**
@@ -850,7 +851,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param values Iterable of values to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Record> selectRefByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): Flow<Ref<P>> =
+    fun <V : Data> selectRefByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): Flow<Ref<P>> =
         selectRef().whereRef(field, values).resultFlow
 
     /**
@@ -876,7 +877,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V : Record> getRefBy(field: Metamodel<P, V>, value: Ref<V>): Ref<P> =
+    fun <V : Data> getRefBy(field: Metamodel<P, V>, value: Ref<V>): Ref<P> =
         selectRef().where(field, value).singleResult
 
     /**
@@ -1101,7 +1102,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param value the referenced value to match against.
      * @return the count of matching entities.
      */
-    fun <V : Record> countBy(
+    fun <V : Data> countBy(
         field: Metamodel<P, V>,
         value: Ref<V>
     ): Long =
@@ -1149,7 +1150,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Record, P : P
      * @param value the referenced value to match against.
      * @return true if any matching entities exist, false otherwise.
      */
-    fun <V : Record> existsBy(
+    fun <V : Data> existsBy(
         field: Metamodel<P, V>,
         value: Ref<V>
     ): Boolean =

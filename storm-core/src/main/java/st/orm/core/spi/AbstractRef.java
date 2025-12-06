@@ -15,6 +15,7 @@
  */
 package st.orm.core.spi;
 
+import st.orm.Data;
 import st.orm.Ref;
 
 import java.util.Objects;
@@ -26,7 +27,7 @@ import java.util.Objects;
  * @param <T> record type.
  * @since 1.3
  */
-abstract class AbstractRef<T extends Record> implements Ref<T> {
+abstract class AbstractRef<T extends Data> implements Ref<T> {
 
     @Override
     public int hashCode() {

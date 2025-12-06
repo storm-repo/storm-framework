@@ -16,6 +16,7 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.Ref;
 import st.orm.core.template.Model;
 import st.orm.core.template.QueryBuilder;
@@ -44,12 +45,12 @@ public interface QueryBuilderProvider extends Provider {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    <T extends Record, R, ID> QueryBuilder<T, R, ID> selectFrom(@Nonnull QueryTemplate queryTemplate,
-                                                                @Nonnull Class<T> fromType,
-                                                                @Nonnull Class<R> selectType,
-                                                                @Nonnull TemplateString template,
-                                                                boolean subquery,
-                                                                @Nonnull Supplier<Model<T, ID>> modelSupplier);
+    <T extends Data, R, ID> QueryBuilder<T, R, ID> selectFrom(@Nonnull QueryTemplate queryTemplate,
+                                                              @Nonnull Class<T> fromType,
+                                                              @Nonnull Class<R> selectType,
+                                                              @Nonnull TemplateString template,
+                                                              boolean subquery,
+                                                              @Nonnull Supplier<Model<T, ID>> modelSupplier);
 
     /**
      * Creates a query builder for the specified table and select type using the given {@code template}.
@@ -63,11 +64,11 @@ public interface QueryBuilderProvider extends Provider {
      * @param <T> the table type to select from.
      * @param <ID> the primary key type.
      */
-    <T extends Record, R extends Record, ID> QueryBuilder<T, Ref<R>, ID> selectRefFrom(@Nonnull QueryTemplate queryTemplate,
-                                                                                       @Nonnull Class<T> fromType,
-                                                                                       @Nonnull Class<R> refType,
-                                                                                       @Nonnull Class<?> pkType,
-                                                                                       @Nonnull Supplier<Model<T, ID>> modelSupplier);
+    <T extends Data, R extends Data, ID> QueryBuilder<T, Ref<R>, ID> selectRefFrom(@Nonnull QueryTemplate queryTemplate,
+                                                                                   @Nonnull Class<T> fromType,
+                                                                                   @Nonnull Class<R> refType,
+                                                                                   @Nonnull Class<?> pkType,
+                                                                                   @Nonnull Supplier<Model<T, ID>> modelSupplier);
 
     /**
      * Creates a query builder for the specified table to delete from.
@@ -78,7 +79,7 @@ public interface QueryBuilderProvider extends Provider {
      * @return the query builder.
      * @param <T> the table type to delete from.
      */
-    <T extends Record, ID> QueryBuilder<T, ?, ID> deleteFrom(@Nonnull QueryTemplate queryTemplate,
-                                                             @Nonnull Class<T> fromType,
-                                                             @Nonnull Supplier<Model<T, ID>> modelSupplier);
+    <T extends Data, ID> QueryBuilder<T, ?, ID> deleteFrom(@Nonnull QueryTemplate queryTemplate,
+                                                           @Nonnull Class<T> fromType,
+                                                           @Nonnull Supplier<Model<T, ID>> modelSupplier);
 }

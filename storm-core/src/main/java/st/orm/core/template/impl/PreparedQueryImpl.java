@@ -17,6 +17,7 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Data;
 import st.orm.PersistenceException;
 import st.orm.core.spi.RefFactory;
 import st.orm.core.template.PreparedQuery;
@@ -64,7 +65,7 @@ final class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
      * {@code BatchVars}.
      */
     @Override
-    public void addBatch(@Nonnull Record record) {
+    public void addBatch(@Nonnull Data record) {
         if (bindVarsHandle == null) {
             throw new PersistenceException("No bind vars specified for prepared query.");
         }

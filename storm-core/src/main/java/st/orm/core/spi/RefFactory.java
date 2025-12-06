@@ -16,6 +16,7 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.Ref;
 
 /**
@@ -35,7 +36,7 @@ public interface RefFactory {
      * @param <T> record type.
      * @param <ID> primary key type.
      */
-    <T extends Record, ID> Ref<T> create(@Nonnull Class<T> type, @Nonnull ID pk);
+    <T extends Data, ID> Ref<T> create(@Nonnull Class<T> type, @Nonnull ID pk);
 
     /**
      * Creates a ref instance for the specified {@code record} and {@code pk}. This method can be used to generate
@@ -47,5 +48,5 @@ public interface RefFactory {
      * @param <T> record type.
      * @param <ID> primary key type.
      */
-    <T extends Record, ID> Ref<T> create(@Nonnull T record, @Nonnull ID pk);
+    <T extends Data, ID> Ref<T> create(@Nonnull T record, @Nonnull ID pk);
 }

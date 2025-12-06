@@ -16,23 +16,29 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import st.orm.Data;
 import st.orm.Element;
 import st.orm.Entity;
 import st.orm.FK;
 import st.orm.GenerationStrategy;
 import st.orm.Inline;
 import st.orm.PK;
+import st.orm.PersistenceException;
 import st.orm.Projection;
 import st.orm.ProjectionQuery;
 import st.orm.Ref;
+import st.orm.core.spi.ClasspathScanner;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplate.Parameter;
 import st.orm.core.template.SqlTemplate.PositionalParameter;
 import st.orm.core.template.SqlTemplateException;
+import st.orm.mapping.RecordField;
+import st.orm.mapping.RecordType;
 
-import java.lang.reflect.RecordComponent;
 import java.math.BigInteger;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -44,12 +50,17 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static java.util.Optional.empty;
 import static st.orm.core.spi.Providers.getORMConverter;
-import static st.orm.core.template.impl.RecordReflection.getPkComponent;
-import static st.orm.core.template.impl.RecordReflection.getRefRecordType;
+import static st.orm.core.template.impl.RecordReflection.findPkField;
+import static st.orm.core.template.impl.RecordReflection.getRecordType;
+import static st.orm.core.template.impl.RecordReflection.getRefDataType;
+import static st.orm.core.template.impl.RecordReflection.getRefPkType;
+import static st.orm.core.template.impl.RecordReflection.isRecord;
 
 /**
  * Helper class for validating record types and named parameters.
@@ -58,12 +69,50 @@ import static st.orm.core.template.impl.RecordReflection.getRefRecordType;
 final class RecordValidation {
 
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
+    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.validation");
 
     private RecordValidation() {
     }
 
-    record TypeValidationKey(@Nonnull Class<? extends Record> type, boolean requirePrimaryKey) {}
+    record TypeValidationKey(@Nonnull Class<? extends Data> type, boolean requirePrimaryKey) {}
     private static final Map<TypeValidationKey, String> VALIDATE_RECORD_TYPE_CACHE = new ConcurrentHashMap<>();
+
+    static void init() {
+        // Can be used to trigger validation.
+    }
+
+    static {
+        boolean skipValidation = Boolean.getBoolean("storm.validation.skip");
+        boolean warningsOnly = Boolean.getBoolean("storm.validation.warningsOnly");
+        if (skipValidation) {
+            LOGGER.info("Skipping Data type validation (storm.validation.skip=true).");
+        } else {
+            LOGGER.info("Validating Data types.");
+            var dataTypes = ClasspathScanner.getSubTypesOf(Data.class);
+            var validationErrors = new AtomicInteger();
+            var firstError = new AtomicReference<String>();
+            dataTypes.forEach(
+                    dataType -> {
+                        try {
+                            validateDataType(dataType, Entity.class.isAssignableFrom(dataType));
+                        } catch (SqlTemplateException e) {
+                            validationErrors.incrementAndGet();
+                            firstError.weakCompareAndSetPlain(null, e.getMessage());
+                            LOGGER.warn("Validation failed for %s: %s"
+                                    .formatted(dataType.getSimpleName(), e.getMessage()));
+                        }
+                    }
+            );
+            if (!warningsOnly && firstError.getPlain() != null) {
+                throw new PersistenceException(firstError.getPlain());
+            }
+            if (validationErrors.getPlain() > 0) {
+                LOGGER.warn("Completed Data type validation with %d warnings (storm.validation.warningsOnly=true).".formatted(validationErrors));
+            } else {
+                LOGGER.info("Successfully validated %s Data types.".formatted(dataTypes.size()));
+            }
+        }
+    }
 
     /**
      * Checks if the provided type is a valid primary key type.
@@ -92,98 +141,113 @@ final class RecordValidation {
     /**
      * Validates the provided record type for ORM mapping.
      *
-     * @param type the record type to validate.
+     * @param dataType the record type to validate.
      * @param requirePrimaryKey true if a primary key is required, false otherwise.
      * @param duplicates a set to track duplicate record types to ensure no cycles.
      * @return an empty string if the record type is valid, otherwise an error message.
      */
-    private static String validate(@Nonnull Class<? extends Record> type, boolean requirePrimaryKey, Set<Class<?>> duplicates) {
-        if (!duplicates.add(type)) {
+    private static String validate(@Nonnull Class<? extends Data> dataType, boolean requirePrimaryKey, Set<Class<?>> duplicates) {
+        if (!duplicates.add(dataType)) {
             return "";
         }
         boolean pkFound = false;
-        for (var component : RecordReflection.getRecordComponents(type)) {
-            if (getORMConverter(component).isPresent()) {
+        RecordType type = getRecordType(dataType);
+        for (var field : type.fields()) {
+            if (getORMConverter(field).isPresent()) {
                 for (var annotation : List.of(PK.class, FK.class, Inline.class)) {
-                    if (REFLECTION.isAnnotationPresent(component, annotation)) {
-                        return "Converted component must not be @%s: %s.%s.".formatted(annotation.getSimpleName(), type.getSimpleName(), component.getName());
+                    if (field.isAnnotationPresent(annotation)) {
+                        return "Converted field must not be @%s: %s.%s.".formatted(annotation.getSimpleName(), dataType.getSimpleName(), field.name());
                     }
                 }
                 continue;
             }
-            PK pk = REFLECTION.getAnnotation(component, PK.class);
-            FK fk = REFLECTION.getAnnotation(component, FK.class);
-            Inline inline = REFLECTION.getAnnotation(component, Inline.class);
+            PK pk = field.getAnnotation(PK.class);
+            FK fk = field.getAnnotation(FK.class);
+            Inline inline = field.getAnnotation(Inline.class);
             if (pk != null) {
                 if (pkFound) {
-                    return "Multiple primary keys found: %s.".formatted(type.getSimpleName());
+                    return "Multiple primary keys found: %s.".formatted(dataType.getSimpleName());
                 }
                 pkFound = true;
                 if (fk != null && pk.generation() != GenerationStrategy.NONE) {
-                    return "Foreign key must not be an auto-generated primary key: %s.%s.".formatted(type.getSimpleName(), component.getName());
+                    return "Foreign key must not be an auto-generated primary key: %s.%s.".formatted(dataType.getSimpleName(), field.name());
                 }
-                if (component.getType().isRecord()) {
+                if (isRecord(field.type())) {
                     if (fk == null) {
-                        for (var nestedComponent : RecordReflection.getRecordComponents(component.getType())) {
-                            if (!isValidPrimaryKeyType(nestedComponent.getType())) {
-                                return "Invalid primary key type %s.%s.%s.".formatted(type.getSimpleName(), component.getName(), nestedComponent.getName());
+                        for (var nestedField : getRecordType(field.type()).fields()) {
+                            if (!isValidPrimaryKeyType(nestedField.type())) {
+                                return "Invalid primary key type %s.%s.%s.".formatted(dataType.getSimpleName(), field.name(), nestedField.name());
                             }
                         }
                     }
-                } else if (!isValidPrimaryKeyType(component.getType())) {
-                    return "Invalid primary key type: %s.%s.".formatted(type.getSimpleName(), component.getName());
+                } else if (!isValidPrimaryKeyType(field.type())) {
+                    return "Invalid primary key type: %s.%s.".formatted(dataType.getSimpleName(), field.name());
                 }
             }
             if (fk != null) {
                 if (inline != null) {
-                    return "Foreign key must not be inlined: %s.%s.".formatted(type.getSimpleName(), component.getName());
+                    return "Foreign key must not be inlined: %s.%s.".formatted(dataType.getSimpleName(), field.name());
                 }
-                Class<? extends Record> fkType;
-                if (component.getType().isRecord()) {
-                    fkType = (Class<? extends Record>) component.getType();
-                } else if (Ref.class.isAssignableFrom(component.getType())) {
+                Class<? extends Data> fkType;
+                if (Data.class.isAssignableFrom(field.type())) {
+                    fkType = (Class<? extends Data>) field.type();
+                } else if (Ref.class.isAssignableFrom(field.type())) {
                     try {
-                        fkType = getRefRecordType(component);
+                        fkType = getRefDataType(field);
+                        getRefPkType(field);    // Validaate Ref's PK type.
                     } catch (SqlTemplateException e) {
                         return e.getMessage();
                     }
                 } else {
-                    return "Foreign key must either be a record or a Ref: %s.%s.".formatted(type.getSimpleName(), component.getName());
+                    return "Foreign key must either be a Data type or a Ref: %s.%s.".formatted(dataType.getSimpleName(), field.name());
                 }
                 String message = validate(fkType, true, duplicates);
                 if (!message.isEmpty()) {
-                    return message + " Should %s.%s be marked as @FK?".formatted(component.getDeclaringRecord().getSimpleName(), component.getName());
+                    return message + " Should %s.%s be marked as @FK?".formatted(field.type().getSimpleName(), field.name());
                 }
             }
             if (inline != null) {
-                if (!component.getType().isRecord()) {
-                    return "Inlined component must be a record: %s.%s.".formatted(type.getSimpleName(), component.getName());
+                if (!isRecord(field.type())) {
+                    return "Inlined component must be a record type: %s.%s.".formatted(dataType.getSimpleName(), field.name());
                 }
             }
-            if (component.getType().isRecord()) {
-                if (!REFLECTION.isAnnotationPresent(component, FK.class)) {
-                    if (Entity.class.isAssignableFrom(component.getType())) {
-                        return "Entity component of must be marked as @FK or @Inline: %s.%s.".formatted(type.getSimpleName(), component.getName());
-                    }
-                    if (Projection.class.isAssignableFrom(component.getType())) {
-                        return "Projection component of must be marked as @FK or @Inline: %s.%s.".formatted(type.getSimpleName(), component.getName());
-                    }
-                    if (getPkComponent((Class<? extends Record>) component.getType()).isPresent()) {
-                        return "Inlined component must not have a primary key: %s.%s.".formatted(type.getSimpleName(), component.getName());
+            if (isRecord(field.type())) {
+                if (!field.isAnnotationPresent(FK.class)) {
+                    // Data classes are allowed to wrap entities and projections (without @FK), but Entities and Projections must refer to them as @FK or @Inline.
+                    if (Entity.class.isAssignableFrom(dataType)) {
+                        if (Entity.class.isAssignableFrom(field.type())) {
+                            return "Entities inside entities must be marked as @FK or @Inline: %s.%s.".formatted(dataType.getSimpleName(), field.name());
+                        }
+                        if (Projection.class.isAssignableFrom(field.type())) {
+                            return "Projections inside entities must be marked as @FK or @Inline: %s.%s.".formatted(dataType.getSimpleName(), field.name());
+                        }
+                        if (findPkField((Class<? extends Record>) field.type()).isPresent()) {
+                            return "Inlined field must not have a primary key: %s.%s.".formatted(dataType.getSimpleName(), field.name());
+                        }
+                    } else if (Projection.class.isAssignableFrom(field.type())) {
+                        if (Entity.class.isAssignableFrom(field.type())) {
+                            return "Entities inside projections must be marked as @FK or @Inline: %s.%s.".formatted(dataType.getSimpleName(), field.name());
+                        }
+                        if (Projection.class.isAssignableFrom(field.type())) {
+                            return "Projections inside projections must be marked as @FK or @Inline: %s.%s.".formatted(dataType.getSimpleName(), field.name());
+                        }
+                        if (findPkField((Class<? extends Record>) field.type()).isPresent()) {
+                            return "Inlined field must not have a primary key: %s.%s.".formatted(dataType.getSimpleName(), field.name());
+                        }
                     }
                 }
             }
         }
         if (requirePrimaryKey && !pkFound) {
-            return "No primary key found for %s.".formatted(type.getSimpleName());
+            return "No primary key found for %s.".formatted(dataType.getSimpleName());
         }
-        ProjectionQuery projectionQuery = REFLECTION.getAnnotation(type, ProjectionQuery.class);
+        ProjectionQuery projectionQuery = type.getAnnotation(ProjectionQuery.class);
         if (projectionQuery != null) {
-            if (!Projection.class.isAssignableFrom(type)) {
-                return "ProjectionQuery must only be used on records implementing Projection: %s".formatted(type.getSimpleName());
+            if (!Projection.class.isAssignableFrom(dataType)) {
+                return "ProjectionQuery must only be used on records implementing Projection: %s".formatted(dataType.getSimpleName());
             }
             if (projectionQuery.value().isEmpty()) {
-                return "ProjectionQuery must specify a query: %s".formatted(type.getSimpleName());
+                return "ProjectionQuery must specify a query: %s".formatted(dataType.getSimpleName());
             }
         }
         return "";
@@ -194,22 +258,22 @@ final class RecordValidation {
      *
      * <p>The results of this validation are cached.</p>
      *
-     * @param recordType the record type to validate.
+     * @param dataType the record type to validate.
      * @param requirePrimaryKey true if a primary key is required, false otherwise.
      * @throws SqlTemplateException if the record type is invalid for ORM mapping.
      */
-    static void validateRecordType(@Nonnull Class<? extends Record> recordType, boolean requirePrimaryKey)
+    static void validateDataType(@Nonnull Class<? extends Data> dataType, boolean requirePrimaryKey)
             throws SqlTemplateException {
-        String message = VALIDATE_RECORD_TYPE_CACHE.computeIfAbsent(new TypeValidationKey(recordType, requirePrimaryKey), ignore -> {
+        String message = VALIDATE_RECORD_TYPE_CACHE.computeIfAbsent(new TypeValidationKey(dataType, requirePrimaryKey), ignore -> {
             // Note that this result can be cached as we're inspecting types.
-            return validate(recordType, requirePrimaryKey, new HashSet<>());
+            return validate(dataType, requirePrimaryKey, new HashSet<>());
         });
         if (!message.isEmpty()) {
             throw new SqlTemplateException(message);
         }
     }
 
-    record GraphValidationKey(@Nonnull Class<? extends Record> recordType) {}
+    record GraphValidationKey(@Nonnull Class<? extends Data> dataType) {}
     private static final Map<GraphValidationKey, String> VALIDATE_RECORD_GRAPH_CACHE = new ConcurrentHashMap<>();
 
     /**
@@ -222,15 +286,15 @@ final class RecordValidation {
      *     <li>Record A(B, C) and Record B(A) is invalid due to a cycle A → B → A.</li>
      * </ul>
      *
-     * @param recordType The root Record class to validate. Must not be null.
+     * @param dataType The root Data class to validate. Must not be null.
      * @throws SqlTemplateException if a cycle is detected in the Record graph.
      */
-    static void validateRecordGraph(@Nonnull Class<? extends Record> recordType) throws SqlTemplateException {
-        String message = VALIDATE_RECORD_GRAPH_CACHE.computeIfAbsent(new GraphValidationKey(recordType), ignore -> {
+    static void validateDataGraph(@Nonnull Class<? extends Data> dataType) throws SqlTemplateException {
+        String message = VALIDATE_RECORD_GRAPH_CACHE.computeIfAbsent(new GraphValidationKey(dataType), ignore -> {
             // Initialize an empty set to keep track of the current traversal path.
-            Set<Class<? extends Record>> currentPath = new LinkedHashSet<>();
+            Set<RecordType> currentPath = new LinkedHashSet<>();
             // Start the recursive validation with the root record type.
-            return validateRecordGraph(recordType, currentPath).orElse("");
+            return validateRecordGraph(getRecordType(dataType), currentPath).orElse("");
         });
         if (!message.isEmpty()) {
             throw new SqlTemplateException(message);
@@ -240,24 +304,24 @@ final class RecordValidation {
     /**
      * Recursively validates the record graph to detect cycles.
      *
+     * Note that this implementation traverses the record graph, which means it includes Record instances, not just
+     * Data instances in the graph.
+     *
      * @param recordType  The current Record class being validated.
      * @param currentPath The set of Record classes in the current traversal path.
      * @return an empty optional if the record graph is valid, otherwise an optional containing an error message.
      */
-    static Optional<String> validateRecordGraph(@Nonnull Class<? extends Record> recordType,
-                                                 @Nonnull Set<Class<? extends Record>> currentPath) {
+    static Optional<String> validateRecordGraph(@Nonnull RecordType recordType,
+                                                @Nonnull Set<RecordType> currentPath) {
         // Check if the current record type is already in the path (cycle detected).
         if (currentPath.contains(recordType)) {
             return Optional.of("Cyclic dependency detected: %s.".formatted(buildCyclePath(recordType, currentPath)));
         }
         currentPath.add(recordType);
-        for (RecordComponent component : RecordReflection.getRecordComponents(recordType)) {
-            Class<?> componentType = component.getType();
-            if (Record.class.isAssignableFrom(componentType)) {
-                @SuppressWarnings("unchecked")
-                Class<? extends Record> componentRecordType = (Class<? extends Record>) componentType;
+        for (RecordField field : recordType.fields()) {
+            if (isRecord(field.type())) {
                 // Recursively validate the component record type.
-                var path = validateRecordGraph(componentRecordType, currentPath);
+                var path = validateRecordGraph(getRecordType(field.type()), currentPath);
                 if (path.isPresent()) {
                     return path;
                 }
@@ -275,13 +339,13 @@ final class RecordValidation {
      * @param path        the current traversal path leading up to the cycle.
      * @return a string describing the cycle path.
      */
-    static String buildCyclePath(@Nonnull Class<? extends Record> currentType,
-                                  @Nonnull Set<Class<? extends Record>> path) {
+    static String buildCyclePath(@Nonnull RecordType currentType,
+                                 @Nonnull Set<RecordType> path) {
         StringBuilder cyclePath = new StringBuilder();
-        for (Class<? extends Record> type : path) {
-            cyclePath.append(type.getSimpleName()).append(" -> ");
+        for (RecordType type : path) {
+            cyclePath.append(type.type().getSimpleName()).append(" -> ");
         }
-        cyclePath.append(currentType.getSimpleName());
+        cyclePath.append(currentType.type().getSimpleName());
         return cyclePath.toString();
     }
 

@@ -16,6 +16,7 @@
 package st.orm.spi.mysql;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.repository.impl.EntityRepositoryImpl;
@@ -54,7 +55,7 @@ import static st.orm.core.template.impl.StringTemplates.flatten;
 /**
  * Implementation of {@link EntityRepository} for MySQL.
  */
-public class MySQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
+public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
         extends EntityRepositoryImpl<E, ID> {
 
     public MySQLEntityRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
@@ -371,7 +372,7 @@ public class MySQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
             return;
         }
         var query = querySupplier.get();
-        batch.stream().map(this::validateUpsert).map(Record.class::cast).forEach(query::addBatch);
+        batch.stream().map(this::validateUpsert).map(Data.class::cast).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 1 && r != 2)) {
             throw new PersistenceException("Batch upsert failed.");
@@ -383,7 +384,7 @@ public class MySQLEntityRepositoryImpl<E extends Record & Entity<ID>, ID>
             return List.of();
         }
         var query = querySupplier.get();
-        batch.stream().map(this::validateUpsert).map(Record.class::cast).forEach(query::addBatch);
+        batch.stream().map(this::validateUpsert).map(Data.class::cast).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 1 && r != 2)) {
             throw new PersistenceException("Batch upsert failed.");

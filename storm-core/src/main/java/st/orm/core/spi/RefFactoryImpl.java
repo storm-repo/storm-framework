@@ -17,6 +17,7 @@ package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Data;
 import st.orm.Ref;
 import st.orm.core.template.QueryBuilder;
 import st.orm.core.template.QueryTemplate;
@@ -60,7 +61,7 @@ public final class RefFactoryImpl implements RefFactory {
      */
     @SuppressWarnings("unchecked")
     @Override
-    public <T extends Record, ID> Ref<T> create(@Nonnull Class<T> type, @Nonnull ID pk) {
+    public <T extends Data, ID> Ref<T> create(@Nonnull Class<T> type, @Nonnull ID pk) {
         var supplier = new LazySupplier<>(() ->
                 ((QueryBuilder<T, T, ID>) template
                         .selectFrom(type))
@@ -81,7 +82,7 @@ public final class RefFactoryImpl implements RefFactory {
      */
     @SuppressWarnings("unchecked")
     @Override
-    public <T extends Record, ID> Ref<T> create(@Nonnull T record, @Nonnull ID pk) {
+    public <T extends Data, ID> Ref<T> create(@Nonnull T record, @Nonnull ID pk) {
         var type = (Class<T>) record.getClass();
         var supplier = new LazySupplier<>(() ->
                 ((QueryBuilder<T, T, ID>) template
@@ -101,7 +102,7 @@ public final class RefFactoryImpl implements RefFactory {
      * @param <T> record type.
      * @param <ID> primary key type.
      */
-    private <T extends Record, ID> Ref<T> create(@Nonnull LazySupplier<T> supplier, @Nonnull Class<T> type, @Nonnull ID pk) {
+    private <T extends Data, ID> Ref<T> create(@Nonnull LazySupplier<T> supplier, @Nonnull Class<T> type, @Nonnull ID pk) {
         // Use the interner to reuse the same ref to reduce fetch calls for the same entity.
         return interner.intern(new RefImpl<>(supplier, type, pk));
     }

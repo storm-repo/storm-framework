@@ -16,6 +16,7 @@
 package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 
 import static java.lang.Character.isUpperCase;
 import static java.lang.Character.toLowerCase;
@@ -53,9 +54,9 @@ public interface TableAliasResolver {
     /**
      * Resolves the alias for a table.
      *
-     * @param type the record type.
+     * @param type the data type.
      * @param counter counter that is used track the number of attempts.
      * @return the alias.
      */
-    String resolveTableAlias(@Nonnull Class<? extends Record> type, int counter);
+    String resolveTableAlias(@Nonnull Class<? extends Data> type, int counter);
 }

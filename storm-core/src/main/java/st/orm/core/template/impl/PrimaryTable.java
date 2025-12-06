@@ -16,6 +16,7 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 
 import static java.util.Objects.requireNonNull;
 
@@ -25,7 +26,7 @@ import static java.util.Objects.requireNonNull;
  * @param table the table class.
  * @param alias the table alias.
  */
-record PrimaryTable(@Nonnull Class<? extends Record> table, @Nonnull String alias) {
+record PrimaryTable(@Nonnull Class<? extends Data> table, @Nonnull String alias) {
     PrimaryTable {
         requireNonNull(table, "table");
         requireNonNull(alias, "alias");

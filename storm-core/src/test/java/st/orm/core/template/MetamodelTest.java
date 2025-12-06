@@ -18,36 +18,36 @@ public class MetamodelTest {
     public void testVisitPet() throws SqlTemplateException {
         Metamodel<Visit, ?> model = Metamodel.of(Visit.class, "pet");
         assertEquals("", model.path());
-        assertEquals("pet", model.component());
+        assertEquals("pet", model.field());
         assertEquals(Visit.class, model.root());
-        assertEquals(Visit.class, model.table().componentType());
-        assertEquals(Pet.class, model.componentType());
+        assertEquals(Visit.class, model.table().fieldType());
+        assertEquals(Pet.class, model.fieldType());
     }
 
     @Test
     public void testVisitPetOwner() throws SqlTemplateException {
         Metamodel<Visit, ?> model = Metamodel.of(Visit.class, "pet.owner");
         assertEquals("pet", model.path());
-        assertEquals("owner", model.component());
+        assertEquals("owner", model.field());
         assertEquals(Visit.class, model.root());
-        assertEquals(Owner.class, model.componentType());
+        assertEquals(Owner.class, model.fieldType());
         assertEquals("", model.table().path());
-        assertEquals("pet", model.table().component());
+        assertEquals("pet", model.table().field());
         assertEquals(Visit.class, model.table().root());
-        assertEquals(Pet.class, model.table().componentType());
+        assertEquals(Pet.class, model.table().fieldType());
     }
 
     @Test
     public void testVisitPetOwnerAddress() throws SqlTemplateException {
         Metamodel<Visit, ?> model = Metamodel.of(Visit.class, "pet.owner.address");
         assertEquals("pet.owner", model.path());
-        assertEquals("address", model.component());
+        assertEquals("address", model.field());
         assertEquals(Visit.class, model.root());
-        assertEquals(Address.class, model.componentType());
+        assertEquals(Address.class, model.fieldType());
         assertEquals("pet", model.table().path());
-        assertEquals("owner", model.table().component());
+        assertEquals("owner", model.table().field());
         assertEquals(Visit.class, model.table().root());
-        assertEquals(Owner.class, model.table().componentType());
+        assertEquals(Owner.class, model.table().fieldType());
     }
 
     @Test
@@ -55,13 +55,13 @@ public class MetamodelTest {
         Metamodel<Visit, ?> model = Metamodel.of(Visit.class, "pet.owner.address.city");
         assertTrue(model.isColumn());
         assertEquals("pet.owner", model.path());
-        assertEquals("address.city", model.component());
+        assertEquals("address.city", model.field());
         assertEquals(Visit.class, model.root());
-        assertEquals(City.class, model.componentType());
+        assertEquals(City.class, model.fieldType());
         assertEquals("pet", model.table().path());
-        assertEquals("owner", model.table().component());
+        assertEquals("owner", model.table().field());
         assertEquals(Visit.class, model.table().root());
-        assertEquals(Owner.class, model.table().componentType());
+        assertEquals(Owner.class, model.table().fieldType());
     }
 
     @Test
@@ -69,13 +69,13 @@ public class MetamodelTest {
         Metamodel< Visit, ?> model = Metamodel.of(Visit.class, "pet.owner.address");
         assertFalse(model.isColumn());
         assertEquals("pet.owner", model.path());
-        assertEquals("address", model.component());
+        assertEquals("address", model.field());
         assertEquals(Visit.class, model.root());
-        assertEquals(Address.class, model.componentType());
+        assertEquals(Address.class, model.fieldType());
         assertEquals("pet", model.table().path());
-        assertEquals("owner", model.table().component());
+        assertEquals("owner", model.table().field());
         assertEquals(Visit.class, model.table().root());
-        assertEquals(Owner.class, model.table().componentType());
+        assertEquals(Owner.class, model.table().fieldType());
     }
 
     @Test
@@ -83,12 +83,12 @@ public class MetamodelTest {
         Metamodel<Visit, ?> model = Metamodel.of(Visit.class, "pet.owner.address.city.name");
         assertTrue(model.isColumn());
         assertEquals("pet.owner.address.city", model.path());
-        assertEquals("name", model.component());
+        assertEquals("name", model.field());
         assertEquals(Visit.class, model.root());
-        assertEquals(String.class, model.componentType());
+        assertEquals(String.class, model.fieldType());
         assertEquals("pet.owner", model.table().path());
-        assertEquals("address.city", model.table().component());
+        assertEquals("address.city", model.table().field());
         assertEquals(Visit.class, model.table().root());
-        assertEquals(City.class, model.table().componentType());
+        assertEquals(City.class, model.table().fieldType());
     }
 }

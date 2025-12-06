@@ -15,6 +15,7 @@
  */
 package st.orm.template
 
+import st.orm.Data
 import st.orm.Metamodel
 import java.util.*
 import kotlin.reflect.KClass
@@ -25,7 +26,7 @@ import kotlin.reflect.KClass
  * @param <E> the type of the entity or projection.
  * @param <ID> the type of the primary key, or `Void` in case of a projection without a primary key.
  */
-interface Model<E : Record, ID : Any> {
+interface Model<E : Data, ID : Any> {
     /**
      * Returns the schema, or an empty String if the schema is not specified.
      *

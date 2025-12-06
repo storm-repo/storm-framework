@@ -56,7 +56,7 @@ public interface RepositoryLookup {
      * @param <ID> the type of the entity's primary key.
      * @return the repository for the given entity type.
      */
-    <T extends Record & Entity<ID>, ID> EntityRepository<T, ID> entity(@Nonnull Class<T> type);
+    <T extends Entity<ID>, ID> EntityRepository<T, ID> entity(@Nonnull Class<T> type);
 
     /**
      * Returns the repository for the given projection type.
@@ -66,7 +66,7 @@ public interface RepositoryLookup {
      * @param <ID> the type of the projection's primary key, or Void if the projection specifies no primary key.
      * @return the repository for the given projection type.
      */
-    <T extends Record & Projection<ID>, ID> ProjectionRepository<T, ID> projection(@Nonnull Class<T> type);
+    <T extends Projection<ID>, ID> ProjectionRepository<T, ID> projection(@Nonnull Class<T> type);
 
     /**
      * Returns a proxy for the repository of the given type.

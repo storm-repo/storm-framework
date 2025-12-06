@@ -60,8 +60,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
 
     private static final String METAMODEL_TYPE = "st.orm.MetamodelType";
     private static final String GENERATE_METAMODEL = "st.orm.GenerateMetamodel";
-    private static final String ENTITY = "st.orm.Entity";
-    private static final String PROJECTION = "st.orm.Projection";
+    private static final String DATA = "st.orm.Data";
     private static final String FOREIGN_KEY = "st.orm.FK";
 
     private final Set<String> generatedFiles;
@@ -193,10 +192,9 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         .anyMatch(annotationMirror -> GENERATE_METAMODEL
                                 .equals(annotationMirror.getAnnotationType().toString()));
                 // Check if it implements Entity or Projection.
-                boolean implementsEntity = implementsInterface(element.asType(), ENTITY, processingEnv.getTypeUtils());
-                boolean implementsProjection = implementsInterface(element.asType(), PROJECTION, processingEnv.getTypeUtils());
+                boolean implementsData = implementsInterface(element.asType(), DATA, processingEnv.getTypeUtils());
                 // Only generate if it’s annotated OR implements one of those interfaces.
-                if (hasGenerateMetamodel || implementsEntity || implementsProjection) {
+                if (hasGenerateMetamodel || implementsData) {
                     generateMetamodelInterface(element);
                 }
             }
@@ -467,14 +465,14 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     }
                     if (isForeignKey(recordElement, fieldName)) {
                         builder.append("        this.").append(fieldName).append(" = new ").append(fieldTypeName).append("Metamodel<>(")
-                                .append("subPath, componentBase + \"").append(fieldName).append("\", this);\n");
+                                .append("subPath, fieldBase + \"").append(fieldName).append("\", this);\n");
                     } else {
                         builder.append("        this.").append(fieldName).append(" = new ").append(fieldTypeName).append("Metamodel<>(")
-                                .append("subPath").append(", componentBase + \"").append(fieldName).append("\", true, this);\n");
+                                .append("subPath").append(", fieldBase + \"").append(fieldName).append("\", true, this);\n");
                     }
                 } else {
                     builder.append("        this.").append(fieldName).append(" = new AbstractMetamodel<>(")
-                            .append(fieldTypeName).append(".class, ").append("subPath").append(", componentBase + \"").append(fieldName).append("\", false, this) { };\n");
+                            .append(fieldTypeName).append(".class, ").append("subPath").append(", fieldBase + \"").append(fieldName).append("\", false, this) { };\n");
                 }
             }
         }
@@ -504,24 +502,24 @@ public final class MetamodelProcessor extends AbstractProcessor {
                      * @param <T> the record type of the root table of the entity graph.
                      */
                     @Generated("%s")
-                    public final class %s<T extends Record> extends AbstractMetamodel<T, %s> {
+                    public final class %s<T> extends AbstractMetamodel<T, %s> {
                     %s
                         public %s() {
                             this("", (Metamodel<T, ?>) Metamodel.root(%s.class));
                         }
                     
-                        public %s(String component, Metamodel<T, ?> parent) {
-                            this("", component, parent);
+                        public %s(String field, Metamodel<T, ?> parent) {
+                            this("", field, parent);
                         }
                     
-                        public %s(String path, String component, Metamodel<T, ?> parent) {
-                            this(path, component, false, parent);
+                        public %s(String path, String field, Metamodel<T, ?> parent) {
+                            this(path, field, false, parent);
                         }
                     
-                        public %s(String path, String component, boolean inline, Metamodel<T, ?> parent) {
-                            super(%s.class, path, component, inline, parent);
-                            String subPath = inline ? path : component.isEmpty() ? path : path.isEmpty() ? component : path + "." + component;
-                            String componentBase = inline ? component.isEmpty() ? "" : component + "." : "";
+                        public %s(String path, String field, boolean inline, Metamodel<T, ?> parent) {
+                            super(%s.class, path, field, inline, parent);
+                            String subPath = inline ? path : field.isEmpty() ? path : path.isEmpty() ? field : path + "." + field;
+                            String fieldBase = inline ? field.isEmpty() ? "" : field + "." : "";
                     %s
                         }
                     }""", (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n"), recordName, getClass().getName(), metaClassName, recordName, buildClassFields(recordElement, packageName, recordName),

@@ -16,6 +16,7 @@
 package st.orm.repository
 
 import kotlinx.coroutines.flow.Flow
+import st.orm.Data
 import st.orm.Entity
 import st.orm.Metamodel
 import st.orm.Operator.EQUALS
@@ -60,7 +61,7 @@ interface RepositoryLookup {
      * @param <ID> the type of the entity's primary key.
      * @return the repository for the given entity type.
      */
-    fun <T, ID : Any> entity(type: KClass<T>): EntityRepository<T, ID> where T : Record, T : Entity<ID>
+    fun <T, ID : Any> entity(type: KClass<T>): EntityRepository<T, ID> where T : Entity<ID>
 
     /**
      * Returns the repository for the given projection type.
@@ -70,7 +71,7 @@ interface RepositoryLookup {
      * @param <ID> the type of the projection's primary key, or Void if the projection specifies no primary key.
      * @return the repository for the given projection type.
      */
-    fun <T, ID: Any> projection(type: KClass<T>): ProjectionRepository<T, ID> where T : Record, T : Projection<ID>
+    fun <T, ID: Any> projection(type: KClass<T>): ProjectionRepository<T, ID> where T : Projection<ID>
 
     /**
      * Returns a proxy for the repository of the given type.
@@ -88,7 +89,7 @@ interface RepositoryLookup {
  * Extensions for [RepositoryLookup] to provide convenient access to entity repositories.
  */
 inline fun <reified T, ID : Any> RepositoryLookup.entityWithId(): EntityRepository<T, ID>
-        where T : Record, T : Entity<ID> =
+        where T : Entity<ID> =
     entity(T::class)
 
 /**
@@ -96,7 +97,7 @@ inline fun <reified T, ID : Any> RepositoryLookup.entityWithId(): EntityReposito
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.entity(): EntityRepository<T, *>
-        where T : Record, T : Entity<*> =
+        where T : Entity<*> =
     this::class
         .memberFunctions
         .first { it.name == "entity" }
@@ -106,7 +107,7 @@ inline fun <reified T> RepositoryLookup.entity(): EntityRepository<T, *>
  * Extensions for [RepositoryLookup] to provide convenient access to projection repositories.
  */
 inline fun <reified T, ID : Any> RepositoryLookup.projectionWithId(): ProjectionRepository<T, ID>
-        where T : Record, T : Projection<ID> =
+        where T : Projection<ID> =
     projection(T::class)
 
 /**
@@ -114,7 +115,7 @@ inline fun <reified T, ID : Any> RepositoryLookup.projectionWithId(): Projection
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.projection(): ProjectionRepository<T, *>
-        where T : Record, T : Projection<*> =
+        where T : Projection<*> =
     this::class
         .memberFunctions
         .first { it.name == "projection" }
@@ -135,7 +136,7 @@ inline fun <reified R : Repository> RepositoryLookup.repository(): R =
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.findAll(): List<T>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -156,7 +157,7 @@ inline fun <reified T> RepositoryLookup.findAll(): List<T>
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.selectAll(): Flow<T>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -177,7 +178,7 @@ inline fun <reified T> RepositoryLookup.selectAll(): Flow<T>
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.findAllRef(): List<Ref<T>>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -198,7 +199,7 @@ inline fun <reified T> RepositoryLookup.findAllRef(): List<Ref<T>>
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.selectAllRef(): Flow<Ref<T>>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -222,7 +223,7 @@ inline fun <reified T> RepositoryLookup.selectAllRef(): Flow<Ref<T>>
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.findBy(field: Metamodel<T, V>, value: V): T?
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -246,7 +247,7 @@ inline fun <reified T, V> RepositoryLookup.findBy(field: Metamodel<T, V>, value:
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.findBy(field: Metamodel<T, V>, value: Ref<V>): T?
-        where T : Record, V : Record = this::class
+        where T : Data, V : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -270,7 +271,7 @@ inline fun <reified T, V> RepositoryLookup.findBy(field: Metamodel<T, V>, value:
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.findAllBy(field: Metamodel<T, V>, value: V): List<T>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -294,7 +295,7 @@ inline fun <reified T, V> RepositoryLookup.findAllBy(field: Metamodel<T, V>, val
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.selectBy(field: Metamodel<T, V>, value: V): Flow<T>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -318,7 +319,7 @@ inline fun <reified T, V> RepositoryLookup.selectBy(field: Metamodel<T, V>, valu
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.findAllBy(field: Metamodel<T, V>, value: Ref<V>): List<T>
-        where T : Record, V : Record = this::class
+        where T : Data, V : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -342,7 +343,7 @@ inline fun <reified T, V> RepositoryLookup.findAllBy(field: Metamodel<T, V>, val
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.selectBy(field: Metamodel<T, V>, value: Ref<V>): Flow<T>
-        where T : Record, V : Record = this::class
+        where T : Data, V : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -366,7 +367,7 @@ inline fun <reified T, V> RepositoryLookup.selectBy(field: Metamodel<T, V>, valu
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.findAllBy(field: Metamodel<T, V>, values: Iterable<V>): List<T>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -390,7 +391,7 @@ inline fun <reified T, V> RepositoryLookup.findAllBy(field: Metamodel<T, V>, val
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.selectBy(field: Metamodel<T, V>, values: Iterable<V>): Flow<T>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -414,7 +415,7 @@ inline fun <reified T, V> RepositoryLookup.selectBy(field: Metamodel<T, V>, valu
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.findAllByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): List<T>
-        where T : Record, V : Record = this::class
+        where T : Data, V : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -438,7 +439,7 @@ inline fun <reified T, V> RepositoryLookup.findAllByRef(field: Metamodel<T, V>, 
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.selectByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): Flow<T>
-        where T : Record, V : Record = this::class
+        where T : Data, V : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -464,7 +465,7 @@ inline fun <reified T, V> RepositoryLookup.selectByRef(field: Metamodel<T, V>, v
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.getBy(field: Metamodel<T, V>, value: V): T
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -490,7 +491,7 @@ inline fun <reified T, V> RepositoryLookup.getBy(field: Metamodel<T, V>, value: 
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.getBy(field: Metamodel<T, V>, value: Ref<V>): T
-        where T : Record, V : Record = this::class
+        where T : Data, V : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -512,7 +513,7 @@ inline fun <reified T, V> RepositoryLookup.getBy(field: Metamodel<T, V>, value: 
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.findRefBy(field: Metamodel<T, V>, value: V): Ref<T>?
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -534,7 +535,7 @@ inline fun <reified T, V> RepositoryLookup.findRefBy(field: Metamodel<T, V>, val
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.findRefBy(field: Metamodel<T, V>, value: Ref<V>): Ref<T>?
-        where T : Record, V : Record = this::class
+        where T : Data, V : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -556,7 +557,7 @@ inline fun <reified T, V> RepositoryLookup.findRefBy(field: Metamodel<T, V>, val
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.findAllRefBy(field: Metamodel<T, V>, value: V): List<Ref<T>>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -578,7 +579,7 @@ inline fun <reified T, V> RepositoryLookup.findAllRefBy(field: Metamodel<T, V>, 
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.selectRefBy(field: Metamodel<T, V>, value: V): Flow<Ref<T>>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -600,7 +601,7 @@ inline fun <reified T, V> RepositoryLookup.selectRefBy(field: Metamodel<T, V>, v
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.findAllRefBy(field: Metamodel<T, V>, value: Ref<V>): List<Ref<T>>
-        where T : Record, V : Record = this::class
+        where T : Data, V : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -622,7 +623,7 @@ inline fun <reified T, V> RepositoryLookup.findAllRefBy(field: Metamodel<T, V>, 
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.selectRefBy(field: Metamodel<T, V>, value: Ref<V>): Flow<Ref<T>>
-        where T : Record, V : Record = this::class
+        where T : Data, V : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -644,7 +645,7 @@ inline fun <reified T, V> RepositoryLookup.selectRefBy(field: Metamodel<T, V>, v
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.findAllRefBy(field: Metamodel<T, V>, values: Iterable<V>): List<Ref<T>>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -666,7 +667,7 @@ inline fun <reified T, V> RepositoryLookup.findAllRefBy(field: Metamodel<T, V>, 
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.selectRefBy(field: Metamodel<T, V>, values: Iterable<V>): Flow<Ref<T>>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -688,7 +689,7 @@ inline fun <reified T, V> RepositoryLookup.selectRefBy(field: Metamodel<T, V>, v
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.findAllRefByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): List<Ref<T>>
-        where T : Record, V : Record = this::class
+        where T : Data, V : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -710,7 +711,7 @@ inline fun <reified T, V> RepositoryLookup.findAllRefByRef(field: Metamodel<T, V
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.selectRefByRef(field: Metamodel<T, V>, values: Iterable<Ref<V>>): Flow<Ref<T>>
-        where T : Record, V : Record = this::class
+        where T : Data, V : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -734,7 +735,7 @@ inline fun <reified T, V> RepositoryLookup.selectRefByRef(field: Metamodel<T, V>
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.getRefBy(field: Metamodel<T, V>, value: V): Ref<T>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -758,7 +759,7 @@ inline fun <reified T, V> RepositoryLookup.getRefBy(field: Metamodel<T, V>, valu
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T, V> RepositoryLookup.getRefBy(field: Metamodel<T, V>, value: Ref<V>): Ref<T>
-        where T : Record, V : Record = this::class
+        where T : Data, V : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -780,7 +781,7 @@ inline fun <reified T, V> RepositoryLookup.getRefBy(field: Metamodel<T, V>, valu
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.findAll(
     noinline predicate: WhereBuilder<T, T, *>.() -> PredicateBuilder<T, *, *>
-): List<T> where T : Record = this::class
+): List<T> where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -801,7 +802,7 @@ inline fun <reified T> RepositoryLookup.findAll(
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.findAll(predicate: PredicateBuilder<T, T, *>): List<T>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -823,7 +824,7 @@ inline fun <reified T> RepositoryLookup.findAll(predicate: PredicateBuilder<T, T
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.findAllRef(
     noinline predicate: WhereBuilder<T, Ref<T>, *>.() -> PredicateBuilder<T, *, *>
-): List<Ref<T>> where T : Record = this::class
+): List<Ref<T>> where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -844,7 +845,7 @@ inline fun <reified T> RepositoryLookup.findAllRef(
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.findAllRef(predicate: PredicateBuilder<T, T, *>): List<Ref<T>>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -866,7 +867,7 @@ inline fun <reified T> RepositoryLookup.findAllRef(predicate: PredicateBuilder<T
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.find(
     noinline predicate: WhereBuilder<T, T, *>.() -> PredicateBuilder<T, *, *>
-): T? where T : Record = this::class
+): T? where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -887,7 +888,7 @@ inline fun <reified T> RepositoryLookup.find(
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.find(predicate: PredicateBuilder<T, T, *>): T?
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -909,7 +910,7 @@ inline fun <reified T> RepositoryLookup.find(predicate: PredicateBuilder<T, T, *
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.findRef(
     noinline predicate: WhereBuilder<T, Ref<T>, *>.() -> PredicateBuilder<T, *, *>
-): Ref<T>? where T : Record = this::class
+): Ref<T>? where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -930,7 +931,7 @@ inline fun <reified T> RepositoryLookup.findRef(
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.findRef(predicate: PredicateBuilder<T, T, *>): Ref<T>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -952,7 +953,7 @@ inline fun <reified T> RepositoryLookup.findRef(predicate: PredicateBuilder<T, T
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.get(
     noinline predicate: WhereBuilder<T, T, *>.() -> PredicateBuilder<T, *, *>
-): T where T : Record = this::class
+): T where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -973,7 +974,7 @@ inline fun <reified T> RepositoryLookup.get(
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.get(predicate: PredicateBuilder<T, T, *>): T
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -995,7 +996,7 @@ inline fun <reified T> RepositoryLookup.get(predicate: PredicateBuilder<T, T, *>
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.getRef(
     noinline predicate: WhereBuilder<T, Ref<T>, *>.() -> PredicateBuilder<T, *, *>
-): Ref<T> where T : Record = this::class
+): Ref<T> where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -1016,7 +1017,7 @@ inline fun <reified T> RepositoryLookup.getRef(
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.getRef(predicate: PredicateBuilder<T, Ref<T>, *>): Ref<T>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -1038,7 +1039,7 @@ inline fun <reified T> RepositoryLookup.getRef(predicate: PredicateBuilder<T, Re
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.select(
     noinline predicate: WhereBuilder<T, T, *>.() -> PredicateBuilder<T, *, *>
-): Flow<T> where T : Record = this::class
+): Flow<T> where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -1059,7 +1060,7 @@ inline fun <reified T> RepositoryLookup.select(
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.select(predicate: PredicateBuilder<T, T, *>): Flow<T>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -1081,7 +1082,7 @@ inline fun <reified T> RepositoryLookup.select(predicate: PredicateBuilder<T, T,
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.selectRef(
     noinline predicate: WhereBuilder<T, Ref<T>, *>.() -> PredicateBuilder<T, *, *>
-): Flow<Ref<T>> where T : Record = this::class
+): Flow<Ref<T>> where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -1102,7 +1103,7 @@ inline fun <reified T> RepositoryLookup.selectRef(
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.selectRef(predicate: PredicateBuilder<T, Ref<T>, *>): Flow<Ref<T>>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -1123,7 +1124,7 @@ inline fun <reified T> RepositoryLookup.selectRef(predicate: PredicateBuilder<T,
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.select(): QueryBuilder<T, T, *>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -1142,7 +1143,7 @@ inline fun <reified T> RepositoryLookup.select(): QueryBuilder<T, T, *>
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.selectRef(): QueryBuilder<T, Ref<T>, *>
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -1165,7 +1166,7 @@ inline fun <reified T> RepositoryLookup.selectRef(): QueryBuilder<T, Ref<T>, *>
 inline fun <reified T, V> RepositoryLookup.countBy(
     field: Metamodel<T, V>,
     value: V
-): Long where T : Record = this::class
+): Long where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -1188,7 +1189,7 @@ inline fun <reified T, V> RepositoryLookup.countBy(
 inline fun <reified T, V> RepositoryLookup.countBy(
     field: Metamodel<T, V>,
     value: Ref<V>
-): Long where T : Record, V : Record = this::class
+): Long where T : Data, V : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -1209,7 +1210,7 @@ inline fun <reified T, V> RepositoryLookup.countBy(
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.count(
     noinline predicate: WhereBuilder<T, *, *>.() -> PredicateBuilder<T, *, *>
-): Long where T : Record = this::class
+): Long where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -1228,7 +1229,7 @@ inline fun <reified T> RepositoryLookup.count(
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.countAll(): Long
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -1248,7 +1249,7 @@ inline fun <reified T> RepositoryLookup.countAll(): Long
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.count(predicate: PredicateBuilder<T, *, *>): Long
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -1271,7 +1272,7 @@ inline fun <reified T> RepositoryLookup.count(predicate: PredicateBuilder<T, *, 
 inline fun <reified T, V> RepositoryLookup.existsBy(
     field: Metamodel<T, V>,
     value: V
-): Boolean where T : Record = this::class
+): Boolean where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -1294,7 +1295,7 @@ inline fun <reified T, V> RepositoryLookup.existsBy(
 inline fun <reified T, V> RepositoryLookup.existsBy(
     field: Metamodel<T, V>,
     value: Ref<V>
-): Boolean where T : Record, V : Record = this::class
+): Boolean where T : Data, V : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -1315,7 +1316,7 @@ inline fun <reified T, V> RepositoryLookup.existsBy(
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.exists(
     noinline predicate: WhereBuilder<T, *, *>.() -> PredicateBuilder<T, *, *>
-): Boolean where T : Record = this::class
+): Boolean where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -1334,7 +1335,7 @@ inline fun <reified T> RepositoryLookup.exists(
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.exists(): Boolean
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -1354,7 +1355,7 @@ inline fun <reified T> RepositoryLookup.exists(): Boolean
  */
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T> RepositoryLookup.exists(predicate: PredicateBuilder<T, *, *>): Boolean
-        where T : Record = this::class
+        where T : Data = this::class
     .memberFunctions
     .first { it.name == if (T::class.isSubclassOf(Entity::class)) "entity" else "projection" }
     .call(this, T::class)
@@ -1373,7 +1374,7 @@ inline fun <reified T> RepositoryLookup.exists(predicate: PredicateBuilder<T, *,
  * @return The inserted entity after fetching from the database.
  */
 inline infix fun <reified T> RepositoryLookup.insert(entity: T): T
-        where T : Record, T : Entity<*> =
+        where T : Entity<*> =
     entity<T>().insertAndFetch(entity)
 
 /**
@@ -1383,7 +1384,7 @@ inline infix fun <reified T> RepositoryLookup.insert(entity: T): T
  * @return list of inserted entities after fetching from the database.
  */
 inline infix fun <reified T> RepositoryLookup.insert(entities: Iterable<T>): List<T>
-        where T : Record, T : Entity<*> =
+        where T : Entity<*> =
     entity<T>().insertAndFetch(entities)
 
 /**
@@ -1393,7 +1394,7 @@ inline infix fun <reified T> RepositoryLookup.insert(entities: Iterable<T>): Lis
  * @return flow of inserted entities after fetching from the database.
  */
 inline infix fun <reified T> RepositoryLookup.insert(entities: Flow<T>): Flow<T>
-        where T : Record, T : Entity<*> =
+        where T : Entity<*> =
     entity<T>().insertAndFetch(entities)
 
 /**
@@ -1403,7 +1404,7 @@ inline infix fun <reified T> RepositoryLookup.insert(entities: Flow<T>): Flow<T>
  * @return The upserted entity after fetching from the database.
  */
 inline infix fun <reified T> RepositoryLookup.upsert(entity: T): T
-        where T : Record, T : Entity<*> =
+        where T : Entity<*> =
     entity<T>().upsertAndFetch(entity)
 
 /**
@@ -1413,7 +1414,7 @@ inline infix fun <reified T> RepositoryLookup.upsert(entity: T): T
  * @return list of upserted entities after fetching from the database.
  */
 inline infix fun <reified T> RepositoryLookup.upsert(entities: Iterable<T>): List<T>
-        where T : Record, T : Entity<*> =
+        where T : Entity<*> =
     entity<T>().upsertAndFetch(entities)
 
 /**
@@ -1423,7 +1424,7 @@ inline infix fun <reified T> RepositoryLookup.upsert(entities: Iterable<T>): Lis
  * @return flow of upserted entities after fetching from the database.
  */
 inline infix fun <reified T> RepositoryLookup.upsert(entities: Flow<T>): Flow<T>
-        where T : Record, T : Entity<*> =
+        where T : Entity<*> =
     entity<T>().upsertAndFetch(entities)
 
 /**
@@ -1432,7 +1433,7 @@ inline infix fun <reified T> RepositoryLookup.upsert(entities: Flow<T>): Flow<T>
  * @return A [KQueryBuilder] for deleting records of type [T].
  */
 inline fun <reified T> RepositoryLookup.delete(): QueryBuilder<T, *, *>
-        where T : Record, T: Entity<*> =
+        where T : Data, T: Entity<*> =
     entity<T>().delete()
 
 /**
@@ -1441,7 +1442,7 @@ inline fun <reified T> RepositoryLookup.delete(): QueryBuilder<T, *, *>
  * @param entity The entity to delete.
  */
 inline infix fun <reified T> RepositoryLookup.delete(entity: T)
-        where T : Record, T : Entity<*> =
+        where T : Entity<*> =
     entity<T>().delete(entity)
 
 /**
@@ -1450,7 +1451,7 @@ inline infix fun <reified T> RepositoryLookup.delete(entity: T)
  * @param entity List of entities to delete.
  */
 inline infix fun <reified T> RepositoryLookup.delete(entity: Iterable<T>)
-        where T : Record, T : Entity<*> =
+        where T : Entity<*> =
     entity<T>().delete(entity)
 
 /**
@@ -1459,7 +1460,7 @@ inline infix fun <reified T> RepositoryLookup.delete(entity: Iterable<T>)
  * @param entity Flow of entities to delete.
  */
 inline infix suspend fun <reified T> RepositoryLookup.delete(entity: Flow<T>)
-        where T : Record, T : Entity<*> =
+        where T : Entity<*> =
     entity<T>().delete(entity)
 
 /**
@@ -1468,7 +1469,7 @@ inline infix suspend fun <reified T> RepositoryLookup.delete(entity: Flow<T>)
  * @param ref The entity to delete.
  */
 inline infix fun <reified T> RepositoryLookup.deleteByRef(ref: Ref<T>)
-        where T : Record, T : Entity<*> =
+        where T : Entity<*> =
     entity<T>().deleteByRef(ref)
 
 /**
@@ -1477,7 +1478,7 @@ inline infix fun <reified T> RepositoryLookup.deleteByRef(ref: Ref<T>)
  * @param refs List of entities to delete.
  */
 inline infix fun <reified T> RepositoryLookup.deleteByRef(refs: Iterable<Ref<T>>)
-        where T : Record, T : Entity<*> =
+        where T : Entity<*> =
     entity<T>().deleteByRef(refs)
 
 /**
@@ -1486,7 +1487,7 @@ inline infix fun <reified T> RepositoryLookup.deleteByRef(refs: Iterable<Ref<T>>
  * @param refs Flow of entities to delete.
  */
 inline infix suspend fun <reified T> RepositoryLookup.deleteByRef(refs: Flow<Ref<T>>)
-        where T : Record, T : Entity<*> =
+        where T : Entity<*> =
     entity<T>().deleteByRef(refs)
 
 /**
@@ -1496,7 +1497,7 @@ inline infix suspend fun <reified T> RepositoryLookup.deleteByRef(refs: Flow<Ref
  * @return The updated entity after fetching from the database.
  */
 inline infix fun <reified T> RepositoryLookup.update(entity: T): T
-        where T : Record, T : Entity<*> =
+        where T : Entity<*> =
     entity<T>().updateAndFetch(entity)
 
 /**
@@ -1506,7 +1507,7 @@ inline infix fun <reified T> RepositoryLookup.update(entity: T): T
  * @return list of updated entities after fetching from the database.
  */
 inline infix fun <reified T> RepositoryLookup.update(entities: Iterable<T>): List<T>
-        where T : Record, T : Entity<*> =
+        where T : Entity<*> =
     entity<T>().updateAndFetch(entities)
 
 /**
@@ -1516,7 +1517,7 @@ inline infix fun <reified T> RepositoryLookup.update(entities: Iterable<T>): Lis
  * @return flow of updated entities after fetching from the database.
  */
 inline infix fun <reified T> RepositoryLookup.update(entities: Flow<T>): Flow<T>
-        where T : Record, T : Entity<*> =
+        where T : Entity<*> =
     entity<T>().updateAndFetch(entities)
 
 /**
@@ -1527,7 +1528,7 @@ inline infix fun <reified T> RepositoryLookup.update(entities: Flow<T>): Flow<T>
  * @return list containing all records.
  */
 inline fun <reified T> RepositoryLookup.deleteAll()
-        where T : Record, T : Entity<*> =
+        where T : Entity<*> =
     entity<T>().deleteAll()
 
 /**
@@ -1540,7 +1541,7 @@ inline fun <reified T> RepositoryLookup.deleteAll()
 inline fun <reified T, ID> RepositoryLookup.deleteBy(
     field: Metamodel<T, ID>,
     value: ID
-): Int where T : Record, T : Entity<ID> =
+): Int where T : Entity<ID> =
     entity<T>().delete().where(field, EQUALS, value).executeUpdate()
 
 /**
@@ -1553,7 +1554,7 @@ inline fun <reified T, ID> RepositoryLookup.deleteBy(
 inline fun <reified T> RepositoryLookup.deleteBy(
     field: Metamodel<T, T>,
     value: Ref<T>
-): Int where T : Record, T : Entity<*> =
+): Int where T : Entity<*> =
     entity<T>().delete().where(field, value).executeUpdate()
 
 /**
@@ -1566,7 +1567,7 @@ inline fun <reified T> RepositoryLookup.deleteBy(
 inline fun <reified T, V> RepositoryLookup.deleteAllBy(
     field: Metamodel<T, V>,
     value: V
-): Int where T : Record, T : Entity<*> =
+): Int where T : Entity<*> =
     entity<T>().delete().where(field, EQUALS, value).executeUpdate()
 
 /**
@@ -1579,7 +1580,7 @@ inline fun <reified T, V> RepositoryLookup.deleteAllBy(
 inline fun <reified T, V> RepositoryLookup.deleteAllBy(
     field: Metamodel<T, V>,
     value: Ref<V>
-): Int where T : Record, T : Entity<*>, V : Record =
+): Int where T : Entity<*>, V : Data =
     entity<T>().delete().where(field, value).executeUpdate()
 
 /**
@@ -1592,7 +1593,7 @@ inline fun <reified T, V> RepositoryLookup.deleteAllBy(
 inline fun <reified T, V> RepositoryLookup.deleteAllBy(
     field: Metamodel<T, V>,
     values: Iterable<V>
-): Int where T : Record, T : Entity<*> =
+): Int where T : Entity<*> =
     entity<T>().delete().where(field, IN, values).executeUpdate()
 
 /**
@@ -1605,7 +1606,7 @@ inline fun <reified T, V> RepositoryLookup.deleteAllBy(
 inline fun <reified T, V> RepositoryLookup.deleteAllByRef(
     field: Metamodel<T, V>,
     values: Iterable<Ref<V>>
-): Int where T : Record, T : Entity<*>, V : Record =
+): Int where T : Entity<*>, V : Data =
     entity<T>().delete().whereRef(field, values).executeUpdate()
 
 /**
@@ -1616,7 +1617,7 @@ inline fun <reified T, V> RepositoryLookup.deleteAllByRef(
  */
 inline fun <reified T> RepositoryLookup.delete(
     noinline predicate: WhereBuilder<T, *, *>.() -> PredicateBuilder<T, *, *>
-): Int where T : Record, T : Entity<*> =
+): Int where T : Entity<*> =
     entity<T>().delete().whereBuilder(predicate).executeUpdate()
 
 /**
@@ -1626,5 +1627,5 @@ inline fun <reified T> RepositoryLookup.delete(
  * @return the number of entities deleted.
  */
 inline fun <reified T> RepositoryLookup.delete(predicate: PredicateBuilder<T, *, *>): Int
-        where T : Record, T : Entity<*> =
+        where T : Entity<*> =
     entity<T>().delete().whereBuilder { predicate }.executeUpdate()

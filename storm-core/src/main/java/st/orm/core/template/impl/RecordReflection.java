@@ -17,10 +17,10 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Data;
 import st.orm.DbColumn;
 import st.orm.DbColumns;
 import st.orm.DbTable;
-import st.orm.Entity;
 import st.orm.FK;
 import st.orm.GenerationStrategy;
 import st.orm.PK;
@@ -29,14 +29,15 @@ import st.orm.Ref;
 import st.orm.Version;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
-import st.orm.config.ColumnNameResolver;
-import st.orm.config.ForeignKeyResolver;
+import st.orm.mapping.ColumnNameResolver;
+import st.orm.mapping.ForeignKeyResolver;
+import st.orm.mapping.RecordField;
+import st.orm.mapping.RecordType;
 import st.orm.core.template.SqlTemplateException;
-import st.orm.config.TableNameResolver;
+import st.orm.mapping.TableNameResolver;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -58,10 +59,29 @@ import static st.orm.core.spi.Providers.getORMConverter;
 final class RecordReflection {
 
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
-    private static final ConcurrentHashMap<Class<?>, List<RecordComponent>> RECORD_COMPONENT_CACHE
-            = new ConcurrentHashMap<>();
 
     private RecordReflection() {
+    }
+
+    /**
+     * Checks whether the specified type is a record type.
+     *
+     * @param type the type to check.
+     * @return {@code true} if the specified type is a record type, {@code false} otherwise.
+     */
+    public static boolean isRecord(@Nonnull Class<?> type) {
+        return REFLECTION.findRecordType(type).isPresent();
+    }
+
+    /**
+     * Returns the record type for the specified type.
+     *
+     * @param type the type to obtain the record type for.
+     * @return the record type for the specified type.
+     * @throws PersistenceException if the specified type is not a record type.
+     */
+    public static RecordType getRecordType(@Nonnull Class<?> type) {
+        return REFLECTION.getRecordType(type);
     }
 
     /**
@@ -70,71 +90,65 @@ final class RecordReflection {
      *
      * @param recordType the record type to obtain the record components for.
      * @return the record components for the specified record type.
-     * @throws IllegalArgumentException if the record type is not a record.
+     * @throws PersistenceException if the record type is not a record.
      */
-    public static List<RecordComponent> getRecordComponents(@Nonnull Class<?> recordType) {
-        return RECORD_COMPONENT_CACHE.computeIfAbsent(recordType, ignore -> {
-            if (!recordType.isRecord()) {
-                throw new IllegalArgumentException("The specified class %s is not a record type.".formatted(recordType.getName()));
-            }
-            return List.of(recordType.getRecordComponents());
-        });
+    public static List<RecordField> getRecordFields(@Nonnull Class<?> recordType) {
+        return REFLECTION.getRecordType(recordType).fields();
     }
 
     /**
-     * Looks up the record component in the given table, taking the {@code component} path into account.
+     * Looks up the record field in the given table, taking the {@code field} path into account.
      */
-    public static RecordComponent getRecordComponent(@Nonnull Class<? extends Record> table,
-                                                     @Nonnull String path) throws SqlTemplateException {
+    public static RecordField getRecordField(@Nonnull Class<?> table,
+                                             @Nonnull String path) throws SqlTemplateException {
         if (path.isEmpty()) {
             throw new SqlTemplateException("Empty component path specified.");
         }
         // Split on '.' to handle nested components (e.g., "x.y.z").
         String[] parts = path.split("\\.");
-        Class<? extends Record> currentRecordClass = table;
-        RecordComponent foundComponent = null;
+        RecordType type = REFLECTION.getRecordType(table);
+        RecordField foundField = null;
         for (int i = 0; i < parts.length; i++) {
             String part = parts[i];
             // Get record components for the current record class.
-            foundComponent = null;
-            for (RecordComponent c : getRecordComponents(currentRecordClass)) {
-                if (c.getName().equals(part)) {
-                    foundComponent = c;
+            foundField = null;
+            for (RecordField field : type.fields()) {
+                if (field.name().equals(part)) {
+                    foundField = field;
                     break;
                 }
             }
-            if (foundComponent == null) {
-                throw new SqlTemplateException("No component named '%s' found in record %s.".formatted(part, currentRecordClass.getName()));
+            if (foundField == null) {
+                throw new SqlTemplateException("No field named '%s' found in record %s.".formatted(part, type.type().getName()));
             }
-            // If there's still a next part to search, update currentRecordClass if possible.
+            // If there's still a next part to search, update type if possible.
             boolean hasNextPart = (i < parts.length - 1);
             if (hasNextPart) {
-                // The type of the found component must be another record to continue drilling down.
-                if (Record.class.isAssignableFrom(foundComponent.getType())) {
-                    @SuppressWarnings("unchecked")
-                    Class<? extends Record> nextRecordClass = (Class<? extends Record>) foundComponent.getType();
-                    currentRecordClass = nextRecordClass;
+                // The type of the found field must be another record type to continue drilling down.
+                var fieldType = REFLECTION.findRecordType(foundField.type()).orElse(null);
+                if (fieldType != null) {
+                    type = fieldType;
                 } else {
-                    throw new SqlTemplateException("Component '%s' in record %s is not a record, but further components were specified: '%s'.".formatted(part, currentRecordClass.getName(), path));
+                    throw new SqlTemplateException("Component '%s' in record %s is not a record, but further components were specified: '%s'.".formatted(part, type.type().getName(), path));
                 }
             }
         }
-        return foundComponent;
+        return foundField;
     }
 
     /**
-     * Returns the primary key component for the specified table. If the table has a compound primary key, represented
-     * by a record, the primary key component is that record itself.
+     * Returns the primary key field for the specified table. If the table has a compound primary key, represented
+     * by a record, the primary key field is that record itself.
      *
      * <p><strong>Note:</strong> PKs must always be present at the top-level of the record. They would not be recognized
      * if they're part of inlined records.</p>
      *
-     * @param table the table to obtain the primary key component for.
-     * @return the primary key component for the specified table.
+     * @param table the table to obtain the primary key field for.
+     * @return the primary key field for the specified table.
      */
-    static Optional<RecordComponent> getPkComponent(@Nonnull Class<? extends Record> table) {
-        return RecordReflection.getRecordComponents(table).stream()
-                .filter(c -> REFLECTION.isAnnotationPresent(c, PK.class))
+    static Optional<RecordField> findPkField(@Nonnull Class<?> table) {
+        return REFLECTION.getRecordType(table).fields().stream()
+                .filter(field -> field.isAnnotationPresent(PK.class))
                 .findFirst();
     }
 
@@ -148,51 +162,51 @@ final class RecordReflection {
      *
      * @param table the table to obtain the primary key components for.
      */
-    static Stream<RecordComponent> getNestedPkComponents(@Nonnull Class<? extends Record> table) {
-        var pkComponent = getPkComponent(table).orElse(null);
-        if (pkComponent == null) {
+    static Stream<RecordField> getNestedPkFields(@Nonnull Class<?> table) {
+        var pkField = findPkField(table).orElse(null);
+        if (pkField == null) {
             return Stream.of();
         }
-        if (REFLECTION.isAnnotationPresent(pkComponent, FK.class)) {
+        if (pkField.isAnnotationPresent(FK.class)) {
             // If the primary key component is also a foreign key, return the component itself.
-            return Stream.of(pkComponent);
+            return Stream.of(pkField);
         }
-        if (!pkComponent.getType().isRecord()) {
-            return Stream.of(pkComponent);
+        if (!REFLECTION.findRecordType(pkField.type()).isPresent()) {
+            return Stream.of(pkField);
         }
-        return RecordReflection.getRecordComponents(pkComponent.getType()).stream();
+        return RecordReflection.getRecordFields(pkField.type()).stream();
     }
 
     @SuppressWarnings("unchecked")
-    static Stream<RecordComponent> getFkComponents(@Nonnull Class<? extends Record> table) {
-        return RecordReflection.getRecordComponents(table).stream()
-                .flatMap(c -> {
-                    if (REFLECTION.isAnnotationPresent(c, FK.class)) {
-                        return Stream.of(c);
+    static Stream<RecordField> getFkFields(@Nonnull Class<?> table) {
+        return REFLECTION.getRecordType(table).fields().stream()
+                .flatMap(field -> {
+                    if (field.isAnnotationPresent(FK.class)) {
+                        return Stream.of(field);
                     }
-                    if (c.getType().isRecord() && getORMConverter(c).isEmpty()) {
-                        return getFkComponents((Class<? extends Record>) c.getType());
+                    if (REFLECTION.findRecordType(field.type()).isPresent() && getORMConverter(field).isEmpty()) {
+                        return getFkFields(field.type());
                     }
                     return Stream.empty();
                 });
     }
 
     /**
-     * Returns the version component for the specified table. The version component is a record component that is
+     * Returns the version field for the specified table. The version field is a record field that is
      * annotated with the {@link Version} annotation.
      *
-     * @param table the table to obtain the version component for.
-     * @return optional with the component that specified the Version annotation, or an empty if none found.
+     * @param table the table to obtain the version field for.
+     * @return optional with the field that specified the Version annotation, or an empty if none found.
      */
-    static Optional<RecordComponent> getVersionComponent(@Nonnull Class<? extends Record> table) {
-        for (var component : RecordReflection.getRecordComponents(table)) {
-            if (REFLECTION.isAnnotationPresent(component, Version.class)) {
-                return Optional.of(component);
+    static Optional<RecordField> getVersionField(@Nonnull Class<?> table) {
+        for (var field : REFLECTION.getRecordType(table).fields()) {
+            if (field.isAnnotationPresent(Version.class)) {
+                return Optional.of(field);
             }
-            if (component.getType().isRecord()
-                    && !REFLECTION.isAnnotationPresent(component, FK.class)
-                    && getORMConverter(component).isEmpty()) {
-                var versionComponent = getVersionComponent((Class<? extends Record>) component.getType());
+            if (REFLECTION.findRecordType(field.type()).isPresent()
+                    && !field.isAnnotationPresent(FK.class)
+                    && getORMConverter(field).isEmpty()) {
+                var versionComponent = getVersionField(field.type());
                 if (versionComponent.isPresent()) {
                     return versionComponent;
                 }
@@ -201,67 +215,69 @@ final class RecordReflection {
         return Optional.empty();
     }
 
-    static GenerationStrategy getGenerationStrategy(@Nonnull RecordComponent component) {
-        PK pk = REFLECTION.getAnnotation(component, PK.class);
+    static GenerationStrategy getGenerationStrategy(@Nonnull RecordField field) {
+        PK pk = field.getAnnotation(PK.class);
         if (pk != null) {
-            if (!component.getType().isRecord() && !REFLECTION.isAnnotationPresent(component, FK.class)) {
+            if (!REFLECTION.findRecordType(field.type()).isPresent() && !field.isAnnotationPresent(FK.class)) {
                 return pk.generation();
             }
         }
         return GenerationStrategy.NONE;
     }
 
-    static String getSequence(@Nonnull RecordComponent component) {
-        PK pk = REFLECTION.getAnnotation(component, PK.class);
+    static String getSequence(@Nonnull RecordField field) {
+        PK pk = field.getAnnotation(PK.class);
         if (pk != null) {
             return pk.sequence();
         }
         return "";
     }
 
-    static boolean isTypePresent(@Nonnull Class<? extends Record> source,
-                                 @Nonnull Class<? extends Record> target) throws SqlTemplateException {
+    static boolean isTypePresent(@Nonnull Class<?> source,
+                                 @Nonnull Class<?> target) throws SqlTemplateException {
         if (target.equals(source)) {
             return true;
         }
-        return findComponent(RecordReflection.getRecordComponents(source), target).isPresent();
+        return findRecordField(getRecordFields(source), target).isPresent();
     }
 
-    static Optional<RecordComponent> findComponent(@Nonnull List<RecordComponent> components,
-                                                   @Nonnull Class<? extends Record> table) throws SqlTemplateException {
-        for (var component : components) {
-            if (component.getType().equals(table)
-                    || (Ref.class.isAssignableFrom(component.getType()) && getRefRecordType(component).equals(table))) {
-                return Optional.of(component);
+    static Optional<RecordField> findRecordField(@Nonnull List<RecordField> fields,
+                                                 @Nonnull Class<?> table) throws SqlTemplateException {
+        var recordType = REFLECTION.getRecordType(table);
+        for (var field : fields) {
+            if (field.type() == recordType.type()
+                    || (Ref.class.isAssignableFrom(field.type()) && getRefDataType(field).equals(table))) {
+                return Optional.of(field);
             }
         }
         return empty();
     }
 
-    // Use RecordComponentKey as key as multiple new instances of the same RecordComponent are created, which return
-    // false for equals and hashCode.
-    record RecordComponentKey(Class<? extends Record> recordType, String name) {
-        RecordComponentKey(@Nonnull RecordComponent component) {
-            //noinspection unchecked
-            this((Class<? extends Record>) component.getDeclaringRecord(), component.getName());
+    /**
+     * Represents a key for a record field.
+     */
+    record FieldKey(Class<?> declaringType, String name) {
+        FieldKey(RecordField field) {
+            this(field.declaringType(), field.name());
         }
     }
-    private static final java.util.Map<RecordComponentKey, Class<?>> REF_PK_TYPE_CACHE = new ConcurrentHashMap<>();
+    private static final java.util.Map<FieldKey, Class<?>> REF_PK_TYPE_CACHE = new ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")
-    static Class<?> getRefPkType(@Nonnull RecordComponent component) throws SqlTemplateException {
+    static Class<?> getRefPkType(@Nonnull RecordField field) throws SqlTemplateException {
         try {
-            return REF_PK_TYPE_CACHE.computeIfAbsent(new RecordComponentKey(component), ignore -> {
+            return REF_PK_TYPE_CACHE.computeIfAbsent(new FieldKey(field), ignore -> {
                 try {
-                    var type = component.getGenericType();
+                    var type = field.genericType();
                     if (type instanceof ParameterizedType parameterizedType) {
                         Type supplied = parameterizedType.getActualTypeArguments()[0];
-                        if (supplied instanceof Class<?> c && c.isRecord()) {
-                            return REFLECTION.findPKType((Class<? extends Record>) c)
+                        if (supplied instanceof Class<?> c && REFLECTION.findRecordType(c).isPresent()) {
+                            return RecordReflection.findPkField(c)
+                                    .map(RecordField::type)
                                     .orElseThrow(() -> new SqlTemplateException("Primary key not found for entity: %s.".formatted(c.getSimpleName())));
                         }
                     }
-                    throw new SqlTemplateException("Ref component must specify an entity: %s.".formatted(component.getType().getSimpleName()));
+                    throw new SqlTemplateException("Ref component must specify an entity: %s.".formatted(field.type().getSimpleName()));
                 } catch (SqlTemplateException e) {
                     throw new RuntimeException(e);
                 }
@@ -271,28 +287,31 @@ final class RecordReflection {
         }
     }
 
-    private static final Map<RecordComponentKey, Class<? extends Record>> REF_RECORD_TYPE_CACHE = new ConcurrentHashMap<>();
+    private static final Map<FieldKey, Class<? extends Data>> REF_RECORD_TYPE_CACHE = new ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")
-    static Class<? extends Record> getRefRecordType(@Nonnull RecordComponent component) throws SqlTemplateException {
+    static Class<? extends Data> getRefDataType(@Nonnull RecordField field) throws SqlTemplateException {
         try {
-            return REF_RECORD_TYPE_CACHE.computeIfAbsent(new RecordComponentKey(component), ignore -> {
+            return REF_RECORD_TYPE_CACHE.computeIfAbsent(new FieldKey(field), ignore -> {
                 try {
-                    Class<? extends Record> recordType = null;
-                    var type = component.getGenericType();
+                    Class<?> recordType = null;
+                    var type = field.genericType();
                     if (type instanceof ParameterizedType parameterizedType) {
                         Type supplied = parameterizedType.getActualTypeArguments()[0];
-                        if (supplied instanceof Class<?> c && c.isRecord()) {
-                            recordType = (Class<? extends Record>) c;
+                        if (supplied instanceof Class<?> c) {
+                            recordType = (Class<?>) c;
                         }
                     }
-                    if (!Entity.class.isAssignableFrom(component.getType()) && recordType == null) {
-                        throw new SqlTemplateException("Ref component must specify an entity: %s.".formatted(component.getType().getSimpleName()));
-                    }
                     if (recordType == null) {
-                        throw new SqlTemplateException("Ref component must be a record: %s.".formatted(component.getType().getSimpleName()));
+                        throw new SqlTemplateException("Ref must specify a Data type: %s.".formatted(field.type().getSimpleName()));
                     }
-                    return recordType;
+                    var finalRecordType = recordType;
+                    REFLECTION.findRecordType(recordType)
+                            .orElseThrow(() -> new SqlTemplateException("Ref must specify a record type: %s.".formatted(finalRecordType.getSimpleName())));
+                    if (!Data.class.isAssignableFrom(recordType)) {
+                        throw new SqlTemplateException("Ref must specify a Data type: %s.".formatted(field.type().getSimpleName()));
+                    }
+                    return (Class<? extends Data>) recordType;
                 } catch (SqlTemplateException e) {
                     throw new RuntimeException(e);
                 }
@@ -309,10 +328,11 @@ final class RecordReflection {
      * @param tableNameResolver the table name resolver.
      * @return the table name for the specified record type.
      */
-    static TableName getTableName(@Nonnull Class<? extends Record> table,
+    static TableName getTableName(@Nonnull Class<? extends Data> table,
                                   @Nonnull TableNameResolver tableNameResolver) throws SqlTemplateException {
+        RecordType type = REFLECTION.getRecordType(table);
         String tableName = null;
-        DbTable dbTable = REFLECTION.getAnnotation(table, DbTable.class);
+        DbTable dbTable = type.getAnnotation(DbTable.class);
         if (dbTable != null) {
             var tableNames = Stream.of(dbTable.name(), dbTable.value())
                     .filter(not(String::isEmpty))
@@ -326,7 +346,7 @@ final class RecordReflection {
             }
         }
         if (tableName == null) {
-            tableName = tableNameResolver.resolveTableName(table);
+            tableName = tableNameResolver.resolveTableName(type);
         }
         if (dbTable != null) {
             if (!dbTable.schema().isEmpty()) {
@@ -376,40 +396,40 @@ final class RecordReflection {
     private static final List<Class<? extends Annotation>> COLUMN_ANNOTATIONS = List.of(PK.class, FK.class, DbColumn.class);
 
     /**
-     * Returns the column name for the specified record component taking the column name resolver into account,
+     * Returns the column name for the specified record field taking the column name resolver into account,
      * if present.
      *
-     * @param component the record component to obtain the column name for.
+     * @param field the record field to obtain the column name for.
      * @param columnNameResolver the column name resolver.
-     * @return the column name for the specified record component.
+     * @return the column name for the specified record field.
      */
-    static ColumnName getColumnName(@Nonnull RecordComponent component,
+    static ColumnName getColumnName(@Nonnull RecordField field,
                                     @Nonnull ColumnNameResolver columnNameResolver) throws SqlTemplateException {
-        List<ColumnName> names = getColumnNames(component, COLUMN_ANNOTATIONS);
+        List<ColumnName> names = getColumnNames(field, COLUMN_ANNOTATIONS);
         if (names.size() == 1) {
             return names.getFirst();
         }
         if (names.size() > 1) {
-            throw new SqlTemplateException("Multiple column names found for %s.%s: %s.".formatted(component.getDeclaringRecord().getSimpleName(), component.getName(), names));
+            throw new SqlTemplateException("Multiple column names found for %s.%s: %s.".formatted(field.type().getSimpleName(), field.name(), names));
         }
-        DbColumn dbColumn = REFLECTION.getAnnotation(component, DbColumn.class);
-        return new ColumnName(columnNameResolver.resolveColumnName(component), dbColumn != null && dbColumn.escape());
+        DbColumn dbColumn = field.getAnnotation(DbColumn.class);
+        return new ColumnName(columnNameResolver.resolveColumnName(field), dbColumn != null && dbColumn.escape());
     }
 
     /**
      * Returns the column name(s) for the specified record component using the component's annotations.
      *
-     * @param component the record component to obtain the column name(s) for.
+     * @param field the record field to obtain the column name(s) for.
      * @param annotationTypes the column name annotations to consider.
      * @return the column name(s) for the specified record component.
      * @throws SqlTemplateException if zero, or multiple names are found for the component.
      */
-    private static List<ColumnName> getColumnNames(@Nonnull RecordComponent component,
+    private static List<ColumnName> getColumnNames(@Nonnull RecordField field,
                                                    @Nonnull List<Class<? extends Annotation>> annotationTypes)
             throws SqlTemplateException {
         try {
             var columNameLists = annotationTypes.stream()
-                    .map(c -> REFLECTION.getAnnotation(component, c))
+                    .map(annotationType -> field.getAnnotation(annotationType))
                     .filter(Objects::nonNull)
                     .flatMap(RecordReflection::getColumnNames)
                     .distinct()
@@ -418,7 +438,8 @@ final class RecordReflection {
                 return List.of();
             }
             if (columNameLists.size() > 1) {
-                throw new SqlTemplateException("Multiple column names found for %s.%s: %s.".formatted(component.getDeclaringRecord().getSimpleName(), component.getName(), columNameLists));
+                throw new SqlTemplateException("Multiple column names found for %s.%s: %s."
+                        .formatted(field.type().getSimpleName(), field.name(), columNameLists));
             }
             return columNameLists.getFirst();
         } catch (IllegalArgumentException e) {
@@ -446,37 +467,38 @@ final class RecordReflection {
     private static final List<Class<? extends Annotation>> PK_COLUMN_ANNOTATIONS = List.of(PK.class, DbColumn.class, DbColumns.class);
 
     /**
-     * Returns the column name(s) for the specified primary key component.
+     * Returns the column name(s) for the specified primary key field.
      *
-     * @param component the record component to obtain the primary key column name(s) for.
+     * @param field the record field to obtain the primary key column name(s) for.
      * @return the column name for the specified record component(s).
      */
-    static List<ColumnName> getPrimaryKeys(@Nonnull RecordComponent component,
+    static List<ColumnName> getPrimaryKeys(@Nonnull RecordField field,
                                            @Nonnull ForeignKeyResolver foreignKeyResolver,
                                            @Nonnull ColumnNameResolver columnNameResolver) throws SqlTemplateException {
-        var columnNames = getColumnNames(component, PK_COLUMN_ANNOTATIONS);
+        var columnNames = getColumnNames(field, PK_COLUMN_ANNOTATIONS);
         if (!columnNames.isEmpty()) {
             return columnNames;
         }
-        if (REFLECTION.isAnnotationPresent(component, FK.class)) {
+        if (field.isAnnotationPresent(FK.class)) {
             // If the primary key component is also a foreign key, return the foreign key column names.
-            return getForeignKeys(component, foreignKeyResolver, columnNameResolver);
+            return getForeignKeys(field, foreignKeyResolver, columnNameResolver);
         }
-        DbColumn[] dbColumns = REFLECTION.getAnnotations(component, DbColumn.class);
-        if (component.getType().isRecord()) {
+        DbColumn[] dbColumns = field.getAnnotations(DbColumn.class);
+        RecordType fieldType = REFLECTION.findRecordType(field.type()).orElse(null);
+        if (fieldType != null) {
             columnNames = new ArrayList<>();
-            var pkComponents = RecordReflection.getRecordComponents(component.getType());
-            for (int i = 0; i < pkComponents.size(); i++) {
-                var pkComponent = pkComponents.get(i);
+            var pkFields = fieldType.fields();
+            for (int i = 0; i < pkFields.size(); i++) {
+                var pkField = pkFields.get(i);
                 DbColumn nestedDbColumn = i < dbColumns.length
                         ? dbColumns[i]
-                        : REFLECTION.getAnnotation(pkComponent, DbColumn.class);    // Top level is prioritized over nested.
-                String name = columnNameResolver.resolveColumnName(pkComponent);
+                        : pkField.getAnnotation(DbColumn.class);    // Top level is prioritized over nested.
+                String name = columnNameResolver.resolveColumnName(pkField);
                 columnNames.add(new ColumnName(name, nestedDbColumn != null && nestedDbColumn.escape()));
             }
         } else {
             DbColumn dbColumn = dbColumns.length > 0 ? dbColumns[0] : null;
-            String name = columnNameResolver.resolveColumnName(component);
+            String name = columnNameResolver.resolveColumnName(field);
             columnNames = List.of(new ColumnName(name, dbColumn != null && dbColumn.escape()));
         }
         return columnNames;
@@ -485,40 +507,40 @@ final class RecordReflection {
     private static final List<Class<? extends Annotation>> FK_COLUMN_ANNOTATIONS = List.of(FK.class, DbColumn.class, DbColumns.class);
 
     /**
-     * Returns the column name(s) for the specified foreign key component taking the column name resolver into account,
+     * Returns the column name(s) for the specified foreign key field taking the column name resolver into account,
      * if present.
      *
-     * @param component the record component to obtain the foreign key column name(s) for.
+     * @param field the record field to obtain the foreign key column name(s) for.
      * @param foreignKeyResolver the foreign key resolver.
      * @return the column name for the specified record component(s).
      */
     @SuppressWarnings("unchecked")
-    static List<ColumnName> getForeignKeys(@Nonnull RecordComponent component,
+    static List<ColumnName> getForeignKeys(@Nonnull RecordField field,
                                            @Nonnull ForeignKeyResolver foreignKeyResolver,
                                            @Nonnull ColumnNameResolver columnNameResolver) throws SqlTemplateException {
-        var columnNames = getColumnNames(component, FK_COLUMN_ANNOTATIONS);
+        var columnNames = getColumnNames(field, FK_COLUMN_ANNOTATIONS);
         if (!columnNames.isEmpty()) {
             return columnNames;
         }
-        Class<? extends Record> recordType = Ref.class.isAssignableFrom(component.getType())
-                ? getRefRecordType(component)
-                : (Class<? extends Record>) component.getType();
-        DbColumn[] dbColumns = REFLECTION.getAnnotations(component, DbColumn.class);
-        List<RecordComponent> pkComponents = getNestedPkComponents(recordType).toList();
-        if (pkComponents.size() == 1) {
+        Class<?> fkType = Ref.class.isAssignableFrom(field.type())
+                ? getRefDataType(field)
+                : field.type();
+        DbColumn[] dbColumns = field.getAnnotations(DbColumn.class);
+        List<RecordField> pkFields = getNestedPkFields(fkType).toList();
+        if (pkFields.size() == 1) {
             // If there is only one PK component, use the column name of the FK component.
             DbColumn dbColumn = dbColumns.length > 0
                     ? dbColumns[0]
-                    : REFLECTION.getAnnotation(pkComponents.getFirst(), DbColumn.class);
-            String name = foreignKeyResolver.resolveColumnName(component, recordType);
+                    : pkFields.getFirst().getAnnotation(DbColumn.class);
+            String name = foreignKeyResolver.resolveColumnName(field, REFLECTION.getRecordType(fkType));
             return List.of(new ColumnName(name, dbColumn != null && dbColumn.escape()));
         }
-        columnNames = new ArrayList<>(pkComponents.size());
-        for (int i = 0; i < pkComponents.size(); i++) {
-            var pkComponent = pkComponents.get(i);
+        columnNames = new ArrayList<>(pkFields.size());
+        for (int i = 0; i < pkFields.size(); i++) {
+            var pkComponent = pkFields.get(i);
             DbColumn nestedDbColumn = i < dbColumns.length
                     ? dbColumns[i]
-                    : REFLECTION.getAnnotation(pkComponent, DbColumn.class); // Top-level prioritized
+                    : pkComponent.getAnnotation(DbColumn.class); // Top-level prioritized.
             String name = columnNameResolver.resolveColumnName(pkComponent);
             columnNames.add(new ColumnName(name, nestedDbColumn != null && nestedDbColumn.escape()));
         }
@@ -527,21 +549,22 @@ final class RecordReflection {
 
     static void mapForeignKeys(@Nonnull TableMapper tableMapper,
                                @Nonnull String alias,
-                               @Nonnull Class<? extends Record> rootTable,
-                               @Nonnull Class<? extends Record> table,
+                               @Nonnull Class<? extends Data> rootTable,
+                               @Nonnull Class<? extends Data> table,
                                @Nullable String path)
             throws SqlTemplateException {
-        for (var component : RecordReflection.getRecordComponents(table)) {
-            if (REFLECTION.isAnnotationPresent(component, FK.class)) {
-                if (Ref.class.isAssignableFrom(component.getType())) {
-                    tableMapper.mapForeignKey(table, getRefRecordType(component), alias, component, rootTable, path);
+        for (var field : RecordReflection.getRecordFields(table)) {
+            if (field.isAnnotationPresent(FK.class)) {
+                if (Ref.class.isAssignableFrom(field.type())) {
+                    tableMapper.mapForeignKey(table, getRefDataType(field), alias, field, rootTable, path);
                 } else {
-                    if (!component.getType().isRecord()) {
-                        throw new SqlTemplateException("FK annotation is only allowed on record types: %s.".formatted(component.getType().getSimpleName()));
+                    Class<?> recordType = field.type();
+                    REFLECTION.findRecordType(recordType)
+                            .orElseThrow(() -> new SqlTemplateException("FK annotation is only allowed on record types: %s.".formatted(field.type().getSimpleName())));
+                    if (!Data.class.isAssignableFrom(recordType)) {
+                        throw new SqlTemplateException("FK annotation is only allowed on Data types: %s.".formatted(field.type().getSimpleName()));
                     }
-                    //noinspection unchecked
-                    Class<? extends Record> componentType = (Class<? extends Record>) component.getType();
-                    tableMapper.mapForeignKey(table, componentType, alias, component, rootTable, path);
+                    tableMapper.mapForeignKey(table, (Class<? extends Data>) recordType, alias, field, rootTable, path);
                 }
             }
         }

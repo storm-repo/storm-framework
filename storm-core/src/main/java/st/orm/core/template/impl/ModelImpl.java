@@ -17,15 +17,17 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Data;
 import st.orm.Metamodel;
 import st.orm.PersistenceException;
+import st.orm.core.spi.ORMReflection;
+import st.orm.core.spi.Providers;
+import st.orm.mapping.RecordField;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplateException;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.RecordComponent;
 import java.util.List;
 import java.util.Optional;
 import java.util.SequencedMap;
@@ -43,14 +45,16 @@ import static java.util.Objects.requireNonNull;
  * @param primaryKeyType the type of the primary key.
  * @param columns an immutable list of columns in the entity or projection.
  */
-public record ModelImpl<E extends Record, ID>(
+public record ModelImpl<E extends Data, ID>(
         @Nonnull TableName tableName,
         @Nonnull Class<E> type,
         @Nonnull Class<ID> primaryKeyType,
         @Nonnull List<Column> columns,
         @Nonnull List<Metamodel<E, ?>> metamodels,
-        @Nonnull Optional<RecordComponent> primaryKeyComponent,
-        @Nonnull List<RecordComponent> foreignKeyComponents) implements Model<E, ID> {
+        @Nonnull Optional<RecordField> primaryKeyField,
+        @Nonnull List<RecordField> foreignKeyFields) implements Model<E, ID> {
+
+    private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
     public ModelImpl {
         requireNonNull(tableName, "tableName");
@@ -58,7 +62,7 @@ public record ModelImpl<E extends Record, ID>(
         requireNonNull(primaryKeyType, "primaryKeyType");
         columns = copyOf(columns); // Defensive copy.
         metamodels = copyOf(metamodels); // Defensive copy.
-        foreignKeyComponents = copyOf(foreignKeyComponents); // Defensive copy.
+        foreignKeyFields = copyOf(foreignKeyFields); // Defensive copy.
         assert columns.size() == metamodels.size() : "Columns and metamodels must have the same size";
     }
 
@@ -108,26 +112,16 @@ public record ModelImpl<E extends Record, ID>(
     }
 
     /**
-     * Extracts the value for the specified record component from the given record.
+     * Extracts the value for the specified record field from the given record.
      *
-     * @param component the record component to extract the value for.
+     * @param field the record field to extract the value for.
      * @param record the record to extract the value from.
-     * @return the value for the specified record component from the given record.
+     * @return the value for the specified record field from the given record.
      * @since 1.3
      */
     @Override
-    public Object getValue(@Nonnull RecordComponent component, @Nonnull E record) {
-        try {
-            try {
-                return component.getAccessor().invoke(record);
-            } catch (InvocationTargetException e) {
-                throw e.getTargetException();
-            }
-        } catch (PersistenceException e) {
-            throw e;
-        } catch (Throwable t) {
-            throw new PersistenceException(t);
-        }
+    public Object getValue(@Nonnull RecordField field, @Nonnull E record) {
+        return REFLECTION.invoke(field, record);
     }
 
     /**

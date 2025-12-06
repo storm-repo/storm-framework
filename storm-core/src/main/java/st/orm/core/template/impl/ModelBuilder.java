@@ -17,12 +17,13 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Data;
 import st.orm.PersistenceException;
-import st.orm.config.ColumnNameResolver;
-import st.orm.config.ForeignKeyResolver;
+import st.orm.mapping.ColumnNameResolver;
+import st.orm.mapping.ForeignKeyResolver;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplateException;
-import st.orm.config.TableNameResolver;
+import st.orm.mapping.TableNameResolver;
 
 import java.util.function.Supplier;
 
@@ -88,7 +89,7 @@ public interface ModelBuilder {
      * @param <ID> the primary key type.
      * @throws SqlTemplateException if an error occurs while building the model.
      */
-    <T extends Record, ID> Model<T, ID> build(@Nonnull T record, boolean requirePrimaryKey) throws SqlTemplateException;
+    <T extends Data, ID> Model<T, ID> build(@Nonnull T record, boolean requirePrimaryKey) throws SqlTemplateException;
 
     /**
      * Builds the model.
@@ -97,7 +98,7 @@ public interface ModelBuilder {
      * @param <ID> the primary key type.
      * @throws SqlTemplateException if an error occurs while building the model.
      */
-    <T extends Record, ID> Model<T, ID> build(@Nonnull Class<T> type, boolean requirePrimaryKey) throws SqlTemplateException;
+    <T extends Data, ID> Model<T, ID> build(@Nonnull Class<T> type, boolean requirePrimaryKey) throws SqlTemplateException;
 
     /**
      * Returns a supplier for the model.
@@ -108,7 +109,7 @@ public interface ModelBuilder {
      * @param <T> the record type.
      * @param <ID> the primary key type.
      */
-    default <T extends Record, ID> Supplier<Model<T, ID>> supplier(@Nonnull Class<T> type, boolean requirePrimaryKey) {
+    default <T extends Data, ID> Supplier<Model<T, ID>> supplier(@Nonnull Class<T> type, boolean requirePrimaryKey) {
         return () -> {
             try {
                 return build(type, requirePrimaryKey);

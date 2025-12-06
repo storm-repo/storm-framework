@@ -17,6 +17,7 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Data;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.core.template.Query;
@@ -43,7 +44,7 @@ import static st.orm.core.template.TemplateString.wrap;
  * @param <R> the type of the result.
  * @param <ID> the type of the primary key.
  */
-public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl<T, R, ID> {
+public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T, R, ID> {
     private final TemplateString forLock;
     private final TemplateString selectTemplate;
     private final Class<R> selectType;
@@ -51,7 +52,7 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
     private final Integer limit;
     private final Integer offset;
     private final boolean subquery;
-    private final Class<? extends Record> refType;
+    private final Class<? extends Data> refType;
     private final Class<?> pkType;
 
     public SelectBuilderImpl(@Nonnull QueryTemplate queryTemplate,
@@ -65,7 +66,7 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
 
     public SelectBuilderImpl(@Nonnull QueryTemplate queryTemplate,
                              @Nonnull Class<T> fromType,
-                             @Nonnull Class<? extends Record> refType,
+                             @Nonnull Class<? extends Data> refType,
                              @Nonnull Class<?> pkType,
                              @Nonnull Supplier<Model<T, ID>> modelSupplier) {
         //noinspection unchecked
@@ -84,7 +85,7 @@ public class SelectBuilderImpl<T extends Record, R, ID> extends QueryBuilderImpl
                               @Nonnull TemplateString selectTemplate,
                               @Nonnull List<TemplateString> templates,
                               boolean subquery,
-                              @Nullable Class<? extends Record> refType,
+                              @Nullable Class<? extends Data> refType,
                               @Nullable Class<?> pkType,
                               @Nonnull Supplier<Model<T, ID>> modelSupplier) {
         super(ormTemplate, fromType, join, where, templates, modelSupplier);

@@ -24,7 +24,7 @@ import jakarta.annotation.Nonnull;
  * @param <E> the record component type of the designated element.
  * @since 1.2
  */
-public interface Metamodel<T extends Record, E> {
+public interface Metamodel<T, E> {
 
     /**
      * Creates a new metamodel for the given record type.
@@ -33,7 +33,7 @@ public interface Metamodel<T extends Record, E> {
      * @return a new metamodel for the given record type.
      * @param <T> the root table type.
      */
-    static <T extends Record> Metamodel<T, T> root(@Nonnull Class<T> table) {
+    static <T> Metamodel<T, T> root(@Nonnull Class<T> table) {
         return MetamodelHelper.root(table);
     }
 
@@ -50,8 +50,7 @@ public interface Metamodel<T extends Record, E> {
      * @param <E> the record component type of the designated component.
      * @throws PersistenceException if the metamodel cannot be created for the root rootTable and path.
      */
-    @SuppressWarnings("unchecked")
-    static <T extends Record, E> Metamodel<T, E> of(@Nonnull Class<T> rootTable, @Nonnull String path) {
+    static <T extends Data, E> Metamodel<T, E> of(@Nonnull Class<T> rootTable, @Nonnull String path) {
         return MetamodelHelper.of(rootTable, path);
     }
 
@@ -77,7 +76,7 @@ public interface Metamodel<T extends Record, E> {
      *
      * @return the table that holds the column to which this metamodel is pointing.
      */
-    Metamodel<T, ? extends Record> table();
+    Metamodel<T, ?> table();
 
     /**
      * Returns the path to the database table.
@@ -87,27 +86,27 @@ public interface Metamodel<T extends Record, E> {
     String path();
 
     /**
-     * Returns the component type of the designated element.
+     * Returns the field type of the designated element.
      *
-     * @return the component type of the designated element.
+     * @return the field type of the designated element.
      */
-    Class<E> componentType();
+    Class<E> fieldType();
 
     /**
-     * Returns the component path.
+     * Returns the field name.
      *
-     * @return component path.
+     * @return field name.
      */
-    String component();
+    String field();
 
     /**
-     * Returns the component path.
+     * Returns the field path.
      *
-     * @return component path.
+     * @return field path.
      */
-    default String componentPath() {
+    default String fieldPath() {
         String path = path();
-        String component = component();
-        return path.isEmpty() ? component : component.isEmpty() ? path : "%s.%s".formatted(path, component());
+        String field = field();
+        return path.isEmpty() ? field : field.isEmpty() ? path : "%s.%s".formatted(path, field());
     }
 }

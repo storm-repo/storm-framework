@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.config;
+package st.orm.mapping;
 
 import jakarta.annotation.Nonnull;
 
@@ -34,7 +34,7 @@ public interface TableNameResolver {
      * @return the table name resolver.
      */
     static TableNameResolver camelCaseToSnakeCase() {
-        return type -> NameResolver.camelCaseToSnakeCase(type.getSimpleName());
+        return type -> NameResolver.camelCaseToSnakeCase(type.type().getSimpleName());
     }
 
     /**
@@ -53,5 +53,5 @@ public interface TableNameResolver {
      * @param type the record type.
      * @return the table name.
      */
-    String resolveTableName(@Nonnull Class<? extends Record> type);
+    String resolveTableName(@Nonnull RecordType type);
 }

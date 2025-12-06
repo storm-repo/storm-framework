@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.config;
+package st.orm.mapping;
 
 import jakarta.annotation.Nonnull;
 

@@ -16,6 +16,7 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.Ref;
 import st.orm.core.template.Model;
 import st.orm.core.spi.Orderable.AfterAny;
@@ -48,12 +49,12 @@ public class DefaultQueryBuilderProviderImpl implements QueryBuilderProvider {
      * @param <R> the result type.
      */
     @Override
-    public <T extends Record, R, ID> QueryBuilder<T, R, ID> selectFrom(@Nonnull QueryTemplate queryTemplate,
-                                                                       @Nonnull Class<T> fromType,
-                                                                       @Nonnull Class<R> selectType,
-                                                                       @Nonnull TemplateString template,
-                                                                       boolean subquery,
-                                                                       @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+    public <T extends Data, R, ID> QueryBuilder<T, R, ID> selectFrom(@Nonnull QueryTemplate queryTemplate,
+                                                                     @Nonnull Class<T> fromType,
+                                                                     @Nonnull Class<R> selectType,
+                                                                     @Nonnull TemplateString template,
+                                                                     boolean subquery,
+                                                                     @Nonnull Supplier<Model<T, ID>> modelSupplier) {
         return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, template, subquery, modelSupplier);
     }
 
@@ -70,11 +71,11 @@ public class DefaultQueryBuilderProviderImpl implements QueryBuilderProvider {
      * @param <ID> the primary key type.
      */
     @Override
-    public <T extends Record, R extends Record, ID> QueryBuilder<T, Ref<R>, ID> selectRefFrom(@Nonnull QueryTemplate queryTemplate,
-                                                                                              @Nonnull Class<T> fromType,
-                                                                                              @Nonnull Class<R> refType,
-                                                                                              @Nonnull Class<?> pkType,
-                                                                                              @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+    public <T extends Data, R extends Data, ID> QueryBuilder<T, Ref<R>, ID> selectRefFrom(@Nonnull QueryTemplate queryTemplate,
+                                                                                          @Nonnull Class<T> fromType,
+                                                                                          @Nonnull Class<R> refType,
+                                                                                          @Nonnull Class<?> pkType,
+                                                                                          @Nonnull Supplier<Model<T, ID>> modelSupplier) {
         return new SelectBuilderImpl<>(queryTemplate, fromType, refType, pkType, modelSupplier);
     }
 
@@ -88,9 +89,9 @@ public class DefaultQueryBuilderProviderImpl implements QueryBuilderProvider {
      * @param <T> the table type to delete from.
      */
     @Override
-    public <T extends Record, ID> QueryBuilder<T, ?, ID> deleteFrom(@Nonnull QueryTemplate queryTemplate,
-                                                                    @Nonnull Class<T> fromType,
-                                                                    @Nonnull Supplier<Model<T, ID>> modelSupplier) {
+    public <T extends Data, ID> QueryBuilder<T, ?, ID> deleteFrom(@Nonnull QueryTemplate queryTemplate,
+                                                                  @Nonnull Class<T> fromType,
+                                                                  @Nonnull Supplier<Model<T, ID>> modelSupplier) {
         return new DeleteBuilderImpl<>(queryTemplate, fromType, modelSupplier);
     }
 }

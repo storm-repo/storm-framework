@@ -16,6 +16,7 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.JoinType;
 import st.orm.Metamodel;
 import st.orm.Operator;
@@ -60,7 +61,7 @@ import static st.orm.core.template.TemplateString.wrap;
  * @param <R> the type of the result.
  * @param <ID> the type of the primary key.
  */
-abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T, R, ID> implements Subqueryable {
+abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R, ID> implements Subqueryable {
 
     protected final QueryTemplate queryTemplate;
     protected final Class<T> fromType;
@@ -172,7 +173,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
      * @return the query builder.
      */
     @Override
-    public QueryBuilder<T, R, ID> crossJoin(@Nonnull Class<? extends Record> relation) {
+    public QueryBuilder<T, R, ID> crossJoin(@Nonnull Class<? extends Data> relation) {
         return join(cross(), relation, "").on(TemplateString.EMPTY);
     }
 
@@ -183,7 +184,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
      * @return the query builder.
      */
     @Override
-    public TypedJoinBuilder<T, R, ID> innerJoin(@Nonnull Class<? extends Record> relation) {
+    public TypedJoinBuilder<T, R, ID> innerJoin(@Nonnull Class<? extends Data> relation) {
         return join(inner(), relation, "");
     }
 
@@ -194,7 +195,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
      * @return the query builder.
      */
     @Override
-    public TypedJoinBuilder<T, R, ID> leftJoin(@Nonnull Class<? extends Record> relation) {
+    public TypedJoinBuilder<T, R, ID> leftJoin(@Nonnull Class<? extends Data> relation) {
         return join(left(), relation, "");
     }
 
@@ -205,7 +206,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
      * @return the query builder.
      */
     @Override
-    public TypedJoinBuilder<T, R, ID> rightJoin(@Nonnull Class<? extends Record> relation) {
+    public TypedJoinBuilder<T, R, ID> rightJoin(@Nonnull Class<? extends Data> relation) {
         return join(right(), relation, "");
     }
 
@@ -297,7 +298,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
      * @return the query builder.
      */
     @Override
-    public TypedJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull Class<? extends Record> relation, @Nonnull String alias) {
+    public TypedJoinBuilder<T, R, ID> join(@Nonnull JoinType type, @Nonnull Class<? extends Data> relation, @Nonnull String alias) {
         if (!supportsJoin()) {
             throw new UnsupportedOperationException("Joins are not supported in this query.");
         }
@@ -306,7 +307,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
         requireNonNull(alias, "alias");
         return new TypedJoinBuilder<>() {
             @Override
-            public QueryBuilder<T, R, ID> on(@Nonnull Class<? extends Record> onRelation) {
+            public QueryBuilder<T, R, ID> on(@Nonnull Class<? extends Data> onRelation) {
                 return addJoin(new Join(new TableSource(relation), alias, new TableTarget(onRelation), type, false));
             }
 
@@ -323,7 +324,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
     private static final TemplateString RAW_OPEN = TemplateString.of("(");
     private static final TemplateString RAW_CLOSE = TemplateString.of(")");
 
-    static class PredicateBuilderImpl<TX extends Record, RX, IDX> implements PredicateBuilder<TX, RX, IDX> {
+    static class PredicateBuilderImpl<TX extends Data, RX, IDX> implements PredicateBuilder<TX, RX, IDX> {
         private final List<TemplateString> templates = new ArrayList<>();
         private final boolean safe;
 
@@ -343,7 +344,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
         }
 
         @Override
-        public <TY extends Record, RY, IDY> PredicateBuilder<TY, RY, IDY> andAny(@Nonnull PredicateBuilder<TY, RY, IDY> predicate) {
+        public <TY extends Data, RY, IDY> PredicateBuilder<TY, RY, IDY> andAny(@Nonnull PredicateBuilder<TY, RY, IDY> predicate) {
             add(RAW_AND, predicate);
             //noinspection unchecked
             return (PredicateBuilder<TY, RY, IDY>) this;
@@ -362,7 +363,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
         }
 
         @Override
-        public <TY extends Record, RY, IDY> PredicateBuilder<TY, RY, IDY> orAny(@Nonnull PredicateBuilder<TY, RY, IDY> predicate) {
+        public <TY extends Data, RY, IDY> PredicateBuilder<TY, RY, IDY> orAny(@Nonnull PredicateBuilder<TY, RY, IDY> predicate) {
             add(RAW_OR, predicate);
             //noinspection unchecked
             return (PredicateBuilder<TY, RY, IDY>) this;
@@ -403,7 +404,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
         }
     }
 
-    static class WhereBuilderImpl<TX extends Record, RX, IDX> extends WhereBuilder<TX, RX, IDX> {
+    static class WhereBuilderImpl<TX extends Data, RX, IDX> extends WhereBuilder<TX, RX, IDX> {
         private final QueryBuilderImpl<TX, RX, IDX> queryBuilder;
 
         WhereBuilderImpl(@Nonnull QueryBuilderImpl<TX, RX, IDX> queryBuilder) {
@@ -411,7 +412,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
         }
 
         @Override
-        public <F extends Record> QueryBuilder<F, ?, ?> subquery(@Nonnull Class<F> fromType, @Nonnull TemplateString template) {
+        public <F extends Data> QueryBuilder<F, ?, ?> subquery(@Nonnull Class<F> fromType, @Nonnull TemplateString template) {
             return queryBuilder.queryTemplate.subquery(fromType, template);
         }
 
@@ -436,7 +437,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> whereAnyRef(@Nonnull Ref<? extends Record> ref) {
+        public PredicateBuilder<TX, RX, IDX> whereAnyRef(@Nonnull Ref<?> ref) {
             return new PredicateBuilderImpl<>(wrap(new ObjectExpression(EQUALS, ref)));
         }
 
@@ -446,7 +447,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> whereAny(@Nonnull Record record) {
+        public PredicateBuilder<TX, RX, IDX> whereAny(@Nonnull Data record) {
             return new PredicateBuilderImpl<>(wrap(new ObjectExpression(EQUALS, record)));
         }
 
@@ -461,7 +462,7 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> whereAnyRef(@Nonnull Iterable<? extends Ref<? extends Record>> it) {
+        public PredicateBuilder<TX, RX, IDX> whereAnyRef(@Nonnull Iterable<? extends Ref<?>> it) {
             return new PredicateBuilderImpl<>(wrap(new ObjectExpression(IN, it)));
         }
 
@@ -471,27 +472,27 @@ abstract class QueryBuilderImpl<T extends Record, R, ID> extends QueryBuilder<T,
         }
 
         @Override
-        public PredicateBuilder<TX, RX, IDX> whereAny(@Nonnull Iterable<? extends Record> it) {
+        public PredicateBuilder<TX, RX, IDX> whereAny(@Nonnull Iterable<? extends Data> it) {
             return new PredicateBuilderImpl<>(wrap(new ObjectExpression(IN, it)));
         }
 
         @Override
-        public <V extends Record> PredicateBuilder<TX, RX, IDX> where(@Nonnull Metamodel<TX, V> path, @Nonnull Ref<V> ref) {
+        public <V extends Data> PredicateBuilder<TX, RX, IDX> where(@Nonnull Metamodel<TX, V> path, @Nonnull Ref<V> ref) {
             return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path, EQUALS, ref)));
         }
 
         @Override
-        public <V extends Record> PredicateBuilder<TX, RX, IDX> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull Ref<V> ref) {
+        public <V extends Data> PredicateBuilder<TX, RX, IDX> whereAny(@Nonnull Metamodel<?, V> path, @Nonnull Ref<V> ref) {
             return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path, EQUALS, ref)));
         }
 
         @Override
-        public <V extends Record> PredicateBuilder<TX, RX, IDX> whereRef(@Nonnull Metamodel<TX, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
+        public <V extends Data> PredicateBuilder<TX, RX, IDX> whereRef(@Nonnull Metamodel<TX, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
             return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path, IN, it)));
         }
 
         @Override
-        public <V extends Record> PredicateBuilder<TX, RX, IDX> whereAnyRef(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
+        public <V extends Data> PredicateBuilder<TX, RX, IDX> whereAnyRef(@Nonnull Metamodel<?, V> path, @Nonnull Iterable<? extends Ref<V>> it) {
             return new PredicateBuilderImpl<>(wrap(new ObjectExpression(path, IN, it)));
         }
 

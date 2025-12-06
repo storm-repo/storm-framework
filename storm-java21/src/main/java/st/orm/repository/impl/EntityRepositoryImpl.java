@@ -16,6 +16,7 @@
 package st.orm.repository.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.repository.EntityRepository;
 import st.orm.Entity;
 import st.orm.Ref;
@@ -35,7 +36,7 @@ import static st.orm.template.impl.StringTemplates.convert;
 
 /**
  */
-public final class EntityRepositoryImpl<E extends Record & Entity<ID>, ID> implements EntityRepository<E, ID> {
+public final class EntityRepositoryImpl<E extends Entity<ID>, ID> implements EntityRepository<E, ID> {
     private final st.orm.core.repository.EntityRepository<E, ID> core;
 
     public EntityRepositoryImpl(@Nonnull st.orm.core.repository.EntityRepository<E, ID> core) {
@@ -88,7 +89,7 @@ public final class EntityRepositoryImpl<E extends Record & Entity<ID>, ID> imple
     }
 
     @Override
-    public <R extends Record> QueryBuilder<E, Ref<R>, ID> selectRef(@Nonnull Class<R> refType) {
+    public <R extends Data> QueryBuilder<E, Ref<R>, ID> selectRef(@Nonnull Class<R> refType) {
         return new QueryBuilderImpl<>(core.selectRef(refType));
     }
 

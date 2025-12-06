@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.core.repository.impl;
+package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
 import st.orm.PersistenceException;
@@ -33,7 +33,7 @@ import java.util.jar.JarFile;
  *
  * @since 1.7
  */
-final class ClasspathScanner {
+public final class ClasspathScanner {
 
     private static final Map<Class<?>, List<Class<?>>> CACHE = new ConcurrentHashMap<>();
 
@@ -44,8 +44,9 @@ final class ClasspathScanner {
      *
      * This scans the entire classpath (once) and caches the result.
      */
-    public static List<Class<?>> getSubTypesOf(@Nonnull Class<?> parentType) {
-        return CACHE.computeIfAbsent(parentType, ClasspathScanner::scanSubTypes);
+    public static <T> List<Class<? extends T>> getSubTypesOf(@Nonnull Class<T> parentType) {
+        //noinspection unchecked
+        return (List<Class<? extends T>>) (Object) CACHE.computeIfAbsent(parentType, ClasspathScanner::scanSubTypes);
     }
 
     private static List<Class<?>> scanSubTypes(@Nonnull Class<?> parentType) {

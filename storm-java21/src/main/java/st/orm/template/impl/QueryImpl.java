@@ -16,6 +16,7 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.template.PreparedQuery;
 import st.orm.template.Query;
 import st.orm.PersistenceException;
@@ -124,7 +125,7 @@ public class QueryImpl implements Query {
      * @since 1.3
      */
     @Override
-    public <T extends Record> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
+    public <T extends Data> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
         return core.getRefStream(type, pkType);
     }
 

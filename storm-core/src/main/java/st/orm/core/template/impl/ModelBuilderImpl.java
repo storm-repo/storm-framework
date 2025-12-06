@@ -17,11 +17,12 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.config.ColumnNameResolver;
-import st.orm.config.ForeignKeyResolver;
+import st.orm.Data;
+import st.orm.mapping.ColumnNameResolver;
+import st.orm.mapping.ForeignKeyResolver;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplateException;
-import st.orm.config.TableNameResolver;
+import st.orm.mapping.TableNameResolver;
 
 /**
  * Builder for creating a model.
@@ -83,7 +84,7 @@ record ModelBuilderImpl(
      * @throws SqlTemplateException if an error occurs while building the model.
      */
     @Override
-    public <T extends Record, ID> Model<T, ID> build(@Nonnull T record, boolean requirePrimaryKey)
+    public <T extends Data, ID> Model<T, ID> build(@Nonnull T record, boolean requirePrimaryKey)
             throws SqlTemplateException {
         //noinspection unchecked
         return build((Class<T>) record.getClass(), requirePrimaryKey);
@@ -97,7 +98,7 @@ record ModelBuilderImpl(
      * @throws SqlTemplateException if an error occurs while building the model.
      */
     @Override
-    public <T extends Record, ID> Model<T, ID> build(@Nonnull Class<T> type, boolean requirePrimaryKey)
+    public <T extends Data, ID> Model<T, ID> build(@Nonnull Class<T> type, boolean requirePrimaryKey)
             throws SqlTemplateException {
         return ModelFactory.getModel(this, type, requirePrimaryKey);
     }

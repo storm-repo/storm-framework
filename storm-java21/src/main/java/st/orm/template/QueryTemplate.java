@@ -16,6 +16,7 @@
 package st.orm.template;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.core.template.SqlDialect;
 import st.orm.BindVars;
 import st.orm.Ref;
@@ -43,7 +44,7 @@ public interface QueryTemplate extends SubqueryTemplate {
      * Create a new bind variables instance that can be used to add bind variables to a batch.
      *
      * @return a new bind variables instance.
-     * @see PreparedQuery#addBatch(Record)
+     * @see PreparedQuery#addBatch(Data)
      */
     BindVars createBindVars();
 
@@ -58,7 +59,7 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @param <ID> primary key type.
      * @since 1.3
      */
-    <T extends Record, ID> Ref<T> ref(@Nonnull Class<T> type, @Nonnull ID id);
+    <T extends Data, ID> Ref<T> ref(@Nonnull Class<T> type, @Nonnull ID id);
 
     /**
      * Creates a ref instance for the specified record {@code type} and {@code id}. This method can be used to generate
@@ -71,7 +72,7 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @param <ID> primary key type.
      * @since 1.3
      */
-    <T extends Record, ID> Ref<T> ref(@Nonnull T record, @Nonnull ID id);
+    <T extends Data, ID> Ref<T> ref(@Nonnull T record, @Nonnull ID id);
 
     /**
      * Get the model for the specified record {@code type}. The model provides information about the type's database
@@ -82,7 +83,7 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @param <T> table type.
      * @param <ID> primary key type.
      */
-    default <T extends Record, ID> Model<T, ID> model(@Nonnull Class<T> type) {
+    default <T extends Data, ID> Model<T, ID> model(@Nonnull Class<T> type) {
         return model(type, false);
     }
 
@@ -97,7 +98,7 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @param <ID> primary key type.
      * @since 1.3
      */
-    <T extends Record, ID> Model<T, ID> model(@Nonnull Class<T> type, boolean requirePrimaryKey);
+    <T extends Data, ID> Model<T, ID> model(@Nonnull Class<T> type, boolean requirePrimaryKey);
 
     /**
      * Creates a query builder for the specified table.
@@ -106,7 +107,7 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @return the query builder.
      * @param <T> the table type to select from.
      */
-    default <T extends Record> QueryBuilder<T, T, ?> selectFrom(@Nonnull Class<T> fromType) {
+    default <T extends Data> QueryBuilder<T, T, ?> selectFrom(@Nonnull Class<T> fromType) {
         return selectFrom(fromType, fromType);
     }
 
@@ -119,7 +120,7 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    default <T extends Record, R extends Record> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType,
+    default <T extends Data, R extends Data> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType,
                                                                                   @Nonnull Class<R> selectType) {
         return selectFrom(fromType, selectType, RAW."\{selectType}");
     }
@@ -134,7 +135,7 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    <T extends Record, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType,
+    <T extends Data, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType,
                                                            @Nonnull Class<R> selectType,
                                                            @Nonnull StringTemplate template);
 
@@ -145,7 +146,7 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @return the query builder.
      * @param <T> the table type to delete from.
      */
-    <T extends Record> QueryBuilder<T, ?, ?> deleteFrom(@Nonnull Class<T> fromType);
+    <T extends Data> QueryBuilder<T, ?, ?> deleteFrom(@Nonnull Class<T> fromType);
 
     /**
      * Creates a query for the specified {@code query} string.

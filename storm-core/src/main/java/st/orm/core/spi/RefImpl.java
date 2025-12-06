@@ -16,6 +16,7 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.Ref;
 import st.orm.core.template.impl.LazySupplier;
 
@@ -27,7 +28,7 @@ import static java.util.Objects.requireNonNull;
  * @param <T> record type.
  * @param <ID> primary key type.
  */
-final class RefImpl<T extends Record, ID> extends AbstractRef<T> {
+final class RefImpl<T extends Data, ID> extends AbstractRef<T> {
     private final LazySupplier<T> supplier;
     private final Class<T> type;
     private final ID pk;

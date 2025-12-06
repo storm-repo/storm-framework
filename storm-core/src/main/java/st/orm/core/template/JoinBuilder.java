@@ -16,6 +16,7 @@
 package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 
 /**
  * A builder for constructing join clause of the query using custom join conditions.
@@ -24,7 +25,7 @@ import jakarta.annotation.Nonnull;
  * @param <R>  the type of the result.
  * @param <ID> the type of the primary key.
  */
-public interface JoinBuilder<T extends Record, R, ID> {
+public interface JoinBuilder<T extends Data, R, ID> {
 
     /**
      * Specifies the join condition using a custom expression.

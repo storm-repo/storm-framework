@@ -26,44 +26,44 @@ import static java.util.Optional.ofNullable;
  * Implementation that is used by the generated models.
  *
  * @param <T> the primary table type.
- * @param <E> the record component type of the designated element.
+ * @param <E> the field type of the designated element.
  * @since 1.2
  */
-public abstract class AbstractMetamodel<T extends Record, E> implements Metamodel<T, E> {
+public abstract class AbstractMetamodel<T, E> implements Metamodel<T, E> {
 
-    private final Class<E> componentType;
+    private final Class<E> fieldType;
     private final String path;
-    private final String component;
+    private final String field;
     private final boolean inline;
     private final Metamodel<T, ?> parent;
     private final boolean isColumn;
 
-    public AbstractMetamodel(@Nonnull Class<E> componentType) {
-        this(componentType, "","", false, null, false);
+    public AbstractMetamodel(@Nonnull Class<E> fieldType) {
+        this(fieldType, "","", false, null, false);
     }
 
-    public AbstractMetamodel(@Nonnull Class<E> componentType,
+    public AbstractMetamodel(@Nonnull Class<E> fieldType,
                              @Nonnull String path) {
-        this(componentType, path,"", false, null, true);
+        this(fieldType, path,"", false, null, true);
     }
 
-    public AbstractMetamodel(@Nonnull Class<E> componentType,
+    public AbstractMetamodel(@Nonnull Class<E> fieldType,
                              @Nonnull String path,
-                             @Nonnull String component,
+                             @Nonnull String field,
                              boolean inline,
                              @Nullable Metamodel<T, ?> parent) {
-        this(componentType, path, component, inline, parent, !inline);
+        this(fieldType, path, field, inline, parent, !inline);
     }
 
-    private AbstractMetamodel(@Nonnull Class<E> componentType,
+    private AbstractMetamodel(@Nonnull Class<E> fieldType,
                               @Nonnull String path,
-                              @Nonnull String component,
+                              @Nonnull String field,
                               boolean inline,
                               @Nullable Metamodel<T, ?> parent,
                               boolean isColumn) {
-        this.componentType = componentType;
+        this.fieldType = fieldType;
         this.path = path;
-        this.component = component;
+        this.field = field;
         this.inline = inline;
         this.parent = parent;
         this.isColumn = isColumn;
@@ -90,7 +90,7 @@ public abstract class AbstractMetamodel<T extends Record, E> implements Metamode
         //noinspection unchecked
         return parent()
                 .map(Metamodel::root)
-                .orElseGet(() -> (Class<T>) componentType());
+                .orElseGet(() -> (Class<T>) fieldType());
     }
 
     /**
@@ -101,18 +101,17 @@ public abstract class AbstractMetamodel<T extends Record, E> implements Metamode
      * @return the table that holds the column to which this metamodel is pointing.
      */
     @Override
-    public Metamodel<T, ? extends Record> table() {
+    public Metamodel<T, ?> table() {
         if (isInline()) {
             return parent().orElseThrow().table();
         }
-        //noinspection unchecked
-        return (Metamodel<T, ? extends Record>) parent().orElse(this);
+        return parent().orElse(this);
     }
 
     /**
-     * Returns true if the component is an inline record.
+     * Returns true if the field is an inline record.
      *
-     * @return true if the component is an inline record.
+     * @return true if the field is an inline record.
      */
     private boolean isInline() {
         return inline;
@@ -128,13 +127,13 @@ public abstract class AbstractMetamodel<T extends Record, E> implements Metamode
     }
 
     /**
-     * Returns the component type of the designated element.
+     * Returns the field type of the designated element.
      *
-     * @return the component type of the designated element.
+     * @return the field type of the designated element.
      */
     @Override
-    public Class<E> componentType() {
-        return componentType;
+    public Class<E> fieldType() {
+        return fieldType;
     }
 
     /**
@@ -148,38 +147,33 @@ public abstract class AbstractMetamodel<T extends Record, E> implements Metamode
     }
 
     /**
-     * Returns the component path.
+     * Returns the field name.
      *
-     * @return component path.
+     * @return field name.
      */
     @Override
-    public String component() {
-        return component;
+    public String field() {
+        return field;
     }
 
     @Override
     public String toString() {
-        return "Metamodel{root=%s, type=%s, path='%s', component='%s'}"
-                .formatted(root().getSimpleName(), componentType.getSimpleName(), path, component);
+        return "Metamodel{root=%s, type=%s, path='%s', field='%s'}"
+                .formatted(root().getSimpleName(), fieldType.getSimpleName(), path, field);
     }
 
-    private record SimpleMetamodel<T extends Record, E>(@Nonnull Class<T> root,
-                                                        @Nonnull String path,
-                                                        @Nonnull Class<E> componentType,
-                                                        @Nonnull String component,
-                                                        boolean isColumn,
-                                                        @Nullable Metamodel<T, ? extends Record> table) implements Metamodel<T, E> {
+    private record SimpleMetamodel<T extends Data, E>(@Nonnull Class<T> root,
+                                                      @Nonnull String path,
+                                                      @Nonnull Class<E> fieldType,
+                                                      @Nonnull String field,
+                                                      boolean isColumn,
+                                                      @Nullable Metamodel<T, ? extends Data> table) implements Metamodel<T, E> {
 
-        public SimpleMetamodel {
-            if (!root.isRecord()) {
-                throw new PersistenceException("Table must be a record type: %s.".formatted(root.getSimpleName()));
-            }
-        }
-
+        @SuppressWarnings("NullableProblems")
         @Override
         public String toString() {
-            return "Metamodel{root=%s, type=%s, path='%s', component='%s'}"
-                    .formatted(root.getSimpleName(), componentType.getSimpleName(), path, component);
+            return "Metamodel{root=%s, type=%s, path='%s', field='%s'}"
+                    .formatted(root.getSimpleName(), fieldType.getSimpleName(), path, field);
         }
     }
 }

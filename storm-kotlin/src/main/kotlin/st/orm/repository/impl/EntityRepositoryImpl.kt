@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.fold
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.stream.consumeAsFlow
+import st.orm.Data
 import st.orm.Entity
 import st.orm.Ref
 import st.orm.repository.EntityRepository
@@ -33,7 +34,7 @@ import kotlin.reflect.KClass
  */
 class EntityRepositoryImpl<E, ID : Any>(
     private val core: st.orm.core.repository.EntityRepository<E, ID>
-) : EntityRepository<E, ID> where E : Record, E : Entity<ID> {
+) : EntityRepository<E, ID> where E : Data, E : Entity<ID> {
 
     override val model: Model<E, ID>
         get() = ModelImpl(core.model())
@@ -68,7 +69,7 @@ class EntityRepositoryImpl<E, ID : Any>(
     ): QueryBuilder<E, R, ID> =
         QueryBuilderImpl(core.select(selectType.java, template.unwrap))
 
-    override fun <R : Record> selectRef(refType: KClass<R>): QueryBuilder<E, Ref<R>, ID> =
+    override fun <R : Data> selectRef(refType: KClass<R>): QueryBuilder<E, Ref<R>, ID> =
         QueryBuilderImpl<E, Ref<R>, ID>(core.selectRef(refType.java))
 
     override fun delete(): QueryBuilder<E, *, ID> =

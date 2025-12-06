@@ -16,7 +16,7 @@
 package st.orm.template
 
 import jakarta.persistence.EntityManager
-import st.orm.config.TemplateDecorator
+import st.orm.mapping.TemplateDecorator
 import st.orm.core.template.Templates
 import st.orm.repository.RepositoryLookup
 import st.orm.template.impl.ORMTemplateImpl

@@ -27,13 +27,13 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
+import static java.lang.Boolean.getBoolean;
 import static java.util.stream.Collectors.joining;
 import static st.orm.Operator.EQUALS;
 
 public class DefaultSqlDialect implements SqlDialect {
 
-    private static final boolean ANSI_ESCAPING = System.getProperty("storm.ansiEscaping", "false")
-            .equalsIgnoreCase("true");
+    private static final boolean ANSI_ESCAPING = getBoolean("storm.ansiEscaping");
 
     /**
      * Returns the name of the SQL dialect.

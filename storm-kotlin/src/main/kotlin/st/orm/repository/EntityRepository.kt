@@ -16,6 +16,7 @@
 package st.orm.repository
 
 import kotlinx.coroutines.flow.Flow
+import st.orm.Data
 import st.orm.Entity
 import st.orm.Metamodel
 import st.orm.Operator.EQUALS
@@ -44,14 +45,12 @@ import kotlin.reflect.KClass
  *
  * Example:
  * ```
- * @JvmRecord
  * data class City(
  *   @PK val id: Int = 0,
  *   val name: String,
  *   val population: Long
  * ) : Entity<Int>
  *
- * @JvmRecord
  * data class Address(
  *   val street: String,
  *   val postalCode: String,
@@ -160,7 +159,7 @@ import kotlin.reflect.KClass
  * @param <E> the type of entity managed by this repository.
  * @param <ID> the type of the primary key of the entity.
  */
-interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entity<ID> {
+interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
 
     /**
      * The entity model associated with this repository.
@@ -286,7 +285,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @return a new query builder for selecting refs to entities.
      * @since 1.3
      */
-    fun <R : Record> selectRef(refType: KClass<R>): QueryBuilder<E, Ref<R>, ID>
+    fun <R : Data> selectRef(refType: KClass<R>): QueryBuilder<E, Ref<R>, ID>
 
     /**
      * Creates a new query builder for delete entities of the type managed by this repository.
@@ -1477,7 +1476,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V : Record> findBy(field: Metamodel<E, V>, value: Ref<V>): E? =
+    fun <V : Data> findBy(field: Metamodel<E, V>, value: Ref<V>): E? =
         select().where(field, value).optionalResult
 
     /**
@@ -1518,7 +1517,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V : Record> findAllBy(field: Metamodel<E, V>, value: Ref<V>): List<E> =
+    fun <V : Data> findAllBy(field: Metamodel<E, V>, value: Ref<V>): List<E> =
         select().where(field, value).resultList
 
     /**
@@ -1537,7 +1536,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Record> selectBy(field: Metamodel<E, V>, value: Ref<V>): Flow<E> =
+    fun <V : Data> selectBy(field: Metamodel<E, V>, value: Ref<V>): Flow<E> =
         select().where(field, value).resultFlow
 
     /**
@@ -1578,7 +1577,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Record> findAllByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): List<E> =
+    fun <V : Data> findAllByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): List<E> =
         select().whereRef(field, values).resultList
 
     /**
@@ -1589,7 +1588,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param values Iterable of values to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Record> selectByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): Flow<E> =
+    fun <V : Data> selectByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): Flow<E> =
         select().whereRef(field, values).resultFlow
 
     /**
@@ -1615,7 +1614,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V : Record> getBy(field: Metamodel<E, V>, value: Ref<V>): E =
+    fun <V : Data> getBy(field: Metamodel<E, V>, value: Ref<V>): E =
         select().where(field, value).singleResult
 
     /**
@@ -1637,7 +1636,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V : Record> findRefBy(field: Metamodel<E, V>, value: Ref<V>): Ref<E>? =
+    fun <V : Data> findRefBy(field: Metamodel<E, V>, value: Ref<V>): Ref<E>? =
         selectRef().where(field, value).optionalResult
 
     /**
@@ -1678,7 +1677,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V : Record> findAllRefBy(field: Metamodel<E, V>, value: Ref<V>): List<Ref<E>> =
+    fun <V : Data> findAllRefBy(field: Metamodel<E, V>, value: Ref<V>): List<Ref<E>> =
         selectRef().where(field, value).resultList
 
     /**
@@ -1697,7 +1696,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Record> selectRefBy(field: Metamodel<E, V>, value: Ref<V>): Flow<Ref<E>> =
+    fun <V : Data> selectRefBy(field: Metamodel<E, V>, value: Ref<V>): Flow<Ref<E>> =
         selectRef().where(field, value).resultFlow
 
     /**
@@ -1708,7 +1707,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Record> findAllRefBy(field: Metamodel<E, V>, values: Iterable<V>): List<Ref<E>> =
+    fun <V : Data> findAllRefBy(field: Metamodel<E, V>, values: Iterable<V>): List<Ref<E>> =
         selectRef().where(field, IN, values).resultList
 
     /**
@@ -1738,7 +1737,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Record> findAllRefByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): List<Ref<E>> =
+    fun <V : Data> findAllRefByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): List<Ref<E>> =
         selectRef().whereRef(field, values).resultList
 
     /**
@@ -1757,7 +1756,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param values Iterable of values to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Record> selectRefByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): Flow<Ref<E>> =
+    fun <V : Data> selectRefByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): Flow<Ref<E>> =
         selectRef().whereRef(field, values).resultFlow
 
     /**
@@ -1783,7 +1782,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V : Record> getRefBy(field: Metamodel<E, V>, value: Ref<V>): Ref<E> =
+    fun <V : Data> getRefBy(field: Metamodel<E, V>, value: Ref<V>): Ref<E> =
         selectRef().where(field, value).singleResult
 
     /**
@@ -2008,7 +2007,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param value the referenced value to match against.
      * @return the count of matching entities.
      */
-    fun <V : Record> countBy(
+    fun <V : Data> countBy(
         field: Metamodel<E, V>,
         value: Ref<V>
     ): Long =
@@ -2056,7 +2055,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param value the referenced value to match against.
      * @return true if any matching entities exist, false otherwise.
      */
-    fun <V : Record> existsBy(
+    fun <V : Data> existsBy(
         field: Metamodel<E, V>,
         value: Ref<V>
     ): Boolean =
@@ -2104,7 +2103,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param value the referenced value to match against.
      * @return the number of entities deleted.
      */
-    fun <V : Record> deleteAllBy(
+    fun <V : Data> deleteAllBy(
         field: Metamodel<E, V>,
         value: Ref<V>
     ): Int =
@@ -2130,7 +2129,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Record, E : Entit
      * @param values Iterable of referenced values to match against.
      * @return the number of entities deleted.
      */
-    fun <V : Record> deleteAllByRef(
+    fun <V : Data> deleteAllByRef(
         field: Metamodel<E, V>,
         values: Iterable<Ref<V>>
     ): Int =

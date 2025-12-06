@@ -16,6 +16,7 @@
 package st.orm.template;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 
 /**
  * A builder for constructing join clause of the query.
@@ -24,7 +25,7 @@ import jakarta.annotation.Nonnull;
  * @param <R>  the type of the result.
  * @param <ID> the type of the primary key.
  */
-public interface TypedJoinBuilder<T extends Record, R, ID> extends JoinBuilder<T, R, ID> {
+public interface TypedJoinBuilder<T extends Data, R, ID> extends JoinBuilder<T, R, ID> {
 
     /**
      * Specifies the relation to join on.
@@ -32,5 +33,5 @@ public interface TypedJoinBuilder<T extends Record, R, ID> extends JoinBuilder<T
      * @param relation the relation to join on.
      * @return the query builder.
      */
-    QueryBuilder<T, R, ID> on(@Nonnull Class<? extends Record> relation);
+    QueryBuilder<T, R, ID> on(@Nonnull Class<? extends Data> relation);
 }

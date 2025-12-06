@@ -17,6 +17,7 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
+import st.orm.Data;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlDialect;
@@ -72,7 +73,7 @@ final class ValuesProcessor implements ElementProcessor<Values> {
      * @return the SQL string for the specified record.
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
-    private ElementResult getRecordsString(@Nonnull Iterable<? extends Record> records, boolean ignoreAutoGenerate) throws SqlTemplateException {
+    private ElementResult getRecordsString(@Nonnull Iterable<? extends Data> records, boolean ignoreAutoGenerate) throws SqlTemplateException {
         var table = primaryTable.table();
         List<String> args = new ArrayList<>();
         for (var record : records) {
@@ -137,7 +138,7 @@ final class ValuesProcessor implements ElementProcessor<Values> {
     private ElementResult getBindVarsString(@Nonnull BindVars bindVars, boolean ignoreAutoGenerate) throws SqlTemplateException {
         if (bindVars instanceof BindVarsImpl vars) {
             @SuppressWarnings("unchecked")
-            Model<Record, ?> model = (Model<Record, ?>) modelBuilder.build(primaryTable.table(), false);
+            Model<Data, ?> model = (Model<Data, ?>) modelBuilder.build(primaryTable.table(), false);
             var bindsVarCount = (int) model.columns().stream()
                     .filter(Column::insertable)
                     .filter(column -> switch (column.generation()) {

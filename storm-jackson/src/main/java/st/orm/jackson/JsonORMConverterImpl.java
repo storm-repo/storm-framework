@@ -28,11 +28,11 @@ import st.orm.core.spi.Name;
 import st.orm.core.spi.ORMConverter;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
+import st.orm.mapping.RecordField;
 import st.orm.core.spi.RefFactory;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.Json;
 import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
@@ -54,16 +54,16 @@ public final class JsonORMConverterImpl implements ORMConverter {
     private static final Map<CacheKey, ObjectMapper> OBJECT_MAPPER = new ConcurrentHashMap<>();
     private static final ThreadLocal<RefFactory> REF_FACTORY = new ThreadLocal<>();
 
-    private final RecordComponent component;
+    private final RecordField field;
     private final TypeReference<?> typeReference;
     private final ObjectMapper mapper;
 
     record CacheKey(Class<?> sealedType, Json json) {}
 
-    public JsonORMConverterImpl(@Nonnull RecordComponent component,
+    public JsonORMConverterImpl(@Nonnull RecordField field,
                                 @Nonnull TypeReference<?> typeReference,
                                 @Nonnull Json json) {
-        this.component = requireNonNull(component, "component");
+        this.field = requireNonNull(field, "field");
         this.typeReference = requireNonNull(typeReference, "typeReference");
         var type = getRawType(typeReference.getType())
                 .filter(Class::isSealed)
@@ -139,7 +139,7 @@ public final class JsonORMConverterImpl implements ORMConverter {
      */
     @Override
     public List<Name> getColumns(@Nonnull NameResolver nameResolver) throws SqlTemplateException {
-        return List.of(nameResolver.getName(component));
+        return List.of(nameResolver.getName(field));
     }
 
     /**
@@ -151,9 +151,9 @@ public final class JsonORMConverterImpl implements ORMConverter {
      * @return the values to be used in the SQL template.
      */
     @Override
-    public List<Object> toDatabase(@Nullable Record record) throws SqlTemplateException {
+    public List<Object> toDatabase(@Nullable Object record) throws SqlTemplateException {
         try {
-            Object o = record == null ? null : REFLECTION.invokeComponent(component, record);
+            Object o = record == null ? null : REFLECTION.invoke(field, record);
             return singletonList(o == null ? null : mapper.writeValueAsString(o));
         } catch (Throwable e) {
             throw new SqlTemplateException(e);

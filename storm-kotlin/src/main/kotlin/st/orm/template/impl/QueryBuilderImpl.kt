@@ -21,7 +21,7 @@ import st.orm.template.*
 import java.util.stream.Stream
 import kotlin.reflect.KClass
 
-class QueryBuilderImpl<T : Record, R, ID>(
+class QueryBuilderImpl<T : Data, R, ID>(
     private val core: st.orm.core.template.QueryBuilder<T, R, ID>
 ) : QueryBuilder<T, R, ID>, Subqueryable {
 
@@ -143,7 +143,7 @@ class QueryBuilderImpl<T : Record, R, ID>(
      * @param relation the relation to join.
      * @return the query builder.
      */
-    override fun crossJoin(relation: KClass<out Record>): QueryBuilder<T, R, ID> {
+    override fun crossJoin(relation: KClass<out Data>): QueryBuilder<T, R, ID> {
         return join(JoinType.cross(), relation, "").on { t("") }
     }
 
@@ -153,7 +153,7 @@ class QueryBuilderImpl<T : Record, R, ID>(
      * @param relation the relation to join.
      * @return the query builder.
      */
-    override fun innerJoin(relation: KClass<out Record>): TypedJoinBuilder<T, R, ID> {
+    override fun innerJoin(relation: KClass<out Data>): TypedJoinBuilder<T, R, ID> {
         return join(JoinType.inner(), relation, "")
     }
 
@@ -163,7 +163,7 @@ class QueryBuilderImpl<T : Record, R, ID>(
      * @param relation the relation to join.
      * @return the query builder.
      */
-    override fun leftJoin(relation: KClass<out Record>): TypedJoinBuilder<T, R, ID> {
+    override fun leftJoin(relation: KClass<out Data>): TypedJoinBuilder<T, R, ID> {
         return join(JoinType.left(), relation, "")
     }
 
@@ -173,7 +173,7 @@ class QueryBuilderImpl<T : Record, R, ID>(
      * @param relation the relation to join.
      * @return the query builder.
      */
-    override fun rightJoin(relation: KClass<out Record>): TypedJoinBuilder<T, R, ID> {
+    override fun rightJoin(relation: KClass<out Data>): TypedJoinBuilder<T, R, ID> {
         return join(JoinType.right(), relation, "")
     }
 
@@ -187,12 +187,12 @@ class QueryBuilderImpl<T : Record, R, ID>(
      */
     override fun join(
         type: JoinType,
-        relation: KClass<out Record>,
+        relation: KClass<out Data>,
         alias: String
     ): TypedJoinBuilder<T, R, ID> {
         val joinBuilder = core.join(type, relation.java, alias)
         return object : TypedJoinBuilder<T, R, ID> {
-            override fun on(relation: KClass<out Record>): QueryBuilder<T, R, ID> {
+            override fun on(relation: KClass<out Data>): QueryBuilder<T, R, ID> {
                 return QueryBuilderImpl(joinBuilder.on(relation.java))
             }
 
@@ -287,14 +287,14 @@ class QueryBuilderImpl<T : Record, R, ID>(
         }
     }
 
-    internal class PredicateBuilderImpl<TX : Record, RX, IDX>(
+    internal class PredicateBuilderImpl<TX : Data, RX, IDX>(
         val core: st.orm.core.template.PredicateBuilder<TX, RX, IDX>
     ) : PredicateBuilder<TX, RX, IDX> {
         override fun and(predicate: PredicateBuilder<TX, *, *>): PredicateBuilder<TX, RX, IDX> {
             return PredicateBuilderImpl<TX, RX, IDX>(core.and((predicate as PredicateBuilderImpl<TX, *, *>).core))
         }
 
-        override fun <TY : Record, RY, IDY> andAny(predicate: PredicateBuilder<TY, RY, IDY>): PredicateBuilder<TY, RY, IDY> {
+        override fun <TY : Data, RY, IDY> andAny(predicate: PredicateBuilder<TY, RY, IDY>): PredicateBuilder<TY, RY, IDY> {
             return PredicateBuilderImpl<TY, RY, IDY>(core.andAny((predicate as PredicateBuilderImpl<TY, RY, IDY>).core))
         }
 
@@ -306,7 +306,7 @@ class QueryBuilderImpl<T : Record, R, ID>(
             return PredicateBuilderImpl<TX, RX, IDX>(core.or((predicate as PredicateBuilderImpl<TX, *, *>).core))
         }
 
-        override fun <TY : Record, RY, IDY> orAny(predicate: PredicateBuilder<TY, RY, IDY>): PredicateBuilder<TY, RY, IDY> {
+        override fun <TY : Data, RY, IDY> orAny(predicate: PredicateBuilder<TY, RY, IDY>): PredicateBuilder<TY, RY, IDY> {
             return PredicateBuilderImpl<TY, RY, IDY>(core.orAny((predicate as PredicateBuilderImpl<TY, RY, IDY>).core))
         }
 
@@ -315,10 +315,10 @@ class QueryBuilderImpl<T : Record, R, ID>(
         }
     }
 
-    internal class WhereBuilderImpl<TX : Record, RX, IDX>(
+    internal class WhereBuilderImpl<TX : Data, RX, IDX>(
         val core: st.orm.core.template.WhereBuilder<TX, RX, IDX>
     ) : WhereBuilder<TX, RX, IDX> {
-        override fun <T : Record> subquery(fromType: KClass<T>, template: TemplateString): QueryBuilder<T, *, *> {
+        override fun <T : Data> subquery(fromType: KClass<T>, template: TemplateString): QueryBuilder<T, *, *> {
             return QueryBuilderImpl(core.subquery(fromType.java, template.unwrap))
         }
 
@@ -338,7 +338,7 @@ class QueryBuilderImpl<T : Record, R, ID>(
             return PredicateBuilderImpl<TX, RX, IDX>(core.whereRef(ref))
         }
 
-        override fun whereAnyRef(ref: Ref<out Record>): PredicateBuilder<TX, RX, IDX> {
+        override fun whereAnyRef(ref: Ref<out Data>): PredicateBuilder<TX, RX, IDX> {
             return PredicateBuilderImpl<TX, RX, IDX>(core.whereAnyRef(ref))
         }
 
@@ -346,7 +346,7 @@ class QueryBuilderImpl<T : Record, R, ID>(
             return PredicateBuilderImpl<TX, RX, IDX>(core.where(record))
         }
 
-        override fun whereAny(record: Record): PredicateBuilder<TX, RX, IDX> {
+        override fun whereAny(record: Data): PredicateBuilder<TX, RX, IDX> {
             return PredicateBuilderImpl<TX, RX, IDX>(core.whereAny(record))
         }
 
@@ -358,7 +358,7 @@ class QueryBuilderImpl<T : Record, R, ID>(
             return PredicateBuilderImpl<TX, RX, IDX>(core.whereRef(it))
         }
 
-        override fun whereAnyRef(it: Iterable<Ref<out Record>>): PredicateBuilder<TX, RX, IDX> {
+        override fun whereAnyRef(it: Iterable<Ref<out Data>>): PredicateBuilder<TX, RX, IDX> {
             return PredicateBuilderImpl<TX, RX, IDX>(core.whereAnyRef(it))
         }
 
@@ -366,32 +366,32 @@ class QueryBuilderImpl<T : Record, R, ID>(
             return PredicateBuilderImpl<TX, RX, IDX>(core.where(it))
         }
 
-        override fun whereAny(it: Iterable<Record>): PredicateBuilder<TX, RX, IDX> {
+        override fun whereAny(it: Iterable<Data>): PredicateBuilder<TX, RX, IDX> {
             return PredicateBuilderImpl<TX, RX, IDX>(core.whereAny(it))
         }
 
-        override fun <V : Record> where(
+        override fun <V : Data> where(
             path: Metamodel<TX, V>,
             ref: Ref<V>
         ): PredicateBuilder<TX, RX, IDX> {
             return PredicateBuilderImpl<TX, RX, IDX>(core.where<V>(path, ref))
         }
 
-        override fun <V : Record> whereAny(
+        override fun <V : Data> whereAny(
             path: Metamodel<*, V>,
             ref: Ref<V>
         ): PredicateBuilder<TX, RX, IDX> {
             return PredicateBuilderImpl<TX, RX, IDX>(core.whereAny<V>(path, ref))
         }
 
-        override fun <V : Record> whereRef(
+        override fun <V : Data> whereRef(
             path: Metamodel<TX, V>,
             it: Iterable<Ref<V>>
         ): PredicateBuilder<TX, RX, IDX> {
             return PredicateBuilderImpl<TX, RX, IDX>(core.whereRef<V>(path, it))
         }
 
-        override fun <V : Record> whereAnyRef(
+        override fun <V : Data> whereAnyRef(
             path: Metamodel<*, V>,
             it: Iterable<Ref<V>>
         ): PredicateBuilder<TX, RX, IDX> {

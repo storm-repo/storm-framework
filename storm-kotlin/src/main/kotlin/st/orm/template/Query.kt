@@ -18,6 +18,7 @@ package st.orm.template
 import jakarta.annotation.Nonnull
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.stream.consumeAsFlow
+import st.orm.Data
 import st.orm.NoResultException
 import st.orm.NonUniqueResultException
 import st.orm.Ref
@@ -163,7 +164,7 @@ interface Query {
      * @throws st.orm.PersistenceException if the query fails.
      * @since 1.3
      */
-    fun <T : Record> getRefList(type: KClass<T>, pkType: KClass<*>): List<Ref<T>> {
+    fun <T : Data> getRefList(type: KClass<T>, pkType: KClass<*>): List<Ref<T>> {
         getRefStream(type, pkType).use { stream ->
             return stream.toList()
         }
@@ -256,7 +257,7 @@ interface Query {
      * @throws st.orm.PersistenceException if the query fails.
      * @since 1.3
      */
-    fun <T : Record> getRefStream(type: KClass<T>, pkType: KClass<*>): Stream<Ref<T>>
+    fun <T : Data> getRefStream(type: KClass<T>, pkType: KClass<*>): Stream<Ref<T>>
 
     /**
      * Execute a SELECT query and return the resulting rows as a flow of ref instances.
@@ -270,7 +271,7 @@ interface Query {
      * @throws st.orm.PersistenceException if the query fails.
      * @since 1.5
      */
-    fun <T : Record> getRefFlow(type: KClass<T>, pkType: KClass<*>): Flow<Ref<T>> =
+    fun <T : Data> getRefFlow(type: KClass<T>, pkType: KClass<*>): Flow<Ref<T>> =
         getRefStream(type, pkType).consumeAsFlow()
 
     /**

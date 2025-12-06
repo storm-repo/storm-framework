@@ -17,6 +17,7 @@ package st.orm.jackson.model;
 
 import jakarta.annotation.Nonnull;
 import lombok.Builder;
+import st.orm.Data;
 import st.orm.PK;
 
 /**
@@ -26,4 +27,4 @@ import st.orm.PK;
 public record Specialty(
         @PK Integer id,
         @Nonnull String name
-) {}
+) implements Data {}

@@ -16,6 +16,7 @@
 package st.orm.repository.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.repository.ProjectionRepository;
 import st.orm.Projection;
 import st.orm.Ref;
@@ -35,7 +36,7 @@ import static st.orm.template.impl.StringTemplates.convert;
 
 /**
  */
-public final class ProjectionRepositoryImpl<P extends Record & Projection<ID>, ID> implements ProjectionRepository<P, ID> {
+public final class ProjectionRepositoryImpl<P extends Projection<ID>, ID> implements ProjectionRepository<P, ID> {
     private final st.orm.core.repository.ProjectionRepository<P, ID> core;
 
     public ProjectionRepositoryImpl(@Nonnull st.orm.core.repository.ProjectionRepository<P, ID> core) {
@@ -83,7 +84,7 @@ public final class ProjectionRepositoryImpl<P extends Record & Projection<ID>, I
     }
 
     @Override
-    public <R extends Record> QueryBuilder<P, Ref<R>, ID> selectRef(@Nonnull Class<R> refType) {
+    public <R extends Data> QueryBuilder<P, Ref<R>, ID> selectRef(@Nonnull Class<R> refType) {
         return new QueryBuilderImpl<>(core.selectRef(refType));
     }
 

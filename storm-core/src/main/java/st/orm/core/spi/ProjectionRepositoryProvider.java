@@ -26,7 +26,7 @@ import st.orm.core.template.ORMTemplate;
  */
 public interface ProjectionRepositoryProvider extends Provider {
 
-    <ID, P extends Record & Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(
+    <ID, P extends Projection<ID>> ProjectionRepository<P, ID> getProjectionRepository(
             @Nonnull ORMTemplate ormTemplate,
             @Nonnull Model<P, ID> model);
 }

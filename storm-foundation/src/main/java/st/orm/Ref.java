@@ -34,7 +34,7 @@ import static java.util.Objects.requireNonNull;
  * @param <T> record type.
  * @since 1.3
  */
-public interface Ref<T extends Record> {
+public interface Ref<T extends Data> {
 
     /**
      * The type of the record.
@@ -53,7 +53,7 @@ public interface Ref<T extends Record> {
      * @param <E> the type of the entity, which must extend {@link Record} and implement {@link Entity}.
      * @return a fully loaded ref instance for the provided entity.
      */
-    static <E extends Record & Entity<?>> Ref<E> of(@Nonnull E entity) {
+    static <E extends Entity<?>> Ref<E> of(@Nonnull E entity) {
         return new AbstractRef<>() {
             @Override
             public Class<E> type() {
@@ -90,7 +90,7 @@ public interface Ref<T extends Record> {
      * @param <ID> the type of the primary key.
      * @return a fully loaded ref instance for the provided projection.
      */
-    static <P extends Record & Projection<ID>, ID> Ref<P> of(@Nonnull P projection, @Nonnull ID id) {
+    static <P extends Projection<ID>, ID> Ref<P> of(@Nonnull P projection, @Nonnull ID id) {
         requireNonNull(projection, "Projection cannot be null.");
         requireNonNull(id, "ID cannot be null.");
         return new AbstractRef<>() {
@@ -124,7 +124,7 @@ public interface Ref<T extends Record> {
      * @param <ID> the id type.
      * @param <E> the entity type.
      */
-    static <ID, E extends Record & Entity<ID>> ID entityId(@Nonnull Ref<E> ref) {
+    static <ID, E extends Entity<ID>> ID entityId(@Nonnull Ref<E> ref) {
         //noinspection unchecked
         return (ID) ref.id();
     }
@@ -137,7 +137,7 @@ public interface Ref<T extends Record> {
      * @param <ID> the id type.
      * @param <P> the projection type.
      */
-    static <ID, P extends Record & Projection<ID>> ID projectionId(@Nonnull Ref<P> ref) {
+    static <ID, P extends Projection<ID>> ID projectionId(@Nonnull Ref<P> ref) {
         //noinspection unchecked
         return (ID) ref.id();
     }
@@ -164,8 +164,8 @@ public interface Ref<T extends Record> {
      * Unloads the entity from memory, if applicable.
      *
      * <p>For refs that support lazy-loading, this method clears the cached record to free memory.
-     * However, for fully loaded or immutable refs (such as refs generated via {@link #of(Record)} and
-     * {@link #of(Record, Object)}), this method is a no-op because the record cannot be re-fetched. In such cases,
+     * However, for fully loaded or immutable refs (such as refs generated via {@link #of(Entity)} and
+     * {@link #of(Projection, Object)}), this method is a no-op because the record cannot be re-fetched. In such cases,
      * calling unload has no effect.</p>
      */
     void unload();

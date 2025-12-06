@@ -15,6 +15,7 @@
  */
 package st.orm.template
 
+import st.orm.Data
 import java.util.stream.Stream
 import kotlin.reflect.KClass
 
@@ -30,7 +31,7 @@ interface PreparedQuery : Query, AutoCloseable {
      * @throws st.orm.PersistenceException if adding the batch fails, for instance when query has not specified
      * `BatchVars`.
      */
-    fun addBatch(record: Record)
+    fun addBatch(record: Data)
 
     /**
      * Returns a stream of generated keys as the result of an insert statement. Returns an empty stream if the insert

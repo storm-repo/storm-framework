@@ -16,23 +16,23 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
+import st.orm.mapping.RecordField;
 
-import java.lang.reflect.RecordComponent;
 import java.util.Optional;
 
 /**
- * Provides pluggable ORM converter logic for record components.
+ * Provides pluggable ORM converter logic for record fields.
  *
- * <p>Implementations can provide custom converters for specific record components, allowing for flexible data
+ * <p>Implementations can provide custom converters for specific record fields, allowing for flexible data
  * transformation and mapping.</p>
  */
 public interface ORMConverterProvider extends Provider {
 
     /**
-     * Retrieves the converter for the specified record component.
+     * Retrieves the converter for the specified record field.
      *
-     * @param component the record component for which to get the converter
-     * @return an Optional containing the ORMConverter if available, or empty if not supported.
+     * @param field the record field for which to get the converter.
+     * @return an Optional containing the ORMConverter if available, or empty if not supported..
      */
-    Optional<ORMConverter> getConverter(@Nonnull RecordComponent component);
+    Optional<ORMConverter> getConverter(@Nonnull RecordField field);
 }

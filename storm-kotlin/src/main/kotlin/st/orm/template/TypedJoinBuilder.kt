@@ -15,21 +15,22 @@
  */
 package st.orm.template
 
+import st.orm.Data
 import kotlin.reflect.KClass
 
 /**
  * A builder for constructing join clause of the query.
  *
- * @param <T>  the type of the table being queried.
- * @param <R>  the type of the result.
+ * @param <T> the type of the table being queried.
+ * @param <R> the type of the result.
  * @param <ID> the type of the primary key.
-</ID></R></T> */
-interface TypedJoinBuilder<T : Record, R, ID> : JoinBuilder<T, R, ID> {
+ */
+interface TypedJoinBuilder<T : Data, R, ID> : JoinBuilder<T, R, ID> {
     /**
      * Specifies the relation to join on.
      *
      * @param relation the relation to join on.
      * @return the query builder.
      */
-    fun on(relation: KClass<out Record>): QueryBuilder<T, R, ID>
+    fun on(relation: KClass<out Data>): QueryBuilder<T, R, ID>
 }

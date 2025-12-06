@@ -15,13 +15,14 @@
  */
 package st.orm.template.impl
 
+import st.orm.Data
 import st.orm.Metamodel
 import st.orm.template.Column
 import st.orm.template.Model
-import java.util.SequencedMap
+import java.util.*
 import kotlin.reflect.KClass
 
-class ModelImpl<E : Record, ID : Any>(
+class ModelImpl<E : Data, ID : Any>(
     internal val core: st.orm.core.template.Model<E, ID>
 ) : Model<E, ID> {
 
@@ -34,7 +35,7 @@ class ModelImpl<E : Record, ID : Any>(
     override fun getValue(column: Column, record: E): Any?  = core.getValue((column as ColumnImpl).core, record)
     override fun getValues(record: E): SequencedMap<Column, Any?> {
         val map = LinkedHashMap<Column, Any?>();
-        core.getValues(record).forEach { (c, v) -> map.put(ColumnImpl(c), v) };
+        core.getValues(record).forEach { (c, v) -> map[ColumnImpl(c)] = v };
         return map;
     }
     override fun getMetamodel(column: Column): Metamodel<E, *> =

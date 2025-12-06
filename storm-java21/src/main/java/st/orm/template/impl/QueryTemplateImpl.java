@@ -16,6 +16,7 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.template.Query;
 import st.orm.core.template.SqlDialect;
 import st.orm.BindVars;
@@ -47,34 +48,34 @@ public class QueryTemplateImpl implements QueryTemplate {
     }
 
     @Override
-    public <T extends Record, ID> Ref<T> ref(@Nonnull Class<T> type, @Nonnull ID id) {
+    public <T extends Data, ID> Ref<T> ref(@Nonnull Class<T> type, @Nonnull ID id) {
         return core.ref(type, id);
     }
 
     @Override
-    public <T extends Record, ID> Ref<T> ref(@Nonnull T record, @Nonnull ID id) {
+    public <T extends Data, ID> Ref<T> ref(@Nonnull T record, @Nonnull ID id) {
         return core.ref(record, id);
     }
 
     @Override
-    public <T extends Record, ID> Model<T, ID> model(@Nonnull Class<T> type) {
+    public <T extends Data, ID> Model<T, ID> model(@Nonnull Class<T> type) {
         //noinspection unchecked
         return new ModelImpl<>((st.orm.core.template.impl.ModelImpl<T, ID>) core.model(type));
     }
 
     @Override
-    public <T extends Record, ID> Model<T, ID> model(@Nonnull Class<T> type, boolean requirePrimaryKey) {
+    public <T extends Data, ID> Model<T, ID> model(@Nonnull Class<T> type, boolean requirePrimaryKey) {
         //noinspection unchecked
         return new ModelImpl<>((st.orm.core.template.impl.ModelImpl<T, ID>) core.model(type, requirePrimaryKey));
     }
 
     @Override
-    public <T extends Record, R> QueryBuilder<T, R, Object> selectFrom(@Nonnull Class<T> fromType, @Nonnull Class<R> selectType, @Nonnull StringTemplate template) {
+    public <T extends Data, R> QueryBuilder<T, R, Object> selectFrom(@Nonnull Class<T> fromType, @Nonnull Class<R> selectType, @Nonnull StringTemplate template) {
         return new QueryBuilderImpl<>(core.selectFrom(fromType, selectType, convert(template)));
     }
 
     @Override
-    public <T extends Record> QueryBuilder<T, ?, ?> deleteFrom(@Nonnull Class<T> fromType) {
+    public <T extends Data> QueryBuilder<T, ?, ?> deleteFrom(@Nonnull Class<T> fromType) {
         return new QueryBuilderImpl<>(core.deleteFrom(fromType));
     }
 
@@ -89,17 +90,17 @@ public class QueryTemplateImpl implements QueryTemplate {
     }
 
     @Override
-    public <T extends Record> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType) {
+    public <T extends Data> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType) {
         return new QueryBuilderImpl<>(core.subquery(fromType));
     }
 
     @Override
-    public <T extends Record, R extends Record> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType, @Nonnull Class<R> selectType) {
+    public <T extends Data, R extends Data> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType, @Nonnull Class<R> selectType) {
         return new QueryBuilderImpl<>(core.subquery(fromType, selectType));
     }
 
     @Override
-    public <T extends Record> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType, @Nonnull StringTemplate template) {
+    public <T extends Data> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType, @Nonnull StringTemplate template) {
         return new QueryBuilderImpl<>(core.subquery(fromType, convert(template)));
     }
 }

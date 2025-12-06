@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.fold
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.stream.consumeAsFlow
+import st.orm.Data
 import st.orm.Projection
 import st.orm.Ref
 import st.orm.repository.ProjectionRepository
@@ -33,7 +34,7 @@ import kotlin.reflect.KClass
  */
 class ProjectionRepositoryImpl<P, ID : Any>(
     private val core: st.orm.core.repository.ProjectionRepository<P, ID>
-) : ProjectionRepository<P, ID> where P : Record, P : Projection<ID> {
+) : ProjectionRepository<P, ID> where P : Data, P : Projection<ID> {
 
     override val orm: ORMTemplate
         get() = ORMTemplateImpl(core.orm())
@@ -74,7 +75,7 @@ class ProjectionRepositoryImpl<P, ID : Any>(
         )
     }
 
-    override fun <R : Record> selectRef(refType: KClass<R>): QueryBuilder<P, Ref<R>, ID> {
+    override fun <R : Data> selectRef(refType: KClass<R>): QueryBuilder<P, Ref<R>, ID> {
         return QueryBuilderImpl(core.selectRef(refType.java))
     }
 

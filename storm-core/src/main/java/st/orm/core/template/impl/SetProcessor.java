@@ -17,6 +17,7 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
+import st.orm.Data;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Set;
@@ -82,7 +83,7 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @return the SQL string for the specified record.
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
-    private ElementResult getRecordString(@Nonnull Record record) throws SqlTemplateException {
+    private ElementResult getRecordString(@Nonnull Data record) throws SqlTemplateException {
         if (!primaryTable.table().isInstance(record)) {
             throw new SqlTemplateException("Record %s does not match entity %s.".formatted(record.getClass().getSimpleName(), primaryTable.table().getSimpleName()));
         }

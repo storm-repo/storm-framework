@@ -16,6 +16,7 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 
 /**
  * Handle used to process bind variables.
@@ -27,5 +28,5 @@ public interface BindVarsHandle {
      *
      * @param record the record to add.
      */
-    void addBatch(@Nonnull Record record);
+    void addBatch(@Nonnull Data record);
 }

@@ -1,6 +1,7 @@
 package st.orm.core.template.impl;
 
 import org.junit.jupiter.api.Test;
+import st.orm.Ref;
 import st.orm.core.model.Address;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
@@ -65,10 +66,9 @@ public class ModelMapperTest {
                         .id(1)
                         .name("Rover")
                         .birthDate(LocalDate.of(2019, 1, 28))
-                        .type(PetType.builder()
+                        .type(Ref.of(PetType.builder()
                                 .id(2)
-                                .name("Dog")
-                                .build())
+                                .build()))
                         .owner(Owner.builder()
                                 .id(3)
                                 .firstName("John")

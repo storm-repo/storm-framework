@@ -27,7 +27,7 @@ class MetamodelHelper {
     }
 
     @SuppressWarnings("unchecked")
-    static <T extends Record> Metamodel<T, T> root(@Nonnull Class<T> rootTable) {
+    static <T> Metamodel<T, T> root(@Nonnull Class<T> rootTable) {
         try {
             try {
                 return (Metamodel<T, T>) ROOT_METHOD.invoke(null, rootTable);
@@ -44,7 +44,7 @@ class MetamodelHelper {
     }
 
     @SuppressWarnings("unchecked")
-    static <T extends Record, E> Metamodel<T, E> of(Class<T> rootTable, String path) {
+    static <T extends Data, E> Metamodel<T, E> of(Class<T> rootTable, String path) {
         try {
             try {
                 return (Metamodel<T, E>) OF_METHOD.invoke(null, rootTable, path);

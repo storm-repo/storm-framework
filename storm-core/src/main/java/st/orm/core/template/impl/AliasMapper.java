@@ -17,12 +17,13 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Data;
 import st.orm.Metamodel;
 import st.orm.core.template.SqlDialect;
 import st.orm.ResolveScope;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TableAliasResolver;
-import st.orm.config.TableNameResolver;
+import st.orm.mapping.TableNameResolver;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -46,12 +47,12 @@ import static st.orm.core.template.impl.SqlTemplateImpl.multiplePathsFoundExcept
 final class AliasMapper {
 
     private final TableUse tableUse;
-    private final Map<Class<? extends Record>, SequencedCollection<TableAlias>> aliasMap;
+    private final Map<Class<? extends Data>, SequencedCollection<TableAlias>> aliasMap;
     private final AliasMapper parent;
     private final TableAliasResolver tableAliasResolver;
     private final TableNameResolver tableNameResolver;
 
-    record TableAlias(Class<? extends Record> table, String path, String alias) {}
+    record TableAlias(Class<? extends Data> table, String path, String alias) {}
 
     /**
      * Alias entry with its nesting level: 0=current, 1=parent, etc.
@@ -98,7 +99,7 @@ final class AliasMapper {
      * @param path          optional component path; if <code>null</code>, matches all aliases
      * @param level         the current nesting depth: 0=current, 1=parent, etc.
      */
-    private Stream<AliasEntry> collectAliasEntries(@Nonnull Class<? extends Record> table,
+    private Stream<AliasEntry> collectAliasEntries(@Nonnull Class<? extends Data> table,
                                                    @Nullable String path,
                                                    int level) {
         // Current level matches.
@@ -112,7 +113,7 @@ final class AliasMapper {
         return Stream.concat(local, parentStream);
     }
 
-    private SqlTemplateException multipleFoundException(@Nonnull Class<? extends Record> table,
+    private SqlTemplateException multipleFoundException(@Nonnull Class<? extends Data> table,
                                                         @Nullable String path,
                                                         @Nonnull ResolveScope resolveMode) {
         if (resolveMode != INNER) {
@@ -127,7 +128,7 @@ final class AliasMapper {
         return multiplePathsFoundException(table, paths);
     }
 
-    public String useAlias(@Nonnull Class<? extends Record> table,
+    public String useAlias(@Nonnull Class<? extends Data> table,
                            @Nonnull String alias) throws SqlTemplateException {
         if (collectAliasEntries(table, null, 0)
                 .filter(e -> e.alias().equals(alias))
@@ -138,7 +139,7 @@ final class AliasMapper {
         return alias;
     }
 
-    public boolean exists(@Nonnull Class<? extends Record> table, @Nonnull ResolveScope scope) throws SqlTemplateException {
+    public boolean exists(@Nonnull Class<? extends Data> table, @Nonnull ResolveScope scope) throws SqlTemplateException {
         return findAlias(table, null, scope).isPresent();
     }
 
@@ -148,7 +149,7 @@ final class AliasMapper {
      * @param table the table to get the alias for.
      * @return the primary alias.
      */
-    public Optional<String> getPrimaryAlias(@Nonnull Class<? extends Record> table) throws SqlTemplateException {
+    public Optional<String> getPrimaryAlias(@Nonnull Class<? extends Data> table) throws SqlTemplateException {
         return findAlias(table, null, INNER);
     }
 
@@ -187,8 +188,12 @@ final class AliasMapper {
                            @Nonnull SqlDialect dialect,
                            @Nonnull Supplier<SqlTemplateException> exceptionSupplier) throws SqlTemplateException {
         var table = metamodel.table();
-        String path = table.componentPath();
-        return getAlias(table.componentType(), path.isEmpty() ? null : path, scope, dialect, exceptionSupplier);
+        String path = table.fieldPath();
+        if (!Data.class.isAssignableFrom(table.fieldType())) {
+            throw new SqlTemplateException("Component type of table %s not a Data type: %s.".formatted(table, table.fieldType().getSimpleName()));
+        }
+        //noinspection unchecked
+        return getAlias((Class<? extends Data>) table.fieldType(), path.isEmpty() ? null : path, scope, dialect, exceptionSupplier);
     }
 
     /**
@@ -203,7 +208,7 @@ final class AliasMapper {
      * @return the alias for the table at the specified path.
      * @throws SqlTemplateException if the alias could not be resolved.
      */
-    public String getAlias(@Nonnull Class<? extends Record> table,
+    public String getAlias(@Nonnull Class<? extends Data> table,
                            @Nullable String path,
                            @Nonnull ResolveScope scope,
                            @Nonnull SqlDialect dialect) throws SqlTemplateException {
@@ -226,7 +231,7 @@ final class AliasMapper {
      * @return the alias for the table at the specified path.
      * @throws SqlTemplateException if the alias could not be resolved.
      */
-    public String getAlias(@Nonnull Class<? extends Record> table,
+    public String getAlias(@Nonnull Class<? extends Data> table,
                            @Nullable String path,
                            @Nonnull ResolveScope scope,
                            @Nonnull SqlDialect dialect,
@@ -245,16 +250,9 @@ final class AliasMapper {
         throw exceptionSupplier.get();
     }
 
-    public Optional<String> findAlias(@Nonnull Class<? extends Record> table,
+    public Optional<String> findAlias(@Nonnull Class<? extends Data> table,
                                       @Nullable String path,
                                       @Nonnull ResolveScope scope) throws SqlTemplateException {
-        return findAlias(table, path, scope, null);
-    }
-
-    private Optional<String> findAlias(@Nonnull Class<? extends Record> table,
-                                       @Nullable String path,
-                                       @Nonnull ResolveScope scope,
-                                       @Nullable Class<? extends Record> autoJoinTable) throws SqlTemplateException {
         var entries = collectAliasEntries(table, path, 0).toList();
         var filtered = entries.stream()
                 .filter(e -> switch (scope) {
@@ -279,15 +277,15 @@ final class AliasMapper {
         return Optional.of(entry.alias());
     }
 
-    public String generateAlias(@Nonnull Class<? extends Record> table,
+    public String generateAlias(@Nonnull Class<? extends Data> table,
                                 @Nullable String path,
                                 @Nonnull SqlDialect dialect) throws SqlTemplateException {
         return generateAlias(table, path, null, null, dialect);
     }
 
-    public String generateAlias(@Nonnull Class<? extends Record> table,
+    public String generateAlias(@Nonnull Class<? extends Data> table,
                                 @Nullable String path,
-                                @Nullable Class<? extends Record> autoJoinTable,
+                                @Nullable Class<? extends Data> autoJoinTable,
                                 @Nullable String autoJoinAlias,
                                 @Nonnull SqlDialect dialect) throws SqlTemplateException {
         String alias = generateAlias(table,
@@ -304,14 +302,14 @@ final class AliasMapper {
         return alias;
     }
 
-    public void setAlias(@Nonnull Class<? extends Record> table, @Nonnull String alias, @Nullable String path) throws SqlTemplateException {
+    public void setAlias(@Nonnull Class<? extends Data> table, @Nonnull String alias, @Nullable String path) throws SqlTemplateException {
         if (!aliasMap.computeIfAbsent(table, ignore -> new LinkedHashSet<>()).add(new TableAlias(table, path, alias))) {
             // Only detect duplicated aliases at the same level.
             throw new SqlTemplateException("Alias already exists for table %s.".formatted(table.getSimpleName()));
         }
     }
 
-    private String generateAlias(@Nonnull Class<? extends Record> table,
+    private String generateAlias(@Nonnull Class<? extends Data> table,
                                  @Nonnull Predicate<String> tester,
                                  @Nonnull SqlDialect dialect) throws SqlTemplateException {
         String alias;

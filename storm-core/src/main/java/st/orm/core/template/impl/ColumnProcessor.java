@@ -22,12 +22,11 @@ import st.orm.core.spi.Providers;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Column;
-
-import java.lang.reflect.RecordComponent;
+import st.orm.mapping.RecordField;
 
 import static st.orm.core.template.impl.RecordReflection.getColumnName;
 import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
-import static st.orm.core.template.impl.RecordReflection.getRecordComponent;
+import static st.orm.core.template.impl.RecordReflection.getRecordField;
 
 /**
  * A processor for a column element of a template.
@@ -58,7 +57,7 @@ final class ColumnProcessor implements ElementProcessor<Column> {
     @Override
     public ElementResult process(@Nonnull Column column) throws SqlTemplateException {
         var metamodel = column.metamodel();
-        boolean isNested = metamodel.table().componentType() != metamodel.root();
+        boolean isNested = metamodel.table().fieldType() != metamodel.root();
         if (isNested) {
             if (primaryTable == null) {
                 throw new SqlTemplateException("Nested metamodel %s is not supported when not using a primary table.".formatted(metamodel));
@@ -76,16 +75,16 @@ final class ColumnProcessor implements ElementProcessor<Column> {
             alias = aliasMapper.getAlias(column.metamodel(), column.scope(), template.dialect(),
                     () -> new SqlTemplateException("Table for Column not found at %s.".formatted(metamodel)));
         }
-        RecordComponent component = getRecordComponent(metamodel.root(), column.metamodel().componentPath());
+        RecordField field = getRecordField(metamodel.root(), column.metamodel().fieldPath());
         ColumnName columnName;
-        if (REFLECTION.isAnnotationPresent(component, FK.class)) {
-            var columnNames = getForeignKeys(component, template.foreignKeyResolver(), template.columnNameResolver());
+        if (field.isAnnotationPresent(FK.class)) {
+            var columnNames = getForeignKeys(field, template.foreignKeyResolver(), template.columnNameResolver());
             if (columnNames.size() != 1) {
-                throw new SqlTemplateException("Column %s is not a single foreign key.".formatted(component));
+                throw new SqlTemplateException("Column %s is not a single foreign key.".formatted(field));
             }
             columnName = columnNames.getFirst();
         } else {
-            columnName = getColumnName(component, template.columnNameResolver());
+            columnName = getColumnName(field, template.columnNameResolver());
         }
         return new ElementResult(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", columnName));
     }

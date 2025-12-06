@@ -16,6 +16,7 @@
 package st.orm.template
 
 import st.orm.BindVars
+import st.orm.Data
 import st.orm.Ref
 import st.orm.template.TemplateString.Companion.wrap
 import kotlin.reflect.KClass
@@ -43,7 +44,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param <ID> primary key type.
      * @since 1.3
      */
-    fun <T : Record, ID> ref(type: KClass<T>, id: ID): Ref<T>
+    fun <T : Data, ID : Any> ref(type: KClass<T>, id: ID): Ref<T>
 
     /**
      * Creates a ref instance for the specified record `type` and `id`. This method can be used to generate
@@ -56,7 +57,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param <ID> primary key type.
      * @since 1.3
      */
-    fun <T : Record, ID> ref(record: T, id: ID): Ref<T>
+    fun <T : Data, ID : Any> ref(record: T, id: ID): Ref<T>
 
     /**
      * Get the model for the specified record `type`. The model provides information about the type's database
@@ -67,7 +68,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param <T> table type.
      * @param <ID> primary key type.
      */
-    fun <T : Record> model(type: KClass<T>): Model<T, *> {
+    fun <T : Data> model(type: KClass<T>): Model<T, *> {
         return model(type, false)
     }
 
@@ -82,7 +83,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param <ID> primary key type.
      * @since 1.3
      */
-    fun <T : Record> model(type: KClass<T>, requirePrimaryKey: Boolean): Model<T, *>
+    fun <T : Data> model(type: KClass<T>, requirePrimaryKey: Boolean): Model<T, *>
 
     /**
      * Creates a query builder for the specified table.
@@ -91,7 +92,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @return the query builder.
      * @param <T> the table type to select from.
      */
-    fun <T : Record> selectFrom(fromType: KClass<T>): QueryBuilder<T, T, *> {
+    fun <T : Data> selectFrom(fromType: KClass<T>): QueryBuilder<T, T, *> {
         return selectFrom(fromType, fromType)
     }
 
@@ -104,7 +105,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    fun <T : Record, R : Record> selectFrom(
+    fun <T : Data, R : Data> selectFrom(
         fromType: KClass<T>,
         selectType: KClass<R>
     ): QueryBuilder<T, R, *> {
@@ -121,7 +122,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    fun <T : Record, R : Any> selectFrom(
+    fun <T : Data, R : Any> selectFrom(
         fromType: KClass<T>,
         selectType: KClass<R>,
         template: TemplateBuilder
@@ -139,7 +140,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    fun <T : Record, R : Any> selectFrom(
+    fun <T : Data, R : Any> selectFrom(
         fromType: KClass<T>,
         selectType: KClass<R>,
         template: TemplateString
@@ -152,7 +153,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @return the query builder.
      * @param <T> the table type to delete from.
      */
-    fun <T : Record> deleteFrom(fromType: KClass<T>): QueryBuilder<T, *, *>
+    fun <T : Data> deleteFrom(fromType: KClass<T>): QueryBuilder<T, *, *>
 
     /**
      * Creates a query for the specified `query` string.

@@ -17,9 +17,11 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Data;
 import st.orm.Metamodel;
-import st.orm.config.ColumnNameResolver;
-import st.orm.config.ForeignKeyResolver;
+import st.orm.mapping.ColumnNameResolver;
+import st.orm.mapping.ForeignKeyResolver;
+import st.orm.mapping.RecordField;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
@@ -28,16 +30,14 @@ import st.orm.core.template.impl.Elements.TableTarget;
 import st.orm.core.template.impl.Elements.TemplateSource;
 import st.orm.core.template.impl.Elements.TemplateTarget;
 
-import java.lang.reflect.RecordComponent;
-
 import static st.orm.ResolveScope.INNER;
-import static st.orm.core.template.impl.RecordReflection.findComponent;
-import static st.orm.core.template.impl.RecordReflection.getFkComponents;
+import static st.orm.core.template.impl.RecordReflection.findRecordField;
+import static st.orm.core.template.impl.RecordReflection.getFkFields;
 import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
-import static st.orm.core.template.impl.RecordReflection.getPkComponent;
+import static st.orm.core.template.impl.RecordReflection.findPkField;
 import static st.orm.core.template.impl.RecordReflection.getPrimaryKeys;
 import static st.orm.core.template.impl.RecordReflection.getTableName;
-import static st.orm.core.template.impl.RecordValidation.validateRecordType;
+import static st.orm.core.template.impl.RecordValidation.validateDataType;
 
 final class JoinProcessor implements ElementProcessor<Join> {
 
@@ -99,27 +99,27 @@ final class JoinProcessor implements ElementProcessor<Join> {
     }
 
     private String buildJoinCondition(
-            @Nonnull Class<? extends Record> fromTable,
+            @Nonnull Class<? extends Data> fromTable,
             @Nonnull String alias,
-            @Nonnull Class<? extends Record> toTable,
+            @Nonnull Class<? extends Data> toTable,
             @Nullable String toAlias,
             @Nonnull ColumnNameResolver columnNameResolver,
             @Nonnull ForeignKeyResolver foreignKeyResolver,
             @Nonnull SqlDialect dialect
     ) throws SqlTemplateException {
-        var rightComponent = findComponent(getFkComponents(toTable).toList(), fromTable);
+        var rightComponent = findRecordField(getFkFields(toTable).toList(), fromTable);
         if (rightComponent.isPresent()) {
-            validateRecordType(fromTable, true);
+            validateDataType(fromTable, true);
             // Joins foreign key of right table to the primary key of left table.
             return buildJoinCondition(fromTable, alias, toTable, toAlias, rightComponent.get(),
-                    getPkComponent(fromTable).orElseThrow(), columnNameResolver, foreignKeyResolver, dialect);
+                    findPkField(fromTable).orElseThrow(), columnNameResolver, foreignKeyResolver, dialect);
         }
-        var leftComponent = findComponent(getFkComponents(fromTable).toList(), toTable);
+        var leftComponent = findRecordField(getFkFields(fromTable).toList(), toTable);
         if (leftComponent.isPresent()) {
-            validateRecordType(toTable, true);
+            validateDataType(toTable, true);
             // Joins foreign key of left table to the primary key of right table.
             return buildJoinCondition(toTable, toAlias, fromTable, alias, leftComponent.get(),
-                    getPkComponent(toTable).orElseThrow(), columnNameResolver, foreignKeyResolver, dialect);
+                    findPkField(toTable).orElseThrow(), columnNameResolver, foreignKeyResolver, dialect);
         }
         throw new SqlTemplateException(
                 "Failed to join %s with %s. No matching foreign key found.".formatted(fromTable.getSimpleName(), toTable.getSimpleName()));
@@ -127,12 +127,12 @@ final class JoinProcessor implements ElementProcessor<Join> {
 
     @SuppressWarnings("DuplicatedCode")
     private String buildJoinCondition(
-            @Nonnull Class<? extends Record> fromTable,
+            @Nonnull Class<? extends Data> fromTable,
             @Nullable String fromAlias,
-            @Nonnull Class<? extends Record> toTable,
+            @Nonnull Class<? extends Data> toTable,
             @Nullable String toAlias,
-            @Nonnull RecordComponent left,
-            @Nonnull RecordComponent right,
+            @Nonnull RecordField left,
+            @Nonnull RecordField right,
             @Nonnull ColumnNameResolver columnNameResolver,
             @Nonnull ForeignKeyResolver foreignKeyResolver,
             @Nonnull SqlDialect dialect

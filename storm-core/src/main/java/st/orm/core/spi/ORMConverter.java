@@ -17,9 +17,9 @@ package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.mapping.RecordField;
 import st.orm.core.template.SqlTemplateException;
 
-import java.lang.reflect.RecordComponent;
 import java.util.List;
 
 /**
@@ -33,13 +33,13 @@ public interface ORMConverter {
     interface NameResolver {
 
         /**
-         * Gets the column name of the given record component.
+         * Gets the column name of the given record field.
          *
-         * @param component the record component to resolve.
+         * @param field the record field to resolve.
          * @return the name of the column.
          * @throws SqlTemplateException if an error occurs while resolving the name.
          */
-        Name getName(@Nonnull RecordComponent component) throws SqlTemplateException;
+        Name getName(@Nonnull RecordField field) throws SqlTemplateException;
     }
 
     /**
@@ -77,7 +77,7 @@ public interface ORMConverter {
      * @param record the record to convert.
      * @return the values to be used in the SQL template.
      */
-    List<Object> toDatabase(@Nullable Record record) throws SqlTemplateException;
+    List<Object> toDatabase(@Nullable Object record) throws SqlTemplateException;
 
     /**
      * Converts the given values to an object that is used in the object model.

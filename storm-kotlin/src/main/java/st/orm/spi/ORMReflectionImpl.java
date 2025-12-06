@@ -21,117 +21,191 @@ import kotlin.Metadata;
 import kotlin.jvm.JvmClassMappingKt;
 import kotlin.reflect.KCallable;
 import kotlin.reflect.KClass;
+import kotlin.reflect.KFunction;
+import kotlin.reflect.KParameter;
+import kotlin.reflect.KProperty1;
 import kotlin.reflect.KType;
+import kotlin.reflect.full.KClasses;
+import kotlin.reflect.jvm.ReflectJvmMapping;
+import st.orm.Data;
+import st.orm.Entity;
 import st.orm.PK;
+import st.orm.PersistenceException;
 import st.orm.core.repository.impl.DefaultORMReflectionImpl;
 import st.orm.core.spi.ORMReflection;
+import st.orm.mapping.RecordField;
+import st.orm.mapping.RecordType;
 
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.Parameter;
-import java.lang.reflect.RecordComponent;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.function.Supplier;
 
 import static java.lang.System.arraycopy;
+import static java.util.Arrays.asList;
+import static java.util.Arrays.stream;
+import static java.util.Optional.empty;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
+@SuppressWarnings("unchecked")
 public class ORMReflectionImpl implements ORMReflection {
-    private final static Map<ComponentCacheKey, Parameter> COMPONENT_PARAMETER_CACHE = new ConcurrentHashMap<>();
-    private final static Map<ComponentCacheKey, Boolean> COMPONENT_NONNULL_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Optional<RecordType>> TYPE_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Optional<RecordField>> PK_FIELD_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Optional<Constructor<?>>> CONSTRUCTOR_CACHE = new ConcurrentHashMap<>();
 
     private static final DefaultORMReflectionImpl defaultReflection = new DefaultORMReflectionImpl();
 
+    private static Class<? extends Data> toData(Class<?> table) {
+        if (!Data.class.isAssignableFrom(table)) {
+            throw new PersistenceException("Table %s is not a Data type.".formatted(table.getName()));
+        }
+        return (Class<? extends Data>) table;
+    }
+
+    private boolean isKotlinDataClass(Class<?> type) {
+        Metadata metadata = type.getAnnotation(Metadata.class);
+        if (metadata == null) {
+            return false;
+        }
+        return JvmClassMappingKt.getKotlinClass(type).isData();
+    }
+
+    @SuppressWarnings("unchecked")
     @Override
-    public Optional<Constructor<?>> findCanonicalConstructor(@Nonnull Class<? extends Record> type) {
-        assert type.isRecord();
-        return defaultReflection.findCanonicalConstructor(type);
+    public <ID, E extends Entity<ID>> ID getId(@Nonnull E entity) {
+        return PK_FIELD_CACHE.computeIfAbsent(entity.getClass(), ignore ->
+                        getRecordType(entity.getClass()).fields().stream()
+                                .filter(field -> field.isAnnotationPresent(PK.class))
+                                .findFirst()
+                )
+                .map(field -> (ID) invoke(field, entity))
+                .orElseThrow(() -> new PersistenceException("No PK found for %s.".formatted(entity.getClass().getName())));
     }
 
     @Override
-    public Optional<Class<?>> findPKType(@Nonnull Class<? extends Record> recordType) {
-        assert recordType.isRecord();
-        Constructor<?> constructor = findCanonicalConstructor(recordType)
-                .orElseThrow(() -> new IllegalArgumentException("No canonical constructor found for record type: %s.".formatted(recordType.getSimpleName())));
-        Class<?> pkType = null;
-        for (Parameter parameter : constructor.getParameters()) {
-            if (parameter.isAnnotationPresent(PK.class)) {
-                if (pkType != null) {
-                    // Found multiple components with @PK annotation, throwing an exception.
-                    throw new IllegalArgumentException("Multiple components are annotated with @PK.");
+    public Optional<RecordType> findRecordType(@Nonnull Class<?> type) {
+        return TYPE_CACHE.computeIfAbsent(type, ignore -> {
+            if (isKotlinDataClass(type)) {
+                var constructor = findCanonicalConstructor(type).orElse(null);
+                if (constructor == null) {
+                    return empty();
                 }
-                pkType = parameter.getType();
-            }
-        }
-        // May be null if no @PK annotation found.
-        return ofNullable(pkType);
-    }
-
-    @Override
-    public boolean isAnnotationPresent(@Nonnull RecordComponent component, @Nonnull Class<? extends Annotation> annotationType) {
-        return getAnnotation(component, annotationType) != null;
-    }
-
-    @Override
-    public boolean isAnnotationPresent(@Nonnull Class<?> type, @Nonnull Class<? extends Annotation> annotationType) {
-        return getAnnotation(type, annotationType) != null;
-    }
-
-    record ComponentCacheKey(@Nonnull Class<? extends Record> recordType, @Nonnull String componentName) {
-        ComponentCacheKey(RecordComponent component) throws IllegalArgumentException {
-            //noinspection unchecked
-            this((Class<? extends Record>) component.getDeclaringRecord(), component.getName());
-        }
-
-        private Constructor<?> constructor() {
-            return defaultReflection.findCanonicalConstructor(recordType)
-                    .orElseThrow(() -> new IllegalArgumentException("No canonical constructor found for record type: %s.".formatted(recordType.getSimpleName())));
-        }
-    }
-
-    private Parameter getParameter(@Nonnull RecordComponent component) {
-        return COMPONENT_PARAMETER_CACHE.computeIfAbsent(new ComponentCacheKey(component), k -> {
-            //noinspection unchecked
-            Class<? extends Record> recordType = (Class<? extends Record>) component.getDeclaringRecord();
-            var recordComponents = recordType.getRecordComponents();
-            assert k.constructor().getParameters().length == recordComponents.length;
-            int index = 0;
-            for (var candidate : recordComponents) {
-                if (candidate.getName().equals(k.componentName())) {
-                    return k.constructor().getParameters()[index];
+                KClass<?> kClass = JvmClassMappingKt.getKotlinClass(type);
+                @SuppressWarnings("unchecked")
+                KFunction<?> primary = KClasses.getPrimaryConstructor((KClass<Object>) kClass);
+                if (primary == null) {
+                    return empty();
                 }
-                index++;
+                // Map Kotlin VALUE parameters to RecordField, using ctor parameter annotations.
+                List<RecordField> fields = primary.getParameters().stream()
+                        .filter(p -> p.getKind() == KParameter.Kind.VALUE)
+                        .map(p -> toRecordField(p, constructor))
+                        .toList();
+                return Optional.of(
+                        new RecordType(
+                                type,
+                                constructor,
+                                stream(type.getAnnotations())
+                                        .filter(annotation -> annotation.annotationType() != Metadata.class)
+                                        .toList(),
+                                fields
+                        )
+                );
             }
-            throw new IllegalArgumentException("No parameter found for component: %s for record type: %s.".formatted(component.getName(), component.getDeclaringRecord().getSimpleName()));
+            return defaultReflection.findRecordType(type);
         });
     }
 
-    @Override
-    public <A extends Annotation> A getAnnotation(@Nonnull RecordComponent component, @Nonnull Class<A> annotationType) {
-        return getParameter(component).getAnnotation(annotationType);
+    private RecordField toRecordField(KParameter parameter, Constructor<?> constructor) {
+        String name = parameter.getName();
+        if (name == null) {
+            // Fallback.
+            name = "p" + parameter.getIndex();
+        }
+        KType kType = parameter.getType();
+        Type genericType = ReflectJvmMapping.getJavaType(kType);
+        Class<?> rawType = Object.class;
+        if (genericType instanceof Class<?>) {
+            rawType = (Class<?>) genericType;
+        } else if (genericType instanceof ParameterizedType) {
+            rawType = (Class<?>) ((ParameterizedType) genericType).getRawType();
+        }
+        Method accessor = findKotlinGetter(constructor.getDeclaringClass(), name);
+        List<Annotation> annotations = findConstructorParameterAnnotations(constructor, parameter);
+        return new RecordField(
+                constructor.getDeclaringClass(),
+                name,
+                rawType,                     // raw type, like List.class.
+                genericType,                 // full generic type, like List<String>.
+                parameter.getType().isMarkedNullable(),
+                accessor,
+                annotations
+        );
     }
 
-    @Override
-    public <A extends Annotation> A[] getAnnotations(@Nonnull RecordComponent component, @Nonnull Class<A> annotationType) {
-        return getParameter(component).getAnnotationsByType(annotationType);
+    private Method findKotlinGetter(Class<?> type, String propertyName) {
+        KClass<?> kClass = JvmClassMappingKt.getKotlinClass(type);
+        for (KCallable<?> callable : kClass.getMembers()) {
+            if (callable instanceof KProperty1<?, ?> property) {
+                if (property.getName().equals(propertyName)) {
+                    return ReflectJvmMapping.getJavaGetter(property);
+                }
+            }
+        }
+        throw new IllegalArgumentException("No getter found for property %s in class %s.".formatted(propertyName, type.getSimpleName()));
     }
 
-    @Override
-    public <A extends Annotation> A getAnnotation(@Nonnull Class<?> type, @Nonnull Class<A> annotationType) {
-        return defaultReflection.getAnnotation(type, annotationType);
+    private List<Annotation> findConstructorParameterAnnotations(Constructor<?> constructor, KParameter kotlinParam) {
+        int index = kotlinParam.getIndex();
+        // For constructors, Kotlin only has VALUE parameters, so index should align with Java parameter index. If that
+        // assumption ever breaks, map by name instead.
+        if (index < 0 || index >= constructor.getParameterCount()) {
+            return List.of();
+        }
+        return asList(constructor.getParameters()[index].getAnnotations());
+    }
+
+    private Optional<Constructor<?>> findCanonicalConstructor(@Nonnull Class<?> type) {
+        return CONSTRUCTOR_CACHE.computeIfAbsent(type, ignore -> {
+            if (!isKotlinDataClass(type)) {
+                return empty();
+            }
+            KClass<?> kClass = JvmClassMappingKt.getKotlinClass(type);
+            if (!kClass.isData()) {
+                return Optional.empty();
+            }
+            @SuppressWarnings("unchecked")
+            KFunction<?> primary = KClasses.getPrimaryConstructor((KClass<Object>) kClass);
+            if (primary == null) {
+                return Optional.empty();
+            }
+            Constructor<?> javaCtor = ReflectJvmMapping.getJavaConstructor(primary);
+            if (javaCtor != null) {
+                return Optional.of(javaCtor);
+            }
+            // Fallback: match by parameter count if ReflectJvmMapping fails
+            int paramCount = (int) primary.getParameters().stream()
+                    .filter(p -> p.getKind() == KParameter.Kind.VALUE)
+                    .count();
+            for (Constructor<?> constructor : type.getDeclaredConstructors()) {
+                if (constructor.getParameterCount() == paramCount) {
+                    return Optional.of(constructor);
+                }
+            }
+            return Optional.empty();
+        });
     }
 
     private static final Method GET_JAVA_CLASS_METHOD;
@@ -161,9 +235,9 @@ public class ORMReflectionImpl implements ORMReflection {
     }
 
     @Override
-    public Class<? extends Record> getRecordType(@Nonnull Object clazz) {
-        //noinspection unchecked
-        return (Class<? extends Record>) getType(clazz);
+    public Class<? extends Data> getDataType(@Nonnull Object clazz) {
+        Class<?> o = getType(clazz);
+        return toData(o);
     }
 
     @Override
@@ -177,84 +251,12 @@ public class ORMReflectionImpl implements ORMReflection {
     }
 
     @Override
-    public Object invokeComponent(@Nonnull RecordComponent component, @Nonnull Object record) throws Throwable {
-        Method method = component.getAccessor();
-        //noinspection ConstantValue
-        if (method != null) {
-            try {
-                method.setAccessible(true);
-                return method.invoke(record);
-            } catch (InvocationTargetException e) {
-                throw e.getTargetException();
-            }
-        }
-        // Fallback to field access in case of private vals.
-        Field field = component.getDeclaringRecord().getDeclaredField(component.getName());
-        field.setAccessible(true);
-        return field.get(record);
-    }
-
-    @SuppressWarnings("unchecked")
-    static final Class<? extends Annotation> JAVAX_NULLABLE = ((Supplier<Class<? extends Annotation>>) () -> {
-        try {
-            return (Class<? extends Annotation>) Class.forName("javax.annotation.Nullable");
-        } catch (ClassNotFoundException e) {
-            return null;
-        }
-    }).get();
-    @SuppressWarnings("unchecked")
-    static final Class<? extends Annotation> JAKARTA_NULLABLE = ((Supplier<Class<? extends Annotation>>) () -> {
-        try {
-            return (Class<? extends Annotation>) Class.forName("jakarta.annotation.Nullable");
-        } catch (ClassNotFoundException e) {
-            return null;
-        }
-    }).get();
-
-    private boolean isNullable(@Nonnull RecordComponent component) {
-        return !isAnnotationPresent(component, PK.class)
-                && !component.getType().isPrimitive()
-                && ((JAVAX_NULLABLE != null && isAnnotationPresent(component, JAVAX_NULLABLE))
-                || (JAKARTA_NULLABLE != null && isAnnotationPresent(component, JAKARTA_NULLABLE)));
-    }
-
-    @Override
-    public boolean isNonnull(@Nonnull RecordComponent component) {
-        return COMPONENT_NONNULL_CACHE.computeIfAbsent(new ComponentCacheKey(component), k -> {
-            Class<?> declaringClass = component.getDeclaringRecord();
-            boolean isKotlinClass = declaringClass.isAnnotationPresent(Metadata.class);
-            if (!isKotlinClass) {
-                return defaultReflection.isNonnull(component);
-            }
-            // In Kotlin, the default is nonnull, so we need to check if the component is nullable.
-            if (isNullable(component)) {
-                return false;
-            }
-            if (isAnnotationPresent(component, PK.class)) {
-                return true;
-            }
-            try {
-                KClass<?> kClass = JvmClassMappingKt.getKotlinClass(declaringClass);
-                return !kClass.getMembers().stream()
-                        .filter(member -> member.getName().equals(k.componentName())
-                                && member.getParameters().size() == 1)
-                        .map(KCallable::getReturnType)
-                        .map(KType::isMarkedNullable)
-                        .findAny()
-                        .orElse(false);
-            } catch (Exception e) {
-                return defaultReflection.isNonnull(component);
-            }
-        });
-    }
-
-    @Override
-    public List<Class<?>> getSubTypesOf(@Nonnull Class<?> type) {
+    public <T> List<Class<? extends T>> getSubTypesOf(@Nonnull Class<T> type) {
         return defaultReflection.getSubTypesOf(type);
     }
 
     @Override
-    public List<Class<?>> getPermittedSubclasses(@Nonnull Class<?> sealedClass) {
+    public <T> List<Class<? extends T>> getPermittedSubclasses(@Nonnull Class<T> sealedClass) {
         return JvmClassMappingKt.getKotlinClass(sealedClass).getSealedSubclasses().stream()
                 .map(JvmClassMappingKt::getJavaClass)
                 .collect(toList());
@@ -267,6 +269,38 @@ public class ORMReflectionImpl implements ORMReflection {
         }
         Class<?> clazz = method.getDeclaringClass();
         return clazz.getDeclaredAnnotation(Metadata.class) != null;
+    }
+
+    @Override
+    public Object invoke(@Nonnull RecordType type, @Nonnull Object[] args) {
+        try {
+            try {
+                // Method is expected to be accessible.
+                return type.constructor().newInstance(args);
+            } catch (InvocationTargetException e) {
+                throw e.getTargetException();
+            }
+        } catch (PersistenceException e) {
+            throw e;
+        } catch (Throwable t) {
+            throw new PersistenceException(t);
+        }
+    }
+
+    @Override
+    public Object invoke(@Nonnull RecordField field, @Nonnull Object record) {
+        try {
+            try {
+                // Method is expected to be accessible.
+                return field.method().invoke(record);
+            } catch (InvocationTargetException e) {
+                throw e.getTargetException();
+            }
+        } catch (PersistenceException e) {
+            throw e;
+        } catch (Throwable t) {
+            throw new PersistenceException(t);
+        }
     }
 
     record MethodCacheKey(@Nonnull List<Class<?>> interfaces, @Nonnull Method method) {}
