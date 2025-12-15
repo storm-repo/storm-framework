@@ -71,12 +71,9 @@ import static st.orm.core.spi.Providers.releaseConnection;
 import static st.orm.core.template.SqlTemplate.PS;
 import static st.orm.core.template.impl.ExceptionHelper.getExceptionTransformer;
 import static st.orm.core.template.impl.LazySupplier.lazy;
+import static st.orm.core.template.impl.RecordValidation.validate;
 
 public final class PreparedStatementTemplateImpl implements PreparedStatementTemplate, QueryFactory {
-
-    static {
-        RecordValidation.init();
-    }
 
     @FunctionalInterface
     private interface TemplateProcessor {
@@ -92,6 +89,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     private final TransactionTemplate transactionTemplate;
 
     public PreparedStatementTemplateImpl(@Nonnull DataSource dataSource) {
+        validate();
         // Note that this logic does not use Spring's DataSourceUtils, so it is not aware of Spring's transaction
         // management.
         transactionTemplate = Providers.getTransactionTemplate();
@@ -142,6 +140,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     }
 
     public PreparedStatementTemplateImpl(@Nonnull Connection connection) {
+        validate();
         transactionTemplate = Providers.getTransactionTemplate();
         templateProcessor = (sql, safe) -> {
             if (!safe) {

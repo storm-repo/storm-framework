@@ -16,6 +16,7 @@
 package st.orm;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 import static java.util.Objects.requireNonNull;
 
@@ -43,22 +44,30 @@ public interface Ref<T extends Data> {
      */
     Class<T> type();
 
+    static <T extends Data, ID> Ref<T> of(@Nonnull Class<T> type, @Nonnull ID pk) {
+        return new DetachedRef<>(type, pk);
+    }
+
     /**
      * Creates a fully loaded ref instance that wraps the given entity.
-     *
-     * <p>This method creates a ref for an entity that is already fully loaded. The returned ref
-     * is considered immutable; calling {@link #unload()} on it is a no-op, as the entity cannot be re-fetched.</p>
      *
      * @param entity the fully loaded entity to wrap in a ref.
      * @param <E> the type of the entity, which must extend {@link Record} and implement {@link Entity}.
      * @return a fully loaded ref instance for the provided entity.
      */
     static <E extends Entity<?>> Ref<E> of(@Nonnull E entity) {
-        return new AbstractRef<>() {
+        class DetachedEntity<TE extends Entity<?>> extends AbstractRef<TE> {
+            private final TE entity;
+
+            DetachedEntity(TE entity) {
+                requireNonNull(entity, "Entity cannot be null.");
+                this.entity = entity;
+            }
+
             @Override
-            public Class<E> type() {
+            public Class<TE> type() {
                 //noinspection unchecked
-                return (Class<E>) entity.getClass();
+                return (Class<TE>) entity.getClass();
             }
 
             @Override
@@ -67,22 +76,30 @@ public interface Ref<T extends Data> {
             }
 
             @Override
-            public E fetch() {
+            public TE getOrNull() {
                 return entity;
             }
 
             @Override
-            public void unload() {
+            public TE fetchOrNull() {
+                return entity;
             }
-        };
+
+            @Override
+            public boolean isFetchable() {
+                return false;
+            }
+
+            @Override
+            public Ref<TE> unload() {
+                return Ref.of(type(), id());
+            }
+        }
+        return new DetachedEntity<>(entity);
     }
 
     /**
      * Creates a fully loaded ref instance that wraps the given projection along with its primary key.
-     *
-     * <p>This method creates a ref for a projection that is already fully loaded. The provided projection and its id are used
-     * to form the ref instance. Similar to entity refs, calling {@link #unload()} on this ref is a no-op because the projection
-     * is immutable and cannot be re-fetched.</p>
      *
      * @param projection the fully loaded projection to wrap in a ref.
      * @param id the primary key of the projection.
@@ -91,29 +108,47 @@ public interface Ref<T extends Data> {
      * @return a fully loaded ref instance for the provided projection.
      */
     static <P extends Projection<ID>, ID> Ref<P> of(@Nonnull P projection, @Nonnull ID id) {
-        requireNonNull(projection, "Projection cannot be null.");
-        requireNonNull(id, "ID cannot be null.");
-        return new AbstractRef<>() {
-            @Override
-            public Class<P> type() {
-                //noinspection unchecked
-                return (Class<P>) projection.getClass();
+        class DetachedProjection<TE extends Projection<TID>, TID> extends AbstractRef<TE> {
+            private final TID id;
+            private final TE projection;
+
+            DetachedProjection(TID id, TE projection) {
+                this.id = requireNonNull(id, "ID cannot be null.");;
+                this.projection = requireNonNull(projection, "Projection cannot be null.");
             }
 
             @Override
-            public ID id() {
+            public Class<TE> type() {
+                //noinspection unchecked
+                return (Class<TE>) projection.getClass();
+            }
+
+            @Override
+            public Object id() {
                 return id;
             }
 
             @Override
-            public P fetch() {
+            public TE getOrNull() {
                 return projection;
             }
 
             @Override
-            public void unload() {
+            public TE fetchOrNull() {
+                return projection;
             }
-        };
+
+            @Override
+            public boolean isFetchable() {
+                return false;
+            }
+
+            @Override
+            public Ref<TE> unload() {
+                return Ref.of(type(), id());
+            }
+        }
+        return new DetachedProjection<>(id, projection);
     }
 
     /**
@@ -153,20 +188,81 @@ public interface Ref<T extends Data> {
     Object id();
 
     /**
+     * Returns the record if it has already been fetched, without triggering a database call.
+     *
+     * @return the record if already loaded, or {@code null} if not yet fetched.
+     * @since 1.7
+     */
+    @Nullable
+    T getOrNull();
+
+    /**
      * Fetches the record from the database if the record has not been fetched yet. The record will be fetched at most
      * once.
      *
      * @return the fetched record.
+     * @throws PersistenceException if the record is not available and the Ref is not attached.
      */
-    T fetch();
+    default T fetch() {
+        T record = fetchOrNull();
+        if (record == null) {
+            throw new PersistenceException("Record is not available.");
+        }
+        return record;
+    }
 
     /**
-     * Unloads the entity from memory, if applicable.
+     * Fetches the record from the database if the record has not been fetched yet. Returns {@code null} if the record
+     * is not available and the Ref is not attached.
      *
-     * <p>For refs that support lazy-loading, this method clears the cached record to free memory.
-     * However, for fully loaded or immutable refs (such as refs generated via {@link #of(Entity)} and
-     * {@link #of(Projection, Object)}), this method is a no-op because the record cannot be re-fetched. In such cases,
-     * calling unload has no effect.</p>
+     * @return the fetched record, or {@code null} if the record is not available and the Ref is not attached.
+     * @since 1.7
      */
-    void unload();
+    @Nullable
+    T fetchOrNull();
+
+    /**
+     * Returns whether this ref is attached to a database context and capable of fetching the record on demand.
+     *
+     * <p>A fetchable ref has access to a database connection and can attempt to retrieve the record when
+     * {@link #fetch()} or {@link #fetchOrNull()} is called. A non-fetchable (detached) ref can only return
+     * data that was already loaded at the time of its creation.</p>
+     *
+     * <p>Note that this method indicates the <em>capability</em> to fetch, not a guarantee of success. A fetchable
+     * ref may still fail to retrieve a record if it has been deleted from the database or if the connection
+     * encounters an error.</p>
+     *
+     * @return {@code true} if this ref can attempt to fetch from the database, {@code false} if it is detached.
+     * @since 1.7
+     */
+    boolean isFetchable();
+
+    /**
+     * Returns whether the record has already been fetched and is available in memory.
+     *
+     * <p>This method does not trigger a database call. It simply checks if the record is currently cached.</p>
+     *
+     * @return {@code true} if the record is loaded and available via {@link #getOrNull()}, {@code false} otherwise.
+     * @since 1.7
+     */
+    default boolean isLoaded() {
+        return getOrNull() != null;
+    }
+
+    /**
+     * Returns a ref with the same identity but without data.
+     *
+     * <p>For attached refs, this clears the fetched record while preserving the ability to re-fetch from the database.
+     * The same ref instance may be returned since the data can be recovered on demand.</p>
+     *
+     * <p>For detached refs that hold a loaded record, a new unloaded ref is returned. Note that calling {@link #fetch()}
+     * on the returned ref will fail since there is no database connection to recover the data. Use this with caution
+     * when working with detached refs, as the original data cannot be retrieved.</p>
+     *
+     * <p>For detached refs that are already unloaded, this method returns the same instance.</p>
+     *
+     * @return a ref with the same type and primary key but without cached data; may return {@code this} if no new
+     *         instance is required.
+     */
+    Ref<T> unload();
 }

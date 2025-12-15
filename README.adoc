@@ -110,14 +110,12 @@ Kotlin::
 +
 [source,kotlin]
 ----
-@JvmRecord
 data class City(
     @PK val id: Int = 0,
     val name: String,
     val population: Long
 ) : Entity<Int>
 
-@JvmRecord
 data class User(
     @PK val id: Int = 0,
     val email: String,
@@ -163,7 +161,6 @@ Kotlin::
 +
 [source,kotlin]
 ----
-@JvmRecord
 data class User(
     @PK val id: Int = 0,
     val email: String,
@@ -213,7 +210,6 @@ enum class RoleType {
     ADMIN
 }
 
-@JvmRecord
 data class Role(
     @PK val id: Int = 0,
     val name: String,
@@ -375,7 +371,6 @@ Kotlin::
 +
 [source,kotlin]
 ----
-@JvmRecord
 data class UserRolePk(
     val userId: Int,
     val roleId: Int
@@ -520,7 +515,6 @@ Kotlin::
 +
 [source,kotlin]
 ----
-@JvmRecord
 data class GroupedByCity(
     val city: City,
     val count: count
@@ -755,7 +749,6 @@ Kotlin::
 +
 [source,kotlin]
 ----
-@JvmRecord
 data class User(
     @PK val id: Int = 0,
     val email: String,
@@ -871,7 +864,6 @@ Kotlin::
 +
 [source,kotlin]
 ----
-@JvmRecord
 data class GroupedByCity(
     val city: Ref<City>,
     val count: Long
@@ -1295,22 +1287,28 @@ JSON is supported as a first-class citizen. Include the following dependency to 
 
 [tabs]
 ====
-Maven::
+Maven (Jackson)::
 +
 [source,xml]
 ----
 <dependency>
     <groupId>st.orm</groupId>
-    <artifactId>storm-json</artifactId>
+    <artifactId>storm-jackson</artifactId>
     <version>1.7.1</version>
     <scope>compile</scope>
 </dependency>
 ----
-Gradle::
+Gradle (Jackson)::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-json:1.7.1'
+implementation 'st.orm:storm-jackson:1.7.1'
+----
+Gradle (Kotlinx Serialization)::
++
+[source,groovy]
+----
+implementation 'st.orm:storm-kotlinx-serialization:1.7.1'
 ----
 ====
 
@@ -1346,7 +1344,6 @@ DSL (Kotlin)::
 ----
 interface UserRepository : EntityRepository<User> {
 
-    @JvmRecord
     data class RolesByUser(
         val user: User,
         @Json val roles: List<Role>
@@ -1384,7 +1381,6 @@ Kotlin::
 +
 [source,kotlin]
 ----
-@JvmRecord
 data class User(
     @PK val id: Int = 0,
     val email: String,

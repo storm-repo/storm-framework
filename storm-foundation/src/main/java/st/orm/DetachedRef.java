@@ -1,41 +1,21 @@
-/*
- * Copyright 2024 - 2025 the original author or authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-package st.orm.core.spi;
+package st.orm;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.Data;
-import st.orm.Ref;
-import st.orm.core.template.impl.LazySupplier;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * Default {@link Ref} implementation.
+ * Detached {@link Ref} implementation.
  *
  * @param <T> record type.
  * @param <ID> primary key type.
  */
-final class RefImpl<T extends Data, ID> extends AbstractRef<T> {
-    private final LazySupplier<T> supplier;
+final class DetachedRef<T extends Data, ID> extends AbstractRef<T> {
     private final Class<T> type;
     private final ID pk;
 
-    RefImpl(@Nonnull LazySupplier<T> supplier, @Nonnull Class<T> type, @Nonnull ID pk) {
-        this.supplier = requireNonNull(supplier, "supplier");
+    public DetachedRef(@Nonnull Class<T> type, @Nonnull ID pk) {
         this.type = requireNonNull(type, "type");
         this.pk = requireNonNull(pk, "pk");
     }
@@ -54,12 +34,11 @@ final class RefImpl<T extends Data, ID> extends AbstractRef<T> {
      * Returns the record if it has already been fetched, without triggering a database call.
      *
      * @return the record if already loaded, or {@code null} if not yet fetched.
-     * @since 1.7
      */
     @Nullable
     @Override
     public T getOrNull() {
-        return supplier.value().orElse(null);
+        return null;
     }
 
     /**
@@ -84,7 +63,7 @@ final class RefImpl<T extends Data, ID> extends AbstractRef<T> {
      */
     @Override
     public T fetchOrNull() {
-        return supplier.get();
+        return null;
     }
 
     /**
@@ -103,7 +82,7 @@ final class RefImpl<T extends Data, ID> extends AbstractRef<T> {
      */
     @Override
     public boolean isFetchable() {
-        return true;
+        return false;
     }
 
     /**
@@ -123,7 +102,6 @@ final class RefImpl<T extends Data, ID> extends AbstractRef<T> {
      */
     @Override
     public Ref<T> unload() {
-        supplier.remove();
         return this;
     }
 }

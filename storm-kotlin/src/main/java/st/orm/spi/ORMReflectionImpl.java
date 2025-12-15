@@ -46,6 +46,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -142,10 +143,14 @@ public class ORMReflectionImpl implements ORMReflection {
         } else if (genericType instanceof ParameterizedType) {
             rawType = (Class<?>) ((ParameterizedType) genericType).getRawType();
         }
-        Method accessor = findKotlinGetter(constructor.getDeclaringClass(), name);
-        List<Annotation> annotations = findConstructorParameterAnnotations(constructor, parameter);
+        Class<?> declaringClass = constructor.getDeclaringClass();
+        Method accessor = findKotlinGetter(declaringClass, name);
+        List<Annotation> annotations = mergeAnnotations(
+                findConstructorParameterAnnotations(constructor, parameter),
+                findKotlinPropertyAnnotations(declaringClass, name)
+        );
         return new RecordField(
-                constructor.getDeclaringClass(),
+                declaringClass,
                 name,
                 rawType,                     // raw type, like List.class.
                 genericType,                 // full generic type, like List<String>.
@@ -153,6 +158,35 @@ public class ORMReflectionImpl implements ORMReflection {
                 accessor,
                 annotations
         );
+    }
+
+    private List<Annotation> findKotlinPropertyAnnotations(Class<?> type, String propertyName) {
+        KClass<?> kClass = JvmClassMappingKt.getKotlinClass(type);
+        for (KCallable<?> callable : kClass.getMembers()) {
+            if (callable instanceof KProperty1<?, ?> property &&
+                    property.getName().equals(propertyName)) {
+                // This returns annotations declared on the Kotlin property,
+                // including @property: and default property annotations.
+                return property.getAnnotations();
+            }
+        }
+        return List.of();
+    }
+
+    @SafeVarargs
+    private List<Annotation> mergeAnnotations(List<Annotation>... sources) {
+        int size = 0;
+        for (List<Annotation> source : sources) {
+            size += source.size();
+        }
+        if (size == 0) {
+            return List.of();
+        }
+        List<Annotation> result = new ArrayList<>(size);
+        for (List<Annotation> source : sources) {
+            result.addAll(source);
+        }
+        return result;
     }
 
     private Method findKotlinGetter(Class<?> type, String propertyName) {
@@ -248,11 +282,6 @@ public class ORMReflectionImpl implements ORMReflection {
     @Override
     public boolean isDefaultValue(@Nullable Object o) {
         return defaultReflection.isDefaultValue(o);
-    }
-
-    @Override
-    public <T> List<Class<? extends T>> getSubTypesOf(@Nonnull Class<T> type) {
-        return defaultReflection.getSubTypesOf(type);
     }
 
     @Override

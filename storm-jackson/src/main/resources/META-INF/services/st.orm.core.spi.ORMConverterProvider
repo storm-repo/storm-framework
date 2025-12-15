@@ -1,1 +1,1 @@
-st.orm.jackson.JsonORMConverterProviderImpl
+st.orm.jackson.spi.JsonORMConverterProviderImpl

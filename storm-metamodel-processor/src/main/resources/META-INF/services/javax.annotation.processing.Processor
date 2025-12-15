@@ -1,1 +1,2 @@
 st.orm.metamodel.MetamodelProcessor
+st.orm.metamodel.TypeIndexProcessor

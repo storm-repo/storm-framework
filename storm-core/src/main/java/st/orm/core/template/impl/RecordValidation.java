@@ -29,9 +29,9 @@ import st.orm.PersistenceException;
 import st.orm.Projection;
 import st.orm.ProjectionQuery;
 import st.orm.Ref;
-import st.orm.core.spi.ClasspathScanner;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
+import st.orm.core.spi.TypeDiscovery;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplate.Parameter;
 import st.orm.core.template.SqlTemplate.PositionalParameter;
@@ -50,6 +50,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -77,18 +78,17 @@ final class RecordValidation {
     record TypeValidationKey(@Nonnull Class<? extends Data> type, boolean requirePrimaryKey) {}
     private static final Map<TypeValidationKey, String> VALIDATE_RECORD_TYPE_CACHE = new ConcurrentHashMap<>();
 
-    static void init() {
-        // Can be used to trigger validation.
-    }
-
-    static {
-        boolean skipValidation = Boolean.getBoolean("storm.validation.skip");
-        boolean warningsOnly = Boolean.getBoolean("storm.validation.warningsOnly");
-        if (skipValidation) {
-            LOGGER.info("Skipping Data type validation (storm.validation.skip=true).");
-        } else {
+    private static AtomicBoolean VALIDATION_INITIALIZED = new AtomicBoolean(false);
+    static void validate() {
+        if (VALIDATION_INITIALIZED.compareAndSet(false, true)) {
+            boolean skipValidation = Boolean.getBoolean("storm.validation.skip");
+            boolean warningsOnly = Boolean.getBoolean("storm.validation.warningsOnly");
+            if (skipValidation) {
+                LOGGER.info("Skipping Data type validation. Set -Dstorm.validation.skip=false to enable validation.");
+                return;
+            }
             LOGGER.info("Validating Data types.");
-            var dataTypes = ClasspathScanner.getSubTypesOf(Data.class);
+            var dataTypes = TypeDiscovery.getDataTypes();
             var validationErrors = new AtomicInteger();
             var firstError = new AtomicReference<String>();
             dataTypes.forEach(
@@ -107,7 +107,8 @@ final class RecordValidation {
                 throw new PersistenceException(firstError.getPlain());
             }
             if (validationErrors.getPlain() > 0) {
-                LOGGER.warn("Completed Data type validation with %d warnings (storm.validation.warningsOnly=true).".formatted(validationErrors));
+                LOGGER.warn("Entity validation found %d issues. Set -Dstorm.validation.warningsOnly=false to fail on startup."
+                        .formatted(validationErrors.getPlain()));
             } else {
                 LOGGER.info("Successfully validated %s Data types.".formatted(dataTypes.size()));
             }
