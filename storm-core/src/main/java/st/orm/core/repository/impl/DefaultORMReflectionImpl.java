@@ -21,7 +21,6 @@ import st.orm.Data;
 import st.orm.Entity;
 import st.orm.PK;
 import st.orm.PersistenceException;
-import st.orm.core.spi.ClasspathScanner;
 import st.orm.core.spi.ORMReflection;
 import st.orm.mapping.RecordField;
 import st.orm.mapping.RecordType;
@@ -233,11 +232,6 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
                 || component.getType().isPrimitive()
                 || (JAVAX_NONNULL != null && component.isAnnotationPresent(JAVAX_NONNULL))
                 || (JAKARTA_NONNULL != null && component.isAnnotationPresent(JAKARTA_NONNULL));
-    }
-
-    @Override
-    public <T> List<Class<? extends T>> getSubTypesOf(@Nonnull Class<T> type) {
-        return ClasspathScanner.getSubTypesOf(type);
     }
 
     @Override

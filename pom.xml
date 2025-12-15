@@ -10,6 +10,7 @@
         <kotlin.version>2.0.21</kotlin.version>
         <kotlin.ksp.version>2.0.21-1.0.25</kotlin.ksp.version>
         <kotlin.coroutines.version>1.9.0</kotlin.coroutines.version>
+        <kotlinx.serialization.version>1.7.3</kotlinx.serialization.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>3.5.6</spring-boot.version>
     </properties>
@@ -43,6 +44,7 @@
         <module>storm-foundation</module>
         <module>storm-core</module>
         <module>storm-jackson</module>
+        <module>storm-kotlinx-serialization</module>
         <module>storm-oracle</module>
         <module>storm-mysql</module>
         <module>storm-mariadb</module>
@@ -53,8 +55,6 @@
         <module>storm-kotlin</module>
         <module>storm-kotlin-validator</module>
         <module>storm-kotlin-spring</module>
-        <module>storm-record-processor</module>
-        <module>storm-gradle-plugin</module>
     </modules>
     <dependencyManagement>
         <dependencies>

@@ -24,13 +24,14 @@ import st.orm.DefaultConverter;
 import st.orm.PersistenceException;
 import st.orm.mapping.RecordField;
 
-import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static java.lang.reflect.Modifier.isAbstract;
+import static java.lang.reflect.Modifier.isStatic;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -56,12 +57,12 @@ public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
 
     private static List<ConverterEntry> scanDefaultConverters() {
         List<ConverterEntry> result = new ArrayList<>();
-        var converterTypes = REFLECTION.getSubTypesOf(Converter.class);
+        var converterTypes = TypeDiscovery.getConverterTypes();
         for (Class<?> converterClass : converterTypes) {
-            if (converterClass.isInterface() || Modifier.isAbstract(converterClass.getModifiers())) {
+            if (converterClass.isInterface() || isAbstract(converterClass.getModifiers())) {
                 continue;
             }
-            if (converterClass.isMemberClass() && !Modifier.isStatic(converterClass.getModifiers())) {
+            if (converterClass.isMemberClass() && !isStatic(converterClass.getModifiers())) {
                 LOGGER.warn("Skipping non-static inner Converter class {} as it cannot be instantiated.", converterClass.getName());
                 continue;
             }

@@ -50,12 +50,9 @@ import static jakarta.persistence.TemporalType.DATE;
 import static jakarta.persistence.TemporalType.TIME;
 import static jakarta.persistence.TemporalType.TIMESTAMP;
 import static st.orm.core.template.SqlTemplate.PS;
+import static st.orm.core.template.impl.RecordValidation.validate;
 
 public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
-
-    static {
-        RecordValidation.init();
-    }
 
     @FunctionalInterface
     private interface TemplateProcessor {
@@ -69,6 +66,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
     private final RefFactory refFactory;
 
     public JpaTemplateImpl(@Nonnull EntityManager entityManager) {
+        validate();
         templateProcessor = (sql, resultClass, safe) -> {
             if (!safe) {
                 sql.unsafeWarning().ifPresent(warning -> {

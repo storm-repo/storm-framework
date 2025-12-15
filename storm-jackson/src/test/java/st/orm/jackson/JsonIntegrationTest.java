@@ -1,42 +1,36 @@
 package st.orm.jackson;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import lombok.Builder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.DbColumn;
 import st.orm.DbTable;
 import st.orm.Entity;
-import st.orm.Inline;
+import st.orm.FK;
 import st.orm.Json;
 import st.orm.PK;
-import st.orm.PersistenceException;
+import st.orm.Persist;
+import st.orm.Projection;
 import st.orm.Ref;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.jackson.model.Address;
 import st.orm.jackson.model.Owner;
-import st.orm.jackson.model.Specialty;
-import st.orm.jackson.model.Vet;
-import st.orm.jackson.model.VetSpecialty;
+import st.orm.jackson.model.Pet;
+import st.orm.jackson.model.PetType;
 
 import javax.sql.DataSource;
-import java.util.List;
-import java.util.Map;
 
-import static com.fasterxml.jackson.annotation.JsonTypeInfo.Id.NAME;
+import java.time.LocalDate;
+
+import static java.util.Optional.ofNullable;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static st.orm.core.template.Templates.alias;
 import static st.orm.core.template.ORMTemplate.of;
-import static st.orm.core.template.SqlInterceptor.observe;
-import static st.orm.core.template.TemplateString.raw;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
@@ -47,46 +41,18 @@ public class JsonIntegrationTest {
     private DataSource dataSource;
 
     @Test
-    public void testSelectOwner() {
+    public void testOwner() throws Exception {
         var orm = of(dataSource);
-        var query = orm.query("SELECT id, first_name, last_name, address, telephone FROM owner");
-        var owner = query.getResultList(Owner.class);
-        assertEquals(10, owner.stream().distinct().count());
-    }
-
-    @Test
-    public void testSelectRef() {
-        record Result(@Json List<Ref<Owner>> owner) {}
-        var orm = of(dataSource);
-        var query = orm.query("SELECT JSON_ARRAYAGG(id) FROM owner");
-        var owner = query.getSingleResult(Result.class).owner().stream().map(Ref::id).distinct().toList();
-        assertEquals(10, owner.size());
-    }
-
-    @Test
-    public void testInsertOwner() {
-        var orm = of(dataSource);
-        var repository = orm.entity(Owner.class);
-        var address = new Address("271 University Ave", "Palo Alto");
-        var owner = Owner.builder().firstName("Simon").lastName("McDonald").address(address).telephone("555-555-5555").build();
-        var inserted = repository.insertAndFetch(owner.toBuilder().address(address).build());
-        assertEquals(address, inserted.address());
-    }
-
-    @Test
-    public void testUpdateOwner() {
-        var orm = of(dataSource);
-        var repository = orm.entity(Owner.class);
-        var owner = repository.getById(1);
-        var address = new Address("271 University Ave", "Palo Alto");
-        repository.update(owner.toBuilder().address(address).build());
-        var updated = repository.getById(1);
-        assertEquals(address, updated.address());
+        var owner = orm.entity(Owner.class).getById(1);
+        ObjectMapper objectMapper = new ObjectMapper();
+        var json = objectMapper.writeValueAsString(owner);
+        assertEquals("{\"id\":1,\"firstName\":\"Betty\",\"lastName\":\"Davis\",\"address\":{\"address\":\"638 Cardinal Ave.\",\"city\":\"Sun Prairie\"},\"telephone\":\"6085551749\"}", json);
+        var fromJson = objectMapper.readValue(json, Owner.class);
+        assertEquals(owner, fromJson);
     }
 
     public record Person(String firstName, String lastName) {}
 
-    @Builder(toBuilder = true)
     @DbTable("owner")
     public record OwnerWithJsonPerson(
             @PK Integer id,
@@ -97,143 +63,117 @@ public class JsonIntegrationTest {
     }
 
     @Test
-    public void testOwnerWithJsonPerson() {
+    public void testOwnerWithJsonPerson() throws Exception {
         var orm = of(dataSource);
-        var query = orm.query("SELECT id, JSON_OBJECT('firstName' VALUE first_name, 'lastName' VALUE last_name) AS person, address, telephone FROM owner");
-        var owner = query.getResultList(OwnerWithJsonPerson.class);
-        assertEquals(10, owner.size());
+        var query = orm.query("SELECT id, JSON_OBJECT('firstName' VALUE first_name, 'lastName' VALUE last_name) AS person, address, telephone FROM owner LIMIT 1");
+        var owner = query.getSingleResult(OwnerWithJsonPerson.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        var json = objectMapper.writeValueAsString(owner);
+        assertEquals("""
+                {"id":1,"person":{"firstName":"Betty","lastName":"Davis"},"address":{"address":"638 Cardinal Ave.","city":"Sun Prairie"},"telephone":"6085551749"}""", json);
+        var fromJson = objectMapper.readValue(json, OwnerWithJsonPerson.class);
+        assertEquals(owner, fromJson);
     }
 
-    @Builder(toBuilder = true)
+    @Test
+    public void testPet() throws Exception {
+        var orm = of(dataSource);
+        var pet = orm.entity(Pet.class).getById(1);
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        var json = objectMapper.writeValueAsString(pet);
+        assertEquals("""
+                {"id":1,"name":"Leo","birthDate":[2020,9,7],"petType":{"id":1,"name":"cat"},"owner":{"id":1,"firstName":"Betty","lastName":"Davis","address":{"address":"638 Cardinal Ave.","city":"Sun Prairie"},"telephone":"6085551749"}}""", json);
+        var fromJson = objectMapper.readValue(json, Pet.class);
+        assertEquals(pet, fromJson);
+    }
+
+    @DbTable("pet")
+    public record PetWithRefOwner(
+            @PK Integer id,
+            @Nonnull String name,
+            @Nonnull @Persist(updatable = false) LocalDate birthDate,
+            @Nonnull @FK @Persist(updatable = false) @DbColumn("type_id") PetType petType,
+            @Nullable @FK Ref<Owner> owner
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void testPetWithRef() throws Exception {
+        var orm = of(dataSource);
+        var pet = orm.entity(PetWithRefOwner.class).getById(1);
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.registerModule(new StormModule());
+        var json = objectMapper.writeValueAsString(pet);
+        assertEquals("""
+                {"id":1,"name":"Leo","birthDate":[2020,9,7],"petType":{"id":1,"name":"cat"},"owner":1}""", json);
+        var fromJson = objectMapper.readValue(json, PetWithRefOwner.class);
+        assertEquals(pet, fromJson);
+    }
+
+    @Test
+    public void testPetWithRefLoaded() throws Exception {
+        var orm = of(dataSource);
+        var pet = orm.entity(PetWithRefOwner.class).getById(1);
+        var owner = ofNullable(pet.owner()).map(Ref::fetch).orElseThrow();
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.registerModule(new StormModule());
+        var json = objectMapper.writeValueAsString(pet);
+        assertEquals("""
+                {"id":1,"name":"Leo","birthDate":[2020,9,7],"petType":{"id":1,"name":"cat"},"owner":{"@entity":{"id":1,"firstName":"Betty","lastName":"Davis","address":{"address":"638 Cardinal Ave.","city":"Sun Prairie"},"telephone":"6085551749"}}}""", json);
+        var fromJson = objectMapper.readValue(json, PetWithRefOwner.class);
+        assertEquals(pet, fromJson);
+        assertEquals(owner, ofNullable(fromJson.owner()).map(Ref::fetch).orElseThrow());
+    }
+
     @DbTable("owner")
-    public record OwnerWithJsonMapAddress(
+    public record ProjectionOwner(
             @PK Integer id,
             @Nonnull String firstName,
             @Nonnull String lastName,
-            @Nonnull @Json Map<String, String> address,
-            @Nullable String telephone
-    ) implements Entity<Integer> {
-    }
-
-    @Test
-    public void testOwnerWithJsonMapAddress() {
-        var orm = of(dataSource);
-        var repository = orm.entity(OwnerWithJsonMapAddress.class);
-        var owner = repository.select().getResultList();
-        assertEquals(10, owner.size());
-    }
-
-    @Builder(toBuilder = true)
-    @DbTable("owner")
-    public record OwnerWithInlineJsonMapAddress(
-            @PK Integer id,
-            @Nonnull String firstName,
-            @Nonnull String lastName,
-            @Nonnull @Inline @Json Map<String, String> address,
-            @Nullable String telephone
-    ) implements Entity<Integer> {
-    }
-
-    @Test
-    public void testOwnerWithInlineJsonMapAddress() {
-        PersistenceException e = assertThrows(PersistenceException.class, () -> {
-            var orm = of(dataSource);
-            var repository = orm.entity(OwnerWithInlineJsonMapAddress.class);
-            repository.select().getResultList();
-        });
-        assertInstanceOf(SqlTemplateException.class, e.getCause());
-    }
-
-    public record SpecialtiesByVet(@Nonnull Vet vet, @Nonnull @Json List<Specialty> specialties) {}
-
-    @Test
-    public void testSpecialtiesByVet() {
-        var vets = of(dataSource)
-                .selectFrom(Vet.class, SpecialtiesByVet.class, raw("""
-                        \0, JSON_ARRAYAGG(
-                            JSON_OBJECT(
-                                KEY 'id' VALUE \0.id,
-                                KEY 'name' VALUE \0.name
-                            )
-                        ) AS specialties""", Vet.class, alias(Specialty.class), alias(Specialty.class)))
-                .innerJoin(VetSpecialty.class).on(Vet.class)
-                .innerJoin(Specialty.class).on(VetSpecialty.class)
-                .append(raw("GROUP BY \0.id",  Vet.class))
-                .getResultList();
-        assertEquals(4, vets.size());
-        assertEquals(5, vets.stream().mapToLong(v -> v.specialties().size()).sum());
-    }
-
-    record SpecialtyNamesByVet(@Nonnull Vet vet, @Nonnull @Json List<String> specialties) {}
-
-    @Test
-    public void testSpecialtyNamesByVet() {
-        var vets = of(dataSource).selectFrom(Vet.class, SpecialtyNamesByVet.class, raw("""
-                        \0, JSON_ARRAYAGG(\0.name) AS specialties""", Vet.class, Specialty.class))
-                .innerJoin(VetSpecialty.class).on(Vet.class)
-                .innerJoin(Specialty.class).on(VetSpecialty.class)
-                .append(raw("GROUP BY \0.id", Vet.class))
-                .getResultList();
-        assertEquals(4, vets.size());
-        assertEquals(5, vets.stream().mapToLong(v -> v.specialties().size()).sum());
-    }
-
-    @Test
-    public void testSpecialtiesByVetDoubleClass() {
-        String expectedSql = """
-                SELECT v.id, v.first_name, v.last_name, JSON_OBJECTAGG(s.id, s.name)
-                FROM vet v
-                INNER JOIN vet_specialty vs ON vs.vet_id = v.id
-                INNER JOIN specialty s ON vs.specialty_id = s.id 
-                GROUP BY v.id""";
-        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
-            try {
-                of(dataSource).selectFrom(Vet.class, SpecialtyNamesByVet.class, raw("""
-                            \0, JSON_OBJECTAGG(\0)""", Vet.class, Specialty.class))
-                        .innerJoin(VetSpecialty.class).on(Vet.class)
-                        .innerJoin(Specialty.class).on(VetSpecialty.class)
-                        .append(raw("GROUP BY \0.id", Vet.class))
-                        .getResultList();
-            } catch (PersistenceException ignore) {
-                // H2 Does not support JSON_OBJECTAGG. We only check the expected SQL.
-            }
-        });
-    }
-
-    // No need to specify the sub types here, as we're automatically registering the implementations of the sealed interface.
-
-    // @JsonSubTypes({
-    //         @JsonSubTypes.Type(value = PersonA.class, name = "A"),
-    //         @JsonSubTypes.Type(value = PersonB.class, name = "B")
-    // })
-
-    @JsonTypeInfo(use = NAME)
-    public sealed interface PolymorphicPerson permits PersonA, PersonB {}
-
-    // The type name is automatically derived from the class name, so the annotation is not needed.
-
-    // @JsonTypeName("A")
-    public record PersonA(String firstName, String lastName) implements PolymorphicPerson {}
-
-    // @JsonTypeName("B")
-    public record PersonB(String firstName, String lastName) implements PolymorphicPerson {}
-
-    @Builder(toBuilder = true)
-    @DbTable("owner")
-    public record OwnerWithPolymorphicPerson(
-            @PK Integer id,
-            @Nonnull @Json PolymorphicPerson person,
             @Nonnull @Json Address address,
             @Nullable String telephone
-    ) implements Entity<Integer> {
+    ) implements Projection<Integer> {
+    }
+
+    @DbTable("pet")
+    public record PetWithProjectionRefOwner(
+            @PK Integer id,
+            @Nonnull String name,
+            @Nonnull @Persist(updatable = false) LocalDate birthDate,
+            @Nonnull @FK @Persist(updatable = false) @DbColumn("type_id") PetType petType,
+            @Nullable @FK Ref<ProjectionOwner> owner
+    ) implements Entity<Integer> {}
+
+
+    @Test
+    public void testPetWithProjectionRef() throws Exception {
+        var orm = of(dataSource);
+        var pet = orm.entity(PetWithProjectionRefOwner.class).getById(1);
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.registerModule(new StormModule());
+        var json = objectMapper.writeValueAsString(pet);
+        assertEquals("""
+                {"id":1,"name":"Leo","birthDate":[2020,9,7],"petType":{"id":1,"name":"cat"},"owner":1}""", json);
+        var fromJson = objectMapper.readValue(json, PetWithProjectionRefOwner.class);
+        assertEquals(pet, fromJson);
     }
 
     @Test
-    public void testPolymorphic() {
+    public void testPetWithProjectionRefLoaded() throws Exception {
         var orm = of(dataSource);
-        var query = orm.query("SELECT id, JSON_OBJECT('@type' VALUE 'PersonA', 'firstName' VALUE first_name, 'lastName' VALUE last_name) AS person, address, telephone FROM owner");
-        var owner = query.getResultList(OwnerWithPolymorphicPerson.class);
-        assertEquals(10, owner.size());
-        assertTrue(owner.stream().allMatch(x -> x.person instanceof PersonA));
+        var pet = orm.entity(PetWithProjectionRefOwner.class).getById(1);
+        var owner = ofNullable(pet.owner()).map(Ref::fetch).orElseThrow();
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.registerModule(new StormModule());
+        var json = objectMapper.writeValueAsString(pet);
+        assertEquals("""
+                {"id":1,"name":"Leo","birthDate":[2020,9,7],"petType":{"id":1,"name":"cat"},"owner":{"@id":1,"@projection":{"id":1,"firstName":"Betty","lastName":"Davis","address":{"address":"638 Cardinal Ave.","city":"Sun Prairie"},"telephone":"6085551749"}}}""", json);
+        var fromJson = objectMapper.readValue(json, PetWithProjectionRefOwner.class);
+        assertEquals(pet, fromJson);
+        assertEquals(owner, ofNullable(fromJson.owner()).map(Ref::fetch).orElseThrow());
     }
 }

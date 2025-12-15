@@ -50,14 +50,6 @@ public interface ORMReflection {
     boolean isDefaultValue(@Nullable Object o);
 
     /**
-     * Returns the subtypes of the specified type.
-     *
-     * @param type the type to get the subtypes for.
-     * @return the subtypes of the specified type.
-     */
-    <T> List<Class<? extends T>> getSubTypesOf(@Nonnull Class<T> type);
-
-    /**
      * Returns the permitted subclasses of the specified sealed class.
      *
      * @param sealedClass the sealed class to get the permitted subclasses for.
