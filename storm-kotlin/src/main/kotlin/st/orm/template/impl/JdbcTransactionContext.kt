@@ -291,7 +291,7 @@ internal class JdbcTransactionContext : TransactionContext {
                                 )
                             }
                             val savepoint = outer.connection!!.setSavepoint()
-                            logger.trace("Creating nested transaction with savepoint {} on {} ({}).", savepoint, outer.connection!!, state.transactionId)
+                            logger.debug("Creating nested transaction with savepoint {} on {} ({}).", savepoint, outer.connection!!, state.transactionId)
                             state.connection = outer.connection
                             state.dataSource = dataSource
                             state.savepoint = savepoint
@@ -348,11 +348,11 @@ internal class JdbcTransactionContext : TransactionContext {
         try {
             when {
                 state.savepoint != null -> {
-                    logger.trace("Committing nested scope; releasing savepoint {} on {} ({}).", state.savepoint, connection, state.transactionId)
+                    logger.debug("Committing nested scope; releasing savepoint {} on {} ({}).", state.savepoint, connection, state.transactionId)
                     connection.releaseSavepoint(state.savepoint)
                 }
                 state.ownsConnection -> {
-                    logger.trace("Committing transaction on {} ({}).", connection, state.transactionId)
+                    logger.debug("Committing transaction on {} ({}).", connection, state.transactionId)
                     if (!connection.autoCommit) connection.commit()
                     close(connection, state)
                 }
@@ -375,17 +375,17 @@ internal class JdbcTransactionContext : TransactionContext {
         try {
             when {
                 state.savepoint != null && connection != null -> {
-                    logger.trace("Rolling back to savepoint {} on {} ({}).", state.savepoint, connection, state.transactionId)
+                    logger.debug("Rolling back to savepoint {} on {} ({}).", state.savepoint, connection, state.transactionId)
                     connection.rollback(state.savepoint)
                 }
                 state.ownsConnection && connection != null -> {
-                    logger.trace("Rolling back transaction on {} ({}).", connection, state.transactionId)
+                    logger.debug("Rolling back transaction on {} ({}).", connection, state.transactionId)
                     if (!connection.autoCommit) connection.rollback()
                     close(connection, state)
                 }
                 else -> {
                     // Joined REQUIRED or non-transactional scope (no connection):
-                    logger.trace("Marking transaction for rollback (${state.transactionId}).")
+                    logger.debug("Marking transaction for rollback (${state.transactionId}).")
                     // Propagate to outer joined frames up to (and including) the owning frame, but stop at a savepoint boundary.
                     val lastIndex = stack.lastIndex
                     for (i in lastIndex downTo 0) {

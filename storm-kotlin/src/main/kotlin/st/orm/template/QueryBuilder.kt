@@ -117,8 +117,8 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param template the condition to join.
      * @return the query builder.
      */
-    fun crossJoin(builder: TemplateBuilder): QueryBuilder<T, R, ID> {
-        return crossJoin(builder.build())
+    fun crossJoin(template: TemplateBuilder): QueryBuilder<T, R, ID> {
+        return crossJoin(template.build())
     }
 
     /**
@@ -136,8 +136,8 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    fun innerJoin(builder: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> {
-        return innerJoin(builder.build(), alias)
+    fun innerJoin(template: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> {
+        return innerJoin(template.build(), alias)
     }
 
     /**
@@ -176,8 +176,8 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    fun rightJoin(builder: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> {
-        return rightJoin(builder.build(), alias)
+    fun rightJoin(template: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> {
+        return rightJoin(template.build(), alias)
     }
 
     /**
@@ -199,10 +199,10 @@ interface QueryBuilder<T : Data, R, ID> {
      */
     fun join(
         type: JoinType,
-        builder: TemplateBuilder,
+        template: TemplateBuilder,
         alias: String
     ): JoinBuilder<T, R, ID> {
-        return join(type, builder.build(), alias)
+        return join(type, template.build(), alias)
     }
 
     /**
@@ -758,7 +758,6 @@ interface QueryBuilder<T : Data, R, ID> {
     /**
      * Locks the selected rows using a custom lock mode.
      *
-     *
      * **Note:** This method results in non-portable code, as the lock mode is specific to the
      * underlying database.
      *
@@ -772,7 +771,6 @@ interface QueryBuilder<T : Data, R, ID> {
 
     /**
      * Locks the selected rows using a custom lock mode.
-     *
      *
      * **Note:** This method results in non-portable code, as the lock mode is specific to the
      * underlying database.
@@ -796,14 +794,11 @@ interface QueryBuilder<T : Data, R, ID> {
     /**
      * Prepares the query for execution.
      *
-     *
      * Unlike regular queries, which are constructed lazily, prepared queries are constructed eagerly.
      * Prepared queries allow the use of bind variables and enable reading generated keys after row insertion.
      *
-     *
      * **Note:** The prepared query must be closed after usage to prevent resource leaks. As the
      * prepared query is `AutoCloseable`, it is recommended to use it within a `try-with-resources` block.
-     *
      *
      * @return the prepared query.
      * @throws PersistenceException if the query preparation fails.
