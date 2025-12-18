@@ -8,7 +8,9 @@ import st.orm.core.spi.TransactionTemplateProvider
 import st.orm.template.TransactionPropagation.*
 
 class TransactionTemplateProviderImpl : TransactionTemplateProvider {
-    private val contextHolder = ThreadLocal<TransactionContext>()
+    companion object {
+        private val CONTEXT_HOLDER = ThreadLocal<TransactionContext>()
+    }
 
     override fun getTransactionTemplate(): TransactionTemplate {
         return object : TransactionTemplate {
@@ -50,7 +52,7 @@ class TransactionTemplateProviderImpl : TransactionTemplateProvider {
                 JdbcTransactionContext()
 
             override fun contextHolder(): ThreadLocal<TransactionContext> {
-                return contextHolder
+                return CONTEXT_HOLDER
             }
 
             override fun <T> execute(callback: TransactionCallback<T>, context: TransactionContext): T {

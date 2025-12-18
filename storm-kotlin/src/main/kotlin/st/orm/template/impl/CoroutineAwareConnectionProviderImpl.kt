@@ -134,23 +134,23 @@ class CoroutineAwareConnectionProviderImpl : ConnectionProvider {
             }
         }
 
-        fun beforeAccess(conn: Connection) {
+        fun beforeAccess(connection: Connection) {
             reap()
-            val key = ConnectionIdentity(conn, queue)
+            val key = ConnectionIdentity(connection, queue)
             val owner = owners.computeIfAbsent(key) { Owner() }
             val t = Thread.currentThread()
             synchronized(owner) {
                 when (owner.thread) {
                     null -> { owner.thread = t; owner.depth = 1 }
                     t    -> owner.depth++
-                    else -> throw PersistenceException("Concurrent access on $conn")
+                    else -> throw PersistenceException("Concurrent access on $connection.")
                 }
             }
         }
 
-        fun afterAccess(conn: Connection) {
+        fun afterAccess(connection: Connection) {
             reap()
-            val key = ConnectionIdentity(conn, queue)
+            val key = ConnectionIdentity(connection, queue)
             val owner = owners[key] ?: return
             val t = Thread.currentThread()
             var clear = false
