@@ -1437,9 +1437,10 @@ controlled by UpdateMode.
 ==== Update modes
 
 Storm supports three update modes:
-•	OFF
-•	ENTITY
-•	FIELD
+
+* OFF
+* ENTITY
+* FIELD
 
 Update modes primarily influence performance characteristics and write behavior. They do not provide correctness
 guarantees under concurrency. To reliably detect conflicting updates, optimistic locking using a version column is still
@@ -1457,6 +1458,7 @@ Every call to update() results in an UPDATE statement that writes all mapped col
 does not compare the current entity state with any previously observed state.
 
 This mode offers:
+
 * fully predictable behavior
 * a single, stable SQL statement shape
 * optimal batching characteristics
@@ -1474,6 +1476,7 @@ transaction. If no difference is detected, the UPDATE is skipped entirely. If an
 an UPDATE that includes all mapped columns.
 
 This mode has several important properties:
+
 * unnecessary database writes are avoided
 * SQL statement shape remains stable, preserving batching efficiency
 * write contention is often reduced by skipping redundant updates
