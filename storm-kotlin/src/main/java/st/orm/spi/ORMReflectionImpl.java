@@ -22,6 +22,7 @@ import kotlin.jvm.JvmClassMappingKt;
 import kotlin.reflect.KCallable;
 import kotlin.reflect.KClass;
 import kotlin.reflect.KFunction;
+import kotlin.reflect.KMutableProperty1;
 import kotlin.reflect.KParameter;
 import kotlin.reflect.KProperty1;
 import kotlin.reflect.KType;
@@ -99,17 +100,24 @@ public class ORMReflectionImpl implements ORMReflection {
     public Optional<RecordType> findRecordType(@Nonnull Class<?> type) {
         return TYPE_CACHE.computeIfAbsent(type, ignore -> {
             if (isKotlinDataClass(type)) {
+                KClass<?> kClass = JvmClassMappingKt.getKotlinClass(type);
+                var varProp = findVarProperty(kClass);
+                if (varProp != null) {
+                    // Forbid any mutable (var) properties on a data class. Immutability is required for efficient dirty field checks.
+                    throw new PersistenceException(
+                            "Data class %s has mutable property '%s'. Only val properties are supported."
+                                    .formatted(type.getName(), varProp.getName())
+                    );
+                }
                 var constructor = findCanonicalConstructor(type).orElse(null);
                 if (constructor == null) {
                     return empty();
                 }
-                KClass<?> kClass = JvmClassMappingKt.getKotlinClass(type);
                 @SuppressWarnings("unchecked")
                 KFunction<?> primary = KClasses.getPrimaryConstructor((KClass<Object>) kClass);
                 if (primary == null) {
                     return empty();
                 }
-                // Map Kotlin VALUE parameters to RecordField, using ctor parameter annotations.
                 List<RecordField> fields = primary.getParameters().stream()
                         .filter(p -> p.getKind() == KParameter.Kind.VALUE)
                         .map(p -> toRecordField(p, constructor))
@@ -127,6 +135,15 @@ public class ORMReflectionImpl implements ORMReflection {
             }
             return defaultReflection.findRecordType(type);
         });
+    }
+
+    private KProperty1<?, ?> findVarProperty(@Nonnull KClass<?> kClass) {
+        for (KProperty1<?, ?> prop : KClasses.getMemberProperties(kClass)) {
+            if (prop instanceof KMutableProperty1<?, ?>) {
+                return prop;
+            }
+        }
+        return null;
     }
 
     private RecordField toRecordField(KParameter parameter, Constructor<?> constructor) {

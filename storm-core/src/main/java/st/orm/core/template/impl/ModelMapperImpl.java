@@ -20,6 +20,7 @@ import jakarta.annotation.Nullable;
 import st.orm.Data;
 import st.orm.FK;
 import st.orm.DbEnum;
+import st.orm.Metamodel;
 import st.orm.PK;
 import st.orm.Ref;
 import st.orm.PersistenceException;
@@ -38,9 +39,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.util.BitSet;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.SequencedMap;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
@@ -100,7 +104,36 @@ final class ModelMapperImpl<T extends Data, ID> implements ModelMapper<T, ID> {
     }
 
     /**
-     * Maps the values from the given record to a set of columns.
+     * Maps the values from the given record to a set of columns. The result is limited to the fields specified, and
+     * the columns allowed by the given filter.
+     *
+     * @param record the record to map.
+     * @param fields the fields to map, or an empty list to map all fields.
+     * @param columnFilter the filter to determine which columns to include.
+     * @return the values from the given record to a set of columns.
+     * @throws SqlTemplateException if an error occurs while extracting the values.
+     * @since 1.7
+     */
+    @Override
+    public SequencedMap<Column, Object> map(@Nonnull T record,
+                                            @Nonnull Collection<Metamodel<? extends T, ?>> fields,
+                                            @Nonnull Predicate<Column> columnFilter) throws SqlTemplateException {
+        if (fields.isEmpty()) {
+            return map(record, columnFilter);
+        }
+        var fieldSet = Set.copyOf(fields);
+        BitSet bitSet = new BitSet(model.columns().size());
+        for (Column column : model.columns()) {
+            if (fieldSet.contains(model.getMetamodel(column))) {
+                bitSet.set(column.index() - 1);
+            }
+        }
+        return map(record, column -> bitSet.get(column.index() - 1));
+    }
+
+    /**
+     * Maps the values from the given record to a set of columns. The result is limited to the columns allowed by the
+     * given filter.
      *
      * @param record the record to map.
      * @param columnFilter the filter to determine which columns to include.
@@ -108,7 +141,8 @@ final class ModelMapperImpl<T extends Data, ID> implements ModelMapper<T, ID> {
      * @throws SqlTemplateException if an error occurs while extracting the values.
      */
     @Override
-    public SequencedMap<Column, Object> map(@Nonnull T record, @Nonnull Predicate<Column> columnFilter) throws SqlTemplateException {
+    public SequencedMap<Column, Object> map(@Nonnull T record,
+                                            @Nonnull Predicate<Column> columnFilter) throws SqlTemplateException {
         var values = new LinkedHashMap<Column, Object>();
         map(record, columnFilter, (k, v) -> {
             values.put(k, v);

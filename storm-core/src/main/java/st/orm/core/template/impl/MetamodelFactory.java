@@ -23,8 +23,6 @@ import st.orm.FK;
 import st.orm.Metamodel;
 import st.orm.PersistenceException;
 import st.orm.Ref;
-import st.orm.core.spi.ORMReflection;
-import st.orm.core.spi.Providers;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.mapping.RecordField;
 
@@ -39,10 +37,8 @@ import static st.orm.core.template.impl.RecordReflection.isRecord;
  */
 public final class MetamodelFactory {
 
-    private static final ORMReflection REFLECTION = Providers.getORMReflection();
-
     private MetamodelFactory() {
-        // Prevent instantiation
+        // Prevent instantiation.
     }
 
     /**
@@ -80,7 +76,7 @@ public final class MetamodelFactory {
             componentType = (Class<E>) rootTable;
             effectivePath = "";
             effectiveComponent = "";
-            tableModel = null;
+            tableModel = root(rootTable);
         } else {
             try {
                 RecordField field = getRecordField(rootTable, path);
@@ -118,19 +114,31 @@ public final class MetamodelFactory {
         return new SimpleMetamodel<>(rootTable, effectivePath, componentType, effectiveComponent, isColumn, tableModel);
     }
 
+    private static final class SimpleMetamodel<T extends Data, E>
+            extends AbstractMetamodel<T, E> {
 
-    private record SimpleMetamodel<T extends Data, E>(@Nonnull Class<T> root,
-                                                      @Nonnull String path,
-                                                      @Nonnull Class<E> fieldType,
-                                                      @Nonnull String field,
-                                                      boolean isColumn,
-                                                      @Nullable Metamodel<T, ? extends Data> table) implements Metamodel<T, E> {
+        private final Class<T> root;
+        private final Metamodel<T, ? extends Data> table;
 
-        @SuppressWarnings("NullableProblems")
+        SimpleMetamodel(@Nonnull Class<T> root,
+                        @Nonnull String path,
+                        @Nonnull Class<E> fieldType,
+                        @Nonnull String field,
+                        boolean isColumn,
+                        @Nonnull Metamodel<T, ? extends Data> table) {
+            super(fieldType, path, field, false, null, isColumn);
+            this.root = root;
+            this.table = table;
+        }
+
         @Override
-        public String toString() {
-            return "Metamodel{root=%s, type=%s, path='%s', component='%s'}"
-                    .formatted(root.getSimpleName(), fieldType.getSimpleName(), path, field);
+        public Class<T> root() {
+            return root;
+        }
+
+        @Override
+        public Metamodel<T, ?> table() {
+            return table;
         }
     }
 }

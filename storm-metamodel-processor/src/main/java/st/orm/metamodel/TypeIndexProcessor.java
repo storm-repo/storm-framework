@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static javax.tools.Diagnostic.Kind.ERROR;
+import static javax.tools.Diagnostic.Kind.NOTE;
 
 @SupportedSourceVersion(SourceVersion.RELEASE_21)
 @SupportedAnnotationTypes("*")
@@ -45,7 +46,7 @@ public class TypeIndexProcessor extends AbstractProcessor {
             "st.orm.Converter"
     );
 
-    private static final String INDEX_PACKAGE = "META-INF.storm";
+    private static final String INDEX_DIR = "META-INF/storm/";
     private final Map<String, TypeMirror> indexedTypeMirrors = new LinkedHashMap<>();
     private final Map<String, Set<String>> indexEntries = new LinkedHashMap<>();
 
@@ -55,20 +56,20 @@ public class TypeIndexProcessor extends AbstractProcessor {
         this.types = processingEnv.getTypeUtils();
         this.elements = processingEnv.getElementUtils();
         this.filer = processingEnv.getFiler();
-
-        // Resolve all configured types to TypeMirrors (if present on the classpath)
+        // Resolve all configured types to TypeMirrors (if present on the classpath).
         for (String typeFqName : INDEXED_TYPES) {
             TypeElement typeElement = elements.getTypeElement(typeFqName);
             if (typeElement != null) {
                 indexedTypeMirrors.put(typeFqName, typeElement.asType());
             }
-            // Always create an entry set, even if the type isn't present
+            // Always create an entry set, even if the type isn't present.
             indexEntries.put(typeFqName, new LinkedHashSet<>());
         }
     }
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        processingEnv.getMessager().printMessage(NOTE, "Storm Type Index Processor is running.");
         if (indexedTypeMirrors.isEmpty()) {
             return false;
         }
@@ -97,23 +98,32 @@ public class TypeIndexProcessor extends AbstractProcessor {
     }
 
     private boolean isSubtypeOf(TypeElement type, TypeMirror target) {
-        return types.isSubtype(type.asType(), target);
+        if (type.getKind() != ElementKind.CLASS) {
+            return false;
+        }
+        TypeMirror a = types.erasure(type.asType());
+        TypeMirror b = types.erasure(target);
+        if (types.isSameType(a, b)) {
+            return false;
+        }
+        return types.isSubtype(a, b);
     }
 
     private void writeIndex(String typeFqName, Set<String> types) {
         if (types.isEmpty()) {
             return;
         }
+        String resourceName = INDEX_DIR + typeFqName + ".idx";
         try {
             FileObject file = filer.createResource(
                     StandardLocation.CLASS_OUTPUT,
-                    INDEX_PACKAGE,
-                    typeFqName
+                    "",
+                    resourceName
             );
             try (Writer writer = file.openWriter()) {
                 for (String fqcn : types) {
                     writer.write(fqcn);
-                    writer.write("\n");
+                    writer.write('\n');
                 }
             }
         } catch (IOException e) {

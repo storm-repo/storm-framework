@@ -17,7 +17,8 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.FK;
-import st.orm.core.spi.ORMReflection;
+import st.orm.core.spi.Name;
+import st.orm.core.spi.ORMConverter;
 import st.orm.core.spi.Providers;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
@@ -32,8 +33,6 @@ import static st.orm.core.template.impl.RecordReflection.getRecordField;
  * A processor for a column element of a template.
  */
 final class ColumnProcessor implements ElementProcessor<Column> {
-
-    private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
     private final SqlTemplate template;
     private final SqlDialectTemplate dialectTemplate;
@@ -56,7 +55,7 @@ final class ColumnProcessor implements ElementProcessor<Column> {
      */
     @Override
     public ElementResult process(@Nonnull Column column) throws SqlTemplateException {
-        var metamodel = column.metamodel();
+        var metamodel = column.field();
         boolean isNested = metamodel.table().fieldType() != metamodel.root();
         if (isNested) {
             if (primaryTable == null) {
@@ -72,12 +71,19 @@ final class ColumnProcessor implements ElementProcessor<Column> {
             // update statements.
             alias = primaryTable.alias();
         } else{
-            alias = aliasMapper.getAlias(column.metamodel(), column.scope(), template.dialect(),
+            alias = aliasMapper.getAlias(column.field(), column.scope(), template.dialect(),
                     () -> new SqlTemplateException("Table for Column not found at %s.".formatted(metamodel)));
         }
-        RecordField field = getRecordField(metamodel.root(), column.metamodel().fieldPath());
-        ColumnName columnName;
-        if (field.isAnnotationPresent(FK.class)) {
+        RecordField field = getRecordField(metamodel.root(), column.field().fieldPath());
+        ORMConverter converter = Providers.getORMConverter(field).orElse(null);
+        Name columnName;
+        if (converter != null) {
+            var columnNames = converter.getColumns(c -> getColumnName(c, template.columnNameResolver()));
+            if (columnNames.size() != 1) {
+                throw new SqlTemplateException("Column %s is not a single column.".formatted(field));
+            }
+            columnName = columnNames.getFirst();
+        } else if (field.isAnnotationPresent(FK.class)) {
             var columnNames = getForeignKeys(field, template.foreignKeyResolver(), template.columnNameResolver());
             if (columnNames.size() != 1) {
                 throw new SqlTemplateException("Column %s is not a single foreign key.".formatted(field));

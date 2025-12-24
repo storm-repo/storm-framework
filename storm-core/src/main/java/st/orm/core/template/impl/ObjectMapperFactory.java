@@ -21,6 +21,8 @@ import st.orm.PK;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
 import st.orm.core.spi.RefFactory;
+import st.orm.core.spi.TransactionContext;
+import st.orm.core.spi.TransactionTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.mapping.RecordType;
 
@@ -44,6 +46,7 @@ import static st.orm.core.template.impl.RecordValidation.validateDataType;
  */
 public final class ObjectMapperFactory {
 
+    private static final TransactionTemplate TRANSACTION_TEMPLATE = Providers.getTransactionTemplate();
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
     private ObjectMapperFactory() {
@@ -54,6 +57,7 @@ public final class ObjectMapperFactory {
      *
      * @param columnCount the number of columns to use as constructor arguments.
      * @param type the type of the instance to create.
+     * @param refFactory the factory for creating ref instances for entities and projections.
      * @return a factory for creating instances of the specified type.
      * @param <T> the type of the instance to create.
      * @throws SqlTemplateException if the factory could not be created.
@@ -69,7 +73,8 @@ public final class ObjectMapperFactory {
             validateDataType((Class<? extends Data>) type, false);
         }
         if (isRecord(type)) {
-            return RecordMapper.getFactory(columnCount, getRecordType(type), refFactory);
+            return RecordMapper.getFactory(columnCount, getRecordType(type), refFactory,
+                    TRANSACTION_TEMPLATE.currentContext().orElse(null));
         }
         if (type.isEnum()) {
             return EnumMapper.getFactory(columnCount, type);
@@ -130,7 +135,7 @@ public final class ObjectMapperFactory {
      * @param <T> the type of the instance to create.
      * @throws SqlTemplateException if the instance could not be created.
      */
-    private static <T> T construct(@Nonnull Constructor<T> constructor, Object[] args) throws SqlTemplateException {
+    private static <T> T construct(@Nonnull Constructor<T> constructor, @Nonnull Object[] args) throws SqlTemplateException {
         return construct(constructor, args, 0);
     }
 
@@ -144,7 +149,7 @@ public final class ObjectMapperFactory {
      * @param <T> the type of the instance to create.
      * @throws SqlTemplateException if the instance could not be created.
      */
-    static <T> T construct(@Nonnull Constructor<T> constructor, Object[] args, int offset) throws SqlTemplateException {
+    static <T> T construct(@Nonnull Constructor<T> constructor, @Nonnull Object[] args, int offset) throws SqlTemplateException {
         try {
             Class<?>[] parameterTypes = constructor.getParameterTypes();
             Parameter[] parameters = constructor.getParameters();

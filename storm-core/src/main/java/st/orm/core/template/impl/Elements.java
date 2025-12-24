@@ -26,6 +26,7 @@ import st.orm.Metamodel;
 import st.orm.Operator;
 import st.orm.SelectMode;
 
+import java.util.Collection;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
@@ -72,7 +73,11 @@ public final class Elements {
         }
     }
 
-    public record Set(@Nullable Data record, @Nullable BindVars bindVars) implements Element {}
+    public record Set(@Nullable Data record, @Nullable BindVars bindVars, @Nonnull Collection<Metamodel<? extends Data, ?>> fields) implements Element {
+        public Set {
+            fields = java.util.Set.copyOf(fields);
+        }
+    }
 
     public sealed interface Expression {}
     public record ObjectExpression(@Nullable Metamodel<?, ?> metamodel, @Nonnull Operator operator, @Nonnull Object object) implements Expression {
@@ -139,9 +144,9 @@ public final class Elements {
         }
     }
 
-    public record Column(@Nonnull Metamodel<?, ?> metamodel, @Nonnull ResolveScope scope) implements Element {
+    public record Column(@Nonnull Metamodel<?, ?> field, @Nonnull ResolveScope scope) implements Element {
         public Column {
-            requireNonNull(metamodel, "metamodel");
+            requireNonNull(field, "field");
             requireNonNull(scope, "scope");
         }
     }

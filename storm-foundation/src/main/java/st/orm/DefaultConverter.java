@@ -31,7 +31,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  *
  * @since 1.7
  */
-@Target({TYPE})
+@Target(TYPE)
 @Retention(RUNTIME)
 public @interface DefaultConverter {
 }

@@ -16,6 +16,8 @@
 package st.orm.spi.mariadb;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
+import st.orm.Metamodel;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.template.Model;
 import st.orm.core.template.ORMTemplate;
@@ -23,14 +25,18 @@ import st.orm.Entity;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.template.Query;
 import st.orm.core.template.TemplateString;
-import st.orm.core.template.impl.LazySupplier;
 import st.orm.spi.mysql.MySQLEntityRepositoryImpl;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static st.orm.GenerationStrategy.SEQUENCE;
+import static st.orm.core.repository.impl.DirtySupport.getMaxShapes;
+import static st.orm.core.repository.impl.StreamSupport.partitioned;
 import static st.orm.core.template.SqlInterceptor.intercept;
 import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.impl.StringTemplates.flatten;
@@ -106,17 +112,31 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
         if (generationStrategy != SEQUENCE) {
             return super.upsertAndFetchIds(entities);
         }
-        LazySupplier<PreparedQuery> updateQuery = new LazySupplier<>(this::prepareUpdateQuery);
+        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         try {
-            return chunked(toStream(entities), defaultBatchSize, batch -> {
-                var result = new ArrayList<ID>();
-                var partition = partition(batch);
-                result.addAll(updateAndFetchIds(partition.get(true), updateQuery));
-                result.addAll(getUpsertQuery(partition.get(false)).getResultList(model.primaryKeyType()));
-                return result.stream();
-            }).toList();
+            var result = new ArrayList<ID>();
+            var entityCache = entityCache();
+            partitioned(toStream(entities), defaultBatchSize, entity -> {
+                if (isUpdate(entity)) {
+                    var dirty = getDirty(entity, entityCache);
+                    if (dirty.isEmpty()) {
+                        return NoOpKey.INSTANCE;
+                    }
+                    return new UpdateKey(dirty.get());
+                } else {
+                    return UpsertKey.INSTANCE;
+                }
+            }, getMaxShapes(), new UpdateKey()).forEach(partition -> {
+                switch (partition.key()) {
+                    case NoOpKey ignore -> result.addAll(partition.chunk().stream().map(E::id).toList());
+                    case UpsertKey ignore -> result.addAll(getUpsertQuery(partition.chunk()).getResultList(model.primaryKeyType()));
+                    case UpdateKey u -> result.addAll(updateAndFetchIds(partition.chunk(),
+                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields()))));
+                }
+            });
+            return result;
         } finally {
-            updateQuery.value().ifPresent(PreparedQuery::close);
+            closeQuietly(updateQueries.values().stream());
         }
     }
 

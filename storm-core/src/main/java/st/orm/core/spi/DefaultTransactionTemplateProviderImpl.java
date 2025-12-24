@@ -17,14 +17,23 @@ package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.PersistenceException;
+import st.orm.Entity;
 import st.orm.core.spi.Orderable.AfterAny;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import static java.util.Optional.empty;
 
 @AfterAny
 public class DefaultTransactionTemplateProviderImpl implements TransactionTemplateProvider {
+
+    // Key under which we store the TransactionContext in Spring's TransactionSynchronizationManager resources.
+    private static final Object SPRING_CTX_RESOURCE_KEY =
+            DefaultTransactionTemplateProviderImpl.class.getName() + ".SPRING_TX_CONTEXT";
 
     @Override
     public TransactionTemplate getTransactionTemplate() {
@@ -56,7 +65,33 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
 
             @Override
             public Optional<TransactionContext> currentContext() {
-                return empty();
+                final SpringReflection springReflection = SpringReflection.tryLoad();
+                if (springReflection == null) {
+                    return empty();
+                }
+                // Only expose a context when Spring says we are inside an actual transaction.
+                if (!springReflection.isActualTransactionActive()) {
+                    return empty();
+                }
+                Object existing = springReflection.getResource(SPRING_CTX_RESOURCE_KEY);
+                if (existing instanceof TransactionContext) {
+                    return Optional.of((TransactionContext) existing);
+                }
+                TransactionContext created = new SpringLinkedTransactionContext(springReflection);
+                // Bind once per transaction and ensure cleanup at tx completion.
+                try {
+                    springReflection.bindResource(SPRING_CTX_RESOURCE_KEY, created);
+                    springReflection.registerCleanupOnTxCompletion(SPRING_CTX_RESOURCE_KEY);
+                    return Optional.of(created);
+                } catch (Throwable bindFailure) {
+                    // If already bound concurrently (unlikely; resources are thread-bound), return the bound one.
+                    Object winner = springReflection.getResource(SPRING_CTX_RESOURCE_KEY);
+                    if (winner instanceof TransactionContext) {
+                        return Optional.of((TransactionContext) winner);
+                    }
+                    // If bind failed and nothing is bound, do not silently return an unbound context (it would not be tx-scoped).
+                    throw new PersistenceException("Failed to bind Spring transaction context resource.", bindFailure);
+                }
             }
 
             @Override
@@ -65,9 +100,184 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
             }
 
             @Override
-            public <R> R execute(@Nonnull TransactionCallback<R> action, @Nonnull TransactionContext context) throws PersistenceException {
+            public <R> R execute(@Nonnull TransactionCallback<R> action, @Nonnull TransactionContext context)
+                    throws PersistenceException {
                 throw new UnsupportedOperationException("Transaction template not supported.");
             }
         };
+    }
+
+    /**
+     * TransactionContext bound to Spring's TransactionSynchronizationManager resources.
+     */
+    private static final class SpringLinkedTransactionContext implements TransactionContext {
+        private final SpringReflection springReflection;
+        private final Map<Class<? extends Entity<?>>, EntityCache<? extends Entity<?>, ?>> caches = new HashMap<>();
+        private final Decorator<?> noopDecorator = resource -> resource;
+
+        private SpringLinkedTransactionContext(SpringReflection springReflection) {
+            this.springReflection = springReflection;
+        }
+
+        @Override
+        public boolean isReadOnly() {
+            return springReflection.isCurrentTransactionReadOnly();
+        }
+
+        @Override
+        public EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType) {
+            EntityCache<? extends Entity<?>, ?> cache = caches.get(entityType);
+            if (cache != null) {
+                return cache;
+            }
+            EntityCache<Entity<Object>, Object> created = new EntityCacheImpl<>();
+            caches.put(entityType, created);
+            return created;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public <T> Decorator<T> getDecorator(@Nonnull Class<T> resourceType) {
+            // noop decorator as requested
+            return (Decorator<T>) noopDecorator;
+        }
+    }
+
+    /**
+     * Reflection wrapper for org.springframework.transaction.support.TransactionSynchronizationManager
+     * to keep Spring as an optional dependency.
+     */
+    private static final class SpringReflection {
+        private static final String TSM_FQCN =
+                "org.springframework.transaction.support.TransactionSynchronizationManager";
+        private static final String TS_FQCN =
+                "org.springframework.transaction.support.TransactionSynchronization";
+
+        private final Method isActualTransactionActive;
+        private final Method isCurrentTransactionReadOnly;
+        private final Method getResource;
+        private final Method bindResource;
+        private final Method registerSynchronization;
+        private final Method unbindResourceIfPossible;
+        private final Class<?> transactionSynchronizationType;
+
+        private SpringReflection(
+                Method isActualTransactionActive,
+                Method isCurrentTransactionReadOnly,
+                Method getResource,
+                Method bindResource,
+                Method registerSynchronization,
+                Method unbindResourceIfPossible,
+                Class<?> transactionSynchronizationType
+        ) {
+            this.isActualTransactionActive = isActualTransactionActive;
+            this.isCurrentTransactionReadOnly = isCurrentTransactionReadOnly;
+            this.getResource = getResource;
+            this.bindResource = bindResource;
+            this.registerSynchronization = registerSynchronization;
+            this.unbindResourceIfPossible = unbindResourceIfPossible;
+            this.transactionSynchronizationType = transactionSynchronizationType;
+        }
+
+        static SpringReflection tryLoad() {
+            try {
+                ClassLoader classLoader = DefaultTransactionTemplateProviderImpl.class.getClassLoader();
+                Class<?> tsm = Class.forName(TSM_FQCN, false, classLoader);
+                Method isActualTransactionActive = tsm.getMethod("isActualTransactionActive");
+                Method isCurrentTransactionReadOnly = tsm.getMethod("isCurrentTransactionReadOnly");
+                Method getResource = tsm.getMethod("getResource", Object.class);
+                Method bindResource = tsm.getMethod("bindResource", Object.class, Object.class);
+                // Cleanup hooks (may not exist in very old Spring).
+                Method registerSynchronization = null;
+                Method unbindResourceIfPossible = null;
+                Class<?> ts = null;
+                try {
+                    ts = Class.forName(TS_FQCN, false, classLoader);
+                    registerSynchronization = tsm.getMethod("registerSynchronization", ts);
+                    unbindResourceIfPossible = tsm.getMethod("unbindResourceIfPossible", Object.class);
+                } catch (Throwable ignored) {
+                    // No cleanup support available via reflection; we'll run without it.
+                }
+                return new SpringReflection(
+                        isActualTransactionActive,
+                        isCurrentTransactionReadOnly,
+                        getResource,
+                        bindResource,
+                        registerSynchronization,
+                        unbindResourceIfPossible,
+                        ts
+                );
+            } catch (Throwable ignored) {
+                return null;
+            }
+        }
+
+        boolean isActualTransactionActive() {
+            try {
+                return (boolean) isActualTransactionActive.invoke(null);
+            } catch (Throwable t) {
+                return false;
+            }
+        }
+
+        boolean isCurrentTransactionReadOnly() {
+            try {
+                return (boolean) isCurrentTransactionReadOnly.invoke(null);
+            } catch (Throwable t) {
+                return false;
+            }
+        }
+
+        Object getResource(Object key) {
+            try {
+                return getResource.invoke(null, key);
+            } catch (Throwable t) {
+                return null;
+            }
+        }
+
+        void bindResource(Object key, Object value) {
+            try {
+                bindResource.invoke(null, key, value);
+            } catch (RuntimeException re) {
+                throw re;
+            } catch (Throwable t) {
+                throw new RuntimeException(t);
+            }
+        }
+
+        void registerCleanupOnTxCompletion(Object key) {
+            // If we couldn't reflect the synchronization APIs, we can't auto-clean.
+            if (registerSynchronization == null || unbindResourceIfPossible == null || transactionSynchronizationType == null) {
+                return;
+            }
+            try {
+                Object sync = Proxy.newProxyInstance(
+                        transactionSynchronizationType.getClassLoader(),
+                        new Class<?>[]{transactionSynchronizationType},
+                        (proxy, method, args) -> {
+                            String name = method.getName();
+                            if ("afterCompletion".equals(name)) {
+                                // afterCompletion(int status)
+                                try {
+                                    unbindResourceIfPossible.invoke(null, key);
+                                } catch (Throwable ignored) {
+                                    // best effort
+                                }
+                                return null;
+                            }
+                            // Default return values for other methods.
+                            Class<?> rt = method.getReturnType();
+                            if (rt == boolean.class) return false;
+                            if (rt == int.class) return 0;
+                            if (rt == void.class) return null;
+                            return null;
+                        }
+                );
+                registerSynchronization.invoke(null, sync);
+            } catch (Throwable ignored) {
+                // Best effort cleanup registration; if this fails, we at least won't break tx execution.
+            }
+        }
     }
 }

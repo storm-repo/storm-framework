@@ -201,7 +201,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
         } catch (Exception e) {
             processingEnv.getMessager().printMessage(ERROR, "Failed to process metamodel. Error: " + e);
         }
-        return true;
+        return false;
     }
 
     private Optional<TypeMirror> getMetamodelType(Element element) {

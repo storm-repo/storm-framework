@@ -20,6 +20,15 @@ import jakarta.annotation.Nonnull;
 /**
  * The metamodel is used to map database columns to the object model in a type-safe way.
  *
+ * <h2>Equality</h2>
+ * Two metamodel instances are considered equal when they identify the same logical field location
+ * in the schema:
+ * <ul>
+ *   <li>the same owning table as returned by {@link #fieldType()} of {@link #table()},</li>
+ *   <li>the same {@link #path()}, and</li>
+ *   <li>the same {@link #field()}.</li>
+ * </ul>
+ *
  * @param <T> the primary table type.
  * @param <E> the record component type of the designated element.
  * @since 1.2
@@ -41,7 +50,7 @@ public interface Metamodel<T, E> {
      * Creates a new metamodel for the given root rootTable and path.
      *
      * <p>This method is typically used to manually create a metamodel for a component of a record, which can be useful
-     * in cases where the metamodel can not be generated automatically, for example local records.</p>
+     * in cases where the metamodel cannot be generated automatically, for example, local records.</p>
      *
      * @param rootTable the root rootTable to create the metamodel for.
      * @param path a dot separated path starting from the root rootTable.

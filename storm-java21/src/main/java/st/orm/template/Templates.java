@@ -52,6 +52,7 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.function.Function;
@@ -638,7 +639,39 @@ public interface Templates {
      * @return an {@link Element} representing the SET clause with the specified record.
      */
     static Element set(@Nonnull Data record) {
-        return new Set(requireNonNull(record, "record"), null);
+        return new Set(requireNonNull(record, "record"), null, List.of());
+    }
+
+    /**
+     * Generates a SET clause for the specified record.
+     *
+     * <p>This method creates a {@code SET} clause using the provided {@link Data} instance. It is intended to be used
+     * within SQL string templates to dynamically construct UPDATE statements with the given values.
+     *
+     * <p>Example usage in a string template:
+     * <pre>{@code
+     * UPDATE \{MyTable.class}
+     * SET \{set(record)}
+     * WHERE \{where(record)}
+     * }</pre>
+     *
+     * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically detects
+     * that a SET element is required based on its placement in the query:
+     * <pre>{@code
+     * UPDATE \{MyTable.class}
+     * SET \{record}
+     * WHERE \{record}
+     * }</pre>
+     *
+     * <p>Here, {@code record} is an instance of the {@code Data} class containing the values to be set.
+     *
+     * @param record the {@link Data} instance containing the values to be set.
+     * @param fields the fields to update.
+     * @return an {@link Element} representing the SET clause with the specified record.
+     * @since 1.7
+     */
+    static Element set(@Nonnull Data record, @Nonnull Collection<Metamodel<? extends Data, ?>> fields) {
+        return new Set(requireNonNull(record, "record"), null, fields);
     }
 
     /**
@@ -675,7 +708,46 @@ public interface Templates {
      * @return an {@link Element} representing the SET clause utilizing the specified bind variables.
      */
     static Element set(@Nonnull BindVars bindVars) {
-        return new Set(null, requireNonNull(bindVars, "bindVars"));
+        return new Set(null, requireNonNull(bindVars, "bindVars"), List.of());
+    }
+
+    /**
+     * Generates a SET clause using the specified {@link BindVars}.
+     *
+     * <p>This method creates a {@code SET} clause that utilizes a {@link BindVars} instance, allowing for batch
+     * updates using bind variables. This is particularly useful when performing batch operations where the same
+     * update query is executed multiple times with different variable values.
+     *
+     * <p>Example usage in a batch update scenario:
+     * <pre>{@code
+     * var bindVars = orm.createBindVars();
+     * try (var query = orm.query(RAW."""
+     *         UPDATE \{MyTable.class}
+     *         SET \{set(bindVars)}
+     *         WHERE \{where(bindVars)}""").prepare()) {
+     *     records.forEach(query::addBatch);
+     *     query.executeBatch();
+     * }
+     * }</pre>
+     *
+     * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically detects that
+     * an UPDATE element is required based on its placement in the query:
+     * <pre>{@code
+     * UPDATE \{MyTable.class}
+     * SET \{record}
+     * WHERE \{record}
+     * }</pre>
+     *
+     * <p>In this example, {@code bindVars} is a {@link BindVars} instance created by the ORM. The {@code records} are
+     * iterated over, and each is added to the batch. The query is then executed as a batch operation.
+     *
+     * @param bindVars the {@link BindVars} instance used for batch updates.
+     * @param fields the fields to update.
+     * @return an {@link Element} representing the SET clause utilizing the specified bind variables.
+     * @since 1.7
+     */
+    static Element set(@Nonnull BindVars bindVars, @Nonnull Collection<Metamodel<? extends Data, ?>> fields) {
+        return new Set(null, requireNonNull(bindVars, "bindVars"), fields);
     }
 
     /**

@@ -16,13 +16,46 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Entity;
 
 /**
  * @since 1.5
  */
 public interface TransactionContext {
 
+    /**
+     * Returns true if the transaction is marked as read-only, false otherwise.
+     *
+     * @return true if the transaction is marked as read-only, false otherwise.
+     * @since 1.7
+     */
+    boolean isReadOnly();
+
+    /**
+     * Returns a transaction-local cache for entities of the given type, keyed by primary key.
+     */
+    EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType);
+
+    /**
+     * Decorates a transaction resource before it is used.
+     *
+     * <p>
+     * Implementations may wrap, configure, or otherwise adapt the given {@code resource} so it matches the
+     * transaction characteristics and scope (for example isolation, read-only behavior, timeouts, or
+     * thread/connection binding).</p>
+     *
+     * @param <T> the resource type being decorated
+     */
     interface Decorator<T> {
+
+        /**
+         * Returns a decorated variant of the given resource.
+         * <p>
+         * Implementations may return the same instance if no decoration is required.
+         *
+         * @param resource the resource to decorate
+         * @return the decorated resource (never {@code null})
+         */
         T decorate(T resource);
     }
 

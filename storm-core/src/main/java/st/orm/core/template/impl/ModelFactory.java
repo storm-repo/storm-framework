@@ -26,15 +26,12 @@ import st.orm.PK;
 import st.orm.Persist;
 import st.orm.PersistenceException;
 import st.orm.Version;
-import st.orm.core.spi.ORMReflection;
-import st.orm.core.spi.Providers;
 import st.orm.mapping.RecordField;
 import st.orm.mapping.RecordType;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplateException;
 
-import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -59,7 +56,6 @@ import static st.orm.core.template.impl.RecordReflection.isRecord;
  */
 final class ModelFactory {
     private static final ConcurrentHashMap<Class<?>, Model<?, ?>> MODEL_CACHE = new ConcurrentHashMap<>();
-    private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
     private ModelFactory () {
     }
@@ -79,49 +75,66 @@ final class ModelFactory {
             boolean requirePrimaryKey) throws SqlTemplateException {
         try {
             //noinspection unchecked
-            return (Model<T, ID>) MODEL_CACHE.computeIfAbsent(type, ignore -> {
-                RecordType recordType = getRecordType(type);
-                AtomicInteger index = new AtomicInteger(1);
-                AtomicInteger primaryKeyIndex = new AtomicInteger(1);
-                List<Column> columns = new ArrayList<>();
-                List<Metamodel<T, ?>> metamodels = new ArrayList<>();
-                RecordField pkField = null;
-                List<RecordField> fkFields = new ArrayList<>();
+            var model = (Model<T, ID>) MODEL_CACHE.computeIfAbsent(type, ignore -> {
                 try {
+                    RecordValidation.validateDataType(type, requirePrimaryKey);
+                    RecordType recordType = getRecordType(type);
+                    AtomicInteger index = new AtomicInteger(1);
+                    AtomicInteger primaryKeyIndex = new AtomicInteger(1);
+                    List<Column> columns = new ArrayList<>();
+                    List<Metamodel<T, ?>> metamodels = new ArrayList<>();
+                    List<RecordField> fields = new ArrayList<>();
+                    RecordField pkField = null;
+                    List<RecordField> fkFields = new ArrayList<>();
+                    List<RecordField> insertableFields = new ArrayList<>();
+                    List<RecordField> updatableFields = new ArrayList<>();
+                    RecordField versionField = null;
                     for (var field : recordType.fields()) {
                         boolean primaryKey = field.isAnnotationPresent(PK.class);
                         boolean foreignKey = field.isAnnotationPresent(FK.class);
-                        Metamodel<T, ?> model = Metamodel.of(type, field.name());
+                        Metamodel<T, ?> metamodel = Metamodel.of(type, field.name());
                         var list = createColumns(builder, field, primaryKey, getGenerationStrategy(field),
                                 getSequence(field), false, index, primaryKeyIndex);
                         columns.addAll(list);
-                        metamodels.addAll(nCopies(list.size(), model));
+                        metamodels.addAll(nCopies(list.size(), metamodel));
+                        fields.addAll(nCopies(list.size(), field));
                         if (primaryKey) {
                             pkField = field;
                         }
                         if (foreignKey) {
                             fkFields.add(field);
                         }
+                        if (columns.stream().anyMatch(Column::insertable)) {
+                            insertableFields.add(field);
+                        }
+                        if (columns.stream().anyMatch(Column::updatable)) {
+                            updatableFields.add(field);
+                        }
+                        if (columns.stream().anyMatch(Column::version)) {
+                            versionField = field;
+                        }
                     }
                     assert columns.size() == metamodels.size();
                     var tableName = getTableName(type, builder.tableNameResolver());
-                    var pkType = RecordReflection.findPkField(type).map(RecordField::type).orElse(null);
-                    if (requirePrimaryKey && pkType == null) {
-                        throw new PersistenceException("No primary key found for type: %s".formatted(type.getSimpleName()));
-                    }
-                    //noinspection unchecked
                     return new ModelImpl<>(
+                            recordType,
                             tableName,
-                            type,
-                            pkType != null ? (Class<ID>) pkType : (Class<ID>) Void.class,
                             columns,
                             metamodels,
+                            fields,
                             ofNullable(pkField),
-                            fkFields);
+                            fkFields,
+                            insertableFields,
+                            updatableFields,
+                            ofNullable(versionField));
                 } catch (SqlTemplateException e) {
                     throw new RuntimeException(e);
                 }
             });
+            if (requirePrimaryKey && model.primaryKeyField().isEmpty()) {
+                throw new PersistenceException("No primary key found for type: %s.".formatted(type.getSimpleName()));
+            }
+            return model;
         } catch (RuntimeException e) {
             if (e.getCause() instanceof SqlTemplateException ex) {
                 throw ex;
@@ -191,8 +204,10 @@ final class ModelFactory {
             boolean nullable = parentNullable || field.nullable();
             Persist persist = field.getAnnotation(Persist.class);
             boolean version = field.isAnnotationPresent(Version.class);
-            boolean insertable = persist == null || persist.insertable();
-            boolean updatable = persist == null || persist.updatable();
+            // We always mark PK as insertable.
+            boolean insertable = primaryKey || persist == null || persist.insertable();
+            // We never mark PK as updatable.
+            boolean updatable = !primaryKey && (persist == null || persist.updatable());
             boolean ref = Ref.class.isAssignableFrom(field.type());
             var dataType = field.type();
             if (ref) {

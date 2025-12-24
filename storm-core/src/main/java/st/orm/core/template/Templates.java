@@ -52,6 +52,7 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.function.Function;
@@ -636,7 +637,39 @@ public interface Templates {
      * @return an {@link Element} representing the SET clause with the specified record.
      */
     static Element set(@Nonnull Data record) {
-        return new Set(requireNonNull(record, "record"), null);
+        return new Set(requireNonNull(record, "record"), null, List.of());
+    }
+
+    /**
+     * Generates a SET clause for the specified record.
+     *
+     * <p>This method creates a {@code SET} clause using the provided {@link Data} instance. It is intended to be used
+     * within SQL string templates to dynamically construct UPDATE statements with the given values.
+     *
+     * <p>Example usage in a string template:
+     * <pre>{@code
+     * UPDATE \{MyTable.class}
+     * SET \{set(record)}
+     * WHERE \{where(record)}
+     * }</pre>
+     *
+     * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically detects
+     * that a SET element is required based on its placement in the query:
+     * <pre>{@code
+     * UPDATE \{MyTable.class}
+     * SET \{record}
+     * WHERE \{record}
+     * }</pre>
+     *
+     * <p>Here, {@code record} is an instance of the {@code Data} class containing the values to be set.
+     *
+     * @param record the {@link Data} instance containing the values to be set.
+     * @param fields the fields to update.
+     * @return an {@link Element} representing the SET clause with the specified record.
+     * @since 1.7
+     */
+    static Element set(@Nonnull Data record, @Nonnull Collection<Metamodel<? extends Data, ?>> fields) {
+        return new Set(requireNonNull(record, "record"), null, fields);
     }
 
     /**
@@ -673,7 +706,46 @@ public interface Templates {
      * @return an {@link Element} representing the SET clause utilizing the specified bind variables.
      */
     static Element set(@Nonnull BindVars bindVars) {
-        return new Set(null, requireNonNull(bindVars, "bindVars"));
+        return new Set(null, requireNonNull(bindVars, "bindVars"), List.of());
+    }
+
+    /**
+     * Generates a SET clause using the specified {@link BindVars}.
+     *
+     * <p>This method creates a {@code SET} clause that utilizes a {@link BindVars} instance, allowing for batch
+     * updates using bind variables. This is particularly useful when performing batch operations where the same
+     * update query is executed multiple times with different variable values.
+     *
+     * <p>Example usage in a batch update scenario:
+     * <pre>{@code
+     * var bindVars = orm.createBindVars();
+     * try (var query = orm.query(RAW."""
+     *         UPDATE \{MyTable.class}
+     *         SET \{set(bindVars)}
+     *         WHERE \{where(bindVars)}""").prepare()) {
+     *     records.forEach(query::addBatch);
+     *     query.executeBatch();
+     * }
+     * }</pre>
+     *
+     * <p>For convenience, you can also use the shorthand notation. The SQL template engine automatically detects that
+     * an UPDATE element is required based on its placement in the query:
+     * <pre>{@code
+     * UPDATE \{MyTable.class}
+     * SET \{record}
+     * WHERE \{record}
+     * }</pre>
+     *
+     * <p>In this example, {@code bindVars} is a {@link BindVars} instance created by the ORM. The {@code records} are
+     * iterated over, and each is added to the batch. The query is then executed as a batch operation.
+     *
+     * @param bindVars the {@link BindVars} instance used for batch updates.
+     * @param fields the fields to update.
+     * @return an {@link Element} representing the SET clause utilizing the specified bind variables.
+     * @since 1.7
+     */
+    static Element set(@Nonnull BindVars bindVars, @Nonnull Collection<Metamodel<? extends Data, ?>> fields) {
+        return new Set(null, requireNonNull(bindVars, "bindVars"), fields);
     }
 
     /**
@@ -1106,12 +1178,7 @@ public interface Templates {
     }
 
     /**
-     * Generates a column element for a column specified by the given {@code metamodel} in a type safe manner.
-     *
-     * <p>The path is constructed by concatenating the names of the fields that lead to the target table from the root
-     * table. The componentName is the name of the record component that is mapped to the database column. If a record
-     * uses inline records, the componentName is also constructed by concatenating the fields leading to the record
-     * component.</p>
+     * Generates a column element for a column specified by the given {@code field} in a type safe manner.
      *
      * <p>Example usage in a string template where {@code MyTable} is referenced twice:
      * <pre>{@code
@@ -1126,21 +1193,16 @@ public interface Templates {
      * {@code Table} record, which is of type {@code MyTable}. This distinguishes it from the {@code parent} field, which
      * is also of type {@code MyTable}. The "name" componentName refers to the name record component of {@code MyTable}.</p>
      *
-     * @param path specifies the database column for which the column is to be generated.
+     * @param field specifies the field for which the column is to be generated.
      * @return an {@link Element} representing the table's column with the specified path.
      * @since 1.2
      */
-    static Element column(@Nonnull Metamodel<?, ?> path) {
-        return new Elements.Column(path, CASCADE);
+    static Element column(@Nonnull Metamodel<?, ?> field) {
+        return new Elements.Column(field, CASCADE);
     }
 
     /**
-     * Generates a column element for a column specified by the given {@code metamodel} in a type safe manner.
-     *
-     * <p>The path is constructed by concatenating the names of the fields that lead to the target table from the root
-     * table. The componentName is the name of the record component that is mapped to the database column. If a record
-     * uses inline records, the componentName is also constructed by concatenating the fields leading to the record
-     * component.</p>
+     * Generates a column element for a column specified by the given {@code field} in a type safe manner.
      *
      * <p>Example usage in a string template where {@code MyTable} is referenced twice:
      * <pre>{@code
@@ -1155,14 +1217,14 @@ public interface Templates {
      * {@code Table} record, which is of type {@code MyTable}. This distinguishes it from the {@code parent} field, which
      * is also of type {@code MyTable}. The "name" componentName refers to the name record component of {@code MyTable}.</p>
      *
-     * @param path specifies the database column for which the column is to be generated.
+     * @param field specifies the field for which the column is to be generated.
      * @param scope the {@link ResolveScope} to use when resolving the alias. Use CASCADE to include local and outer
      *              aliases, LOCAL to include local aliases only, and OUTER to include outer aliases only.
      * @return an {@link Element} representing the table's column with the specified path.
      * @since 1.2
      */
-    static Element column(@Nonnull Metamodel<?, ?> path, @Nonnull ResolveScope scope) {
-        return new Elements.Column(path, scope);
+    static Element column(@Nonnull Metamodel<?, ?> field, @Nonnull ResolveScope scope) {
+        return new Elements.Column(field, scope);
     }
 
     /**

@@ -18,10 +18,12 @@ package st.orm.core.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
+import st.orm.Metamodel;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplateException;
 
+import java.util.Collection;
 import java.util.SequencedMap;
 import java.util.function.Predicate;
 
@@ -76,12 +78,29 @@ public interface ModelMapper<T extends Data, ID> {
     }
 
     /**
-     * Maps the values from the given record to a set of columns.
+     * Maps the values from the given record to a set of columns. The result is limited to the fields specified, and
+     * the columns allowed by the given filter.
+     *
+     * @param record the record to map.
+     * @param fields the fields to map, or an empty list to map all fields.
+     * @param columnFilter the filter to determine which columns to include.
+     * @return the values from the given record to a set of columns.
+     * @throws SqlTemplateException if an error occurs while extracting the values.
+     * @since 1.7
+     */
+    SequencedMap<Column, Object> map(@Nonnull T record,
+                                     @Nonnull Collection<Metamodel<? extends T, ?>> fields,
+                                     @Nonnull Predicate<Column> columnFilter) throws SqlTemplateException;
+
+    /**
+     * Maps the values from the given record to a set of columns. The result is limited to the columns allowed by the
+     * given filter.
      *
      * @param record the record to map.
      * @param columnFilter the filter to determine which columns to include.
      * @return the values from the given record to a set of columns.
      * @throws SqlTemplateException if an error occurs while extracting the values.
      */
-    SequencedMap<Column, Object> map(@Nonnull T record, @Nonnull Predicate<Column> columnFilter) throws SqlTemplateException;
+    SequencedMap<Column, Object> map(@Nonnull T record,
+                                     @Nonnull Predicate<Column> columnFilter) throws SqlTemplateException;
 }

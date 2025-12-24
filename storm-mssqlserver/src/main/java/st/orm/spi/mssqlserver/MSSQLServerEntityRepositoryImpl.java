@@ -17,6 +17,7 @@ package st.orm.spi.mssqlserver;
 
 import jakarta.annotation.Nonnull;
 import st.orm.Data;
+import st.orm.Metamodel;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.repository.impl.EntityRepositoryImpl;
@@ -36,22 +37,25 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static java.util.function.Function.identity;
 import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.partitioningBy;
 import static st.orm.GenerationStrategy.IDENTITY;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.GenerationStrategy.SEQUENCE;
+import static st.orm.core.repository.impl.DirtySupport.getMaxShapes;
+import static st.orm.core.repository.impl.StreamSupport.partitioned;
 import static st.orm.core.template.Templates.bindVar;
 import static st.orm.core.template.SqlInterceptor.intercept;
 import static st.orm.core.template.TemplateString.combine;
@@ -323,6 +327,22 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
         upsert(toStream(entities), defaultBatchSize);
     }
 
+    private sealed interface PartitionKey {}
+    private static final class NoOpKey implements PartitionKey {
+        private static final NoOpKey INSTANCE = new NoOpKey();
+    }
+    private static final class InsertKey implements PartitionKey {
+        private static final InsertKey INSTANCE = new InsertKey();
+    }
+    private static final class UpsertKey implements PartitionKey {
+        private static final UpsertKey INSTANCE = new UpsertKey();
+    }
+    private record UpdateKey(@Nonnull Set<Metamodel<? extends Data, ?>> fields) implements PartitionKey {
+        UpdateKey() {
+            this(Set.of()); // All fields.
+        }
+    }
+
     /**
      * Batch upsert for an iterable of entities returning a list of IDs.
      */
@@ -351,17 +371,32 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
             throw new PersistenceException("MSSQLServer does not support combining sequence-based ID generation with fetch mode. " +
                     "Use the column's DEFAULT constraint for sequence values instead.");
         }
-        LazySupplier<PreparedQuery> updateQuery = new LazySupplier<>(this::prepareUpdateQuery);
+        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         try {
-            return chunked(toStream(entities), defaultBatchSize, batch -> {
-                var result = new ArrayList<ID>();
-                var partition = partition(batch);
-                result.addAll(updateAndFetchIds(partition.get(true), updateQuery));
-                result.addAll(getUpsertQuery(partition.get(false)).getResultList(model.primaryKeyType()));
-                return result.stream();
-            }).toList();
+            var result = new ArrayList<ID>();
+            var entityCache = entityCache();
+            partitioned(toStream(entities), defaultBatchSize, entity -> {
+                if (isUpdate(entity)) {
+                    var dirty = getDirty(entity, entityCache);
+                    if (dirty.isEmpty()) {
+                        return NoOpKey.INSTANCE;
+                    }
+                    return new UpdateKey(dirty.get());
+                } else {
+                    return UpsertKey.INSTANCE;
+                }
+            }, getMaxShapes(), new UpdateKey()).forEach(partition -> {
+                switch (partition.key()) {
+                    case NoOpKey ignore -> result.addAll(partition.chunk().stream().map(E::id).toList());
+                    case InsertKey ignore -> throw new PersistenceException("Unexpected state.");
+                    case UpsertKey ignore -> result.addAll(getUpsertQuery(partition.chunk()).getResultList(model.primaryKeyType()));
+                    case UpdateKey u -> result.addAll(updateAndFetchIds(partition.chunk(),
+                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields()))));
+                }
+            });
+            return result;
         } finally {
-            updateQuery.value().ifPresent(PreparedQuery::close);
+            closeQuietly(updateQueries.values().stream());
         }
     }
 
@@ -379,23 +414,42 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
                 ));
     }
 
-    public List<ID> upsertAndFetchIdsNoSequence(@Nonnull Iterable<E> entities) {
-        LazySupplier<PreparedQuery> updateQuery = new LazySupplier<>(this::prepareUpdateQuery);
+    private List<ID> upsertAndFetchIdsNoSequence(@Nonnull Iterable<E> entities) {
+        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         LazySupplier<PreparedQuery> insertQuery = new LazySupplier<>(this::prepareInsertQuery);
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
-            return chunked(toStream(entities), defaultBatchSize, batch -> {
-                var partition = partition(batch);
-                var result = new ArrayList<>(updateAndFetchIds(partition.get(true), updateQuery));
-                if (isAutoGeneratedPrimaryKey()) {
-                    result.addAll(insertAndFetchIds(partition.get(false), insertQuery));
+            var result = new ArrayList<ID>();
+            var entityCache = entityCache();
+            partitioned(toStream(entities), defaultBatchSize, entity -> {
+                if (isUpdate(entity)) {
+                    var dirty = getDirty(entity, entityCache);
+                    if (dirty.isEmpty()) {
+                        return NoOpKey.INSTANCE;
+                    }
+                    return new UpdateKey(dirty.get());
+                } else if (isAutoGeneratedPrimaryKey()) {
+                    return InsertKey.INSTANCE;
                 } else {
-                    result.addAll(upsertAndFetchIds(partition.get(false), upsertQuery));
+                    return UpsertKey.INSTANCE;
                 }
-                return result.stream();
-            }).toList();
+            }, getMaxShapes(), new UpdateKey()).forEach(partition -> {
+                switch (partition.key()) {
+                    case NoOpKey ignore -> result.addAll(partition.chunk().stream().map(E::id).toList());
+                    case InsertKey ignore -> result.addAll(insertAndFetchIds(partition.chunk(), insertQuery.get()));
+                    case UpsertKey ignore -> result.addAll(upsertAndFetchIds(partition.chunk(), upsertQuery.get()));
+                    case UpdateKey u -> result.addAll(updateAndFetchIds(partition.chunk(),
+                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields()))));
+                }
+            });
+            return result;
         } finally {
-            closeQuietly(updateQuery, insertQuery, upsertQuery);
+            closeQuietly(Stream.of(
+                            updateQueries.values().stream(),
+                            insertQuery.value().stream(),
+                            upsertQuery.value().stream()
+                    )
+                    .flatMap(identity()));
         }
     }
 
@@ -420,21 +474,39 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void upsert(@Nonnull Stream<E> entities, int batchSize) {
-        LazySupplier<PreparedQuery> updateQuery = new LazySupplier<>(this::prepareUpdateQuery);
+        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         LazySupplier<PreparedQuery> insertQuery = new LazySupplier<>(this::prepareInsertQuery);
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
-            chunked(entities, batchSize).forEach(batch -> {
-                var partition = partition(batch);
-                update(partition.get(true), updateQuery);
-                if (isAutoGeneratedPrimaryKey()) {
-                    insert(partition.get(false), insertQuery);
+            var entityCache = entityCache();
+            partitioned(entities, batchSize, entity -> {
+                if (isUpdate(entity)) {
+                    var dirty = getDirty(entity, entityCache);
+                    if (dirty.isEmpty()) {
+                        return NoOpKey.INSTANCE;
+                    }
+                    return new UpdateKey(dirty.get());
+                } else if (isAutoGeneratedPrimaryKey()) {
+                    return InsertKey.INSTANCE;
                 } else {
-                    upsert(partition.get(false), upsertQuery);
+                    return UpsertKey.INSTANCE;
+                }
+            }, getMaxShapes(), new UpdateKey()).forEach(partition -> {
+                switch (partition.key()) {
+                    case NoOpKey ignore -> {}
+                    case InsertKey ignore -> insert(partition.chunk(), insertQuery.get());
+                    case UpsertKey ignore -> upsert(partition.chunk(), upsertQuery.get());
+                    case UpdateKey u -> update(partition.chunk(),
+                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields())));
                 }
             });
         } finally {
-            closeQuietly(updateQuery, insertQuery, upsertQuery);
+            closeQuietly(Stream.of(
+                    updateQueries.values().stream(),
+                    insertQuery.value().stream(),
+                    upsertQuery.value().stream()
+            )
+                    .flatMap(identity()));
         }
     }
 
@@ -442,11 +514,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
         return isAutoGeneratedPrimaryKey() && !model.isDefaultPrimaryKey(entity.id());
     }
 
-    private Map<Boolean, List<E>> partition(@Nonnull List<E> entities) {
-        return entities.stream().collect(partitioningBy(this::isUpdate));
-    }
-
-    protected PreparedQuery prepareUpsertQuery() {
+    private PreparedQuery prepareUpsertQuery() {
         var bindVars = ormTemplate.createBindVars();
         var versionAware = new AtomicBoolean();
         return intercept(sql -> sql.versionAware(versionAware.getPlain()), () ->
@@ -457,11 +525,10 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
                 ).prepare());
     }
 
-    protected void upsert(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> querySupplier) {
+    private void upsert(@Nonnull List<E> batch, @Nonnull PreparedQuery query) {
         if (batch.isEmpty()) {
             return;
         }
-        var query = querySupplier.get();
         batch.stream().map(this::validateUpsert).map(Data.class::cast).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
@@ -469,11 +536,10 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
         }
     }
 
-    protected List<ID> upsertAndFetchIds(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> querySupplier) {
+    private List<ID> upsertAndFetchIds(@Nonnull List<E> batch, @Nonnull PreparedQuery query) {
         if (batch.isEmpty()) {
             return List.of();
         }
-        var query = querySupplier.get();
         batch.stream().map(this::validateUpsert).map(Data.class::cast).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
@@ -496,7 +562,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
         assert primaryKeyColumns.size() == 1;
         var primaryKeyColumn = primaryKeyColumns.getFirst();
         String pkName = primaryKeyColumn.qualifiedName(ormTemplate.dialect());
-        try (var query = ormTemplate.query(TemplateString.raw("""
+        try (var query = ormTemplate.query(raw("""
                 INSERT INTO \0
                 OUTPUT INSERTED.%s
                 VALUES \0""".formatted(pkName), model.type(), entity)).prepare()) {
@@ -514,27 +580,10 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
         assert primaryKeyColumns.size() == 1;
         var primaryKeyColumn = primaryKeyColumns.getFirst();
         String pkName = primaryKeyColumn.qualifiedName(ormTemplate.dialect());
-        var query = ormTemplate.query(TemplateString.raw("""
+        var query = ormTemplate.query(raw("""
             INSERT INTO \0
             OUTPUT INSERTED.%s
             VALUES \0""".formatted(pkName), model.type(), entities));
         return query.getResultList(model.primaryKeyType());
-    }
-
-    /**
-     * Helper method to close lazy-supplied queries without one exception blocking another.
-     */
-    private void closeQuietly(LazySupplier<PreparedQuery> updateQuery,
-                              LazySupplier<PreparedQuery> insertQuery,
-                              LazySupplier<PreparedQuery> upsertQuery) {
-        try {
-            upsertQuery.value().ifPresent(PreparedQuery::close);
-        } finally {
-            try {
-                insertQuery.value().ifPresent(PreparedQuery::close);
-            } finally {
-                updateQuery.value().ifPresent(PreparedQuery::close);
-            }
-        }
     }
 }

@@ -19,7 +19,9 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
 import st.orm.Metamodel;
+import st.orm.PersistenceException;
 import st.orm.mapping.RecordField;
+import st.orm.mapping.RecordType;
 
 import java.util.List;
 import java.util.Optional;
@@ -76,6 +78,14 @@ public interface Model<E extends Data, ID> {
     List<Column> columns();
 
     /**
+     * Returns the type of the record.
+     *
+     * @return the type of the record.
+     * @since 1.7
+     */
+    RecordType recordType();
+
+    /**
      * Returns the primary key field for the given record. The optional is empty if the record does not have a
      * primary key.
      *
@@ -91,6 +101,30 @@ public interface Model<E extends Data, ID> {
      * @since 1.3
      */
     List<RecordField> foreignKeyFields();
+
+    /**
+     * Returns the fields that are insertable for the given record.
+     *
+     * @return the fields that are insertable for the given record.
+     * @since 1.7
+     */
+    List<RecordField> insertableFields();
+
+    /**
+     * Returns the fields that are updatable for the given record.
+     *
+     * @return the fields that are updatable for the given record.
+     * @since 1.7
+     */
+    List<RecordField> updatableFields();
+
+    /**
+     * Returns the version field for the given record. The optional is empty if the record does not have a version.
+     *
+     * @return an {@link Optional} containing the version field if it exists.
+     * @since 1.7
+     */
+    Optional<RecordField> versionField();
 
     /**
      * <p>This method is used to check if the primary key of the entity is a default value. This is useful when
@@ -138,4 +172,14 @@ public interface Model<E extends Data, ID> {
      * @since 1.3
      */
     Metamodel<E, ?> getMetamodel(@Nonnull Column column);
+
+    /**
+     * Returns the metamodel for the specified record field.
+     *
+     * @param field the record field.
+     * @return the metamodel for the specified record field.
+     * @throws PersistenceException if the field is unknown or does not match the model's fields.
+     * @since 1.7
+     */
+    Metamodel<E, ?> getMetamodel(@Nonnull RecordField field);
 }

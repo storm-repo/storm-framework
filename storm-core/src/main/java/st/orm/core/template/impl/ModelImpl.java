@@ -27,6 +27,7 @@ import st.orm.core.template.SqlDialect;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplateException;
+import st.orm.mapping.RecordType;
 
 import java.util.List;
 import java.util.Optional;
@@ -40,30 +41,38 @@ import static java.util.Objects.requireNonNull;
  *
  * @param <E> the type of the entity or projection.
  * @param <ID> the type of the primary key, or {@code Void} in case of a projection without a primary key.
+ * @param recordType the record type of the entity or projection.
  * @param tableName the name of the table or view.
- * @param type the type of the entity or projection.
- * @param primaryKeyType the type of the primary key.
+ * @param metamodels metamodels for each column in the entity or projection.
  * @param columns an immutable list of columns in the entity or projection.
  */
 public record ModelImpl<E extends Data, ID>(
+        @Nonnull RecordType recordType,
         @Nonnull TableName tableName,
-        @Nonnull Class<E> type,
-        @Nonnull Class<ID> primaryKeyType,
         @Nonnull List<Column> columns,
         @Nonnull List<Metamodel<E, ?>> metamodels,
+        @Nonnull List<RecordField> fields,
         @Nonnull Optional<RecordField> primaryKeyField,
-        @Nonnull List<RecordField> foreignKeyFields) implements Model<E, ID> {
+        @Nonnull List<RecordField> foreignKeyFields,
+        @Nonnull List<RecordField> insertableFields,
+        @Nonnull List<RecordField> updatableFields,
+        @Nonnull Optional<RecordField> versionField) implements Model<E, ID> {
 
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
     public ModelImpl {
+        requireNonNull(recordType, "recordType");
         requireNonNull(tableName, "tableName");
-        requireNonNull(type, "type");
-        requireNonNull(primaryKeyType, "primaryKeyType");
         columns = copyOf(columns); // Defensive copy.
         metamodels = copyOf(metamodels); // Defensive copy.
+        fields = copyOf(fields); // Defensive copy.
+        requireNonNull(primaryKeyField, "primaryKeyField");
         foreignKeyFields = copyOf(foreignKeyFields); // Defensive copy.
+        insertableFields = copyOf(insertableFields); // Defensive copy.
+        updatableFields = copyOf(updatableFields); // Defensive copy.
+        requireNonNull(versionField, "versionField");
         assert columns.size() == metamodels.size() : "Columns and metamodels must have the same size";
+        assert columns.size() == fields.size() : "Columns and fields must have the same size";
     }
 
     /**
@@ -94,6 +103,29 @@ public record ModelImpl<E extends Data, ID>(
     @Override
     public String qualifiedName(@Nonnull SqlDialect dialect) {
         return tableName.getQualifiedName(dialect);
+    }
+
+    /**
+     * Returns the type of the entity or projection.
+     *
+     * @return the type of the entity or projection.
+     */
+    @SuppressWarnings("unchecked")
+    @Override
+    public Class<E> type() {
+        return (Class<E>) recordType.type();
+    }
+
+    /**
+     * Returns the type of the primary key.
+     *
+     * @return the type of the primary key.
+     */
+    @Override
+    public Class<ID> primaryKeyType() {
+        var pkType = primaryKeyField.map(RecordField::type).orElse(null);
+        //noinspection unchecked
+        return pkType != null ? (Class<ID>) pkType : (Class<ID>) Void.class;
     }
 
     /**
@@ -176,5 +208,23 @@ public record ModelImpl<E extends Data, ID>(
             throw new PersistenceException("Column %s does not match the model's column at index %d.".formatted(column, index));
         }
         return metamodels.get(column.index() - 1);
+    }
+
+    /**
+     * Returns the metamodel for the specified record field.
+     *
+     * @param field the record field.
+     * @return the metamodel for the specified record field.
+     * @throws PersistenceException if the field is unknown or does not match the model's fields.
+     * @since 1.7
+     */
+    @Override
+    public Metamodel<E, ?> getMetamodel(@Nonnull RecordField field) {
+        // Note that this logic may be inefficient for large models with many fields.
+        int index = fields.indexOf(field);
+        if (index == -1) {
+            throw new PersistenceException("Unknown field %s.".formatted(field));
+        }
+        return metamodels.get(index);
     }
 }

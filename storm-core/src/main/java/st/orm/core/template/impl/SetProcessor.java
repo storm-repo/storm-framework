@@ -18,6 +18,7 @@ package st.orm.core.template.impl;
 import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
 import st.orm.Data;
+import st.orm.Metamodel;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Set;
@@ -27,6 +28,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -68,10 +70,10 @@ final class SetProcessor implements ElementProcessor<Set> {
             throw new SqlTemplateException("Primary table not found.");
         }
         if (set.record() != null) {
-            return getRecordString(set.record());
+            return getRecordString(set.record(), set.fields());
         }
         if (set.bindVars() != null) {
-            return getBindVarsString(set.bindVars());
+            return getBindVarsString(set.bindVars(), set.fields());
         }
         throw new SqlTemplateException("No values found for Set.");
     }
@@ -83,12 +85,13 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @return the SQL string for the specified record.
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
-    private ElementResult getRecordString(@Nonnull Data record) throws SqlTemplateException {
+    private ElementResult getRecordString(@Nonnull Data record, @Nonnull Collection<Metamodel<? extends Data, ?>> fields) throws SqlTemplateException {
         if (!primaryTable.table().isInstance(record)) {
             throw new SqlTemplateException("Record %s does not match entity %s.".formatted(record.getClass().getSimpleName(), primaryTable.table().getSimpleName()));
         }
-        var mapped = ModelMapper.of(modelBuilder.build(record, false))
-                .map(record, column -> !column.primaryKey() && column.updatable());
+        var model = modelBuilder.build(record, false);
+        var mapped = ModelMapper.of(model)
+                .map(record, fields, column -> !column.primaryKey() && column.updatable());
         List<String> args = new ArrayList<>();
         for (var entry : mapped.entrySet()) {
             var column = entry.getKey();
@@ -115,12 +118,14 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @return the SQL string for the specified bindVars.
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
-    private ElementResult getBindVarsString(@Nonnull BindVars bindVars) throws SqlTemplateException {
+    private ElementResult getBindVarsString(@Nonnull BindVars bindVars, @Nonnull Collection<Metamodel<? extends Data, ?>> fields) throws SqlTemplateException {
         if (bindVars instanceof BindVarsImpl vars) {
             AtomicInteger bindVarsCount = new AtomicInteger();
-            String bindVarsString = modelBuilder.build(primaryTable.table(), false)
+            var model = modelBuilder.build(primaryTable.table(), false);
+            String bindVarsString = model
                     .columns().stream()
-                    .filter(column -> !column.primaryKey() && column.updatable())
+                    .filter(column -> !column.primaryKey() && column.updatable()
+                            && (fields.isEmpty() || fields.contains(model.getMetamodel(column))))
                     .map(column -> {
                         if (!column.version()) {
                             bindVarsCount.incrementAndGet();
@@ -137,7 +142,7 @@ final class SetProcessor implements ElementProcessor<Set> {
             vars.addParameterExtractor(record -> {
                 try {
                     ModelMapper.of(modelBuilder.build(record, false))
-                            .map(record, column -> !column.primaryKey() && column.updatable() && !column.version())
+                            .map(record, fields, column -> !column.primaryKey() && column.updatable() && !column.version())
                             .values()
                             .forEach(parameterFactory::bind);
                     return parameterFactory.getParameters();

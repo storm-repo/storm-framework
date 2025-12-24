@@ -35,7 +35,6 @@ class MetamodelProcessor(
     private val generatedFiles = mutableSetOf<String>()
 
     companion object {
-        private const val METAMODEL_TYPE = "st.orm.MetamodelType"
         private const val GENERATE_METAMODEL = "st.orm.GenerateMetamodel"
         private const val DATA = "st.orm.Data"
         private const val FOREIGN_KEY = "st.orm.FK"

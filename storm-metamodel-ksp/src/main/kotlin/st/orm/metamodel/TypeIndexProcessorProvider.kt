@@ -21,6 +21,6 @@ import com.google.devtools.ksp.processing.SymbolProcessorProvider
 
 class TypeIndexProcessorProvider: SymbolProcessorProvider {
     override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
-        return TypeIndexProcessor(environment.codeGenerator)
+        return TypeIndexProcessor(environment.codeGenerator, environment.logger)
     }
 }

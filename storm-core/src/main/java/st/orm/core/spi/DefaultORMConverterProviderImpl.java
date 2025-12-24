@@ -39,7 +39,6 @@ import static java.util.Objects.requireNonNull;
  */
 public class DefaultORMConverterProviderImpl implements ORMConverterProvider {
     private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.converter");
-    private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
     /**
      * Entry describing a discovered default converter.

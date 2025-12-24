@@ -14,7 +14,6 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.Convert;
 import st.orm.Converter;
 import st.orm.Data;
-import st.orm.DefaultConverter;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
 import st.orm.DbColumn;
@@ -409,19 +408,6 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     public record AutoDate(String value) {}
     public record CustomDate(String value) {}
-
-    @DefaultConverter
-    public static class AutoConverter implements Converter<LocalDate, AutoDate> {
-        @Override
-        public LocalDate toDatabase(@Nullable AutoDate value) {
-            return value == null ? null : LocalDate.parse(value.value());
-        }
-
-        @Override
-        public AutoDate fromDatabase(@Nullable LocalDate dbValue) {
-            return new AutoDate(dbValue == null ? null : dbValue.toString());
-        }
-    }
 
     public static class CustomConverter implements Converter<LocalDate, CustomDate> {
         @Override

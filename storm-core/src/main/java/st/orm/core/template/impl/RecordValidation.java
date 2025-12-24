@@ -29,6 +29,7 @@ import st.orm.PersistenceException;
 import st.orm.Projection;
 import st.orm.ProjectionQuery;
 import st.orm.Ref;
+import st.orm.Version;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
 import st.orm.core.spi.TypeDiscovery;
@@ -152,6 +153,7 @@ final class RecordValidation {
             return "";
         }
         boolean pkFound = false;
+        boolean versionFound = false;
         RecordType type = getRecordType(dataType);
         for (var field : type.fields()) {
             if (getORMConverter(field).isPresent()) {
@@ -165,6 +167,7 @@ final class RecordValidation {
             PK pk = field.getAnnotation(PK.class);
             FK fk = field.getAnnotation(FK.class);
             Inline inline = field.getAnnotation(Inline.class);
+            Version version = field.getAnnotation(Version.class);
             if (pk != null) {
                 if (pkFound) {
                     return "Multiple primary keys found: %s.".formatted(dataType.getSimpleName());
@@ -211,6 +214,12 @@ final class RecordValidation {
                 if (!isRecord(field.type())) {
                     return "Inlined component must be a record type: %s.%s.".formatted(dataType.getSimpleName(), field.name());
                 }
+            }
+            if (version != null) {
+                if (versionFound) {
+                    return "Multiple @Version annotations found: %s.".formatted(dataType.getSimpleName());
+                }
+                versionFound = true;
             }
             if (isRecord(field.type())) {
                 if (!field.isAnnotationPresent(FK.class)) {
