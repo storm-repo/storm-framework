@@ -53,9 +53,7 @@ public enum UpdateMode {
      *
      * <p>All mapped columns are always included in UPDATE statements. No comparisons are performed.</p>
      *
-     * <p>This mode provides predictable behavior, optimal batching, and minimal  runtime overhead.</p>
-     *
-     * <p>This is the default and recommended mode unless write performance is a proven bottleneck.</p>
+     * <p>This mode provides predictable behavior, optimal batching, and minimal runtime overhead.</p>
      */
     OFF,
 
@@ -70,6 +68,8 @@ public enum UpdateMode {
      *
      * <p>By skipping redundant writes, this mode can indirectly reduce contention and lower the probability of
      * conflicting updates.</p>
+     *
+     * <p>This is the default and recommended mode.</p>
      */
     ENTITY,
 
