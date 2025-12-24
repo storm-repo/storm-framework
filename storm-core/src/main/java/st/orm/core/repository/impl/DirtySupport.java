@@ -155,9 +155,13 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
             for (RecordField field : updatableFields) {
                 var a = REFLECTION.invoke(field, entity);
                 var b = REFLECTION.invoke(field, cached);
-                if (a == b) continue;
+                if (a == b) {   // Fastest check.
+                    continue;
+                }
                 if (a instanceof Entity<?> e && b instanceof Entity<?> c) {
-                    if (Objects.equals(e.id(), c.id())) continue;
+                    if (Objects.equals(e.id(), c.id())) {
+                        continue;
+                    }
                 } else if (Objects.equals(a, b)) {
                     continue;
                 }
