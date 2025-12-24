@@ -1502,7 +1502,7 @@ Java::
 +
 [source,java]
 ----
-@DynamicUpdate
+@DynamicUpdate(FIELD)
 record User(@PK Integer id,
             @Nonnull String email,
             LocalDate birthDate,
@@ -1515,7 +1515,7 @@ Kotlin::
 +
 [source,kotlin]
 ----
-@DynamicUpdate
+@DynamicUpdate(FIELD)
 data class User(
     @PK val id: Int = 0,
     val email: String,
