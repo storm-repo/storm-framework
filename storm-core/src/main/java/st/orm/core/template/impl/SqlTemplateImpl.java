@@ -103,7 +103,6 @@ import static st.orm.core.template.impl.RecordReflection.getRefDataType;
 import static st.orm.core.template.impl.RecordReflection.isRecord;
 import static st.orm.core.template.impl.RecordReflection.isTypePresent;
 import static st.orm.core.template.impl.RecordReflection.mapForeignKeys;
-import static st.orm.core.template.impl.RecordValidation.validateDataGraph;
 import static st.orm.core.template.impl.RecordValidation.validateParameters;
 import static st.orm.core.template.impl.RecordValidation.validateDataType;
 import static st.orm.core.template.impl.RecordValidation.validateWhere;
@@ -622,7 +621,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 .orElse(null);
         final From effectiveFrom;
         if (from != null && from.source() instanceof TableSource(var table)) {
-            validateDataGraph(table);
+            validateDataType(table);
             String path = "";   // Use "" because it's the root table.
             String alias;
             if (from.alias().isEmpty()) {
@@ -663,7 +662,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 .orElse(null);
         if (update != null) {
             var table = update.table();
-            validateDataGraph(table);
+            validateDataType(table);
             String path = "";   // Use "" because it's the root table.
             String alias;
             if (update.alias().isEmpty()) {
@@ -703,7 +702,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
                 .orElse(null);
         final From effectiveFrom;
         if (from != null && from.source() instanceof TableSource(var table)) {
-            validateDataGraph(table);
+            validateDataType(table);
             String path = "";   // Use "" because it's the root table.
             String alias;
             if (from.alias().isEmpty()) {

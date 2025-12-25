@@ -79,6 +79,7 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
                                             component.getType(),
                                             component.getGenericType(),
                                             !isNonnull(component),
+                                            false,
                                             component.getAccessor(),
                                             asList(component.getAnnotations())
                                         )

@@ -24,33 +24,41 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 /**
  * Configures how Storm detects changes and generates UPDATE statements for a specific entity.
  *
- * <p>{@code @DynamicUpdate} controls whether and how Storm compares entity state observed at read time with the
- * current state when an update is applied. It primarily affects <strong>performance</strong>, but it can
- * also influence how concurrent updates interact.</p>
+ * <p>{@code @DynamicUpdate} controls how Storm interprets changes observed within a transaction and how
+ * UPDATE statements are constructed for the annotated entity.</p>
  *
- * <p>{@code @DynamicUpdate} does <em>not</em> provide a strict correctness guarantee. Correctness under
- * concurrent updates must be enforced using optimistic locking, for example via a version column.</p>
+ * <p>The configuration has two independent concerns:</p>
+ * <ul>
+ *   <li>The {@link UpdateMode} determines <em>when</em> an UPDATE is issued and whether it applies to the
+ *       whole entity or to individual fields.</li>
+ *   <li>The dirty checking strategy determines <em>how</em> Storm decides that a change has occurred.</li>
+ * </ul>
  *
- * <p>In practice, more precise update modes, especially field-level updates, often reduce the chance of lost
- * updates by limiting which columns are written. This improvement is situational and must not be relied
- * upon as a formal correctness mechanism.</p>
+ * <p>{@code @DynamicUpdate} primarily affects <strong>performance</strong> and write behavior. It does not
+ * provide a strict correctness guarantee. Correctness under concurrent updates must be enforced using
+ * optimistic locking, for example via a version column.</p>
+ *
+ * <p>In practice, more precise update modes, especially field-level updates, can reduce write amplification
+ * and limit which columns are written. These improvements are situational and must not be relied upon as a
+ * formal correctness mechanism.</p>
  *
  * <p>If not specified, the global default {@link UpdateMode} applies. The global default can be configured
- * using the system property {@code storm.update.defaultMode}. If the property is not set, the default update mode
- * is {@link UpdateMode#ENTITY}.</p>
+ * using the system property {@code storm.update.defaultMode}. If the property is not set, the default
+ * update mode is {@link UpdateMode#ENTITY}.</p>
  *
- * <p>Dirty checking strategy can be configured separately. By default, Storm uses instance-based dirty checking,
- * where a field is considered dirty as soon as its reference changes. Value-based dirty checking can be enabled
- * globally using the system property {@code storm.update.dirtyCheck}, or per entity via this annotation.</p>
+ * <p>The dirty checking strategy can be configured separately. By default, Storm uses instance-based dirty
+ * checking, where a field is considered dirty as soon as its reference changes. Value-based dirty checking
+ * can be enabled globally using the system property {@code storm.update.dirtyCheck}, or per entity via
+ * this annotation.</p>
  *
  * <h2>General rules</h2>
  * <ul>
  *   <li>Dirty checking applies to all entities read within a transaction context.</li>
- *   <li>Application of dirty checking is limited to updates performed via the entity repository.</li>
+ *   <li>Dirty checking is applied only to updates performed via the entity repository.</li>
  *   <li>Manual or bulk SQL updates bypass dirty checking and may leave cached entities stale.</li>
  *   <li>
- *     Field-level dirty checking is a performance optimization that may fall back to full updates to
- *     preserve batching.
+ *     Field-level updates are a performance optimization and may fall back to full updates to preserve
+ *     batching efficiency.
  *   </li>
  * </ul>
  *

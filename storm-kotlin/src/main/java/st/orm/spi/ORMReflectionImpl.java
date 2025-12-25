@@ -101,14 +101,6 @@ public class ORMReflectionImpl implements ORMReflection {
         return TYPE_CACHE.computeIfAbsent(type, ignore -> {
             if (isKotlinDataClass(type)) {
                 KClass<?> kClass = JvmClassMappingKt.getKotlinClass(type);
-                var varProp = findVarProperty(kClass);
-                if (varProp != null) {
-                    // Forbid any mutable (var) properties on a data class. Immutability is required for efficient dirty field checks.
-                    throw new PersistenceException(
-                            "Data class %s has mutable property '%s'. Only val properties are supported."
-                                    .formatted(type.getName(), varProp.getName())
-                    );
-                }
                 var constructor = findCanonicalConstructor(type).orElse(null);
                 if (constructor == null) {
                     return empty();
@@ -146,6 +138,16 @@ public class ORMReflectionImpl implements ORMReflection {
         return null;
     }
 
+    private boolean isMutableProperty(Class<?> declaringClass, String name) {
+        KClass<?> kClass = JvmClassMappingKt.getKotlinClass(declaringClass);
+        for (KProperty1<?, ?> p : KClasses.getMemberProperties(kClass)) {
+            if (name.equals(p.getName())) {
+                return p instanceof KMutableProperty1; // var => true, val => false.
+            }
+        }
+        return false;
+    }
+
     private RecordField toRecordField(KParameter parameter, Constructor<?> constructor) {
         String name = parameter.getName();
         if (name == null) {
@@ -172,6 +174,7 @@ public class ORMReflectionImpl implements ORMReflection {
                 rawType,                     // raw type, like List.class.
                 genericType,                 // full generic type, like List<String>.
                 parameter.getType().isMarkedNullable(),
+                isMutableProperty(declaringClass, name),
                 accessor,
                 annotations
         );

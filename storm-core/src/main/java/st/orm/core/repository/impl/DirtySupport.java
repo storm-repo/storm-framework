@@ -47,25 +47,28 @@ import static st.orm.UpdateMode.OFF;
 /**
  * Determines which fields of an entity are considered dirty for update purposes.
  *
- * <p>This class compares the current entity instance with its cached counterpart and derives the set of fields
- * that have changed, according to the configured {@link UpdateMode} and update shape limits.</p>
+ * <p>This class compares the current entity instance with the state that was observed when the entity was read within
+ * the same transaction.</p>
  *
- * <p>The default update behavior is controlled by the system property
- * {@code storm.update.defaultMode}, which selects the {@link UpdateMode} to apply when no explicit mode
- * is provided.</p>
+ * <p>The result of this comparison is interpreted according to {@link UpdateMode}:</p>
+ * <ul>
+ *   <li>{@link UpdateMode#ENTITY} determines whether an UPDATE should be issued at all.</li>
+ *   <li>{@link UpdateMode#FIELD} determines which fields and columns should be included in the UPDATE.</li>
+ * </ul>
  *
- * <p>When dynamic updates are enabled, the system property {@code storm.update.maxShapes} limits the number
- * of distinct update shapes that may be generated. If this limit is exceeded, the update falls back to a
- * full-entity update to prevent excessive statement fan-out.</p>
+ * <p>The global default update mode can be configured using the system property {@code storm.update.defaultMode}.</p>
  *
- * <p>Dirty field detection is, by default, based on <em>instance identity</em> comparison. A field is considered
- * dirty as soon as its reference changes, which provides predictable and bounded performance characteristics.</p>
+ * <p>When dynamic updates are enabled, Storm may generate different UPDATE statement shapes depending on which fields
+ * are dirty. The system property {@code storm.update.maxShapes} limits the number of distinct shapes that may be
+ * generated. Once the limit is exceeded, Storm falls back to a full-entity update to preserve batching efficiency.</p>
  *
- * <p>Value-based dirty checking can be enabled by setting the system property
- * {@code storm.update.dirtyCheck=value}. In this mode, fields are compared using semantic equality after a
- * fast reference check.</p>
+ * <p>By default, dirty checking is based on <em>instance identity</em>. A field is considered dirty as soon as its
+ * reference changes. This provides predictable and bounded performance characteristics.</p>
  *
- * <p>The dirty check strategy can also be configured per entity using {@link DynamicUpdate#dirtyCheck()}.</p>
+ * <p>Value-based dirty checking can be enabled by setting the system property {@code storm.update.dirtyCheck=value}.
+ * In this mode, fields are compared using semantic equality after a fast reference check.</p>
+ *
+ * <p>The dirty checking strategy can also be configured per entity using {@link DynamicUpdate#dirtyCheck()}.</p>
  *
  * <p>When performing dynamic updates, the version field is always included if present.</p>
  *
