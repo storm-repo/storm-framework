@@ -33,7 +33,9 @@ import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplateException;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -83,7 +85,7 @@ final class ModelFactory {
                     AtomicInteger primaryKeyIndex = new AtomicInteger(1);
                     List<Column> columns = new ArrayList<>();
                     List<Metamodel<T, ?>> metamodels = new ArrayList<>();
-                    List<RecordField> fields = new ArrayList<>();
+                    Map<String, List<Column>> fields = new HashMap<>();
                     RecordField pkField = null;
                     List<RecordField> fkFields = new ArrayList<>();
                     List<RecordField> insertableFields = new ArrayList<>();
@@ -97,7 +99,7 @@ final class ModelFactory {
                                 getSequence(field), false, index, primaryKeyIndex);
                         columns.addAll(list);
                         metamodels.addAll(nCopies(list.size(), metamodel));
-                        fields.addAll(nCopies(list.size(), field));
+                        fields.put(field.name(), List.copyOf(list));
                         if (primaryKey) {
                             pkField = field;
                         }

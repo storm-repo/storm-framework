@@ -20,7 +20,6 @@ import java.lang.annotation.Target;
 
 import static java.lang.annotation.ElementType.TYPE;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
-import static st.orm.UpdateMode.OFF;
 
 /**
  * Configures how Storm detects changes and generates UPDATE statements for a specific entity.
@@ -40,6 +39,10 @@ import static st.orm.UpdateMode.OFF;
  * using the system property {@code storm.update.defaultMode}. If the property is not set, the default update mode
  * is {@link UpdateMode#ENTITY}.</p>
  *
+ * <p>Dirty checking strategy can be configured separately. By default, Storm uses instance-based dirty checking,
+ * where a field is considered dirty as soon as its reference changes. Value-based dirty checking can be enabled
+ * globally using the system property {@code storm.update.dirtyCheck}, or per entity via this annotation.</p>
+ *
  * <h2>General rules</h2>
  * <ul>
  *   <li>Dirty checking applies to all entities read within a transaction context.</li>
@@ -58,16 +61,26 @@ import static st.orm.UpdateMode.OFF;
 public @interface DynamicUpdate {
 
     /**
-     * Defines how Storm should detect changes and generate UPDATE statements
-     * for the annotated entity.
+     * Defines how Storm should detect changes and generate UPDATE statements for the annotated entity.
      *
-     * <p>
-     * If set to {@link UpdateMode#OFF}, all mapped columns are always updated.
+     * <p>If set to {@link UpdateMode#OFF}, all mapped columns are always updated.
      * If set to {@link UpdateMode#ENTITY}, Storm compares the entity as a whole
      * and skips the UPDATE if no change is detected.
      * If set to {@link UpdateMode#FIELD}, Storm compares individual fields and
-     * updates only the modified columns.
-     * </p>
+     * updates only the modified columns.</p>
      */
-    UpdateMode value() default OFF;
+    UpdateMode value();
+
+    /**
+     * Defines how dirty checking is performed for this entity.
+     *
+     * <p>This setting controls whether Storm determines changes based on instance identity or semantic value
+     * comparison.</p>
+     *
+     * <p>If set to {@link DirtyCheck#DEFAULT}, the globally configured dirty check strategy applies. The global default
+     * can be configured using the system property {@code storm.update.dirtyCheck}.</p>
+     *
+     * <p>This setting only affects dirty detection. It does not change the selected {@link UpdateMode}.</p>
+     */
+    DirtyCheck dirtyCheck() default DirtyCheck.DEFAULT;
 }

@@ -30,6 +30,7 @@ import st.orm.core.template.SqlTemplateException;
 import st.orm.mapping.RecordType;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.SequencedMap;
 
@@ -51,7 +52,7 @@ public record ModelImpl<E extends Data, ID>(
         @Nonnull TableName tableName,
         @Nonnull List<Column> columns,
         @Nonnull List<Metamodel<E, ?>> metamodels,
-        @Nonnull List<RecordField> fields,
+        @Nonnull Map<String, List<Column>> fields,
         @Nonnull Optional<RecordField> primaryKeyField,
         @Nonnull List<RecordField> foreignKeyFields,
         @Nonnull List<RecordField> insertableFields,
@@ -65,14 +66,13 @@ public record ModelImpl<E extends Data, ID>(
         requireNonNull(tableName, "tableName");
         columns = copyOf(columns); // Defensive copy.
         metamodels = copyOf(metamodels); // Defensive copy.
-        fields = copyOf(fields); // Defensive copy.
+        fields = Map.copyOf(fields); // Defensive copy.
         requireNonNull(primaryKeyField, "primaryKeyField");
         foreignKeyFields = copyOf(foreignKeyFields); // Defensive copy.
         insertableFields = copyOf(insertableFields); // Defensive copy.
         updatableFields = copyOf(updatableFields); // Defensive copy.
         requireNonNull(versionField, "versionField");
         assert columns.size() == metamodels.size() : "Columns and metamodels must have the same size";
-        assert columns.size() == fields.size() : "Columns and fields must have the same size";
     }
 
     /**
@@ -192,6 +192,23 @@ public record ModelImpl<E extends Data, ID>(
     }
 
     /**
+     * Returns the columns for the specified record field.
+     *
+     * @param field the record field.
+     * @return the columns for the specified record field.
+     * @throws PersistenceException if the field is unknown or does not match the model's fields.
+     * @since 1.7
+     */
+    @Override
+    public List<Column> getColumns(@Nonnull RecordField field) {
+        List<Column> columns = fields.get(field.name());
+        if (columns == null) {
+            throw new PersistenceException("Unknown field %s.".formatted(field.name()));
+        }
+        return columns;
+    }
+
+    /**
      * Returns the metamodel for the column.
      *
      * @return the metamodel for the column.
@@ -202,29 +219,11 @@ public record ModelImpl<E extends Data, ID>(
     public Metamodel<E, ?> getMetamodel(@Nonnull Column column) {
         int index = column.index();
         if (index < 1 || index > columns.size()) {
-            throw new PersistenceException("Unknown column %s.".formatted(column));
+            throw new PersistenceException("Column index out of bounds %d.".formatted(index));
         }
         if (!column.equals(columns.get(index - 1))) {
-            throw new PersistenceException("Column %s does not match the model's column at index %d.".formatted(column, index));
+            throw new PersistenceException("Column %s does not match the model's column at index %d.".formatted(column.name(), index));
         }
         return metamodels.get(column.index() - 1);
-    }
-
-    /**
-     * Returns the metamodel for the specified record field.
-     *
-     * @param field the record field.
-     * @return the metamodel for the specified record field.
-     * @throws PersistenceException if the field is unknown or does not match the model's fields.
-     * @since 1.7
-     */
-    @Override
-    public Metamodel<E, ?> getMetamodel(@Nonnull RecordField field) {
-        // Note that this logic may be inefficient for large models with many fields.
-        int index = fields.indexOf(field);
-        if (index == -1) {
-            throw new PersistenceException("Unknown field %s.".formatted(field));
-        }
-        return metamodels.get(index);
     }
 }

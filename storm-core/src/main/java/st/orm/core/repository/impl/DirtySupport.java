@@ -20,6 +20,7 @@ import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.Data;
+import st.orm.DirtyCheck;
 import st.orm.DynamicUpdate;
 import st.orm.Entity;
 import st.orm.Metamodel;
@@ -57,12 +58,14 @@ import static st.orm.UpdateMode.OFF;
  * of distinct update shapes that may be generated. If this limit is exceeded, the update falls back to a
  * full-entity update to prevent excessive statement fan-out.</p>
  *
- * <p>Dirty field detection is based on value comparison using {@link ORMReflection}. For performance reasons,
- * computed dirty field sets are cached by their bitset representation and reused across updates.</p>
+ * <p>Dirty field detection is, by default, based on <em>instance identity</em> comparison. A field is considered
+ * dirty as soon as its reference changes, which provides predictable and bounded performance characteristics.</p>
  *
- * <p>If no cache entry is available, dirty tracking is disabled, or the update shape limit is exceeded,
- * all fields are treated as dirty. If the cached instance is identical to the current instance, the entity
- * is considered clean.</p>
+ * <p>Value-based dirty checking can be enabled by setting the system property
+ * {@code storm.update.dirtyCheck=value}. In this mode, fields are compared using semantic equality after a
+ * fast reference check.</p>
+ *
+ * <p>The dirty check strategy can also be configured per entity using {@link DynamicUpdate#dirtyCheck()}.</p>
  *
  * <p>When performing dynamic updates, the version field is always included if present.</p>
  *
@@ -77,35 +80,50 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.update");
 
-    private static final UpdateMode DEFAULT_UPDATE_MODE = UpdateMode.valueOf(System.getProperty("storm.update.defaultMode", ENTITY.toString()).trim().toUpperCase());
-    private static final int MAX_SHAPES = Math.max(1, parseInt(System.getProperty("storm.update.maxShapes", "5")));
+    private static final UpdateMode DEFAULT_UPDATE_MODE =
+            UpdateMode.valueOf(System.getProperty("storm.update.defaultMode", "entity").trim().toUpperCase());
+
+    private static final int MAX_SHAPES =
+            Math.max(1, parseInt(System.getProperty("storm.update.maxShapes", "5")));
+
+    private static final DirtyCheck DEFAULT_DIRTY_CHECK =
+            DirtyCheck.valueOf(System.getProperty("storm.update.dirtyCheck", "instance").trim().toUpperCase());
+
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
+
     private static final Optional<Set<Metamodel<? extends Data, ?>>> CLEAN = Optional.empty();
     private static final Optional<Set<Metamodel<? extends Data, ?>>> DIRTY = Optional.of(Set.of());
 
     static {
         LOGGER.info("Using default update mode: {}.", DEFAULT_UPDATE_MODE);
+        LOGGER.info("Using default dirty check: {}.", DEFAULT_DIRTY_CHECK);
     }
 
     private final Model<E, ID> model;
     private final UpdateMode updateMode;
+    private final DirtyCheck dirtyCheck;
     private final RecordField[] updatableFields;
     private final ConcurrentMap<BitSet, Set<Metamodel<? extends Data, ?>>> dirtyFieldsCache = new ConcurrentHashMap<>();
 
     DirtySupport(@Nonnull Model<E, ID> model) {
         this.model = model;
-        this.updateMode = getUpdateMode(model.recordType());
+        RecordType recordType = model.recordType();
+        this.updateMode = getUpdateMode(recordType);
+        this.dirtyCheck = getDirtyCheck(recordType);
         this.updatableFields = model.updatableFields().toArray(RecordField[]::new);  // Only check updatable fields.
     }
 
     /**
-     * Returns the effective update mode for entities of the given record type.
+     * Returns the effective {@link UpdateMode} for the given record type.
      *
-     * <p>If the record type is annotated with {@link DynamicUpdate}, the annotation value takes precedence. Otherwise,
-     * the default update mode configured via the system property {@code storm.update.defaultMode} is used.</p>
+     * <p>If the record type is annotated with {@link DynamicUpdate}, the annotation value is used. Otherwise, the
+     * globally configured default update mode applies.</p>
+     *
+     * <p>The global default update mode can be configured using the system property {@code storm.update.defaultMode}.
+     * If the property is not set, the default is {@link UpdateMode#ENTITY}.</p>
      *
      * @param recordType the entity record type.
-     * @return the effective {@link UpdateMode} to apply for this record type.
+     * @return the effective update mode for the given record type.
      */
     public static UpdateMode getUpdateMode(@Nonnull RecordType recordType) {
         DynamicUpdate dynamicUpdate = recordType.getAnnotation(DynamicUpdate.class);
@@ -113,15 +131,70 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
     }
 
     /**
-     * Returns the maximum number of distinct update shapes that may be generated when performing dynamic updates.
+     * Returns the effective {@link DirtyCheck} strategy for the given record type.
      *
-     * <p>This value is configured via the system property {@code storm.update.maxShapes}. If the limit is exceeded,
-     * dynamic dirty checking is bypassed and the update falls back to a full-entity update.</p>
+     * <p>If the record type is annotated with {@link DynamicUpdate} and the {@link DynamicUpdate#dirtyCheck()}
+     * attribute is set to a value other than {@link DirtyCheck#DEFAULT}, that value is used.</p>
      *
-     * @return the maximum number of allowed update shapes.
+     * <p>Otherwise, the globally configured dirty check strategy applies.</p>
+     *
+     * <p>The global default dirty check strategy can be configured using the system property
+     * {@code storm.update.dirtyCheck}. If the property is not set, the default strategy is
+     * {@link DirtyCheck#INSTANCE}.</p>
+     *
+     * @param recordType the entity record type.
+     * @return the effective dirty check strategy for the given record type.
+     */
+    public static DirtyCheck getDirtyCheck(@Nonnull RecordType recordType) {
+        DynamicUpdate dynamicUpdate = recordType.getAnnotation(DynamicUpdate.class);
+        if (dynamicUpdate == null) {
+            return DEFAULT_DIRTY_CHECK;
+        }
+        DirtyCheck configured = dynamicUpdate.dirtyCheck();
+        return configured == DirtyCheck.DEFAULT ? DEFAULT_DIRTY_CHECK : configured;
+    }
+
+    /**
+     * Returns the maximum number of distinct update shapes that may be generated when
+     * dynamic updates are enabled.
+     *
+     * <p>This value is configured via the system property {@code storm.update.maxShapes}.
+     * It limits the number of different column combinations that Storm will generate
+     * UPDATE statements for.</p>
+     *
+     * <p>If the limit is exceeded, Storm falls back to a full-entity update to avoid
+     * excessive statement fan-out and preserve batching efficiency.</p>
+     *
+     * @return the maximum number of allowed update shapes
      */
     public static int getMaxShapes() {
         return MAX_SHAPES;
+    }
+
+    /**
+     * Compares two field values according to the configured dirty check strategy.
+     *
+     * <p>This method always performs a fast reference comparison first.</p>
+     *
+     * <p>If both values are {@link Entity} instances, they are compared by ID only, regardless of the configured dirty
+     * check strategy.</p>
+     *
+     * <p>When using {@link DirtyCheck#INSTANCE}, differing references are considered dirty without invoking
+     * {@code equals}.</p>
+     *
+     * <p>When using {@link DirtyCheck#VALUE}, semantic equality is used.</p>
+     */
+    private boolean fieldsEqual(Object a, Object b) {
+        if (a == b) {
+            return true;
+        }
+        if (a instanceof Entity<?> e && b instanceof Entity<?> c) {
+            return Objects.equals(e.id(), c.id());
+        }
+        if (dirtyCheck == DirtyCheck.INSTANCE) {
+            return false;
+        }
+        return Objects.equals(a, b);
     }
 
     /**
@@ -155,55 +228,39 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
             for (RecordField field : updatableFields) {
                 var a = REFLECTION.invoke(field, entity);
                 var b = REFLECTION.invoke(field, cached);
-                if (a == b) {   // Fastest check.
-                    continue;
-                }
-                if (a instanceof Entity<?> e && b instanceof Entity<?> c) {
-                    if (Objects.equals(e.id(), c.id())) {
-                        continue;
-                    }
-                } else if (Objects.equals(a, b)) {
+                if (fieldsEqual(a, b)) {
                     continue;
                 }
                 return DIRTY;
             }
             return CLEAN;
         }
-        // The entity instance changed, but the field content might be the same.
         BitSet dirtyFields = new BitSet(updatableFields.length);
         for (int i = 0; i < updatableFields.length; i++) {
-            // Note that this is a shallow check, meaning we only look at top-level fields.
             var field = updatableFields[i];
-            var entityField = REFLECTION.invoke(field, entity);
-            var cachedField = REFLECTION.invoke(field, cached);
-            if (entityField == cachedField) {   // Fastest check.
+            var a = REFLECTION.invoke(field, entity);
+            var b = REFLECTION.invoke(field, cached);
+            if (fieldsEqual(a, b)) {
                 continue;
             }
-            if (entityField instanceof Entity<?> e && cachedField instanceof Entity<?> c) { // Only look at IDs when comparing entities.
-                if (Objects.equals(e.id(), c.id())) {
-                    continue;
-                }
-            } else if (Objects.equals(entityField, cachedField)) {  // Also covers Refs.
-                continue;
-            }
-            // Dirty field.
             dirtyFields.set(i);
         }
         if (dirtyFields.isEmpty()) {
             // The entity instance changed, but the field content is the same.
             return CLEAN;
         }
-        BitSet key = (BitSet) dirtyFields.clone();  // BitSet is mutable. Just to prevent any issues.
-        // Update mode is FIELD. Report dirty fields.
+        BitSet key = (BitSet) dirtyFields.clone(); // Defensive copy.
         return Optional.of(dirtyFieldsCache.computeIfAbsent(key, bits -> {
             Set<Metamodel<? extends Data, ?>> set = new HashSet<>();
-            for (int fieldIndex = bits.nextSetBit(0);
-                 fieldIndex >= 0;
-                 fieldIndex = bits.nextSetBit(fieldIndex + 1)) {
-                set.add(model.getMetamodel(updatableFields[fieldIndex]));
+            for (int i = bits.nextSetBit(0); i >= 0; i = bits.nextSetBit(i + 1)) {
+                model.getColumns(updatableFields[i])
+                        .forEach(column -> set.add(model.getMetamodel(column)));
             }
-            // Always include the version field if present.
-            model.versionField().ifPresent(versionField -> set.add(model.getMetamodel(versionField)));
+            model.versionField()
+                    .map(model::getColumns)
+                    .ifPresent(columns ->
+                            columns.forEach(column -> set.add(model.getMetamodel(column)))
+                    );
             return Set.copyOf(set);
         }));
     }

@@ -166,20 +166,20 @@ public interface Model<E extends Data, ID> {
     SequencedMap<Column, Object> getValues(@Nonnull E record);
 
     /**
+     * Returns the columns for the specified record field.
+     *
+     * @param field the record field.
+     * @return the columns for the specified record field.
+     * @throws PersistenceException if the field is unknown or does not match the model's fields.
+     * @since 1.7
+     */
+    List<Column> getColumns(@Nonnull RecordField field);
+
+    /**
      * Returns the metamodel for the column.
      *
      * @return the metamodel for the column.
      * @since 1.3
      */
     Metamodel<E, ?> getMetamodel(@Nonnull Column column);
-
-    /**
-     * Returns the metamodel for the specified record field.
-     *
-     * @param field the record field.
-     * @return the metamodel for the specified record field.
-     * @throws PersistenceException if the field is unknown or does not match the model's fields.
-     * @since 1.7
-     */
-    Metamodel<E, ?> getMetamodel(@Nonnull RecordField field);
 }

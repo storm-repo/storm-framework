@@ -1420,7 +1420,7 @@ interface UserRepository : EntityRepository<User> {
 ----
 ====
 
-=== Dirty Checking and Update Modes
+=== Update Modes and Dirty Checking
 
 Storm entities are stateless by design. They are represented as Java records or Kotlin data classes, and Storm does not
 maintain a long-lived persistence context. Dirty checking is therefore scoped to the lifetime of a single transaction
@@ -1428,11 +1428,11 @@ and is based on observing entity state rather than tracking mutations on managed
 
 Within a transaction, Storm observes all entities that are read, regardless of whether they were loaded via an
 EntityRepository, a DSL query, or a SQL template. This observed state is used as the baseline for dirty checking.
-However, dirty checking is only applied when updates are executed through an EntityRepository. Manual SQL updates,
+Dirty checking is only applied when updates are executed through an EntityRepository. Manual SQL updates,
 bulk statements, or custom queries bypass dirty checking entirely and may leave in-memory entities stale.
 
 Dirty checking affects both whether an UPDATE is issued and how that UPDATE is constructed. This behavior is
-controlled by UpdateMode.
+controlled by UpdateMode and by the dirty checking strategy.
 
 ==== Update modes
 
@@ -1442,13 +1442,13 @@ Storm supports three update modes:
 * ENTITY
 * FIELD
 
-Update modes primarily influence performance characteristics and write behavior. They do not provide correctness
-guarantees under concurrency. To reliably detect conflicting updates, optimistic locking using a version column is still
-required.
+Update modes influence how dirty information is interpreted and how UPDATE statements are generated. They primarily
+affect performance characteristics and write behavior. They do not provide correctness guarantees under concurrency.
+To reliably detect conflicting updates, optimistic locking using a version column is still required.
 
-The default update mode is ENTITY, which provides a good balance between predictability, batching efficiency, and
-avoiding unnecessary database writes. The default mode can be changed by setting the "storm.update.defaultMode" system
-property.
+The default update mode is ENTITY. This mode provides a good balance between predictability, batching efficiency, and
+avoiding unnecessary database writes. The default mode can be changed by setting the `storm.update.defaultMode`
+system property.
 
 ==== UpdateMode.OFF
 
@@ -1472,8 +1472,8 @@ concern.
 UpdateMode.ENTITY enables entity-level dirty checking.
 
 Storm compares the current entity instance with the state that was observed when the entity was read in the same
-transaction. If no difference is detected, the UPDATE is skipped entirely. If any difference is detected, Storm issues
-an UPDATE that includes all mapped columns.
+transaction. If no difference is detected according to the configured dirty checking strategy, the UPDATE is skipped
+entirely. If any difference is detected, Storm issues an UPDATE that includes all mapped columns.
 
 This mode has several important properties:
 
@@ -1489,11 +1489,12 @@ Because of this balance, ENTITY is the recommended default for most applications
 UpdateMode.FIELD enables field-level dirty checking.
 
 In this mode, Storm compares individual fields against the values observed when the entity was read and generates an
-UPDATE statement that includes only the modified columns. This can reduce write amplification and limit lock scope,
-which often improves behavior under concurrent updates when different transactions modify different fields.
+UPDATE statement that includes only the modified columns, as determined by the configured dirty checking strategy.
+This can reduce write amplification and limit lock scope.
 
-These improvements are best-effort and situational. Field-level dirty checking improves concurrency characteristics but
-does not guarantee correctness. Optimistic locking is still required to reliably detect conflicting updates.
+These improvements are best-effort and situational. Field-level dirty checking can improve concurrency characteristics
+when different transactions modify different fields. It does not guarantee correctness. Optimistic locking is still
+required to reliably detect conflicting updates.
 
 ==== Enabling field-level updates with @DynamicUpdate
 
@@ -1530,17 +1531,34 @@ data class User(
 ----
 ====
 
+==== Dirty checking strategy
+
+Storm supports two dirty checking strategies:
+
+* instance-based dirty checking
+* value-based dirty checking
+
+By default, Storm uses instance-based dirty checking. A field is considered dirty as soon as its reference changes.
+This approach provides predictable and bounded performance characteristics and avoids potentially expensive value
+comparisons for large objects such as strings or collections.
+
+Value-based dirty checking can be enabled explicitly. In this mode, fields are compared using semantic equality after
+a fast reference check. A field is only considered dirty when its value has changed.
+
+The dirty checking strategy can be configured globally using the system property `storm.update.dirtyCheck`, or per
+entity using the `@DynamicUpdate` annotation.
+
 ==== Max shapes
 
 Field-level updates can produce multiple SQL statement shapes, depending on which fields are modified. To prevent
 unbounded growth in prepared statements and to preserve batching efficiency, Storm enforces a max shapes limit per
 entity.
 
-Storm tracks the distinct update shapes generated for an entity. Once the number of shapes exceeds the configured limit,
-Storm automatically falls back to a full-column update for that entity. This ensures that UpdateMode.FIELD remains safe
-to use even when update patterns are unpredictable.
+Storm tracks the distinct update shapes generated for an entity. Once the number of shapes exceeds the configured
+limit, Storm automatically falls back to a full-column update for that entity. This ensures that UpdateMode.FIELD
+remains safe to use even when update patterns are unpredictable.
 
-The max shapes limit can be overridden by setting the system property "storm.update.maxShapes". The default is set to 5.
+The max shapes limit can be overridden by setting the system property `storm.update.maxShapes`. The default is 5.
 
 === Spring Framework Integration
 
