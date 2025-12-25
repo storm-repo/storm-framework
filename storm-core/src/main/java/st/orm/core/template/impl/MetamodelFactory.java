@@ -16,7 +16,6 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import st.orm.AbstractMetamodel;
 import st.orm.Data;
 import st.orm.FK;
@@ -80,31 +79,29 @@ public final class MetamodelFactory {
         } else {
             try {
                 RecordField field = getRecordField(rootTable, path);
+                // Leaf component name/type.
+                effectiveComponent = field.name();
                 if (Ref.class.isAssignableFrom(field.type())) {
-                    int index = path.lastIndexOf('.');
-                    effectivePath = index == -1 ? "" : path.substring(0, path.lastIndexOf('.')); // Remove last component.
-                    effectiveComponent = field.name();
                     componentType = (Class<E>) getRefDataType(field);
                     isColumn = true;
+                    effectivePath = stripLast(path); // Parent path.
                 } else {
-                    effectivePath = path;
-                    effectiveComponent = field.name();
                     componentType = (Class<E>) field.type();
+                    effectivePath = path;
                     if (!isRecord(field.type()) || field.isAnnotationPresent(FK.class)) {
                         isColumn = true;
                     }
-                    do {
-                        int index = effectivePath.lastIndexOf('.');
-                        effectivePath = effectivePath.substring(0, index == -1 ? 0 : index); // Remove last component.
-                        if (effectivePath.isEmpty()) {
-                            break;
-                        }
-                        field = getRecordField(rootTable, effectivePath);
-                        if (field.isAnnotationPresent(FK.class)) {
-                            break;
-                        }
-                        effectiveComponent = "%s.%s".formatted(field.name(), effectiveComponent);
-                    } while (effectivePath.contains("."));
+                    // For non-Ref, the "table path" starts at the parent of the leaf.
+                    effectivePath = stripLast(effectivePath);
+                }
+                // Collapse embedded (non-FK) parents into the field name, until we hit FK or root.
+                while (!effectivePath.isEmpty()) {
+                    RecordField parent = getRecordField(rootTable, effectivePath);
+                    if (parent.isAnnotationPresent(FK.class)) {
+                        break; // FK defines the table boundary.
+                    }
+                    effectiveComponent = parent.name() + "." + effectiveComponent;
+                    effectivePath = stripLast(effectivePath);
                 }
             } catch (SqlTemplateException e) {
                 throw new PersistenceException(e);
@@ -112,6 +109,11 @@ public final class MetamodelFactory {
             tableModel = of(rootTable, effectivePath);
         }
         return new SimpleMetamodel<>(rootTable, effectivePath, componentType, effectiveComponent, isColumn, tableModel);
+    }
+
+    private static String stripLast(String p) {
+        int idx = p.lastIndexOf('.');
+        return idx == -1 ? "" : p.substring(0, idx);
     }
 
     private static final class SimpleMetamodel<T extends Data, E>

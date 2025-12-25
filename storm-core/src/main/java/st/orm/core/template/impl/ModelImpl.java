@@ -44,14 +44,18 @@ import static java.util.Objects.requireNonNull;
  * @param <ID> the type of the primary key, or {@code Void} in case of a projection without a primary key.
  * @param recordType the record type of the entity or projection.
  * @param tableName the name of the table or view.
- * @param metamodels metamodels for each column in the entity or projection.
  * @param columns an immutable list of columns in the entity or projection.
+ * @param fields a map of record fields to columns.
+ * @param primaryKeyField the primary key field.
+ * @param foreignKeyFields a list of foreign key fields.
+ * @param insertableFields a list of insertable fields.
+ * @param updatableFields a list of updatable fields.
+ * @param versionField the version field.
  */
 public record ModelImpl<E extends Data, ID>(
         @Nonnull RecordType recordType,
         @Nonnull TableName tableName,
         @Nonnull List<Column> columns,
-        @Nonnull List<Metamodel<E, ?>> metamodels,
         @Nonnull Map<String, List<Column>> fields,
         @Nonnull Optional<RecordField> primaryKeyField,
         @Nonnull List<RecordField> foreignKeyFields,
@@ -65,14 +69,12 @@ public record ModelImpl<E extends Data, ID>(
         requireNonNull(recordType, "recordType");
         requireNonNull(tableName, "tableName");
         columns = copyOf(columns); // Defensive copy.
-        metamodels = copyOf(metamodels); // Defensive copy.
         fields = Map.copyOf(fields); // Defensive copy.
         requireNonNull(primaryKeyField, "primaryKeyField");
         foreignKeyFields = copyOf(foreignKeyFields); // Defensive copy.
         insertableFields = copyOf(insertableFields); // Defensive copy.
         updatableFields = copyOf(updatableFields); // Defensive copy.
         requireNonNull(versionField, "versionField");
-        assert columns.size() == metamodels.size() : "Columns and metamodels must have the same size";
     }
 
     /**
@@ -206,24 +208,5 @@ public record ModelImpl<E extends Data, ID>(
             throw new PersistenceException("Unknown field %s.".formatted(field.name()));
         }
         return columns;
-    }
-
-    /**
-     * Returns the metamodel for the column.
-     *
-     * @return the metamodel for the column.
-     * @throws PersistenceException if the column is unknown or does not match the model's columns.
-     * @since 1.3
-     */
-    @Override
-    public Metamodel<E, ?> getMetamodel(@Nonnull Column column) {
-        int index = column.index();
-        if (index < 1 || index > columns.size()) {
-            throw new PersistenceException("Column index out of bounds %d.".formatted(index));
-        }
-        if (!column.equals(columns.get(index - 1))) {
-            throw new PersistenceException("Column %s does not match the model's column at index %d.".formatted(column.name(), index));
-        }
-        return metamodels.get(column.index() - 1);
     }
 }

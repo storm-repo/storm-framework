@@ -15,7 +15,9 @@
  */
 package st.orm.template
 
+import st.orm.Data
 import st.orm.GenerationStrategy
+import st.orm.Metamodel
 import kotlin.reflect.KClass
 
 /**
@@ -104,4 +106,12 @@ interface Column {
      * @return if the column is a ref column, false otherwise.
      */
     val ref: Boolean
+
+    /**
+     * Gets the meta model of the column.
+     *
+     * @return the meta model of the column.
+     * @since 1.7
+     */
+    val metaModel: Metamodel<out Data, *>
 }

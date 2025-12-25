@@ -123,12 +123,4 @@ public interface Model<E extends Data, ID> {
      * @since 1.2
      */
     SequencedMap<Column, Object> getValues(@Nonnull E record);
-
-    /**
-     * Returns the metamodel for the column.
-     *
-     * @return the metamodel for the column.
-     * @since 1.3
-     */
-    Metamodel<E, ?> getMetamodel(@Nonnull Column column);
 }

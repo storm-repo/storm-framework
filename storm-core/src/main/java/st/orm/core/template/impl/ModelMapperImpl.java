@@ -116,15 +116,15 @@ final class ModelMapperImpl<T extends Data, ID> implements ModelMapper<T, ID> {
      */
     @Override
     public SequencedMap<Column, Object> map(@Nonnull T record,
-                                            @Nonnull Collection<Metamodel<? extends T, ?>> fields,
-                                            @Nonnull Predicate<Column> columnFilter) throws SqlTemplateException {
+                                                     @Nonnull Collection<Metamodel<? extends T, ?>> fields,
+                                                     @Nonnull Predicate<Column> columnFilter) throws SqlTemplateException {
         if (fields.isEmpty()) {
             return map(record, columnFilter);
         }
         var fieldSet = Set.copyOf(fields);
         BitSet bitSet = new BitSet(model.columns().size());
         for (Column column : model.columns()) {
-            if (fieldSet.contains(model.getMetamodel(column))) {
+            if (fieldSet.contains(column.metamodel())) {
                 bitSet.set(column.index() - 1);
             }
         }
@@ -142,7 +142,7 @@ final class ModelMapperImpl<T extends Data, ID> implements ModelMapper<T, ID> {
      */
     @Override
     public SequencedMap<Column, Object> map(@Nonnull T record,
-                                            @Nonnull Predicate<Column> columnFilter) throws SqlTemplateException {
+                                                     @Nonnull Predicate<Column> columnFilter) throws SqlTemplateException {
         var values = new LinkedHashMap<Column, Object>();
         map(record, columnFilter, (k, v) -> {
             values.put(k, v);

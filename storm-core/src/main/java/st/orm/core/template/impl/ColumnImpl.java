@@ -16,7 +16,9 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.GenerationStrategy;
+import st.orm.Metamodel;
 import st.orm.core.spi.Name;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.Column;
@@ -36,6 +38,7 @@ import st.orm.core.template.Column;
  * @param updatable whether the column is updatable.
  * @param version whether the column is a version column.
  * @param ref whether the column is a lazily fetched record.
+ * @param metamodel the metamodel for the column.
  */
 public record ColumnImpl(
         @Nonnull Name columnName,
@@ -49,7 +52,8 @@ public record ColumnImpl(
         boolean insertable,
         boolean updatable,
         boolean version,
-        boolean ref
+        boolean ref,
+        Metamodel<? extends Data, ?> metamodel
 ) implements Column {
 
     /**

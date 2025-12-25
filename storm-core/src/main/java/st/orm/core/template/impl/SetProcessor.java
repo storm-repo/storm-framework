@@ -125,7 +125,7 @@ final class SetProcessor implements ElementProcessor<Set> {
             String bindVarsString = model
                     .columns().stream()
                     .filter(column -> !column.primaryKey() && column.updatable()
-                            && (fields.isEmpty() || fields.contains(model.getMetamodel(column))))
+                            && (fields.isEmpty() || fields.contains(column.metamodel())))
                     .map(column -> {
                         if (!column.version()) {
                             bindVarsCount.incrementAndGet();

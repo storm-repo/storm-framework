@@ -39,7 +39,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static java.util.Collections.nCopies;
 import static java.util.Optional.ofNullable;
 import static st.orm.core.spi.Providers.getORMConverter;
 import static st.orm.core.template.impl.RecordReflection.getColumnName;
@@ -84,21 +83,19 @@ final class ModelFactory {
                     AtomicInteger index = new AtomicInteger(1);
                     AtomicInteger primaryKeyIndex = new AtomicInteger(1);
                     List<Column> columns = new ArrayList<>();
-                    List<Metamodel<T, ?>> metamodels = new ArrayList<>();
                     Map<String, List<Column>> fields = new HashMap<>();
                     RecordField pkField = null;
                     List<RecordField> fkFields = new ArrayList<>();
                     List<RecordField> insertableFields = new ArrayList<>();
                     List<RecordField> updatableFields = new ArrayList<>();
                     RecordField versionField = null;
+                    Metamodel<T, ?> rootMetamodel = Metamodel.root(type);
                     for (var field : recordType.fields()) {
                         boolean primaryKey = field.isAnnotationPresent(PK.class);
                         boolean foreignKey = field.isAnnotationPresent(FK.class);
-                        Metamodel<T, ?> metamodel = Metamodel.of(type, field.name());
-                        var list = createColumns(builder, field, primaryKey, getGenerationStrategy(field),
+                        var list = createColumns(builder, rootMetamodel, field, primaryKey, getGenerationStrategy(field),
                                 getSequence(field), false, index, primaryKeyIndex);
                         columns.addAll(list);
-                        metamodels.addAll(nCopies(list.size(), metamodel));
                         fields.put(field.name(), List.copyOf(list));
                         if (primaryKey) {
                             pkField = field;
@@ -116,13 +113,11 @@ final class ModelFactory {
                             versionField = field;
                         }
                     }
-                    assert columns.size() == metamodels.size();
                     var tableName = getTableName(type, builder.tableNameResolver());
                     return new ModelImpl<>(
                             recordType,
                             tableName,
                             columns,
-                            metamodels,
                             fields,
                             ofNullable(pkField),
                             fkFields,
@@ -152,6 +147,7 @@ final class ModelFactory {
      * Creates columns for a record component.
      *
      * @param builder the model builder.
+     * @param parentMetamodel the metamodel of the parent record.
      * @param field the record field.
      * @param primaryKey whether the column is a primary key.
      * @param generation the generation strategy.
@@ -161,6 +157,7 @@ final class ModelFactory {
      * @return the columns for the record component.
      */
     private static List<Column> createColumns(@Nonnull ModelBuilder builder,
+                                              @Nonnull Metamodel<?, ?> parentMetamodel,
                                               @Nonnull RecordField field,
                                               boolean primaryKey,
                                               @Nonnull GenerationStrategy generation,
@@ -169,6 +166,9 @@ final class ModelFactory {
                                               @Nonnull AtomicInteger index,
                                               @Nonnull AtomicInteger primaryKeyIndex) {
         try {
+            @SuppressWarnings("unchecked")
+            var metamodel = Metamodel.of((Class<? extends Data>) parentMetamodel.root(),
+                    parentMetamodel.fieldPath().isEmpty() ? field.name() : parentMetamodel.fieldPath() + "." + field.name());
             var converter = getORMConverter(field).orElse(null);
             if (converter != null) {
                 var columnTypes = converter.getParameterTypes();
@@ -187,7 +187,7 @@ final class ModelFactory {
                             : null;
                     columns.add(new ColumnImpl(columnNames.get(i), index.getAndIncrement(), columnTypes.get(i),
                             pk != null, GenerationStrategy.NONE, "",false,
-                            true, true, true, false, false));
+                            true, true, true, false, false, metamodel));
                 }
                 return columns;
             }
@@ -200,7 +200,7 @@ final class ModelFactory {
                     }
                 }
                 return getRecordType(field.type()).fields().stream()
-                        .flatMap(child -> createColumns(builder, child, primaryKey, generation, sequence, field.nullable(), index, primaryKeyIndex).stream())
+                        .flatMap(child -> createColumns(builder, metamodel, child, primaryKey, generation, sequence, field.nullable(), index, primaryKeyIndex).stream())
                         .toList();
             }
             boolean nullable = parentNullable || field.nullable();
@@ -229,7 +229,7 @@ final class ModelFactory {
                     //noinspection ConstantValue
                     columns.add(new ColumnImpl(columnName, index.getAndIncrement(), dataType,
                             pk != null, generation, sequence, fk != null,
-                            nullable, insertable, updatable, version, ref));
+                            nullable, insertable, updatable, version, ref, metamodel));
                 }
                 return columns;
             }
@@ -237,7 +237,7 @@ final class ModelFactory {
             KeyIndex pk = primaryKey ? new KeyIndex(1, 1) : null;
             return List.of(new ColumnImpl(columnName, index.getAndIncrement(), dataType,
                     pk != null, generation, sequence, false,
-                    nullable, insertable, updatable, version, ref));
+                    nullable, insertable, updatable, version, ref, metamodel));
         } catch (SqlTemplateException e) {
             throw new PersistenceException(e);
         }

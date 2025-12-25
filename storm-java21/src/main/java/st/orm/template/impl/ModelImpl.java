@@ -19,7 +19,6 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
 import st.orm.core.template.impl.TableName;
-import st.orm.Metamodel;
 import st.orm.PersistenceException;
 import st.orm.mapping.RecordField;
 import st.orm.template.Column;
@@ -41,7 +40,6 @@ public record ModelImpl<E extends Data, ID>(
         @Nonnull Class<E> type,
         @Nonnull Class<ID> primaryKeyType,
         @Nonnull List<Column> columns,
-        @Nonnull List<Metamodel<E, ?>> metamodels,
         @Nonnull Optional<RecordField> primaryKeyField,
         @Nonnull List<RecordField> foreignKeyFields) implements Model<E, ID> {
 
@@ -59,7 +57,6 @@ public record ModelImpl<E extends Data, ID>(
                         .map(c -> new ColumnImpl((st.orm.core.template.impl.ColumnImpl) c))
                         .map(Column.class::cast)
                         .toList(),
-                model.metamodels(),
                 model.primaryKeyField(),
                 model.foreignKeyFields()
         );
@@ -140,9 +137,5 @@ public record ModelImpl<E extends Data, ID>(
     @Override
     public Object getValue(@Nonnull Column column, @Nonnull E record) {
         return core.getValue(((ColumnImpl) column).core(), record);
-    }
-
-    public Metamodel<E, ?> getMetamodel(@Nonnull Column column) {
-        return core.getMetamodel(((ColumnImpl) column).core());
     }
 }

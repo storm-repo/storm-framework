@@ -18,7 +18,6 @@ package st.orm.core.template;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
-import st.orm.Metamodel;
 import st.orm.PersistenceException;
 import st.orm.mapping.RecordField;
 import st.orm.mapping.RecordType;
@@ -174,12 +173,4 @@ public interface Model<E extends Data, ID> {
      * @since 1.7
      */
     List<Column> getColumns(@Nonnull RecordField field);
-
-    /**
-     * Returns the metamodel for the column.
-     *
-     * @return the metamodel for the column.
-     * @since 1.3
-     */
-    Metamodel<E, ?> getMetamodel(@Nonnull Column column);
 }

@@ -51,6 +51,9 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  * can be enabled globally using the system property {@code storm.update.dirtyCheck}, or per entity via
  * this annotation.</p>
  *
+ * <p>Dirty checking operates on top-level entity fields only. Nested record components are treated as a
+ * single unit and are not inspected field-by-field.</p>
+ *
  * <h2>General rules</h2>
  * <ul>
  *   <li>Dirty checking applies to all entities read within a transaction context.</li>

@@ -16,7 +16,9 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.GenerationStrategy;
+import st.orm.Metamodel;
 import st.orm.template.Column;
 
 /**
@@ -34,6 +36,7 @@ import st.orm.template.Column;
  * @param updatable whether the column is updatable.
  * @param version whether the column is a version column.
  * @param ref whether the column is a lazily fetched record.
+ * @param metamodel the metamodel for the column.
  */
 public record ColumnImpl(
         @Nonnull st.orm.core.template.impl.ColumnImpl core,
@@ -48,7 +51,8 @@ public record ColumnImpl(
         boolean insertable,
         boolean updatable,
         boolean version,
-        boolean ref
+        boolean ref,
+        Metamodel<? extends Data, ?> metamodel
 ) implements Column {
 
     public ColumnImpl(@Nonnull st.orm.core.template.impl.ColumnImpl column) {
@@ -65,7 +69,8 @@ public record ColumnImpl(
                 column.insertable(),
                 column.updatable(),
                 column.version(),
-                column.ref()
+                column.ref(),
+                column.metamodel()
         );
     }
 

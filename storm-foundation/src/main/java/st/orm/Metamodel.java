@@ -53,7 +53,7 @@ public interface Metamodel<T, E> {
      * in cases where the metamodel cannot be generated automatically, for example, local records.</p>
      *
      * @param rootTable the root rootTable to create the metamodel for.
-     * @param path a dot separated path starting from the root rootTable.
+     * @param path a dot separated path starting from the root table.
      * @return a new metamodel for the given root rootTable and path.
      * @param <T> the root rootTable type.
      * @param <E> the record component type of the designated component.

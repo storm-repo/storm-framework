@@ -62,6 +62,9 @@ import static st.orm.UpdateMode.OFF;
  * are dirty. The system property {@code storm.update.maxShapes} limits the number of distinct shapes that may be
  * generated. Once the limit is exceeded, Storm falls back to a full-entity update to preserve batching efficiency.</p>
  *
+ * <p>Dirty checking is performed on top-level entity fields only. Nested record components are treated as a single
+ * unit and are not inspected field-by-field.</p>
+ *
  * <p>By default, dirty checking is based on <em>instance identity</em>. A field is considered dirty as soon as its
  * reference changes. This provides predictable and bounded performance characteristics.</p>
  *
@@ -201,11 +204,22 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
     }
 
     /**
-     * Returns the dirty fields of the entity, an empty set if all fields must be regarded as dirty, or an empty
-     * optional if the entity is not dirty.
+     * Returns the dirty fields of the entity.
      *
-     * @param entity the entity to check.
-     * @param cache the entity cache.
+     * <p>The dirty check is performed only on the entity's <strong>top-level record components</strong>. Nested record
+     * components (embedded records) are treated as a <em>single logical unit</em>. This means that if any value inside
+     * a nested record changes, the entire top-level field containing that record is regarded as dirty.</p>
+     *
+     * <p>In other words, this method does <strong>not</strong> inspect individual fields inside nested records. The
+     * comparison is shallow with respect to record nesting, and no attempt is made to detect which specific nested
+     * values changed.</p>
+     *
+     * <p>This design keeps dirty checking predictable and efficient and avoids repeated reflective access of nested
+     * record components. More fine-grained dirty detection would require additional traversal and caching logic and is
+     * intentionally not implemented here.</p>
+     *
+     * @param entity the entity to check
+     * @param cache the entity cache
      * @return an optional containing the dirty fields, or an empty optional if the entity is not dirty.
      */
     Optional<Set<Metamodel<? extends Data, ?>>> getDirty(@Nonnull E entity,
@@ -256,14 +270,11 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
         return Optional.of(dirtyFieldsCache.computeIfAbsent(key, bits -> {
             Set<Metamodel<? extends Data, ?>> set = new HashSet<>();
             for (int i = bits.nextSetBit(0); i >= 0; i = bits.nextSetBit(i + 1)) {
-                model.getColumns(updatableFields[i])
-                        .forEach(column -> set.add(model.getMetamodel(column)));
+                model.getColumns(updatableFields[i]).forEach(column -> set.add(column.metamodel()));
             }
             model.versionField()
                     .map(model::getColumns)
-                    .ifPresent(columns ->
-                            columns.forEach(column -> set.add(model.getMetamodel(column)))
-                    );
+                    .ifPresent(columns -> columns.forEach(column -> set.add(column.metamodel())));
             return Set.copyOf(set);
         }));
     }

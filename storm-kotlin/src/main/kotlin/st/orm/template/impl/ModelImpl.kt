@@ -16,7 +16,6 @@
 package st.orm.template.impl
 
 import st.orm.Data
-import st.orm.Metamodel
 import st.orm.template.Column
 import st.orm.template.Model
 import java.util.*
@@ -38,6 +37,4 @@ class ModelImpl<E : Data, ID : Any>(
         core.getValues(record).forEach { (c, v) -> map[ColumnImpl(c)] = v };
         return map;
     }
-    override fun getMetamodel(column: Column): Metamodel<E, *> =
-        core.getMetamodel((column as ColumnImpl).core)
 }

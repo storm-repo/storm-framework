@@ -1434,6 +1434,9 @@ statements, or custom queries bypass dirty checking entirely and may leave in-me
 Dirty checking affects both whether an UPDATE is issued and how that UPDATE is constructed. This behavior is
 controlled by UpdateMode and by the dirty checking strategy.
 
+Nested record components are treated as a single unit during dirty checking. Storm compares only top-level entity
+fields and does not inspect individual fields inside embedded records.
+
 ==== Update modes
 
 Storm supports three update modes:

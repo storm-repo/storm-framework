@@ -16,7 +16,6 @@
 package st.orm.template
 
 import st.orm.Data
-import st.orm.Metamodel
 import java.util.*
 import kotlin.reflect.KClass
 
@@ -91,12 +90,4 @@ interface Model<E : Data, ID : Any> {
      * @since 1.2
      */
     fun getValues(record: E): SequencedMap<Column, Any?>
-
-    /**
-     * Returns the metamodel for the column.
-     *
-     * @return the metamodel for the column.
-     * @since 1.3
-     */
-    fun getMetamodel(column: Column): Metamodel<E, *>
 }

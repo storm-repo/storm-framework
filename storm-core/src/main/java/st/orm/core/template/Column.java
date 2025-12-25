@@ -16,7 +16,9 @@
 package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.GenerationStrategy;
+import st.orm.Metamodel;
 
 /**
  * Represents a column in a database table.
@@ -113,4 +115,12 @@ public interface Column {
      * @return if the column is a ref column, false otherwise.
      */
     boolean ref();
+
+    /**
+     * Returns the metamodel of the column.
+     *
+     * @return the metamodel of the column.
+     * @since 1.7
+     */
+    Metamodel<? extends Data, ?> metamodel();
 }
