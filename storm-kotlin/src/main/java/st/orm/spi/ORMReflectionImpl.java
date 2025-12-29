@@ -24,8 +24,10 @@ import kotlin.reflect.KClass;
 import kotlin.reflect.KFunction;
 import kotlin.reflect.KMutableProperty1;
 import kotlin.reflect.KParameter;
+import kotlin.reflect.KProperty;
 import kotlin.reflect.KProperty1;
 import kotlin.reflect.KType;
+import kotlin.reflect.KVisibility;
 import kotlin.reflect.full.KClasses;
 import kotlin.reflect.jvm.ReflectJvmMapping;
 import st.orm.Data;
@@ -47,11 +49,13 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
 
 import static java.lang.System.arraycopy;
 import static java.util.Arrays.asList;
@@ -113,9 +117,37 @@ public class ORMReflectionImpl implements ORMReflection {
                 if (primary == null) {
                     return empty();
                 }
+                Map<String, KVisibility> visibilityByName =
+                        KClasses.getMemberProperties(kClass).stream()
+                                .collect(Collectors.toMap(
+                                        KCallable::getName,
+                                        p -> {
+                                            KVisibility v = p.getVisibility();   // may be null
+                                            return v != null ? v : KVisibility.PRIVATE; // or keep null via Optional
+                                        },
+                                        (a, b) -> a
+                                ));
                 List<RecordField> fields = primary.getParameters().stream()
                         .filter(p -> p.getKind() == KParameter.Kind.VALUE)
-                        .map(p -> toRecordField(p, constructor))
+                        .map(p -> {
+                            String name = p.getName();
+                            if (name == null) {
+                                throw new PersistenceException("Unnamed constructor parameter in %s.".formatted(type.getName()));
+                            }
+                            KVisibility visibility = visibilityByName.get(name);
+                            if (visibility == null) {
+                                // Parameter exists, but there is no property with that name (no val/var, or something odd).
+                                throw new PersistenceException(
+                                        "Constructor parameter '%s' is not a Kotlin property in %s.".formatted(name, type.getName())
+                                );
+                            }
+                            if (visibility != KVisibility.PUBLIC) {
+                                throw new PersistenceException(
+                                        "Property '%s' in %s must be public but is %s.".formatted(name, type.getName(), visibility)
+                                );
+                            }
+                            return toRecordField(p, constructor);
+                        })
                         .toList();
                 return Optional.of(
                         new RecordType(
