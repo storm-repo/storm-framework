@@ -17,6 +17,7 @@ package st.orm.metamodel;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
@@ -626,15 +627,16 @@ public final class MetamodelProcessor extends AbstractProcessor {
             if (fieldType == null) continue;
 
             String fieldTypeName = getTypeName(fieldType, packageName);
-
             if (isRecord(fieldType) && !isRefType(fieldType)) {
                 if (isNestedRecord(fieldType)) continue;
-
                 boolean inline = !isForeignKey(recordElement, fieldName);
                 String inlineFlag = inline ? "true" : "false";
-                String parentExpr = "((" + recordName + ") " + metaClassName + ".this.getValue(t))";
-                String nestedAcc = accessorExpr(recordElement, parentExpr, fieldName, fieldType);
-                String nestedGetter = "(Function<T, " + fieldTypeName + ">) (t -> " + nestedAcc + ")";
+                // Null-safe nested getter: parent record (root getter) can be null.
+                String nestedGetter =
+                        "(Function<T, " + fieldTypeName + ">) (t -> {\n" +
+                                "            " + recordName + " p = " + metaClassName + ".this.getValue(t);\n" +
+                                "            return (p == null) ? null : " + accessorExpr(recordElement, "p", fieldName, fieldType) + ";\n" +
+                                "        })";
                 builder.append("        this.").append(fieldName).append(" = new ").append(fieldTypeName)
                         .append("Metamodel<>(")
                         .append("subPath, fieldBase + \"").append(fieldName).append("\", ")
@@ -643,34 +645,32 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         .append(");\n");
             } else {
                 String valueTypeName = getValueTypeName(fieldType, packageName);
-
-                String recordExpr = metaClassName + ".this.getValue(record)";
-                String acc = accessorExpr(recordElement, recordExpr, fieldName, fieldType);
-
                 String ownerA = metaClassName + ".this.getValue(a)";
                 String ownerB = metaClassName + ".this.getValue(b)";
-
                 String leftValue = accessorExpr(recordElement, "ra", fieldName, fieldType);
                 String rightValue = accessorExpr(recordElement, "rb", fieldName, fieldType);
-
                 String sameExpr = sameComparisonExpr(leftValue, rightValue, fieldType);
                 String identicalExpr = identicalComparisonExpr(leftValue, rightValue, fieldType);
-
+                String accOnOwner = accessorExpr(recordElement, "r", fieldName, fieldType);
                 builder.append("        this.").append(fieldName).append(" = new AbstractMetamodel<T, ")
                         .append(fieldTypeName).append(", ").append(valueTypeName).append(">(")
                         .append(fieldTypeName).append(".class, subPath, fieldBase + \"").append(fieldName)
                         .append("\", false, this) {\n")
                         .append("            @Override public ").append(valueTypeName).append(" getValue(@Nonnull T record) {\n")
-                        .append("                return ").append(acc).append(";\n")
+                        .append("                ").append(recordName).append(" r = ").append(metaClassName).append(".this.getValue(record);\n")
+                        .append("                if (r == null) return null;\n")
+                        .append("                return ").append(accOnOwner).append(";\n")
                         .append("            }\n\n")
                         .append("            @Override public boolean isIdentical(@Nonnull T a, @Nonnull T b) {\n")
                         .append("                ").append(recordName).append(" ra = ").append(ownerA).append(";\n")
                         .append("                ").append(recordName).append(" rb = ").append(ownerB).append(";\n")
+                        .append("                if (ra == null || rb == null) return ra == rb;\n")
                         .append("                return ").append(identicalExpr).append(";\n")
                         .append("            }\n\n")
                         .append("            @Override public boolean isSame(@Nonnull T a, @Nonnull T b) {\n")
                         .append("                ").append(recordName).append(" ra = ").append(ownerA).append(";\n")
                         .append("                ").append(recordName).append(" rb = ").append(ownerB).append(";\n")
+                        .append("                if (ra == null || rb == null) return ra == rb;\n")
                         .append("                return ").append(sameExpr).append(";\n")
                         .append("            }\n")
                         .append("        };\n");
@@ -686,8 +686,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
         String packageName = elementUtils.getPackageOf(recordElement).getQualifiedName().toString();
         String recordName = recordElement.getSimpleName().toString();
         String metaClassName = recordName + "Metamodel";
-
-        // Root isSame: compare by PK if present, else compare by value.
+        // Root isSame: compare by PK if present, else compare by value, but guard for null root record.
         Optional<String> pkNameOpt = findPrimaryKeyFieldName(recordElement);
         String rootIsSameBody;
         if (pkNameOpt.isPresent()) {
@@ -696,14 +695,26 @@ public final class MetamodelProcessor extends AbstractProcessor {
             if (pkType == null) {
                 processingEnv.getMessager().printMessage(ERROR,
                         "Found @PK on '" + pkName + "' but could not resolve its type on " + recordName);
-                rootIsSameBody = "return Objects.equals(getter.apply(a), getter.apply(b));";
+                rootIsSameBody =
+                        recordName + " ra = getter.apply(a);\n" +
+                                "        " + recordName + " rb = getter.apply(b);\n" +
+                                "        if (ra == null || rb == null) return ra == rb;\n" +
+                                "        return Objects.equals(ra, rb);";
             } else {
-                String left = accessorExpr(recordElement, "getter.apply(a)", pkName, pkType);
-                String right = accessorExpr(recordElement, "getter.apply(b)", pkName, pkType);
-                rootIsSameBody = "return " + sameComparisonExpr(left, right, pkType) + ";";
+                String left = accessorExpr(recordElement, "ra", pkName, pkType);
+                String right = accessorExpr(recordElement, "rb", pkName, pkType);
+                rootIsSameBody =
+                        recordName + " ra = getter.apply(a);\n" +
+                                "        " + recordName + " rb = getter.apply(b);\n" +
+                                "        if (ra == null || rb == null) return ra == rb;\n" +
+                                "        return " + sameComparisonExpr(left, right, pkType) + ";";
             }
         } else {
-            rootIsSameBody = "return Objects.equals(getter.apply(a), getter.apply(b));";
+            rootIsSameBody =
+                    recordName + " ra = getter.apply(a);\n" +
+                            "        " + recordName + " rb = getter.apply(b);\n" +
+                            "        if (ra == null || rb == null) return ra == rb;\n" +
+                            "        return Objects.equals(ra, rb);";
         }
         try {
             JavaFileObject fileObject = processingEnv.getFiler()
@@ -734,12 +745,15 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     classFields + "\n" +
                             "    private final Function<T, " + recordName + "> getter;\n\n" +
                             "    @Override\n" +
+                            "    @Nullable\n" +
                             "    public " + recordName + " getValue(@Nonnull T record) {\n" +
                             "        return getter.apply(record);\n" +
                             "    }\n\n" +
                             "    @Override\n" +
                             "    public boolean isIdentical(@Nonnull T a, @Nonnull T b) {\n" +
-                            "        return getter.apply(a) == getter.apply(b);\n" +
+                            "        " + recordName + " ra = getter.apply(a);\n" +
+                            "        " + recordName + " rb = getter.apply(b);\n" +
+                            "        return ra == rb;\n" +
                             "    }\n\n" +
                             "    @Override\n" +
                             "    public boolean isSame(@Nonnull T a, @Nonnull T b) {\n" +

@@ -37,6 +37,10 @@ import java.io.OutputStreamWriter
  * - If the data class has a @PK field, root isSame compares by that PK field:
  *     getter(a).pk == getter(b).pk
  *
+ * Null handling:
+ * - The root getter and getValue() may return null.
+ * - Therefore field getValue() is always nullable in generated code, even if the Kotlin property is non-nullable.
+ *
  * @since 1.7
  */
 class MetamodelProcessor(
@@ -93,7 +97,6 @@ class MetamodelProcessor(
     override fun process(resolver: Resolver): List<KSAnnotated> {
         logger.info("Storm Metamodel KSP is running.")
         val deferred = mutableListOf<KSAnnotated>()
-
         val symbols = resolver.getSymbolsWithAnnotation(GENERATE_METAMODEL)
             .plus(
                 resolver.getAllFiles()
@@ -103,7 +106,6 @@ class MetamodelProcessor(
             )
             .filterIsInstance<KSClassDeclaration>()
             .filter { it.isDataClass() }
-
         symbols.forEach { clazz ->
             if (!clazz.validate()) {
                 deferred.add(clazz)
@@ -255,7 +257,6 @@ class MetamodelProcessor(
                     } else qualifiedName
                 }
             }
-
             val args = type.arguments
             val typeArgs = if (args.isNotEmpty()) {
                 args.joinToString(", ", prefix = "<", postfix = ">") { arg ->
@@ -266,8 +267,7 @@ class MetamodelProcessor(
                     }
                 }
             } else ""
-            val nullableSuffix = if (type.isMarkedNullable) "?" else ""
-            return baseName + typeArgs + nullableSuffix
+            return baseName + typeArgs
         }
         return render(typeReference.resolve())
     }
@@ -456,8 +456,8 @@ class MetamodelProcessor(
                             "\n"
                 )
             } else {
-                val kotlinTypeName = getKotlinTypeName(typeRef, packageName)              // E (unwrap Ref)
-                val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName)   // V (keep Ref)
+                val kotlinTypeName = getKotlinTypeName(typeRef, packageName)
+                val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName)
 
                 builder.append("        /** Represents the $className.$fieldName field. */\n")
                 builder.append(
@@ -481,8 +481,8 @@ class MetamodelProcessor(
                 val simpleTypeName = getSimpleTypeName(typeRef, packageName)
                 builder.append("    val $fieldName: ${simpleTypeName}Metamodel<T>\n")
             } else {
-                val kotlinTypeName = getKotlinTypeName(typeRef, packageName)            // E
-                val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName) // V
+                val kotlinTypeName = getKotlinTypeName(typeRef, packageName)
+                val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName)
                 builder.append("    val $fieldName: AbstractMetamodel<T, $kotlinTypeName, $valueKotlinTypeName>\n")
             }
         }
@@ -492,8 +492,7 @@ class MetamodelProcessor(
     private fun initClassFields(
         classDeclaration: KSClassDeclaration,
         packageName: String,
-        metaClassName: String,
-        recordClassName: String
+        metaClassName: String
     ): String {
         val builder = StringBuilder()
         classDeclaration.getAllProperties().forEach { prop ->
@@ -504,8 +503,9 @@ class MetamodelProcessor(
                 val simpleTypeName = getSimpleTypeName(typeRef, packageName)
                 val inlineFlag = if (isForeignKey(prop)) "false" else "true"
 
+                // Null-safe: parent getValue(t) may be null.
                 val getterExpr =
-                    "{ t: T & Any -> (this@$metaClassName.getValue(t) as $recordClassName).$fieldName }"
+                    "{ t: T & Any -> this@$metaClassName.getValue(t)?.$fieldName }"
 
                 builder.append(
                     "        $fieldName = ${simpleTypeName}Metamodel(" +
@@ -513,28 +513,31 @@ class MetamodelProcessor(
                             "\n"
                 )
             } else {
-                val javaTypeName = getJavaTypeName(typeRef, packageName)                // E (unwrap Ref)
-                val kotlinTypeName = getKotlinTypeName(typeRef, packageName)            // E (unwrap Ref)
-                val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName) // V (keep Ref)
+                val javaTypeName = getJavaTypeName(typeRef, packageName)
+                val kotlinTypeName = getKotlinTypeName(typeRef, packageName)
+                val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName)
 
                 val leftValue = "ra.$fieldName"
                 val rightValue = "rb.$fieldName"
                 val isSameExpr = sameExpr(leftValue, rightValue, typeRef)
                 val isIdenticalExpr = identicalExpr(leftValue, rightValue, typeRef)
+
                 builder.append(
                     "        $fieldName = object : AbstractMetamodel<T, $kotlinTypeName, $valueKotlinTypeName>(" +
                             "$javaTypeName, subPath, fieldBase + \"$fieldName\", false, this" +
                             ") {\n" +
-                            "            override fun getValue(record: T & Any): $valueKotlinTypeName =\n" +
-                            "                (this@$metaClassName.getValue(record) as $recordClassName).$fieldName\n\n" +
+                            "            override fun getValue(record: T & Any): $valueKotlinTypeName? =\n" +
+                            "                this@$metaClassName.getValue(record)?.$fieldName\n\n" +
                             "            override fun isIdentical(a: T & Any, b: T & Any): Boolean {\n" +
-                            "                val ra = this@$metaClassName.getValue(a) as $recordClassName\n" +
-                            "                val rb = this@$metaClassName.getValue(b) as $recordClassName\n" +
+                            "                val ra = this@$metaClassName.getValue(a)\n" +
+                            "                val rb = this@$metaClassName.getValue(b)\n" +
+                            "                if (ra == null || rb == null) return ra == rb\n" +
                             "                return $isIdenticalExpr\n" +
                             "            }\n\n" +
                             "            override fun isSame(a: T & Any, b: T & Any): Boolean {\n" +
-                            "                val ra = this@$metaClassName.getValue(a) as $recordClassName\n" +
-                            "                val rb = this@$metaClassName.getValue(b) as $recordClassName\n" +
+                            "                val ra = this@$metaClassName.getValue(a)\n" +
+                            "                val rb = this@$metaClassName.getValue(b)\n" +
+                            "                if (ra == null || rb == null) return ra == rb\n" +
                             "                return $isSameExpr\n" +
                             "            }\n" +
                             "        }\n"
@@ -637,7 +640,7 @@ class MetamodelProcessor(
                 |    inline: Boolean,
                 |    parent: Metamodel<T, *>,
                 |    private val getter: (T & Any) -> $className?
-                |) : AbstractMetamodel<T, $className, $className>($className::class.java, path, field, inline, parent) {
+                |) : AbstractMetamodel<T, $className, $className?>($className::class.java, path, field, inline, parent) {
                 |
                 |    override fun getValue(record: T & Any): $className? = getter(record)
                 |
@@ -652,7 +655,7 @@ class MetamodelProcessor(
                 |        val subPath = if (inline) path else if (field.isEmpty()) path else if (path.isEmpty()) field else "${'$'}path.${'$'}field"
                 |        val fieldBase = if (inline) if (field.isEmpty()) "" else "${'$'}field." else ""
                 |
-                |${initClassFields(classDeclaration, packageName, metaClassName, className)}
+                |${initClassFields(classDeclaration, packageName, metaClassName)}
                 |    }
                 |
                 |    @Suppress("UNCHECKED_CAST")

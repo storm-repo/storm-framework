@@ -16,6 +16,7 @@
 package st.orm;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 /**
  * The metamodel is used to map database columns to the object model in a type-safe way.
@@ -127,11 +128,20 @@ public interface Metamodel<T, E> {
     }
 
     /**
-     * Extracts the value from the given record specified by this metamodel.
+     * Extracts the value from the given record as specified by this metamodel.
      *
-     * @return the value from the given record specified by this metamodel.
+     * <p>The returned value may be {@code null} in the following cases:</p>
+     * <ul>
+     *   <li>The field represented by this metamodel is nullable.</li>
+     *   <li>Any parent metamodel in the access path resolves to {@code null}
+     *       (for example, when navigating through an optional or nullable nested record).</li>
+     * </ul>
+     *
+     * @param record the root record from which the value is extracted.
+     * @return the extracted value, or {@code null} if the value cannot be resolved.
      * @since 1.7
      */
+    @Nullable
     Object getValue(@Nonnull T record);
 
     /**

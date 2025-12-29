@@ -31,6 +31,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.util.Objects;
 
+import static java.lang.invoke.MethodType.methodType;
 import static st.orm.core.template.impl.RecordReflection.findPkField;
 import static st.orm.core.template.impl.RecordReflection.getRecordField;
 import static st.orm.core.template.impl.RecordReflection.getRefDataType;
@@ -54,11 +55,11 @@ public final class MetamodelFactory {
             @Nonnull String path
     ) {
         try {
-            Metamodel<T, ?> current = (Metamodel<T, ?>) Class.forName(rootTable.getName() + "Metamodel")
+            Metamodel<T, ?> current = (Metamodel<T, ?>) Class.forName(rootTable.getName() + "Metamodel", true, rootTable.getClassLoader())
                     .getConstructor()
                     .newInstance();
             for (String segment : path.split("\\.")) {
-                current = (Metamodel<T, ?>) current.getClass().getField(segment).get(current);
+                current = (Metamodel<T, ?>) readSegment(current, segment);
             }
             return current;
         } catch (Throwable ignored) {
@@ -185,6 +186,30 @@ public final class MetamodelFactory {
                 handle
         );
     }
+    private static Object readSegment(@Nonnull Object instance, @Nonnull String name) throws Exception {
+        Class<?> c = instance.getClass();
+        // Public field (Java style, or Kotlin @JvmField).
+        try {
+            return c.getField(name).get(instance);
+        } catch (NoSuchFieldException ignored) { }
+        String cap = capitalize(name);
+        // Kotlin/JavaBean getter: getX()
+        try {
+            Method m = c.getMethod("get" + cap);
+            return m.invoke(instance);
+        } catch (NoSuchMethodException ignored) { }
+        // Boolean getter: isX()
+        try {
+            Method m = c.getMethod("is" + cap);
+            return m.invoke(instance);
+        } catch (NoSuchMethodException ignored) { }
+        // Record-like accessor: x()
+        try {
+            Method m = c.getMethod(name);
+            return m.invoke(instance);
+        } catch (NoSuchMethodException ignored) { }
+        throw new NoSuchFieldException("No metamodel member '%s' on %s.".formatted(name, c.getName()));
+    }
 
     private static String stripLast(String p) {
         int idx = p.lastIndexOf('.');
@@ -258,6 +283,15 @@ public final class MetamodelFactory {
         return type.getMethod(property);
     }
 
+    /**
+     * Builds a null-safe getter handle for a dotted path.
+     *
+     * <p>
+     * Semantics:
+     * - If any intermediate accessor returns null, the handle returns null.
+     * - This matches metamodel getValue() semantics where parents in the hierarchy may be nullable.
+     * </p>
+     */
     private static MethodHandle buildGetterHandle(@Nonnull Class<?> rootType, @Nullable String fullPath) {
         try {
             if (fullPath == null || fullPath.isEmpty()) {
@@ -269,7 +303,12 @@ public final class MetamodelFactory {
             for (String part : fullPath.split("\\.")) {
                 Method m = findAccessor(currentType, part);
                 MethodHandle getter = unreflect(base, currentType, m);
-                handle = (handle == null) ? getter : MethodHandles.filterReturnValue(handle, getter);
+                if (handle == null) {
+                    handle = getter;
+                } else {
+                    // Compose null-safe: if previous result is null -> return null, else call getter on it.
+                    handle = nullSafeFilterReturnValue(handle, getter);
+                }
                 currentType = m.getReturnType();
             }
             return handle;
@@ -278,6 +317,48 @@ public final class MetamodelFactory {
                     new SqlTemplateException("Failed to create accessor handle for path: " + fullPath, e)
             );
         }
+    }
+
+    /**
+     * Equivalent to filterReturnValue(prev, next), but returns null when prev returns null.
+     *
+     * <p>
+     * Types:
+     * - prev: (A) -> R
+     * - next: (R) -> S
+     * Result:
+     * - (A) -> S (or null when R is null). For primitive S this cannot be null, so we only apply
+     *   the null-guard when S is a reference type. For primitive S, the best we can do is call next.
+     * </p>
+     */
+    private static MethodHandle nullSafeFilterReturnValue(@Nonnull MethodHandle prev, @Nonnull MethodHandle next) throws Throwable {
+        Class<?> rType = prev.type().returnType();
+        Class<?> sType = next.type().returnType();
+        // If prev can never return null (primitive), normal composition is fine.
+        if (rType.isPrimitive()) {
+            return MethodHandles.filterReturnValue(prev, next);
+        }
+        // If next returns a primitive, we cannot return null from the composed handle.
+        if (sType.isPrimitive()) {
+            return MethodHandles.filterReturnValue(prev, next);
+        }
+        MethodHandles.Lookup lk = MethodHandles.lookup();
+        // test: (R) -> boolean   (true when R is null)
+        MethodHandle test = lk.findStatic(
+                Objects.class,
+                "isNull",
+                methodType(boolean.class, Object.class)
+        ).asType(methodType(boolean.class, rType));
+        // target: (R) -> S  (returns null, ignores the argument)
+        MethodHandle target = MethodHandles.dropArguments(
+                MethodHandles.constant(sType, null),
+                0,
+                rType
+        );
+        // (R) -> S : if (R == null) null else next(R)
+        MethodHandle guarded = MethodHandles.guardWithTest(test, target, next); // Fallback.
+        // (A) -> S : feed prev(A) into guarded(...)
+        return MethodHandles.filterReturnValue(prev, guarded);
     }
 
     private static MethodHandle unreflect(MethodHandles.Lookup base, Class<?> owner, Method m) throws Throwable {
@@ -328,8 +409,9 @@ public final class MetamodelFactory {
                     var pkHandle = buildGetterHandle(fieldType, pkField.name());
                     var s = EqualitySupport.compileIsSame(pkHandle);
                     wrapped = (a, b) -> {
-                        var dataA = handle.invoke(a);
-                        var dataB = handle.invoke(b);
+                        Object dataA = handle.invoke(a);
+                        Object dataB = handle.invoke(b);
+                        if (dataA == null || dataB == null) return dataA == dataB;
                         return s.isSame(dataA, dataB);
                     };
                 }
