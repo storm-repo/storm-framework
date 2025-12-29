@@ -18,7 +18,6 @@ package st.orm.core.repository.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
-import st.orm.Entity;
 import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.core.spi.ORMReflection;
@@ -49,16 +48,20 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
     private static final Map<Class<?>, Optional<RecordField>> PK_FIELD_CACHE = new ConcurrentHashMap<>();
     private static final Map<Class<?>, Optional<Constructor<?>>> CONSTRUCTOR_CACHE = new ConcurrentHashMap<>();
 
-    @SuppressWarnings("unchecked")
     @Override
-    public <ID, E extends Entity<ID>> ID getId(@Nonnull E entity) {
-        return PK_FIELD_CACHE.computeIfAbsent(entity.getClass(), ignore ->
-            getRecordType(entity.getClass()).fields().stream()
+    public Object getId(@Nonnull Data data) {
+        return PK_FIELD_CACHE.computeIfAbsent(data.getClass(), ignore ->
+            getRecordType(data.getClass()).fields().stream()
                 .filter(field -> field.isAnnotationPresent(PK.class))
                 .findFirst()
         )
-                .map(field -> (ID) invoke(field, entity))
-                .orElseThrow(() -> new PersistenceException("No PK found for %s.".formatted(entity.getClass().getName())));
+                .map(field -> invoke(field, data))
+                .orElseThrow(() -> new PersistenceException("No PK found for %s.".formatted(data.getClass().getName())));
+    }
+
+    @Override
+    public Object getRecordValue(@Nonnull Object record, int index) {
+        return invoke(getRecordType(record.getClass()).fields().get(index), record);
     }
 
     @Override
@@ -79,6 +82,7 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
                                             component.getType(),
                                             component.getGenericType(),
                                             !isNonnull(component),
+                                            false,
                                             component.getAccessor(),
                                             asList(component.getAnnotations())
                                         )

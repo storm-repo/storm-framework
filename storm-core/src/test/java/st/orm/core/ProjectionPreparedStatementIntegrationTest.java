@@ -20,7 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static st.orm.Operator.EQUALS;
 import static st.orm.Operator.GREATER_THAN;
 import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
-import static st.orm.core.template.ORMTemplate.of;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)

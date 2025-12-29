@@ -32,7 +32,7 @@ class EntityHelper {
                 Class<?> ormReflectionClass = Class.forName("st.orm.core.spi.ORMReflection");
                 Method getORMReflection = providersClass.getMethod("getORMReflection");
                 ORM_REFLECTION = getORMReflection.invoke(null);
-                GET_ID = ormReflectionClass.getMethod("getId", Entity.class);
+                GET_ID = ormReflectionClass.getMethod("getId", Data.class);
             } catch (InvocationTargetException e) {
                 throw e.getTargetException();
             }

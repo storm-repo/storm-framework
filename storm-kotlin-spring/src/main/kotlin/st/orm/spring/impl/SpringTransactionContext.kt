@@ -6,7 +6,10 @@ import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionDefinition
 import org.springframework.transaction.TransactionDefinition.*
 import org.springframework.transaction.TransactionStatus
+import st.orm.Entity
 import st.orm.PersistenceException
+import st.orm.core.spi.EntityCache
+import st.orm.core.spi.EntityCacheImpl
 import st.orm.core.spi.TransactionCallback
 import st.orm.core.spi.TransactionContext
 import st.orm.spring.SpringTransactionConfiguration
@@ -17,6 +20,7 @@ import java.sql.PreparedStatement
 import java.sql.SQLTimeoutException
 import javax.sql.DataSource
 import kotlin.math.min
+import kotlin.reflect.KClass
 
 /**
  * Internal implementation of transaction context management for Spring-managed transactions.
@@ -69,7 +73,8 @@ internal class SpringTransactionContext : TransactionContext {
         var transactionDefinition: TransactionDefinition?    = null,
         var rollbackOnly: Boolean                            = false,
         var timeoutSeconds: Int?                             = null,
-        var deadlineNanos: Long?                             = null
+        var deadlineNanos: Long?                             = null,
+        val entityCacheMap: MutableMap<KClass<*>, EntityCache<*, *>> = mutableMapOf()
     )
 
     private val stack = mutableListOf<TransactionState>()
@@ -90,10 +95,10 @@ internal class SpringTransactionContext : TransactionContext {
 
     private fun isBoundary(propagation: Int?): Boolean =
         when (propagation) {
-            TransactionDefinition.PROPAGATION_REQUIRES_NEW,
-            TransactionDefinition.PROPAGATION_NESTED,
-            TransactionDefinition.PROPAGATION_NOT_SUPPORTED,
-            TransactionDefinition.PROPAGATION_NEVER -> true
+            PROPAGATION_REQUIRES_NEW,
+            PROPAGATION_NESTED,
+            PROPAGATION_NOT_SUPPORTED,
+            PROPAGATION_NEVER -> true
             else -> false
         }
 
@@ -147,6 +152,32 @@ internal class SpringTransactionContext : TransactionContext {
         }
     }
 
+    /**
+     * Returns true if the transaction is marked as read-only, false otherwise.
+     *
+     * @return true if the transaction is marked as read-only, false otherwise.
+     * @since 1.7
+     */
+    override fun isReadOnly(): Boolean =
+        currentState.transactionDefinition?.isReadOnly ?: false
+
+    /**
+     * Returns a transaction-local cache for entities of the given type, keyed by primary key.
+     */
+    override fun entityCache(entityType: Class<out Entity<*>>): EntityCache<out Entity<*>, *> {
+        @Suppress("UNCHECKED_CAST")
+        return currentState.entityCacheMap.getOrPut(entityType.kotlin) {
+            EntityCacheImpl<Entity<Any>, Any>()
+        } as EntityCache<Entity<*>, *>
+    }
+
+    /**
+     * Gets the decorator for the specified resource type.
+     *
+     * @param resourceType the resource type.
+     * @return the decorator.
+     * @param <T> the resource type.
+     */
     override fun <T : Any> getDecorator(resourceType: Class<T>): TransactionContext.Decorator<T> {
         if (resourceType != PreparedStatement::class.java) {
             return TransactionContext.Decorator<T> { obj -> obj } // No-op.

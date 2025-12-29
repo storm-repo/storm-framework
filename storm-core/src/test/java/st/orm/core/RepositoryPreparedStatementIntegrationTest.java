@@ -3,6 +3,7 @@ package st.orm.core;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
+import lombok.NonNull;
 import org.h2.jdbc.JdbcSQLSyntaxErrorException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,7 +15,6 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.Convert;
 import st.orm.Converter;
 import st.orm.Data;
-import st.orm.DefaultConverter;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
 import st.orm.DbColumn;
@@ -212,6 +212,11 @@ public class RepositoryPreparedStatementIntegrationTest {
                 }
 
                 @Override
+                public boolean isInline() {
+                    return false;
+                }
+
+                @Override
                 public Class<Visit> root() {
                     return model.root();
                 }
@@ -234,6 +239,21 @@ public class RepositoryPreparedStatementIntegrationTest {
                 @Override
                 public String field() {
                     return "names"; // Invalid name.
+                }
+
+                @Override
+                public String getValue(@NonNull Visit record) {
+                    return record.pet().name();
+                }
+
+                @Override
+                public boolean isIdentical(@NonNull Visit a, @Nonnull Visit b) {
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
+                public boolean isSame(@NonNull Visit a, @Nonnull Visit b) {
+                    throw new UnsupportedOperationException();
                 }
             };
             ORMTemplate.of(dataSource).entity(Visit.class).select().where(wrap(where(invalidModel, EQUALS, "Leo"))).getResultCount();
@@ -409,19 +429,6 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     public record AutoDate(String value) {}
     public record CustomDate(String value) {}
-
-    @DefaultConverter
-    public static class AutoConverter implements Converter<LocalDate, AutoDate> {
-        @Override
-        public LocalDate toDatabase(@Nullable AutoDate value) {
-            return value == null ? null : LocalDate.parse(value.value());
-        }
-
-        @Override
-        public AutoDate fromDatabase(@Nullable LocalDate dbValue) {
-            return new AutoDate(dbValue == null ? null : dbValue.toString());
-        }
-    }
 
     public static class CustomConverter implements Converter<LocalDate, CustomDate> {
         @Override

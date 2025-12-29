@@ -17,6 +17,7 @@ package st.orm.spi.mysql;
 
 import jakarta.annotation.Nonnull;
 import st.orm.Data;
+import st.orm.Metamodel;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.repository.impl.EntityRepositoryImpl;
@@ -36,18 +37,21 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static java.util.function.Function.identity;
 import static java.util.function.Predicate.not;
-import static java.util.stream.Collectors.partitioningBy;
 import static st.orm.GenerationStrategy.IDENTITY;
 import static st.orm.GenerationStrategy.SEQUENCE;
+import static st.orm.core.repository.impl.DirtySupport.getMaxShapes;
+import static st.orm.core.repository.impl.StreamSupport.partitioned;
 import static st.orm.core.template.SqlInterceptor.intercept;
 import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.impl.StringTemplates.flatten;
@@ -245,6 +249,19 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
         throw new PersistenceException("MySQL does not support sequence-based generation.");
     }
 
+    public sealed interface PartitionKey {}
+    public static final class NoOpKey implements PartitionKey {
+        public static final NoOpKey INSTANCE = new NoOpKey();
+    }
+    public static final class UpsertKey implements PartitionKey {
+        public static final UpsertKey INSTANCE = new UpsertKey();
+    }
+    public record UpdateKey(@Nonnull Set<Metamodel<? extends Data, ?>> fields) implements PartitionKey {
+        public UpdateKey() {
+            this(Set.of()); // All fields.
+        }
+    }
+
     /**
      * Inserts or updates a collection of entities in the database in batches and returns a list of their IDs.
      *
@@ -262,18 +279,32 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
      *                              constraints violations, or invalid entity data.
      */
     private List<ID> upsertAndFetchIdsNoSequence(@Nonnull Iterable<E> entities) {
-        LazySupplier<PreparedQuery> updateQuery = new LazySupplier<>(this::prepareUpdateQuery);
+        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
-            return chunked(toStream(entities), defaultBatchSize, batch -> {
-                var result = new ArrayList<ID>();
-                var partition = partition(batch);
-                result.addAll(updateAndFetchIds(partition.get(true), updateQuery));
-                result.addAll(upsertAndFetchIds(partition.get(false), upsertQuery));
-                return result.stream();
-            }).toList();
+            var result = new ArrayList<ID>();
+            var entityCache = entityCache();
+            partitioned(toStream(entities), defaultBatchSize, entity -> {
+                if (isUpdate(entity)) {
+                    var dirty = getDirty(entity, entityCache);
+                    if (dirty.isEmpty()) {
+                        return NoOpKey.INSTANCE;
+                    }
+                    return new UpdateKey(dirty.get());
+                } else {
+                    return UpsertKey.INSTANCE;
+                }
+            }, getMaxShapes(), new UpdateKey()).forEach(partition -> {
+                switch (partition.key()) {
+                    case NoOpKey ignore -> result.addAll(partition.chunk().stream().map(E::id).toList());
+                    case UpsertKey ignore -> result.addAll(upsertAndFetchIds(partition.chunk(), upsertQuery.get()));
+                    case UpdateKey u -> result.addAll(updateAndFetchIds(partition.chunk(),
+                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields()))));
+                }
+            });
+            return result;
         } finally {
-            closeQuietly(updateQuery, upsertQuery);
+            closeQuietly(Stream.of(upsertQuery.value().stream(), updateQueries.values().stream()).flatMap(identity()));
         }
     }
 
@@ -336,16 +367,31 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void upsert(@Nonnull Stream<E> entities, int batchSize) {
-        LazySupplier<PreparedQuery> updateQuery = new LazySupplier<>(this::prepareUpdateQuery);
+        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
-            chunked(entities, batchSize).forEach(batch -> {
-                var partition = partition(batch);
-                update(partition.get(true), updateQuery);
-                upsert(partition.get(false), upsertQuery);
+            var entityCache = entityCache();
+            partitioned(entities, batchSize, entity -> {
+                if (isUpdate(entity)) {
+                    var dirty = getDirty(entity, entityCache);
+                    if (dirty.isEmpty()) {
+                        return NoOpKey.INSTANCE;
+                    }
+                    return new UpdateKey(dirty.get());
+                } else {
+                    return UpsertKey.INSTANCE;
+                }
+            }, getMaxShapes(), new UpdateKey()).forEach(partition -> {
+                switch (partition.key()) {
+                    case NoOpKey ignore -> {}
+                    case UpsertKey ignore -> upsert(partition.chunk(), upsertQuery.get());
+                    case UpdateKey u -> update(partition.chunk(),
+                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields())));
+                }
             });
         } finally {
-            closeQuietly(updateQuery, upsertQuery);
+            closeQuietly(Stream.of(updateQueries.values().stream(), upsertQuery.value().stream())
+                    .flatMap(identity()));
         }
     }
 
@@ -353,11 +399,7 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
         return isAutoGeneratedPrimaryKey() && !model.isDefaultPrimaryKey(entity.id());
     }
 
-    protected Map<Boolean, List<E>> partition(@Nonnull List<E> entities) {
-        return entities.stream().collect(partitioningBy(this::isUpdate));
-    }
-
-    protected PreparedQuery prepareUpsertQuery() {
+    private PreparedQuery prepareUpsertQuery() {
         var bindVars = ormTemplate.createBindVars();
         var versionAware = new AtomicBoolean();
         return intercept(sql -> sql.versionAware(versionAware.getPlain()), () ->
@@ -367,11 +409,10 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
                 ).prepare());
     }
 
-    protected void upsert(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> querySupplier) {
+    private void upsert(@Nonnull List<E> batch, @Nonnull PreparedQuery query) {
         if (batch.isEmpty()) {
             return;
         }
-        var query = querySupplier.get();
         batch.stream().map(this::validateUpsert).map(Data.class::cast).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 1 && r != 2)) {
@@ -379,11 +420,10 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
         }
     }
 
-    protected List<ID> upsertAndFetchIds(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> querySupplier) {
+    private List<ID> upsertAndFetchIds(@Nonnull List<E> batch, @Nonnull PreparedQuery query) {
         if (batch.isEmpty()) {
             return List.of();
         }
-        var query = querySupplier.get();
         batch.stream().map(this::validateUpsert).map(Data.class::cast).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 1 && r != 2)) {
@@ -411,16 +451,5 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
             return super.insertAndFetchIds(entities);
         }
         throw new PersistenceException("MySQL does not support sequence-based generation.");
-    }
-
-    /**
-     * Helper to close lazy-supplied queries without exceptions interrupting each other.
-     */
-    private void closeQuietly(LazySupplier<PreparedQuery> updateQuery, LazySupplier<PreparedQuery> upsertQuery) {
-        try {
-            upsertQuery.value().ifPresent(PreparedQuery::close);
-        } finally {
-            updateQuery.value().ifPresent(PreparedQuery::close);
-        }
     }
 }

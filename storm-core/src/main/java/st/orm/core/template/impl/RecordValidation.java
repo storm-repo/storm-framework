@@ -29,6 +29,7 @@ import st.orm.PersistenceException;
 import st.orm.Projection;
 import st.orm.ProjectionQuery;
 import st.orm.Ref;
+import st.orm.Version;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
 import st.orm.core.spi.TypeDiscovery;
@@ -152,7 +153,12 @@ final class RecordValidation {
             return "";
         }
         boolean pkFound = false;
+        boolean versionFound = false;
         RecordType type = getRecordType(dataType);
+        var dataGraph = validateDataGraph(dataType);
+        if (dataGraph.isPresent()) {
+            return dataGraph.get();
+        }
         for (var field : type.fields()) {
             if (getORMConverter(field).isPresent()) {
                 for (var annotation : List.of(PK.class, FK.class, Inline.class)) {
@@ -165,6 +171,7 @@ final class RecordValidation {
             PK pk = field.getAnnotation(PK.class);
             FK fk = field.getAnnotation(FK.class);
             Inline inline = field.getAnnotation(Inline.class);
+            Version version = field.getAnnotation(Version.class);
             if (pk != null) {
                 if (pkFound) {
                     return "Multiple primary keys found: %s.".formatted(dataType.getSimpleName());
@@ -195,7 +202,7 @@ final class RecordValidation {
                 } else if (Ref.class.isAssignableFrom(field.type())) {
                     try {
                         fkType = getRefDataType(field);
-                        getRefPkType(field);    // Validaate Ref's PK type.
+                        getRefPkType(field);    // Validate Ref's PK type.
                     } catch (SqlTemplateException e) {
                         return e.getMessage();
                     }
@@ -211,6 +218,12 @@ final class RecordValidation {
                 if (!isRecord(field.type())) {
                     return "Inlined component must be a record type: %s.%s.".formatted(dataType.getSimpleName(), field.name());
                 }
+            }
+            if (version != null) {
+                if (versionFound) {
+                    return "Multiple @Version annotations found: %s.".formatted(dataType.getSimpleName());
+                }
+                versionFound = true;
             }
             if (isRecord(field.type())) {
                 if (!field.isAnnotationPresent(FK.class)) {
@@ -263,6 +276,20 @@ final class RecordValidation {
      * @param requirePrimaryKey true if a primary key is required, false otherwise.
      * @throws SqlTemplateException if the record type is invalid for ORM mapping.
      */
+    static void validateDataType(@Nonnull Class<? extends Data> dataType)
+            throws SqlTemplateException {
+        validateDataType(dataType, Entity.class.isAssignableFrom(dataType));
+    }
+
+    /**
+     * Validates whether the specified record type is valid for ORM mapping.
+     *
+     * <p>The results of this validation are cached.</p>
+     *
+     * @param dataType the record type to validate.
+     * @param requirePrimaryKey true if a primary key is required, false otherwise.
+     * @throws SqlTemplateException if the record type is invalid for ORM mapping.
+     */
     static void validateDataType(@Nonnull Class<? extends Data> dataType, boolean requirePrimaryKey)
             throws SqlTemplateException {
         String message = VALIDATE_RECORD_TYPE_CACHE.computeIfAbsent(new TypeValidationKey(dataType, requirePrimaryKey), ignore -> {
@@ -275,7 +302,6 @@ final class RecordValidation {
     }
 
     record GraphValidationKey(@Nonnull Class<? extends Data> dataType) {}
-    private static final Map<GraphValidationKey, String> VALIDATE_RECORD_GRAPH_CACHE = new ConcurrentHashMap<>();
 
     /**
      * Validates that the provided record type does not contain cyclic dependencies. Specifically, it ensures that no
@@ -290,16 +316,11 @@ final class RecordValidation {
      * @param dataType The root Data class to validate. Must not be null.
      * @throws SqlTemplateException if a cycle is detected in the Record graph.
      */
-    static void validateDataGraph(@Nonnull Class<? extends Data> dataType) throws SqlTemplateException {
-        String message = VALIDATE_RECORD_GRAPH_CACHE.computeIfAbsent(new GraphValidationKey(dataType), ignore -> {
-            // Initialize an empty set to keep track of the current traversal path.
-            Set<RecordType> currentPath = new LinkedHashSet<>();
-            // Start the recursive validation with the root record type.
-            return validateRecordGraph(getRecordType(dataType), currentPath).orElse("");
-        });
-        if (!message.isEmpty()) {
-            throw new SqlTemplateException(message);
-        }
+    private static Optional<String> validateDataGraph(@Nonnull Class<? extends Data> dataType) {
+        // Initialize an empty set to keep track of the current traversal path.
+        Set<RecordType> currentPath = new LinkedHashSet<>();
+        // Start the recursive validation with the root record type.
+        return validateRecordGraph(getRecordType(dataType), currentPath);
     }
 
     /**
@@ -312,14 +333,17 @@ final class RecordValidation {
      * @param currentPath The set of Record classes in the current traversal path.
      * @return an empty optional if the record graph is valid, otherwise an optional containing an error message.
      */
-    static Optional<String> validateRecordGraph(@Nonnull RecordType recordType,
-                                                @Nonnull Set<RecordType> currentPath) {
+    private static Optional<String> validateRecordGraph(@Nonnull RecordType recordType,
+                                                        @Nonnull Set<RecordType> currentPath) {
         // Check if the current record type is already in the path (cycle detected).
         if (currentPath.contains(recordType)) {
             return Optional.of("Cyclic dependency detected: %s.".formatted(buildCyclePath(recordType, currentPath)));
         }
         currentPath.add(recordType);
         for (RecordField field : recordType.fields()) {
+            if (field.mutable()) {
+                return Optional.of("Mutable fields are not allowed: %s.%s.".formatted(recordType.type().getSimpleName(), field.name()));
+            }
             if (isRecord(field.type())) {
                 // Recursively validate the component record type.
                 var path = validateRecordGraph(getRecordType(field.type()), currentPath);
@@ -340,8 +364,8 @@ final class RecordValidation {
      * @param path        the current traversal path leading up to the cycle.
      * @return a string describing the cycle path.
      */
-    static String buildCyclePath(@Nonnull RecordType currentType,
-                                 @Nonnull Set<RecordType> path) {
+    private static String buildCyclePath(@Nonnull RecordType currentType,
+                                                  @Nonnull Set<RecordType> path) {
         StringBuilder cyclePath = new StringBuilder();
         for (RecordType type : path) {
             cyclePath.append(type.type().getSimpleName()).append(" -> ");
@@ -367,7 +391,7 @@ final class RecordValidation {
      * @param parameters the parameters to validate.
      * @throws SqlTemplateException if a positional parameter is missing or if there are gaps in the positions.
      */
-    static void validatePositionalParameters(@Nonnull List<Parameter> parameters) throws SqlTemplateException {
+    private static void validatePositionalParameters(@Nonnull List<Parameter> parameters) throws SqlTemplateException {
         SortedSet<Integer> positionSet = new TreeSet<>();
         for (Parameter param : parameters) {
             if (param instanceof PositionalParameter pp) {
@@ -397,7 +421,7 @@ final class RecordValidation {
      * @param parameters the parameters to validate.
      * @throws SqlTemplateException if a named parameter is being used multiple times with varying values.
      */
-    static void validateNamedParameters(List<Parameter> parameters) throws SqlTemplateException {
+    private static void validateNamedParameters(List<Parameter> parameters) throws SqlTemplateException {
         var namedParameters = parameters.stream()
                 .filter(SqlTemplate.NamedParameter.class::isInstance)
                 .map(SqlTemplate.NamedParameter.class::cast)

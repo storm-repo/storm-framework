@@ -17,6 +17,7 @@ package st.orm.spi.postgresql;
 
 import jakarta.annotation.Nonnull;
 import st.orm.Data;
+import st.orm.Metamodel;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.repository.impl.EntityRepositoryImpl;
@@ -37,16 +38,20 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static java.util.function.Function.identity;
 import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.partitioningBy;
 import static st.orm.GenerationStrategy.SEQUENCE;
+import static st.orm.core.repository.impl.DirtySupport.getMaxShapes;
+import static st.orm.core.repository.impl.StreamSupport.partitioned;
 import static st.orm.core.template.Templates.table;
 import static st.orm.core.template.SqlInterceptor.intercept;
 import static st.orm.core.template.TemplateString.combine;
@@ -209,6 +214,19 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
         upsert(toStream(entities), defaultBatchSize);
     }
 
+    private sealed interface PartitionKey {}
+    private static final class NoOpKey implements PartitionKey {
+        private static final NoOpKey INSTANCE = new NoOpKey();
+    }
+    private static final class UpsertKey implements PartitionKey {
+        private static final UpsertKey INSTANCE = new UpsertKey();
+    }
+    private record UpdateKey(@Nonnull Set<Metamodel<? extends Data, ?>> fields) implements PartitionKey {
+        UpdateKey() {
+            this(Set.of()); // All fields.
+        }
+    }
+
     /**
      * Inserts or updates a collection of entities in the database in batches and returns a list of their IDs.
      */
@@ -217,17 +235,31 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
         if (generationStrategy != SEQUENCE) {
             return upsertAndFetchIdsNoSequence(entities);
         }
-        LazySupplier<PreparedQuery> updateQuery = new LazySupplier<>(this::prepareUpdateQuery);
+        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         try {
-            return chunked(toStream(entities), defaultBatchSize, batch -> {
-                var result = new ArrayList<ID>();
-                var partition = partition(batch);
-                result.addAll(updateAndFetchIds(partition.get(true), updateQuery));
-                result.addAll(getUpsertQuery(partition.get(false)).getResultList(model.primaryKeyType()));
-                return result.stream();
-            }).toList();
+            var result = new ArrayList<ID>();
+            var entityCache = entityCache();
+            partitioned(toStream(entities), defaultBatchSize, entity -> {
+                if (isUpdate(entity)) {
+                    var dirty = getDirty(entity, entityCache);
+                    if (dirty.isEmpty()) {
+                        return NoOpKey.INSTANCE;
+                    }
+                    return new UpdateKey(dirty.get());
+                } else {
+                    return UpsertKey.INSTANCE;
+                }
+            }, getMaxShapes(), new UpdateKey()).forEach(partition -> {
+                switch (partition.key()) {
+                    case NoOpKey ignore -> result.addAll(partition.chunk().stream().map(E::id).toList());
+                    case UpsertKey ignore -> result.addAll(getUpsertQuery(partition.chunk()).getResultList(model.primaryKeyType()));
+                    case UpdateKey u -> result.addAll(updateAndFetchIds(partition.chunk(),
+                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields()))));
+                }
+            });
+            return result;
         } finally {
-            updateQuery.value().ifPresent(PreparedQuery::close);
+            closeQuietly(updateQueries.values().stream());
         }
     }
 
@@ -245,17 +277,36 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     private List<ID> upsertAndFetchIdsNoSequence(@Nonnull Iterable<E> entities) {
-        LazySupplier<PreparedQuery> updateQuery = new LazySupplier<>(this::prepareUpdateQuery);
+        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
-            return chunked(toStream(entities), defaultBatchSize, batch -> {
-                var partition = partition(batch);
-                var result = new ArrayList<>(updateAndFetchIds(partition.get(true), updateQuery));
-                result.addAll(upsertAndFetchIds(partition.get(false), upsertQuery));
-                return result.stream();
-            }).toList();
+            var result = new ArrayList<ID>();
+            var entityCache = entityCache();
+            partitioned(toStream(entities), defaultBatchSize, entity -> {
+                if (isUpdate(entity)) {
+                    var dirty = getDirty(entity, entityCache);
+                    if (dirty.isEmpty()) {
+                        return NoOpKey.INSTANCE;
+                    }
+                    return new UpdateKey(dirty.get());
+                } else {
+                    return UpsertKey.INSTANCE;
+                }
+            }, getMaxShapes(), new UpdateKey()).forEach(partition -> {
+                switch (partition.key()) {
+                    case NoOpKey ignore -> result.addAll(partition.chunk().stream().map(E::id).toList());
+                    case UpsertKey ignore -> result.addAll(upsertAndFetchIds(partition.chunk(), upsertQuery.get()));
+                    case UpdateKey u -> result.addAll(updateAndFetchIds(partition.chunk(),
+                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields()))));
+                }
+            });
+            return result;
         } finally {
-            closeQuietly(updateQuery, upsertQuery);
+            closeQuietly(Stream.of(
+                            updateQueries.values().stream(),
+                            upsertQuery.value().stream()
+                    )
+                    .flatMap(identity()));
         }
     }
 
@@ -280,16 +331,34 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void upsert(@Nonnull Stream<E> entities, int batchSize) {
-        LazySupplier<PreparedQuery> updateQuery = new LazySupplier<>(this::prepareUpdateQuery);
+        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
-            chunked(entities, batchSize).forEach(batch -> {
-                var partition = partition(batch);
-                update(partition.get(true), updateQuery);
-                upsert(partition.get(false), upsertQuery);
+            var entityCache = entityCache();
+            partitioned(entities, batchSize, entity -> {
+                if (isUpdate(entity)) {
+                    var dirty = getDirty(entity, entityCache);
+                    if (dirty.isEmpty()) {
+                        return NoOpKey.INSTANCE;
+                    }
+                    return new UpdateKey(dirty.get());
+                } else {
+                    return UpsertKey.INSTANCE;
+                }
+            }, getMaxShapes(), new UpdateKey()).forEach(partition -> {
+                switch (partition.key()) {
+                    case NoOpKey ignore -> {}
+                    case UpsertKey ignore -> upsert(partition.chunk(), upsertQuery.get());
+                    case UpdateKey u -> update(partition.chunk(),
+                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields())));
+                }
             });
         } finally {
-            closeQuietly(updateQuery, upsertQuery);
+            closeQuietly(Stream.of(
+                    updateQueries.values().stream(),
+                    upsertQuery.value().stream()
+            )
+                    .flatMap(identity()));
         }
     }
 
@@ -301,7 +370,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
         return entities.stream().collect(partitioningBy(this::isUpdate));
     }
 
-    protected PreparedQuery prepareUpsertQuery() {
+    private PreparedQuery prepareUpsertQuery() {
         var bindVars = ormTemplate.createBindVars();
         var versionAware = new AtomicBoolean();
         return intercept(sql -> sql.versionAware(versionAware.getPlain()), () ->
@@ -311,11 +380,10 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
                 ).prepare());
     }
 
-    protected void upsert(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> querySupplier) {
+    private void upsert(@Nonnull List<E> batch, @Nonnull PreparedQuery query) {
         if (batch.isEmpty()) {
             return;
         }
-        var query = querySupplier.get();
         batch.stream().map(this::validateUpsert).map(Data.class::cast).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
@@ -323,11 +391,10 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
         }
     }
 
-    protected List<ID> upsertAndFetchIds(@Nonnull List<E> batch, @Nonnull Supplier<PreparedQuery> querySupplier) {
+    private List<ID> upsertAndFetchIds(@Nonnull List<E> batch, @Nonnull PreparedQuery query) {
         if (batch.isEmpty()) {
             return List.of();
         }
-        var query = querySupplier.get();
         batch.stream().map(this::validateUpsert).map(Data.class::cast).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
@@ -372,16 +439,5 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
             VALUES \0
             RETURNING %s""".formatted(pkName), model.type(), entities));
         return query.getResultList(model.primaryKeyType());
-    }
-
-    /**
-     * Helper to close lazy-supplied queries without exceptions interrupting each other.
-     */
-    private void closeQuietly(LazySupplier<PreparedQuery> updateQuery, LazySupplier<PreparedQuery> upsertQuery) {
-        try {
-            upsertQuery.value().ifPresent(PreparedQuery::close);
-        } finally {
-            updateQuery.value().ifPresent(PreparedQuery::close);
-        }
     }
 }

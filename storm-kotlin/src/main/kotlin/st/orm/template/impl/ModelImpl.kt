@@ -16,14 +16,13 @@
 package st.orm.template.impl
 
 import st.orm.Data
-import st.orm.Metamodel
 import st.orm.template.Column
 import st.orm.template.Model
-import java.util.*
 import kotlin.reflect.KClass
 
 class ModelImpl<E : Data, ID : Any>(
-    internal val core: st.orm.core.template.Model<E, ID>
+    internal val
+    core: st.orm.core.template.Model<E, ID>
 ) : Model<E, ID> {
 
     override val schema: String                             get() = core.schema()
@@ -32,12 +31,12 @@ class ModelImpl<E : Data, ID : Any>(
     override val primaryKeyType: KClass<ID>                 get() = core.primaryKeyType().kotlin
     override val columns: List<Column>                      get() = core.columns().map(::ColumnImpl)
     override fun isDefaultPrimaryKey(pk: ID?): Boolean      = core.isDefaultPrimaryKey(pk)
-    override fun getValue(column: Column, record: E): Any?  = core.getValue((column as ColumnImpl).core, record)
-    override fun getValues(record: E): SequencedMap<Column, Any?> {
-        val map = LinkedHashMap<Column, Any?>();
-        core.getValues(record).forEach { (c, v) -> map[ColumnImpl(c)] = v };
-        return map;
+    override fun forEachValue(record: E, filter: (Column) -> Boolean, consumer: (Column, Any?) -> Unit) {
+        core.forEachValue(record, { c -> filter(ColumnImpl(c)) }) { c, v -> consumer(ColumnImpl(c), v) }
     }
-    override fun getMetamodel(column: Column): Metamodel<E, *> =
-        core.getMetamodel((column as ColumnImpl).core)
+    override fun values(record: E, filter: (Column) -> Boolean): Map<Column, Any?> {
+        val map = mutableMapOf<Column, Any?>()
+        core.forEachValue(record, { c -> filter(ColumnImpl(c)) }) { c, v -> map[ColumnImpl(c)] = v }
+        return map
+    }
 }

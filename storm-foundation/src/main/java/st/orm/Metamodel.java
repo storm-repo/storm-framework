@@ -20,8 +20,17 @@ import jakarta.annotation.Nonnull;
 /**
  * The metamodel is used to map database columns to the object model in a type-safe way.
  *
+ * <h2>Equality</h2>
+ * Two metamodel instances are considered equal when they identify the same logical field location
+ * in the schema:
+ * <ul>
+ *   <li>the same owning table as returned by {@link #fieldType()} of {@link #table()},</li>
+ *   <li>the same {@link #path()}, and</li>
+ *   <li>the same {@link #field()}.</li>
+ * </ul>
+ *
  * @param <T> the primary table type.
- * @param <E> the record component type of the designated element.
+ * @param <E> the field type of the designated element.
  * @since 1.2
  */
 public interface Metamodel<T, E> {
@@ -41,10 +50,10 @@ public interface Metamodel<T, E> {
      * Creates a new metamodel for the given root rootTable and path.
      *
      * <p>This method is typically used to manually create a metamodel for a component of a record, which can be useful
-     * in cases where the metamodel can not be generated automatically, for example local records.</p>
+     * in cases where the metamodel cannot be generated automatically, for example, local records.</p>
      *
      * @param rootTable the root rootTable to create the metamodel for.
-     * @param path a dot separated path starting from the root rootTable.
+     * @param path a dot separated path starting from the root table.
      * @return a new metamodel for the given root rootTable and path.
      * @param <T> the root rootTable type.
      * @param <E> the record component type of the designated component.
@@ -61,6 +70,13 @@ public interface Metamodel<T, E> {
      * @return {@code true} if this metamodel maps to a column, {@code false} otherwise.
      */
     boolean isColumn();
+
+    /**
+     * Returns {@code true} if the metamodel corresponds to an inline record, returns {@code false} otherwise.
+     *
+     * @return {@code true} if this metamodel maps to an inline record, {@code false} otherwise.
+     */
+    boolean isInline();
 
     /**
      * Returns the root metamodel. This is typically the table specified in the FROM clause of a query.
@@ -109,4 +125,64 @@ public interface Metamodel<T, E> {
         String field = field();
         return path.isEmpty() ? field : field.isEmpty() ? path : "%s.%s".formatted(path, field());
     }
+
+    /**
+     * Extracts the value from the given record specified by this metamodel.
+     *
+     * @return the value from the given record specified by this metamodel.
+     * @since 1.7
+     */
+    Object getValue(@Nonnull T record);
+
+    /**
+     * Checks whether the value extracted from {@code a} is identical to the value extracted from {@code b}.
+     *
+     * <p><strong>Semantics:</strong>
+     * This method performs an <em>identity comparison</em> on the extracted field value.
+     * It returns {@code true} if and only if both extracted values refer to the
+     * <strong>same object instance</strong>.
+     *
+     * <p>This operation is only meaningful for <em>reference-typed fields</em>.
+     * It is <strong>not defined for primitive-typed fields</strong>.
+     *
+     * <p><strong>Performance guarantees:</strong>
+     * <ul>
+     *   <li>No boxing or unboxing is performed.</li>
+     *   <li>No value coercion or conversion is performed.</li>
+     *   <li>No {@code equals(...)} or comparator logic is used.</li>
+     * </ul>
+     *
+     * @param a the instance from which the left-hand value is extracted, must not be {@code null}.
+     * @param b the instance from which the right-hand value is extracted, must not be {@code null}.
+     * @return {@code true} if both extracted values are the same object instance.
+     * @since 1.7
+     */
+    boolean isIdentical(@Nonnull T a, @Nonnull T b);
+
+    /**
+     * Checks whether the value extracted from {@code a} is the same as the value extracted from {@code b}.
+     *
+     * <p><strong>Semantics:</strong>
+     * This method performs a <em>value comparison</em> on the extracted field value.
+     * The comparison is defined by the field type:
+     *
+     * <ul>
+     *   <li>For primitive-typed fields, values are compared using {@code ==}.</li>
+     *   <li>For reference-typed fields, values are compared using their defined value semantics
+     *       (for example {@code equals(...)} or an equivalent comparator).</li>
+     * </ul>
+     *
+     * <p><strong>Performance guarantees:</strong>
+     * <ul>
+     *   <li>No boxing or unboxing is performed.</li>
+     *   <li>No identity comparison is performed.</li>
+     *   <li>The comparison operates directly on the extracted values.</li>
+     * </ul>
+     *
+     * @param a the instance from which the left-hand value is extracted, must not be {@code null}.
+     * @param b the instance from which the right-hand value is extracted, must not be {@code null}.
+     * @return {@code true} if both extracted values are equal by value.
+     * @since 1.7
+     */
+    boolean isSame(@Nonnull T a, @Nonnull T b);
 }

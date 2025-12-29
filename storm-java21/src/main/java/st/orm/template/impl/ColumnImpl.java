@@ -16,14 +16,17 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.GenerationStrategy;
+import st.orm.Metamodel;
 import st.orm.template.Column;
 
 /**
  * Represents a column in a database table.
  *
  * @param core the underlying column.
- * @param columnName the name of the column.
+ * @param index the 1-based index of the column.
+ * @param name the name of the column.
  * @param type the Java type of the column.
  * @param primaryKey whether the column is a primary key.
  * @param generation the generation strategy.
@@ -34,11 +37,12 @@ import st.orm.template.Column;
  * @param updatable whether the column is updatable.
  * @param version whether the column is a version column.
  * @param ref whether the column is a lazily fetched record.
+ * @param metamodel the metamodel for the column.
  */
 public record ColumnImpl(
-        @Nonnull st.orm.core.template.impl.ColumnImpl core,
-        @Nonnull st.orm.core.spi.Name columnName,
+        @Nonnull st.orm.core.template.Column core,
         int index,
+        @Nonnull String name,
         @Nonnull Class<?> type,
         boolean primaryKey,
         @Nonnull GenerationStrategy generation,
@@ -48,14 +52,15 @@ public record ColumnImpl(
         boolean insertable,
         boolean updatable,
         boolean version,
-        boolean ref
+        boolean ref,
+        Metamodel<? extends Data, ?> metamodel
 ) implements Column {
 
-    public ColumnImpl(@Nonnull st.orm.core.template.impl.ColumnImpl column) {
+    public ColumnImpl(@Nonnull st.orm.core.template.Column column) {
         this(
                 column,
-                column.columnName(),
                 column.index(),
+                column.name(),
                 column.type(),
                 column.primaryKey(),
                 column.generation(),
@@ -65,17 +70,8 @@ public record ColumnImpl(
                 column.insertable(),
                 column.updatable(),
                 column.version(),
-                column.ref()
+                column.ref(),
+                column.metamodel()
         );
-    }
-
-    /**
-     * Gets the name of the column.
-     *
-     * @return the column name.
-     */
-    @Override
-    public String name() {
-        return columnName.name();
     }
 }

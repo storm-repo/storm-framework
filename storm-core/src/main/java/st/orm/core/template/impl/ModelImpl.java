@@ -18,8 +18,9 @@ package st.orm.core.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
-import st.orm.Metamodel;
-import st.orm.PersistenceException;
+import st.orm.DbEnum;
+import st.orm.Ref;
+import st.orm.core.spi.ORMConverter;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
 import st.orm.mapping.RecordField;
@@ -27,43 +28,62 @@ import st.orm.core.template.SqlDialect;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplateException;
+import st.orm.mapping.RecordType;
 
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
-import java.util.Optional;
-import java.util.SequencedMap;
+import java.util.function.BiConsumer;
+import java.util.function.Predicate;
 
+import static java.util.Collections.nCopies;
 import static java.util.List.copyOf;
 import static java.util.Objects.requireNonNull;
+import static java.util.Optional.ofNullable;
+import static st.orm.EnumType.NAME;
+import static st.orm.core.template.impl.RecordReflection.isRecord;
 
 /**
  * Represents the model of an entity or projection.
  *
- * @param <E> the type of the entity or projection.
- * @param <ID> the type of the primary key, or {@code Void} in case of a projection without a primary key.
- * @param tableName the name of the table or view.
- * @param type the type of the entity or projection.
- * @param primaryKeyType the type of the primary key.
- * @param columns an immutable list of columns in the entity or projection.
  */
-public record ModelImpl<E extends Data, ID>(
-        @Nonnull TableName tableName,
-        @Nonnull Class<E> type,
-        @Nonnull Class<ID> primaryKeyType,
-        @Nonnull List<Column> columns,
-        @Nonnull List<Metamodel<E, ?>> metamodels,
-        @Nonnull Optional<RecordField> primaryKeyField,
-        @Nonnull List<RecordField> foreignKeyFields) implements Model<E, ID> {
+public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
 
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
-    public ModelImpl {
-        requireNonNull(tableName, "tableName");
-        requireNonNull(type, "type");
-        requireNonNull(primaryKeyType, "primaryKeyType");
-        columns = copyOf(columns); // Defensive copy.
-        metamodels = copyOf(metamodels); // Defensive copy.
-        foreignKeyFields = copyOf(foreignKeyFields); // Defensive copy.
-        assert columns.size() == metamodels.size() : "Columns and metamodels must have the same size";
+    private final RecordType recordType;
+    private final RecordField primaryKeyField;
+    private final TableName tableName;
+    private final List<Column> columns;
+    private final List<RecordField> fields;
+    private final List<ORMConverter> converters;
+
+    public ModelImpl(@Nonnull RecordType recordType,
+                     @Nullable RecordField primaryKeyField,
+                     @Nonnull TableName tableName,
+                     @Nonnull List<Column> columns,
+                     @Nonnull List<RecordField> fields) {
+        assert columns.size() == fields.size() : "Columns and fields must have the same size";
+        this.recordType = requireNonNull(recordType, "recordType");
+        this.tableName = requireNonNull(tableName, "tableName");
+        this.columns = columns = copyOf(columns); // Defensive copy.
+        this.fields = copyOf(fields); // Defensive copy.
+        this.primaryKeyField = primaryKeyField;
+        this.converters = new ArrayList<>(nCopies(columns.size(), null));
+        for (int i = 0; i < columns.size(); i++) {
+            ORMConverter converter = Providers.getORMConverter(fields.get(i)).orElse(null);
+            if (converter != null) {
+                converters.set(i, converter);
+            }
+        }
     }
 
     /**
@@ -97,6 +117,28 @@ public record ModelImpl<E extends Data, ID>(
     }
 
     /**
+     * Returns the type of the entity or projection.
+     *
+     * @return the type of the entity or projection.
+     */
+    @SuppressWarnings("unchecked")
+    @Override
+    public Class<E> type() {
+        return (Class<E>) recordType.type();
+    }
+
+    /**
+     * Returns the type of the primary key.
+     *
+     * @return the type of the primary key.
+     */
+    @Override
+    public Class<ID> primaryKeyType() {
+        //noinspection unchecked
+        return primaryKeyField == null ? (Class<ID>) Void.class : (Class<ID>) primaryKeyField.type();
+    }
+
+    /**
      * Returns {code true} if the specified primary key represents a default value, {@code false} otherwise.
      *
      * <p>This method is used to check if the primary key of the entity is a default value. This is useful when
@@ -108,73 +150,96 @@ public record ModelImpl<E extends Data, ID>(
      */
     @Override
     public boolean isDefaultPrimaryKey(@Nullable ID pk) {
-        return ModelMapper.of(this).isDefaultValue(pk);
+        return REFLECTION.isDefaultValue(pk);
     }
 
     /**
-     * Extracts the value for the specified record field from the given record.
+     * Extracts column values from the given record and feeds them to a consumer in model column order,
+     * limited to columns accepted by {@code columnFilter}.
      *
-     * @param field the record field to extract the value for.
-     * @param record the record to extract the value from.
-     * @return the value for the specified record field from the given record.
-     * @since 1.3
+     * <p>See {@link #forEachValue(E, BiConsumer)} for details about ordering and the produced value types.
+     * In short: the produced values are JDBC-ready and already converted (refs and foreign keys unpacked to ids,
+     * Java time converted to JDBC time types).</p>
+     *
+     * @param record the record (entity or projection instance) to extract values from
+     * @param filter predicate that decides whether a column should be visited
+     * @param consumer receives each visited column together with its extracted (JDBC-ready) value
+     * @throws SqlTemplateException if an error occurs during value extraction
+     * @since 1.7
      */
     @Override
-    public Object getValue(@Nonnull RecordField field, @Nonnull E record) {
-        return REFLECTION.invoke(field, record);
-    }
-
-    /**
-     * Extracts the values from the given record and maps them to the columns of the entity or projection.
-     *
-     * @param record the record to extract the values from.
-     * @return the values from the given record mapped to the columns of the entity or projection.
-     * @throws PersistenceException if an error occurs while extracting the values.
-     * @since 1.2
-     */
-    @Override
-    public SequencedMap<Column, Object> getValues(@Nonnull E record) {
-        try {
-            return ModelMapper.of(this).map(record);
-        } catch (SqlTemplateException e) {
-            throw new PersistenceException(e);
+    public void forEachValue(@Nonnull E record, @Nonnull Predicate<Column> filter, @Nonnull BiConsumer<Column, Object> consumer) throws SqlTemplateException {
+        for (int i = 0; i < columns.size(); i++) {
+            var column = columns.get(i);
+            var converter = converters.get(column.index() - 1);
+            if (converter != null) {
+                int parameterCount = converter.getParameterCount();
+                List<?> values = null;
+                for (int j = 0; j < parameterCount; j++) {
+                    if (!filter.test(column)) {
+                        continue;
+                    }
+                    if (values == null) {
+                        values = converter.toDatabase(record);
+                    }
+                    consumer.accept(column, values.get(j));
+                }
+                i += parameterCount - 1;
+                continue;
+            }
+            if (!filter.test(column)) {
+                continue;
+            }
+            var value = column.metamodel().getValue(record);
+            if (value == null && !column.nullable() && !column.primaryKey()) {
+                throw new SqlTemplateException("Column cannot be null: %s.".formatted(column.name()));
+            }
+            if (column.foreignKey()) {
+                if (value instanceof Ref<?> ref) {
+                    value = ref.id();
+                } else if (value instanceof Data data) {
+                    value = REFLECTION.getId(data);
+                } else if (value != null) {
+                    throw new SqlTemplateException("Invalid foreign key type for column: %s.".formatted(column.name()));
+                }
+                if (value != null && isRecord(value.getClass())) {
+                    value = REFLECTION.getRecordValue(value, column.keyIndex() - 1);
+                }
+            }
+            Object mapped = switch (value) {
+                case Instant it -> Timestamp.from(it);
+                case LocalDateTime it -> Timestamp.valueOf(it);
+                case OffsetDateTime it -> Timestamp.from(it.toInstant());
+                case LocalDate it -> Date.valueOf(it);
+                case LocalTime it -> Time.valueOf(it);
+                case Calendar it -> new Timestamp(it.getTimeInMillis());
+                case java.util.Date it -> new Timestamp(it.getTime());
+                case Enum<?> it -> switch (ofNullable(fields.get(column.index() - 1).getAnnotation(DbEnum.class))
+                        .map(DbEnum::value)
+                        .orElse(NAME)) {
+                    case NAME -> it.name();
+                    case ORDINAL -> it.ordinal();
+                };
+                case null, default -> value;
+            };
+            consumer.accept(column, mapped);
         }
     }
 
-    /**
-     * Extracts the value for the specified column from the given record.
-     *
-     * @param column the column to extract the value for.
-     * @param record the record to extract the value from.
-     * @return the value for the specified column from the given record.
-     * @throws PersistenceException if an error occurs while extracting the values.
-     * @since 1.2
-     */
     @Override
-    public Object getValue(@Nonnull Column column, @Nonnull E record) {
-        try {
-            return ModelMapper.of(this).map(column, record);
-        } catch (SqlTemplateException e) {
-            throw new PersistenceException(e);
-        }
+    @Nonnull
+    public RecordType recordType() {
+        return recordType;
     }
 
-    /**
-     * Returns the metamodel for the column.
-     *
-     * @return the metamodel for the column.
-     * @throws PersistenceException if the column is unknown or does not match the model's columns.
-     * @since 1.3
-     */
+    @Nonnull
+    public TableName tableName() {
+        return tableName;
+    }
+
     @Override
-    public Metamodel<E, ?> getMetamodel(@Nonnull Column column) {
-        int index = column.index();
-        if (index < 1 || index > columns.size()) {
-            throw new PersistenceException("Unknown column %s.".formatted(column));
-        }
-        if (!column.equals(columns.get(index - 1))) {
-            throw new PersistenceException("Column %s does not match the model's column at index %d.".formatted(column, index));
-        }
-        return metamodels.get(column.index() - 1);
+    @Nonnull
+    public List<Column> columns() {
+        return columns;
     }
 }

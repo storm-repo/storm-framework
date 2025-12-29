@@ -18,12 +18,13 @@ package st.orm.core.template;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
-import st.orm.Metamodel;
-import st.orm.mapping.RecordField;
+import st.orm.mapping.RecordType;
 
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Optional;
-import java.util.SequencedMap;
+import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.Predicate;
 
 /**
  * Represents the model of an entity or projection.
@@ -76,21 +77,12 @@ public interface Model<E extends Data, ID> {
     List<Column> columns();
 
     /**
-     * Returns the primary key field for the given record. The optional is empty if the record does not have a
-     * primary key.
+     * Returns the type of the record.
      *
-     * @return an {@link Optional} containing the primary key field if it exists.
-     * @since 1.3
+     * @return the type of the record.
+     * @since 1.7
      */
-    Optional<RecordField> primaryKeyField();
-
-    /**
-     * Returns the foreign keys for the given record.
-     *
-     * @return a list of foreign key fields for the given record.
-     * @since 1.3
-     */
-    List<RecordField> foreignKeyFields();
+    RecordType recordType();
 
     /**
      * <p>This method is used to check if the primary key of the entity is a default value. This is useful when
@@ -103,39 +95,70 @@ public interface Model<E extends Data, ID> {
     boolean isDefaultPrimaryKey(@Nullable ID pk);
 
     /**
-     * Extracts the value for the specified record field from the given record.
+     * Extracts column values from the given record and feeds them to a consumer in model column order.
      *
-     * @param field the record field to extract the value for.
-     * @param record the record to extract the value from.
-     * @return the value for the specified record field from the given record.
-     * @since 1.3
+     * <p>The values produced by this method are the same values that would be presented to the JDBC / data layer.
+     * This means conversions have already been applied:</p>
+     *
+     * <ul>
+     *   <li>{@code Ref<T>} is unpacked to its underlying primary-key value.</li>
+     *   <li>Foreign-key fields are represented by their primary-key value.</li>
+     *   <li>Java time types are converted to their JDBC-compatible counterparts (for example {@code LocalDate} to
+     *       {@code java.sql.Date}, {@code LocalDateTime} to {@code java.sql.Timestamp}, etc.).</li>
+     * </ul>
+     *
+     * <p>The consumer is invoked once per mapped column, in a stable order that matches the column order of the
+     * underlying model (entity or projection). The extracted value may be {@code null}.</p>
+     *
+     * <p>This method does not allocate intermediate collections and does not mutate the record. It is intended for
+     * efficient value extraction and binding, for example, when preparing SQL statements.</p>
+     *
+     * @param record the record to extract values from.
+     * @param consumer receives each mapped column together with its extracted (JDBC-ready) value.
+     * @throws SqlTemplateException if an error occurs during value extraction.
+     * @since 1.7
      */
-    Object getValue(@Nonnull RecordField field, @Nonnull E record);
+    default void forEachValue(@Nonnull E record, @Nonnull BiConsumer<Column, Object> consumer) throws SqlTemplateException {
+        forEachValue(record, column -> true, consumer);
+    }
 
     /**
-     * Extracts the value for the specified column from the given record.
+     * Extracts column values from the given record and feeds them to a consumer in model column order,
+     * limited to columns accepted by {@code columnFilter}.
      *
-     * @param column the column to extract the value for.
-     * @param record the record to extract the value from.
-     * @return the value for the specified column from the given record.
-     * @since 1.2
+     * <p>See {@link #forEachValue(E, BiConsumer)} for details about ordering and the produced value types.
+     * In short: the produced values are JDBC-ready and already converted (refs and foreign keys unpacked to ids,
+     * Java time converted to JDBC time types).</p>
+     *
+     * @param record the record (entity or projection instance) to extract values from
+     * @param filter predicate that decides whether a column should be visited
+     * @param consumer receives each visited column together with its extracted (JDBC-ready) value
+     * @throws SqlTemplateException if an error occurs during value extraction
+     * @since 1.7
      */
-    Object getValue(@Nonnull Column column, @Nonnull E record);
+    void forEachValue(
+            @Nonnull E record,
+            @Nonnull Predicate<Column> filter,
+            @Nonnull BiConsumer<Column, Object> consumer
+    ) throws SqlTemplateException;
 
     /**
-     * Extracts the values from the given record and maps them to the columns of the entity or projection.
+     * Collects extracted values into a map, optionally filtering which columns to include.
      *
-     * @param record the record to extract the values from.
-     * @return the values from the given record mapped to the columns of the entity or projection.
-     * @since 1.2
-     */
-    SequencedMap<Column, Object> getValues(@Nonnull E record);
-
-    /**
-     * Returns the metamodel for the column.
+     * <p>The returned map preserves iteration order. Its iteration order matches the model's stable column order.</p>
      *
-     * @return the metamodel for the column.
-     * @since 1.3
+     * <p>Values are the same JDBC-ready values as produced by {@link #forEachValue(E, BiConsumer)}.</p>
+     *
+     * @param record the record (entity or projection instance) to extract values from.
+     * @param filter predicate that decides whether a column should be included.
+     * @return a {@link Map} containing columns and their extracted (JDBC-ready) values in the order of the model.
+     * @throws SqlTemplateException if an error occurs during value extraction.
+     * @since 1.7
      */
-    Metamodel<E, ?> getMetamodel(@Nonnull Column column);
+    default Map<Column, Object> values(@Nonnull E record, @Nonnull Predicate<Column> filter)
+            throws SqlTemplateException {
+        Map<Column, Object> values = new LinkedHashMap<>();
+        forEachValue(record, filter, values::put);
+        return values;
+    }
 }

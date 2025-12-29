@@ -20,7 +20,6 @@ import st.orm.Data;
 import st.orm.PersistenceException;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.List;
@@ -39,6 +38,7 @@ import static java.util.Objects.requireNonNull;
  * @param type the raw type of the field.
  * @param genericType the generic type of the field, preserving type parameters.
  * @param nullable whether the field value can be null.
+ * @param mutable whether the field value can be modified.
  * @param method the accessor method for this field.
  * @param annotations all annotations present on this field.
  * @since 1.7
@@ -48,6 +48,7 @@ public record RecordField(@Nonnull Class<?> declaringType,
                           @Nonnull Class<?> type,
                           @Nonnull Type genericType,
                           boolean nullable,
+                          boolean mutable,
                           @Nonnull Method method,
                           @Nonnull List<Annotation> annotations) {
     public RecordField {
@@ -77,7 +78,7 @@ public record RecordField(@Nonnull Class<?> declaringType,
     @SuppressWarnings("unchecked")
     public Class<? extends Data> requireDataType() {
         if (!Data.class.isAssignableFrom(type)) {
-            throw new PersistenceException("Data type required");
+            throw new PersistenceException("Data type required.");
         }
         return (Class<? extends Data>) type;
     }

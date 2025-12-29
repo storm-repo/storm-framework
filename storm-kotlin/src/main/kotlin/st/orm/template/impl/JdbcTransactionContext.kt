@@ -1,10 +1,9 @@
 package st.orm.template.impl
 
 import org.slf4j.LoggerFactory
+import st.orm.Entity
 import st.orm.PersistenceException
-import st.orm.core.spi.TransactionCallback
-import st.orm.core.spi.TransactionContext
-import st.orm.core.spi.TransactionStatus
+import st.orm.core.spi.*
 import st.orm.template.TransactionPropagation
 import st.orm.template.TransactionPropagation.*
 import st.orm.template.TransactionTimedOutException
@@ -13,6 +12,7 @@ import java.sql.*
 import java.sql.Connection.*
 import java.util.*
 import javax.sql.DataSource
+import kotlin.reflect.KClass
 
 /**
  * A JDBC transaction context implementation that provides lightweight transaction management based on JDBC.
@@ -86,6 +86,7 @@ internal class JdbcTransactionContext : TransactionContext {
         var suspended: Boolean                  = false,
         var deadlineNanos: Long?                = null,
         val transactionId: String               = UUID.randomUUID().toString(),
+        val entityCacheMap: MutableMap<KClass<*>, EntityCache<*, *>> = mutableMapOf()
     )
 
     private fun nowNanos(): Long = System.nanoTime()
@@ -126,6 +127,32 @@ internal class JdbcTransactionContext : TransactionContext {
      */
     fun currentConnection(): Connection? = stack.lastOrNull()?.connection
 
+    /**
+     * Returns true if the transaction is marked as read-only, false otherwise.
+     *
+     * @return true if the transaction is marked as read-only, false otherwise.
+     * @since 1.7
+     */
+    override fun isReadOnly(): Boolean =
+        currentState.readOnly ?: false
+
+    /**
+     * Returns a transaction-local cache for entities of the given type, keyed by primary key.
+     */
+    override fun entityCache(entityType: Class<out Entity<*>>): EntityCache<out Entity<*>, *> {
+        @Suppress("UNCHECKED_CAST")
+        return currentState.entityCacheMap.getOrPut(entityType.kotlin) {
+            EntityCacheImpl<Entity<Any>, Any>()
+        } as EntityCache<Entity<*>, *>
+    }
+
+    /**
+     * Gets the decorator for the specified resource type.
+     *
+     * @param resourceType the resource type.
+     * @return the decorator.
+     * @param <T> the resource type.
+     */
     override fun <T : Any> getDecorator(resourceType: Class<T>): TransactionContext.Decorator<T> {
         if (resourceType != PreparedStatement::class.java) {
             return TransactionContext.Decorator<T> { obj -> obj }   // No-op.

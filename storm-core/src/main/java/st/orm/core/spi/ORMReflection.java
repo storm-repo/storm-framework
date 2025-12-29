@@ -18,7 +18,6 @@ package st.orm.core.spi;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
-import st.orm.Entity;
 import st.orm.PersistenceException;
 import st.orm.mapping.RecordField;
 import st.orm.mapping.RecordType;
@@ -32,7 +31,9 @@ import java.util.Optional;
  */
 public interface ORMReflection {
 
-    <ID, E extends Entity<ID>> ID getId(@Nonnull E entity);
+    Object getId(@Nonnull Data data);
+
+    Object getRecordValue(@Nonnull Object record, int index);
 
     Optional<RecordType> findRecordType(@Nonnull Class<?> type);
 

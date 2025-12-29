@@ -16,8 +16,7 @@
 package st.orm.template
 
 import st.orm.Data
-import st.orm.Metamodel
-import java.util.*
+import st.orm.core.template.SqlTemplateException
 import kotlin.reflect.KClass
 
 /**
@@ -74,29 +73,69 @@ interface Model<E : Data, ID : Any> {
     fun isDefaultPrimaryKey(pk: ID?): Boolean
 
     /**
-     * Extracts the value for the specified column from the given record.
+     * Iterates over all mapped columns of the given record and emits their extracted values
+     * in stable model column order.
      *
-     * @param column the column to extract the value for.
-     * @param record the record to extract the value from.
-     * @return the value for the specified column from the given record.
-     * @since 1.2
+     * The emitted values are the same values that would be passed to the JDBC / data layer.
+     * All conversions have already been applied:
+     *
+     * - `Ref<T>` values are unpacked to their primary-key value
+     * - Foreign-key fields are represented by their primary-key value
+     * - Java time types are converted to JDBC-compatible types
+     *   (for example `LocalDate` → `java.sql.Date`,
+     *   `LocalDateTime` → `java.sql.Timestamp`)
+     *
+     * The consumer is invoked once per mapped column. Values may be `null`.
+     *
+     * This function does not allocate intermediate collections and does not mutate the record.
+     * It is intended for efficient value extraction and binding, for example when preparing
+     * SQL statements.
+     *
+     * @param record the record (entity or projection) to extract values from
+     * @param consumer receives each column together with its extracted JDBC-ready value
+     * @throws SqlTemplateException if value extraction fails
+     * @since 1.7
      */
-    fun getValue(column: Column, record: E): Any?
+    fun forEachValue(
+        record: E,
+        consumer: (Column, Any?) -> Unit
+    ) = forEachValue(record, filter = { true }, consumer)
 
     /**
-     * Extracts the values from the given record and maps them to the columns of the entity or projection.
+     * Iterates over mapped columns of the given record and emits their extracted values
+     * in stable model column order, limited to columns accepted by [filter].
      *
-     * @param record the record to extract the values from.
-     * @return the values from the given record mapped to the columns of the entity or projection.
-     * @since 1.2
+     * Value semantics and ordering are identical to
+     * [forEachValue(record, consumer)][forEachValue].
+     *
+     * @param record the record (entity or projection) to extract values from
+     * @param filter predicate deciding which columns are visited
+     * @param consumer receives each visited column together with its extracted JDBC-ready value
+     * @throws SqlTemplateException if value extraction fails
+     * @since 1.7
      */
-    fun getValues(record: E): SequencedMap<Column, Any?>
+    fun forEachValue(
+        record: E,
+        filter: (Column) -> Boolean,
+        consumer: (Column, Any?) -> Unit
+    )
 
     /**
-     * Returns the metamodel for the column.
+     * Collects extracted column values into a map, optionally filtering which columns to include.
      *
-     * @return the metamodel for the column.
-     * @since 1.3
+     * The returned map preserves iteration order. Its iteration order matches the stable
+     * column order of the underlying model.
+     *
+     * Values are the same JDBC-ready values as produced by [forEachValue].
+     *
+     * @param record the record (entity or projection) to extract values from
+     * @param filter predicate deciding which columns are included
+     * @return a map of columns to their extracted JDBC-ready values, in model order
+     * @throws SqlTemplateException if value extraction fails
+     * @since 1.7
      */
-    fun getMetamodel(column: Column): Metamodel<E, *>
+    fun values(
+        record: E,
+        filter: (Column) -> Boolean
+    ): Map<Column, Any?>
 }

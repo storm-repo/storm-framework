@@ -13,16 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spring
+package st.orm.core.template.impl;
 
-import org.springframework.context.annotation.Import
-import kotlin.annotation.AnnotationRetention.RUNTIME
-import kotlin.annotation.AnnotationTarget.CLASS
+import jakarta.annotation.Nonnull;
 
 /**
- * Enables Spring transaction integration for Storm.
+ * Value comparison on an extracted field value.
+ *
+ * <p>Implementations must not perform boxing or coercion for primitive-typed fields.</p>
+ *
+ * @since 1.7
  */
-@Target(CLASS)
-@Retention(RUNTIME)
-@Import(SpringTransactionConfiguration::class)
-annotation class EnableTransactionIntegration
+@FunctionalInterface
+public interface Same<T> {
+
+    /**
+     * Returns {@code true} if and only if the value extracted from {@code a} and {@code b} is equal by value.
+     */
+    boolean isSame(@Nonnull T a, @Nonnull T b) throws Throwable;
+}

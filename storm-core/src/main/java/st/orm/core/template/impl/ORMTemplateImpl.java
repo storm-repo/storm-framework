@@ -34,6 +34,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.function.Predicate;
 
 import static java.lang.System.identityHashCode;
@@ -45,6 +47,9 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
 
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
+    private final ConcurrentMap<Class<?>, EntityRepository<?, ?>> entityRepositories = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Class<?>, ProjectionRepository<?, ?>> projectionRepositories = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Class<?>, Repository> repositories = new ConcurrentHashMap<>();
     private final Predicate<? super Provider> providerFilter;
 
     public ORMTemplateImpl(@Nonnull QueryFactory factory,
@@ -64,11 +69,14 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
      */
     @Override
     public <T extends Entity<ID>, ID> EntityRepository<T, ID> entity(@Nonnull Class<T> type) {
-        try {
-            return getEntityRepository(this, modelBuilder.build(type, true), providerFilter == null ? ignore -> true : providerFilter);
-        } catch (SqlTemplateException e) {
-            throw new PersistenceException(e);
-        }
+        //noinspection unchecked
+        return (EntityRepository<T, ID>) entityRepositories.computeIfAbsent(type, t -> {
+            try {
+                return getEntityRepository(this, modelBuilder.build(type, true), providerFilter == null ? ignore -> true : providerFilter);
+            } catch (SqlTemplateException e) {
+                throw new PersistenceException(e);
+            }
+        });
     }
 
     /**
@@ -81,11 +89,14 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
      */
     @Override
     public <T extends Projection<ID>, ID> ProjectionRepository<T, ID> projection(@Nonnull Class<T> type) {
-        try {
-            return getProjectionRepository(this, modelBuilder.build(type, false), providerFilter == null ? ignore -> true : providerFilter);
-        } catch (SqlTemplateException e) {
-            throw new PersistenceException(e);
-        }
+        //noinspection unchecked
+        return (ProjectionRepository<T, ID>) projectionRepositories.computeIfAbsent(type, t -> {
+            try {
+                return getProjectionRepository(this, modelBuilder.build(type, false), providerFilter == null ? ignore -> true : providerFilter);
+            } catch (SqlTemplateException e) {
+                throw new PersistenceException(e);
+            }
+        });
     }
 
     /**
@@ -98,45 +109,47 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     @SuppressWarnings("unchecked")
     @Override
     public <R extends Repository> R repository(@Nonnull Class<R> type) {
-        EntityRepository<?, ?> entityRepository = createEntityRepository(type).orElse(null);
-        ProjectionRepository<?, ?> projectionRepository = createProjectionRepository(type).orElse(null);
-        Repository repository = createRepository();
-        return (R) newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {
-            try {
-                if (method.getName().equals("hashCode") && method.getParameterCount() == 0) {
-                    return identityHashCode(proxy);
-                }
-                if (method.getName().equals("equals") && method.getParameterCount() == 1) {
-                    return proxy == args[0];
-                }
-                if (method.getName().equals("toString") && method.getParameterCount() == 0) {
-                    return "%s@proxy".formatted(type.getName());
-                }
-                if (REFLECTION.isDefaultMethod(method)) {
-                    return REFLECTION.execute(proxy, method, args);
-                }
-                if (method.getDeclaringClass().isAssignableFrom(Repository.class)) {
-                    // Handle Repository interface methods by delegating to the 'repository' instance.
-                    return method.invoke(repository, args);
-                }
-                if (EntityRepository.class.isAssignableFrom(method.getDeclaringClass())) {   // Also support sub-interfaces of EntityRepository.
-                    if (entityRepository == null) {
-                        throw new UnsupportedOperationException("EntityRepository not available for %s.".formatted(type.getName()));
+        return (R) repositories.computeIfAbsent(type, t -> {
+            EntityRepository<?, ?> entityRepository = createEntityRepository(type).orElse(null);
+            ProjectionRepository<?, ?> projectionRepository = createProjectionRepository(type).orElse(null);
+            Repository repository = createRepository();
+            return (R) newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {
+                try {
+                    if (method.getName().equals("hashCode") && method.getParameterCount() == 0) {
+                        return identityHashCode(proxy);
                     }
-                    // Handle EntityRepository interface methods by delegating to the 'entityRepository' instance.
-                    return method.invoke(entityRepository, args);
-                }
-                if (ProjectionRepository.class.isAssignableFrom(method.getDeclaringClass())) {   // Also support sub-interfaces of ProjectionRepository.
-                    if (projectionRepository == null) {
-                        throw new UnsupportedOperationException("ProjectionRepository not available for %s.".formatted(type.getName()));
+                    if (method.getName().equals("equals") && method.getParameterCount() == 1) {
+                        return proxy == args[0];
                     }
-                    // Handle ProjectionRepository interface methods by delegating to the 'projectionRepository' instance.
-                    return method.invoke(projectionRepository, args);
+                    if (method.getName().equals("toString") && method.getParameterCount() == 0) {
+                        return "%s@proxy".formatted(type.getName());
+                    }
+                    if (REFLECTION.isDefaultMethod(method)) {
+                        return REFLECTION.execute(proxy, method, args);
+                    }
+                    if (method.getDeclaringClass().isAssignableFrom(Repository.class)) {
+                        // Handle Repository interface methods by delegating to the 'repository' instance.
+                        return method.invoke(repository, args);
+                    }
+                    if (EntityRepository.class.isAssignableFrom(method.getDeclaringClass())) {   // Also support sub-interfaces of EntityRepository.
+                        if (entityRepository == null) {
+                            throw new UnsupportedOperationException("EntityRepository not available for %s.".formatted(type.getName()));
+                        }
+                        // Handle EntityRepository interface methods by delegating to the 'entityRepository' instance.
+                        return method.invoke(entityRepository, args);
+                    }
+                    if (ProjectionRepository.class.isAssignableFrom(method.getDeclaringClass())) {   // Also support sub-interfaces of ProjectionRepository.
+                        if (projectionRepository == null) {
+                            throw new UnsupportedOperationException("ProjectionRepository not available for %s.".formatted(type.getName()));
+                        }
+                        // Handle ProjectionRepository interface methods by delegating to the 'projectionRepository' instance.
+                        return method.invoke(projectionRepository, args);
+                    }
+                    throw new UnsupportedOperationException("Unsupported method: %s for %s.".formatted(method.getName(), type.getName()));
+                } catch (InvocationTargetException e) {
+                    throw e.getTargetException();
                 }
-                throw new UnsupportedOperationException("Unsupported method: %s for %s.".formatted(method.getName(), type.getName()));
-            } catch (InvocationTargetException e) {
-                throw e.getTargetException();
-            }
+            });
         });
     }
 

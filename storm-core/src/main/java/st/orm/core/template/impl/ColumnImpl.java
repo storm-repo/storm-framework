@@ -16,7 +16,9 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.GenerationStrategy;
+import st.orm.Metamodel;
 import st.orm.core.spi.Name;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.Column;
@@ -31,11 +33,13 @@ import st.orm.core.template.Column;
  * @param generation the generation strategy.
  * @param sequence the sequence name.
  * @param foreignKey whether the column is a foreign key.
+ * @param keyIndex the 1-based index of the key.
  * @param nullable whether the column is nullable.
  * @param insertable whether the column is insertable.
  * @param updatable whether the column is updatable.
  * @param version whether the column is a version column.
  * @param ref whether the column is a lazily fetched record.
+ * @param metamodel the metamodel for the column.
  */
 public record ColumnImpl(
         @Nonnull Name columnName,
@@ -45,11 +49,13 @@ public record ColumnImpl(
         @Nonnull GenerationStrategy generation,
         @Nonnull String sequence,
         boolean foreignKey,
+        int keyIndex,
         boolean nullable,
         boolean insertable,
         boolean updatable,
         boolean version,
-        boolean ref
+        boolean ref,
+        Metamodel<Data, ?> metamodel
 ) implements Column {
 
     /**
@@ -63,7 +69,7 @@ public record ColumnImpl(
     }
 
     /**
-``     * Gets the qualified name of the column, including escape characters where necessary.
+     * Gets the qualified name of the column, including escape characters where necessary.
      *
      * @param dialect the SQL dialect.
      * @return the qualified column name.

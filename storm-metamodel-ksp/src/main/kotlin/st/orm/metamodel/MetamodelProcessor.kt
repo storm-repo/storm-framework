@@ -22,8 +22,20 @@ import com.google.devtools.ksp.validate
 import java.io.OutputStreamWriter
 
 /**
- * KSP processor for generating metamodel classes and interfaces for data classes
- * annotated with @GenerateMetamodel or implementing the Data interface.
+ * KSP processor for generating metamodel classes and interfaces for Kotlin data classes.
+ *
+ * Equality semantics in generated code:
+ * - For non-nullable primitive fields (Int, Long, Boolean, etc): compare using primitive operations to avoid boxing.
+ *   - Float/Double use toBits() comparisons for stable NaN and -0.0 handling.
+ * - For reference-typed fields (including Ref<*> and nullable primitives like Int?): isSame uses ==.
+ * - For isIdentical:
+ *   - Uses === for normal reference types.
+ *   - Uses == for nullable primitives (Int?, Long?, ...).
+ *   - Uses == for "value-based" types (for example java.time.Instant) to avoid identity-sensitive operations.
+ *
+ * Special root isSame behavior:
+ * - If the data class has a @PK field, root isSame compares by that PK field:
+ *     getter(a).pk == getter(b).pk
  *
  * @since 1.7
  */
@@ -35,46 +47,85 @@ class MetamodelProcessor(
     private val generatedFiles = mutableSetOf<String>()
 
     companion object {
-        private const val METAMODEL_TYPE = "st.orm.MetamodelType"
         private const val GENERATE_METAMODEL = "st.orm.GenerateMetamodel"
         private const val DATA = "st.orm.Data"
         private const val FOREIGN_KEY = "st.orm.FK"
+        private const val REF = "st.orm.Ref"
+        private const val PRIMARY_KEY = "st.orm.PK"
+
+        private const val K_BOOLEAN = "kotlin.Boolean"
+        private const val K_BYTE = "kotlin.Byte"
+        private const val K_SHORT = "kotlin.Short"
+        private const val K_INT = "kotlin.Int"
+        private const val K_LONG = "kotlin.Long"
+        private const val K_CHAR = "kotlin.Char"
+        private const val K_FLOAT = "kotlin.Float"
+        private const val K_DOUBLE = "kotlin.Double"
+
+        /**
+         * Kotlin warns on identity checks (===) for Java "value-based" types (for example java.time.Instant).
+         * These types are not meant to have stable identity semantics, so we emit == instead.
+         *
+         * This list is intentionally small and can be extended when new warnings show up.
+         */
+        private val VALUE_BASED_QNS: Set<String> = setOf(
+            "java.time.Instant",
+            "java.time.LocalDate",
+            "java.time.LocalTime",
+            "java.time.LocalDateTime",
+            "java.time.OffsetDateTime",
+            "java.time.ZonedDateTime",
+            "java.time.Duration",
+            "java.time.Period",
+            "java.util.Optional",
+            "java.util.OptionalInt",
+            "java.util.OptionalLong",
+            "java.util.OptionalDouble"
+        )
+
+        private const val JDK_VALUE_BASED_ANNOTATION = "jdk.internal.ValueBased"
+
+        private val KOTLIN_PRIMITIVE_QNS: Set<String> = setOf(
+            K_BOOLEAN, K_BYTE, K_SHORT, K_INT, K_LONG, K_CHAR, K_FLOAT, K_DOUBLE
+        )
     }
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
         logger.info("Storm Metamodel KSP is running.")
-        try {
-            val symbols = resolver.getSymbolsWithAnnotation(GENERATE_METAMODEL)
-                .plus(resolver.getAllFiles()
+        val deferred = mutableListOf<KSAnnotated>()
+
+        val symbols = resolver.getSymbolsWithAnnotation(GENERATE_METAMODEL)
+            .plus(
+                resolver.getAllFiles()
                     .flatMap { it.declarations }
                     .filterIsInstance<KSClassDeclaration>()
-                    .filter { it.implementsInterface(DATA) })
-                .filterIsInstance<KSClassDeclaration>()
-                .filter { it.isDataClass() }
-            val deferredSymbols = mutableListOf<KSAnnotated>()
-            symbols.forEach { classDeclaration ->
-                if (!classDeclaration.validate()) {
-                    deferredSymbols.add(classDeclaration)
-                } else {
-                    try {
-                        logger.info("Processing ${classDeclaration.qualifiedName?.asString()}")
-                        generateMetamodelInterface(classDeclaration, resolver)
-                    } catch (e: Exception) {
-                        logger.error("Failed to process metamodel for ${classDeclaration.qualifiedName?.asString()}: ${e.message}\n${e.stackTraceToString()}", classDeclaration)
-                        throw e
-                    }
+                    .filter { it.implementsInterface(DATA) }
+            )
+            .filterIsInstance<KSClassDeclaration>()
+            .filter { it.isDataClass() }
+
+        symbols.forEach { clazz ->
+            if (!clazz.validate()) {
+                deferred.add(clazz)
+            } else {
+                try {
+                    generateMetamodelInterface(clazz, resolver)
+                } catch (e: Exception) {
+                    logger.error(
+                        "Failed to process metamodel for ${clazz.qualifiedName?.asString()}: ${e.message}\n" +
+                                e.stackTraceToString(),
+                        clazz
+                    )
+                    throw e
                 }
             }
-            return deferredSymbols
-        } catch (e: Exception) {
-            logger.error("Critical error in processor: ${e.message}\n${e.stackTraceToString()}")
-            throw e
         }
+
+        return deferred
     }
 
-    private fun KSClassDeclaration.isDataClass(): Boolean {
-        return modifiers.contains(Modifier.DATA)
-    }
+    private fun KSClassDeclaration.isDataClass(): Boolean =
+        modifiers.contains(Modifier.DATA)
 
     private fun KSClassDeclaration.implementsInterface(interfaceName: String): Boolean {
         return try {
@@ -82,18 +133,15 @@ class MetamodelProcessor(
                 superType.declaration.qualifiedName?.asString() == interfaceName
             }
         } catch (e: Exception) {
-            logger.warn("Error checking interface implementation for ${this.qualifiedName?.asString()}: ${e.message}")
+            logger.warn("Error checking interface implementation for ${qualifiedName?.asString()}: ${e.message}")
             false
         }
     }
 
     private fun KSTypeReference.isNestedDataClass(): Boolean {
         return try {
-            val declaration = resolve().declaration
-            if (declaration !is KSClassDeclaration) return false
-
-            declaration.modifiers.contains(Modifier.DATA) &&
-                    declaration.parentDeclaration is KSClassDeclaration
+            val decl = resolve().declaration as? KSClassDeclaration ?: return false
+            decl.modifiers.contains(Modifier.DATA) && decl.parentDeclaration is KSClassDeclaration
         } catch (e: Exception) {
             logger.warn("Error checking nested data class: ${e.message}")
             false
@@ -102,39 +150,35 @@ class MetamodelProcessor(
 
     private fun KSTypeReference.isDataClass(): Boolean {
         return try {
-            val declaration = resolve().declaration
-            declaration is KSClassDeclaration &&
-                    declaration.modifiers.contains(Modifier.DATA)
+            val decl = resolve().declaration as? KSClassDeclaration ?: return false
+            decl.modifiers.contains(Modifier.DATA)
         } catch (e: Exception) {
             logger.warn("Error checking data class: ${e.message}")
             false
         }
     }
 
+    /**
+     * Unwrap Ref<X> -> X for the metamodel generic E.
+     */
+    private fun unwrapRef(typeReference: KSTypeReference): KSTypeReference {
+        val resolved = typeReference.resolve()
+        val qn = resolved.declaration.qualifiedName?.asString() ?: return typeReference
+        if (qn != REF) return typeReference
+        val arg = resolved.arguments.firstOrNull()?.type
+        return arg ?: typeReference
+    }
+
     private fun getSimpleTypeName(typeReference: KSTypeReference, packageName: String): String {
         return try {
-            val resolvedType = typeReference.resolve()
-            val declaration = resolvedType.declaration
-            val qualifiedName = declaration.qualifiedName?.asString() ?: return declaration.simpleName.asString()
-            // Handle Ref<T> - extract the type parameter.
-            if (qualifiedName == "st.orm.Ref") {
-                val typeArguments = resolvedType.arguments
-                if (typeArguments.isNotEmpty()) {
-                    val typeArg = typeArguments[0]
-                    if (typeArg.type != null) {
-                        return getSimpleTypeName(typeArg.type!!, packageName)
-                    }
-                }
-                return "Object" // Fallback if no type argument.
-            }
-            // If it's in the same package, use simple name.
+            val effective = unwrapRef(typeReference)
+            val resolvedType = effective.resolve()
+            val decl = resolvedType.declaration
+            val qualifiedName = decl.qualifiedName?.asString() ?: return decl.simpleName.asString()
             if (qualifiedName.startsWith(packageName) && packageName.isNotEmpty()) {
                 val simpleName = qualifiedName.substring(packageName.length + 1)
-                if (!simpleName.contains(".")) {
-                    return simpleName
-                }
+                if (!simpleName.contains(".")) return simpleName
             }
-            // Otherwise use fully qualified name.
             qualifiedName
         } catch (e: Exception) {
             logger.error("Error getting simple type name: ${e.message}")
@@ -144,89 +188,96 @@ class MetamodelProcessor(
 
     private fun getKotlinTypeName(typeReference: KSTypeReference, currentPackage: String): String {
         return try {
-            val resolvedType = typeReference.resolve()
-            val declaration = resolvedType.declaration
-            val qualifiedName = declaration.qualifiedName?.asString() ?: return "Any"
-            // Handle Ref<T> - extract the type parameter.
-            if (qualifiedName == "st.orm.Ref") {
-                val typeArguments = resolvedType.arguments
-                if (typeArguments.isNotEmpty()) {
-                    val typeArg = typeArguments[0]
-                    if (typeArg.type != null) {
-                        return getKotlinTypeName(typeArg.type!!, currentPackage)
-                    }
-                }
-                return "Any" // Fallback if no type argument.
-            }
-            // Handle primitive Kotlin types (these don't need qualification).
+            val effective = unwrapRef(typeReference)
+            val resolvedType = effective.resolve()
+            val decl = resolvedType.declaration
+            val qualifiedName = decl.qualifiedName?.asString() ?: return "Any"
+
             val baseName = when (qualifiedName) {
-                "kotlin.String" -> "String"
-                "kotlin.Int" -> "Int"
-                "kotlin.Long" -> "Long"
-                "kotlin.Short" -> "Short"
-                "kotlin.Byte" -> "Byte"
-                "kotlin.Boolean" -> "Boolean"
-                "kotlin.Double" -> "Double"
-                "kotlin.Float" -> "Float"
-                "kotlin.Char" -> "Char"
-                "kotlin.collections.List" -> "List"
-                "kotlin.collections.Set" -> "Set"
-                "kotlin.collections.Map" -> "Map"
-                // Types in java.lang don't need qualification.
-                "java.lang.String" -> "String"
-                "java.lang.Integer" -> "Int"
-                "java.lang.Long" -> "Long"
-                "java.lang.Short" -> "Short"
-                "java.lang.Byte" -> "Byte"
-                "java.lang.Boolean" -> "Boolean"
-                "java.lang.Double" -> "Double"
-                "java.lang.Float" -> "Float"
-                "java.lang.Character" -> "Char"
+                "kotlin.String", "java.lang.String" -> "String"
+                "kotlin.Int", "java.lang.Integer" -> "Int"
+                "kotlin.Long", "java.lang.Long" -> "Long"
+                "kotlin.Short", "java.lang.Short" -> "Short"
+                "kotlin.Byte", "java.lang.Byte" -> "Byte"
+                "kotlin.Boolean", "java.lang.Boolean" -> "Boolean"
+                "kotlin.Double", "java.lang.Double" -> "Double"
+                "kotlin.Float", "java.lang.Float" -> "Float"
+                "kotlin.Char", "java.lang.Character" -> "Char"
                 "java.lang.Object" -> "Any"
-                // If it's in the same package, use simple name.
                 else -> {
                     if (qualifiedName.startsWith(currentPackage) && currentPackage.isNotEmpty()) {
                         val simpleName = qualifiedName.substring(currentPackage.length + 1)
-                        if (!simpleName.contains(".")) {
-                            simpleName
-                        } else {
-                            qualifiedName
-                        }
-                    } else {
-                        qualifiedName
-                    }
+                        if (!simpleName.contains(".")) simpleName else qualifiedName
+                    } else qualifiedName
                 }
             }
-            // Add <*> for generic types with type parameters.
+
             val typeArguments = resolvedType.arguments
             if (typeArguments.isNotEmpty() && typeArguments.all { it.variance != Variance.STAR }) {
                 val wildcards = typeArguments.joinToString(", ") { "*" }
-                return "$baseName<$wildcards>"
-            }
-            baseName
+                "$baseName<$wildcards>"
+            } else baseName
         } catch (e: Exception) {
-            logger.error("Error getting Kotlin type name for ${typeReference}: ${e.message}\n${e.stackTraceToString()}")
+            logger.error(
+                "Error getting Kotlin type name for $typeReference: ${e.message}\n${e.stackTraceToString()}"
+            )
             "Any"
         }
     }
 
-    private fun getJavaTypeName(typeReference: KSTypeReference, currentPackage: String): String {
-        return try {
-            val resolvedType = typeReference.resolve()
-            val declaration = resolvedType.declaration
-            val qualifiedName = declaration.qualifiedName?.asString() ?: return "java.lang.Object::class.java"
-            // Handle Ref<T> - extract the type parameter.
-            if (qualifiedName == "st.orm.Ref") {
-                val typeArguments = resolvedType.arguments
-                if (typeArguments.isNotEmpty()) {
-                    val typeArg = typeArguments[0]
-                    if (typeArg.type != null) {
-                        return getJavaTypeName(typeArg.type!!, currentPackage)
+    /**
+     * Kotlin value type name for *actual* runtime value returned by getValue() for fields.
+     *
+     * Unlike getKotlinTypeName(..), this does NOT unwrap Ref<X> -> X.
+     * It also renders Ref as `Ref` (not `st.orm.Ref`) so the generated code can rely on `import st.orm.Ref`.
+     */
+    private fun getKotlinValueTypeName(typeReference: KSTypeReference, currentPackage: String): String {
+        fun render(type: KSType): String {
+            val decl = type.declaration
+            val qualifiedName = decl.qualifiedName?.asString() ?: decl.simpleName.asString()
+
+            val baseName = when (qualifiedName) {
+                "st.orm.Ref" -> "Ref"
+                "kotlin.String", "java.lang.String" -> "String"
+                "kotlin.Int", "java.lang.Integer" -> "Int"
+                "kotlin.Long", "java.lang.Long" -> "Long"
+                "kotlin.Short", "java.lang.Short" -> "Short"
+                "kotlin.Byte", "java.lang.Byte" -> "Byte"
+                "kotlin.Boolean", "java.lang.Boolean" -> "Boolean"
+                "kotlin.Double", "java.lang.Double" -> "Double"
+                "kotlin.Float", "java.lang.Float" -> "Float"
+                "kotlin.Char", "java.lang.Character" -> "Char"
+                "java.lang.Object" -> "Any"
+                else -> {
+                    if (qualifiedName.startsWith(currentPackage) && currentPackage.isNotEmpty()) {
+                        val simpleName = qualifiedName.substring(currentPackage.length + 1)
+                        if (!simpleName.contains(".")) simpleName else qualifiedName
+                    } else qualifiedName
+                }
+            }
+
+            val args = type.arguments
+            val typeArgs = if (args.isNotEmpty()) {
+                args.joinToString(", ", prefix = "<", postfix = ">") { arg ->
+                    val t = arg.type?.resolve()
+                    when {
+                        arg.variance == Variance.STAR || t == null -> "*"
+                        else -> render(t)
                     }
                 }
-                return "java.lang.Object::class.java" // Fallback if no type argument.
-            }
-            // Map Kotlin types to Java types for the metamodel.
+            } else ""
+            val nullableSuffix = if (type.isMarkedNullable) "?" else ""
+            return baseName + typeArgs + nullableSuffix
+        }
+        return render(typeReference.resolve())
+    }
+
+    private fun getJavaTypeName(typeReference: KSTypeReference, currentPackage: String): String {
+        return try {
+            val effective = unwrapRef(typeReference)
+            val resolvedType = effective.resolve()
+            val decl = resolvedType.declaration
+            val qualifiedName = decl.qualifiedName?.asString() ?: return "java.lang.Object::class.java"
             when (qualifiedName) {
                 "kotlin.String", "java.lang.String" -> "String::class.java"
                 "kotlin.Int", "java.lang.Integer" -> "Int::class.javaObjectType"
@@ -240,47 +291,35 @@ class MetamodelProcessor(
                 "kotlin.collections.List" -> "List::class.java"
                 "kotlin.collections.Set" -> "Set::class.java"
                 "kotlin.collections.Map" -> "Map::class.java"
-                // For all other types, check if in same package.
                 else -> {
                     if (qualifiedName.startsWith(currentPackage) && currentPackage.isNotEmpty()) {
                         val simpleName = qualifiedName.substring(currentPackage.length + 1)
-                        if (!simpleName.contains(".")) {
-                            "$simpleName::class.java"
-                        } else {
-                            "$qualifiedName::class.java"
-                        }
-                    } else {
-                        "$qualifiedName::class.java"
-                    }
+                        if (!simpleName.contains(".")) "$simpleName::class.java" else "$qualifiedName::class.java"
+                    } else "$qualifiedName::class.java"
                 }
             }
         } catch (e: Exception) {
-            logger.error("Error getting Java type name for ${typeReference}: ${e.message}\n${e.stackTraceToString()}")
+            logger.error(
+                "Error getting Java type name for $typeReference: ${e.message}\n${e.stackTraceToString()}"
+            )
             "java.lang.Object::class.java"
         }
     }
 
     private fun isForeignKey(property: KSPropertyDeclaration): Boolean {
         return try {
-            // Check annotations on the property itself.
-            val hasPropertyAnnotation = property.annotations.any { annotation ->
-                annotation.annotationType.resolve().declaration.qualifiedName?.asString() == FOREIGN_KEY
+            val hasPropertyAnnotation = property.annotations.any { ann ->
+                ann.annotationType.resolve().declaration.qualifiedName?.asString() == FOREIGN_KEY
             }
-            if (hasPropertyAnnotation) {
-                return true
-            }
-            // For data classes, also check the primary constructor parameter.
+            if (hasPropertyAnnotation) return true
+
             val parentClass = property.parentDeclaration as? KSClassDeclaration
             if (parentClass != null && parentClass.modifiers.contains(Modifier.DATA)) {
-                val primaryConstructor = parentClass.primaryConstructor
-                if (primaryConstructor != null) {
-                    val parameter = primaryConstructor.parameters.find {
-                        it.name?.asString() == property.simpleName.asString()
-                    }
-                    if (parameter != null) {
-                        return parameter.annotations.any { annotation ->
-                            annotation.annotationType.resolve().declaration.qualifiedName?.asString() == FOREIGN_KEY
-                        }
+                val ctor = parentClass.primaryConstructor
+                val param = ctor?.parameters?.find { it.name?.asString() == property.simpleName.asString() }
+                if (param != null) {
+                    return param.annotations.any { ann ->
+                        ann.annotationType.resolve().declaration.qualifiedName?.asString() == FOREIGN_KEY
                     }
                 }
             }
@@ -288,6 +327,100 @@ class MetamodelProcessor(
         } catch (e: Exception) {
             logger.warn("Error checking foreign key for ${property.simpleName.asString()}: ${e.message}")
             false
+        }
+    }
+
+    private fun hasAnnotationOrMeta(annotated: KSAnnotated, annotationQn: String): Boolean {
+        for (ann in annotated.annotations) {
+            val annDecl = ann.annotationType.resolve().declaration as? KSClassDeclaration ?: continue
+            val annQn = annDecl.qualifiedName?.asString()
+            if (annQn == annotationQn) return true
+
+            if (annDecl.annotations.any { meta ->
+                    meta.annotationType.resolve().declaration.qualifiedName?.asString() == annotationQn
+                }
+            ) return true
+        }
+        return false
+    }
+
+    private fun isPrimaryKey(prop: KSPropertyDeclaration): Boolean {
+        if (hasAnnotationOrMeta(prop, PRIMARY_KEY)) return true
+
+        val parent = prop.parentDeclaration as? KSClassDeclaration ?: return false
+        val ctor = parent.primaryConstructor ?: return false
+        val param = ctor.parameters.firstOrNull { it.name?.asString() == prop.simpleName.asString() } ?: return false
+        return hasAnnotationOrMeta(param, PRIMARY_KEY)
+    }
+
+    private fun findPrimaryKeyProperty(clazz: KSClassDeclaration): KSPropertyDeclaration? =
+        clazz.getAllProperties().firstOrNull { isPrimaryKey(it) }
+
+    private enum class PrimitiveKind { BOOLEAN, BYTE, SHORT, INT, LONG, CHAR, FLOAT, DOUBLE }
+
+    private fun primitiveKind(typeRef: KSTypeReference): PrimitiveKind? {
+        val t = typeRef.resolve()
+        if (t.isMarkedNullable) return null
+
+        val qn = t.declaration.qualifiedName?.asString() ?: return null
+        return when (qn) {
+            K_BOOLEAN -> PrimitiveKind.BOOLEAN
+            K_BYTE -> PrimitiveKind.BYTE
+            K_SHORT -> PrimitiveKind.SHORT
+            K_INT -> PrimitiveKind.INT
+            K_LONG -> PrimitiveKind.LONG
+            K_CHAR -> PrimitiveKind.CHAR
+            K_FLOAT -> PrimitiveKind.FLOAT
+            K_DOUBLE -> PrimitiveKind.DOUBLE
+            else -> null
+        }
+    }
+
+    private fun isNullableKotlinPrimitive(typeRef: KSTypeReference): Boolean {
+        val t = typeRef.resolve()
+        if (!t.isMarkedNullable) return false
+        val qn = t.declaration.qualifiedName?.asString() ?: return false
+        return qn in KOTLIN_PRIMITIVE_QNS
+    }
+
+    private fun isValueBasedType(typeRef: KSTypeReference): Boolean {
+        val decl = typeRef.resolve().declaration as? KSClassDeclaration ?: return false
+        val qn = decl.qualifiedName?.asString() ?: return false
+        if (qn in VALUE_BASED_QNS) return true
+
+        return decl.annotations.any { ann ->
+            ann.annotationType.resolve().declaration.qualifiedName?.asString() == JDK_VALUE_BASED_ANNOTATION
+        }
+    }
+
+    private fun sameExpr(left: String, right: String, typeRef: KSTypeReference): String {
+        return when (primitiveKind(typeRef)) {
+            PrimitiveKind.FLOAT -> "($left).toBits() == ($right).toBits()"
+            PrimitiveKind.DOUBLE -> "($left).toBits() == ($right).toBits()"
+            PrimitiveKind.BOOLEAN,
+            PrimitiveKind.BYTE,
+            PrimitiveKind.SHORT,
+            PrimitiveKind.INT,
+            PrimitiveKind.LONG,
+            PrimitiveKind.CHAR -> "$left == $right"
+            null -> "$left == $right"
+        }
+    }
+
+    private fun identicalExpr(left: String, right: String, typeRef: KSTypeReference): String {
+        return when (primitiveKind(typeRef)) {
+            PrimitiveKind.FLOAT -> "($left).toBits() == ($right).toBits()"
+            PrimitiveKind.DOUBLE -> "($left).toBits() == ($right).toBits()"
+            PrimitiveKind.BOOLEAN,
+            PrimitiveKind.BYTE,
+            PrimitiveKind.SHORT,
+            PrimitiveKind.INT,
+            PrimitiveKind.LONG,
+            PrimitiveKind.CHAR -> "$left == $right"
+            null -> {
+                if (isNullableKotlinPrimitive(typeRef)) return "$left == $right"
+                if (isValueBasedType(typeRef)) "$left == $right" else "$left === $right"
+            }
         }
     }
 
@@ -299,194 +432,202 @@ class MetamodelProcessor(
         val builder = StringBuilder()
         val className = classDeclaration.simpleName.asString()
 
-        try {
-            classDeclaration.getAllProperties().forEach { property ->
-                try {
-                    val fieldName = property.simpleName.asString()
-                    val typeReference = property.type
-                    if (typeReference.isDataClass()) {
-                        if (typeReference.isNestedDataClass()) {
-                            return@forEach // Skip nested data classes.
-                        }
-                        // For data classes, use simple name for metamodel reference.
-                        val simpleTypeName = getSimpleTypeName(typeReference, packageName)
-                        // Ensure generation of metamodel for referenced data class.
-                        val referencedDeclaration = typeReference.resolve().declaration
-                        if (referencedDeclaration is KSClassDeclaration) {
-                            generateMetamodelInterface(referencedDeclaration, resolver)
-                        }
-                        if (isForeignKey(property)) {
-                            builder.append("        /** Represents the $className.$fieldName foreign key. */\n")
-                            builder.append("        val $fieldName: ${simpleTypeName}Metamodel<$className> = ${simpleTypeName}Metamodel<$className>(\"$fieldName\", Metamodel.root($className::class.java) as Metamodel<$className, *>)\n")
-                        } else {
-                            builder.append("        /** Represents the inline $className.$fieldName record. */\n")
-                            builder.append("        val $fieldName: ${simpleTypeName}Metamodel<$className> = ${simpleTypeName}Metamodel<$className>(\"\", \"$fieldName\", true, Metamodel.root($className::class.java) as Metamodel<$className, *>)\n")
-                        }
-                    } else {
-                        // For regular fields, use type name (simplified for same package).
-                        val kotlinTypeName = getKotlinTypeName(typeReference, packageName)
-                        builder.append("        /** Represents the $className.$fieldName field. */\n")
-                        builder.append("        val $fieldName: Metamodel<$className, $kotlinTypeName> = ${className}Metamodel<$className>().$fieldName\n")
-                    }
-                } catch (e: Exception) {
-                    logger.error("Error processing property ${property.simpleName.asString()}: ${e.message}\n${e.stackTraceToString()}")
-                }
+        classDeclaration.getAllProperties().forEach { prop ->
+            val fieldName = prop.simpleName.asString()
+            val typeRef = prop.type
+
+            if (typeRef.isDataClass()) {
+                if (typeRef.isNestedDataClass()) return@forEach
+
+                val simpleTypeName = getSimpleTypeName(typeRef, packageName)
+                val referencedDecl = typeRef.resolve().declaration as? KSClassDeclaration
+                if (referencedDecl != null) generateMetamodelInterface(referencedDecl, resolver)
+
+                val inlineFlag = if (isForeignKey(prop)) "false" else "true"
+                val getterExpr = "{ t: $className -> t.$fieldName }"
+
+                builder.append("        /** Represents the $className.$fieldName record. */\n")
+                builder.append(
+                    "        val $fieldName: ${simpleTypeName}Metamodel<$className> = " +
+                            "${simpleTypeName}Metamodel(" +
+                            "\"\", \"$fieldName\", $inlineFlag, " +
+                            "Metamodel.root($className::class.java) as Metamodel<$className, *>) " +
+                            getterExpr +
+                            "\n"
+                )
+            } else {
+                val kotlinTypeName = getKotlinTypeName(typeRef, packageName)              // E (unwrap Ref)
+                val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName)   // V (keep Ref)
+
+                builder.append("        /** Represents the $className.$fieldName field. */\n")
+                builder.append(
+                    "        val $fieldName: AbstractMetamodel<$className, $kotlinTypeName, $valueKotlinTypeName> = " +
+                            "${className}Metamodel<$className>().$fieldName\n"
+                )
             }
-        } catch (e: Exception) {
-            logger.error("Error building interface fields for $className: ${e.message}\n${e.stackTraceToString()}")
         }
-        if (!builder.isEmpty()) {
-            // Remove trailing newline.
-            builder.setLength(builder.length - 1)
-        }
+
+        if (builder.isNotEmpty()) builder.setLength(builder.length - 1)
         return builder.toString()
     }
 
-    private fun buildClassFields(
-        classDeclaration: KSClassDeclaration,
-        packageName: String
-    ): String {
+    private fun buildClassFields(classDeclaration: KSClassDeclaration, packageName: String): String {
         val builder = StringBuilder()
-        try {
-            classDeclaration.getAllProperties().forEach { property ->
-                try {
-                    val fieldName = property.simpleName.asString()
-                    val typeReference = property.type
-                    if (typeReference.isDataClass()) {
-                        if (typeReference.isNestedDataClass()) {
-                            return@forEach // Skip nested data classes.
-                        }
-                        val simpleTypeName = getSimpleTypeName(typeReference, packageName)
-                        builder.append("    val $fieldName: ${simpleTypeName}Metamodel<T>\n")
-                    } else {
-                        val kotlinTypeName = getKotlinTypeName(typeReference, packageName)
-                        builder.append("    val $fieldName: Metamodel<T, $kotlinTypeName>\n")
-                    }
-                } catch (e: Exception) {
-                    logger.error("Error building class field ${property.simpleName.asString()}: ${e.message}\n${e.stackTraceToString()}")
-                }
+        classDeclaration.getAllProperties().forEach { prop ->
+            val fieldName = prop.simpleName.asString()
+            val typeRef = prop.type
+            if (typeRef.isDataClass()) {
+                if (typeRef.isNestedDataClass()) return@forEach
+                val simpleTypeName = getSimpleTypeName(typeRef, packageName)
+                builder.append("    val $fieldName: ${simpleTypeName}Metamodel<T>\n")
+            } else {
+                val kotlinTypeName = getKotlinTypeName(typeRef, packageName)            // E
+                val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName) // V
+                builder.append("    val $fieldName: AbstractMetamodel<T, $kotlinTypeName, $valueKotlinTypeName>\n")
             }
-        } catch (e: Exception) {
-            logger.error("Error building class fields: ${e.message}\n${e.stackTraceToString()}")
         }
         return builder.toString()
     }
 
     private fun initClassFields(
         classDeclaration: KSClassDeclaration,
-        packageName: String
+        packageName: String,
+        metaClassName: String,
+        recordClassName: String
     ): String {
         val builder = StringBuilder()
-        try {
-            classDeclaration.getAllProperties().forEach { property ->
-                try {
-                    val fieldName = property.simpleName.asString()
-                    val typeReference = property.type
-                    if (typeReference.isDataClass()) {
-                        if (typeReference.isNestedDataClass()) {
-                            return@forEach // Skip nested data classes.
-                        }
-                        val simpleTypeName = getSimpleTypeName(typeReference, packageName)
-                        if (isForeignKey(property)) {
-                            builder.append("        $fieldName = ${simpleTypeName}Metamodel(subPath, fieldBase + \"$fieldName\", false, this)\n")
-                        } else {
-                            builder.append("        $fieldName = ${simpleTypeName}Metamodel(subPath, fieldBase + \"$fieldName\", true, this)\n")
-                        }
-                    } else {
-                        val javaTypeName = getJavaTypeName(typeReference, packageName)
-                        val kotlinTypeName = getKotlinTypeName(typeReference, packageName)
-                        builder.append("        $fieldName = object : AbstractMetamodel<T, $kotlinTypeName>($javaTypeName, subPath, fieldBase + \"$fieldName\", false, this) {}\n")
-                    }
-                } catch (e: Exception) {
-                    logger.error("Error initializing field ${property.simpleName.asString()}: ${e.message}\n${e.stackTraceToString()}")
-                }
+        classDeclaration.getAllProperties().forEach { prop ->
+            val fieldName = prop.simpleName.asString()
+            val typeRef = prop.type
+            if (typeRef.isDataClass()) {
+                if (typeRef.isNestedDataClass()) return@forEach
+                val simpleTypeName = getSimpleTypeName(typeRef, packageName)
+                val inlineFlag = if (isForeignKey(prop)) "false" else "true"
+
+                val getterExpr =
+                    "{ t: T & Any -> (this@$metaClassName.getValue(t) as $recordClassName).$fieldName }"
+
+                builder.append(
+                    "        $fieldName = ${simpleTypeName}Metamodel(" +
+                            "subPath, fieldBase + \"$fieldName\", $inlineFlag, this) $getterExpr" +
+                            "\n"
+                )
+            } else {
+                val javaTypeName = getJavaTypeName(typeRef, packageName)                // E (unwrap Ref)
+                val kotlinTypeName = getKotlinTypeName(typeRef, packageName)            // E (unwrap Ref)
+                val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName) // V (keep Ref)
+
+                val leftValue = "ra.$fieldName"
+                val rightValue = "rb.$fieldName"
+                val isSameExpr = sameExpr(leftValue, rightValue, typeRef)
+                val isIdenticalExpr = identicalExpr(leftValue, rightValue, typeRef)
+                builder.append(
+                    "        $fieldName = object : AbstractMetamodel<T, $kotlinTypeName, $valueKotlinTypeName>(" +
+                            "$javaTypeName, subPath, fieldBase + \"$fieldName\", false, this" +
+                            ") {\n" +
+                            "            override fun getValue(record: T & Any): $valueKotlinTypeName =\n" +
+                            "                (this@$metaClassName.getValue(record) as $recordClassName).$fieldName\n\n" +
+                            "            override fun isIdentical(a: T & Any, b: T & Any): Boolean {\n" +
+                            "                val ra = this@$metaClassName.getValue(a) as $recordClassName\n" +
+                            "                val rb = this@$metaClassName.getValue(b) as $recordClassName\n" +
+                            "                return $isIdenticalExpr\n" +
+                            "            }\n\n" +
+                            "            override fun isSame(a: T & Any, b: T & Any): Boolean {\n" +
+                            "                val ra = this@$metaClassName.getValue(a) as $recordClassName\n" +
+                            "                val rb = this@$metaClassName.getValue(b) as $recordClassName\n" +
+                            "                return $isSameExpr\n" +
+                            "            }\n" +
+                            "        }\n"
+                )
             }
-        } catch (e: Exception) {
-            logger.error("Error initializing class fields: ${e.message}\n${e.stackTraceToString()}")
         }
-        if (!builder.isEmpty()) {
-            // Remove trailing newline.
+        if (builder.isNotEmpty()) {
             builder.setLength(builder.length - 1)
         }
         return builder.toString()
     }
 
-    private fun generateMetamodelInterface(
-        classDeclaration: KSClassDeclaration,
-        resolver: Resolver
-    ) {
+    private fun generateMetamodelInterface(classDeclaration: KSClassDeclaration, resolver: Resolver) {
         val qualifiedName = classDeclaration.qualifiedName?.asString() ?: return
-        if (!generatedFiles.add(qualifiedName)) {
-            return
-        }
+        if (!generatedFiles.add(qualifiedName)) return
+
         generateMetamodelClass(classDeclaration)
         val packageName = classDeclaration.packageName.asString()
         val className = classDeclaration.simpleName.asString()
         val metaInterfaceName = "${className}_"
-        try {
-            // Handle classes without containing file (e.g., from dependencies).
-            val containingFile = classDeclaration.containingFile
-            val dependencies = if (containingFile != null) {
-                Dependencies(true, containingFile)
-            } else {
-                Dependencies(false)
-            }
-            val file = codeGenerator.createNewFile(
-                dependencies = dependencies,
-                packageName = packageName,
-                fileName = metaInterfaceName
-            )
-            OutputStreamWriter(file).use { writer ->
-                writer.write("""
+        val containingFile = classDeclaration.containingFile
+        val deps = if (containingFile != null) Dependencies(true, containingFile) else Dependencies(false)
+        val file = codeGenerator.createNewFile(
+            dependencies = deps,
+            packageName = packageName,
+            fileName = metaInterfaceName
+        )
+        OutputStreamWriter(file).use { writer ->
+            writer.write(
+                """
                 |package $packageName
                 |
                 |import st.orm.Metamodel
+                |import st.orm.AbstractMetamodel
+                |import st.orm.Ref
                 |import javax.annotation.processing.Generated
                 |
                 |/**
-                 | * Metamodel for $className.
-                 | *
-                 | * @param T the record type of the root table of the entity graph.
-                 | */
+                | * Metamodel for $className.
+                |
+                | * @param T the record type of the root table of the entity graph.
+                | */
+                |@Suppress("ClassName")
                 |@Generated("${this::class.java.name}")
                 |interface $metaInterfaceName<T> : Metamodel<$className, $className> {
                 |    companion object {
                 |${buildInterfaceFields(classDeclaration, packageName, resolver)}
                 |    }
                 |}
-            """.trimMargin())
-            }
-        } catch (e: Exception) {
-            logger.error("Failed to generate metamodel interface for $className: ${e.message}\n${e.stackTraceToString()}", classDeclaration)
-            throw e
+                """.trimMargin()
+            )
         }
     }
 
-    private fun generateMetamodelClass(
-        classDeclaration: KSClassDeclaration,
-    ) {
+    private fun generateMetamodelClass(classDeclaration: KSClassDeclaration) {
         val packageName = classDeclaration.packageName.asString()
         val className = classDeclaration.simpleName.asString()
         val metaClassName = "${className}Metamodel"
-        try {
-            // Handle classes without containing file (e.g., from dependencies).
-            val containingFile = classDeclaration.containingFile
-            val dependencies = if (containingFile != null) {
-                Dependencies(true, containingFile)
-            } else {
-                Dependencies(false)
-            }
-            val file = codeGenerator.createNewFile(
-                dependencies = dependencies,
-                packageName = packageName,
-                fileName = metaClassName
-            )
-            OutputStreamWriter(file).use { writer ->
-                writer.write("""
+
+        val pkProp = findPrimaryKeyProperty(classDeclaration)
+        val isSameMethod = if (pkProp != null) {
+            val pkName = pkProp.simpleName.asString()
+            """
+            |    override fun isSame(a: T & Any, b: T & Any): Boolean {
+            |        val ra = getter(a)
+            |        val rb = getter(b)
+            |        if (ra == null || rb == null) return ra == rb
+            |        return ra.$pkName == rb.$pkName
+            |    }
+            """.trimMargin()
+        } else {
+            """
+            |    override fun isSame(a: T & Any, b: T & Any): Boolean {
+            |        return getter(a) == getter(b)
+            |    }
+            """.trimMargin()
+        }
+
+        val containingFile = classDeclaration.containingFile
+        val deps = if (containingFile != null) Dependencies(true, containingFile) else Dependencies(false)
+        val file = codeGenerator.createNewFile(
+            dependencies = deps,
+            packageName = packageName,
+            fileName = metaClassName
+        )
+        OutputStreamWriter(file).use { writer ->
+            writer.write(
+                """
                 |package $packageName
                 |
                 |import st.orm.Metamodel
                 |import st.orm.AbstractMetamodel
+                |import st.orm.Ref
                 |import javax.annotation.processing.Generated
                 |
                 |@Generated("${this::class.java.name}")
@@ -494,27 +635,41 @@ class MetamodelProcessor(
                 |    path: String,
                 |    field: String,
                 |    inline: Boolean,
-                |    parent: Metamodel<T, *>
-                |) : AbstractMetamodel<T, $className>($className::class.java, path, field, inline, parent) {
+                |    parent: Metamodel<T, *>,
+                |    private val getter: (T & Any) -> $className?
+                |) : AbstractMetamodel<T, $className, $className>($className::class.java, path, field, inline, parent) {
+                |
+                |    override fun getValue(record: T & Any): $className? = getter(record)
+                |
+                |    override fun isIdentical(a: T & Any, b: T & Any): Boolean {
+                |        return getter(a) === getter(b)
+                |    }
+                |
+                |$isSameMethod
                 |
                 |${buildClassFields(classDeclaration, packageName)}
                 |    init {
                 |        val subPath = if (inline) path else if (field.isEmpty()) path else if (path.isEmpty()) field else "${'$'}path.${'$'}field"
                 |        val fieldBase = if (inline) if (field.isEmpty()) "" else "${'$'}field." else ""
                 |
-                |${initClassFields(classDeclaration, packageName)}
+                |${initClassFields(classDeclaration, packageName, metaClassName, className)}
                 |    }
                 |
                 |    @Suppress("UNCHECKED_CAST")
-                |    constructor() : this("", "", false, Metamodel.root($className::class.java) as Metamodel<T, *>)
-                |    constructor(field: String, parent: Metamodel<T, *>) : this("", field, false, parent)
-                |    constructor(path: String, field: String, parent: Metamodel<T, *>) : this(path, field, false, parent)
+                |    constructor() : this(
+                |        "", "", false,
+                |        Metamodel.root($className::class.java) as Metamodel<T, *>,
+                |        { it as $className }
+                |    )
+                |
+                |    constructor(field: String, parent: Metamodel<T, *>, getter: (T & Any) -> $className)
+                |        : this("", field, false, parent, getter)
+                |
+                |    constructor(path: String, field: String, parent: Metamodel<T, *>, getter: (T & Any) -> $className)
+                |        : this(path, field, false, parent, getter)
                 |}
-            """.trimMargin())
-            }
-        } catch (e: Exception) {
-            logger.error("Failed to generate metamodel class for $className: ${e.message}\n${e.stackTraceToString()}", classDeclaration)
-            throw e
+                """.trimMargin()
+            )
         }
     }
 }

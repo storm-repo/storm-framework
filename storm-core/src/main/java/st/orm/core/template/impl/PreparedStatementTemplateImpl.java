@@ -66,6 +66,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import static java.time.temporal.ChronoUnit.*;
 import static st.orm.core.spi.Providers.getConnection;
 import static st.orm.core.spi.Providers.releaseConnection;
 import static st.orm.core.template.SqlTemplate.PS;

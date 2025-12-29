@@ -1,0 +1,270 @@
+/*
+ * Copyright 2024 - 2025 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package st.orm.core.repository.impl;
+
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import st.orm.Data;
+import st.orm.DirtyCheck;
+import st.orm.DynamicUpdate;
+import st.orm.Entity;
+import st.orm.Metamodel;
+import st.orm.UpdateMode;
+import st.orm.core.spi.EntityCache;
+import st.orm.core.template.Column;
+import st.orm.core.template.Model;
+import st.orm.mapping.RecordType;
+
+import java.util.BitSet;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
+import static java.lang.Integer.parseInt;
+import static st.orm.UpdateMode.ENTITY;
+import static st.orm.UpdateMode.OFF;
+
+/**
+ * Determines which fields of an entity are considered dirty for update purposes.
+ *
+ * <p>This class compares the current entity instance with the state that was observed when the entity was read within
+ * the same transaction.</p>
+ *
+ * <p>The result of this comparison is interpreted according to {@link UpdateMode}:</p>
+ * <ul>
+ *   <li>{@link UpdateMode#ENTITY}: column-level dirty checking is used only to decide whether any change exists; if so,
+ *       a full-row UPDATE is generated.</li>
+ *   <li>{@link UpdateMode#FIELD}: column-level dirty checking is used to select which columns are included in the
+ *       UPDATE.</li>
+ * </ul>
+ *
+ * <p>The global default update mode can be configured using the system property {@code storm.update.defaultMode}.</p>
+ *
+ * <p>When dynamic updates are enabled, different UPDATE statement shapes may be generated depending on which fields are
+ * dirty. The system property {@code storm.update.maxShapes} limits the number of distinct shapes that may be generated.
+ * Once the limit is exceeded, a full-entity update is used to preserve batching efficiency.</p>
+ *
+ * <p>Dirty checking is performed for all <strong>updatable columns</strong> of the entity. This includes any record
+ * components that map to columns that can be updated (as defined by {@link Column#updatable()}). Non-updatable columns
+ * are ignored.</p>
+ *
+ * <p>Dirty checks are performed via the entity {@link Metamodel} for each updatable column. If a generated metamodel
+ * implementation is available (Java annotation processor / Kotlin KSP), the generated, type-specific equality checks
+ * are used to avoid reflection and prevent boxing for primitive fields. If no generated implementation is available,
+ * reflective accessors are used and type-appropriate equality checks for primitive fields are applied where possible.</p>
+ *
+ * <p>By default, dirty checking is based on <em>identity</em>. A field is considered dirty as soon as its extracted
+ * value is no longer identical. Value-based dirty checking can be enabled by setting the system property
+ * {@code storm.update.dirtyCheck=value}. In this mode, values are compared by semantic equality after a fast identity
+ * check when applicable.</p>
+ *
+ * <p>The dirty checking strategy can also be configured per entity using {@link DynamicUpdate#dirtyCheck()}.</p>
+ *
+ * <p>When performing dynamic updates, the version field is always included if present.</p>
+ *
+ * @param <E> the entity type
+ * @param <ID> the entity identifier type
+ * @since 1.7
+ */
+@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+public final class DirtySupport<E extends Entity<ID>, ID> {
+
+    // Implementation note: dirty field checks can be performed efficiently due to the immutable record types.
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.update");
+
+    private static final UpdateMode DEFAULT_UPDATE_MODE =
+            UpdateMode.valueOf(System.getProperty("storm.update.defaultMode", "entity").trim().toUpperCase());
+
+    private static final int MAX_SHAPES =
+            Math.max(1, parseInt(System.getProperty("storm.update.maxShapes", "5")));
+
+    private static final DirtyCheck DEFAULT_DIRTY_CHECK =
+            DirtyCheck.valueOf(System.getProperty("storm.update.dirtyCheck", "instance").trim().toUpperCase());
+
+    /**
+     * Marker for a clean entity (no dirty fields).
+     */
+    private static final Optional<Set<Metamodel<? extends Data, ?>>> CLEAN = Optional.empty();
+
+    /**
+     * Marker indicating that at least one field is dirty, without enumerating specific fields.
+     *
+     * <p>This marker is used for {@link UpdateMode#OFF} and {@link UpdateMode#ENTITY} (where the existence of a change
+     * is sufficient), and as a fallback when field enumeration is not available.</p>
+     */
+    private static final Optional<Set<Metamodel<? extends Data, ?>>> DIRTY = Optional.of(Set.of());
+
+    static {
+        LOGGER.info("Using default update mode: {}.", DEFAULT_UPDATE_MODE);
+        LOGGER.info("Using default dirty check: {}.", DEFAULT_DIRTY_CHECK);
+    }
+
+    private final List<Column> columns;
+    private final UpdateMode updateMode;
+    private final DirtyCheck dirtyCheck;
+    private final Column versionColumn;
+    private final ConcurrentMap<BitSet, Set<Metamodel<? extends Data, ?>>> dirtyFieldsCache = new ConcurrentHashMap<>();
+
+    DirtySupport(@Nonnull Model<E, ID> model) {
+        this.columns = model.columns();
+        RecordType recordType = model.recordType();
+        this.updateMode = getUpdateMode(recordType);
+        this.dirtyCheck = getDirtyCheck(recordType);
+        this.versionColumn = columns.stream().filter(Column::version).findAny().orElse(null);
+    }
+
+    /**
+     * Returns the effective {@link UpdateMode} for the given record type.
+     *
+     * <p>If the record type is annotated with {@link DynamicUpdate}, the annotation value is used. Otherwise, the
+     * globally configured default update mode applies.</p>
+     *
+     * <p>The global default update mode can be configured using the system property {@code storm.update.defaultMode}.
+     * If the property is not set, the default is {@link UpdateMode#ENTITY}.</p>
+     *
+     * @param recordType the entity record type.
+     * @return the effective update mode for the given record type.
+     */
+    public static UpdateMode getUpdateMode(@Nonnull RecordType recordType) {
+        DynamicUpdate dynamicUpdate = recordType.getAnnotation(DynamicUpdate.class);
+        return dynamicUpdate == null ? DEFAULT_UPDATE_MODE : dynamicUpdate.value();
+    }
+
+    /**
+     * Returns the effective {@link DirtyCheck} strategy for the given record type.
+     *
+     * <p>If the record type is annotated with {@link DynamicUpdate} and the {@link DynamicUpdate#dirtyCheck()}
+     * attribute is set to a value other than {@link DirtyCheck#DEFAULT}, that value is used.</p>
+     *
+     * <p>Otherwise, the globally configured dirty check strategy applies.</p>
+     *
+     * <p>The global default dirty check strategy can be configured using the system property
+     * {@code storm.update.dirtyCheck}. If the property is not set, the default strategy is
+     * {@link DirtyCheck#INSTANCE}.</p>
+     *
+     * @param recordType the entity record type.
+     * @return the effective dirty check strategy for the given record type.
+     */
+    public static DirtyCheck getDirtyCheck(@Nonnull RecordType recordType) {
+        DynamicUpdate dynamicUpdate = recordType.getAnnotation(DynamicUpdate.class);
+        if (dynamicUpdate == null) {
+            return DEFAULT_DIRTY_CHECK;
+        }
+        DirtyCheck configured = dynamicUpdate.dirtyCheck();
+        return configured == DirtyCheck.DEFAULT ? DEFAULT_DIRTY_CHECK : configured;
+    }
+
+    /**
+     * Returns the maximum number of distinct update shapes that may be generated when dynamic updates are enabled.
+     *
+     * <p>This value is configured via the system property {@code storm.update.maxShapes}. It limits the number of
+     * different column combinations that UPDATE statements may be generated for.</p>
+     *
+     * <p>If the limit is exceeded, a full-entity update is used to avoid excessive statement fan-out and preserve
+     * batching efficiency.</p>
+     *
+     * @return the maximum number of allowed update shapes
+     */
+    public static int getMaxShapes() {
+        return MAX_SHAPES;
+    }
+
+    private boolean fieldsEqual(@Nonnull Metamodel<Data, ?> metamodel, E a, E b) {
+        if (dirtyCheck == DirtyCheck.INSTANCE) {
+            return metamodel.isIdentical(a, b);
+        }
+        return metamodel.isSame(a, b);
+    }
+
+    /**
+     * Returns the set of fields that are considered dirty for this entity instance.
+     *
+     * <p>The comparison is performed against the cached state of the same entity within the current transaction. Only
+     * fields that map to updatable columns are evaluated.</p>
+     *
+     * <p>Each field is compared using its associated {@link Metamodel}, and a field is marked dirty as soon as its
+     * extracted value differs according to the configured {@link DirtyCheck} strategy.</p>
+     *
+     * <p>For fields backed by nested record components, the comparison is performed at the level of the top-level field
+     * that maps to the column. Nested records are treated as a single logical unit.</p>
+     *
+     * <p>The returned optional is interpreted as follows:</p>
+     * <ul>
+     *   <li>An empty optional indicates that no fields are dirty.</li>
+     *   <li>A non-empty optional containing an empty set indicates that at least one field is dirty, but the specific
+     *       fields are not enumerated (for example in {@link UpdateMode#OFF} or {@link UpdateMode#ENTITY}).</li>
+     *   <li>A non-empty optional containing a non-empty set enumerates the dirty fields (used for
+     *       {@link UpdateMode#FIELD}). When present, the version field is included as well.</li>
+     * </ul>
+     *
+     * @param entity the entity to check
+     * @param cache the entity cache holding the previously observed state
+     * @return an optional describing the dirty state, or an empty optional if no fields are dirty
+     */
+    Optional<Set<Metamodel<? extends Data, ?>>> getDirty(@Nonnull E entity,
+                                                         @Nullable EntityCache<E, ID> cache) {
+        if (updateMode == OFF) {
+            // Update mode is OFF, treat all fields as dirty.
+            return DIRTY;
+        }
+        if (cache == null) {
+            // No cache available, assume all fields are dirty.
+            return DIRTY;
+        }
+        var cached = cache.get(entity.id()).orElse(null);
+        if (cached == null) {
+            // Not cached, assume all fields are dirty.
+            return DIRTY;
+        }
+        if (cached == entity) {
+            // Cached, no fields are dirty.
+            return CLEAN;
+        }
+        BitSet dirtyFields = updateMode == ENTITY ? null : new BitSet(columns.size());
+        for (Column column : columns) {
+            if (!column.updatable()) {
+                continue;
+            }
+            if (fieldsEqual(column.metamodel(), entity, cached)) {
+                continue;
+            }
+            if (dirtyFields == null) {
+                return DIRTY;
+            }
+            dirtyFields.set(column.index() - 1);
+        }
+        if (dirtyFields == null || dirtyFields.isEmpty()) {
+            return CLEAN;
+        }
+        BitSet key = (BitSet) dirtyFields.clone(); // Defensive copy.
+        return Optional.of(dirtyFieldsCache.computeIfAbsent(key, bits -> {
+            Set<Metamodel<? extends Data, ?>> set = new HashSet<>();
+            for (int i = bits.nextSetBit(0); i >= 0; i = bits.nextSetBit(i + 1)) {
+                set.add(columns.get(i).metamodel());
+            }
+            if (versionColumn != null) {
+                set.add(versionColumn.metamodel());
+            }
+            return Set.copyOf(set);
+        }));
+    }
+}

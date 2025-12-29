@@ -18,22 +18,23 @@ package st.orm.metamodel
 import com.google.devtools.ksp.getAllSuperTypes
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
+import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessor
+import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 
 class TypeIndexProcessor(
     private val codeGenerator: CodeGenerator,
+    private val logger: KSPLogger
 ) : SymbolProcessor {
 
-    /**
-     * typeFqName -> set of discovered subtypes
-     */
     private val indexEntries: MutableMap<String, MutableSet<String>> =
         INDEXED_TYPES.associateWith { linkedSetOf<String>() }.toMutableMap()
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
+        logger.info("Storm Type Index KSP is running.")
         resolver.getAllFiles().forEach { file ->
             file.declarations
                 .filterIsInstance<KSClassDeclaration>()
@@ -81,9 +82,10 @@ class TypeIndexProcessor(
 }
 
 private fun KSClassDeclaration.isSubtypeOfFqName(targetFqName: String): Boolean {
-    val selfFqName = this.qualifiedName?.asString()
-    if (selfFqName == targetFqName) return true
-    return getAllSuperTypes().any {
-        it.declaration.qualifiedName?.asString() == targetFqName
+    if (classKind != ClassKind.CLASS) return false
+    val selfFqName = qualifiedName?.asString() ?: return false
+    if (selfFqName == targetFqName) return false
+    return getAllSuperTypes().any { superType ->
+        superType.declaration.qualifiedName?.asString() == targetFqName
     }
 }

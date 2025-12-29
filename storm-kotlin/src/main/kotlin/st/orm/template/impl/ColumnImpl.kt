@@ -15,7 +15,9 @@
  */
 package st.orm.template.impl
 
+import st.orm.Data
 import st.orm.GenerationStrategy
+import st.orm.Metamodel
 import st.orm.template.Column
 import kotlin.reflect.KClass
 
@@ -34,4 +36,5 @@ class ColumnImpl(
     override val updatable: Boolean                         get() = core.updatable()
     override val version: Boolean                           get() = core.version()
     override val ref: Boolean                               get() = core.ref()
+    override val metaModel: Metamodel<out Data, *>          get() = core.metamodel()
 }

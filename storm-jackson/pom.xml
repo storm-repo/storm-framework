@@ -44,6 +44,7 @@
                         --add-opens storm.jackson/st.orm.jackson.model=storm.core
                         --add-opens storm.jackson/st.orm.jackson=com.fasterxml.jackson.databind
                         --add-opens storm.jackson/st.orm.jackson.model=com.fasterxml.jackson.databind
+                        --add-reads storm.jackson=com.fasterxml.jackson.datatype.jsr310
                     </argLine>
                 </configuration>
             </plugin>

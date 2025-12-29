@@ -63,9 +63,10 @@ public final class JsonORMConverterImpl implements ORMConverter {
     private final TypeReference<?> typeReference;
     private final ObjectMapper mapper;
 
-    record CacheKey(Class<?> sealedType, Json json,
-                    Class<? extends JsonSerializer<?>> serializer,
-                    Class<? extends JsonDeserializer<?>> deserializer) {}
+    record CacheKey(@Nonnull Json json,
+                    @Nullable Class<?> sealedType,
+                    @Nullable Class<? extends JsonSerializer<?>> serializer,
+                    @Nullable Class<? extends JsonDeserializer<?>> deserializer) {}
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     public JsonORMConverterImpl(@Nonnull RecordField field,
@@ -88,7 +89,7 @@ public final class JsonORMConverterImpl implements ORMConverter {
                         ? (Class<? extends JsonDeserializer<?>>) deserializeAnnotation.using()
                         : null;
         this.mapper = OBJECT_MAPPER.computeIfAbsent(
-                new CacheKey(type, requireNonNull(json, "json"), serializerClass, deserializerClass),
+                new CacheKey(requireNonNull(json, "json"), type, serializerClass, deserializerClass),
                 key -> {
                     var mapper = new ObjectMapper();
                     mapper.findAndRegisterModules();
@@ -140,7 +141,7 @@ public final class JsonORMConverterImpl implements ORMConverter {
         }
     }
 
-    private static NamedType[] getPermittedSubtypes(Class<?> sealedClass) {
+    private static NamedType[] getPermittedSubtypes(@Nonnull Class<?> sealedClass) {
         return REFLECTION.getPermittedSubclasses(sealedClass).stream()
                 .map(subclass -> {
                     JsonTypeName typeNameAnnotation = subclass.getAnnotation(JsonTypeName.class);

@@ -16,7 +16,9 @@
 package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Data;
 import st.orm.GenerationStrategy;
+import st.orm.Metamodel;
 
 /**
  * Represents a column in a database table.
@@ -80,6 +82,13 @@ public interface Column {
     boolean foreignKey();
 
     /**
+     * The 1-based index of the key.
+     *
+     * @return the 1-based index of the key.
+     */
+    int keyIndex();
+
+    /**
      * Determines if the column is nullable.
      *
      * @return true if the column can be null, false otherwise.
@@ -113,4 +122,12 @@ public interface Column {
      * @return if the column is a ref column, false otherwise.
      */
     boolean ref();
+
+    /**
+     * Returns the metamodel of the column.
+     *
+     * @return the metamodel of the column.
+     * @since 1.7
+     */
+    Metamodel<Data, ?> metamodel();
 }

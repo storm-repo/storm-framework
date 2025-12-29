@@ -18,6 +18,7 @@ package st.orm;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
+import java.util.Objects;
 import java.util.Optional;
 
 import static java.util.Optional.ofNullable;
@@ -25,11 +26,21 @@ import static java.util.Optional.ofNullable;
 /**
  * Implementation that is used by the generated models.
  *
+ * <h2>Equality</h2>
+ * Two metamodel instances are considered equal when they identify the same logical field location
+ * in the schema:
+ * <ul>
+ *   <li>the same owning table as returned by {@link #fieldType()} of {@link #table()},</li>
+ *   <li>the same {@link #path()}, and</li>
+ *   <li>the same {@link #field()}.</li>
+ * </ul>
+ *
  * @param <T> the primary table type.
  * @param <E> the field type of the designated element.
+ * @param <V> the value type of the designated element.
  * @since 1.2
  */
-public abstract class AbstractMetamodel<T, E> implements Metamodel<T, E> {
+public abstract class AbstractMetamodel<T, E, V> implements Metamodel<T, E> {
 
     private final Class<E> fieldType;
     private final String path;
@@ -39,12 +50,12 @@ public abstract class AbstractMetamodel<T, E> implements Metamodel<T, E> {
     private final boolean isColumn;
 
     public AbstractMetamodel(@Nonnull Class<E> fieldType) {
-        this(fieldType, "","", false, null, false);
+        this(fieldType, "", "", false, null, false);
     }
 
     public AbstractMetamodel(@Nonnull Class<E> fieldType,
                              @Nonnull String path) {
-        this(fieldType, path,"", false, null, true);
+        this(fieldType, path, "", false, null, true);
     }
 
     public AbstractMetamodel(@Nonnull Class<E> fieldType,
@@ -55,12 +66,12 @@ public abstract class AbstractMetamodel<T, E> implements Metamodel<T, E> {
         this(fieldType, path, field, inline, parent, !inline);
     }
 
-    private AbstractMetamodel(@Nonnull Class<E> fieldType,
-                              @Nonnull String path,
-                              @Nonnull String field,
-                              boolean inline,
-                              @Nullable Metamodel<T, ?> parent,
-                              boolean isColumn) {
+    protected AbstractMetamodel(@Nonnull Class<E> fieldType,
+                                @Nonnull String path,
+                                @Nonnull String field,
+                                boolean inline,
+                                @Nullable Metamodel<T, ?> parent,
+                                boolean isColumn) {
         this.fieldType = fieldType;
         this.path = path;
         this.field = field;
@@ -70,21 +81,30 @@ public abstract class AbstractMetamodel<T, E> implements Metamodel<T, E> {
     }
 
     /**
-     * Returns {@code true} if the metamodel corresponds to a database column, returns {@code false} otherwise, for
-     * example if the metamodel refers to the root metamodel or an inline record.
-     *
-     * @return {@code true} if this metamodel maps to a column, {@code false} otherwise.
+     * Equality is based on {@link #fieldType()} of {@link #table()}, {@link #path()} and {@link #field()}.
      */
+    @Override
+    public final boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Metamodel<?, ?> other)) return false;
+        return Objects.equals(this.table().fieldType(), other.table().fieldType())
+                && Objects.equals(this.path, other.path())
+                && Objects.equals(this.field, other.field());
+    }
+
+    /**
+     * Hash code is based on {@link #fieldType()} of {@link #table()}, {@link #path()} and {@link #field()}.
+     */
+    @Override
+    public final int hashCode() {
+        return Objects.hash(table().fieldType(), path, field);
+    }
+
     @Override
     public boolean isColumn() {
         return isColumn;
     }
 
-    /**
-     * Returns the root metamodel. This is typically the table specified in the FROM clause of a query.
-     *
-     * @return the root metamodel.
-     */
     @Override
     public Class<T> root() {
         //noinspection unchecked
@@ -93,64 +113,40 @@ public abstract class AbstractMetamodel<T, E> implements Metamodel<T, E> {
                 .orElseGet(() -> (Class<T>) fieldType());
     }
 
-    /**
-     * Returns the table that holds the column to which this metamodel is pointing. If the metamodel points to an
-     * inline record, the table is the parent table of the inline record. If the metamodel is a root metamodel, the
-     * root table is returned.
-     *
-     * @return the table that holds the column to which this metamodel is pointing.
-     */
     @Override
     public Metamodel<T, ?> table() {
-        if (isInline()) {
-            return parent().orElseThrow().table();
+        var parent = parent().orElse(null);
+        if (parent == null) {
+            return this;
         }
-        return parent().orElse(this);
+        if (parent.isInline()) {
+            return parent.table();
+        }
+        return parent;
     }
 
-    /**
-     * Returns true if the field is an inline record.
-     *
-     * @return true if the field is an inline record.
-     */
-    private boolean isInline() {
-        return inline;
-    }
+    @Override
+    public abstract V getValue(@Nonnull T record);
 
-    /**
-     * Returns the parent metamodel or an empty optional if this is the root metamodel.
-     *
-     * @return the parent metamodel or an empty optional if this is the root metamodel.
-     */
     private Optional<Metamodel<T, ?>> parent() {
         return ofNullable(parent);
     }
 
-    /**
-     * Returns the field type of the designated element.
-     *
-     * @return the field type of the designated element.
-     */
+    @Override
+    public boolean isInline() {
+        return inline;
+    }
+
     @Override
     public Class<E> fieldType() {
         return fieldType;
     }
 
-    /**
-     * Returns the path to the database table.
-     *
-     * @return path to the database table.
-     */
     @Override
     public String path() {
         return path;
     }
 
-    /**
-     * Returns the field name.
-     *
-     * @return field name.
-     */
     @Override
     public String field() {
         return field;
@@ -160,20 +156,5 @@ public abstract class AbstractMetamodel<T, E> implements Metamodel<T, E> {
     public String toString() {
         return "Metamodel{root=%s, type=%s, path='%s', field='%s'}"
                 .formatted(root().getSimpleName(), fieldType.getSimpleName(), path, field);
-    }
-
-    private record SimpleMetamodel<T extends Data, E>(@Nonnull Class<T> root,
-                                                      @Nonnull String path,
-                                                      @Nonnull Class<E> fieldType,
-                                                      @Nonnull String field,
-                                                      boolean isColumn,
-                                                      @Nullable Metamodel<T, ? extends Data> table) implements Metamodel<T, E> {
-
-        @SuppressWarnings("NullableProblems")
-        @Override
-        public String toString() {
-            return "Metamodel{root=%s, type=%s, path='%s', field='%s'}"
-                    .formatted(root.getSimpleName(), fieldType.getSimpleName(), path, field);
-        }
     }
 }
