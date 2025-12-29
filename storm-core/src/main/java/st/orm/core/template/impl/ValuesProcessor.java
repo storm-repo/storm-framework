@@ -83,33 +83,25 @@ final class ValuesProcessor implements ElementProcessor<Values> {
             if (!table.isInstance(record)) {
                 throw new SqlTemplateException("Record %s does not match entity %s.".formatted(record.getClass().getSimpleName(), table.getSimpleName()));
             }
-            var model = modelBuilder.build(record, false);
-            var values = ModelMapper.of(model).map(record, Column::insertable);
-            if (values.isEmpty()) {
+            var mapped = modelBuilder.build(record, false)
+                    .values(record, Column::insertable);
+            if (mapped.isEmpty()) {
                 throw new SqlTemplateException("No values found for Insert.");
             }
-            List<String> placeholders = new ArrayList<>(values.size());
-            for (var column : model.columns()) {
-                if (!column.insertable()) {
-                    continue;
-                }
-                switch (column.generation()) {
-                    case NONE -> {
-                        var value = values.get(column);
-                        placeholders.add(templateProcessor.bindParameter(value));
-                    }
+            List<String> placeholders = new ArrayList<>();
+            for (var entry : mapped.entrySet()) {
+                switch (entry.getKey().generation()) {
+                    case NONE -> placeholders.add(templateProcessor.bindParameter(entry.getValue()));
                     case IDENTITY -> {
                         if (ignoreAutoGenerate) {
-                            var value = values.get(column);
-                            placeholders.add(templateProcessor.bindParameter(value));
+                            placeholders.add(templateProcessor.bindParameter(entry.getValue()));
                         }
                     }
                     case SEQUENCE -> {
                         if (ignoreAutoGenerate) {
-                            var value = values.get(column);
-                            placeholders.add(templateProcessor.bindParameter(value));
+                            placeholders.add(templateProcessor.bindParameter(entry.getValue()));
                         } else {
-                            String sequenceName = column.sequence();
+                            String sequenceName = entry.getKey().sequence();
                             if (!sequenceName.isEmpty()) {
                                 // Do NOT bind a value; emit sequence retrieval instead.
                                 placeholders.add(dialect.sequenceNextVal(sequenceName));
@@ -138,7 +130,7 @@ final class ValuesProcessor implements ElementProcessor<Values> {
     private ElementResult getBindVarsString(@Nonnull BindVars bindVars, boolean ignoreAutoGenerate) throws SqlTemplateException {
         if (bindVars instanceof BindVarsImpl vars) {
             @SuppressWarnings("unchecked")
-            Model<Data, ?> model = (Model<Data, ?>) modelBuilder.build(primaryTable.table(), false);
+            var model = (Model<Data, ?>) modelBuilder.build(primaryTable.table(), false);
             var bindsVarCount = (int) model.columns().stream()
                     .filter(Column::insertable)
                     .filter(column -> switch (column.generation()) {
@@ -150,31 +142,24 @@ final class ValuesProcessor implements ElementProcessor<Values> {
             var parameterFactory = templateProcessor.setBindVars(vars, bindsVarCount);
             vars.addParameterExtractor(record -> {
                 try {
-                    var values = ModelMapper.of(model).map(record, Column::insertable);
-                    for (var column : model.columns()) {
-                        if (!column.insertable()) {
-                            continue;
-                        }
+                    model.forEachValue(record, Column::insertable, (column, value) -> {
                         switch (column.generation()) {
                             case NONE -> {
-                                var value = values.get(column);
                                 parameterFactory.bind(value);
                             }
                             case IDENTITY -> {
                                 if (ignoreAutoGenerate) {
-                                    var value = values.get(column);
                                     parameterFactory.bind(value);
                                 }
                             }
                             case SEQUENCE -> {
                                 if (ignoreAutoGenerate) {
-                                    var value = values.get(column);
                                     parameterFactory.bind(value);
                                 }
                                 // Do nothing.
                             }
                         }
-                    }
+                    });
                     return parameterFactory.getParameters();
                 } catch (SqlTemplateException ex) {
                     throw new UncheckedSqlTemplateException(ex);

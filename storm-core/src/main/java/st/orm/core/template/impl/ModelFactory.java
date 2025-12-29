@@ -33,13 +33,11 @@ import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplateException;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static java.util.Optional.ofNullable;
+import static java.util.Collections.nCopies;
 import static st.orm.core.spi.Providers.getORMConverter;
 import static st.orm.core.template.impl.RecordReflection.getColumnName;
 import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
@@ -76,62 +74,37 @@ final class ModelFactory {
             boolean requirePrimaryKey) throws SqlTemplateException {
         try {
             //noinspection unchecked
-            var model = (Model<T, ID>) MODEL_CACHE.computeIfAbsent(type, ignore -> {
+            return (Model<T, ID>) MODEL_CACHE.computeIfAbsent(type, ignore -> {
                 try {
                     RecordValidation.validateDataType(type, requirePrimaryKey);
                     RecordType recordType = getRecordType(type);
                     AtomicInteger index = new AtomicInteger(1);
                     AtomicInteger primaryKeyIndex = new AtomicInteger(1);
                     List<Column> columns = new ArrayList<>();
-                    Map<String, List<Column>> fields = new HashMap<>();
+                    List<RecordField> fields = new ArrayList<>();
                     RecordField pkField = null;
-                    List<RecordField> fkFields = new ArrayList<>();
-                    List<RecordField> insertableFields = new ArrayList<>();
-                    List<RecordField> updatableFields = new ArrayList<>();
-                    RecordField versionField = null;
                     Metamodel<T, ?> rootMetamodel = Metamodel.root(type);
                     for (var field : recordType.fields()) {
                         boolean primaryKey = field.isAnnotationPresent(PK.class);
-                        boolean foreignKey = field.isAnnotationPresent(FK.class);
                         var list = createColumns(builder, rootMetamodel, field, primaryKey, getGenerationStrategy(field),
                                 getSequence(field), false, index, primaryKeyIndex);
                         columns.addAll(list);
-                        fields.put(field.name(), List.copyOf(list));
+                        fields.addAll(nCopies(list.size(), field));
                         if (primaryKey) {
                             pkField = field;
-                        }
-                        if (foreignKey) {
-                            fkFields.add(field);
-                        }
-                        if (columns.stream().anyMatch(Column::insertable)) {
-                            insertableFields.add(field);
-                        }
-                        if (columns.stream().anyMatch(Column::updatable)) {
-                            updatableFields.add(field);
-                        }
-                        if (columns.stream().anyMatch(Column::version)) {
-                            versionField = field;
                         }
                     }
                     var tableName = getTableName(type, builder.tableNameResolver());
                     return new ModelImpl<>(
                             recordType,
+                            pkField,
                             tableName,
                             columns,
-                            fields,
-                            ofNullable(pkField),
-                            fkFields,
-                            insertableFields,
-                            updatableFields,
-                            ofNullable(versionField));
+                            fields);
                 } catch (SqlTemplateException e) {
                     throw new RuntimeException(e);
                 }
             });
-            if (requirePrimaryKey && model.primaryKeyField().isEmpty()) {
-                throw new PersistenceException("No primary key found for type: %s.".formatted(type.getSimpleName()));
-            }
-            return model;
         } catch (RuntimeException e) {
             if (e.getCause() instanceof SqlTemplateException ex) {
                 throw ex;
@@ -167,7 +140,7 @@ final class ModelFactory {
                                               @Nonnull AtomicInteger primaryKeyIndex) {
         try {
             @SuppressWarnings("unchecked")
-            var metamodel = Metamodel.of((Class<? extends Data>) parentMetamodel.root(),
+            var metamodel = (Metamodel<Data, ?>) Metamodel.of((Class<? extends Data>) parentMetamodel.root(),
                     parentMetamodel.fieldPath().isEmpty() ? field.name() : parentMetamodel.fieldPath() + "." + field.name());
             var converter = getORMConverter(field).orElse(null);
             if (converter != null) {
@@ -186,7 +159,7 @@ final class ModelFactory {
                             ? new KeyIndex(primaryKeyIndex.getAndIncrement(), columnTypes.size())
                             : null;
                     columns.add(new ColumnImpl(columnNames.get(i), index.getAndIncrement(), columnTypes.get(i),
-                            pk != null, GenerationStrategy.NONE, "",false,
+                            pk != null, GenerationStrategy.NONE, "",false, pk == null ? -1 : pk.position(),
                             true, true, true, false, false, metamodel));
                 }
                 return columns;
@@ -220,15 +193,17 @@ final class ModelFactory {
                 }
             }
             if (foreignKey) {
+                // In case of compound pks, all metamodels point to the foreign key object and not the underlying
+                // primary key fields, similar to singular primary key fields. This means that users of the metamodel
+                // that extract the field (foreign key object) must handle them appropriately.
                 List<ColumnName> columnNames = getForeignKeys(field, builder.foreignKeyResolver(), builder.columnNameResolver());
                 List<Column> columns = new ArrayList<>(columnNames.size());
                 for (int i = 0; i < columnNames.size(); i++) {
                     var columnName = columnNames.get(i);
-                    KeyIndex pk = primaryKey ? new KeyIndex(1, 1) : null;
-                    KeyIndex fk = new KeyIndex(i + 1, columnNames.size());
+                    KeyIndex key = new KeyIndex(i + 1, columnNames.size());
                     //noinspection ConstantValue
                     columns.add(new ColumnImpl(columnName, index.getAndIncrement(), dataType,
-                            pk != null, generation, sequence, fk != null,
+                            primaryKey, generation, sequence, foreignKey, key == null ? -1 : key.position(),
                             nullable, insertable, updatable, version, ref, metamodel));
                 }
                 return columns;
@@ -236,7 +211,7 @@ final class ModelFactory {
             ColumnName columnName = getColumnName(field, builder.columnNameResolver());
             KeyIndex pk = primaryKey ? new KeyIndex(1, 1) : null;
             return List.of(new ColumnImpl(columnName, index.getAndIncrement(), dataType,
-                    pk != null, generation, sequence, false,
+                    pk != null, generation, sequence, false, pk == null ? -1 : pk.position(),
                     nullable, insertable, updatable, version, ref, metamodel));
         } catch (SqlTemplateException e) {
             throw new PersistenceException(e);

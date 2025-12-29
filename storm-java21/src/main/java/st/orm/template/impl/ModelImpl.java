@@ -18,16 +18,16 @@ package st.orm.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
+import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.TableName;
-import st.orm.PersistenceException;
-import st.orm.mapping.RecordField;
 import st.orm.template.Column;
 import st.orm.template.Model;
 
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Optional;
-import java.util.SequencedMap;
+import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.Predicate;
 
 import static java.util.List.copyOf;
 
@@ -39,9 +39,7 @@ public record ModelImpl<E extends Data, ID>(
         @Nonnull TableName tableName,
         @Nonnull Class<E> type,
         @Nonnull Class<ID> primaryKeyType,
-        @Nonnull List<Column> columns,
-        @Nonnull Optional<RecordField> primaryKeyField,
-        @Nonnull List<RecordField> foreignKeyFields) implements Model<E, ID> {
+        @Nonnull List<Column> columns) implements Model<E, ID> {
 
     public ModelImpl {
         columns = copyOf(columns); // Defensive copy.
@@ -54,11 +52,9 @@ public record ModelImpl<E extends Data, ID>(
                 model.type(),
                 model.primaryKeyType(),
                 model.columns().stream()
-                        .map(c -> new ColumnImpl((st.orm.core.template.impl.ColumnImpl) c))
+                        .map(ColumnImpl::new)
                         .map(Column.class::cast)
-                        .toList(),
-                model.primaryKeyField(),
-                model.foreignKeyFields()
+                        .toList()
         );
     }
 
@@ -98,44 +94,48 @@ public record ModelImpl<E extends Data, ID>(
     }
 
     /**
-     * Extracts the value for the specified record field from the given record.
+     * Extracts values from the given record and passes them to the provided consumer.
      *
-     * @param field the record field to extract the value for.
-     * @param record the record to extract the value from.
-     * @return the value for the specified record field from the given record.
-     * @since 1.3
+     * <p>This method iterates over all columns mapped by the entity or projection and invokes the consumer once per
+     * column with the corresponding extracted value.</p>
+     *
+     * <p>The consumer is invoked in a stable order that matches the column order of the underlying model.</p>
+     *
+     * <p>The extracted value may be {@code null} if the corresponding field value is {@code null}.</p>
+     *
+     * <p>This method does not allocate intermediate collections and does not mutate the record. It is intended for
+     * efficient value extraction and binding, for example, when preparing SQL statements.</p>
+     *
+     * @param record the record to extract values from
+     * @param consumer receives each column together with its extracted value
+     * @since 1.7
      */
     @Override
-    public Object getValue(@Nonnull RecordField field, @Nonnull E record) {
-        return core.getValue(field, record);
+    public void forEachValue(@Nonnull E record, @Nonnull Predicate<Column> filter, @Nonnull BiConsumer<Column, Object> consumer) throws SqlTemplateException {
+        core.forEachValue(record,
+                column -> filter.test(new ColumnImpl(column)),
+                (column, value) -> consumer.accept(new ColumnImpl(column), value));
     }
 
     /**
-     * Extracts the values from the given record and maps them to the columns of the entity or projection.
+     * Collects extracted values into a map, optionally filtering which columns to include.
      *
-     * @param record the record to extract the values from.
-     * @return the values from the given record mapped to the columns of the entity or projection.
-     * @throws PersistenceException if an error occurs while extracting the values.
-     * @since 1.2
+     * <p>The returned map preserves iteration order. Its iteration order matches the model's stable column order.</p>
+     *
+     * <p>Values are the same JDBC-ready values as produced by {@link #forEachValue(E, BiConsumer)}.</p>
+     *
+     * @param record the record (entity or projection instance) to extract values from.
+     * @param filter predicate that decides whether a column should be included.
+     * @return a {@link Map} containing columns and their extracted (JDBC-ready) values in the order of the model.
+     * @throws SqlTemplateException if an error occurs during value extraction.
+     * @since 1.7
      */
     @Override
-    public SequencedMap<Column, Object> getValues(@Nonnull E record) {
-        var map = new LinkedHashMap<Column, Object>();
-        core.getValues(record).forEach((c, v) -> map.put(new ColumnImpl((st.orm.core.template.impl.ColumnImpl) c), v));
+    public Map<Column, Object> values(@Nonnull E record, @Nonnull Predicate<Column> filter) throws SqlTemplateException {
+        Map<Column, Object> map = new LinkedHashMap<>();
+        core.forEachValue(record,
+                column -> filter.test(new ColumnImpl(column)),
+                (column, value) -> map.put(new ColumnImpl(column), value));
         return map;
-    }
-
-    /**
-     * Extracts the value for the specified column from the given record.
-     *
-     * @param column the column to extract the value for.
-     * @param record the record to extract the value from.
-     * @return the value for the specified column from the given record.
-     * @throws PersistenceException if an error occurs while extracting the values.
-     * @since 1.2
-     */
-    @Override
-    public Object getValue(@Nonnull Column column, @Nonnull E record) {
-        return core.getValue(((ColumnImpl) column).core(), record);
     }
 }

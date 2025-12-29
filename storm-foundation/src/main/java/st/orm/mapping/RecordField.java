@@ -78,7 +78,7 @@ public record RecordField(@Nonnull Class<?> declaringType,
     @SuppressWarnings("unchecked")
     public Class<? extends Data> requireDataType() {
         if (!Data.class.isAssignableFrom(type)) {
-            throw new PersistenceException("Data type required");
+            throw new PersistenceException("Data type required.");
         }
         return (Class<? extends Data>) type;
     }

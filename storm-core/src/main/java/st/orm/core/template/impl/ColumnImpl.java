@@ -33,6 +33,7 @@ import st.orm.core.template.Column;
  * @param generation the generation strategy.
  * @param sequence the sequence name.
  * @param foreignKey whether the column is a foreign key.
+ * @param keyIndex the 1-based index of the key.
  * @param nullable whether the column is nullable.
  * @param insertable whether the column is insertable.
  * @param updatable whether the column is updatable.
@@ -48,12 +49,13 @@ public record ColumnImpl(
         @Nonnull GenerationStrategy generation,
         @Nonnull String sequence,
         boolean foreignKey,
+        int keyIndex,
         boolean nullable,
         boolean insertable,
         boolean updatable,
         boolean version,
         boolean ref,
-        Metamodel<? extends Data, ?> metamodel
+        Metamodel<Data, ?> metamodel
 ) implements Column {
 
     /**

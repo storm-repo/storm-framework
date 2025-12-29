@@ -29,7 +29,6 @@ import kotlin.reflect.KType;
 import kotlin.reflect.full.KClasses;
 import kotlin.reflect.jvm.ReflectJvmMapping;
 import st.orm.Data;
-import st.orm.Entity;
 import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.core.repository.impl.DefaultORMReflectionImpl;
@@ -84,16 +83,20 @@ public class ORMReflectionImpl implements ORMReflection {
         return JvmClassMappingKt.getKotlinClass(type).isData();
     }
 
-    @SuppressWarnings("unchecked")
     @Override
-    public <ID, E extends Entity<ID>> ID getId(@Nonnull E entity) {
-        return PK_FIELD_CACHE.computeIfAbsent(entity.getClass(), ignore ->
-                        getRecordType(entity.getClass()).fields().stream()
+    public Object getId(@Nonnull Data data) {
+        return PK_FIELD_CACHE.computeIfAbsent(data.getClass(), ignore ->
+                        getRecordType(data.getClass()).fields().stream()
                                 .filter(field -> field.isAnnotationPresent(PK.class))
                                 .findFirst()
                 )
-                .map(field -> (ID) invoke(field, entity))
-                .orElseThrow(() -> new PersistenceException("No PK found for %s.".formatted(entity.getClass().getName())));
+                .map(field -> invoke(field, data))
+                .orElseThrow(() -> new PersistenceException("No PK found for %s.".formatted(data.getClass().getName())));
+    }
+
+    @Override
+    public Object getRecordValue(@Nonnull Object record, int index) {
+        return invoke(getRecordType(record.getClass()).fields().get(index), record);
     }
 
     @Override
@@ -322,34 +325,12 @@ public class ORMReflectionImpl implements ORMReflection {
 
     @Override
     public Object invoke(@Nonnull RecordType type, @Nonnull Object[] args) {
-        try {
-            try {
-                // Method is expected to be accessible.
-                return type.constructor().newInstance(args);
-            } catch (InvocationTargetException e) {
-                throw e.getTargetException();
-            }
-        } catch (PersistenceException e) {
-            throw e;
-        } catch (Throwable t) {
-            throw new PersistenceException(t);
-        }
+        return defaultReflection.invoke(type, args);
     }
 
     @Override
     public Object invoke(@Nonnull RecordField field, @Nonnull Object record) {
-        try {
-            try {
-                // Method is expected to be accessible.
-                return field.method().invoke(record);
-            } catch (InvocationTargetException e) {
-                throw e.getTargetException();
-            }
-        } catch (PersistenceException e) {
-            throw e;
-        } catch (Throwable t) {
-            throw new PersistenceException(t);
-        }
+        return defaultReflection.invoke(field, record);
     }
 
     record MethodCacheKey(@Nonnull List<Class<?>> interfaces, @Nonnull Method method) {}

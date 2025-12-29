@@ -90,8 +90,8 @@ final class SetProcessor implements ElementProcessor<Set> {
             throw new SqlTemplateException("Record %s does not match entity %s.".formatted(record.getClass().getSimpleName(), primaryTable.table().getSimpleName()));
         }
         var model = modelBuilder.build(record, false);
-        var mapped = ModelMapper.of(model)
-                .map(record, fields, column -> !column.primaryKey() && column.updatable());
+        var mapped = model.values(record, column -> !column.primaryKey() && column.updatable()
+                && (fields.isEmpty() || fields.contains(column.metamodel())));
         List<String> args = new ArrayList<>();
         for (var entry : mapped.entrySet()) {
             var column = entry.getKey();
@@ -141,10 +141,10 @@ final class SetProcessor implements ElementProcessor<Set> {
             var parameterFactory = templateProcessor.setBindVars(vars, bindVarsCount.getPlain());
             vars.addParameterExtractor(record -> {
                 try {
-                    ModelMapper.of(modelBuilder.build(record, false))
-                            .map(record, fields, column -> !column.primaryKey() && column.updatable() && !column.version())
-                            .values()
-                            .forEach(parameterFactory::bind);
+                    modelBuilder.build(record, false)
+                            .forEachValue(record,
+                                    column -> !column.primaryKey() && column.updatable() && !column.version() && (fields.isEmpty() || fields.contains(column.metamodel())),
+                                    (column, value) -> parameterFactory.bind(value));
                     return parameterFactory.getParameters();
                 } catch (SqlTemplateException ex) {
                     throw new UncheckedSqlTemplateException(ex);

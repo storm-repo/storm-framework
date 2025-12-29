@@ -37,9 +37,10 @@ import static java.util.Optional.ofNullable;
  *
  * @param <T> the primary table type.
  * @param <E> the field type of the designated element.
+ * @param <V> the value type of the designated element.
  * @since 1.2
  */
-public abstract class AbstractMetamodel<T, E> implements Metamodel<T, E> {
+public abstract class AbstractMetamodel<T, E, V> implements Metamodel<T, E> {
 
     private final Class<E> fieldType;
     private final String path;
@@ -114,18 +115,26 @@ public abstract class AbstractMetamodel<T, E> implements Metamodel<T, E> {
 
     @Override
     public Metamodel<T, ?> table() {
-        if (isInline()) {
-            return parent().orElseThrow().table();
+        var parent = parent().orElse(null);
+        if (parent == null) {
+            return this;
         }
-        return parent().orElse(this);
+        if (parent.isInline()) {
+            return parent.table();
+        }
+        return parent;
     }
 
-    private boolean isInline() {
-        return inline;
-    }
+    @Override
+    public abstract V getValue(@Nonnull T record);
 
     private Optional<Metamodel<T, ?>> parent() {
         return ofNullable(parent);
+    }
+
+    @Override
+    public boolean isInline() {
+        return inline;
     }
 
     @Override

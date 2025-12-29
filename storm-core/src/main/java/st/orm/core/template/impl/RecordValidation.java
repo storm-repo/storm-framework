@@ -202,7 +202,7 @@ final class RecordValidation {
                 } else if (Ref.class.isAssignableFrom(field.type())) {
                     try {
                         fkType = getRefDataType(field);
-                        getRefPkType(field);    // Validaate Ref's PK type.
+                        getRefPkType(field);    // Validate Ref's PK type.
                     } catch (SqlTemplateException e) {
                         return e.getMessage();
                     }

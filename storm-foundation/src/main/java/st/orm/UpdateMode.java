@@ -16,32 +16,26 @@
 package st.orm;
 
 /**
- * Controls how Storm detects changes and generates UPDATE statements for entities.
+ * Controls how changes are detected and how UPDATE statements are generated for entities.
  *
- * <p>
- * UpdateMode primarily affects <strong>performance</strong>, but it also influences how likely concurrent updates are
- * to overwrite each other. It does <em>not</em> provide a strict correctness guarantee under concurrency. Correctness
- * must be enforced using optimistic locking via a version column.
- * </p>
+ * <p>UpdateMode primarily affects <strong>performance</strong>, but it also influences how likely concurrent updates
+ * are to overwrite each other. It does not provide a strict correctness guarantee under concurrency. Correctness must
+ * be enforced using optimistic locking via a version column.</p>
  *
- * <p>
- * In practice, more precise update modes, especially field-level updates, often reduce the chance of lost updates by
+ * <p>In practice, more precise update modes, especially field-level updates, often reduce the chance of lost updates by
  * limiting which columns are written. This improvement is situational and must not be relied upon as a formal
- * correctness mechanism.
- * </p>
+ * correctness mechanism.</p>
  *
- * <p>
- * The default update mode is {@link #OFF}. More advanced modes must be explicitly enabled either globally or per
- * entity.
- * </p>
+ * <p>The default update mode is {@link #ENTITY}. A different global default can be configured using the system property
+ * {@code storm.update.defaultMode}. The update mode can also be configured per entity using {@link DynamicUpdate}.</p>
  *
  * <h2>General rules</h2>
  * <ul>
- *   <li>Dirty checking applies to all entities read within a transaction context.</li>
+ *   <li>Dirty checking applies to entities read within a transaction context.</li>
  *   <li>Application of dirty checking is limited to updates performed via the entity repository.</li>
  *   <li>Manual or bulk SQL updates bypass dirty checking and may leave cached entities stale.</li>
- *   <li>Field-level dirty checking is a performance optimization that may fall back to full updates
- *       to preserve batching.</li>
+ *   <li>Field-level updates are a performance optimization and may fall back to full-row updates to preserve batching
+ *       efficiency.</li>
  * </ul>
  *
  * @since 1.7
@@ -58,37 +52,36 @@ public enum UpdateMode {
     OFF,
 
     /**
-     * Entity-level dirty checking.
+     * Full-row updates with column-level dirty detection.
      *
-     * <p>Storm compares the current entity state with the state observed when the entity was read. If no change is
-     * detected, the UPDATE is skipped entirely. If a change is detected, all mapped columns are updated.</p>
+     * <p>Dirty checking is evaluated per updatable column against the state observed when the entity was read. If no
+     * column changes are detected, the UPDATE is skipped entirely. If any column is considered dirty, a full-row UPDATE
+     * is issued and all mapped columns are included.</p>
      *
      * <p>This mode reduces unnecessary UPDATE statements while keeping SQL shape stable. It does not reduce the number
-     * of updated columns.</p>
+     * of updated columns when an UPDATE is issued.</p>
      *
-     * <p>By skipping redundant writes, this mode can indirectly reduce contention and lower the probability of
-     * conflicting updates.</p>
+     * <p>By skipping redundant writes, contention may be reduced and the probability of conflicting updates may be
+     * lowered. This effect is best-effort and must not be relied upon as a correctness mechanism.</p>
      *
      * <p>This is the default and recommended mode.</p>
      */
     ENTITY,
 
     /**
-     * Field-level dirty checking.
+     * Field-level updates with column-level dirty detection.
      *
-     * <p>Storm compares individual fields with the values observed when the entity was read and generates UPDATE
-     * statements that include only the modified columns.</p>
+     * <p>Dirty checking is evaluated per updatable column against the state observed when the entity was read. UPDATE
+     * statements include only the columns considered dirty.</p>
      *
-     * <p>This mode often reduces write amplification and lock scope. By limiting updates to changed columns, it
-     * frequently improves behavior under concurrent updates, especially when different transactions modify different
-     * fields.</p>
+     * <p>This mode often reduces write amplification and lock scope. By limiting updates to changed columns, behavior
+     * under concurrent updates can improve, especially when different transactions modify different fields.</p>
      *
-     * <p>These benefits are best-effort and situational. Field-level dirty checking improves concurrency
-     * characteristics but does not guarantee correctness. Optimistic locking is still required to reliably detect
-     * conflicting updates.</p>
+     * <p>These benefits are best-effort and situational. Field-level updates improve concurrency characteristics but do
+     * not guarantee correctness. Optimistic locking is still required to reliably detect conflicting updates.</p>
      *
-     * <p>To prevent performance degradation, Storm may automatically fall back to full updates when too many distinct
-     * update shapes are detected.</p>
+     * <p>To prevent performance degradation, a fallback to full-row updates may be used when too many distinct update
+     * statement shapes would otherwise be generated.</p>
      */
     FIELD
 }

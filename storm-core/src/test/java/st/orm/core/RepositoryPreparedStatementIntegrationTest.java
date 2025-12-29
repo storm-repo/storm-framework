@@ -3,6 +3,7 @@ package st.orm.core;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
+import lombok.NonNull;
 import org.h2.jdbc.JdbcSQLSyntaxErrorException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -211,6 +212,11 @@ public class RepositoryPreparedStatementIntegrationTest {
                 }
 
                 @Override
+                public boolean isInline() {
+                    return false;
+                }
+
+                @Override
                 public Class<Visit> root() {
                     return model.root();
                 }
@@ -233,6 +239,21 @@ public class RepositoryPreparedStatementIntegrationTest {
                 @Override
                 public String field() {
                     return "names"; // Invalid name.
+                }
+
+                @Override
+                public String getValue(@NonNull Visit record) {
+                    return record.pet().name();
+                }
+
+                @Override
+                public boolean isIdentical(@NonNull Visit a, @Nonnull Visit b) {
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
+                public boolean isSame(@NonNull Visit a, @Nonnull Visit b) {
+                    throw new UnsupportedOperationException();
                 }
             };
             ORMTemplate.of(dataSource).entity(Visit.class).select().where(wrap(where(invalidModel, EQUALS, "Leo"))).getResultCount();

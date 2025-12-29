@@ -82,6 +82,13 @@ public interface Column {
     boolean foreignKey();
 
     /**
+     * The 1-based index of the key.
+     *
+     * @return the 1-based index of the key.
+     */
+    int keyIndex();
+
+    /**
      * Determines if the column is nullable.
      *
      * @return true if the column can be null, false otherwise.
@@ -122,5 +129,5 @@ public interface Column {
      * @return the metamodel of the column.
      * @since 1.7
      */
-    Metamodel<? extends Data, ?> metamodel();
+    Metamodel<Data, ?> metamodel();
 }
