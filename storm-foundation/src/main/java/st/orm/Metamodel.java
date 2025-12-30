@@ -130,12 +130,12 @@ public interface Metamodel<T, E> {
     /**
      * Extracts the value from the given record as specified by this metamodel.
      *
-     * <p>The returned value may be {@code null} in the following cases:</p>
-     * <ul>
-     *   <li>The field represented by this metamodel is nullable.</li>
-     *   <li>Any parent metamodel in the access path resolves to {@code null}
-     *       (for example, when navigating through an optional or nullable nested record).</li>
-     * </ul>
+     * <p>The returned value may be {@code null} if this metamodel represents a nullable field
+     * or if any parent metamodel in the access path resolves to {@code null}
+     * (for example when navigating through an optional or nullable nested record).</p>
+     *
+     * <p>Implementations may return a non-null value, but callers must not rely on that unless they
+     * statically know they are using a non-null metamodel variant.</p>
      *
      * @param record the root record from which the value is extracted.
      * @return the extracted value, or {@code null} if the value cannot be resolved.

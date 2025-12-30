@@ -100,11 +100,22 @@ public abstract class AbstractMetamodel<T, E, V> implements Metamodel<T, E> {
         return Objects.hash(table().fieldType(), path, field);
     }
 
+    /**
+     * Returns {@code true} if the metamodel corresponds to a database column, returns {@code false} otherwise, for
+     * example, if the metamodel refers to the root metamodel or an inline record.
+     *
+     * @return {@code true} if this metamodel maps to a column, {@code false} otherwise.
+     */
     @Override
     public boolean isColumn() {
         return isColumn;
     }
 
+    /**
+     * Returns the root metamodel. This is typically the table specified in the FROM clause of a query.
+     *
+     * @return the root metamodel.
+     */
     @Override
     public Class<T> root() {
         //noinspection unchecked
@@ -113,6 +124,13 @@ public abstract class AbstractMetamodel<T, E, V> implements Metamodel<T, E> {
                 .orElseGet(() -> (Class<T>) fieldType());
     }
 
+    /**
+     * Returns the table that holds the column to which this metamodel is pointing. If the metamodel points to an
+     * inline record, the table is the parent table of the inline record. If the metamodel is a root metamodel, the
+     * root table is returned.
+     *
+     * @return the table that holds the column to which this metamodel is pointing.
+     */
     @Override
     public Metamodel<T, ?> table() {
         var parent = parent().orElse(null);
@@ -125,28 +143,45 @@ public abstract class AbstractMetamodel<T, E, V> implements Metamodel<T, E> {
         return parent;
     }
 
-    @Override
-    public abstract V getValue(@Nonnull T record);
-
     private Optional<Metamodel<T, ?>> parent() {
         return ofNullable(parent);
     }
 
+    /**
+     * Returns {@code true} if the metamodel corresponds to an inline record, returns {@code false} otherwise.
+     *
+     * @return {@code true} if this metamodel maps to an inline record, {@code false} otherwise.
+     */
     @Override
     public boolean isInline() {
         return inline;
     }
 
+    /**
+     * Returns the field type of the designated element.
+     *
+     * @return the field type of the designated element.
+     */
     @Override
     public Class<E> fieldType() {
         return fieldType;
     }
 
+    /**
+     * Returns the path to the database table.
+     *
+     * @return path to the database table.
+     */
     @Override
     public String path() {
         return path;
     }
 
+    /**
+     * Returns the field name.
+     *
+     * @return field name.
+     */
     @Override
     public String field() {
         return field;

@@ -24,22 +24,16 @@ import java.io.OutputStreamWriter
 /**
  * KSP processor for generating metamodel classes and interfaces for Kotlin data classes.
  *
- * Equality semantics in generated code:
- * - For non-nullable primitive fields (Int, Long, Boolean, etc): compare using primitive operations to avoid boxing.
- *   - Float/Double use toBits() comparisons for stable NaN and -0.0 handling.
- * - For reference-typed fields (including Ref<*> and nullable primitives like Int?): isSame uses ==.
- * - For isIdentical:
- *   - Uses === for normal reference types.
- *   - Uses == for nullable primitives (Int?, Long?, ...).
- *   - Uses == for "value-based" types (for example java.time.Instant) to avoid identity-sensitive operations.
+ * Nullable chain semantics (generated *NullableMetamodel* variants):
+ * - We always generate:
+ *     - ${ClassName}Metamodel<T>          : normal (non-null root record)
+ *     - ${ClassName}NullableMetamodel<T>  : nullable chain, where all leaf getValue() values are nullable.
+ * - If a parent record in the graph can be null, all metamodels “down the line” must return nullable values from getValue().
+ * - In a ${Parent}NullableMetamodel, nested record metamodel fields must be ${Child}NullableMetamodel (including FKs).
  *
- * Special root isSame behavior:
- * - If the data class has a @PK field, root isSame compares by that PK field:
- *     getter(a).pk == getter(b).pk
- *
- * Null handling:
- * - The root getter and getValue() may return null.
- * - Therefore field getValue() is always nullable in generated code, even if the Kotlin property is non-nullable.
+ * Root record nullability:
+ * - ${ClassName}Metamodel: getter returns non-null ${ClassName} and AbstractMetamodel V is non-null ${ClassName}.
+ * - ${ClassName}NullableMetamodel: getter returns ${ClassName}? and AbstractMetamodel V is ${ClassName}?.
  *
  * @since 1.7
  */
@@ -48,7 +42,10 @@ class MetamodelProcessor(
     private val logger: KSPLogger
 ) : SymbolProcessor {
 
-    private val generatedFiles = mutableSetOf<String>()
+    /**
+     * Track classes we’ve already fully processed (interface + both classes).
+     */
+    private val processedClasses = mutableSetOf<String>()
 
     companion object {
         private const val GENERATE_METAMODEL = "st.orm.GenerateMetamodel"
@@ -111,7 +108,7 @@ class MetamodelProcessor(
                 deferred.add(clazz)
             } else {
                 try {
-                    generateMetamodelInterface(clazz, resolver)
+                    generateMetamodelArtifacts(clazz, resolver)
                 } catch (e: Exception) {
                     logger.error(
                         "Failed to process metamodel for ${clazz.qualifiedName?.asString()}: ${e.message}\n" +
@@ -122,7 +119,6 @@ class MetamodelProcessor(
                 }
             }
         }
-
         return deferred
     }
 
@@ -213,7 +209,6 @@ class MetamodelProcessor(
                     } else qualifiedName
                 }
             }
-
             val typeArguments = resolvedType.arguments
             if (typeArguments.isNotEmpty() && typeArguments.all { it.variance != Variance.STAR }) {
                 val wildcards = typeArguments.joinToString(", ") { "*" }
@@ -231,15 +226,14 @@ class MetamodelProcessor(
      * Kotlin value type name for *actual* runtime value returned by getValue() for fields.
      *
      * Unlike getKotlinTypeName(..), this does NOT unwrap Ref<X> -> X.
-     * It also renders Ref as `Ref` (not `st.orm.Ref`) so the generated code can rely on `import st.orm.Ref`.
+     * It renders Ref as `st.orm.Ref` so generated code needs no import.
      */
     private fun getKotlinValueTypeName(typeReference: KSTypeReference, currentPackage: String): String {
         fun render(type: KSType): String {
             val decl = type.declaration
             val qualifiedName = decl.qualifiedName?.asString() ?: decl.simpleName.asString()
-
             val baseName = when (qualifiedName) {
-                "st.orm.Ref" -> "Ref"
+                "st.orm.Ref" -> "st.orm.Ref"
                 "kotlin.String", "java.lang.String" -> "String"
                 "kotlin.Int", "java.lang.Integer" -> "Int"
                 "kotlin.Long", "java.lang.Long" -> "Long"
@@ -267,7 +261,8 @@ class MetamodelProcessor(
                     }
                 }
             } else ""
-            return baseName + typeArgs
+            val nullableSuffix = if (type.isMarkedNullable) "?" else ""
+            return baseName + typeArgs + nullableSuffix
         }
         return render(typeReference.resolve())
     }
@@ -393,33 +388,64 @@ class MetamodelProcessor(
         }
     }
 
-    private fun sameExpr(left: String, right: String, typeRef: KSTypeReference): String {
-        return when (primitiveKind(typeRef)) {
-            PrimitiveKind.FLOAT -> "($left).toBits() == ($right).toBits()"
-            PrimitiveKind.DOUBLE -> "($left).toBits() == ($right).toBits()"
-            PrimitiveKind.BOOLEAN,
-            PrimitiveKind.BYTE,
-            PrimitiveKind.SHORT,
-            PrimitiveKind.INT,
-            PrimitiveKind.LONG,
-            PrimitiveKind.CHAR -> "$left == $right"
-            null -> "$left == $right"
+    private fun ensureNullable(typeName: String): String =
+        if (typeName.endsWith("?")) typeName else "$typeName?"
+
+    private fun sameExpr(left: String, right: String, typeRef: KSTypeReference, forceNullableChain: Boolean): String {
+        val pk = primitiveKind(typeRef)
+        return if (forceNullableChain && pk != null) {
+            when (pk) {
+                PrimitiveKind.FLOAT -> "($left)?.toBits() == ($right)?.toBits()"
+                PrimitiveKind.DOUBLE -> "($left)?.toBits() == ($right)?.toBits()"
+                PrimitiveKind.BOOLEAN,
+                PrimitiveKind.BYTE,
+                PrimitiveKind.SHORT,
+                PrimitiveKind.INT,
+                PrimitiveKind.LONG,
+                PrimitiveKind.CHAR -> "$left == $right"
+            }
+        } else {
+            when (pk) {
+                PrimitiveKind.FLOAT -> "($left).toBits() == ($right).toBits()"
+                PrimitiveKind.DOUBLE -> "($left).toBits() == ($right).toBits()"
+                PrimitiveKind.BOOLEAN,
+                PrimitiveKind.BYTE,
+                PrimitiveKind.SHORT,
+                PrimitiveKind.INT,
+                PrimitiveKind.LONG,
+                PrimitiveKind.CHAR -> "$left == $right"
+                null -> "$left == $right"
+            }
         }
     }
 
-    private fun identicalExpr(left: String, right: String, typeRef: KSTypeReference): String {
-        return when (primitiveKind(typeRef)) {
-            PrimitiveKind.FLOAT -> "($left).toBits() == ($right).toBits()"
-            PrimitiveKind.DOUBLE -> "($left).toBits() == ($right).toBits()"
-            PrimitiveKind.BOOLEAN,
-            PrimitiveKind.BYTE,
-            PrimitiveKind.SHORT,
-            PrimitiveKind.INT,
-            PrimitiveKind.LONG,
-            PrimitiveKind.CHAR -> "$left == $right"
-            null -> {
-                if (isNullableKotlinPrimitive(typeRef)) return "$left == $right"
-                if (isValueBasedType(typeRef)) "$left == $right" else "$left === $right"
+    private fun identicalExpr(left: String, right: String, typeRef: KSTypeReference, forceNullableChain: Boolean): String {
+        val pk = primitiveKind(typeRef)
+        return if (forceNullableChain && pk != null) {
+            when (pk) {
+                PrimitiveKind.FLOAT -> "($left)?.toBits() == ($right)?.toBits()"
+                PrimitiveKind.DOUBLE -> "($left)?.toBits() == ($right)?.toBits()"
+                PrimitiveKind.BOOLEAN,
+                PrimitiveKind.BYTE,
+                PrimitiveKind.SHORT,
+                PrimitiveKind.INT,
+                PrimitiveKind.LONG,
+                PrimitiveKind.CHAR -> "$left == $right"
+            }
+        } else {
+            when (pk) {
+                PrimitiveKind.FLOAT -> "($left).toBits() == ($right).toBits()"
+                PrimitiveKind.DOUBLE -> "($left).toBits() == ($right).toBits()"
+                PrimitiveKind.BOOLEAN,
+                PrimitiveKind.BYTE,
+                PrimitiveKind.SHORT,
+                PrimitiveKind.INT,
+                PrimitiveKind.LONG,
+                PrimitiveKind.CHAR -> "$left == $right"
+                null -> {
+                    if (isNullableKotlinPrimitive(typeRef)) return "$left == $right"
+                    if (isValueBasedType(typeRef)) "$left == $right" else "$left === $right"
+                }
             }
         }
     }
@@ -431,34 +457,32 @@ class MetamodelProcessor(
     ): String {
         val builder = StringBuilder()
         val className = classDeclaration.simpleName.asString()
-
         classDeclaration.getAllProperties().forEach { prop ->
             val fieldName = prop.simpleName.asString()
             val typeRef = prop.type
-
+            val propNullable = typeRef.resolve().isMarkedNullable
             if (typeRef.isDataClass()) {
                 if (typeRef.isNestedDataClass()) return@forEach
 
                 val simpleTypeName = getSimpleTypeName(typeRef, packageName)
                 val referencedDecl = typeRef.resolve().declaration as? KSClassDeclaration
-                if (referencedDecl != null) generateMetamodelInterface(referencedDecl, resolver)
-
+                if (referencedDecl != null) generateMetamodelArtifacts(referencedDecl, resolver)
                 val inlineFlag = if (isForeignKey(prop)) "false" else "true"
+                val childMetaClass = if (propNullable) "${simpleTypeName}NullableMetamodel" else "${simpleTypeName}Metamodel"
+                val childMetaType = "$childMetaClass<$className>"
                 val getterExpr = "{ t: $className -> t.$fieldName }"
-
                 builder.append("        /** Represents the $className.$fieldName record. */\n")
                 builder.append(
-                    "        val $fieldName: ${simpleTypeName}Metamodel<$className> = " +
-                            "${simpleTypeName}Metamodel(" +
+                    "        val $fieldName: $childMetaType = " +
+                            "$childMetaClass(" +
                             "\"\", \"$fieldName\", $inlineFlag, " +
                             "Metamodel.root($className::class.java) as Metamodel<$className, *>) " +
                             getterExpr +
                             "\n"
                 )
             } else {
-                val kotlinTypeName = getKotlinTypeName(typeRef, packageName)
-                val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName)
-
+                val kotlinTypeName = getKotlinTypeName(typeRef, packageName)            // E (unwrap Ref)
+                val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName) // V (keep Ref)
                 builder.append("        /** Represents the $className.$fieldName field. */\n")
                 builder.append(
                     "        val $fieldName: AbstractMetamodel<$className, $kotlinTypeName, $valueKotlinTypeName> = " +
@@ -471,19 +495,27 @@ class MetamodelProcessor(
         return builder.toString()
     }
 
-    private fun buildClassFields(classDeclaration: KSClassDeclaration, packageName: String): String {
+    private fun buildClassFields(
+        classDeclaration: KSClassDeclaration,
+        packageName: String,
+        forceNullableChain: Boolean
+    ): String {
         val builder = StringBuilder()
         classDeclaration.getAllProperties().forEach { prop ->
             val fieldName = prop.simpleName.asString()
             val typeRef = prop.type
+            val propNullable = typeRef.resolve().isMarkedNullable
             if (typeRef.isDataClass()) {
                 if (typeRef.isNestedDataClass()) return@forEach
                 val simpleTypeName = getSimpleTypeName(typeRef, packageName)
-                builder.append("    val $fieldName: ${simpleTypeName}Metamodel<T>\n")
+                val childForceNullable = forceNullableChain || propNullable
+                val childType = if (childForceNullable) "${simpleTypeName}NullableMetamodel" else "${simpleTypeName}Metamodel"
+                builder.append("    val $fieldName: $childType<T>\n")
             } else {
-                val kotlinTypeName = getKotlinTypeName(typeRef, packageName)
-                val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName)
-                builder.append("    val $fieldName: AbstractMetamodel<T, $kotlinTypeName, $valueKotlinTypeName>\n")
+                val kotlinTypeName = getKotlinTypeName(typeRef, packageName)            // E
+                val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName) // V
+                val v = if (forceNullableChain) ensureNullable(valueKotlinTypeName) else valueKotlinTypeName
+                builder.append("    val $fieldName: AbstractMetamodel<T, $kotlinTypeName, $v>\n")
             }
         }
         return builder.toString()
@@ -492,69 +524,90 @@ class MetamodelProcessor(
     private fun initClassFields(
         classDeclaration: KSClassDeclaration,
         packageName: String,
-        metaClassName: String
+        metaClassName: String,
+        forceNullableChain: Boolean
     ): String {
         val builder = StringBuilder()
+
         classDeclaration.getAllProperties().forEach { prop ->
             val fieldName = prop.simpleName.asString()
             val typeRef = prop.type
+            val propNullable = typeRef.resolve().isMarkedNullable
+
             if (typeRef.isDataClass()) {
                 if (typeRef.isNestedDataClass()) return@forEach
+
                 val simpleTypeName = getSimpleTypeName(typeRef, packageName)
                 val inlineFlag = if (isForeignKey(prop)) "false" else "true"
+                val childForceNullable = forceNullableChain || propNullable
+                val childMetaClassName =
+                    if (childForceNullable) "${simpleTypeName}NullableMetamodel" else "${simpleTypeName}Metamodel"
 
-                // Null-safe: parent getValue(t) may be null.
-                val getterExpr =
+                val effectiveGetterExpr = if (forceNullableChain) {
                     "{ t: T & Any -> this@$metaClassName.getValue(t)?.$fieldName }"
-
+                } else {
+                    "{ t: T & Any -> this@$metaClassName.getValue(t).$fieldName }"
+                }
                 builder.append(
-                    "        $fieldName = ${simpleTypeName}Metamodel(" +
-                            "subPath, fieldBase + \"$fieldName\", $inlineFlag, this) $getterExpr" +
-                            "\n"
+                    "        $fieldName = $childMetaClassName(" +
+                            "subPath, fieldBase + \"$fieldName\", $inlineFlag, this) $effectiveGetterExpr\n"
                 )
             } else {
-                val javaTypeName = getJavaTypeName(typeRef, packageName)
-                val kotlinTypeName = getKotlinTypeName(typeRef, packageName)
-                val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName)
+                val javaTypeName = getJavaTypeName(typeRef, packageName)                // E (unwrap Ref)
+                val kotlinTypeName = getKotlinTypeName(typeRef, packageName)            // E (unwrap Ref)
+                val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName) // V (keep Ref)
+                val v = if (forceNullableChain) ensureNullable(valueKotlinTypeName) else valueKotlinTypeName
 
-                val leftValue = "ra.$fieldName"
-                val rightValue = "rb.$fieldName"
-                val isSameExpr = sameExpr(leftValue, rightValue, typeRef)
-                val isIdenticalExpr = identicalExpr(leftValue, rightValue, typeRef)
+                val readRecords =
+                    "val ra = this@$metaClassName.getValue(a)\n" +
+                            "                val rb = this@$metaClassName.getValue(b)\n"
 
+                val leftValue = if (forceNullableChain) "ra?.$fieldName" else "ra.$fieldName"
+                val rightValue = if (forceNullableChain) "rb?.$fieldName" else "rb.$fieldName"
+
+                val isSameExpr = sameExpr(leftValue, rightValue, typeRef, forceNullableChain)
+                val isIdenticalExpr = identicalExpr(leftValue, rightValue, typeRef, forceNullableChain)
+
+                val getValueBody = if (forceNullableChain) {
+                    "            override fun getValue(record: T & Any): $v =\n" +
+                            "                this@$metaClassName.getValue(record)?.$fieldName\n"
+                } else {
+                    "            override fun getValue(record: T & Any): $v =\n" +
+                            "                this@$metaClassName.getValue(record).$fieldName\n"
+                }
                 builder.append(
-                    "        $fieldName = object : AbstractMetamodel<T, $kotlinTypeName, $valueKotlinTypeName>(" +
+                    "        $fieldName = object : AbstractMetamodel<T, $kotlinTypeName, $v>(" +
                             "$javaTypeName, subPath, fieldBase + \"$fieldName\", false, this" +
                             ") {\n" +
-                            "            override fun getValue(record: T & Any): $valueKotlinTypeName? =\n" +
-                            "                this@$metaClassName.getValue(record)?.$fieldName\n\n" +
+                            getValueBody +
+                            "\n" +
                             "            override fun isIdentical(a: T & Any, b: T & Any): Boolean {\n" +
-                            "                val ra = this@$metaClassName.getValue(a)\n" +
-                            "                val rb = this@$metaClassName.getValue(b)\n" +
-                            "                if (ra == null || rb == null) return ra == rb\n" +
+                            "                $readRecords" +
                             "                return $isIdenticalExpr\n" +
                             "            }\n\n" +
                             "            override fun isSame(a: T & Any, b: T & Any): Boolean {\n" +
-                            "                val ra = this@$metaClassName.getValue(a)\n" +
-                            "                val rb = this@$metaClassName.getValue(b)\n" +
-                            "                if (ra == null || rb == null) return ra == rb\n" +
+                            "                $readRecords" +
                             "                return $isSameExpr\n" +
                             "            }\n" +
                             "        }\n"
                 )
             }
         }
-        if (builder.isNotEmpty()) {
-            builder.setLength(builder.length - 1)
-        }
+
+        if (builder.isNotEmpty()) builder.setLength(builder.length - 1)
         return builder.toString()
     }
 
-    private fun generateMetamodelInterface(classDeclaration: KSClassDeclaration, resolver: Resolver) {
+    private fun generateMetamodelArtifacts(classDeclaration: KSClassDeclaration, resolver: Resolver) {
         val qualifiedName = classDeclaration.qualifiedName?.asString() ?: return
-        if (!generatedFiles.add(qualifiedName)) return
+        if (!processedClasses.add(qualifiedName)) return
 
-        generateMetamodelClass(classDeclaration)
+        generateMetamodelClass(classDeclaration, forceNullableChain = false)
+        generateMetamodelClass(classDeclaration, forceNullableChain = true)
+        generateMetamodelInterface(classDeclaration, resolver)
+    }
+
+    private fun generateMetamodelInterface(classDeclaration: KSClassDeclaration, resolver: Resolver) {
         val packageName = classDeclaration.packageName.asString()
         val className = classDeclaration.simpleName.asString()
         val metaInterfaceName = "${className}_"
@@ -572,12 +625,11 @@ class MetamodelProcessor(
                 |
                 |import st.orm.Metamodel
                 |import st.orm.AbstractMetamodel
-                |import st.orm.Ref
                 |import javax.annotation.processing.Generated
                 |
                 |/**
                 | * Metamodel for $className.
-                |
+                | *
                 | * @param T the record type of the root table of the entity graph.
                 | */
                 |@Suppress("ClassName")
@@ -592,22 +644,36 @@ class MetamodelProcessor(
         }
     }
 
-    private fun generateMetamodelClass(classDeclaration: KSClassDeclaration) {
+    private fun generateMetamodelClass(classDeclaration: KSClassDeclaration, forceNullableChain: Boolean) {
         val packageName = classDeclaration.packageName.asString()
         val className = classDeclaration.simpleName.asString()
-        val metaClassName = "${className}Metamodel"
 
+        val metaClassName = if (forceNullableChain) "${className}NullableMetamodel" else "${className}Metamodel"
+
+        val recordGetterType = if (forceNullableChain) "$className?" else className
+        val recordValueType = recordGetterType
+        val abstractVType = recordValueType
         val pkProp = findPrimaryKeyProperty(classDeclaration)
         val isSameMethod = if (pkProp != null) {
             val pkName = pkProp.simpleName.asString()
-            """
-            |    override fun isSame(a: T & Any, b: T & Any): Boolean {
-            |        val ra = getter(a)
-            |        val rb = getter(b)
-            |        if (ra == null || rb == null) return ra == rb
-            |        return ra.$pkName == rb.$pkName
-            |    }
-            """.trimMargin()
+            if (forceNullableChain) {
+                """
+                |    override fun isSame(a: T & Any, b: T & Any): Boolean {
+                |        val ra = getter(a)
+                |        val rb = getter(b)
+                |        if (ra == null || rb == null) return ra == rb
+                |        return ra.$pkName == rb.$pkName
+                |    }
+                """.trimMargin()
+            } else {
+                """
+                |    override fun isSame(a: T & Any, b: T & Any): Boolean {
+                |        val ra = getter(a)
+                |        val rb = getter(b)
+                |        return ra.$pkName == rb.$pkName
+                |    }
+                """.trimMargin()
+            }
         } else {
             """
             |    override fun isSame(a: T & Any, b: T & Any): Boolean {
@@ -616,6 +682,12 @@ class MetamodelProcessor(
             """.trimMargin()
         }
 
+        val isIdenticalMethod = """
+            |    override fun isIdentical(a: T & Any, b: T & Any): Boolean {
+            |        return getter(a) === getter(b)
+            |    }
+            """.trimMargin()
+
         val containingFile = classDeclaration.containingFile
         val deps = if (containingFile != null) Dependencies(true, containingFile) else Dependencies(false)
         val file = codeGenerator.createNewFile(
@@ -623,6 +695,7 @@ class MetamodelProcessor(
             packageName = packageName,
             fileName = metaClassName
         )
+        val rootGetterForNoArgCtor = "{ it as $className }"
         OutputStreamWriter(file).use { writer ->
             writer.write(
                 """
@@ -630,7 +703,6 @@ class MetamodelProcessor(
                 |
                 |import st.orm.Metamodel
                 |import st.orm.AbstractMetamodel
-                |import st.orm.Ref
                 |import javax.annotation.processing.Generated
                 |
                 |@Generated("${this::class.java.name}")
@@ -639,36 +711,34 @@ class MetamodelProcessor(
                 |    field: String,
                 |    inline: Boolean,
                 |    parent: Metamodel<T, *>,
-                |    private val getter: (T & Any) -> $className?
-                |) : AbstractMetamodel<T, $className, $className?>($className::class.java, path, field, inline, parent) {
+                |    private val getter: (T & Any) -> $recordGetterType
+                |) : AbstractMetamodel<T, $className, $abstractVType>($className::class.java, path, field, inline, parent) {
                 |
-                |    override fun getValue(record: T & Any): $className? = getter(record)
+                |    override fun getValue(record: T & Any): $recordValueType = getter(record)
                 |
-                |    override fun isIdentical(a: T & Any, b: T & Any): Boolean {
-                |        return getter(a) === getter(b)
-                |    }
+                |$isIdenticalMethod
                 |
                 |$isSameMethod
                 |
-                |${buildClassFields(classDeclaration, packageName)}
+                |${buildClassFields(classDeclaration, packageName, forceNullableChain)}
                 |    init {
                 |        val subPath = if (inline) path else if (field.isEmpty()) path else if (path.isEmpty()) field else "${'$'}path.${'$'}field"
                 |        val fieldBase = if (inline) if (field.isEmpty()) "" else "${'$'}field." else ""
                 |
-                |${initClassFields(classDeclaration, packageName, metaClassName)}
+                |${initClassFields(classDeclaration, packageName, metaClassName, forceNullableChain)}
                 |    }
                 |
                 |    @Suppress("UNCHECKED_CAST")
                 |    constructor() : this(
                 |        "", "", false,
                 |        Metamodel.root($className::class.java) as Metamodel<T, *>,
-                |        { it as $className }
+                |        $rootGetterForNoArgCtor
                 |    )
                 |
-                |    constructor(field: String, parent: Metamodel<T, *>, getter: (T & Any) -> $className)
+                |    constructor(field: String, parent: Metamodel<T, *>, getter: (T & Any) -> $recordGetterType)
                 |        : this("", field, false, parent, getter)
                 |
-                |    constructor(path: String, field: String, parent: Metamodel<T, *>, getter: (T & Any) -> $className)
+                |    constructor(path: String, field: String, parent: Metamodel<T, *>, getter: (T & Any) -> $recordGetterType)
                 |        : this(path, field, false, parent, getter)
                 |}
                 """.trimMargin()
