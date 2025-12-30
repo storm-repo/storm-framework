@@ -110,7 +110,7 @@ public interface Model<E extends Data, ID> {
      * Extracts column values from the given record and feeds them to a consumer in model column order,
      * limited to columns accepted by {@code columnFilter}.
      *
-     * <p>See {@link #forEachValue(E, BiConsumer)} for details about ordering and the produced value types.
+     * <p>See {@link #forEachValue(Data, BiConsumer)} for details about ordering and the produced value types.
      * In short: the produced values are JDBC-ready and already converted (refs and foreign keys unpacked to ids,
      * Java time converted to JDBC time types).</p>
      *
@@ -127,8 +127,8 @@ public interface Model<E extends Data, ID> {
      *
      * <p>The returned map preserves iteration order. Its iteration order matches the model's stable column order.</p>
      *
-     * <p>Values are the same JDBC-ready values as produced by {@link #forEachValue(E, BiConsumer)}.</p>
-     *
+     * <p>Values are the same JDBC-ready values as produced by {@link #forEachValue(Data, BiConsumer)}.</p>
+     *o
      * @param record the record (entity or projection instance) to extract values from.
      * @param filter predicate that decides whether a column should be included.
      * @return a {@link Map} containing columns and their extracted (JDBC-ready) values in the order of the model.

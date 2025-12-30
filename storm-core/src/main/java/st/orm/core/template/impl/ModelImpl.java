@@ -157,7 +157,7 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
      * Extracts column values from the given record and feeds them to a consumer in model column order,
      * limited to columns accepted by {@code columnFilter}.
      *
-     * <p>See {@link #forEachValue(E, BiConsumer)} for details about ordering and the produced value types.
+     * <p>See {@link #forEachValue(Data, BiConsumer)} for details about ordering and the produced value types.
      * In short: the produced values are JDBC-ready and already converted (refs and foreign keys unpacked to ids,
      * Java time converted to JDBC time types).</p>
      *

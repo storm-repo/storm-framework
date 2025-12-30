@@ -122,7 +122,7 @@ public record ModelImpl<E extends Data, ID>(
      *
      * <p>The returned map preserves iteration order. Its iteration order matches the model's stable column order.</p>
      *
-     * <p>Values are the same JDBC-ready values as produced by {@link #forEachValue(E, BiConsumer)}.</p>
+     * <p>Values are the same JDBC-ready values as produced by {@link #forEachValue(Data, BiConsumer)}.</p>
      *
      * @param record the record (entity or projection instance) to extract values from.
      * @param filter predicate that decides whether a column should be included.
