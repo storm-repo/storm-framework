@@ -165,7 +165,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 String simpleInner = inner.substring(packageName.length() + 1);
                 if (!simpleInner.contains(".")) inner = simpleInner;
             }
-            return "Ref<" + inner + ">";
+            return "st.orm.Ref<" + inner + ">";
         }
         if (!packageName.isEmpty() && className.startsWith(packageName + ".")) {
             String simple = className.substring(packageName.length() + 1);
@@ -501,8 +501,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 generateMetamodelInterface(asTypeElement(fieldType));
                 boolean inline = !isForeignKey(recordElement, fieldName);
                 String inlineFlag = inline ? "true" : "false";
-                String nestedGetter = "(Function<" + recordName + ", " + fieldTypeName + ">)" +
-                        " (t -> " + accessorExpr(recordElement, "t", fieldName, fieldType) + ")";
+                String nestedGetter = " t -> " + accessorExpr(recordElement, "t", fieldName, fieldType);
                 builder.append("    /** Represents the ")
                         .append(inline ? "inline " : "")
                         .append("{@link ").append(recordName).append("#").append(fieldName).append("} ")
@@ -549,8 +548,6 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 writer.write(String.format("""
                     %simport st.orm.Metamodel;
                     import st.orm.AbstractMetamodel;
-                    import st.orm.Ref;
-                    import java.util.function.Function;
                     import javax.annotation.processing.Generated;
 
                     /**
@@ -633,10 +630,10 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 String inlineFlag = inline ? "true" : "false";
                 // Null-safe nested getter: parent record (root getter) can be null.
                 String nestedGetter =
-                        "(Function<T, " + fieldTypeName + ">) (t -> {\n" +
+                        "t -> {\n" +
                                 "            " + recordName + " p = " + metaClassName + ".this.getValue(t);\n" +
                                 "            return (p == null) ? null : " + accessorExpr(recordElement, "p", fieldName, fieldType) + ";\n" +
-                                "        })";
+                                "        }";
                 builder.append("        this.").append(fieldName).append(" = new ").append(fieldTypeName)
                         .append("Metamodel<>(")
                         .append("subPath, fieldBase + \"").append(fieldName).append("\", ")
@@ -727,12 +724,9 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n") +
                             "import st.orm.Metamodel;\n" +
                             "import st.orm.AbstractMetamodel;\n" +
-                            "import st.orm.Ref;\n" +
                             "import jakarta.annotation.Nonnull;\n" +
-                            "import jakarta.annotation.Nullable;\n" +
                             "import javax.annotation.processing.Generated;\n" +
-                            "import java.util.Objects;\n" +
-                            "import java.util.function.Function;\n\n" +
+                            "import java.util.Objects;\n\n" +
                             "/**\n" +
                             " * Metamodel implementation for " + recordName + ".\n" +
                             " *\n" +
@@ -743,9 +737,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
 
             String body =
                     classFields + "\n" +
-                            "    private final Function<T, " + recordName + "> getter;\n\n" +
+                            "    private final java.util.function.Function<T, " + recordName + "> getter;\n\n" +
                             "    @Override\n" +
-                            "    @Nullable\n" +
                             "    public " + recordName + " getValue(@Nonnull T record) {\n" +
                             "        return getter.apply(record);\n" +
                             "    }\n\n" +
@@ -761,23 +754,23 @@ public final class MetamodelProcessor extends AbstractProcessor {
                             "    }\n\n" +
                             "    public " + metaClassName + "() {\n" +
                             "        this(\"\", \"\", false, (Metamodel<T, ?>) Metamodel.root(" + recordName + ".class), " +
-                            "(Function<T, " + recordName + ">) (t -> (" + recordName + ") t));\n" +
+                            "t -> (" + recordName + ") t);\n" +
                             "    }\n\n" +
                             "    public " + metaClassName + "(String field, Metamodel<T, ?> parent) {\n" +
-                            "        this(\"\", field, false, parent, (Function<T, " + recordName + ">) (t -> (" + recordName + ") t));\n" +
+                            "        this(\"\", field, false, parent, t -> (" + recordName + ") t);\n" +
                             "    }\n\n" +
                             "    public " + metaClassName + "(String path, String field, Metamodel<T, ?> parent) {\n" +
-                            "        this(path, field, false, parent, (Function<T, " + recordName + ">) (t -> (" + recordName + ") t));\n" +
+                            "        this(path, field, false, parent, t -> (" + recordName + ") t);\n" +
                             "    }\n\n" +
                             "    public " + metaClassName + "(String path, String field, Metamodel<T, ?> parent, " +
-                            "Function<T, " + recordName + "> getter) {\n" +
+                            "java.util.function.Function<T, " + recordName + "> getter) {\n" +
                             "        this(path, field, false, parent, getter);\n" +
                             "    }\n\n" +
                             "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent) {\n" +
-                            "        this(path, field, inline, parent, (Function<T, " + recordName + ">) (t -> (" + recordName + ") t));\n" +
+                            "        this(path, field, inline, parent, t -> (" + recordName + ") t);\n" +
                             "    }\n\n" +
                             "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
-                            "Function<T, " + recordName + "> getter) {\n" +
+                            "java.util.function.Function<T, " + recordName + "> getter) {\n" +
                             "        super(" + recordName + ".class, path, field, inline, parent);\n" +
                             "        this.getter = getter;\n\n" +
                             "        String subPath = inline ? path : field.isEmpty() ? path : path.isEmpty() ? field : " +
