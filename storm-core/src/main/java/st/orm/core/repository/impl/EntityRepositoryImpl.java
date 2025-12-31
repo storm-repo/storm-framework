@@ -295,12 +295,11 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      * @return the entity cache for the current transaction, or null.
      * @since 1.7
      */
-    protected EntityCache<E, ID> entityCache() {
+    protected Optional<EntityCache<E, ID>> entityCache() {
         //noinspection unchecked
-        return (EntityCache<E, ID>) TRANSACTION_TEMPLATE.currentContext()
+        return TRANSACTION_TEMPLATE.currentContext()
                 .filter(ctx -> !ctx.isReadOnly())
-                .map(ctx -> ctx.entityCache(model().type()))
-                .orElse(null);
+                .map(ctx -> (EntityCache<E, ID>) ctx.entityCache(model().type()));
     }
 
     /**
@@ -316,7 +315,8 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void update(@Nonnull E entity) {
-        var dirty = getDirty(entity, entityCache());
+        var entityCache = entityCache();
+        var dirty = getDirty(entity, entityCache.orElse(null));
         if (dirty.isEmpty()) {
             return;
         }
@@ -331,6 +331,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         } else if (result != 1) {
             throw new PersistenceException("Update failed.");
         }
+        entityCache.ifPresent(cache -> cache.set(entity));
     }
 
     /**
@@ -439,6 +440,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         if (result != 1) {
             throw new PersistenceException("Delete failed.");
         }
+        entityCache().ifPresent(cache -> cache.remove(entity.id()));
     }
 
     /**
@@ -462,6 +464,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         if (result != 1) {
             throw new PersistenceException("Delete failed.");
         }
+        entityCache().ifPresent(cache -> cache.remove(id));
     }
 
     /**
@@ -486,6 +489,8 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         if (result != 1) {
             throw new PersistenceException("Delete failed.");
         }
+        //noinspection unchecked
+        entityCache().ifPresent(cache -> cache.remove((ID) ref.id()));
     }
 
     /**
@@ -504,6 +509,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         ormTemplate.query(TemplateString.raw("DELETE FROM \0", model.type()))
                 .safe() // Omission of WHERE clause is intentional.
                 .executeUpdate();
+        entityCache().ifPresent(EntityCache::clear);
     }
 
     // List based methods.
@@ -909,7 +915,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         try {
             var entityCache = entityCache();
             partitioned(entities, batchSize, entity -> {
-                var dirty = getDirty(entity, entityCache);
+                var dirty = getDirty(entity, entityCache.orElse(null));
                 if (dirty.isEmpty()) {
                     return NoOpKey.INSTANCE;
                 }
@@ -917,7 +923,9 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
             }, getMaxShapes(), new UpdateKey()).forEach(partition -> {
                 switch (partition.key()) {
                     case NoOpKey ignore -> {}
-                    case UpdateKey u -> update(partition.chunk(), updateQueries.computeIfAbsent(u.fields(), this::prepareUpdateQuery));
+                    case UpdateKey u -> update(partition.chunk(),
+                            updateQueries.computeIfAbsent(u.fields(), this::prepareUpdateQuery),
+                            entityCache.orElse(null));
                 }
             });
         } finally {
@@ -945,35 +953,41 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                 WHERE \0""", model.type(), Templates.set(bindVars, fields), bindVars)).prepare();
     }
 
-    protected void update(@Nonnull List<E> batch, @Nonnull PreparedQuery query) {
+    protected void update(@Nonnull List<E> batch, @Nonnull PreparedQuery query, @Nullable EntityCache<E, ID> cache) {
         if (batch.isEmpty()) {
             return;
         }
-        batch.stream().map(this::validateUpdate).map(Data.class::cast).forEach(query::addBatch);
+        batch.stream().map(this::validateUpdate).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (query.isVersionAware() && IntStream.of(result).anyMatch(r -> r == 0)) {
             throw new OptimisticLockException("Update failed due to optimistic lock.");
         } else if (IntStream.of(result).anyMatch(r -> r != 1)) {
             throw new PersistenceException("Batch update failed.");
+        }
+        if (cache != null) {
+            cache.removeEntities(batch);
         }
     }
 
-    protected List<ID> updateAndFetchIds(@Nonnull List<E> batch, @Nonnull PreparedQuery query) {
+    protected List<ID> updateAndFetchIds(@Nonnull List<E> batch, @Nonnull PreparedQuery query, @Nullable EntityCache<E, ID> cache) {
         if (batch.isEmpty()) {
             return List.of();
         }
-        batch.stream().map(this::validateUpdate).map(Data.class::cast).forEach(query::addBatch);
+        batch.stream().map(this::validateUpdate).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (query.isVersionAware() && IntStream.of(result).anyMatch(r -> r == 0)) {
             throw new OptimisticLockException("Update failed due to optimistic lock.");
         } else if (IntStream.of(result).anyMatch(r -> r != 1)) {
             throw new PersistenceException("Batch update failed.");
+        }
+        if (cache != null) {
+            cache.set(batch);
         }
         return batch.stream().map(Entity::id).toList();
     }
 
-    protected List<E> updateAndFetch(@Nonnull List<E> batch, @Nonnull PreparedQuery query) {
-        return findAllById(updateAndFetchIds(batch, query));
+    protected List<E> updateAndFetch(@Nonnull List<E> batch, @Nonnull PreparedQuery query, @Nullable EntityCache<E, ID> cache) {
+        return findAllById(updateAndFetchIds(batch, query, cache));
     }
 
     /**
@@ -1052,15 +1066,17 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     @Override
     public void delete(@Nonnull Stream<E> entities, int batchSize) {
         var bindVars = ormTemplate.createBindVars();
+        var entityCache = entityCache();
         try (var query = ormTemplate.query(TemplateString.raw("""
                 DELETE FROM \0
                 WHERE \0""", model.type(), bindVars)).prepare()) {
-            chunked(entities, batchSize).forEach(slice -> {
-                slice.stream().map(this::validateDelete).map(Data.class::cast).forEach(query::addBatch);
+            chunked(entities, batchSize).forEach(chunk -> {
+                chunk.stream().map(this::validateDelete).forEach(query::addBatch);
                 int[] result = query.executeBatch();
                 if (IntStream.of(result).anyMatch(r -> r != 1)) {
                     throw new PersistenceException("Batch delete failed.");
                 }
+                entityCache.ifPresent(cache -> cache.removeEntities(chunk));
             });
         }
     }
@@ -1101,15 +1117,17 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void deleteByRef(@Nonnull Stream<Ref<E>> refs, int batchSize) {
-        chunked(refs, batchSize).forEach(slice -> {
+        var entityCache = entityCache();
+        chunked(refs, batchSize).forEach(chunk -> {
             // Don't use query builder to prevent WHERE IN clause.
             int result = ormTemplate.query(TemplateString.raw("""
                     DELETE FROM \0
-                    WHERE \0""", model.type(), slice))
+                    WHERE \0""", model.type(), chunk))
                 .executeUpdate();
-            if (result < slice.stream().distinct().count()) {
+            if (result < chunk.stream().distinct().count()) {
                 throw new PersistenceException("Delete failed.");
             }
+            entityCache.ifPresent(cache -> cache.removeRefs(chunk));
         });
     }
 

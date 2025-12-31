@@ -1280,7 +1280,8 @@ public class RepositoryPreparedStatementIntegrationTest {
         Owner owner = repo.getById(1);
         Owner modifiedOwner = owner.toBuilder().address(owner.address().toBuilder().address("Test Street").build()).build();
         repo.update(modifiedOwner);
-        assertThrows(OptimisticLockException.class, () -> repo.update(modifiedOwner));
+        Owner modifiedOwner2 = modifiedOwner.toBuilder().address(owner.address().toBuilder().address("Test Street 2").build()).build();
+        assertThrows(OptimisticLockException.class, () -> repo.update(modifiedOwner2));
     }
 
     @Test
@@ -1298,7 +1299,8 @@ public class RepositoryPreparedStatementIntegrationTest {
         Visit visit = repo.select().getResultList().getFirst();
         Visit modifiedVisit = visit.toBuilder().visitDate(LocalDate.now()).build();
         repo.update(modifiedVisit);
-        assertThrows(OptimisticLockException.class, () -> repo.update(modifiedVisit));
+        Visit modifiedVisit2 = modifiedVisit.toBuilder().visitDate(LocalDate.now()).build();
+        assertThrows(OptimisticLockException.class, () -> repo.update(modifiedVisit2));
     }
 
     @Test

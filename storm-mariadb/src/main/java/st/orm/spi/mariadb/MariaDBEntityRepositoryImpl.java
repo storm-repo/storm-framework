@@ -118,7 +118,7 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
             var entityCache = entityCache();
             partitioned(toStream(entities), defaultBatchSize, entity -> {
                 if (isUpdate(entity)) {
-                    var dirty = getDirty(entity, entityCache);
+                    var dirty = getDirty(entity, entityCache.orElse(null));
                     if (dirty.isEmpty()) {
                         return NoOpKey.INSTANCE;
                     }
@@ -131,7 +131,8 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
                     case NoOpKey ignore -> result.addAll(partition.chunk().stream().map(E::id).toList());
                     case UpsertKey ignore -> result.addAll(getUpsertQuery(partition.chunk()).getResultList(model.primaryKeyType()));
                     case UpdateKey u -> result.addAll(updateAndFetchIds(partition.chunk(),
-                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields()))));
+                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields())),
+                            entityCache.orElse(null)));
                 }
             });
             return result;

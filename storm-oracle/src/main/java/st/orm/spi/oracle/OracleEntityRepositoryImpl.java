@@ -357,7 +357,7 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
             var entityCache = entityCache();
             partitioned(toStream(entities), defaultBatchSize, entity -> {
                 if (isUpdate(entity)) {
-                    var dirty = getDirty(entity, entityCache);
+                    var dirty = getDirty(entity, entityCache.orElse(null));
                     if (dirty.isEmpty()) {
                         return NoOpKey.INSTANCE;
                     }
@@ -373,7 +373,8 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
                     case InsertKey ignore -> result.addAll(insertAndFetchIds(partition.chunk(), insertQuery.get()));
                     case UpsertKey ignore -> result.addAll(upsertAndFetchIds(partition.chunk(), upsertQuery.get()));
                     case UpdateKey u -> result.addAll(updateAndFetchIds(partition.chunk(),
-                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields()))));
+                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields())),
+                            entityCache.orElse(null)));
                 }
             });
             return result;
@@ -449,7 +450,7 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
             var entityCache = entityCache();
             partitioned(entities, batchSize, entity -> {
                 if (isUpdate(entity)) {
-                    var dirty = getDirty(entity, entityCache);
+                    var dirty = getDirty(entity, entityCache.orElse(null));
                     if (dirty.isEmpty()) {
                         return NoOpKey.INSTANCE;
                     }
@@ -465,7 +466,8 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
                     case InsertKey ignore -> insert(partition.chunk(), insertQuery.get());
                     case UpsertKey ignore -> upsert(partition.chunk(), upsertQuery.get());
                     case UpdateKey u -> update(partition.chunk(),
-                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields())));
+                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields())),
+                            entityCache.orElse(null));
                 }
             });
         } finally {
