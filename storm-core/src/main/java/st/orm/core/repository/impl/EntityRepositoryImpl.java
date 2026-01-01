@@ -839,7 +839,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         if (batch.isEmpty()) {
             return;
         }
-        batch.stream().map(e -> validateInsert(e, ignoreAutoGenerate)).map(Data.class::cast).forEach(query::addBatch);
+        batch.stream().map(e -> validateInsert(e, ignoreAutoGenerate)).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 1)) {
             throw new PersistenceException("Batch insert failed.");
@@ -855,7 +855,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         if (batch.isEmpty()) {
             return List.of();
         }
-        batch.stream().map(e -> validateInsert(e, ignoreAutoGenerate)).map(Data.class::cast).forEach(query::addBatch);
+        batch.stream().map(e -> validateInsert(e, ignoreAutoGenerate)).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 1)) {
             throw new PersistenceException("Batch insert failed.");

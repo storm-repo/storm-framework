@@ -503,7 +503,7 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
         if (batch.isEmpty()) {
             return;
         }
-        batch.stream().map(this::validateUpsert).map(Data.class::cast).forEach(query::addBatch);
+        batch.stream().map(this::validateUpsert).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
             throw new PersistenceException("Batch upsert failed.");
@@ -514,7 +514,7 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
         if (batch.isEmpty()) {
             return List.of();
         }
-        batch.stream().map(this::validateUpsert).map(Data.class::cast).forEach(query::addBatch);
+        batch.stream().map(this::validateUpsert).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
             throw new PersistenceException("Batch upsert failed.");
