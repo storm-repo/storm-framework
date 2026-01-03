@@ -39,7 +39,6 @@
                     <argLine>
                         -Dstorm.validation.skip=true
                         --add-opens java.base/java.lang=ALL-UNNAMED
-                        --add-opens storm.core/st.orm.core=ALL-UNNAMED
                         --add-opens storm.jackson/st.orm.jackson=storm.core
                         --add-opens storm.jackson/st.orm.jackson.model=storm.core
                         --add-opens storm.jackson/st.orm.jackson=com.fasterxml.jackson.databind

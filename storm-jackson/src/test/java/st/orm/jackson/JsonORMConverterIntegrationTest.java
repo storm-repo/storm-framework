@@ -27,6 +27,7 @@ import st.orm.jackson.model.VetSpecialty;
 import javax.sql.DataSource;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static com.fasterxml.jackson.annotation.JsonTypeInfo.Id.NAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -61,6 +62,22 @@ public class JsonORMConverterIntegrationTest {
         var query = orm.query("SELECT JSON_ARRAYAGG(id) FROM owner");
         var owner = query.getSingleResult(Result.class).owner().stream().map(Ref::id).distinct().toList();
         assertEquals(10, owner.size());
+    }
+
+    @Test
+    public void testSelectNullRef() {
+        record Result(@Json List<Ref<Owner>> owner) {}
+        var orm = of(dataSource);
+        var query = orm.query("SELECT '[null, 1]'");
+        var owner = query.getSingleResult(Result.class).owner().stream().map(ref -> {
+            if (ref == null) {
+                return null;
+            } else {
+                return ref.id();
+            }
+        }).distinct().toList();
+        assertEquals(2, owner.size());
+        assertEquals(1, owner.stream().filter(Objects::isNull).count());
     }
 
     @Test

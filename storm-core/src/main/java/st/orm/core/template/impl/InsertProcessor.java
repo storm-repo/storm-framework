@@ -53,8 +53,8 @@ final class InsertProcessor implements ElementProcessor<Insert> {
      */
     @Override
     public ElementResult process(@Nonnull Insert insert) throws SqlTemplateException {
-        String columns = modelBuilder.build(insert.table(), false)
-                .columns().stream()
+        var model = modelBuilder.build(insert.table(), false);
+        String columns = model.columns().stream()
                 .filter(Column::insertable)
                 .map(column -> {
                     if (column.primaryKey() && !insert.ignoreAutoGenerate()) {
