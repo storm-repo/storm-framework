@@ -16,18 +16,9 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
-import st.orm.FK;
-import st.orm.core.spi.Name;
-import st.orm.core.spi.ORMConverter;
-import st.orm.core.spi.Providers;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Column;
-import st.orm.mapping.RecordField;
-
-import static st.orm.core.template.impl.RecordReflection.getColumnName;
-import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
-import static st.orm.core.template.impl.RecordReflection.getRecordField;
 
 /**
  * A processor for a column element of a template.
@@ -35,13 +26,13 @@ import static st.orm.core.template.impl.RecordReflection.getRecordField;
 final class ColumnProcessor implements ElementProcessor<Column> {
 
     private final SqlTemplate template;
-    private final SqlDialectTemplate dialectTemplate;
+    private final ModelBuilder modelBuilder;
     private final AliasMapper aliasMapper;
     private final PrimaryTable primaryTable;
 
     ColumnProcessor(@Nonnull SqlTemplateProcessor templateProcessor) {
         this.template = templateProcessor.template();
-        this.dialectTemplate = templateProcessor.dialectTemplate();
+        this.modelBuilder = templateProcessor.modelBuilder();
         this.aliasMapper = templateProcessor.aliasMapper();
         this.primaryTable = templateProcessor.primaryTable();
     }
@@ -56,42 +47,17 @@ final class ColumnProcessor implements ElementProcessor<Column> {
     @Override
     public ElementResult process(@Nonnull Column column) throws SqlTemplateException {
         var metamodel = column.field();
-        boolean isNested = metamodel.table().fieldType() != metamodel.root();
-        if (isNested) {
-            if (primaryTable == null) {
-                throw new SqlTemplateException("Nested metamodel %s is not supported when not using a primary table.".formatted(metamodel));
-            }
-            if (primaryTable.table() != metamodel.root()) {
-                throw new SqlTemplateException("Nested metamodel %s is not the primary table %s.".formatted(metamodel, primaryTable.table()));
-            }
-        }
+        var model = modelBuilder.build(metamodel.tableType(), false);
         String alias;
         if (primaryTable != null && primaryTable.table() == metamodel.root() && metamodel.path().isEmpty()) {
             // This check allows the alias of the primary table to be left empty, which can be useful in some cases like
             // update statements.
             alias = primaryTable.alias();
         } else{
-            alias = aliasMapper.getAlias(column.field(), column.scope(), template.dialect(),
+            alias = aliasMapper.getAlias(metamodel, column.scope(), template.dialect(),
                     () -> new SqlTemplateException("Table for Column not found at %s.".formatted(metamodel)));
         }
-        RecordField field = getRecordField(metamodel.root(), column.field().fieldPath());
-        ORMConverter converter = Providers.getORMConverter(field).orElse(null);
-        Name columnName;
-        if (converter != null) {
-            var columnNames = converter.getColumns(c -> getColumnName(c, template.columnNameResolver()));
-            if (columnNames.size() != 1) {
-                throw new SqlTemplateException("Column %s is not a single column.".formatted(field));
-            }
-            columnName = columnNames.getFirst();
-        } else if (field.isAnnotationPresent(FK.class)) {
-            var columnNames = getForeignKeys(field, template.foreignKeyResolver(), template.columnNameResolver());
-            if (columnNames.size() != 1) {
-                throw new SqlTemplateException("Column %s is not a single foreign key.".formatted(field));
-            }
-            columnName = columnNames.getFirst();
-        } else {
-            columnName = getColumnName(field, template.columnNameResolver());
-        }
-        return new ElementResult(dialectTemplate.process("\0\0", alias.isEmpty() ? "" : alias + ".", columnName));
+        var columnName = model.getSingleColumn(metamodel).qualifiedName(template.dialect());
+        return new ElementResult("%s%s".formatted(alias.isEmpty() ? "" : alias + ".", columnName));
     }
 }

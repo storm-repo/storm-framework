@@ -25,7 +25,6 @@ import jakarta.annotation.Nonnull;
  * in the schema:
  * <ul>
  *   <li>the same owning table as returned by {@link #fieldType()} of {@link #table()},</li>
- *   <li>the same {@link #path()}, and</li>
  *   <li>the same {@link #field()}.</li>
  * </ul>
  *
@@ -33,7 +32,7 @@ import jakarta.annotation.Nonnull;
  * @param <E> the field type of the designated element.
  * @since 1.2
  */
-public interface Metamodel<T, E> {
+public interface Metamodel<T extends Data, E> {
 
     /**
      * Creates a new metamodel for the given record type.
@@ -42,7 +41,7 @@ public interface Metamodel<T, E> {
      * @return a new metamodel for the given record type.
      * @param <T> the root table type.
      */
-    static <T> Metamodel<T, T> root(@Nonnull Class<T> table) {
+    static <T extends Data> Metamodel<T, T> root(@Nonnull Class<T> table) {
         return MetamodelHelper.root(table);
     }
 
@@ -66,6 +65,8 @@ public interface Metamodel<T, E> {
     /**
      * Returns {@code true} if the metamodel corresponds to a database column, returns {@code false} otherwise, for
      * example, if the metamodel refers to the root metamodel or an inline record.
+     *
+     * <p>Note that a column can also be a table, for example, in the case of a foreign key.</p>
      *
      * @return {@code true} if this metamodel maps to a column, {@code false} otherwise.
      */
@@ -92,7 +93,17 @@ public interface Metamodel<T, E> {
      *
      * @return the table that holds the column to which this metamodel is pointing.
      */
-    Metamodel<T, ?> table();
+    Metamodel<T, ? extends Data> table();
+
+    /**
+     * Returns the type of the table that holds the column to which this metamodel is pointing.
+     *
+     * @return the type of the table that holds the column to which this metamodel is pointing.
+     * @since 1.7
+     */
+    default Class<? extends Data> tableType() {
+        return table().fieldType();
+    }
 
     /**
      * Returns the path to the database table.

@@ -222,7 +222,7 @@ public class RepositoryPreparedStatementIntegrationTest {
                 }
 
                 @Override
-                public Metamodel<Visit, ?> table() {
+                public Metamodel<Visit, ? extends Data> table() {
                     return model.table();
                 }
 

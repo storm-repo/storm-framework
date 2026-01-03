@@ -18,6 +18,7 @@ package st.orm.core.template;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
+import st.orm.Metamodel;
 import st.orm.mapping.RecordType;
 
 import java.util.LinkedHashMap;
@@ -93,6 +94,44 @@ public interface Model<E extends Data, ID> {
      * @since 1.2
      */
     boolean isDefaultPrimaryKey(@Nullable ID pk);
+
+    /**
+     * Resolves the {@link Column}s for the given metamodel.
+     *
+     * <p>The provided metamodel must represent one or more columns (see {@link Metamodel#isColumn()}). This method
+     * looks up the metamodel in the model’s column mapping and returns all {@link Column} instances associated with
+     * it.</p>
+     *
+     * <p>A single metamodel may resolve to multiple columns, for example when a foreign key references an entity with
+     * a compound primary key, causing the foreign key metamodel to resolve to two columns, one per key part.</p>
+     *
+     * @param metamodel the metamodel that identifies the columns of this model.
+     * @return the resolved columns for the given metamodel.
+     * @throws SqlTemplateException if the metamodel does not represent columns, or if this model does not contain any
+     *                              columns for the given metamodel.
+     * @since 1.7
+     */
+    List<Column> getColumns(@Nonnull Metamodel<?, ?> metamodel) throws SqlTemplateException;
+
+    /**
+     * Resolves a single {@link Column} for the given metamodel.
+     *
+     * <p>The provided metamodel must represent exactly one column (see {@link Metamodel#isColumn()}). The returned
+     * {@link Column} describes the physical database column that corresponds to the given metamodel path.</p>
+     *
+     * @param metamodel the metamodel identifying a single column.
+     * @return the resolved column.
+     * @throws SqlTemplateException if the metamodel does not represent a column, or if no column exists for the given
+     *                              metamodel.
+     */
+    default Column getSingleColumn(@Nonnull Metamodel<?, ?> metamodel) throws SqlTemplateException {
+        var columns = getColumns(metamodel);
+        assert !columns().isEmpty();
+        if (columns.size() > 1) {
+            throw new SqlTemplateException("Multiple columns found for metamodel: %s.%s.%s".formatted(metamodel.fieldType(), metamodel.path(), metamodel.field()));
+        }
+        return columns.getFirst();
+    }
 
     /**
      * Extracts column values from the given record and feeds them to a consumer in model column order.

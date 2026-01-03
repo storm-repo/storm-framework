@@ -292,6 +292,9 @@ final class RecordValidation {
      */
     static void validateDataType(@Nonnull Class<? extends Data> dataType, boolean requirePrimaryKey)
             throws SqlTemplateException {
+        if (!Data.class.isAssignableFrom(dataType)) {
+            throw new IllegalArgumentException("Not a data type: %s".formatted(dataType.getSimpleName()));
+        }
         String message = VALIDATE_RECORD_TYPE_CACHE.computeIfAbsent(new TypeValidationKey(dataType, requirePrimaryKey), ignore -> {
             // Note that this result can be cached as we're inspecting types.
             return validate(dataType, requirePrimaryKey, new HashSet<>());

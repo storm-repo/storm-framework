@@ -73,10 +73,10 @@ final class ModelFactory {
             @Nonnull Class<T> type,
             boolean requirePrimaryKey) throws SqlTemplateException {
         try {
+            RecordValidation.validateDataType(type, requirePrimaryKey);
             //noinspection unchecked
             return (Model<T, ID>) MODEL_CACHE.computeIfAbsent(type, ignore -> {
                 try {
-                    RecordValidation.validateDataType(type, requirePrimaryKey);
                     RecordType recordType = getRecordType(type);
                     AtomicInteger index = new AtomicInteger(1);
                     AtomicInteger primaryKeyIndex = new AtomicInteger(1);

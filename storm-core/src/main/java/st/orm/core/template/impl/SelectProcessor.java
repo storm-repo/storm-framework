@@ -17,13 +17,12 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Data;
 import st.orm.FK;
 import st.orm.Metamodel;
 import st.orm.Ref;
 import st.orm.PK;
 import st.orm.SelectMode;
-import st.orm.core.spi.ORMReflection;
-import st.orm.core.spi.Providers;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
@@ -48,8 +47,6 @@ import static st.orm.core.template.impl.SqlTemplateImpl.toPathString;
  * A processor for a select element of a template.
  */
 final class SelectProcessor implements ElementProcessor<Select> {
-
-    private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
     private final SqlTemplate template;
     private final SqlDialectTemplate dialectTemplate;
@@ -232,7 +229,8 @@ final class SelectProcessor implements ElementProcessor<Select> {
             }
         }
         // Fallback for records without annotations.
-        return aliasMapper.getAlias(Metamodel.root(type.type()), INNER, dialect, () ->
+        //noinspection unchecked
+        return aliasMapper.getAlias(Metamodel.root((Class< ? extends Data>) type.type()), INNER, dialect, () ->
                 new SqlTemplateException("Table %s for column not found.".formatted(type.type().getSimpleName())));
     }
 

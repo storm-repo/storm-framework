@@ -425,7 +425,7 @@ public final class MetamodelFactory {
         }
 
         @Override
-        public Metamodel<T, ?> table() {
+        public Metamodel<T, ? extends Data> table() {
             return table;
         }
 

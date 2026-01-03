@@ -79,20 +79,7 @@ record ModelBuilderImpl(
     /**
      * Builds the model.
      *
-     * @return the model.
-     * @param <ID> the primary key type.
-     * @throws SqlTemplateException if an error occurs while building the model.
-     */
-    @Override
-    public <T extends Data, ID> Model<T, ID> build(@Nonnull T record, boolean requirePrimaryKey)
-            throws SqlTemplateException {
-        //noinspection unchecked
-        return build((Class<T>) record.getClass(), requirePrimaryKey);
-    }
-
-    /**
-     * Builds the model.
-     *
+     * @param type the record type.
      * @return the model.
      * @param <ID> the primary key type.
      * @throws SqlTemplateException if an error occurs while building the model.

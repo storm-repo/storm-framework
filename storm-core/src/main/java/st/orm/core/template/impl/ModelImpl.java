@@ -19,6 +19,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
 import st.orm.DbEnum;
+import st.orm.Metamodel;
 import st.orm.Ref;
 import st.orm.core.spi.ORMConverter;
 import st.orm.core.spi.ORMReflection;
@@ -40,7 +41,9 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 
@@ -64,6 +67,7 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     private final TableName tableName;
     private final List<Column> columns;
     private final List<RecordField> fields;
+    private final Map<Metamodel<?, ?>, List<Column>> columnMap;
     private final List<ORMConverter> converters;
 
     public ModelImpl(@Nonnull RecordType recordType,
@@ -77,6 +81,11 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
         this.columns = columns = copyOf(columns); // Defensive copy.
         this.fields = copyOf(fields); // Defensive copy.
         this.primaryKeyField = primaryKeyField;
+        this.columnMap = new HashMap<>();
+        for (var column : columns) {
+            columnMap.computeIfAbsent(column.metamodel(), ignore -> new ArrayList<>()).add(column);
+        }
+        columnMap.replaceAll((k,v) -> List.copyOf(v));
         this.converters = new ArrayList<>(nCopies(columns.size(), null));
         for (int i = 0; i < columns.size(); i++) {
             ORMConverter converter = Providers.getORMConverter(fields.get(i)).orElse(null);
@@ -151,6 +160,30 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     @Override
     public boolean isDefaultPrimaryKey(@Nullable ID pk) {
         return REFLECTION.isDefaultValue(pk);
+    }
+
+    /**
+     * Resolves the {@link Column}s for the given metamodel.
+     *
+     * <p>The provided metamodel must represent a column (see {@link Metamodel#isColumn()}). This method performs a
+     * lookup in the model’s column map and returns the corresponding {@link Column} instances.</p>
+     *
+     * @param metamodel the metamodel that identifies the columns of this model.
+     * @return the resolved columns for the given metamodel.
+     * @throws SqlTemplateException if the metamodel does not represent columns, or if this model does not contain
+     *                              columns for the given metamodel.
+     * @since 1.7
+     */
+    @Override
+    public List<Column> getColumns(@Nonnull Metamodel<?, ?> metamodel) throws SqlTemplateException {
+        if (!metamodel.isColumn()) {
+            throw new SqlTemplateException("Metamodel is not a column: %s.%s.%s.".formatted(metamodel.fieldType().getSimpleName(), metamodel.path(), metamodel.field()));
+        }
+        var columns = columnMap.get(metamodel);
+        if (columns == null) {
+            throw new SqlTemplateException("Column not found for metamodel: %s.%s.%s.".formatted(metamodel.fieldType().getSimpleName(), metamodel.path(), metamodel.field()));
+        }
+        return columns;
     }
 
     /**

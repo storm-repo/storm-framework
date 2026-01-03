@@ -85,7 +85,7 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @return the SQL string for the specified record.
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
-    private ElementResult getRecordString(@Nonnull Data record, @Nonnull Collection<Metamodel<? extends Data, ?>> fields) throws SqlTemplateException {
+    private ElementResult getRecordString(@Nonnull Data record, @Nonnull Collection<Metamodel<?, ?>> fields) throws SqlTemplateException {
         if (!primaryTable.table().isInstance(record)) {
             throw new SqlTemplateException("Record %s does not match entity %s.".formatted(record.getClass().getSimpleName(), primaryTable.table().getSimpleName()));
         }
@@ -118,7 +118,7 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @return the SQL string for the specified bindVars.
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
-    private ElementResult getBindVarsString(@Nonnull BindVars bindVars, @Nonnull Collection<Metamodel<? extends Data, ?>> fields) throws SqlTemplateException {
+    private ElementResult getBindVarsString(@Nonnull BindVars bindVars, @Nonnull Collection<Metamodel<?, ?>> fields) throws SqlTemplateException {
         if (bindVars instanceof BindVarsImpl vars) {
             AtomicInteger bindVarsCount = new AtomicInteger();
             var model = modelBuilder.build(primaryTable.table(), false);

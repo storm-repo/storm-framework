@@ -69,17 +69,36 @@ public final class MetamodelProcessor extends AbstractProcessor {
 
     private static final Pattern REF_PATTERN = Pattern.compile("^st\\.orm\\.Ref<([^>]+)>$");
 
-    private final Set<String> generatedFiles;
+    /**
+     * Tracks which record types we already generated a metamodel class for.
+     */
+    private final Set<String> generatedMetamodelClasses;
+
+    /**
+     * Tracks which record types we already generated a metamodel interface for.
+     */
+    private final Set<String> generatedMetamodelInterfaces;
+
+    /**
+     * Tracks which record types we already expanded (walked referenced record fields) for.
+     * Prevents infinite recursion on cyclic graphs (StackOverflowError).
+     */
+    private final Set<String> expandedReferencedRecords;
+
     private Elements elementUtils;
+    private Types typeUtils;
 
     public MetamodelProcessor() {
-        this.generatedFiles = new HashSet<>();
+        this.generatedMetamodelClasses = new HashSet<>();
+        this.generatedMetamodelInterfaces = new HashSet<>();
+        this.expandedReferencedRecords = new HashSet<>();
     }
 
     @Override
     public synchronized void init(@Nonnull ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
         this.elementUtils = processingEnv.getElementUtils();
+        this.typeUtils = processingEnv.getTypeUtils();
     }
 
     private static boolean isNestedRecord(@Nonnull TypeMirror typeMirror) {
@@ -217,6 +236,10 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return false;
     }
 
+    private boolean implementsData(@Nonnull Element recordElement) {
+        return implementsInterface(recordElement.asType(), DATA, typeUtils);
+    }
+
     @Override
     public boolean process(@Nonnull Set<? extends TypeElement> annotations,
                            @Nonnull RoundEnvironment roundEnv) {
@@ -229,15 +252,72 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         .anyMatch(annotationMirror -> GENERATE_METAMODEL
                                 .equals(annotationMirror.getAnnotationType().toString()));
 
-                boolean implementsData = implementsInterface(element.asType(), DATA, processingEnv.getTypeUtils());
-                if (hasGenerateMetamodel || implementsData) {
-                    generateMetamodelInterface(element);
+                boolean isData = implementsData(element);
+                if (hasGenerateMetamodel || isData) {
+                    generateMetamodelArtifacts(element);
                 }
             }
         } catch (Exception e) {
             processingEnv.getMessager().printMessage(ERROR, "Failed to process metamodel. Error: " + e);
         }
         return false;
+    }
+
+    /**
+     * Walk record-typed fields on this record and ensure metamodels exist for referenced record types.
+     *
+     * This fixes the “only recursing from the _ interface” problem, where deeper nested records (like
+     * CampaignDetails -> AcquisitionDetails) would not be generated if the intermediate record does not
+     * implement Data (so no "_" interface is generated for it).
+     */
+    private void generateReferencedRecordMetamodels(@Nonnull Element recordElement) {
+        String packageName = elementUtils.getPackageOf(recordElement).getQualifiedName().toString();
+
+        for (Element enclosed : recordElement.getEnclosedElements()) {
+            TypeMirror recordComponentType = getRecordComponentType(enclosed).orElse(null);
+            if (recordComponentType == null) continue;
+
+            String fieldName = enclosed.getSimpleName().toString();
+            TypeMirror fieldType = getTypeElement(recordElement, fieldName);
+            if (fieldType == null) continue;
+
+            // Only follow direct record references (not Ref<...>, not nested records).
+            if (isRecord(fieldType) && !isRefType(fieldType)) {
+                if (isNestedRecord(fieldType)) continue;
+
+                TypeElement nestedTypeEl = asTypeElement(fieldType);
+                if (nestedTypeEl != null) {
+                    generateMetamodelArtifacts(nestedTypeEl);
+                }
+            }
+        }
+    }
+
+    /**
+     * Generates the metamodel class for all records.
+     * Generates the metamodel interface only if the record implements Data (directly or indirectly).
+     */
+    private void generateMetamodelArtifacts(@Nonnull Element recordElement) {
+        TypeElement typeElement = asTypeElement(recordElement.asType());
+        if (typeElement == null) return;
+
+        String qn = typeElement.getQualifiedName().toString();
+        boolean isData = implementsData(recordElement);
+
+        // Always generate the class once.
+        if (generatedMetamodelClasses.add(qn)) {
+            generateMetamodelClass(recordElement);
+        }
+
+        // Only generate the interface for Data records.
+        if (isData && generatedMetamodelInterfaces.add(qn)) {
+            generateMetamodelInterface(recordElement);
+        }
+
+        // Recurse into referenced record types only once per record type to avoid cycles.
+        if (expandedReferencedRecords.add(qn)) {
+            generateReferencedRecordMetamodels(recordElement);
+        }
     }
 
     private Optional<TypeMirror> getMetamodelType(@Nonnull Element element) {
@@ -497,8 +577,11 @@ public final class MetamodelProcessor extends AbstractProcessor {
 
             if (isRecord(fieldType) && !isRefType(fieldType)) {
                 if (isNestedRecord(fieldType)) continue;
-
-                generateMetamodelInterface(asTypeElement(fieldType));
+                // Always generate the nested metamodel class; only generate its interface if it is Data.
+                TypeElement nestedTypeEl = asTypeElement(fieldType);
+                if (nestedTypeEl != null) {
+                    generateMetamodelArtifacts(nestedTypeEl);
+                }
                 boolean inline = !isForeignKey(recordElement, fieldName);
                 String inlineFlag = inline ? "true" : "false";
                 String nestedGetter = " t -> " + accessorExpr(recordElement, "t", fieldName, fieldType);
@@ -534,10 +617,6 @@ public final class MetamodelProcessor extends AbstractProcessor {
         TypeElement typeElement = asTypeElement(recordElement.asType());
         if (typeElement == null) return;
 
-        if (!generatedFiles.add(typeElement.getQualifiedName().toString())) {
-            return;
-        }
-        generateMetamodelClass(recordElement);
         String packageName = elementUtils.getPackageOf(recordElement).getQualifiedName().toString();
         String recordName = recordElement.getSimpleName().toString();
         String metaInterfaceName = recordName + "_";
@@ -683,6 +762,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
         String packageName = elementUtils.getPackageOf(recordElement).getQualifiedName().toString();
         String recordName = recordElement.getSimpleName().toString();
         String metaClassName = recordName + "Metamodel";
+        boolean isData = implementsData(recordElement);
+
         // Root isSame: compare by PK if present, else compare by value, but guard for null root record.
         Optional<String> pkNameOpt = findPrimaryKeyFieldName(recordElement);
         String rootIsSameBody;
@@ -713,6 +794,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                             "        if (ra == null || rb == null) return ra == rb;\n" +
                             "        return Objects.equals(ra, rb);";
         }
+
         try {
             JavaFileObject fileObject = processingEnv.getFiler()
                     .createSourceFile((packageName.isEmpty() ? "" : packageName + ".") + metaClassName, recordElement);
@@ -733,7 +815,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                             " * @param <T> the record type of the root table of the entity graph.\n" +
                             " */\n" +
                             "@Generated(\"" + getClass().getName() + "\")\n" +
-                            "public final class " + metaClassName + "<T> extends AbstractMetamodel<T, " + recordName + ", " + recordName + "> {\n\n";
+                            "public final class " + metaClassName + "<T extends st.orm.Data> extends AbstractMetamodel<T, " + recordName + ", " + recordName + "> {\n\n";
 
             String body =
                     classFields + "\n" +
@@ -751,25 +833,36 @@ public final class MetamodelProcessor extends AbstractProcessor {
                             "    @Override\n" +
                             "    public boolean isSame(@Nonnull T a, @Nonnull T b) {\n" +
                             "        " + rootIsSameBody + "\n" +
-                            "    }\n\n" +
-                            "    public " + metaClassName + "() {\n" +
-                            "        this(\"\", \"\", false, (Metamodel<T, ?>) Metamodel.root(" + recordName + ".class), " +
-                            "t -> (" + recordName + ") t);\n" +
-                            "    }\n\n" +
-                            "    public " + metaClassName + "(String field, Metamodel<T, ?> parent) {\n" +
-                            "        this(\"\", field, false, parent, t -> (" + recordName + ") t);\n" +
-                            "    }\n\n" +
-                            "    public " + metaClassName + "(String path, String field, Metamodel<T, ?> parent) {\n" +
-                            "        this(path, field, false, parent, t -> (" + recordName + ") t);\n" +
-                            "    }\n\n" +
-                            "    public " + metaClassName + "(String path, String field, Metamodel<T, ?> parent, " +
-                            "java.util.function.Function<T, " + recordName + "> getter) {\n" +
-                            "        this(path, field, false, parent, getter);\n" +
-                            "    }\n\n" +
-                            "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent) {\n" +
-                            "        this(path, field, inline, parent, t -> (" + recordName + ") t);\n" +
-                            "    }\n\n" +
-                            "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
+                            "    }\n\n";
+            String constructors;
+            if (isData) {
+                constructors =
+                        "    public " + metaClassName + "() {\n" +
+                                "        this(\"\", \"\", false, (Metamodel<T, ?>) Metamodel.root(" + recordName + ".class), " +
+                                "t -> (" + recordName + ") t);\n" +
+                                "    }\n\n" +
+                                "    public " + metaClassName + "(String field, Metamodel<T, ?> parent) {\n" +
+                                "        this(\"\", field, false, parent, t -> (" + recordName + ") t);\n" +
+                                "    }\n\n" +
+                                "    public " + metaClassName + "(String path, String field, Metamodel<T, ?> parent) {\n" +
+                                "        this(path, field, false, parent, t -> (" + recordName + ") t);\n" +
+                                "    }\n\n" +
+                                "    public " + metaClassName + "(String path, String field, Metamodel<T, ?> parent, " +
+                                "java.util.function.Function<T, " + recordName + "> getter) {\n" +
+                                "        this(path, field, false, parent, getter);\n" +
+                                "    }\n\n" +
+                                "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent) {\n" +
+                                "        this(path, field, inline, parent, t -> (" + recordName + ") t);\n" +
+                                "    }\n\n";
+            } else {
+                constructors =
+                        "    public " + metaClassName + "(String path, String field, Metamodel<T, ?> parent, " +
+                                "java.util.function.Function<T, " + recordName + "> getter) {\n" +
+                                "        this(path, field, false, parent, getter);\n" +
+                                "    }\n\n";
+            }
+            String fullCtor =
+                    "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
                             "java.util.function.Function<T, " + recordName + "> getter) {\n" +
                             "        super(" + recordName + ".class, path, field, inline, parent);\n" +
                             "        this.getter = getter;\n\n" +
@@ -778,12 +871,12 @@ public final class MetamodelProcessor extends AbstractProcessor {
                             "        String fieldBase = inline ? (field.isEmpty() ? \"\" : field + \".\") : \"\";\n\n" +
                             initFields + "\n" +
                             "    }\n";
-
             String footer = "}\n";
-
             try (Writer writer = fileObject.openWriter()) {
                 writer.write(header);
                 writer.write(body);
+                writer.write(constructors);
+                writer.write(fullCtor);
                 writer.write(footer);
             }
         } catch (Exception e) {

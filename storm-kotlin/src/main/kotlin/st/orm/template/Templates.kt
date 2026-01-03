@@ -676,7 +676,7 @@ object Templates {
      * @return an [Element] representing the SET clause with the specified record.
      * @since 1.7
      */
-    fun set(record: Data, fields: Collection<Metamodel<out Data, *>>): Element {
+    fun set(record: Data, fields: Collection<Metamodel<*, *>>): Element {
         return Elements.Set(record, null, fields)
     }
 
@@ -754,7 +754,7 @@ object Templates {
      * @return an [Element] representing the SET clause utilizing the specified bind variables.
      * @since 1.7
      */
-    fun set(bindVars: BindVars, fields: Collection<Metamodel<out Data, *>>): Element {
+    fun set(bindVars: BindVars, fields: Collection<Metamodel<*, *>>): Element {
         return Elements.Set(null, bindVars, fields)
     }
 

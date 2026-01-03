@@ -668,7 +668,7 @@ public interface Templates {
      * @return an {@link Element} representing the SET clause with the specified record.
      * @since 1.7
      */
-    static Element set(@Nonnull Data record, @Nonnull Collection<Metamodel<? extends Data, ?>> fields) {
+    static Element set(@Nonnull Data record, @Nonnull Collection<Metamodel<?, ?>> fields) {
         return new Set(requireNonNull(record, "record"), null, fields);
     }
 
@@ -744,7 +744,7 @@ public interface Templates {
      * @return an {@link Element} representing the SET clause utilizing the specified bind variables.
      * @since 1.7
      */
-    static Element set(@Nonnull BindVars bindVars, @Nonnull Collection<Metamodel<? extends Data, ?>> fields) {
+    static Element set(@Nonnull BindVars bindVars, @Nonnull Collection<Metamodel<?, ?>> fields) {
         return new Set(null, requireNonNull(bindVars, "bindVars"), fields);
     }
 

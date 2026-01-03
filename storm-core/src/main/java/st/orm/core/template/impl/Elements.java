@@ -73,7 +73,7 @@ public final class Elements {
         }
     }
 
-    public record Set(@Nullable Data record, @Nullable BindVars bindVars, @Nonnull Collection<Metamodel<? extends Data, ?>> fields) implements Element {
+    public record Set(@Nullable Data record, @Nullable BindVars bindVars, @Nonnull Collection<Metamodel<?, ?>> fields) implements Element {
         public Set {
             fields = java.util.Set.copyOf(fields);
         }

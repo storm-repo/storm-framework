@@ -31,7 +31,6 @@ import static java.util.Optional.ofNullable;
  * in the schema:
  * <ul>
  *   <li>the same owning table as returned by {@link #fieldType()} of {@link #table()},</li>
- *   <li>the same {@link #path()}, and</li>
  *   <li>the same {@link #field()}.</li>
  * </ul>
  *
@@ -40,7 +39,7 @@ import static java.util.Optional.ofNullable;
  * @param <V> the value type of the designated element.
  * @since 1.2
  */
-public abstract class AbstractMetamodel<T, E, V> implements Metamodel<T, E> {
+public abstract class AbstractMetamodel<T extends Data, E, V> implements Metamodel<T, E> {
 
     private final Class<E> fieldType;
     private final String path;
@@ -63,7 +62,7 @@ public abstract class AbstractMetamodel<T, E, V> implements Metamodel<T, E> {
                              @Nonnull String field,
                              boolean inline,
                              @Nullable Metamodel<T, ?> parent) {
-        this(fieldType, path, field, inline, parent, !inline);
+        this(fieldType, path, field, inline, parent, !inline && !field.isEmpty());
     }
 
     protected AbstractMetamodel(@Nonnull Class<E> fieldType,
@@ -81,28 +80,29 @@ public abstract class AbstractMetamodel<T, E, V> implements Metamodel<T, E> {
     }
 
     /**
-     * Equality is based on {@link #fieldType()} of {@link #table()}, {@link #path()} and {@link #field()}.
+     * Equality is based on {@link #fieldType()} of {@link #table()} and {@link #field()}.
      */
     @Override
     public final boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof Metamodel<?, ?> other)) return false;
         return Objects.equals(this.table().fieldType(), other.table().fieldType())
-                && Objects.equals(this.path, other.path())
                 && Objects.equals(this.field, other.field());
     }
 
     /**
-     * Hash code is based on {@link #fieldType()} of {@link #table()}, {@link #path()} and {@link #field()}.
+     * Hash code is based on {@link #fieldType()} of {@link #table()} and {@link #field()}.
      */
     @Override
     public final int hashCode() {
-        return Objects.hash(table().fieldType(), path, field);
+        return Objects.hash(table().fieldType(), field);
     }
 
     /**
      * Returns {@code true} if the metamodel corresponds to a database column, returns {@code false} otherwise, for
      * example, if the metamodel refers to the root metamodel or an inline record.
+     *
+     * <p>Note that a column can also be a table, for example, in the case of a foreign key.</p>
      *
      * @return {@code true} if this metamodel maps to a column, {@code false} otherwise.
      */
@@ -110,6 +110,8 @@ public abstract class AbstractMetamodel<T, E, V> implements Metamodel<T, E> {
     public boolean isColumn() {
         return isColumn;
     }
+
+
 
     /**
      * Returns the root metamodel. This is typically the table specified in the FROM clause of a query.
@@ -132,15 +134,17 @@ public abstract class AbstractMetamodel<T, E, V> implements Metamodel<T, E> {
      * @return the table that holds the column to which this metamodel is pointing.
      */
     @Override
-    public Metamodel<T, ?> table() {
+    public Metamodel<T, ? extends Data> table() {
         var parent = parent().orElse(null);
         if (parent == null) {
-            return this;
+            //noinspection unchecked
+            return (Metamodel<T, ? extends Data>) this;
         }
         if (parent.isInline()) {
             return parent.table();
         }
-        return parent;
+        //noinspection unchecked
+        return (Metamodel<T, ? extends Data>) parent;
     }
 
     private Optional<Metamodel<T, ?>> parent() {
