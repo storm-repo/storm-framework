@@ -36,5 +36,5 @@ class ColumnImpl(
     override val updatable: Boolean                         get() = core.updatable()
     override val version: Boolean                           get() = core.version()
     override val ref: Boolean                               get() = core.ref()
-    override val metaModel: Metamodel<out Data, *>          get() = core.metamodel()
+    override val metamodel: Metamodel<Data, *>              get() = core.metamodel()
 }

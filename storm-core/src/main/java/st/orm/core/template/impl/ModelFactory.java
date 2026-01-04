@@ -47,6 +47,7 @@ import static st.orm.core.template.impl.RecordReflection.getRefDataType;
 import static st.orm.core.template.impl.RecordReflection.getSequence;
 import static st.orm.core.template.impl.RecordReflection.getTableName;
 import static st.orm.core.template.impl.RecordReflection.isRecord;
+import static st.orm.core.template.impl.RecordValidation.validateDataType;
 
 /**
  * Factory for creating models.
@@ -73,7 +74,7 @@ final class ModelFactory {
             @Nonnull Class<T> type,
             boolean requirePrimaryKey) throws SqlTemplateException {
         try {
-            RecordValidation.validateDataType(type, requirePrimaryKey);
+            validateDataType(type, requirePrimaryKey);
             //noinspection unchecked
             return (Model<T, ID>) MODEL_CACHE.computeIfAbsent(type, ignore -> {
                 try {

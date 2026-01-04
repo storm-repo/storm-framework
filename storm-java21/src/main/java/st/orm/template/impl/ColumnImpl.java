@@ -53,7 +53,7 @@ public record ColumnImpl(
         boolean updatable,
         boolean version,
         boolean ref,
-        Metamodel<? extends Data, ?> metamodel
+        Metamodel<Data, ?> metamodel
 ) implements Column {
 
     public ColumnImpl(@Nonnull st.orm.core.template.Column column) {

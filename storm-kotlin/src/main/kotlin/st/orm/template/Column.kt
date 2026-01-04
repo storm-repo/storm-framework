@@ -113,5 +113,5 @@ interface Column {
      * @return the meta model of the column.
      * @since 1.7
      */
-    val metaModel: Metamodel<out Data, *>
+    val metamodel: Metamodel<Data, *>
 }

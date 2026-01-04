@@ -113,5 +113,5 @@ public interface Column {
      * @return the metamodel of the column.
      * @since 1.7
      */
-    Metamodel<? extends Data, ?> metamodel();
+    Metamodel<Data, ?> metamodel();
 }

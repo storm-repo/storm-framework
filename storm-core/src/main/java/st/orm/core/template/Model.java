@@ -102,7 +102,7 @@ public interface Model<E extends Data, ID> {
      * looks up the metamodel in the model’s column mapping and returns all {@link Column} instances associated with
      * it.</p>
      *
-     * <p>A single metamodel may resolve to multiple columns, for example when a foreign key references an entity with
+     * <p>A single metamodel may resolve to multiple columns, for example, when a foreign key references an entity with
      * a compound primary key, causing the foreign key metamodel to resolve to two columns, one per key part.</p>
      *
      * @param metamodel the metamodel that identifies the columns of this model.

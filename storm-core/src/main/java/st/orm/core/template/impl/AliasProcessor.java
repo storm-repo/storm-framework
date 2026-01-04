@@ -16,6 +16,7 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Metamodel;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Alias;
@@ -42,6 +43,6 @@ final class AliasProcessor implements ElementProcessor<Alias> {
      */
     @Override
     public ElementResult process(@Nonnull Alias alias) throws SqlTemplateException {
-        return new ElementResult(aliasMapper.getAlias(alias.table(), null, alias.scope(), template.dialect()));
+        return new ElementResult(aliasMapper.getAlias(Metamodel.root(alias.table()), alias.scope(), template.dialect()));
     }
 }

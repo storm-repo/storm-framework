@@ -165,12 +165,16 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     /**
      * Resolves the {@link Column}s for the given metamodel.
      *
-     * <p>The provided metamodel must represent a column (see {@link Metamodel#isColumn()}). This method performs a
-     * lookup in the model’s column map and returns the corresponding {@link Column} instances.</p>
+     * <p>The provided metamodel must represent one or more columns (see {@link Metamodel#isColumn()}). This method
+     * looks up the metamodel in the model’s column mapping and returns all {@link Column} instances associated with
+     * it.</p>
+     *
+     * <p>A single metamodel may resolve to multiple columns, for example, when a foreign key references an entity with
+     * a compound primary key, causing the foreign key metamodel to resolve to two columns, one per key part.</p>
      *
      * @param metamodel the metamodel that identifies the columns of this model.
      * @return the resolved columns for the given metamodel.
-     * @throws SqlTemplateException if the metamodel does not represent columns, or if this model does not contain
+     * @throws SqlTemplateException if the metamodel does not represent columns, or if this model does not contain any
      *                              columns for the given metamodel.
      * @since 1.7
      */
