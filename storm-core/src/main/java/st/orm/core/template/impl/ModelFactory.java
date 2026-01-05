@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 - 2025 the original author or authors.
+ * Copyright 2024 - 2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,6 +47,7 @@ import static st.orm.core.template.impl.RecordReflection.getRefDataType;
 import static st.orm.core.template.impl.RecordReflection.getSequence;
 import static st.orm.core.template.impl.RecordReflection.getTableName;
 import static st.orm.core.template.impl.RecordReflection.isRecord;
+import static st.orm.core.template.impl.RecordValidation.validateDataType;
 
 /**
  * Factory for creating models.
@@ -73,10 +74,10 @@ final class ModelFactory {
             @Nonnull Class<T> type,
             boolean requirePrimaryKey) throws SqlTemplateException {
         try {
+            validateDataType(type, requirePrimaryKey);
             //noinspection unchecked
             return (Model<T, ID>) MODEL_CACHE.computeIfAbsent(type, ignore -> {
                 try {
-                    RecordValidation.validateDataType(type, requirePrimaryKey);
                     RecordType recordType = getRecordType(type);
                     AtomicInteger index = new AtomicInteger(1);
                     AtomicInteger primaryKeyIndex = new AtomicInteger(1);

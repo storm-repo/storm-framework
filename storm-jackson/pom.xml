@@ -6,7 +6,7 @@
     <parent>
         <groupId>st.orm</groupId>
         <artifactId>storm-framework</artifactId>
-        <version>1.7.1</version>
+        <version>1.7.2</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>storm-jackson</artifactId>
@@ -39,7 +39,6 @@
                     <argLine>
                         -Dstorm.validation.skip=true
                         --add-opens java.base/java.lang=ALL-UNNAMED
-                        --add-opens storm.core/st.orm.core=ALL-UNNAMED
                         --add-opens storm.jackson/st.orm.jackson=storm.core
                         --add-opens storm.jackson/st.orm.jackson.model=storm.core
                         --add-opens storm.jackson/st.orm.jackson=com.fasterxml.jackson.databind

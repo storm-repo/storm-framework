@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 - 2025 the original author or authors.
+ * Copyright 2024 - 2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -108,10 +108,10 @@ interface Column {
     val ref: Boolean
 
     /**
-     * Gets the meta model of the column.
+     * Gets the metamodel of the column.
      *
-     * @return the meta model of the column.
+     * @return the metamodel of the column.
      * @since 1.7
      */
-    val metaModel: Metamodel<out Data, *>
+    val metamodel: Metamodel<Data, *>
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 - 2025 the original author or authors.
+ * Copyright 2024 - 2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -79,20 +79,7 @@ record ModelBuilderImpl(
     /**
      * Builds the model.
      *
-     * @return the model.
-     * @param <ID> the primary key type.
-     * @throws SqlTemplateException if an error occurs while building the model.
-     */
-    @Override
-    public <T extends Data, ID> Model<T, ID> build(@Nonnull T record, boolean requirePrimaryKey)
-            throws SqlTemplateException {
-        //noinspection unchecked
-        return build((Class<T>) record.getClass(), requirePrimaryKey);
-    }
-
-    /**
-     * Builds the model.
-     *
+     * @param type the record type.
      * @return the model.
      * @param <ID> the primary key type.
      * @throws SqlTemplateException if an error occurs while building the model.

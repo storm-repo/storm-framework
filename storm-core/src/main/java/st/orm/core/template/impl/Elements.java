@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 - 2025 the original author or authors.
+ * Copyright 2024 - 2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -73,7 +73,7 @@ public final class Elements {
         }
     }
 
-    public record Set(@Nullable Data record, @Nullable BindVars bindVars, @Nonnull Collection<Metamodel<? extends Data, ?>> fields) implements Element {
+    public record Set(@Nullable Data record, @Nullable BindVars bindVars, @Nonnull Collection<Metamodel<?, ?>> fields) implements Element {
         public Set {
             fields = java.util.Set.copyOf(fields);
         }

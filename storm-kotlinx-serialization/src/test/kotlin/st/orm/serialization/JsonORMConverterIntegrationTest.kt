@@ -44,6 +44,21 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
     }
 
     @Test
+    fun testSelectNullRef() {
+        data class Result(@Json val owner: List<Ref<Owner>?>)
+
+        val orm = ORMTemplate.of(dataSource)
+        val query = orm.query("SELECT '[null, 1]'")
+        val ownerIds = query.getSingleResult(Result::class).owner
+            .asSequence()
+            .map { it?.id() }
+            .distinct()
+            .toList()
+        assertEquals(2, ownerIds.size)
+        assertEquals(1, ownerIds.count { it == null })
+    }
+
+    @Test
     fun testInsertOwner() {
         val orm = ORMTemplate.of(dataSource)
         val repository = orm.entity(Owner::class)

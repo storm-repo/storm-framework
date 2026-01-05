@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 - 2025 the original author or authors.
+ * Copyright 2024 - 2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,27 +15,28 @@
  */
 package st.orm;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 
 /**
  * Helper class for entity operations.
  */
 class EntityHelper {
-    private static final Object ORM_REFLECTION;
-    private static final Method GET_ID;
+    private static final MethodHandle GET_ID;
 
     static {
         try {
-            try {
-                Class<?> providersClass = Class.forName("st.orm.core.spi.Providers");
-                Class<?> ormReflectionClass = Class.forName("st.orm.core.spi.ORMReflection");
-                Method getORMReflection = providersClass.getMethod("getORMReflection");
-                ORM_REFLECTION = getORMReflection.invoke(null);
-                GET_ID = ormReflectionClass.getMethod("getId", Data.class);
-            } catch (InvocationTargetException e) {
-                throw e.getTargetException();
-            }
+            Class<?> providersClass = Class.forName("st.orm.core.spi.Providers");
+            Class<?> ormReflectionClass = Class.forName("st.orm.core.spi.ORMReflection");
+            Object ormReflection = providersClass.getMethod("getORMReflection").invoke(null);
+            MethodHandle mh = MethodHandles.publicLookup().findVirtual(
+                    ormReflectionClass,
+                    "getId",
+                    MethodType.methodType(Object.class, Data.class)
+            );
+            // Bind receiver once so the call site becomes (Data) -> Object.
+            GET_ID = mh.bindTo(ormReflection);
         } catch (PersistenceException e) {
             throw e;
         } catch (Throwable t) {
@@ -56,13 +57,9 @@ class EntityHelper {
      */
     static <ID> ID getId(Entity<ID> entity) {
         try {
-            try {
-                //noinspection unchecked
-                return (ID) GET_ID.invoke(ORM_REFLECTION, entity);
-            } catch (InvocationTargetException e) {
-                throw e.getTargetException();
-            }
-        } catch (PersistenceException e) {
+            //noinspection unchecked
+            return (ID) (Object) GET_ID.invokeExact((Data) entity);
+        }  catch (PersistenceException e) {
             throw e;
         } catch (Throwable t) {
             throw new PersistenceException(t);

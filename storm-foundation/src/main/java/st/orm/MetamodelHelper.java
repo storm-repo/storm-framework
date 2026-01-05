@@ -27,7 +27,7 @@ class MetamodelHelper {
     }
 
     @SuppressWarnings("unchecked")
-    static <T> Metamodel<T, T> root(@Nonnull Class<T> rootTable) {
+    static <T extends Data> Metamodel<T, T> root(@Nonnull Class<T> rootTable) {
         try {
             try {
                 return (Metamodel<T, T>) ROOT_METHOD.invoke(null, rootTable);

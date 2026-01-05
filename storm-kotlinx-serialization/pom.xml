@@ -6,7 +6,7 @@
     <parent>
         <groupId>st.orm</groupId>
         <artifactId>storm-framework</artifactId>
-        <version>1.7.1</version>
+        <version>1.7.2</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>storm-kotlinx-serialization</artifactId>
@@ -41,14 +41,6 @@
                     <useModulePath>true</useModulePath>
                     <argLine>
                         -Dstorm.validation.skip=false
-                        --add-opens java.base/java.lang=ALL-UNNAMED
-                        --add-opens storm.serialization/st.orm.serialization=ALL-UNNAMED
-                        --add-opens storm.serialization/st.orm.serialization.model=ALL-UNNAMED
-                        --add-opens storm.serialization/st.orm.serialization=kotlin.reflect
-                        --add-opens storm.serialization/st.orm.serialization=storm.core
-                        --add-opens storm.serialization/st.orm.serialization.model=storm.core
-                        --add-opens storm.serialization/st.orm.serialization=kotlinx.serialization.core
-                        --add-opens storm.serialization/st.orm.serialization.model=kotlinx.serialization.core
                         -Dstorm.ansiEscaping=true
                     </argLine>
                     <forkCount>1</forkCount>

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 - 2025 the original author or authors.
+ * Copyright 2024 - 2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,5 +36,5 @@ class ColumnImpl(
     override val updatable: Boolean                         get() = core.updatable()
     override val version: Boolean                           get() = core.version()
     override val ref: Boolean                               get() = core.ref()
-    override val metaModel: Metamodel<out Data, *>          get() = core.metamodel()
+    override val metamodel: Metamodel<Data, *>              get() = core.metamodel()
 }

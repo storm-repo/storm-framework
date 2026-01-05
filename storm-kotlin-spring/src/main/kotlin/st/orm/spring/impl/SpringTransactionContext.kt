@@ -1,3 +1,18 @@
+/*
+ * Copyright 2024 - 2026 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package st.orm.spring.impl
 
 import org.slf4j.LoggerFactory
@@ -25,7 +40,7 @@ import kotlin.reflect.KClass
 /**
  * Internal implementation of transaction context management for Spring-managed transactions.
  * This class provides thread-local transaction context tracking and management capabilities.
- * 
+ *
  * The class maintains a stack of transaction states for nested transaction support and
  * integrates with Spring's transaction management infrastructure.
  *
@@ -67,14 +82,19 @@ internal class SpringTransactionContext : TransactionContext {
      * @property deadlineNanos The deadline in nanoseconds for this transaction.
      */
     private data class TransactionState(
-        var transactionStatus: TransactionStatus?            = null,
-        var transactionManager: PlatformTransactionManager?  = null,
-        var dataSource: DataSource?                          = null,
-        var transactionDefinition: TransactionDefinition?    = null,
-        var rollbackOnly: Boolean                            = false,
-        var timeoutSeconds: Int?                             = null,
-        var deadlineNanos: Long?                             = null,
-        val entityCacheMap: MutableMap<KClass<*>, EntityCache<*, *>> = mutableMapOf()
+        var transactionStatus: TransactionStatus? = null,
+        var transactionManager: PlatformTransactionManager? = null,
+        var dataSource: DataSource? = null,
+        var transactionDefinition: TransactionDefinition? = null,
+        var rollbackOnly: Boolean = false,
+        var timeoutSeconds: Int? = null,
+        var deadlineNanos: Long? = null,
+
+        // NOTE:
+        // - Joined REQUIRED/SUPPORTS/MANDATORY frames share the same map instance for identity stability.
+        // - NESTED shares the outer map too (same physical transaction). On nested rollback, we clear the outer map.
+        // - REQUIRES_NEW/NOT_SUPPORTED/NEVER keep their own map (separate physical transaction / non-tx boundary).
+        var entityCacheMap: MutableMap<KClass<*>, EntityCache<*, *>> = mutableMapOf()
     )
 
     private val stack = mutableListOf<TransactionState>()
@@ -188,7 +208,7 @@ internal class SpringTransactionContext : TransactionContext {
             val remaining = currentState.remainingSeconds()
             val seconds = when {
                 remaining != null && remaining > 0 -> remaining
-                remaining != null && remaining <= 0 -> 1 // Already expired; force fast timeout.
+                remaining != null && remaining <= 0 -> 1
                 else -> currentState.timeoutSeconds
             }
             if (seconds != null && seconds > 0) {
@@ -234,7 +254,7 @@ internal class SpringTransactionContext : TransactionContext {
                         else -> "UNKNOWN (${state.transactionDefinition!!.isolationLevel})"
                     }
                 }
-                        timeout: ${ if (timeout == -1) "<no timeout>" else "$timeout second(s)"}
+                        timeout: ${if (timeout == -1) "<no timeout>" else "$timeout second(s)"}
                         readOnly: ${state.transactionDefinition!!.isReadOnly}
                 """.trimIndent()
             )
@@ -243,7 +263,9 @@ internal class SpringTransactionContext : TransactionContext {
         val result = try {
             callback.doInTransaction(object : st.orm.core.spi.TransactionStatus {
                 override fun isRollbackOnly(): Boolean = this@SpringTransactionContext.isRollbackOnly
-                override fun setRollbackOnly() { this@SpringTransactionContext.setRollbackOnly() }
+                override fun setRollbackOnly() {
+                    this@SpringTransactionContext.setRollbackOnly()
+                }
             })
         } catch (e: Throwable) {
             // Let Spring roll back if a transaction was actually started for this frame.
@@ -301,6 +323,11 @@ internal class SpringTransactionContext : TransactionContext {
      *
      * For inner frames, reuses outer's manager where appropriate. We will still ask the transaction manager
      * for a status using this frame's definition to honor propagation semantics.
+     *
+     * Also enforces entity cache sharing policy:
+     * - REQUIRED/SUPPORTS/MANDATORY share outer cache
+     * - NESTED shares outer cache (same physical tx)
+     * - REQUIRES_NEW/NOT_SUPPORTED/NEVER use their own cache
      */
     private fun startTransactionIfNecessary(state: TransactionState, dataSource: DataSource, level: Int) {
         requireNotNull(state.transactionDefinition) { "TransactionDefinition must not be null." }
@@ -313,11 +340,20 @@ internal class SpringTransactionContext : TransactionContext {
             return
         }
         if (level > 0) {
-            // Ensure outer is initialized first for consistent manager usage.
             startTransactionIfNecessary(stack[level - 1], dataSource, level - 1)
             val outer = stack[level - 1]
             state.dataSource = outer.dataSource ?: dataSource
             state.transactionManager = outer.transactionManager ?: resolveTransactionManager(dataSource)
+            // Cache sharing policy.
+            when (state.transactionDefinition!!.propagationBehavior) {
+                PROPAGATION_REQUIRED,
+                PROPAGATION_SUPPORTS,
+                PROPAGATION_MANDATORY,
+                PROPAGATION_NESTED -> {
+                    state.entityCacheMap = outer.entityCacheMap
+                }
+                // REQUIRES_NEW / NOT_SUPPORTED / NEVER keep their own map.
+            }
             // Reconcile deadlines: inner deadline = min(outer, requested).
             val requested = state.timeoutSeconds?.toDeadlineFromNowNanos()
             state.deadlineNanos = when {
@@ -389,6 +425,11 @@ internal class SpringTransactionContext : TransactionContext {
             throw TransactionTimedOutException(e.message ?: "Did not complete within timeout.")
         } catch (e: Exception) {
             throw PersistenceException(e)
+        }
+        // If this frame was NESTED, Spring rolled back to a savepoint.
+        // We shared the cache map with the outer scope, so it may now be stale relative to DB state.
+        if (state.transactionDefinition?.propagationBehavior == PROPAGATION_NESTED) {
+            stack.lastOrNull()?.entityCacheMap?.clear()
         }
         val expired = state.deadlineNanos?.let { nowNanos() >= it } == true
         if (expired) {

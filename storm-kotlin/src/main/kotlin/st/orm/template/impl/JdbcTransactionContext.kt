@@ -1,3 +1,18 @@
+/*
+ * Copyright 2024 - 2026 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package st.orm.template.impl
 
 import org.slf4j.LoggerFactory
@@ -70,23 +85,26 @@ internal class JdbcTransactionContext : TransactionContext {
      */
     internal data class TransactionState(
         val propagation: TransactionPropagation = REQUIRED,
-        val isolationLevel: Int?                = null,
-        val timeoutSeconds: Int?                = null,
-        val readOnly: Boolean?                  = null,
-        var dataSource: DataSource?             = null,
-        var connection: Connection?             = null,
-        var ownsConnection: Boolean             = false,
-        var originalIsolationLevel: Int?        = null,
-        var originalReadOnly: Boolean?          = null,
-        var savepoint: Savepoint?               = null,
-        var rollbackOnly: Boolean               = false,
-        var rollbackInherited: Boolean          = false,
-        var suspendedConnection: Connection?    = null,
-        var suspendedDataSource: DataSource?    = null,
-        var suspended: Boolean                  = false,
-        var deadlineNanos: Long?                = null,
-        val transactionId: String               = UUID.randomUUID().toString(),
-        val entityCacheMap: MutableMap<KClass<*>, EntityCache<*, *>> = mutableMapOf()
+        val isolationLevel: Int? = null,
+        val timeoutSeconds: Int? = null,
+        val readOnly: Boolean? = null,
+        var dataSource: DataSource? = null,
+        var connection: Connection? = null,
+        var ownsConnection: Boolean = false,
+        var originalIsolationLevel: Int? = null,
+        var originalReadOnly: Boolean? = null,
+        var savepoint: Savepoint? = null,
+        var rollbackOnly: Boolean = false,
+        var rollbackInherited: Boolean = false,
+        var suspendedConnection: Connection? = null,
+        var suspendedDataSource: DataSource? = null,
+        var suspended: Boolean = false,
+        var deadlineNanos: Long? = null,
+        val transactionId: String = UUID.randomUUID().toString(),
+        // NOTE:
+        // - Joined REQUIRED/SUPPORTS/MANDATORY frames share the same map instance for identity stability.
+        // - NESTED also shares the map (same connection), but on savepoint rollback we clear it to avoid stale state.
+        var entityCacheMap: MutableMap<KClass<*>, EntityCache<*, *>> = mutableMapOf()
     )
 
     private fun nowNanos(): Long = System.nanoTime()
@@ -155,7 +173,7 @@ internal class JdbcTransactionContext : TransactionContext {
      */
     override fun <T : Any> getDecorator(resourceType: Class<T>): TransactionContext.Decorator<T> {
         if (resourceType != PreparedStatement::class.java) {
-            return TransactionContext.Decorator<T> { obj -> obj }   // No-op.
+            return TransactionContext.Decorator<T> { obj -> obj } // No-op.
         }
         return TransactionContext.Decorator { resource ->
             val preparedStatement = resource as PreparedStatement
@@ -163,7 +181,7 @@ internal class JdbcTransactionContext : TransactionContext {
             val remaining = currentState.remainingSeconds()
             val seconds = when {
                 remaining != null && remaining > 0 -> remaining
-                remaining != null && remaining <= 0 -> 1 // We're already out of time: force a fast timeout.
+                remaining != null && remaining <= 0 -> 1 // Already out of time: force a fast timeout.
                 else -> currentState.timeoutSeconds
             }
             if (seconds != null && seconds > 0) {
@@ -198,19 +216,20 @@ internal class JdbcTransactionContext : TransactionContext {
                 Starting transaction (${state.transactionId}):
                     propagation: $propagation
                     isolation: ${
-                        when (isolation) {
-                            TRANSACTION_NONE -> "NONE"
-                            TRANSACTION_READ_UNCOMMITTED -> "READ_UNCOMMITTED"
-                            TRANSACTION_READ_COMMITTED -> "READ_COMMITTED"
-                            TRANSACTION_REPEATABLE_READ -> "REPEATABLE_READ"
-                            TRANSACTION_SERIALIZABLE -> "SERIALIZABLE"
-                            null -> "DEFAULT"
-                            else -> "UNKNOWN ($isolation)"
-                        }
-                    }
-                    timeout: ${ if (timeoutSeconds == null) "<no timeout>" else "$timeoutSeconds second(s)" }
+                when (isolation) {
+                    TRANSACTION_NONE -> "NONE"
+                    TRANSACTION_READ_UNCOMMITTED -> "READ_UNCOMMITTED"
+                    TRANSACTION_READ_COMMITTED -> "READ_COMMITTED"
+                    TRANSACTION_REPEATABLE_READ -> "REPEATABLE_READ"
+                    TRANSACTION_SERIALIZABLE -> "SERIALIZABLE"
+                    null -> "DEFAULT"
+                    else -> "UNKNOWN ($isolation)"
+                }
+            }
+                    timeout: ${if (timeoutSeconds == null) "<no timeout>" else "$timeoutSeconds second(s)"}
                     readOnly: $readOnly
-            """.trimIndent())
+            """.trimIndent()
+        )
         state.deadlineNanos = timeoutSeconds?.toDeadlineFromNowNanos()
         stack.add(state)
         val result = try {
@@ -224,11 +243,14 @@ internal class JdbcTransactionContext : TransactionContext {
             })
         } catch (e: Throwable) {
             logger.trace("Transaction failed (${state.transactionId}).", e)
-            rollback(suppressException = true)  // Suppress any rollback exception to ensure handling of e.
+            rollback(suppressException = true) // Suppress any rollback exception to ensure handling of exception.
             when (e.cause) {
                 is SQLTimeoutException -> {
                     // TimeoutJob may not have registered timeout yet.
-                    throw TransactionTimedOutException(e.message ?: "Did not complete within timeout (${state.timeoutSeconds}s).", e)
+                    throw TransactionTimedOutException(
+                        e.message ?: "Did not complete within timeout (${state.timeoutSeconds}s).",
+                        e
+                    )
                 }
                 else -> throw e
             }
@@ -252,16 +274,16 @@ internal class JdbcTransactionContext : TransactionContext {
         val currentState = stack[lastIndex]
         logger.debug("Marking transaction for rollback (${currentState.transactionId}).")
         currentState.rollbackOnly = true
-        currentState.rollbackInherited = false  // Reset inherited flag, if applicable.
+        currentState.rollbackInherited = false // Reset inherited flag, if applicable.
         // Do NOT propagate from NESTED (savepoint) scopes and do NOT propagate from owners (outermost or REQUIRES_NEW).
         if (currentState.savepoint != null || currentState.ownsConnection) return
         // Propagate to outer joined frames up to (and including) the owning frame, but stop at a savepoint boundary.
         for (i in lastIndex - 1 downTo 0) {
             val state = stack[i]
-            if (state.savepoint != null) break          // Don't cross NESTED boundary.
+            if (state.savepoint != null) break // Do not cross NESTED boundary.
             state.rollbackOnly = true
-            state.rollbackInherited = true              // Indicates caller-triggered.
-            if (state.ownsConnection) break             // Stop at the owner (could be REQUIRES_NEW).
+            state.rollbackInherited = true // Indicates caller-triggered.
+            if (state.ownsConnection) break // Stop at the owner (could be REQUIRES_NEW).
         }
     }
 
@@ -282,7 +304,7 @@ internal class JdbcTransactionContext : TransactionContext {
                         if (outer?.connection != null) {
                             joinOuterTransaction(state, outer)
                         } else {
-                            openConnection(state, dataSource)   // Non-transactional.
+                            openConnection(state, dataSource) // Non-transactional.
                         }
                     }
                     MANDATORY -> {
@@ -302,13 +324,13 @@ internal class JdbcTransactionContext : TransactionContext {
                         if (outer?.connection != null) {
                             suspendTransaction(state, outer)
                         }
-                        openConnection(state, dataSource)   // Non-transactional.
+                        openConnection(state, dataSource) // Non-transactional.
                     }
                     NEVER -> {
                         if (outer?.connection != null) {
                             throw PersistenceException("Existing transaction found for NEVER propagation.")
                         }
-                        openConnection(state, dataSource)   // Non-transactional.
+                        openConnection(state, dataSource) // Non-transactional.
                     }
                     NESTED -> {
                         if (outer?.connection != null) {
@@ -318,11 +340,19 @@ internal class JdbcTransactionContext : TransactionContext {
                                 )
                             }
                             val savepoint = outer.connection!!.setSavepoint()
-                            logger.debug("Creating nested transaction with savepoint {} on {} ({}).", savepoint, outer.connection!!, state.transactionId)
+                            logger.debug(
+                                "Creating nested transaction with savepoint {} on {} ({}).",
+                                savepoint,
+                                outer.connection!!,
+                                state.transactionId
+                            )
                             state.connection = outer.connection
                             state.dataSource = dataSource
                             state.savepoint = savepoint
                             state.ownsConnection = false
+                            // Share caches since this is the same JDBC connection/transaction.
+                            // If we roll back to this savepoint, we will clear the shared cache to avoid stale state.
+                            state.entityCacheMap = outer.entityCacheMap
                             state.originalIsolationLevel = outer.connection!!.transactionIsolation
                             state.originalReadOnly = outer.connection!!.isReadOnly
                             val innerRequested = state.timeoutSeconds?.let { nowNanos() + it * 1_000_000_000L }
@@ -375,7 +405,12 @@ internal class JdbcTransactionContext : TransactionContext {
         try {
             when {
                 state.savepoint != null -> {
-                    logger.debug("Committing nested scope; releasing savepoint {} on {} ({}).", state.savepoint, connection, state.transactionId)
+                    logger.debug(
+                        "Committing nested scope; releasing savepoint {} on {} ({}).",
+                        state.savepoint,
+                        connection,
+                        state.transactionId
+                    )
                     connection.releaseSavepoint(state.savepoint)
                 }
                 state.ownsConnection -> {
@@ -402,8 +437,16 @@ internal class JdbcTransactionContext : TransactionContext {
         try {
             when {
                 state.savepoint != null && connection != null -> {
-                    logger.debug("Rolling back to savepoint {} on {} ({}).", state.savepoint, connection, state.transactionId)
+                    logger.debug(
+                        "Rolling back to savepoint {} on {} ({}).",
+                        state.savepoint,
+                        connection,
+                        state.transactionId
+                    )
                     connection.rollback(state.savepoint)
+                    // We shared the cache map with the outer scope. After savepoint rollback, cached entities can be
+                    // inconsistent with the DB state. Invalidate the cache for the remainder of the outer transaction.
+                    stack.lastOrNull()?.entityCacheMap?.clear()
                 }
                 state.ownsConnection && connection != null -> {
                     logger.debug("Rolling back transaction on {} ({}).", connection, state.transactionId)
@@ -416,11 +459,11 @@ internal class JdbcTransactionContext : TransactionContext {
                     // Propagate to outer joined frames up to (and including) the owning frame, but stop at a savepoint boundary.
                     val lastIndex = stack.lastIndex
                     for (i in lastIndex downTo 0) {
-                        val state = stack[i]
-                        if (state.savepoint != null) break          // Don't cross NESTED boundary.
-                        state.rollbackOnly = true
-                        state.rollbackInherited = true              // Indicates caller-triggered.
-                        if (state.ownsConnection) break             // Stop at the owner (could be REQUIRES_NEW).
+                        val st = stack[i]
+                        if (st.savepoint != null) break // Do not cross NESTED boundary.
+                        st.rollbackOnly = true
+                        st.rollbackInherited = true // Indicates caller-triggered.
+                        if (st.ownsConnection) break // Stop at the owner (could be REQUIRES_NEW).
                     }
                 }
             }
@@ -439,7 +482,7 @@ internal class JdbcTransactionContext : TransactionContext {
 
     private fun close(connection: Connection, state: TransactionState) {
         state.originalIsolationLevel?.let { connection.transactionIsolation = it }
-        state.originalReadOnly?.let       { connection.isReadOnly = it }
+        state.originalReadOnly?.let { connection.isReadOnly = it }
         connection.autoCommit = true
         connection.close()
     }
@@ -466,7 +509,7 @@ internal class JdbcTransactionContext : TransactionContext {
                 throw PersistenceException("Connection returned from DataSource must be in auto-commit mode.")
             }
             state.originalIsolationLevel = connection.transactionIsolation
-            state.originalReadOnly      = connection.isReadOnly
+            state.originalReadOnly = connection.isReadOnly
             state.isolationLevel?.let { connection.transactionIsolation = it }
             state.readOnly?.let { connection.isReadOnly = it }
             connection.autoCommit = false
@@ -495,7 +538,7 @@ internal class JdbcTransactionContext : TransactionContext {
             state.connection = connection
             state.dataSource = dataSource
             state.ownsConnection = true
-            // Non-transactional: deadline isn't meaningful (no commit), but decorator still uses remainingSeconds().
+            // Non-transactional: deadline is not meaningful (no commit), but decorator still uses remainingSeconds().
             state.deadlineNanos = state.timeoutSeconds?.let { nowNanos() + it * 1_000_000_000L }
         }
     }
@@ -520,6 +563,8 @@ internal class JdbcTransactionContext : TransactionContext {
         state.connection = connection
         state.dataSource = outer.dataSource
         state.ownsConnection = false
+        // Share the entity cache map with the transaction we joined.
+        state.entityCacheMap = outer.entityCacheMap
         state.originalIsolationLevel = connection.transactionIsolation
         state.originalReadOnly = connection.isReadOnly
         val innerRequested = state.timeoutSeconds?.toDeadlineFromNowNanos()

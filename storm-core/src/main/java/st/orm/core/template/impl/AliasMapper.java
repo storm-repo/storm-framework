@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 - 2025 the original author or authors.
+ * Copyright 2024 - 2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -192,30 +192,7 @@ final class AliasMapper {
         if (!Data.class.isAssignableFrom(table.fieldType())) {
             throw new SqlTemplateException("Component type of table %s not a Data type: %s.".formatted(table, table.fieldType().getSimpleName()));
         }
-        //noinspection unchecked
-        return getAlias((Class<? extends Data>) table.fieldType(), path.isEmpty() ? null : path, scope, dialect, exceptionSupplier);
-    }
-
-    /**
-     * Returns the alias for the table at the specified path.
-     *
-     * <p><strong>Note:</strong> The alias returned is safe for use in SQL and does not require escaping.</p>
-     *
-     * @param table the table to get the alias for.
-     * @param path the path of the table (optional).
-     * @param scope the scope to resolve the alias in.
-     * @param dialect the SQL dialect to use in case the alias is based on table name and potentially requires escaping.
-     * @return the alias for the table at the specified path.
-     * @throws SqlTemplateException if the alias could not be resolved.
-     */
-    public String getAlias(@Nonnull Class<? extends Data> table,
-                           @Nullable String path,
-                           @Nonnull ResolveScope scope,
-                           @Nonnull SqlDialect dialect) throws SqlTemplateException {
-        return getAlias(table, path, scope, dialect,
-                () -> path != null
-                        ? new SqlTemplateException("Alias for %s not found at path: '%s'.".formatted(table.getSimpleName(), path))
-                        : new SqlTemplateException("Alias for %s not found.".formatted(table.getSimpleName())));
+        return getAlias(table.fieldType(), path.isEmpty() ? null : path, scope, dialect, exceptionSupplier);
     }
 
     /**

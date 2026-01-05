@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 - 2025 the original author or authors.
+ * Copyright 2024 - 2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 package st.orm;
 
 import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 
 /**
  * The metamodel is used to map database columns to the object model in a type-safe way.
@@ -26,7 +25,6 @@ import jakarta.annotation.Nullable;
  * in the schema:
  * <ul>
  *   <li>the same owning table as returned by {@link #fieldType()} of {@link #table()},</li>
- *   <li>the same {@link #path()}, and</li>
  *   <li>the same {@link #field()}.</li>
  * </ul>
  *
@@ -34,7 +32,7 @@ import jakarta.annotation.Nullable;
  * @param <E> the field type of the designated element.
  * @since 1.2
  */
-public interface Metamodel<T, E> {
+public interface Metamodel<T extends Data, E> {
 
     /**
      * Creates a new metamodel for the given record type.
@@ -43,7 +41,7 @@ public interface Metamodel<T, E> {
      * @return a new metamodel for the given record type.
      * @param <T> the root table type.
      */
-    static <T> Metamodel<T, T> root(@Nonnull Class<T> table) {
+    static <T extends Data> Metamodel<T, T> root(@Nonnull Class<T> table) {
         return MetamodelHelper.root(table);
     }
 
@@ -67,6 +65,8 @@ public interface Metamodel<T, E> {
     /**
      * Returns {@code true} if the metamodel corresponds to a database column, returns {@code false} otherwise, for
      * example, if the metamodel refers to the root metamodel or an inline record.
+     *
+     * <p>Note that a column can also be a table, for example, in the case of a foreign key.</p>
      *
      * @return {@code true} if this metamodel maps to a column, {@code false} otherwise.
      */
@@ -93,7 +93,17 @@ public interface Metamodel<T, E> {
      *
      * @return the table that holds the column to which this metamodel is pointing.
      */
-    Metamodel<T, ?> table();
+    Metamodel<T, ? extends Data> table();
+
+    /**
+     * Returns the type of the table that holds the column to which this metamodel is pointing.
+     *
+     * @return the type of the table that holds the column to which this metamodel is pointing.
+     * @since 1.7
+     */
+    default Class<? extends Data> tableType() {
+        return table().fieldType();
+    }
 
     /**
      * Returns the path to the database table.
@@ -130,18 +140,17 @@ public interface Metamodel<T, E> {
     /**
      * Extracts the value from the given record as specified by this metamodel.
      *
-     * <p>The returned value may be {@code null} in the following cases:</p>
-     * <ul>
-     *   <li>The field represented by this metamodel is nullable.</li>
-     *   <li>Any parent metamodel in the access path resolves to {@code null}
-     *       (for example, when navigating through an optional or nullable nested record).</li>
-     * </ul>
+     * <p>The returned value may be {@code null} if this metamodel represents a nullable field or if any parent
+     * metamodel in the access path resolves to {@code null} (for example, when navigating through an optional or
+     * nullable nested record).</p>
+     *
+     * <p>Implementations may return a non-null value, but callers must not rely on that unless they statically know
+     * they are using a non-null metamodel variant.</p>
      *
      * @param record the root record from which the value is extracted.
      * @return the extracted value, or {@code null} if the value cannot be resolved.
      * @since 1.7
      */
-    @Nullable
     Object getValue(@Nonnull T record);
 
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 - 2025 the original author or authors.
+ * Copyright 2024 - 2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package st.orm.jackson;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
@@ -61,6 +62,8 @@ import static st.orm.core.spi.Providers.getORMReflection;
  *
  * <p>On deserialization, raw id values use the RefFactory (if provided) to create attached Refs,
  * while object formats with {@code @entity}/{@code @projection} always create Refs via {@code Ref.of()}.
+ *
+ * <p>Also supports nullable Ref values inside collections, e.g. {@code List<Ref<Foo>>} containing {@code null}.
  */
 public class StormModule extends SimpleModule {
 
@@ -69,6 +72,9 @@ public class StormModule extends SimpleModule {
     private static final String PROJECTION_FIELD = "@projection";
 
     private static final ORMReflection REFLECTION = getORMReflection();
+
+    // ConcurrentHashMap does NOT allow computeIfAbsent mapping functions to return null.
+    private static final Class<?> NO_PK = Void.class;
     private static final Map<Class<?>, Class<?>> PK_CACHE = new ConcurrentHashMap<>();
 
     /**
@@ -105,6 +111,28 @@ public class StormModule extends SimpleModule {
     }
 
     /**
+     * Resolve the Ref target type {@code T} from:
+     * <ul>
+     *   <li>{@code Ref<T>}</li>
+     *   <li>{@code List<Ref<T>>}, {@code Set<Ref<T>>}, {@code Map<K, Ref<T>>}, etc (via content/value type)</li>
+     * </ul>
+     */
+    @Nullable
+    private static JavaType resolveRefTargetType(@Nullable JavaType type) {
+        if (type == null) return null;
+        // If container (List/Set/Map), unwrap to element/value type.
+        if (type.isContainerType()) {
+            type = type.getContentType();
+            if (type == null) return null;
+        }
+        if (!Ref.class.isAssignableFrom(type.getRawClass())) {
+            return null;
+        }
+        // Ref<T> => T.
+        return type.containedType(0);
+    }
+
+    /**
      * Resolves the primary key type for the given target class.
      *
      * @param target the entity/data class
@@ -112,13 +140,15 @@ public class StormModule extends SimpleModule {
      */
     @Nullable
     private static Class<?> resolvePkType(Class<?> target) {
-        return PK_CACHE.computeIfAbsent(target, ignore ->
-                REFLECTION.getRecordType(target).fields().stream()
-                        .filter(field -> field.isAnnotationPresent(PK.class))
-                        .findFirst()
-                        .map(RecordField::type)
-                        .orElse(null)
-        );
+        Class<?> cached = PK_CACHE.computeIfAbsent(target, ignore -> {
+            var type = REFLECTION.getRecordType(target).fields().stream()
+                    .filter(field -> field.isAnnotationPresent(PK.class))
+                    .findFirst()
+                    .map(RecordField::type)
+                    .orElse(null);
+            return type == null ? NO_PK : type;
+        });
+        return cached == NO_PK ? null : cached;
     }
 
     /**
@@ -143,11 +173,8 @@ public class StormModule extends SimpleModule {
 
         @Override
         public JsonSerializer<?> createContextual(SerializerProvider prov, @Nullable BeanProperty property) {
-            if (property == null) {
-                return this;
-            }
-            JavaType type = property.getType();
-            JavaType refTargetType = type.containedType(0);
+            JavaType base = property != null ? property.getType() : null;
+            JavaType refTargetType = resolveRefTargetType(base);
             if (refTargetType == null) {
                 return this;
             }
@@ -198,6 +225,8 @@ public class StormModule extends SimpleModule {
      *   <li>{@code {"@id": ..., "@projection": {...}}} - Projection with id, uses {@code Ref.of()}</li>
      *   <li>Raw id value (e.g., {@code 42}) - uses RefFactory if available, otherwise {@code Ref.of()}</li>
      * </ul>
+     *
+     * <p>Also supports {@code null} values (e.g. nullable elements in {@code List<Ref<T>>}).
      */
     private static class RefDeserializer extends StdDeserializer<Ref<?>> implements ContextualDeserializer {
 
@@ -220,9 +249,9 @@ public class StormModule extends SimpleModule {
         }
 
         @Override
-        public JsonDeserializer<?> createContextual(DeserializationContext ctxt, @Nullable BeanProperty property) {
-            JavaType type = property != null ? property.getType() : ctxt.getContextualType();
-            JavaType refTargetType = type != null ? type.containedType(0) : null;
+        public JsonDeserializer<?> createContextual(DeserializationContext context, @Nullable BeanProperty property) {
+            JavaType base = property != null ? property.getType() : context.getContextualType();
+            JavaType refTargetType = resolveRefTargetType(base);
             Class<?> resolvedPkType = null;
             if (refTargetType != null) {
                 resolvedPkType = resolvePkType(refTargetType.getRawClass());
@@ -232,19 +261,24 @@ public class StormModule extends SimpleModule {
 
         @Override
         @Nullable
-        public Ref<?> deserialize(JsonParser parser, DeserializationContext ctxt) throws IOException {
+        public Ref<?> deserialize(JsonParser parser, DeserializationContext context) throws IOException {
+            // Jackson sometimes calls deserialize with currentToken == null.
+            if (parser.currentToken() == null) {
+                parser.nextToken();
+            }
+            if (parser.currentToken() == JsonToken.VALUE_NULL) {
+                // This is crucial for: List<Ref<T>> with nullable elements.
+                return null;
+            }
             if (targetType == null) {
                 throw JsonMappingException.from(parser, "Cannot determine Ref target type");
             }
             @SuppressWarnings("unchecked")
             Class<Data> targetClass = (Class<Data>) targetType.getRawClass();
-
             return switch (parser.currentToken()) {
-                case VALUE_NULL -> null;
-                case START_OBJECT -> deserializeObject(parser, ctxt, targetClass);
+                case START_OBJECT -> deserializeObject(parser, context, targetClass);
                 case VALUE_NUMBER_INT, VALUE_NUMBER_FLOAT, VALUE_STRING -> {
-                    // Raw id value - use RefFactory if available
-                    Object id = deserializeId(parser, ctxt);
+                    Object id = deserializeId(parser, context);
                     yield createRefFromId(targetClass, id);
                 }
                 default -> throw JsonMappingException.from(
@@ -256,26 +290,21 @@ public class StormModule extends SimpleModule {
 
         private Ref<?> deserializeObject(JsonParser parser, DeserializationContext ctxt, Class<Data> targetClass)
                 throws IOException {
-            // Read as tree to inspect structure
             ObjectNode node = parser.readValueAsTree();
-
             if (node.has(ENTITY_FIELD)) {
-                // Entity - deserialize and extract id from entity
                 JsonNode entityNode = node.get(ENTITY_FIELD);
                 Data entity = ctxt.readTreeAsValue(entityNode, targetType);
-                return createLoadedRef(entity);
+                return createLoadedRef(parser, entity);
             } else if (node.has(PROJECTION_FIELD)) {
-                // Projection - requires @id
                 if (!node.has(ID_FIELD)) {
                     throw JsonMappingException.from(parser, "@projection requires @id field");
                 }
                 Object id = deserializeIdFromNode(node.get(ID_FIELD), ctxt);
                 JsonNode projectionNode = node.get(PROJECTION_FIELD);
                 Data projection = ctxt.readTreeAsValue(projectionNode, targetType);
-                return createLoadedRefWithId(targetClass, projection, id);
+                return createLoadedRefWithId(parser, targetClass, projection, id);
             } else {
-                throw JsonMappingException.from(parser,
-                        "Ref object must contain @entity or @projection field");
+                throw JsonMappingException.from(parser, "Ref object must contain @entity or @projection field");
             }
         }
 
@@ -283,7 +312,7 @@ public class StormModule extends SimpleModule {
             if (pkType != null) {
                 return ctxt.readTreeAsValue(node, pkType);
             }
-            // Fallback for unknown PK type
+            // Fallback for unknown PK type.
             if (node.isInt()) {
                 return node.intValue();
             } else if (node.isLong()) {
@@ -301,7 +330,7 @@ public class StormModule extends SimpleModule {
             if (pkType != null) {
                 return ctxt.readValue(parser, pkType);
             }
-            // Fallback for unknown PK type
+            // Fallback for unknown PK type.
             return switch (parser.currentToken()) {
                 case VALUE_NUMBER_INT -> {
                     long value = parser.getLongValue();
@@ -312,36 +341,49 @@ public class StormModule extends SimpleModule {
                 case VALUE_NUMBER_FLOAT -> parser.getDoubleValue();
                 case VALUE_STRING -> parser.getText();
                 default -> throw JsonMappingException.from(parser,
-                        "Cannot deserialize id from " + parser.currentToken());
+                        "Cannot deserialize id from %s.".formatted(parser.currentToken()));
             };
         }
 
-        @SuppressWarnings("rawtypes")
-        private Ref<?> createLoadedRef(Data entity) {
+        @SuppressWarnings({"rawtypes"})
+        private Ref<?> createLoadedRef(JsonParser parser, Data entity) throws JsonMappingException {
+            if (entity == null) {
+                return null;
+            }
             if (entity instanceof Entity<?> e) {
                 return Ref.of((Entity) e);
             }
-            return null;
+            throw JsonMappingException.from(parser, "@entity must deserialize to an Entity");
         }
 
         @SuppressWarnings({"rawtypes", "unchecked"})
-        private Ref<?> createLoadedRefWithId(Class<Data> targetClass, Data data, Object id) {
+        private Ref<?> createLoadedRefWithId(JsonParser parser, Class<Data> targetClass, Data data, Object id)
+                throws JsonMappingException {
+            if (data == null) {
+                return null;
+            }
             if (data instanceof Entity<?> e) {
                 return Ref.of((Entity) e);
-            } else if (data instanceof Projection<?> p) {
+            }
+            if (data instanceof Projection<?> p) {
                 return Ref.of((Projection) p, id);
-            } else {
+            }
+            if (id != null) {
                 return Ref.of(targetClass, id);
             }
+            // Should not happen for @projection, since @id is required.
+            throw JsonMappingException.from(parser, "@projection requires a non-null @id");
         }
 
         private <T extends Data> Ref<T> createRefFromId(Class<T> targetClass, Object id) {
+            if (id == null) {
+                return null;
+            }
             RefFactory refFactory = refFactorySupplier != null ? refFactorySupplier.get() : null;
             if (refFactory != null) {
                 return refFactory.create(targetClass, id);
-            } else {
-                return Ref.of(targetClass, id);
             }
+            return Ref.of(targetClass, id);
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 - 2025 the original author or authors.
+ * Copyright 2024 - 2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -357,7 +357,7 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
             var entityCache = entityCache();
             partitioned(toStream(entities), defaultBatchSize, entity -> {
                 if (isUpdate(entity)) {
-                    var dirty = getDirty(entity, entityCache);
+                    var dirty = getDirty(entity, entityCache.orElse(null));
                     if (dirty.isEmpty()) {
                         return NoOpKey.INSTANCE;
                     }
@@ -373,7 +373,8 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
                     case InsertKey ignore -> result.addAll(insertAndFetchIds(partition.chunk(), insertQuery.get()));
                     case UpsertKey ignore -> result.addAll(upsertAndFetchIds(partition.chunk(), upsertQuery.get()));
                     case UpdateKey u -> result.addAll(updateAndFetchIds(partition.chunk(),
-                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields()))));
+                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields())),
+                            entityCache.orElse(null)));
                 }
             });
             return result;
@@ -449,7 +450,7 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
             var entityCache = entityCache();
             partitioned(entities, batchSize, entity -> {
                 if (isUpdate(entity)) {
-                    var dirty = getDirty(entity, entityCache);
+                    var dirty = getDirty(entity, entityCache.orElse(null));
                     if (dirty.isEmpty()) {
                         return NoOpKey.INSTANCE;
                     }
@@ -465,7 +466,8 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
                     case InsertKey ignore -> insert(partition.chunk(), insertQuery.get());
                     case UpsertKey ignore -> upsert(partition.chunk(), upsertQuery.get());
                     case UpdateKey u -> update(partition.chunk(),
-                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields())));
+                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields())),
+                            entityCache.orElse(null));
                 }
             });
         } finally {
@@ -501,7 +503,7 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
         if (batch.isEmpty()) {
             return;
         }
-        batch.stream().map(this::validateUpsert).map(Data.class::cast).forEach(query::addBatch);
+        batch.stream().map(this::validateUpsert).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
             throw new PersistenceException("Batch upsert failed.");
@@ -512,7 +514,7 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
         if (batch.isEmpty()) {
             return List.of();
         }
-        batch.stream().map(this::validateUpsert).map(Data.class::cast).forEach(query::addBatch);
+        batch.stream().map(this::validateUpsert).forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
             throw new PersistenceException("Batch upsert failed.");

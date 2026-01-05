@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 - 2025 the original author or authors.
+ * Copyright 2024 - 2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -292,6 +292,9 @@ final class RecordValidation {
      */
     static void validateDataType(@Nonnull Class<? extends Data> dataType, boolean requirePrimaryKey)
             throws SqlTemplateException {
+        if (!Data.class.isAssignableFrom(dataType)) {
+            throw new IllegalArgumentException("Not a data type: %s".formatted(dataType.getSimpleName()));
+        }
         String message = VALIDATE_RECORD_TYPE_CACHE.computeIfAbsent(new TypeValidationKey(dataType, requirePrimaryKey), ignore -> {
             // Note that this result can be cached as we're inspecting types.
             return validate(dataType, requirePrimaryKey, new HashSet<>());

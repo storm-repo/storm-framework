@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 - 2025 the original author or authors.
+ * Copyright 2024 - 2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,8 +59,6 @@ public interface ORMReflection {
     <T> List<Class<? extends T>> getPermittedSubclasses(@Nonnull Class<T> sealedClass);
 
     boolean isDefaultMethod(@Nonnull Method method);
-
-    Object invoke(@Nonnull RecordType type, @Nonnull Object[] args);
 
     Object invoke(@Nonnull RecordField field, @Nonnull Object record);
 

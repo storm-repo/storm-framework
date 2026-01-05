@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 - 2025 the original author or authors.
+ * Copyright 2024 - 2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -126,13 +126,16 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
 
         @Override
         public EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType) {
-            EntityCache<? extends Entity<?>, ?> cache = caches.get(entityType);
-            if (cache != null) {
-                return cache;
-            }
-            EntityCache<Entity<Object>, Object> created = new EntityCacheImpl<>();
-            caches.put(entityType, created);
-            return created;
+            // We use computeIfAbsent so the "get or create" is a single operation.
+            //
+            // Why:
+            // - This TransactionContext is bound once per physical Spring transaction via TransactionSynchronizationManager.
+            //   That already gives correct cache scoping for REQUIRED and REQUIRES_NEW. We do not implement propagation
+            //   rules here.
+            // - This class intentionally does not try to clear or split caches for NESTED savepoints. Spring does not
+            //   expose reliable hooks here for "rolled back to savepoint", only for transaction completion.
+            // - computeIfAbsent avoids duplicate allocations and keeps the method simpler and harder to get wrong.
+            return caches.computeIfAbsent(entityType, k -> new EntityCacheImpl<>());
         }
 
         @Override
@@ -247,7 +250,7 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
         }
 
         void registerCleanupOnTxCompletion(Object key) {
-            // If we couldn't reflect the synchronization APIs, we can't auto-clean.
+            // If we could not reflect the synchronization APIs, we cannot auto-clean.
             if (registerSynchronization == null || unbindResourceIfPossible == null || transactionSynchronizationType == null) {
                 return;
             }
@@ -276,7 +279,7 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
                 );
                 registerSynchronization.invoke(null, sync);
             } catch (Throwable ignored) {
-                // Best effort cleanup registration; if this fails, we at least won't break tx execution.
+                // Best effort cleanup registration; if this fails, we at least will not break tx execution.
             }
         }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 - 2025 the original author or authors.
+ * Copyright 2024 - 2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -138,7 +138,7 @@ final class JoinProcessor implements ElementProcessor<Join> {
             @Nonnull SqlDialect dialect
     ) throws SqlTemplateException {
         fromAlias = fromAlias == null ? aliasMapper.getAlias(Metamodel.root(fromTable), INNER, dialect) : fromAlias;
-        toAlias = toAlias == null ? aliasMapper.getAlias(toTable, null, INNER, dialect,
+        toAlias = toAlias == null ? aliasMapper.getAlias(Metamodel.root(toTable), INNER, dialect,
                 () -> new SqlTemplateException("Table alias missing for: %s".formatted(toTable.getSimpleName()))) : toAlias;
         var fkColumns = getForeignKeys(left, foreignKeyResolver, columnNameResolver);
         var pkColumns = getPrimaryKeys(right, foreignKeyResolver, columnNameResolver);
