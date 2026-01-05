@@ -60,8 +60,6 @@ public interface ORMReflection {
 
     boolean isDefaultMethod(@Nonnull Method method);
 
-    Object invoke(@Nonnull RecordType type, @Nonnull Object[] args);
-
     Object invoke(@Nonnull RecordField field, @Nonnull Object record);
 
     Object execute(@Nonnull Object proxy, @Nonnull Method method, @Nonnull Object... args) throws Throwable;

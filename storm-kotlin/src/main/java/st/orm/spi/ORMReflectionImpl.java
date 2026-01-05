@@ -24,7 +24,6 @@ import kotlin.reflect.KClass;
 import kotlin.reflect.KFunction;
 import kotlin.reflect.KMutableProperty1;
 import kotlin.reflect.KParameter;
-import kotlin.reflect.KProperty;
 import kotlin.reflect.KProperty1;
 import kotlin.reflect.KType;
 import kotlin.reflect.KVisibility;
@@ -49,7 +48,6 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -353,11 +351,6 @@ public class ORMReflectionImpl implements ORMReflection {
         }
         Class<?> clazz = method.getDeclaringClass();
         return clazz.getDeclaredAnnotation(Metadata.class) != null;
-    }
-
-    @Override
-    public Object invoke(@Nonnull RecordType type, @Nonnull Object[] args) {
-        return defaultReflection.invoke(type, args);
     }
 
     @Override

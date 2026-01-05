@@ -47,6 +47,33 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
     private static final Map<Class<?>, Optional<RecordType>> TYPE_CACHE = new ConcurrentHashMap<>();
     private static final Map<Class<?>, Optional<RecordField>> PK_FIELD_CACHE = new ConcurrentHashMap<>();
     private static final Map<Class<?>, Optional<Constructor<?>>> CONSTRUCTOR_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Method, Accessor> ACCESSOR_CACHE = new ConcurrentHashMap<>();
+
+    private interface Accessor {
+        Object get(Object receiver) throws Throwable;
+    }
+
+    private static Accessor accessorFor(Method m) {
+        return ACCESSOR_CACHE.computeIfAbsent(m, method -> {
+            try {
+                Class<?> owner = method.getDeclaringClass();
+                MethodType mt = MethodType.methodType(method.getReturnType(), method.getParameterTypes());
+                MethodHandle mh = MethodHandles.publicLookup()
+                        .findVirtual(owner, method.getName(), mt);
+                return mh::invoke;
+            } catch (Throwable mhFailure) {
+                // Fallback to reflection (works in more module setups).
+                method.trySetAccessible(); // do once, not per call
+                return receiver -> {
+                    try {
+                        return method.invoke(receiver);
+                    } catch (InvocationTargetException e) {
+                        throw e.getTargetException();
+                    }
+                };
+            }
+        });
+    }
 
     @Override
     public Object getId(@Nonnull Data data) {
@@ -264,30 +291,9 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
     }
 
     @Override
-    public Object invoke(@Nonnull RecordType type, @Nonnull Object[] args) {
-        try {
-            try {
-                // Method is expected to be accessible.
-                return type.constructor().newInstance(args);
-            } catch (InvocationTargetException e) {
-                throw e.getTargetException();
-            }
-        } catch (PersistenceException e) {
-            throw e;
-        } catch (Throwable t) {
-            throw new PersistenceException(t);
-        }
-    }
-
-    @Override
     public Object invoke(@Nonnull RecordField field, @Nonnull Object record) {
         try {
-            try {
-                // Method is expected to be accessible.
-                return field.method().invoke(record);
-            } catch (InvocationTargetException e) {
-                throw e.getTargetException();
-            }
+            return accessorFor(field.method()).get(record);
         } catch (PersistenceException e) {
             throw e;
         } catch (Throwable t) {

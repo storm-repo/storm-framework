@@ -108,9 +108,9 @@ interface Column {
     val ref: Boolean
 
     /**
-     * Gets the meta model of the column.
+     * Gets the metamodel of the column.
      *
-     * @return the meta model of the column.
+     * @return the metamodel of the column.
      * @since 1.7
      */
     val metamodel: Metamodel<Data, *>
