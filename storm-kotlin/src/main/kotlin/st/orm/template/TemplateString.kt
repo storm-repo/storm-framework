@@ -24,24 +24,20 @@ sealed interface TemplateString {
         /**
          * Create a new template string from the given [TemplateBuilder].
          */
-        @JvmStatic
         fun raw(builder: TemplateBuilder): TemplateString = builder.build()
 
         /**
          * Create a new template string from the given [TemplateBuilder].
          */
-        @JvmStatic
         fun raw(str: String): TemplateString =
             TemplateStringHolder(st.orm.core.template.TemplateString.of(str))
 
         /**
          * Create a new template string from the given [TemplateBuilder].
          */
-        @JvmStatic
         fun wrap(value: Any?): TemplateString =
             TemplateStringHolder(st.orm.core.template.TemplateString.wrap(value))
 
-        @JvmStatic
         fun combine(vararg templates: TemplateString): TemplateString =
             TemplateStringHolder(st.orm.core.template.TemplateString.combine(*templates.map { it.unwrap }.toTypedArray()))
     }

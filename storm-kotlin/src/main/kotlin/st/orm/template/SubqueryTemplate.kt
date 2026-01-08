@@ -62,8 +62,8 @@ interface SubqueryTemplate {
      * @return the subquery builder.
      * @param <T> the table type to select from.
      */
-    fun <T : Data> subquery(fromType: KClass<T>, builder: TemplateBuilder): QueryBuilder<T, *, *> {
-        return subquery(fromType, builder.build())
+    fun <T : Data> subquery(fromType: KClass<T>, template: TemplateBuilder): QueryBuilder<T, *, *> {
+        return subquery(fromType, template.build())
     }
 
     /**
