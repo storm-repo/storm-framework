@@ -31,6 +31,7 @@ import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.TypedJoinBuilder;
 import st.orm.core.template.WhereBuilder;
+import st.orm.core.template.impl.Elements.Expression;
 import st.orm.core.template.impl.Elements.ObjectExpression;
 import st.orm.core.template.impl.Elements.TableSource;
 import st.orm.core.template.impl.Elements.TableTarget;
@@ -41,6 +42,7 @@ import st.orm.core.template.impl.Elements.Where;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -524,8 +526,22 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
             }
         }
 
+        private Object unwrap(@Nonnull TemplateString template) {
+            if (template.fragments().equals(List.of("", ""))) {
+                return template.values().getFirst();
+            }
+            return null;
+        }
+
         private QueryBuilder<TX, RX, IDX> build(List<TemplateString> templates) {
-            return queryBuilder.addWhere(new Where(new TemplateExpression(combine(templates)), null));
+            var template = combine(templates);
+            Where where;
+            if (unwrap(template) instanceof Expression expression) {
+                where = new Where(expression, null);
+            } else {
+                where = new Where(new TemplateExpression(template), null);
+            }
+            return queryBuilder.addWhere(where);
         }
     }
 
