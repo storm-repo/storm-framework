@@ -15,7 +15,6 @@
  */
 package st.orm.template
 
-import jakarta.annotation.Nonnull
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.stream.consumeAsFlow
 import st.orm.Data
@@ -326,7 +325,7 @@ interface Query {
      * @param <T> the type of the result.
      * @throws NonUniqueResultException if more than one result.
      */
-    private fun <T> optionalResult(@Nonnull stream: Stream<T>): T? {
+    private fun <T> optionalResult(stream: Stream<T>): T? {
         stream.use {
             return stream
                 .reduce { _, _ ->

@@ -54,11 +54,11 @@ interface PredicateBuilder<T : Data, R, ID> {
      * This method combines the specified predicate with existing predicates using an AND operation, ensuring
      * that all added conditions must be true.
      *
-     * @param builder the predicate builder to add.
+     * @param template the predicate builder to add.
      * @return the predicate builder.
      */
-    fun and(builder: TemplateBuilder) : PredicateBuilder<T, R, ID> {
-        return and(builder.build())
+    fun and(template: TemplateBuilder) : PredicateBuilder<T, R, ID> {
+        return and(template.build())
     }
 
     /**
@@ -102,11 +102,11 @@ interface PredicateBuilder<T : Data, R, ID> {
      * This method combines the specified predicate with existing predicates using an OR operation, ensuring
      * that all added conditions must be true.
      *
-     * @param builder the predicate builder to add.
+     * @param template the predicate builder to add.
      * @return the predicate builder.
      */
-    fun or(builder: TemplateBuilder) : PredicateBuilder<T, R, ID> {
-        return or(builder.build())
+    fun or(template: TemplateBuilder) : PredicateBuilder<T, R, ID> {
+        return or(template.build())
     }
 
     /**
