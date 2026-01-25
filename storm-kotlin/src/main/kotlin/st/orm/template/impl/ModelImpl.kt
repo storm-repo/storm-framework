@@ -21,22 +21,17 @@ import st.orm.template.Model
 import kotlin.reflect.KClass
 
 class ModelImpl<E : Data, ID : Any>(
-    internal val
-    core: st.orm.core.template.Model<E, ID>
+    internal val core: st.orm.core.template.Model<E, ID>,
+    override val columns: List<Column> = core.columns().map(::ColumnImpl),
+    override val declaredColumns: List<Column> = core.declaredColumns().map(::ColumnImpl)
 ) : Model<E, ID> {
 
     override val schema: String                             get() = core.schema()
     override val name: String                               get() = core.name()
     override val type: KClass<E>                            get() = core.type().kotlin
     override val primaryKeyType: KClass<ID>                 get() = core.primaryKeyType().kotlin
-    override val columns: List<Column>                      get() = core.columns().map(::ColumnImpl)
     override fun isDefaultPrimaryKey(pk: ID?): Boolean      = core.isDefaultPrimaryKey(pk)
-    override fun forEachValue(record: E, filter: (Column) -> Boolean, consumer: (Column, Any?) -> Unit) {
-        core.forEachValue(record, { c -> filter(ColumnImpl(c)) }) { c, v -> consumer(ColumnImpl(c), v) }
-    }
-    override fun values(record: E, filter: (Column) -> Boolean): Map<Column, Any?> {
-        val map = mutableMapOf<Column, Any?>()
-        core.forEachValue(record, { c -> filter(ColumnImpl(c)) }) { c, v -> map[ColumnImpl(c)] = v }
-        return map
+    override fun forEachValue(columns: List<Column>, record: E, consumer: (Column, Any?) -> Unit) {
+        core.forEachValue(columns.map { c -> (c as ColumnImpl).core }, record, { c, v -> consumer(ColumnImpl(c), v) })
     }
 }

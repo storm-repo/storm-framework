@@ -37,7 +37,7 @@ public record ColumnName(@Nonnull String name, boolean escape) implements Name {
      * @return the qualified name of the database object.
      */
     @Override
-    public String getQualifiedName(@Nonnull SqlDialect dialect) {
+    public String qualified(@Nonnull SqlDialect dialect) {
         return escape ? dialect.escape(name) : dialect.getSafeIdentifier(name);
     }
 }

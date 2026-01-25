@@ -60,7 +60,7 @@ import st.orm.core.template.SqlTemplate.PositionalParameter;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateBuilder;
 import st.orm.core.template.TemplateString;
-
+import st.orm.core.model.Wrapper;
 import javax.sql.DataSource;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.Instant;
@@ -605,7 +605,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWithWrapper() {
-        record Wrapper(Pet pet) implements Data {}
+        record Wrapper(Pet pet) {}
         var pets = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class, Wrapper.class)
                 .getResultList();
@@ -613,8 +613,18 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
+    public void testSelectWithLocalWrapperNullOwner() {
+        record LocalWrapper(Pet pet) {}
+        var wrapper = ORMTemplate.of(dataSource)
+                .selectFrom(Pet.class, LocalWrapper.class)
+                .where(Pet_.id, EQUALS, 13)
+                .getSingleResult();
+        assertEquals(13, wrapper.pet().id());
+        assertNull(wrapper.pet().owner());
+    }
+
+    @Test
     public void testSelectWithWrapperNullOwner() {
-        record Wrapper(Pet pet) implements Data {}
         var wrapper = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class, Wrapper.class)
                 .where(Pet_.id, EQUALS, 13)
@@ -799,17 +809,21 @@ public class RepositoryPreparedStatementIntegrationTest {
     }
 
     @Test
-    public void testSelectWithTwoPetsOneRefWithInvalidPathMetamodel() {
-        var e = assertThrows(PersistenceException.class, () -> {
-            var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().append("LIMIT 1").getSingleResult();
-            AtomicReference<Sql> sql = new AtomicReference<>();
-            observe(sql::setPlain, () -> {
-                ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class)
-                        .select()
-                        .where(it -> it.whereAny(PetOwnerRef_.owner, owner)).getResultList();
-            });
+    public void testSelectWithTwoPetsOneRefWithValidPathMetamodel() {
+        String expectedSql = """
+            SELECT vwtpor.id, vwtpor.visit_date, vwtpor.description, vwtpor.pet_id, por.name, por.birth_date, por.type_id, pt.name, por.owner_id, vwtpor.pet_id
+            FROM visit vwtpor
+            LEFT JOIN pet por ON vwtpor.pet_id = por.id
+            LEFT JOIN pet_type pt ON por.type_id = pt.id
+            WHERE por.owner_id = ?""";
+        var owner = ORMTemplate.of(dataSource).entity(Owner.class).select().append("LIMIT 1").getSingleResult();
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        observe(sql::setPlain, () -> {
+            ORMTemplate.of(dataSource).entity(VisitWithTwoPetsOneRef.class)
+                    .select()
+                    .where(it -> it.whereAny(PetOwnerRef_.owner, owner)).getResultList();
         });
-        assertInstanceOf(SqlTemplateException.class, e.getCause());
+        assertEquals(expectedSql, sql.getPlain().statement());
     }
 
     @Test
@@ -1156,8 +1170,15 @@ public class RepositoryPreparedStatementIntegrationTest {
                 .innerJoin(Visit.class).on(Pet.class)
                 .where(it -> it.whereAny(Visit.builder().id(1).build()))
                 .getResultList();
-        assertEquals(1, list.size());
-        assertEquals(7, list.getFirst().id());
+        var list2 = ORMTemplate.of(dataSource)
+                .entity(Pet.class)
+                .select()
+                .innerJoin(Visit.class).on(Pet.class)
+                .where(it -> it.whereAny(Visit.builder().id(1).build()))
+                .getResultList();
+
+        assertEquals(1, list2.size());
+        assertEquals(7, list2.getFirst().id());
     }
 
     @Test
@@ -1254,7 +1275,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     public void selectOwnerForUpdate() {
         // Note that H2 only supports FOR UPDATE.
         String expectedSql = """
-            SELECT o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version
+            SELECT o.id, o.first_name, o.last_name, o.address, o.city_id, c.name, o.telephone, o.version
             FROM owner o
             LEFT JOIN city c ON o.city_id = c.id
             WHERE o.id = ?
@@ -1375,7 +1396,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testWherePredicateSubqueryParameters() {
         String expectedSql = """
-            SELECT o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version
+            SELECT o.id, o.first_name, o.last_name, o.address, o.city_id, c.name, o.telephone, o.version
             FROM owner o
             LEFT JOIN city c ON o.city_id = c.id
             WHERE (o.id = ?) AND (EXISTS (
@@ -1405,7 +1426,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testWhereAppendQueryBuilderParameters() {
         String expectedSql = """
-            SELECT o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version
+            SELECT o.id, o.first_name, o.last_name, o.address, o.city_id, c.name, o.telephone, o.version
             FROM owner o
             LEFT JOIN city c ON o.city_id = c.id
             WHERE o.id = ?
@@ -1523,7 +1544,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testSelectCompoundFKDbColumns() {
         String expectedSql = """
-                SELECT vwdc.id, vwdc.visit_date, vwdc.description, p.id, p.name, p.birth_date, p.type_id, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version, vs.vet_id, vs.specialty_id, v.id, v.first_name, v.last_name, s.id, s.name, vwdc."timestamp"
+                SELECT vwdc.id, vwdc.visit_date, vwdc.description, vwdc.pet_id, p.name, p.birth_date, p.type_id, p.owner_id, o.first_name, o.last_name, o.address, o.city_id, c.name, o.telephone, o.version, vwdc.test1, vwdc.test2, vs.vet_id, v.first_name, v.last_name, vs.specialty_id, s.name, vwdc."timestamp"
                 FROM visit vwdc
                 INNER JOIN pet p ON vwdc.pet_id = p.id
                 LEFT JOIN owner o ON p.owner_id = o.id
@@ -1565,7 +1586,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testSelectCompoundFKNestedDbColumns() {
         String expectedSql = """
-                SELECT vwndc.id, vwndc.visit_date, vwndc.description, p.id, p.name, p.birth_date, p.type_id, o.id, o.first_name, o.last_name, o.address, c.id, c.name, o.telephone, o.version, vsdc.vet_id, vsdc.specialty_id, v.id, v.first_name, v.last_name, s.id, s.name, vwndc."timestamp"
+                SELECT vwndc.id, vwndc.visit_date, vwndc.description, vwndc.pet_id, p.name, p.birth_date, p.type_id, p.owner_id, o.first_name, o.last_name, o.address, o.city_id, c.name, o.telephone, o.version, vwndc.vet_id, vwndc.specialty_id, vsdc.test3, v.first_name, v.last_name, vsdc.test4, s.name, vwndc."timestamp"
                 FROM visit vwndc
                 INNER JOIN pet p ON vwndc.pet_id = p.id
                 LEFT JOIN owner o ON p.owner_id = o.id

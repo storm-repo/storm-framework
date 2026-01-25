@@ -17,18 +17,28 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.core.template.SqlTemplateException;
+import st.orm.core.template.impl.BindHint.NoBindHint;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * Represents the SQL result of processing a template element. The result can be either a SQL string or, generation
- * is deferred by means of a {@link SqlGenerator}.
+ * Represents the SQL result of processing a template element. The result can be either a SQL string or, compilation
+ * is deferred by means of a {@link SqlCompiler}.
  *
- * @param generator the SQL generator.
+ * @param compiler the SQL compiler.
  */
-record ElementResult(@Nonnull SqlGenerator generator) implements SqlGenerator {
-    ElementResult {
-        requireNonNull(generator, "generator");
+record CompiledElement(@Nonnull SqlCompiler compiler, @Nonnull BindHint bindHint) implements SqlCompiler {
+    CompiledElement {
+        requireNonNull(compiler, "compiler");
+    }
+
+    /**
+     * Creates a new instance with the pre-rendered SQL string.
+     *
+     * @param compiler the SQL compiler.
+     */
+    CompiledElement(@Nonnull SqlCompiler compiler) {
+        this(compiler, NoBindHint.INSTANCE);
     }
 
     /**
@@ -36,8 +46,17 @@ record ElementResult(@Nonnull SqlGenerator generator) implements SqlGenerator {
      *
      * @param sql the pre-rendered SQL string.
      */
-    ElementResult(@Nonnull String sql) {
-        this(() -> sql);
+    CompiledElement(@Nonnull String sql, @Nonnull BindHint bindHint) {
+        this(() -> sql, bindHint);
+    }
+
+    /**
+     * Creates a new instance with the pre-rendered SQL string.
+     *
+     * @param sql the pre-rendered SQL string.
+     */
+    CompiledElement(@Nonnull String sql) {
+        this(sql, NoBindHint.INSTANCE);
     }
 
     /**
@@ -48,6 +67,6 @@ record ElementResult(@Nonnull SqlGenerator generator) implements SqlGenerator {
      */
     @Override
     public String get() throws SqlTemplateException {
-        return generator.get();
+        return compiler.get();
     }
 }

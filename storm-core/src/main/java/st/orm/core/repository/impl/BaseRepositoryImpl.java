@@ -17,6 +17,7 @@ package st.orm.core.repository.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.Data;
+import st.orm.Metamodel;
 import st.orm.Ref;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
@@ -54,9 +55,9 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
     public BaseRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
         this.ormTemplate = requireNonNull(ormTemplate);
         this.model = requireNonNull(model);
-        this.compoundPrimaryKey = model.columns().stream()
-                .filter(Column::primaryKey)
-                .count() > 1; // Compound primary key if more than one column is a primary key.
+        this.compoundPrimaryKey = model.getPrimaryKeyMetamodel()
+                .filter(Metamodel::isInline)
+                .isPresent();
     }
 
     /**

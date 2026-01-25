@@ -377,13 +377,13 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return null;
     }
 
-    private boolean isForeignKey(@Nonnull Element recordElement, @Nonnull String fieldName) {
+    private boolean isDataType(@Nonnull Element recordElement, @Nonnull String fieldName) {
         if (recordElement.getKind() == RECORD) {
             var canonicalConstructor = findCanonicalConstructor(recordElement);
             if (canonicalConstructor != null) {
                 for (var param : canonicalConstructor.getParameters()) {
                     if (param.getSimpleName().toString().equals(fieldName)) {
-                        return hasForeignKeyAnnotation(param);
+                        return isDataType(param);
                     }
                 }
                 return false;
@@ -397,11 +397,28 @@ public final class MetamodelProcessor extends AbstractProcessor {
             var parameters = ((ExecutableElement) constructor).getParameters();
             for (var parameter : parameters) {
                 if (parameter.getSimpleName().toString().equals(fieldName)) {
-                    return hasForeignKeyAnnotation(parameter);
+                    return isDataType(parameter);
                 }
             }
         }
         return false;
+    }
+
+    private boolean isDataType(@Nonnull VariableElement parameter) {
+        // Only declared types can be "extends/implements Data"
+        var mirror = parameter.asType();
+        if (!(mirror instanceof DeclaredType declared)) {
+            return false;
+        }
+
+        var dataElement = processingEnv.getElementUtils().getTypeElement(DATA);
+        if (dataElement == null) {
+            // Data type not on the classpath
+            return false;
+        }
+
+        var dataType = dataElement.asType();
+        return processingEnv.getTypeUtils().isAssignable(declared, dataType);
     }
 
     @Nullable
@@ -436,13 +453,6 @@ public final class MetamodelProcessor extends AbstractProcessor {
             }
         }
         return null;
-    }
-
-    private boolean hasForeignKeyAnnotation(@Nonnull VariableElement parameter) {
-        return parameter.getAnnotationMirrors()
-                .stream()
-                .anyMatch(annotationMirror ->
-                        FOREIGN_KEY.equals(annotationMirror.getAnnotationType().toString()));
     }
 
     private static boolean hasAnnotationOrMeta(@Nonnull Element element, @Nonnull String annotationFqn) {
@@ -582,7 +592,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 if (nestedTypeEl != null) {
                     generateMetamodelArtifacts(nestedTypeEl);
                 }
-                boolean inline = !isForeignKey(recordElement, fieldName);
+                boolean inline = !isDataType(recordElement, fieldName);
                 String inlineFlag = inline ? "true" : "false";
                 String nestedGetter = " t -> " + accessorExpr(recordElement, "t", fieldName, fieldType);
                 builder.append("    /** Represents the ")
@@ -669,7 +679,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
             if (isRecord(fieldType) && !isRefType(fieldType)) {
                 if (isNestedRecord(fieldType)) continue;
 
-                boolean inline = !isForeignKey(recordElement, fieldName);
+                boolean inline = !isDataType(recordElement, fieldName);
                 builder.append("    /** Represents the ").append(inline ? "inline " : "")
                         .append("{@link ").append(recordName).append("#").append(fieldName).append("} ")
                         .append(inline ? "record." : "foreign key.").append(" */\n");
@@ -705,7 +715,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
             String fieldTypeName = getTypeName(fieldType, packageName);
             if (isRecord(fieldType) && !isRefType(fieldType)) {
                 if (isNestedRecord(fieldType)) continue;
-                boolean inline = !isForeignKey(recordElement, fieldName);
+
+                boolean inline = !isDataType(recordElement, fieldName);
                 String inlineFlag = inline ? "true" : "false";
                 // Null-safe nested getter: parent record (root getter) can be null.
                 String nestedGetter =

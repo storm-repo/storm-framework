@@ -19,127 +19,151 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
 import st.orm.Metamodel;
-import st.orm.mapping.ColumnNameResolver;
-import st.orm.mapping.ForeignKeyResolver;
-import st.orm.mapping.RecordField;
-import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.TableSource;
 import st.orm.core.template.impl.Elements.TableTarget;
 import st.orm.core.template.impl.Elements.TemplateSource;
 import st.orm.core.template.impl.Elements.TemplateTarget;
+import st.orm.mapping.RecordField;
 
 import static st.orm.ResolveScope.INNER;
+import static st.orm.core.template.impl.RecordReflection.findPkField;
 import static st.orm.core.template.impl.RecordReflection.findRecordField;
 import static st.orm.core.template.impl.RecordReflection.getFkFields;
 import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
-import static st.orm.core.template.impl.RecordReflection.findPkField;
 import static st.orm.core.template.impl.RecordReflection.getPrimaryKeys;
 import static st.orm.core.template.impl.RecordReflection.getTableName;
 import static st.orm.core.template.impl.RecordValidation.validateDataType;
 
 final class JoinProcessor implements ElementProcessor<Join> {
 
-    private final SqlTemplateProcessor templateProcessor;
-    private final SqlTemplate template;
-    private final SqlDialectTemplate dialectTemplate;
-    private final TableUse tableUse;
-    private final AliasMapper aliasMapper;
-
-    JoinProcessor(@Nonnull SqlTemplateProcessor templateProcessor) {
-        this.templateProcessor = templateProcessor;
-        this.template = templateProcessor.template();
-        this.dialectTemplate = templateProcessor.dialectTemplate();
-        this.tableUse = templateProcessor.tableUse();
-        this.aliasMapper = templateProcessor.aliasMapper();
+    /**
+     * Returns a key that represents the compiled shape of the given element.
+     *
+     * <p>The compilation key is used for caching compiled results. It must include all fields that can affect the
+     * compilation output (SQL text, emitted fragments, placeholder shape, etc.). The key is compared using
+     * value-based equality, so it should be immutable and implement stable {@code equals}/{@code hashCode}.</p>
+     *
+     * <p>If this method returns {@code null} for any element in a template, the compiled result is considered
+     * non-cacheable and the template must be recompiled each time it is requested.</p>
+     *
+     * @param join the element to compute a key for.
+     * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
+     */
+    @Override
+    public Object getCompilationKey(@Nonnull Join join) {
+        if (join.source() instanceof TemplateSource || join.target() instanceof TemplateTarget) {
+            return null;
+        }
+        return join;
     }
 
     /**
-     * Process a join element of a template.
+     * Compiles the given element into an {@link CompiledElement}.
      *
-     * @param join the join element to process.
-     * @return the result of processing the element.
-     * @throws SqlTemplateException if the template does not comply to the specification.
+     * <p>This method is responsible for producing the compile-time representation of the element. It must not perform
+     * runtime binding. Any binding should be deferred to {@link #bind(Join, TemplateBinder, BindHint)}.</p>
+     *
+     * @param join the element to compile.
+     * @param compiler the active compiler context.
+     * @return the compiled result for this element.
+     * @throws SqlTemplateException if compilation fails.
      */
     @Override
-    public ElementResult process(@Nonnull Join join) throws SqlTemplateException {
+    public CompiledElement compile(@Nonnull Join join, @Nonnull TemplateCompiler compiler)
+            throws SqlTemplateException{
         if (join.autoJoin() && join.source() instanceof TableSource(var table)) {
-            // Prune the join if the table is not referenced in the template, for instance, in case of a SelectMode.FLAT.
-            return new ElementResult(() -> tableUse.isReferenced(table, join.sourceAlias()) ? getJoinString(join) : "");
+            // Prune the join if the table is not referenced in the template, for instance, in case of a SelectMode.DECLARED.
+            return new CompiledElement(
+                    () -> compiler.isReferenced(table, join.sourceAlias()) ? compileJoin(join, compiler) : "");
         }
-        return new ElementResult(getJoinString(join));
+        return new CompiledElement(compileJoin(join, compiler));
     }
 
-    private String getJoinString(@Nonnull Join join) throws SqlTemplateException {
-        var dialect = template.dialect();
-        var columnNameResolver = template.columnNameResolver();
-        var foreignKeyResolver = template.foreignKeyResolver();
-        var tableNameResolver = template.tableNameResolver();
+    /**
+     * Performs post-processing after compilation, typically binding runtime values for the element.
+     *
+     * <p>This method is called after the element has been compiled. Typical responsibilities include binding
+     * parameters, registering bind variables, or applying runtime-only adjustments that must not affect the compiled
+     * SQL shape.</p>
+     *
+     * @param join the element that was compiled.
+     * @param binder the binder used to bind runtime values.
+     * @param bindHint the bind hint for the element, providing additional context for binding.
+     */
+    @Override
+    public void bind(@Nonnull Join join, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
+        if (join.target() instanceof TemplateTarget(var template)) {
+            binder.bind(template, true);
+        }
+        if (join.source() instanceof TemplateSource(var template)) {
+            binder.bind(template, false);
+        }
+    }
+
+    private String compileJoin(@Nonnull Join join, @Nonnull TemplateCompiler compiler)
+            throws SqlTemplateException {
         String joinType = join.type().sql();
         String onClause = join.type().hasOnClause() ? switch (join.target()) {
             case TableTarget(var toTable) when join.source() instanceof TableSource(var fromTable) ->
-                    buildJoinCondition(fromTable, join.sourceAlias(), toTable, join.targetAlias(),
-                            columnNameResolver, foreignKeyResolver, dialect);
-            case TemplateTarget ts -> templateProcessor.parse(ts.template(), true);
+                    compileJoinCondition(fromTable, join.sourceAlias(), toTable, join.targetAlias(), compiler);
+            case TemplateTarget ts -> compiler.compile(ts.template(), true);
             default -> throw new SqlTemplateException("Unsupported join target.");
         } : "";
+        final String clause = onClause.isEmpty() ? "" : " ON " + onClause;
         return switch (join.source()) {
             case TableSource ts -> {
-                var table = getTableName(ts.table(), tableNameResolver);
-                var alias = aliasMapper.useAlias(ts.table(), join.sourceAlias());
-                yield dialectTemplate.process("\n\0 \0 \0\0", joinType, table, alias, onClause.isEmpty() ? "" : " ON " + onClause);
+                var table = getTableName(ts.table(), compiler.template().tableNameResolver());
+                var alias = compiler.useAlias(ts.table(), join.sourceAlias());
+                yield compiler.dialectTemplate().process("\n\0 \0 \0\0", joinType, table, alias, clause);
             }
             case TemplateSource ts -> {
-                var source = templateProcessor.parse(ts.template(), false);
+                var source = compiler.compile(ts.template(), false);
                 var alias = join.sourceAlias();
-                yield dialectTemplate.process("\n\0 (\0) \0\0", joinType, source, alias, onClause.isEmpty() ? "" : " ON " + onClause);
+                yield compiler.dialectTemplate().process("\n\0 (\0) \0\0", joinType, source, alias, clause);
             }
         };
     }
 
-    private String buildJoinCondition(
+    private String compileJoinCondition(
             @Nonnull Class<? extends Data> fromTable,
             @Nonnull String alias,
             @Nonnull Class<? extends Data> toTable,
             @Nullable String toAlias,
-            @Nonnull ColumnNameResolver columnNameResolver,
-            @Nonnull ForeignKeyResolver foreignKeyResolver,
-            @Nonnull SqlDialect dialect
+            @Nonnull TemplateCompiler compiler
     ) throws SqlTemplateException {
         var rightComponent = findRecordField(getFkFields(toTable).toList(), fromTable);
         if (rightComponent.isPresent()) {
             validateDataType(fromTable, true);
             // Joins foreign key of right table to the primary key of left table.
-            return buildJoinCondition(fromTable, alias, toTable, toAlias, rightComponent.get(),
-                    findPkField(fromTable).orElseThrow(), columnNameResolver, foreignKeyResolver, dialect);
+            return compileJoinCondition(fromTable, alias, toTable, toAlias, rightComponent.get(),
+                    findPkField(fromTable).orElseThrow(), compiler);
         }
         var leftComponent = findRecordField(getFkFields(fromTable).toList(), toTable);
         if (leftComponent.isPresent()) {
             validateDataType(toTable, true);
             // Joins foreign key of left table to the primary key of right table.
-            return buildJoinCondition(toTable, toAlias, fromTable, alias, leftComponent.get(),
-                    findPkField(toTable).orElseThrow(), columnNameResolver, foreignKeyResolver, dialect);
+            return compileJoinCondition(toTable, toAlias, fromTable, alias, leftComponent.get(),
+                    findPkField(toTable).orElseThrow(), compiler);
         }
         throw new SqlTemplateException(
                 "Failed to join %s with %s. No matching foreign key found.".formatted(fromTable.getSimpleName(), toTable.getSimpleName()));
     }
 
     @SuppressWarnings("DuplicatedCode")
-    private String buildJoinCondition(
+    private String compileJoinCondition(
             @Nonnull Class<? extends Data> fromTable,
             @Nullable String fromAlias,
             @Nonnull Class<? extends Data> toTable,
             @Nullable String toAlias,
             @Nonnull RecordField left,
             @Nonnull RecordField right,
-            @Nonnull ColumnNameResolver columnNameResolver,
-            @Nonnull ForeignKeyResolver foreignKeyResolver,
-            @Nonnull SqlDialect dialect
+            @Nonnull TemplateCompiler compiler
     ) throws SqlTemplateException {
-        fromAlias = fromAlias == null ? aliasMapper.getAlias(Metamodel.root(fromTable), INNER, dialect) : fromAlias;
-        toAlias = toAlias == null ? aliasMapper.getAlias(Metamodel.root(toTable), INNER, dialect,
-                () -> new SqlTemplateException("Table alias missing for: %s".formatted(toTable.getSimpleName()))) : toAlias;
+        fromAlias = fromAlias == null ? compiler.getAlias(Metamodel.root(fromTable), INNER) : fromAlias;
+        toAlias = toAlias == null ? compiler.getAlias(Metamodel.root(toTable), INNER) : toAlias;
+        var foreignKeyResolver = compiler.template().foreignKeyResolver();
+        var columnNameResolver = compiler.template().columnNameResolver();
         var fkColumns = getForeignKeys(left, foreignKeyResolver, columnNameResolver);
         var pkColumns = getPrimaryKeys(right, foreignKeyResolver, columnNameResolver);
         if (fkColumns.size() != pkColumns.size()) {
@@ -150,7 +174,8 @@ final class JoinProcessor implements ElementProcessor<Join> {
             if (i > 0) {
                 joinCondition.append(" AND ");
             }
-            joinCondition.append(dialectTemplate.process("\0.\0 = \0.\0", toAlias, fkColumns.get(i), fromAlias, pkColumns.get(i)));
+            joinCondition.append(compiler.dialectTemplate()
+                    .process("\0.\0 = \0.\0", toAlias, fkColumns.get(i), fromAlias, pkColumns.get(i)));
         }
         return joinCondition.toString();
     }

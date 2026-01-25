@@ -105,7 +105,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
         var dialect = ormTemplate.dialect();
         var duplicates = new HashSet<>(); // Ensure each column appears only once.
         try {
-            var mapped = model.values(entity, column -> true);
+            var mapped = model.declaredValues(entity);
             return mapped.entrySet()
                     .stream()
                     .filter(entry -> duplicates.add(entry.getKey().name()))
@@ -135,13 +135,13 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
         bindVars.setRecordListener(record -> {
             try {
                 //noinspection unchecked
-                values.setPlain(model.values((E) record, column -> true));
+                values.setPlain(model.declaredValues((E) record));
             } catch (SqlTemplateException e) {
                 throw new PersistenceException("Failed to map entity to SQL parameters.", e);
             }
         });
         var duplicates = new HashSet<>();
-        return model.columns().stream()
+        return model.declaredColumns().stream()
                 .filter(column -> duplicates.add(column.name()))
                 .map(c -> combine(wrap(bindVar(bindVars, ignore -> values.getPlain().get(c))),
                         TemplateString.of(" AS %s".formatted(c.name()))))
@@ -158,7 +158,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
         try {
             List<TemplateString> valuesTemplates = new ArrayList<>();
             for (E entity : entities) {
-                var mapped = model.values(entity, column -> true);
+                var mapped = model.declaredValues(entity);
                 var duplicates = new HashSet<>(); // Ensure each column appears only once.
                 valuesTemplates.add(mapped.entrySet().stream()
                         .filter(entry -> duplicates.add(entry.getKey().name()))
@@ -192,7 +192,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
     private TemplateString mergeSource() {
         var dialect = ormTemplate.dialect();
         var duplicates = new HashSet<>(); // Ensure each column appears only once.
-        return model.columns().stream()
+        return model.declaredColumns().stream()
                 .filter(column -> duplicates.add(column.name()))
                 .map(entry -> TemplateString.of(entry.qualifiedName(dialect)))
                 .reduce((left, right) -> combine(left, TemplateString.of(", "), right))
@@ -204,7 +204,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     private TemplateString mergeOn() {
         var dialect = ormTemplate.dialect();
-        var primaryKeys = model.columns().stream()
+        var primaryKeys = model.declaredColumns().stream()
                 .filter(Column::primaryKey)
                 .toList();
         String sql = primaryKeys.stream()
@@ -219,7 +219,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
     private TemplateString mergeUpdate(@Nonnull AtomicBoolean versionAware) {
         var dialect = ormTemplate.dialect();
         var duplicates = new HashSet<>();
-        var args = model.columns().stream()
+        var args = model.declaredColumns().stream()
                 .filter(not(Column::primaryKey))
                 .filter(Column::updatable)
                 .filter(column -> duplicates.add(column.name()))
@@ -244,13 +244,13 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
     private TemplateString mergeInsert() {
         var dialect = ormTemplate.dialect();
         var insertDuplicates = new HashSet<>();
-        var insertArgs = model.columns().stream()
+        var insertArgs = model.declaredColumns().stream()
                 .filter(column -> !(column.generation() == IDENTITY || (column.generation() == SEQUENCE && column.sequence().isEmpty())))
                 .map(Column::name)
                 .filter(insertDuplicates::add)
                 .toList();
         var valuesDuplicates = new HashSet<>();
-        var valuesArgs = model.columns().stream()
+        var valuesArgs = model.declaredColumns().stream()
                 .filter(column -> valuesDuplicates.add(column.name()))
                 .map(column -> {
                     if (column.generation() == IDENTITY || (column.generation() == SEQUENCE && column.sequence().isEmpty())) {
@@ -352,7 +352,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
     private static final class UpsertKey implements PartitionKey {
         private static final UpsertKey INSTANCE = new UpsertKey();
     }
-    private record UpdateKey(@Nonnull Set<Metamodel<? extends Data, ?>> fields) implements PartitionKey {
+    private record UpdateKey(@Nonnull Set<Metamodel<?, ?>> fields) implements PartitionKey {
         UpdateKey() {
             this(Set.of()); // All fields.
         }
@@ -386,7 +386,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
             throw new PersistenceException("MSSQLServer does not support combining sequence-based ID generation with fetch mode. " +
                     "Use the column's DEFAULT constraint for sequence values instead.");
         }
-        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
+        Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         try {
             var result = new ArrayList<ID>();
             var entityCache = entityCache();
@@ -431,7 +431,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     private List<ID> upsertAndFetchIdsNoSequence(@Nonnull Iterable<E> entities) {
-        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
+        Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         LazySupplier<PreparedQuery> insertQuery = new LazySupplier<>(this::prepareInsertQuery);
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
@@ -491,7 +491,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void upsert(@Nonnull Stream<E> entities, int batchSize) {
-        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
+        Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         LazySupplier<PreparedQuery> insertQuery = new LazySupplier<>(this::prepareInsertQuery);
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {

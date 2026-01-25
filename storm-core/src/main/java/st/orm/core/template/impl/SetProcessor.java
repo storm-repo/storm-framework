@@ -19,7 +19,9 @@ import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Metamodel;
-import st.orm.core.template.SqlTemplate;
+import st.orm.core.template.Column;
+import st.orm.core.template.Model;
+import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Set;
 
@@ -31,51 +33,110 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.stream.Collectors.joining;
 
-/**
- * A processor for a set element of a template.
- */
 final class SetProcessor implements ElementProcessor<Set> {
+    record SetBindHint(@Nonnull List<Column> columns) implements BindHint {}
 
-    private final SqlTemplateProcessor templateProcessor;
-    private final SqlTemplate template;
-    private final SqlDialectTemplate dialectTemplate;
-    private final ModelBuilder modelBuilder;
-    private final PrimaryTable primaryTable;
-    private final AtomicBoolean versionAware;
+    private static final Data EMPTY_DATA = new Data() {};
 
-    SetProcessor(@Nonnull SqlTemplateProcessor templateProcessor) {
-        this.templateProcessor = templateProcessor;
-        this.template = templateProcessor.template();
-        this.dialectTemplate = templateProcessor.dialectTemplate();
-        this.modelBuilder = templateProcessor.modelBuilder();
-        this.primaryTable = templateProcessor.primaryTable();
-        this.versionAware = templateProcessor.versionAware();
+    /**
+     * Returns a key that represents the compiled shape of the given element.
+     *
+     * <p>The compilation key is used for caching compiled results. It must include all fields that can affect the
+     * compilation output (SQL text, emitted fragments, placeholder shape, etc.). The key is compared using
+     * value-based equality, so it should be immutable and implement stable {@code equals}/{@code hashCode}.</p>
+     *
+     * <p>If this method returns {@code null} for any element in a template, the compiled result is considered
+     * non-cacheable and the template must be recompiled each time it is requested.</p>
+     *
+     * @param set the element to compute a key for.
+     * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
+     */
+    @Override
+    public Object getCompilationKey(@Nonnull Set set) {
+        if (set.record() != null) {
+            return new Set(EMPTY_DATA, null, set.fields());
+        }
+        return new Set(null, null, set.fields());
     }
 
     /**
-     * Process a set element of a template.
+     * Compiles the given element into an {@link CompiledElement}.
      *
-     * @param set the set element to process.
-     * @return the result of processing the element.
-     * @throws SqlTemplateException if the template does not comply to the specification.
+     * <p>This method is responsible for producing the compile-time representation of the element. It must not perform
+     * runtime binding. Any binding should be deferred to {@link #bind(Set, TemplateBinder, BindHint)}.</p>
+     *
+     * @param set the element to compile.
+     * @param compiler the active compiler context.
+     * @return the compiled result for this element.
+     * @throws SqlTemplateException if compilation fails.
      */
     @Override
-    public ElementResult process(@Nonnull Set set) throws SqlTemplateException {
-        if (primaryTable == null) {
-            throw new SqlTemplateException("Primary table not found.");
-        }
+    public CompiledElement compile(@Nonnull Set set, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
         if (set.record() != null) {
-            return getRecordString(set.record(), set.fields());
+            return getRecordString(set.record(), set.fields(), compiler);
         }
         if (set.bindVars() != null) {
-            return getBindVarsString(set.bindVars(), set.fields());
+            return getBindVarsString(set.bindVars(), set.fields(), compiler);
         }
         throw new SqlTemplateException("No values found for Set.");
+    }
+
+    /**
+     * Performs post-processing after compilation, typically binding runtime values for the element.
+     *
+     * <p>This method is called after the element has been compiled. Typical responsibilities include binding
+     * parameters, registering bind variables, or applying runtime-only adjustments that must not affect the compiled
+     * SQL shape.</p>
+     *
+     * @param set the element that was compiled.
+     * @param binder the binder used to bind runtime values.
+     * @param bindHint the bind hint for the element, providing additional context for binding.
+     */
+    @Override
+    public void bind(@Nonnull Set set, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) throws SqlTemplateException {
+        if (bindHint instanceof SetBindHint(List<Column> columns)) {
+            if (set.record() != null) {
+                var queryModel = binder.getQueryModel();
+                var table = queryModel.getTable();
+                //noinspection unchecked
+                var model = (Model<Data, ?>) binder.getModel(table.type());
+                var mapped = model.values(columns, set.record());
+                for (var entry : mapped.entrySet()) {
+                    var column = entry.getKey();
+                    if (!column.version()) {
+                        binder.bindParameter(entry.getValue());
+                    }
+                }
+            }
+            if (set.bindVars() instanceof BindVarsImpl vars) {
+                var queryModel = binder.getQueryModel();
+                var table = queryModel.getTable();
+                //noinspection unchecked
+                var model = (Model<Data, ?>) binder.getModel(table.type());
+                var parameterFactory = binder.setBindVars(vars);
+                vars.addParameterExtractor(record -> {
+                    try {
+                        model.forEachValue(columns, record, (column, value) -> parameterFactory.bind(value));
+                        return parameterFactory.getParameters();
+                    } catch (SqlTemplateException ex) {
+                        throw new UncheckedSqlTemplateException(ex);
+                    }
+                });
+            }
+        } else {
+            throw new IllegalStateException("Unexpected bind hint: %s.".formatted(bindHint.getClass().getSimpleName()));
+        }
+    }
+
+    private List<Column> getColumns(@Nonnull Model<?, ?> model, @Nonnull Collection<Metamodel<?, ?>> fields) {
+        return model.declaredColumns().stream()
+                .filter(column -> !column.primaryKey() && column.updatable()
+                        && (fields.isEmpty() || fields.contains(column.metamodel())))
+                .toList();
     }
 
     /**
@@ -85,22 +146,26 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @return the SQL string for the specified record.
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
-    private ElementResult getRecordString(@Nonnull Data record, @Nonnull Collection<Metamodel<?, ?>> fields) throws SqlTemplateException {
-        if (!primaryTable.table().isInstance(record)) {
-            throw new SqlTemplateException("Record %s does not match entity %s.".formatted(record.getClass().getSimpleName(), primaryTable.table().getSimpleName()));
-        }
-        var model = modelBuilder.build(record, false);
-        var mapped = model.values(record, column -> !column.primaryKey() && column.updatable()
-                && (fields.isEmpty() || fields.contains(column.metamodel())));
+    private CompiledElement getRecordString(@Nonnull Data record, @Nonnull Collection<Metamodel<?, ?>> fields, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+        var queryModel = compiler.getQueryModel();
+        var table = queryModel.getTable();
+        //noinspection unchecked
+        var model = (Model<Data, ?>) compiler.getModel(table.type());
+        var columns = getColumns(model, fields);
+        var mapped = model.values(columns, record);
+        var dialect = compiler.dialect();
         List<String> args = new ArrayList<>();
         for (var entry : mapped.entrySet()) {
             var column = entry.getKey();
             if (!column.version()) {
-                args.add(dialectTemplate.process("\0\0 = \0", primaryTable.alias().isEmpty() ? "" : primaryTable.alias() + ".", column.qualifiedName(template.dialect()), templateProcessor.bindParameter(entry.getValue())));
+                args.add("%s%s = %s".formatted(table.alias().isEmpty()
+                        ? ""
+                        : compiler.dialect().getSafeIdentifier(table.alias()) + ".",
+                        column.qualifiedName(compiler.dialect()), compiler.mapParameter(entry.getValue())));
                 args.add(", ");
             } else {
-                var versionString = getVersionString(column.qualifiedName(template.dialect()), column.type(), primaryTable.alias());
-                versionAware.setPlain(true);
+                var versionString = getVersionString(column.qualifiedName(dialect), column.type(), table.alias(), compiler.dialect());
+                compiler.setVersionAware();
                 args.add(versionString);
                 args.add(", ");
             }
@@ -108,7 +173,8 @@ final class SetProcessor implements ElementProcessor<Set> {
         if (!args.isEmpty()) {
             args.removeLast();
         }
-        return new ElementResult(String.join("", args));
+        return new CompiledElement(String.join("", args),
+                new SetBindHint(columns.stream().filter(column -> !column.version()).toList()));
     }
 
     /**
@@ -118,39 +184,30 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @return the SQL string for the specified bindVars.
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
-    private ElementResult getBindVarsString(@Nonnull BindVars bindVars, @Nonnull Collection<Metamodel<?, ?>> fields) throws SqlTemplateException {
-        if (bindVars instanceof BindVarsImpl vars) {
+    private CompiledElement getBindVarsString(@Nonnull BindVars bindVars, @Nonnull Collection<Metamodel<?, ?>> fields, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+        if (bindVars instanceof BindVarsImpl) {
+            var queryModel = compiler.getQueryModel();
+            var table = queryModel.getTable();
+            //noinspection unchecked
+            var model = (Model<Data, ?>) compiler.getModel(table.type());
+            var columns = getColumns(model, fields);
             AtomicInteger bindVarsCount = new AtomicInteger();
-            var model = modelBuilder.build(primaryTable.table(), false);
-            String bindVarsString = model
-                    .columns().stream()
-                    .filter(column -> !column.primaryKey() && column.updatable()
-                            && (fields.isEmpty() || fields.contains(column.metamodel())))
+            String bindVarsString = columns.stream()
                     .map(column -> {
                         if (!column.version()) {
                             bindVarsCount.incrementAndGet();
                             return "%s%s = ?".formatted(
-                                    primaryTable.alias().isEmpty() ? "" : primaryTable.alias() + ".",
-                                    column.qualifiedName(template.dialect())
+                                    table.alias().isEmpty() ? "" : compiler.dialect().getSafeIdentifier(table.alias()) + ".",
+                                    column.qualifiedName(compiler.dialect())
                             );
                         }
-                        versionAware.setPlain(true);
-                        return getVersionString(column.qualifiedName(template.dialect()), column.type(), primaryTable.alias());
+                        compiler.setVersionAware();
+                        return getVersionString(column.qualifiedName(compiler.dialect()), column.type(), table.alias(), compiler.dialect());
                     })
                     .collect(joining(", "));
-            var parameterFactory = templateProcessor.setBindVars(vars, bindVarsCount.getPlain());
-            vars.addParameterExtractor(record -> {
-                try {
-                    modelBuilder.build(record, false)
-                            .forEachValue(record,
-                                    column -> !column.primaryKey() && column.updatable() && !column.version() && (fields.isEmpty() || fields.contains(column.metamodel())),
-                                    (column, value) -> parameterFactory.bind(value));
-                    return parameterFactory.getParameters();
-                } catch (SqlTemplateException ex) {
-                    throw new UncheckedSqlTemplateException(ex);
-                }
-            });
-            return new ElementResult(bindVarsString);
+            compiler.mapBindVars(bindVarsCount.getPlain());
+            return new CompiledElement(bindVarsString,
+                    new SetBindHint(columns.stream().filter(column -> !column.version()).toList()));
         }
         throw new SqlTemplateException("Unsupported BindVars type.");
     }
@@ -163,14 +220,15 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @param alias the alias of the table.
      * @return the version string for the version column.
      */
-    private static String getVersionString(@Nonnull String columnName, @Nonnull Class<?> type, @Nonnull String alias) {
+    private static String getVersionString(@Nonnull String columnName, @Nonnull Class<?> type, @Nonnull String alias, @Nonnull SqlDialect dialect) {
+        String a = alias.isEmpty() ? "" : dialect.getSafeIdentifier(alias) + ".";
         String value = switch (type) {
             case Class<?> c when
                     Integer.TYPE.isAssignableFrom(c)
                             || Long.TYPE.isAssignableFrom(c)
                             || Integer.class.isAssignableFrom(c)
                             || Long.class.isAssignableFrom(c)
-                            || BigInteger.class.isAssignableFrom(c) -> "%s%s + 1".formatted(alias.isEmpty() ? "" : alias + ".", columnName);
+                            || BigInteger.class.isAssignableFrom(c) -> "%s%s + 1".formatted(a, columnName);
             case Class<?> c when
                     Instant.class.isAssignableFrom(c)
                             || Date.class.isAssignableFrom(c)
@@ -178,6 +236,6 @@ final class SetProcessor implements ElementProcessor<Set> {
                             || Timestamp.class.isAssignableFrom(c) -> "CURRENT_TIMESTAMP";
             default -> columnName;
         };
-        return "%s%s = %s".formatted(alias.isEmpty() ? "" : alias + ".", columnName, value);
+        return "%s%s = %s".formatted(a, columnName, value);
     }
 }

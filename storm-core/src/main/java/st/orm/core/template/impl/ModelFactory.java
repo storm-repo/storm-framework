@@ -16,21 +16,23 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import st.orm.Data;
 import st.orm.DbColumn;
 import st.orm.FK;
 import st.orm.GenerationStrategy;
 import st.orm.Metamodel;
-import st.orm.Ref;
 import st.orm.PK;
 import st.orm.Persist;
 import st.orm.PersistenceException;
+import st.orm.Ref;
 import st.orm.Version;
-import st.orm.mapping.RecordField;
-import st.orm.mapping.RecordType;
+import st.orm.core.spi.Name;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplateException;
+import st.orm.mapping.RecordField;
+import st.orm.mapping.RecordType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,6 +41,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.Collections.nCopies;
 import static st.orm.core.spi.Providers.getORMConverter;
+import static st.orm.core.template.impl.RecordReflection.findPkField;
 import static st.orm.core.template.impl.RecordReflection.getColumnName;
 import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
 import static st.orm.core.template.impl.RecordReflection.getGenerationStrategy;
@@ -57,165 +60,253 @@ import static st.orm.core.template.impl.RecordValidation.validateDataType;
 final class ModelFactory {
     private static final ConcurrentHashMap<Class<?>, Model<?, ?>> MODEL_CACHE = new ConcurrentHashMap<>();
 
-    private ModelFactory () {
+    private ModelFactory() {
     }
 
-    /**
-     * Creates a new instance of the model for the given builder.
-     *
-     * @param builder the model builder.
-     * @return a new instance of the model.
-     * @param <T> the record type.
-     * @param <ID> the primary key type.
-     * @throws SqlTemplateException if an error occurs while creating the model.
-     */
-    static <T extends Data, ID> Model<T, ID> getModel(
-            @Nonnull ModelBuilderImpl builder,
-            @Nonnull Class<T> type,
-            boolean requirePrimaryKey) throws SqlTemplateException {
+    static <T extends Data, ID> Model<T, ID> getModel(@Nonnull ModelBuilderImpl builder, @Nonnull Class<T> type, boolean requirePrimaryKey) throws SqlTemplateException {
         try {
             validateDataType(type, requirePrimaryKey);
             //noinspection unchecked
             return (Model<T, ID>) MODEL_CACHE.computeIfAbsent(type, ignore -> {
                 try {
-                    RecordType recordType = getRecordType(type);
-                    AtomicInteger index = new AtomicInteger(1);
-                    AtomicInteger primaryKeyIndex = new AtomicInteger(1);
-                    List<Column> columns = new ArrayList<>();
-                    List<RecordField> fields = new ArrayList<>();
-                    RecordField pkField = null;
-                    Metamodel<T, ?> rootMetamodel = Metamodel.root(type);
-                    for (var field : recordType.fields()) {
-                        boolean primaryKey = field.isAnnotationPresent(PK.class);
-                        var list = createColumns(builder, rootMetamodel, field, primaryKey, getGenerationStrategy(field),
-                                getSequence(field), false, index, primaryKeyIndex);
-                        columns.addAll(list);
-                        fields.addAll(nCopies(list.size(), field));
-                        if (primaryKey) {
-                            pkField = field;
-                        }
-                    }
-                    var tableName = getTableName(type, builder.tableNameResolver());
-                    return new ModelImpl<>(
-                            recordType,
-                            pkField,
-                            tableName,
-                            columns,
-                            fields);
+                    return createModel(builder, type, requirePrimaryKey);
                 } catch (SqlTemplateException e) {
-                    throw new RuntimeException(e);
+                    throw new UncheckedSqlTemplateException(e);
                 }
             });
-        } catch (RuntimeException e) {
-            if (e.getCause() instanceof SqlTemplateException ex) {
-                throw ex;
-            } else {
-                throw e;
-            }
+        } catch (UncheckedSqlTemplateException e) {
+            throw e.getCause();
         }
     }
 
-    record KeyIndex(int position, int total) {}
-
-    /**
-     * Creates columns for a record component.
-     *
-     * @param builder the model builder.
-     * @param parentMetamodel the metamodel of the parent record.
-     * @param field the record field.
-     * @param primaryKey whether the column is a primary key.
-     * @param generation the generation strategy.
-     * @param sequence the sequence name.
-     * @param parentNullable whether the parent is nullable.
-     * @param index the column index.
-     * @return the columns for the record component.
-     */
-    private static List<Column> createColumns(@Nonnull ModelBuilder builder,
-                                              @Nonnull Metamodel<?, ?> parentMetamodel,
-                                              @Nonnull RecordField field,
-                                              boolean primaryKey,
-                                              @Nonnull GenerationStrategy generation,
-                                              @Nonnull String sequence,
-                                              boolean parentNullable,
-                                              @Nonnull AtomicInteger index,
-                                              @Nonnull AtomicInteger primaryKeyIndex) {
+    private static <T extends Data, ID> Model<T, ID> createModel(@Nonnull ModelBuilder builder, @Nonnull Class<T> type, boolean requirePrimaryKey) throws SqlTemplateException {
+        validateDataType(type, requirePrimaryKey);
+        RecordType recordType = getRecordType(type);
+        List<Column> columns = new ArrayList<>();
+        List<RecordField> fields = new ArrayList<>();
         try {
+            BuildContext ctx = new BuildContext(builder, columns, fields, Metamodel.root(type), new AtomicInteger(1));
+            for (var field : recordType.fields()) {
+                createColumns(ctx, ctx.rootMetamodel(), field, false, KeyScope.none(), PkContext.none(), null, false);
+            }
+            var tableName = getTableName(type, builder.tableNameResolver());
+            return new ModelImpl<>(recordType, tableName, fields, columns);
+        } catch (UncheckedSqlTemplateException e) {
+            throw e.getCause();
+        }
+    }
+
+    record BuildContext(ModelBuilder builder, List<Column> columns, List<RecordField> fields, Metamodel<?, ?> rootMetamodel, AtomicInteger index) {
+    }
+
+    record ColumnSpec(boolean primaryKey,
+                      boolean foreignKey,
+                      boolean nullable,
+                      boolean insertable,
+                      boolean updatable,
+                      boolean version,
+                      boolean ref,
+                      Class<?> dataType,
+                      GenerationStrategy generation,
+                      String sequence) {
+    }
+
+    record PkContext(boolean active, GenerationStrategy generation, String sequence) {
+        static final PkContext NONE = new PkContext(false, GenerationStrategy.NONE, "");
+        static PkContext none() {
+            return NONE;
+        }
+        static PkContext start(@Nonnull RecordField pkField) {
+            return new PkContext(true, getGenerationStrategy(pkField), getSequence(pkField));
+        }
+    }
+
+    private static void createColumns(@Nonnull BuildContext ctx,
+                                      @Nonnull Metamodel<?, ?> parentMetamodel,
+                                      @Nonnull RecordField field,
+                                      boolean parentNullable,
+                                      @Nonnull KeyScope inheritedKeyScope,
+                                      @Nonnull PkContext inheritedPkContext,
+                                      @Nullable Metamodel<Data, ?> keyMetamodel,
+                                      boolean expandingRelation) {
+        try {
+            boolean pkAnnotation = field.isAnnotationPresent(PK.class);
+            boolean fkAnnotation = field.isAnnotationPresent(FK.class);
+            if (expandingRelation && pkAnnotation) {
+                return;
+            }
+            PkContext pkContext = pkAnnotation ? PkContext.start(field) : inheritedPkContext;
+            boolean effectivePrimaryKey = pkAnnotation || pkContext.active();
+            KeyScope keyScope = inheritedKeyScope;
+            if (pkAnnotation || fkAnnotation) {
+                keyScope = KeyScope.start(true);
+            }
             @SuppressWarnings("unchecked")
-            var metamodel = (Metamodel<Data, ?>) Metamodel.of((Class<? extends Data>) parentMetamodel.root(),
-                    parentMetamodel.fieldPath().isEmpty() ? field.name() : parentMetamodel.fieldPath() + "." + field.name());
+            Metamodel<Data, ?> ownMetamodel = (Metamodel<Data, ?>) Metamodel.of(
+                    (Class<? extends Data>) parentMetamodel.root(),
+                    parentMetamodel.fieldPath().isEmpty() ? field.name() : parentMetamodel.fieldPath() + "." + field.name()
+            );
+            Metamodel<Data, ?> columnMetamodel = keyMetamodel != null ? keyMetamodel : ownMetamodel;
+            Metamodel<Data, ?> nextKeyMetamodel = keyMetamodel;
+            if (pkAnnotation && isRecord(field.type()) && !fkAnnotation) {
+                nextKeyMetamodel = ownMetamodel;
+                columnMetamodel = ownMetamodel;
+            }
             var converter = getORMConverter(field).orElse(null);
             if (converter != null) {
                 var columnTypes = converter.getParameterTypes();
-                var expected = converter.getParameterCount();
+                int expected = converter.getParameterCount();
                 if (columnTypes.size() != expected) {
                     throw new SqlTemplateException("Expected %s parameter types, but got %d.".formatted(expected, columnTypes.size()));
                 }
-                var columnNames = converter.getColumns(c -> RecordReflection.getColumnName(c, builder.columnNameResolver()));
+                var columnNames = converter.getColumns(c -> getColumnName(c, ctx.builder().columnNameResolver()));
                 if (columnTypes.size() != columnNames.size()) {
                     throw new SqlTemplateException("Column count does not match value count.");
                 }
-                var columns = new ArrayList<Column>(columnTypes.size());
-                for (int i = 0; i < columnTypes.size(); i++) {
-                    KeyIndex pk = primaryKey
-                            ? new KeyIndex(primaryKeyIndex.getAndIncrement(), columnTypes.size())
-                            : null;
-                    columns.add(new ColumnImpl(columnNames.get(i), index.getAndIncrement(), columnTypes.get(i),
-                            pk != null, GenerationStrategy.NONE, "",false, pk == null ? -1 : pk.position(),
-                            true, true, true, false, false, metamodel));
-                }
-                return columns;
+                ColumnSpec spec = buildSpec(field, effectivePrimaryKey, fkAnnotation, parentNullable, pkContext);
+                emitColumns(ctx, field, columnMetamodel, null, spec, keyScope, columnNames, columnTypes);
+                return;
             }
-            boolean foreignKey = field.isAnnotationPresent(FK.class);
-            if (isRecord(field.type()) && !foreignKey) {
-                if (!primaryKey) {
-                    if (field.isAnnotationPresent(DbColumn.class)) {
-                        // @Inline is implicitly assumed.
-                        throw new SqlTemplateException("DbColumn annotation is not allowed for @Inline records: %s.%s.".formatted(field.type().getSimpleName(), field.name()));
-                    }
+            if (isRecord(field.type()) && !fkAnnotation) {
+                if (!effectivePrimaryKey && field.isAnnotationPresent(DbColumn.class)) {
+                    throw new SqlTemplateException("DbColumn annotation is not allowed for @Inline records: %s.%s.".formatted(field.type().getSimpleName(), field.name()));
                 }
-                return getRecordType(field.type()).fields().stream()
-                        .flatMap(child -> createColumns(builder, metamodel, child, primaryKey, generation, sequence, field.nullable(), index, primaryKeyIndex).stream())
-                        .toList();
-            }
-            boolean nullable = parentNullable || field.nullable();
-            Persist persist = field.getAnnotation(Persist.class);
-            boolean version = field.isAnnotationPresent(Version.class);
-            // We always mark PK as insertable.
-            boolean insertable = primaryKey || persist == null || persist.insertable();
-            // We never mark PK as updatable.
-            boolean updatable = !primaryKey && (persist == null || persist.updatable());
-            boolean ref = Ref.class.isAssignableFrom(field.type());
-            var dataType = field.type();
-            if (ref) {
-                try {
-                    dataType = getRefDataType(field);
-                } catch (SqlTemplateException e) {
-                    throw new PersistenceException(e);
+                boolean nullable = parentNullable || field.nullable();
+                var nested = getRecordType(field.type());
+                for (var child : nested.fields()) {
+                    createColumns(ctx,
+                            ownMetamodel,
+                            child,
+                            nullable,
+                            effectivePrimaryKey ? keyScope : inheritedKeyScope,
+                            pkContext,
+                            nextKeyMetamodel,
+                            expandingRelation);
                 }
+                return;
             }
-            if (foreignKey) {
-                // In case of compound pks, all metamodels point to the foreign key object and not the underlying
-                // primary key fields, similar to singular primary key fields. This means that users of the metamodel
-                // that extract the field (foreign key object) must handle them appropriately.
-                List<ColumnName> columnNames = getForeignKeys(field, builder.foreignKeyResolver(), builder.columnNameResolver());
-                List<Column> columns = new ArrayList<>(columnNames.size());
-                for (int i = 0; i < columnNames.size(); i++) {
-                    var columnName = columnNames.get(i);
-                    KeyIndex key = new KeyIndex(i + 1, columnNames.size());
-                    //noinspection ConstantValue
-                    columns.add(new ColumnImpl(columnName, index.getAndIncrement(), dataType,
-                            primaryKey, generation, sequence, foreignKey, key == null ? -1 : key.position(),
-                            nullable, insertable, updatable, version, ref, metamodel));
+            ColumnSpec spec = buildSpec(field, effectivePrimaryKey, fkAnnotation, parentNullable, pkContext);
+            if (fkAnnotation) {
+                var fkNames = getForeignKeys(field, ctx.builder().foreignKeyResolver(), ctx.builder().columnNameResolver());
+                Metamodel<Data, ?> secondaryMetamodel = null;
+                if (!spec.ref()) {
+                    var pkField = findPkField(field.type()).orElseThrow(
+                            () -> new SqlTemplateException("No primary key found for type: %s".formatted(field.type().getSimpleName())));
+                    //noinspection unchecked
+                    secondaryMetamodel = (Metamodel<Data, ?>) Metamodel.of(
+                            (Class<? extends Data>) ownMetamodel.root(),
+                            ownMetamodel.fieldPath().isEmpty() ? field.name() : ownMetamodel.fieldPath() + "." + pkField.name());
                 }
-                return columns;
+                emitColumns(ctx, field, ownMetamodel, secondaryMetamodel, spec, keyScope, fkNames, nCopies(fkNames.size(), spec.dataType()));
+                if (!spec.ref()) {
+                    expandForeignRelation(ctx, ownMetamodel, field, spec.nullable());
+                }
+                return;
             }
-            ColumnName columnName = getColumnName(field, builder.columnNameResolver());
-            KeyIndex pk = primaryKey ? new KeyIndex(1, 1) : null;
-            return List.of(new ColumnImpl(columnName, index.getAndIncrement(), dataType,
-                    pk != null, generation, sequence, false, pk == null ? -1 : pk.position(),
-                    nullable, insertable, updatable, version, ref, metamodel));
+            ColumnName columnName = getColumnName(field, ctx.builder().columnNameResolver());
+            emitColumns(ctx, field, columnMetamodel, null, spec, keyScope, List.of(columnName), List.of(spec.dataType()));
         } catch (SqlTemplateException e) {
-            throw new PersistenceException(e);
+            throw new UncheckedSqlTemplateException(e);
+        }
+    }
+
+    private static void expandForeignRelation(@Nonnull BuildContext ctx,
+                                              @Nonnull Metamodel<Data, ?> foreignMetamodel,
+                                              @Nonnull RecordField foreignField,
+                                              boolean nullableDueToJoin) {
+        Class<?> t = foreignField.type();
+        if (!Data.class.isAssignableFrom(t)) {
+            return;
+        }
+        @SuppressWarnings("unchecked")
+        Class<? extends Data> targetType = (Class<? extends Data>) t;
+        RecordType targetRecordType = getRecordType(targetType);
+        for (var child : targetRecordType.fields()) {
+            createColumns(ctx, foreignMetamodel, child, nullableDueToJoin, KeyScope.none(), PkContext.none(), null, true);
+        }
+    }
+
+    private static ColumnSpec buildSpec(@Nonnull RecordField field,
+                                        boolean effectivePrimaryKey,
+                                        boolean foreignKey,
+                                        boolean parentNullable,
+                                        @Nonnull PkContext pkContext) throws SqlTemplateException {
+        boolean nullable = parentNullable || field.nullable();
+        Persist persist = field.getAnnotation(Persist.class);
+        boolean version = field.isAnnotationPresent(Version.class);
+        boolean insertable = effectivePrimaryKey || persist == null || persist.insertable();
+        boolean updatable = !effectivePrimaryKey && (persist == null || persist.updatable());
+        boolean ref = Ref.class.isAssignableFrom(field.type());
+        Class<?> dataType = field.type();
+        if (ref) {
+            dataType = getRefDataType(field);
+        }
+        GenerationStrategy generation = effectivePrimaryKey ? pkContext.generation() : GenerationStrategy.NONE;
+        String sequence = effectivePrimaryKey ? pkContext.sequence() : "";
+        return new ColumnSpec(effectivePrimaryKey, foreignKey, nullable, insertable, updatable, version, ref, dataType, generation, sequence);
+    }
+
+    private static void emitColumns(@Nonnull BuildContext ctx,
+                                    @Nonnull RecordField field,
+                                    @Nonnull Metamodel<Data, ?> metamodel,
+                                    @Nullable Metamodel<Data, ?> secondaryMetamodel,
+                                    @Nonnull ColumnSpec spec,
+                                    @Nonnull KeyScope keyScope,
+                                    @Nonnull List<? extends Name> names,
+                                    @Nonnull List<Class<?>> types) throws SqlTemplateException {
+        if (names.size() != types.size()) {
+            throw new SqlTemplateException("Column count does not match type count.");
+        }
+        for (int i = 0; i < names.size(); i++) {
+            int keyPos = keyScope.next();
+            ctx.columns().add(new ColumnImpl(
+                    names.get(i),
+                    ctx.index().getAndIncrement(),
+                    types.get(i),
+                    spec.primaryKey(),
+                    spec.generation(),
+                    spec.sequence(),
+                    spec.foreignKey(),
+                    keyPos,
+                    spec.nullable(),
+                    spec.insertable(),
+                    spec.updatable(),
+                    spec.version(),
+                    spec.ref(),
+                    metamodel,
+                    secondaryMetamodel
+            ));
+        }
+        ctx.fields().addAll(nCopies(names.size(), field));
+    }
+
+    private static final class KeyScope {
+        static final KeyScope NONE = new KeyScope(false, false);
+        final boolean active;
+        final boolean compound;
+        final AtomicInteger pos;
+
+        KeyScope(boolean active, boolean compound) {
+            this.active = active;
+            this.compound = compound;
+            this.pos = active ? new AtomicInteger(1) : null;
+        }
+
+        static KeyScope none() {
+            return NONE;
+        }
+
+        /**
+         * Creates a new scope.
+         *
+         * @param compound whether the key is compound.
+         */
+        static KeyScope start(boolean compound) {
+            return new KeyScope(true, compound);
+        }
+
+        int next() {
+            return !active ? -1 : pos.getAndIncrement();
         }
     }
 }

@@ -120,8 +120,8 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    default <T extends Data, R extends Data> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType,
-                                                                                  @Nonnull Class<R> selectType) {
+    default <T extends Data, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType,
+                                                                 @Nonnull Class<R> selectType) {
         return selectFrom(fromType, selectType, RAW."\{selectType}");
     }
 
@@ -136,8 +136,8 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @param <R> the result type.
      */
     <T extends Data, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType,
-                                                           @Nonnull Class<R> selectType,
-                                                           @Nonnull StringTemplate template);
+                                                         @Nonnull Class<R> selectType,
+                                                         @Nonnull StringTemplate template);
 
     /**
      * Creates a query builder for the specified table to delete from.

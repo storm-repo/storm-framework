@@ -89,7 +89,7 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
         var values = new ArrayList<String>();
         var duplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alone fields. Only include them once.
         // LAST_INSERT_ID() is used to get the last auto-generated primary key value in case no fields are updated.
-        model.columns().stream()
+        model.declaredColumns().stream()
                 .filter(Column::primaryKey)
                 .filter(column -> duplicates.add(column.name()))
                 .map(column -> {
@@ -100,7 +100,7 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
                     return "%s = VALUES(%s)".formatted(columnName, columnName);
                 })
                 .forEach(values::add);
-        model.columns().stream()
+        model.declaredColumns().stream()
                 .filter(not(Column::primaryKey))
                 .filter(Column::updatable)
                 .filter(column -> duplicates.add(column.name()))
@@ -256,7 +256,7 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
     public static final class UpsertKey implements PartitionKey {
         public static final UpsertKey INSTANCE = new UpsertKey();
     }
-    public record UpdateKey(@Nonnull Set<Metamodel<? extends Data, ?>> fields) implements PartitionKey {
+    public record UpdateKey(@Nonnull Set<Metamodel<?, ?>> fields) implements PartitionKey {
         public UpdateKey() {
             this(Set.of()); // All fields.
         }
@@ -279,7 +279,7 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
      *                              constraints violations, or invalid entity data.
      */
     private List<ID> upsertAndFetchIdsNoSequence(@Nonnull Iterable<E> entities) {
-        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
+        Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
             var result = new ArrayList<ID>();
@@ -368,7 +368,7 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void upsert(@Nonnull Stream<E> entities, int batchSize) {
-        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
+        Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
             var entityCache = entityCache();

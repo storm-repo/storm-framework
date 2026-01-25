@@ -16,183 +16,230 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
-import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
-import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Values;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
-/**
- * A processor for a values element of a template.
- */
 final class ValuesProcessor implements ElementProcessor<Values> {
+    record ValuesBindHint(@Nonnull List<Column> columns) implements BindHint {}
 
-    private final SqlTemplateProcessor templateProcessor;
-    private final SqlDialect dialect;
-    private final ModelBuilder modelBuilder;
-    private final PrimaryTable primaryTable;
+    private static final List<Data> EMPTY_DATA = List.of();
 
-    ValuesProcessor(@Nonnull SqlTemplateProcessor templateProcessor) {
-        this.templateProcessor = templateProcessor;
-        this.dialect = templateProcessor.template().dialect();
-        this.modelBuilder = templateProcessor.modelBuilder();
-        this.primaryTable = templateProcessor.primaryTable();
+    /**
+     * Returns a key that represents the compiled shape of the given element.
+     *
+     * <p>The compilation key is used for caching compiled results. It must include all fields that can affect the
+     * compilation output (SQL text, emitted fragments, placeholder shape, etc.). The key is compared using
+     * value-based equality, so it should be immutable and implement stable {@code equals}/{@code hashCode}.</p>
+     *
+     * <p>If this method returns {@code null} for any element in a template, the compiled result is considered
+     * non-cacheable and the template must be recompiled each time it is requested.</p>
+     *
+     * @param values the element to compute a key for.
+     * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
+     */
+    @Override
+    public Object getCompilationKey(@Nonnull Values values) {
+        if (values.records() != null) {
+            if (hasAtMostOneElement(values.records())) {
+                // Only cache when record-count is 1.
+                return new Values(EMPTY_DATA, null, values.ignoreAutoGenerate());
+            }
+            return null;
+        }
+        return new Values(null, null, values.ignoreAutoGenerate());
     }
 
     /**
-     * Process a values element of a template.
+     * Compiles the given element into an {@link CompiledElement}.
      *
-     * @param values the values element to process.
-     * @return the result of processing the element.
-     * @throws SqlTemplateException if the template does not comply to the specification.
+     * <p>This method is responsible for producing the compile-time representation of the element. It must not perform
+     * runtime binding. Any binding should be deferred to {@link #bind(Values, TemplateBinder, BindHint)}.</p>
+     *
+     * @param values the element to compile.
+     * @param compiler the active compiler context.
+     * @return the compiled result for this element.
+     * @throws SqlTemplateException if compilation fails.
      */
     @Override
-    public ElementResult process(@Nonnull Values values) throws SqlTemplateException {
-        if (primaryTable == null) {
-            throw new SqlTemplateException("Primary entity not found.");
-        }
+    public CompiledElement compile(@Nonnull Values values, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
         if (values.records() != null) {
-            return getRecordsString(values.records(), values.ignoreAutoGenerate());
+            return compileValues(values, compiler);
         }
         if (values.bindVars() != null) {
-            return getBindVarsString(values.bindVars(), values.ignoreAutoGenerate());
+            return compileBindVars(values, compiler);
         }
         throw new SqlTemplateException("No values found for Values.");
     }
 
     /**
-     * Returns the SQL string for the specified records.
+     * Performs post-processing after compilation, typically binding runtime values for the element.
      *
-     * @param records the records to process.
-     * @param ignoreAutoGenerate whether to ignore the auto-generated flag.
-     * @return the SQL string for the specified record.
-     * @throws SqlTemplateException if the template does not comply to the specification.
+     * <p>This method is called after the element has been compiled. Typical responsibilities include binding
+     * parameters, registering bind variables, or applying runtime-only adjustments that must not affect the compiled
+     * SQL shape.</p>
+     *
+     * @param values the element that was compiled.
+     * @param binder the binder used to bind runtime values.
+     * @param bindHint the bind hint for the element, providing additional context for binding.
      */
-    private ElementResult getRecordsString(@Nonnull Iterable<? extends Data> records, boolean ignoreAutoGenerate) throws SqlTemplateException {
-        var table = primaryTable.table();
+    @Override
+    public void bind(@Nonnull Values values, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) throws SqlTemplateException {
+        if (bindHint instanceof ValuesBindHint(List<Column> columns)) {
+            var queryModel = binder.getQueryModel();
+            var table = queryModel.getTable();
+            //noinspection unchecked
+            var model = (Model<Data, ?>) binder.getModel(table.type());
+            if (values.records() != null) {
+                values.records().forEach(record -> {
+                    try {
+                        model.forEachValue(columns, record, (column, value) -> {
+                            switch (column.generation()) {
+                                case NONE -> binder.bindParameter(value);
+                                case IDENTITY, SEQUENCE -> {
+                                    if (values.ignoreAutoGenerate()) {
+                                        binder.bindParameter(value);
+                                    }
+                                }
+                            }
+                        });
+                    } catch (SqlTemplateException e) {
+                        throw new UncheckedSqlTemplateException(e);
+                    }
+                });
+            }
+            if (values.bindVars() instanceof BindVarsImpl vars) {
+                var parameterFactory = binder.setBindVars(vars);
+                vars.addParameterExtractor(record -> {
+                    try {
+                        model.forEachValue(columns, record, (column, value) -> {
+                            switch (column.generation()) {
+                                case NONE -> parameterFactory.bind(value);
+                                case IDENTITY, SEQUENCE -> {
+                                    if (values.ignoreAutoGenerate()) {
+                                        parameterFactory.bind(value);
+                                    }
+                                }
+                            }
+                        });
+                        return parameterFactory.getParameters();
+                    } catch (SqlTemplateException ex) {
+                        throw new UncheckedSqlTemplateException(ex);
+                    }
+                });
+            }
+        } else {
+            throw new IllegalStateException("Unexpected bind hint: %s.".formatted(bindHint.getClass().getSimpleName()));
+        }
+    }
+
+    private static boolean hasAtMostOneElement(Iterable<?> iterable) {
+        Iterator<?> it = iterable.iterator();
+        if (!it.hasNext()) {
+            return true; // 0.
+        }
+        it.next();
+        return !it.hasNext(); // True if exactly 1.
+    }
+
+    private CompiledElement compileValues(@Nonnull Values values, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+        assert values.records() != null;
+        var queryModel = compiler.getQueryModel();
+        var table = queryModel.getTable();
+        //noinspection unchecked
+        var model = (Model<Data, ?>) compiler.getModel(table.type());
+        var columns = model.declaredColumns().stream()
+                .filter(Column::insertable)
+                .toList();
         List<String> args = new ArrayList<>();
-        for (var record : records) {
+        for (var record : values.records()) {
             if (record == null) {
                 throw new SqlTemplateException("Record is null.");
             }
-            if (!table.isInstance(record)) {
-                throw new SqlTemplateException("Record %s does not match entity %s.".formatted(record.getClass().getSimpleName(), table.getSimpleName()));
-            }
-            var mapped = modelBuilder.build(record, false)
-                    .values(record, Column::insertable);
-            if (mapped.isEmpty()) {
-                throw new SqlTemplateException("No values found for Insert.");
+            if (!table.type().isInstance(record)) {
+                throw new SqlTemplateException("Record %s does not match entity %s.".formatted(record.getClass().getSimpleName(), table.type().getSimpleName()));
             }
             List<String> placeholders = new ArrayList<>();
-            for (var entry : mapped.entrySet()) {
-                switch (entry.getKey().generation()) {
-                    case NONE -> placeholders.add(templateProcessor.bindParameter(entry.getValue()));
+            model.forEachValue(columns, record, (column, value) -> {
+                switch (column.generation()) {
+                    case NONE -> placeholders.add(compiler.mapParameter(value));
                     case IDENTITY -> {
-                        if (ignoreAutoGenerate) {
-                            placeholders.add(templateProcessor.bindParameter(entry.getValue()));
+                        if (values.ignoreAutoGenerate()) {
+                            placeholders.add(compiler.mapParameter(value));
                         }
                     }
                     case SEQUENCE -> {
-                        if (ignoreAutoGenerate) {
-                            placeholders.add(templateProcessor.bindParameter(entry.getValue()));
+                        if (values.ignoreAutoGenerate()) {
+                            placeholders.add(compiler.mapParameter(value));
                         } else {
-                            String sequenceName = entry.getKey().sequence();
+                            String sequenceName = column.sequence();
                             if (!sequenceName.isEmpty()) {
                                 // Do NOT bind a value; emit sequence retrieval instead.
-                                placeholders.add(dialect.sequenceNextVal(sequenceName));
+                                placeholders.add(compiler.dialect().sequenceNextVal(sequenceName));
                             }
                         }
                     }
                 }
-            }
+            });
             args.add("(%s)".formatted(String.join(", ", placeholders)));
             args.add(", ");
         }
         if (!args.isEmpty()) {
             args.removeLast();
         }
-        return new ElementResult(String.join("", args));
+        return new CompiledElement(String.join("", args), new ValuesBindHint(columns));
     }
 
-    /**
-     * Returns the SQL string for the specified bindVars.
-     *
-     * @param bindVars the bindVars to process.
-     * @param ignoreAutoGenerate whether to ignore the auto-generated flag.
-     * @return the SQL string for the specified bindVars.
-     * @throws SqlTemplateException if the template does not comply to the specification.
-     */
-    private ElementResult getBindVarsString(@Nonnull BindVars bindVars, boolean ignoreAutoGenerate) throws SqlTemplateException {
-        if (bindVars instanceof BindVarsImpl vars) {
-            @SuppressWarnings("unchecked")
-            var model = (Model<Data, ?>) modelBuilder.build(primaryTable.table(), false);
-            var bindsVarCount = (int) model.columns().stream()
+    private CompiledElement compileBindVars(@Nonnull Values values, @Nonnull TemplateCompiler compiler)
+            throws SqlTemplateException {
+        assert values.bindVars() != null;
+        if (values.bindVars() instanceof BindVarsImpl) {
+            var queryModel = compiler.getQueryModel();
+            var table = queryModel.getTable();
+            //noinspection unchecked
+            var model = (Model<Data, ?>) compiler.getModel(table.type());
+            var columns = model.declaredColumns().stream()
+                    .filter(Column::insertable)
+                    .toList();
+            var bindsVarCount = (int) model.declaredColumns().stream()
                     .filter(Column::insertable)
                     .filter(column -> switch (column.generation()) {
                         case NONE -> true;
-                        case IDENTITY -> ignoreAutoGenerate;
-                        case SEQUENCE -> ignoreAutoGenerate;
+                        case IDENTITY, SEQUENCE -> values.ignoreAutoGenerate();
                     })
                     .count();
-            var parameterFactory = templateProcessor.setBindVars(vars, bindsVarCount);
-            vars.addParameterExtractor(record -> {
-                try {
-                    model.forEachValue(record, Column::insertable, (column, value) -> {
-                        switch (column.generation()) {
-                            case NONE -> {
-                                parameterFactory.bind(value);
-                            }
-                            case IDENTITY -> {
-                                if (ignoreAutoGenerate) {
-                                    parameterFactory.bind(value);
-                                }
-                            }
-                            case SEQUENCE -> {
-                                if (ignoreAutoGenerate) {
-                                    parameterFactory.bind(value);
-                                }
-                                // Do nothing.
-                            }
-                        }
-                    });
-                    return parameterFactory.getParameters();
-                } catch (SqlTemplateException ex) {
-                    throw new UncheckedSqlTemplateException(ex);
-                }
-            });
             StringBuilder bindVarsString = new StringBuilder();
-            for (var column : model.columns()) {
-                if (!column.insertable()) {
-                    continue;
-                }
+            for (var column : columns) {
                 switch (column.generation()) {
                     case NONE -> bindVarsString.append("?, ");
                     case IDENTITY -> {
-                        if (ignoreAutoGenerate) {
+                        if (values.ignoreAutoGenerate()) {
                             bindVarsString.append("?, ");
                         }
                     }
                     case SEQUENCE -> {
-                        if (ignoreAutoGenerate) {
+                        if (values.ignoreAutoGenerate()) {
                             bindVarsString.append("?, ");
                         } else {
                             String sequenceName = column.sequence();
                             if (!sequenceName.isEmpty()) {
-                                bindVarsString.append(dialect.sequenceNextVal(sequenceName)).append(", ");
+                                bindVarsString.append(compiler.dialect().sequenceNextVal(sequenceName)).append(", ");
                             }
                         }
                     }
                 }
             }
+            compiler.mapBindVars(bindsVarCount);
             if (!bindVarsString.isEmpty()) {
                 bindVarsString.delete(bindVarsString.length() - ", ".length(), bindVarsString.length());
             }
-            return new ElementResult("(%s)".formatted(bindVarsString));
+            return new CompiledElement("(%s)".formatted(bindVarsString), new ValuesBindHint(columns));
         }
         throw new SqlTemplateException("Unsupported BindVars type.");
     }

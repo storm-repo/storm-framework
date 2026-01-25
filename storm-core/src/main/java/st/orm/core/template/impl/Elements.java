@@ -17,14 +17,14 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Element;
-import st.orm.ResolveScope;
-import st.orm.BindVars;
-import st.orm.core.template.TemplateString;
 import st.orm.Metamodel;
 import st.orm.Operator;
+import st.orm.ResolveScope;
 import st.orm.SelectMode;
+import st.orm.core.template.TemplateString;
 
 import java.util.Collection;
 import java.util.function.Function;

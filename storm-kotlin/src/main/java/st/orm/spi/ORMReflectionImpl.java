@@ -120,8 +120,8 @@ public class ORMReflectionImpl implements ORMReflection {
                                 .collect(Collectors.toMap(
                                         KCallable::getName,
                                         p -> {
-                                            KVisibility v = p.getVisibility();   // may be null
-                                            return v != null ? v : KVisibility.PRIVATE; // or keep null via Optional
+                                            KVisibility v = p.getVisibility();   // May be null.
+                                            return v != null ? v : KVisibility.PRIVATE; // Or keep null via Optional.
                                         },
                                         (a, b) -> a
                                 ));
@@ -204,8 +204,8 @@ public class ORMReflectionImpl implements ORMReflection {
         return new RecordField(
                 declaringClass,
                 name,
-                rawType,                     // raw type, like List.class.
-                genericType,                 // full generic type, like List<String>.
+                rawType,                     // Raw type, like List.class.
+                genericType,                 // Full generic type, like List<String>.
                 parameter.getType().isMarkedNullable(),
                 isMutableProperty(declaringClass, name),
                 accessor,

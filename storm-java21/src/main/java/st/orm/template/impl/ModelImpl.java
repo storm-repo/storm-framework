@@ -19,43 +19,32 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
 import st.orm.core.template.SqlTemplateException;
-import st.orm.core.template.impl.TableName;
 import st.orm.template.Column;
 import st.orm.template.Model;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.BiConsumer;
-import java.util.function.Predicate;
-
-import static java.util.List.copyOf;
 
 /**
  * Represents the model of an entity.
  */
-public record ModelImpl<E extends Data, ID>(
-        @Nonnull st.orm.core.template.impl.ModelImpl<E, ID> core,
-        @Nonnull TableName tableName,
-        @Nonnull Class<E> type,
-        @Nonnull Class<ID> primaryKeyType,
-        @Nonnull List<Column> columns) implements Model<E, ID> {
+public class ModelImpl<E extends Data, ID> implements Model<E, ID> {
 
-    public ModelImpl {
-        columns = copyOf(columns); // Defensive copy.
-    }
+    private final st.orm.core.template.impl.ModelImpl<E, ID> core;
+    private final List<Column> columns;
+    private final List<Column> declaredColumns;
+    
+    public ModelImpl(st.orm.core.template.impl.ModelImpl<E, ID> core) {
+        this.core = core;
+        this.columns = core.columns().stream()
+                .map(ColumnImpl::new)
+                .map(Column.class::cast)
+                .toList();
+        this.declaredColumns = core.declaredColumns().stream()
+                .map(ColumnImpl::new)
+                .map(Column.class::cast)
+                .toList();
 
-    public ModelImpl(@Nonnull st.orm.core.template.impl.ModelImpl<E, ID> model) {
-        this(
-                model,
-                model.tableName(),
-                model.type(),
-                model.primaryKeyType(),
-                model.columns().stream()
-                        .map(ColumnImpl::new)
-                        .map(Column.class::cast)
-                        .toList()
-        );
     }
 
     /**
@@ -65,7 +54,7 @@ public record ModelImpl<E extends Data, ID>(
      */
     @Override
     public String schema() {
-        return tableName.schema();
+        return core.schema();
     }
 
     /**
@@ -75,7 +64,7 @@ public record ModelImpl<E extends Data, ID>(
      */
     @Override
     public String name() {
-        return tableName.name();
+        return core.name();
     }
 
     /**
@@ -94,48 +83,76 @@ public record ModelImpl<E extends Data, ID>(
     }
 
     /**
-     * Extracts values from the given record and passes them to the provided consumer.
+     * Returns the type of the entity or projection.
      *
-     * <p>This method iterates over all columns mapped by the entity or projection and invokes the consumer once per
-     * column with the corresponding extracted value.</p>
-     *
-     * <p>The consumer is invoked in a stable order that matches the column order of the underlying model.</p>
-     *
-     * <p>The extracted value may be {@code null} if the corresponding field value is {@code null}.</p>
-     *
-     * <p>This method does not allocate intermediate collections and does not mutate the record. It is intended for
-     * efficient value extraction and binding, for example, when preparing SQL statements.</p>
-     *
-     * @param record the record to extract values from
-     * @param consumer receives each column together with its extracted value
-     * @since 1.7
+     * @return the type of the entity or projection.
      */
     @Override
-    public void forEachValue(@Nonnull E record, @Nonnull Predicate<Column> filter, @Nonnull BiConsumer<Column, Object> consumer) throws SqlTemplateException {
-        core.forEachValue(record,
-                column -> filter.test(new ColumnImpl(column)),
-                (column, value) -> consumer.accept(new ColumnImpl(column), value));
+    public Class<E> type() {
+        return core.type();
     }
 
     /**
-     * Collects extracted values into a map, optionally filtering which columns to include.
+     * Returns the type of the primary key.
      *
-     * <p>The returned map preserves iteration order. Its iteration order matches the model's stable column order.</p>
+     * @return the type of the primary key.
+     */
+    @Override
+    public Class<ID> primaryKeyType() {
+        return core.primaryKeyType();
+    }
+
+    /**
+     * Returns all columns of this model, including columns of expanded relationships.
      *
-     * <p>Values are the same JDBC-ready values as produced by {@link #forEachValue(Data, BiConsumer)}.</p>
+     * <p>The returned list is deterministic and stable. Declared columns are processed in declaration order.
+     * Foreign relationships are expanded depth-first at the position of the foreign-key column.</p>
      *
-     * @param record the record (entity or projection instance) to extract values from.
-     * @param filter predicate that decides whether a column should be included.
-     * @return a {@link Map} containing columns and their extracted (JDBC-ready) values in the order of the model.
-     * @throws SqlTemplateException if an error occurs during value extraction.
+     * <p>Expanded columns always correspond to physical columns of the parent record. Join keys come from the
+     * parent row, not the referenced row.</p>
+     *
+     * @return all columns of this model, including expanded relations.
      * @since 1.7
      */
     @Override
-    public Map<Column, Object> values(@Nonnull E record, @Nonnull Predicate<Column> filter) throws SqlTemplateException {
-        Map<Column, Object> map = new LinkedHashMap<>();
-        core.forEachValue(record,
-                column -> filter.test(new ColumnImpl(column)),
-                (column, value) -> map.put(new ColumnImpl(column), value));
-        return map;
+    public List<Column> columns() {
+        return columns;
+    }
+
+    /**
+     * Returns the columns declared directly on this model.
+     *
+     * <p>Relationship expansion is not applied. The returned list preserves declared order.</p>
+     *
+     * <p><strong>Index semantics:</strong> {@link st.orm.core.template.Column#index()} refers to the index in {@link #columns()},
+     * not in this list.</p>
+     *
+     * @return the declared columns of this model.
+     * @since 1.8
+     */
+    @Override
+    public List<Column> declaredColumns() {
+        return declaredColumns;
+    }
+
+    /**
+     * Iterates over the values of the given columns for the supplied record.
+     *
+     * <p>Values are JDBC-ready. Conversions have already been applied.</p>
+     *
+     * <p><strong>Ordering requirement:</strong> {@code columns} must be ordered according to the model's
+     * column order (usually {@link #columns()} or {@link #declaredColumns()}).</p>
+     *
+     * @param columns the columns to extract values for, ordered in model column order.
+     * @param record the record to extract values from.
+     * @param consumer receives each column and its extracted value.
+     * @throws SqlTemplateException if extraction fails.
+     * @since 1.8
+     */
+    @Override
+    public void forEachValue(@Nonnull List<Column> columns, @Nonnull E record, @Nonnull BiConsumer<Column, Object> consumer) throws SqlTemplateException {
+        core.forEachValue(columns.stream().map(it -> ((ColumnImpl) it).core()).toList(),
+                record,
+                (column, value) -> consumer.accept(new ColumnImpl(column), value));
     }
 }

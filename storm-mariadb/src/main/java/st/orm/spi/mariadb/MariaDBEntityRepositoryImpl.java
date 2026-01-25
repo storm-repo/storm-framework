@@ -112,7 +112,7 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
         if (generationStrategy != SEQUENCE) {
             return super.upsertAndFetchIds(entities);
         }
-        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
+        Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         try {
             var result = new ArrayList<ID>();
             var entityCache = entityCache();

@@ -88,6 +88,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     private final Predicate<Provider> providerFilter;
     private final RefFactory refFactory;
     private final TransactionTemplate transactionTemplate;
+    private final SqlTemplate sqlTemplate;
 
     public PreparedStatementTemplateImpl(@Nonnull DataSource dataSource) {
         validate();
@@ -138,6 +139,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         this.tableAliasResolver = TableAliasResolver.DEFAULT;
         this.providerFilter = null;
         this.refFactory = new RefFactoryImpl(this, modelBuilder, providerFilter);
+        this.sqlTemplate = createSqlTemplate();
     }
 
     public PreparedStatementTemplateImpl(@Nonnull Connection connection) {
@@ -180,6 +182,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         this.tableAliasResolver = TableAliasResolver.DEFAULT;
         this.providerFilter = null;
         this.refFactory = new RefFactoryImpl(this, modelBuilder, providerFilter);
+        this.sqlTemplate = createSqlTemplate();
     }
 
     private PreparedStatementTemplateImpl(@Nonnull TemplateProcessor templateProcessor,
@@ -193,6 +196,19 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         this.providerFilter = providerFilter;
         this.refFactory = new RefFactoryImpl(this, modelBuilder, providerFilter);
         this.transactionTemplate = transactionTemplate;
+        this.sqlTemplate = createSqlTemplate();
+    }
+
+    private SqlTemplate createSqlTemplate() {
+        SqlTemplate template = PS
+                .withTableNameResolver(modelBuilder.tableNameResolver())
+                .withColumnNameResolver(modelBuilder.columnNameResolver())
+                .withForeignKeyResolver(modelBuilder.foreignKeyResolver())
+                .withTableAliasResolver(tableAliasResolver);
+        if (providerFilter != null) {
+            template = template.withDialect(Providers.getSqlDialect(providerFilter));
+        }
+        return template;
     }
 
     /**
@@ -351,15 +367,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public SqlTemplate sqlTemplate() {
-        SqlTemplate template = PS
-                .withTableNameResolver(modelBuilder.tableNameResolver())
-                .withColumnNameResolver(modelBuilder.columnNameResolver())
-                .withForeignKeyResolver(modelBuilder.foreignKeyResolver())
-                .withTableAliasResolver(tableAliasResolver);
-        if (providerFilter != null) {
-            template = template.withDialect(Providers.getSqlDialect(providerFilter));
-        }
-        return SqlInterceptorManager.customize(template);
+        return SqlInterceptorManager.customize(sqlTemplate);
     }
 
     /**

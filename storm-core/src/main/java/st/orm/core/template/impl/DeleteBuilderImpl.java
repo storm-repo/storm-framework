@@ -173,7 +173,7 @@ public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, O
 
     private TemplateString getPrimaryKeyTemplate(boolean alias) {
         var model = modelSupplier.get();
-        return model.columns().stream()
+        return model.declaredColumns().stream()
                 .filter(Column::primaryKey)
                 .map(c -> {
                     if (alias) {

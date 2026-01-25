@@ -16,106 +16,33 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.BindVars;
-import st.orm.Data;
-import st.orm.DefaultJoinType;
 import st.orm.Element;
-import st.orm.FK;
-import st.orm.JoinType;
-import st.orm.Metamodel;
-import st.orm.PK;
-import st.orm.ProjectionQuery;
-import st.orm.Ref;
-import st.orm.core.template.Query;
-import st.orm.core.spi.ORMReflection;
-import st.orm.core.spi.Providers;
-import st.orm.mapping.ColumnNameResolver;
-import st.orm.mapping.ForeignKeyResolver;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlOperation;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TableAliasResolver;
-import st.orm.mapping.RecordField;
-import st.orm.mapping.RecordType;
-import st.orm.mapping.TableNameResolver;
 import st.orm.core.template.TemplateString;
-import st.orm.core.template.impl.Elements.Alias;
-import st.orm.core.template.impl.Elements.Column;
-import st.orm.core.template.impl.Elements.Delete;
-import st.orm.core.template.impl.Elements.Expression;
-import st.orm.core.template.impl.Elements.From;
-import st.orm.core.template.impl.Elements.Insert;
-import st.orm.core.template.impl.Elements.Param;
-import st.orm.core.template.impl.Elements.Select;
-import st.orm.core.template.impl.Elements.Source;
-import st.orm.core.template.impl.Elements.Subquery;
-import st.orm.core.template.impl.Elements.Table;
-import st.orm.core.template.impl.Elements.TableSource;
-import st.orm.core.template.impl.Elements.TableTarget;
-import st.orm.core.template.impl.Elements.Target;
-import st.orm.core.template.impl.Elements.TemplateSource;
-import st.orm.core.template.impl.Elements.TemplateTarget;
-import st.orm.core.template.impl.Elements.Unsafe;
-import st.orm.core.template.impl.Elements.Update;
+import st.orm.core.template.impl.TemplatePreparation.BindingContext;
+import st.orm.mapping.ColumnNameResolver;
+import st.orm.mapping.ForeignKeyResolver;
+import st.orm.mapping.TableNameResolver;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.ListIterator;
-import java.util.MissingFormatArgumentException;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
-import static java.util.Comparator.comparing;
-import static java.util.List.copyOf;
+import static java.lang.Integer.parseInt;
+import static java.util.Collections.synchronizedMap;
 import static java.util.Objects.requireNonNull;
-import static java.util.Optional.empty;
-import static java.util.Optional.ofNullable;
-import static st.orm.ResolveScope.CASCADE;
-import static st.orm.ResolveScope.INNER;
-import static st.orm.core.template.Templates.delete;
-import static st.orm.core.template.Templates.from;
-import static st.orm.core.template.Templates.insert;
-import static st.orm.core.template.Templates.param;
-import static st.orm.core.template.Templates.select;
-import static st.orm.core.template.Templates.set;
-import static st.orm.core.template.Templates.table;
-import static st.orm.core.template.Templates.update;
-import static st.orm.core.template.Templates.values;
-import static st.orm.core.template.Templates.where;
-import static st.orm.core.spi.Providers.getORMConverter;
 import static st.orm.core.spi.Providers.getSqlDialect;
-import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
-import static st.orm.core.template.impl.RecordReflection.findPkField;
-import static st.orm.core.template.impl.RecordReflection.getPrimaryKeys;
-import static st.orm.core.template.impl.RecordReflection.getRecordType;
-import static st.orm.core.template.impl.RecordReflection.getRefDataType;
-import static st.orm.core.template.impl.RecordReflection.isRecord;
-import static st.orm.core.template.impl.RecordReflection.isTypePresent;
-import static st.orm.core.template.impl.RecordReflection.mapForeignKeys;
-import static st.orm.core.template.impl.RecordValidation.validateParameters;
-import static st.orm.core.template.impl.RecordValidation.validateDataType;
-import static st.orm.core.template.impl.RecordValidation.validateWhere;
-import static st.orm.core.template.SqlOperation.DELETE;
-import static st.orm.core.template.SqlOperation.INSERT;
-import static st.orm.core.template.SqlOperation.SELECT;
-import static st.orm.core.template.SqlOperation.UNDEFINED;
-import static st.orm.core.template.SqlOperation.UPDATE;
-import static st.orm.core.template.impl.SqlParser.getSqlOperation;
-import static st.orm.core.template.impl.SqlParser.hasWhereClause;
-import static st.orm.core.template.impl.SqlParser.removeComments;
-import static st.orm.core.template.impl.SqlTemplateProcessor.current;
-import static st.orm.core.template.impl.SqlTemplateProcessor.isSubquery;
+import static st.orm.core.template.impl.ElementRouter.getElementProcessor;
+import static st.orm.core.template.impl.SqlInterceptorManager.intercept;
 
 /**
  * The sql template implementation that is responsible for generating SQL queries.
@@ -123,11 +50,19 @@ import static st.orm.core.template.impl.SqlTemplateProcessor.isSubquery;
 public final class SqlTemplateImpl implements SqlTemplate {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.sql");
-    private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
-    record Wrapped(@Nonnull List<? extends Element> elements) implements Element {
+    private static final TemplateMetrics TEMPLATE_METRICS = new TemplateMetrics(LoggerFactory.getLogger("st.orm.sql.metrics"));
+
+    private static final Map<Object, Map<Object, TemplateProcessor>> CACHE_MAP = new ConcurrentHashMap<>();
+
+    private static final int TEMPLATE_CACHE_SIZE =
+            Math.max(0, parseInt(System.getProperty("storm.templateCacheSize", "2048")));
+
+    record ElementNode(@Nonnull Element element, boolean synthetic) {}
+
+    record Wrapped(@Nonnull List<ElementNode> elements) implements Element {
         public Wrapped {
-            requireNonNull(elements, "elements");
+            elements = List.copyOf(elements);
         }
     }
 
@@ -138,7 +73,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
     private final ModelBuilder modelBuilder;
     private final TableAliasResolver tableAliasResolver;
     private final SqlDialect dialect;
-    private final SqlDialectTemplate dialectTemplate;
+    private final TemplatePreparation templatePreparation;
+    private final Function<TemplateString, Object> keyGenerator;
+    private final Map<Object, TemplateProcessor> cache;
 
     public SqlTemplateImpl(boolean positionalOnly, boolean expandCollection, boolean supportRecords) {
         this(positionalOnly, expandCollection, supportRecords, false, ModelBuilder.newInstance(), TableAliasResolver.DEFAULT, getSqlDialect());
@@ -158,7 +95,22 @@ public final class SqlTemplateImpl implements SqlTemplate {
         this.modelBuilder = requireNonNull(modelBuilder);
         this.tableAliasResolver = requireNonNull(tableAliasResolver);
         this.dialect = requireNonNull(dialect);
-        this.dialectTemplate = new SqlDialectTemplate(dialect);
+        this.templatePreparation = new TemplatePreparation(this, modelBuilder);
+        this.keyGenerator = keyGenerator();
+        var key = List.of(positionalOnly, expandCollection, supportRecords, inlineParameters, new IdentityKey(modelBuilder), new IdentityKey(tableAliasResolver), dialect.name());
+        this.cache = TEMPLATE_CACHE_SIZE == 0
+                ? null
+                : CACHE_MAP.computeIfAbsent(key, ignore -> new LruCache<>(TEMPLATE_CACHE_SIZE));
+    }
+
+    private Function<TemplateString, Object> keyGenerator() {
+        return template -> {
+            try {
+                return getCompilationKey(templatePreparation.preprocess(template));
+            } catch (SqlTemplateException e) {
+                throw new UncheckedSqlTemplateException(e);
+            }
+        };
     }
 
     /**
@@ -190,13 +142,16 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withTableNameResolver(@Nonnull TableNameResolver tableNameResolver) {
+        if (tableNameResolver == modelBuilder.tableNameResolver()) {
+            return this;
+        }
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, dialect);
     }
 
     /**
-     * Returns the table name resolver that is used by this template.
+     * Returns the table name resolver used by this template.
      *
-     * @return the table name resolver that is used by this template.
+     * @return the table name resolver used by this template.
      */
     @Override
     public TableNameResolver tableNameResolver() {
@@ -211,13 +166,16 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver) {
+        if (tableAliasResolver == this.tableAliasResolver) {
+            return this;
+        }
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, dialect);
     }
 
     /**
-     * Returns the table alias resolver that is used by this template.
+     * Returns the table alias resolver used by this template.
      *
-     * @return the table alias resolver that is used by this template.
+     * @return the table alias resolver used by this template.
      */
     @Override
     public TableAliasResolver tableAliasResolver() {
@@ -232,13 +190,16 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withColumnNameResolver(@Nonnull ColumnNameResolver columnNameResolver) {
+        if (columnNameResolver == modelBuilder.columnNameResolver()) {
+            return this;
+        }
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, dialect);
     }
 
     /**
-     * Returns the column name resolver that is used by this template.
+     * Returns the column name resolver used by this template.
      *
-     * @return the column name resolver that is used by this template.
+     * @return the column name resolver used by this template.
      */
     @Override
     public ColumnNameResolver columnNameResolver() {
@@ -253,13 +214,16 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withForeignKeyResolver(@Nonnull ForeignKeyResolver foreignKeyResolver) {
+        if (foreignKeyResolver == modelBuilder.foreignKeyResolver()) {
+            return this;
+        }
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, dialect);
     }
 
     /**
-     * Returns the foreign key resolver that is used by this template.
+     * Returns the foreign key resolver used by this template.
      *
-     * @return the foreign key resolver that is used by this template.
+     * @return the foreign key resolver used by this template.
      */
     @Override
     public ForeignKeyResolver foreignKeyResolver() {
@@ -274,13 +238,16 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplate withDialect(@Nonnull SqlDialect dialect) {
+        if (dialect == this.dialect) {
+            return this;
+        }
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, dialect);
     }
 
     /**
-     * Returns the SQL dialect that is used by this template.
+     * Returns the SQL dialect used by this template.
      *
-     * @return the SQL dialect that is used by this template.
+     * @return the SQL dialect used by this template.
      * @since 1.2
      */
     @Override
@@ -296,6 +263,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplateImpl withSupportRecords(boolean supportRecords) {
+        if (supportRecords == this.supportRecords) {
+            return this;
+        }
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, dialect);
     }
 
@@ -320,6 +290,9 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public SqlTemplate withInlineParameters(boolean inlineParameters) {
+        if (inlineParameters == this.inlineParameters) {
+            return this;
+        }
         return new SqlTemplateImpl(positionalOnly, expandCollection, supportRecords, inlineParameters, modelBuilder, tableAliasResolver, dialect);
     }
 
@@ -345,675 +318,6 @@ public final class SqlTemplateImpl implements SqlTemplate {
         return new BindVarsImpl();
     }
 
-    private Element resolveBindVarsElement(@Nonnull SqlOperation operation,
-                                           @Nonnull String previousFragment,
-                                           @Nonnull BindVars bindVars) throws SqlTemplateException {
-        String previous = removeComments(previousFragment, dialect).stripTrailing().toUpperCase();
-        return switch (operation) {
-            case SELECT, DELETE, UNDEFINED -> {
-                if (previous.endsWith("WHERE")) {
-                    yield where(bindVars);
-                }
-                throw new SqlTemplateException("BindVars element expected after WHERE.");
-            }
-            case INSERT -> {
-                if (previous.endsWith("WHERE")) {
-                    yield where(bindVars);
-                }
-                if (previous.endsWith("VALUES")) {
-                    yield values(bindVars);
-                }
-                throw new SqlTemplateException("BindVars element expected after VALUES or WHERE.");
-            }
-            case UPDATE -> {
-                if (previous.endsWith("SET")) {
-                    yield set(bindVars);
-                }
-                if (previous.endsWith("WHERE")) {
-                    yield where(bindVars);
-                }
-                throw new SqlTemplateException("BindVars element expected after SET or WHERE.");
-            }
-        };
-    }
-
-    private Element resolveObjectElement(@Nonnull SqlOperation operation,
-                                         @Nonnull String previousFragment,
-                                         @Nullable Object o) throws SqlTemplateException {
-        String previous = removeComments(previousFragment, dialect).stripTrailing().toUpperCase();
-        return switch (operation) {
-            case SELECT, DELETE, UNDEFINED -> {
-                if (previous.endsWith("WHERE")) {
-                    if (o != null) {
-                        yield where(o);
-                    }
-                    throw new SqlTemplateException("Non-null object expected after WHERE.");
-                }
-                yield param(o);
-            }
-            case INSERT -> {
-                if (previous.endsWith("VALUES")) {
-                    if (o instanceof Data r) {
-                        yield values(r);
-                    }
-                    throw new SqlTemplateException("Record expected after VALUES.");
-                }
-                if (previous.endsWith("WHERE")) {
-                    if (o != null) {
-                        yield where(o);
-                    }
-                    throw new SqlTemplateException("Non-null object expected after WHERE.");
-                }
-                yield param(o);
-            }
-            case UPDATE -> {
-                if (previous.endsWith("SET")) {
-                    if (o instanceof Data r) {
-                        yield set(r);
-                    }
-                    throw new SqlTemplateException("Record expected after SET.");
-                }
-                if (previous.endsWith("WHERE")) {
-                    if (o != null) {
-                        yield where(o);
-                    }
-                    throw new SqlTemplateException("Non-null object expected after WHERE.");
-                }
-                yield param(o);
-            }
-        };
-    }
-
-    private Element resolveArrayElement(@Nonnull SqlOperation operation,
-                                        @Nonnull String previousFragment,
-                                        @Nonnull Object[] array) throws SqlTemplateException {
-        return resolveIterableElement(operation, previousFragment, List.of(array));
-    }
-
-    @SuppressWarnings("unchecked")
-    private Element resolveIterableElement(@Nonnull SqlOperation operation,
-                                           @Nonnull String previousFragment,
-                                           @Nonnull Iterable<?> iterable) throws SqlTemplateException {
-        String previous = removeComments(previousFragment, dialect).stripTrailing().toUpperCase();
-        return switch (operation) {
-            case SELECT, UPDATE, DELETE, UNDEFINED -> {
-                if (previous.endsWith("WHERE")) {
-                    yield where(iterable);
-                }
-                yield param(iterable);
-            }
-            case INSERT -> {
-                if (previous.endsWith("VALUES")) {
-                    if (StreamSupport.stream(iterable.spliterator(), false)
-                            .allMatch(it -> it instanceof Data)) {
-                        yield values((Iterable<? extends Data>) iterable);
-                    }
-                    throw new SqlTemplateException("Records expected after VALUES.");
-                }
-                if (previous.endsWith("WHERE")) {
-                    yield where(iterable);
-                }
-                yield param(iterable);
-            }
-        };
-    }
-
-    private Element resolveTypeElement(@Nonnull SqlOperation operation,
-                                       @Nullable Element first,
-                                       @Nonnull String previousFragment,
-                                       @Nonnull String nextFragment,
-                                       @Nonnull Class<? extends Data> recordType) throws SqlTemplateException {
-        if (nextFragment.startsWith(".")) {
-            return new Alias(recordType, CASCADE);
-        }
-        String next = removeComments(nextFragment, dialect).stripLeading().toUpperCase();
-        String previous = removeComments(previousFragment, dialect).stripTrailing().toUpperCase();
-        return switch (operation) {
-            case SELECT -> {
-                if (previous.endsWith("FROM")) {
-                    // Only use auto join if the selected table is present in the from-table graph.
-                    boolean autoJoin = first instanceof Select(var table, var ignore) && isTypePresent(recordType, table);
-                    yield from(recordType, autoJoin);
-                }
-                if (previous.endsWith("JOIN")) {
-                    yield table(recordType);
-                }
-                yield select(recordType);
-            }
-            case INSERT -> {
-                if (previous.endsWith("INTO")) {
-                    yield insert(recordType);
-                }
-                yield table(recordType);
-            }
-            case UPDATE -> {
-                if (previous.endsWith("UPDATE")) {
-                    yield update(recordType);
-                }
-                yield table(recordType);
-            }
-            case DELETE -> {
-                if (next.startsWith("FROM")) {
-                    yield delete(recordType);
-                }
-                if (previous.endsWith("FROM")) {
-                    yield from(recordType, false);
-                }
-                yield table(recordType);
-            }
-            case UNDEFINED -> table(recordType);
-        };
-    }
-
-    private List<Element> resolveElements(@Nonnull SqlOperation sqlOperation,
-                                          @Nonnull List<?> values,
-                                          @Nonnull List<String> fragments) throws SqlTemplateException {
-        List<Element> resolvedValues = new ArrayList<>();
-        Element first = null;
-        for (int i = 0; i < values.size() ; i++) {
-            var v = values.get(i);
-            var p = fragments.get(i);
-            var n = fragments.get(i + 1);
-            Element element = switch (v) {
-                case Select ignore when sqlOperation != SELECT -> throw new SqlTemplateException("Select element is only allowed for select statements.");
-                case Insert ignore when sqlOperation != INSERT -> throw new SqlTemplateException("Insert element is only allowed for insert statements.");
-                case Update ignore when sqlOperation != UPDATE -> throw new SqlTemplateException("Update element is only allowed for update statements.");
-                case Delete ignore when sqlOperation != DELETE -> throw new SqlTemplateException("Delete element is only allowed for delete statements.");
-                case Select it when !supportRecords -> throw new SqlTemplateException("Records are not supported in this configuration: '%s'".formatted(it.table().getSimpleName()));
-                case Insert it when !supportRecords -> throw new SqlTemplateException("Records are not supported in this configuration: '%s'".formatted(it.table().getSimpleName()));
-                case Update it when !supportRecords -> throw new SqlTemplateException("Records are not supported in this configuration: '%s'".formatted(it.table().getSimpleName()));
-                case Delete it when !supportRecords -> throw new SqlTemplateException("Records are not supported in this configuration: '%s'".formatted(it.table().getSimpleName()));
-                case Table t when !supportRecords -> throw new SqlTemplateException("Records are not supported in this configuration: '%s'.".formatted(t.table().getSimpleName()));
-                case Class<?> c when isRecord(c) && !supportRecords -> throw new SqlTemplateException("Records are not supported in this configuration: '%s'.".formatted(c.getSimpleName()));
-                case Select it -> {
-                    if (first != null) {
-                        throw new SqlTemplateException("Only a single Select element is allowed.");
-                    }
-                    yield it;
-                }
-                case Insert it -> {
-                    if (first != null) {
-                        throw new SqlTemplateException("Only a single Insert element is allowed.");
-                    }
-                    yield it;
-                }
-                case Update it -> {
-                    if (first != null) {
-                        throw new SqlTemplateException("Only a single Update element is allowed.");
-                    }
-                    yield it;
-                }
-                case Delete it -> {
-                    if (first != null) {
-                        throw new SqlTemplateException("Only a single Delete element is allowed.");
-                    }
-                    yield it;
-                }
-                case Expression ignore -> throw new SqlTemplateException("Expression element not allowed in this context.");
-                case BindVars b -> resolveBindVarsElement(sqlOperation, p, b);
-                case Subqueryable t -> new Subquery(t.getSubquery(), true);   // Correlate implicit subqueries.
-                case Metamodel<?, ?> m when m.isColumn() -> new Column(m, CASCADE);
-                case Metamodel<?, ?> ignore -> throw new SqlTemplateException("Metamodel does not reference a column.");
-                case Object[] a -> resolveArrayElement(sqlOperation, p, a);
-                case Iterable<?> l -> resolveIterableElement(sqlOperation, p, l);
-                case Element e -> e;
-                case Class<?> c -> resolveTypeElement(sqlOperation, first, p, n, REFLECTION.getDataType(c));
-                // Note that the following flow would also support Class<?> c. but we'll keep the Class<?> c case for performance and readability.
-                case Object k when REFLECTION.isSupportedType(k) ->
-                        resolveTypeElement(sqlOperation, first, p, n, REFLECTION.getDataType(k));
-                case TemplateString ignore -> throw new SqlTemplateException("TemplateString not allowed as string template value.");
-                case Stream<?> ignore -> throw new SqlTemplateException("Stream not supported as string template value.");
-                case Query ignore -> throw new SqlTemplateException("Query not supported as string template value. Use QueryBuilder instead.");
-                case Object o -> resolveObjectElement(sqlOperation, p, o);
-                case null -> //noinspection ConstantValue
-                        param(v);
-            };
-            if (first == null
-                    && (element instanceof Select || element instanceof Insert || element instanceof Update || element instanceof Delete)) {
-                first = element;
-            }
-            resolvedValues.add(element);
-        }
-        return resolvedValues;
-    }
-
-    static String toPathString(@Nonnull List<RecordField> fields) {
-        return fields.stream().map(RecordField::name).collect(Collectors.joining("."));
-    }
-
-    static SqlTemplateException multiplePathsFoundException(@Nonnull Class<?> table, @Nonnull List<String> paths) {
-        paths = paths.stream().filter(Objects::nonNull).distinct().map("'%s'"::formatted).toList();
-        if (paths.isEmpty()) {
-            return new SqlTemplateException("Multiple paths found for %s.".formatted(table.getSimpleName()));
-        }
-        if (paths.size() == 1) {
-            return new SqlTemplateException("Multiple paths found for %s. Specify path %s to uniquely identify the table.".formatted(table.getSimpleName(), paths.getFirst()));
-        }
-        return new SqlTemplateException("Multiple paths found for %s in table graph. Specify one of the following paths to uniquely identify the table: %s.".formatted(table.getSimpleName(), String.join(", ", paths)));
-    }
-
-    private TableUse getTableUse() {
-        return new TableUse();
-    }
-
-    private TableMapper getTableMapper(@Nonnull TableUse tableUse) {
-        return new TableMapper(tableUse);
-    }
-
-    private AliasMapper getAliasMapper(@Nonnull TableUse tableUse) {
-        return new AliasMapper(tableUse, tableAliasResolver, modelBuilder.tableNameResolver(), current()
-                .map(SqlTemplateProcessor::aliasMapper)
-                .orElse(null));
-    }
-
-    /**
-     * Updates {@code elements} to include joins and aliases for the table in the FROM clause.
-     *
-     * @param elements all elements in the sql statement.
-     */
-    private void postProcessSelect(@Nonnull List<Element> elements,
-                                   @Nonnull AliasMapper aliasMapper,
-                                   @Nonnull TableMapper tableMapper) throws SqlTemplateException {
-        final From from = elements.stream()
-                .filter(From.class::isInstance)
-                .map(From.class::cast)
-                .findAny()
-                .orElse(null);
-        final From effectiveFrom;
-        if (from != null && from.source() instanceof TableSource(var table)) {
-            validateDataType(table);
-            String path = "";   // Use "" because it's the root table.
-            String alias;
-            if (from.alias().isEmpty()) {
-                // Replace From element by from element with alias.
-                alias = aliasMapper.generateAlias(table, path, dialect);
-            } else {
-                alias = from.alias();
-                aliasMapper.setAlias(table, alias, path);
-            }
-            var projectionQuery = getRecordType(table).getAnnotation(ProjectionQuery.class);
-            Source source = projectionQuery != null
-                    ? new TemplateSource(TemplateString.of(projectionQuery.value()))
-                    : new TableSource(table);
-            effectiveFrom = new From(source, alias, from.autoJoin());
-            elements.replaceAll(element -> element instanceof From ? effectiveFrom : element);
-            // We will only make primary keys available for mapping if the table is not part of the entity graph,
-            // because the entities can already be resolved by their foreign keys.
-            // tableMapper.mapPrimaryKey(table, alias, getPkComponents(table).toList(), path);
-            addJoins(table, elements, effectiveFrom, aliasMapper, tableMapper);
-        } else {
-            // If no From element is present, we will only add table aliases.
-            addTableAliases(elements, aliasMapper);
-        }
-    }
-
-    /**
-     * Updates {@code elements} to handle include aliases for the table in the UPDATE clause.
-     *
-     * @param elements all elements in the sql statement.
-     */
-    private void postProcessUpdate(@Nonnull List<Element> elements,
-                                   @Nonnull AliasMapper aliasMapper,
-                                   @Nonnull TableMapper tableMapper) throws SqlTemplateException {
-        final Update update = elements.stream()
-                .filter(Update.class::isInstance)
-                .map(Update.class::cast)
-                .findAny()
-                .orElse(null);
-        if (update != null) {
-            var table = update.table();
-            validateDataType(table);
-            String path = "";   // Use "" because it's the root table.
-            String alias;
-            if (update.alias().isEmpty()) {
-                // Use empty alias as some database don't support aliases in update statements.
-                alias = "";
-            } else {
-                alias = update.alias();
-                aliasMapper.setAlias(table, alias, path);
-            }
-            // We will only make primary keys available for mapping if the table is not part of the entity graph,
-            // because the entities can already be resolved by their foreign keys.
-            //  tableMapper.mapPrimaryKey(table, alias, getPkComponents(update.table()).toList(), path);
-            // Make the FKs of the entity also available for mapping.
-            mapForeignKeys(tableMapper, alias, table, table, path);
-        }
-        addTableAliases(elements, aliasMapper);
-    }
-
-    /**
-     * Updates {@code elements} to handle joins and aliases for the table in the DELETE clause.
-     *
-     * @param elements all elements in the sql statement.
-     */
-    private void postProcessDelete(@Nonnull List<Element> elements,
-                                   @Nonnull AliasMapper aliasMapper,
-                                   @Nonnull TableMapper tableMapper) throws SqlTemplateException {
-        final Delete delete = elements.stream()
-                .filter(Delete.class::isInstance)
-                .map(Delete.class::cast)
-                .findAny()
-                .orElse(null);
-        final From from = elements.stream()
-                .filter(From.class::isInstance)
-                .map(From.class::cast)
-                .filter(f -> f.source() instanceof TableSource)
-                .findAny()
-                .orElse(null);
-        final From effectiveFrom;
-        if (from != null && from.source() instanceof TableSource(var table)) {
-            validateDataType(table);
-            String path = "";   // Use "" because it's the root table.
-            String alias;
-            if (from.alias().isEmpty()) {
-                if (delete == null) {
-                    // Only include alias when delete element is present as some database don't support aliases in delete statements.
-                    aliasMapper.setAlias(table, "", path);
-                    alias = "";
-                } else {
-                    alias = aliasMapper.generateAlias(table, path, dialect);
-                }
-                effectiveFrom = new From(new TableSource(table), alias, from.autoJoin());
-                elements.replaceAll(element -> element instanceof From ? effectiveFrom : element);
-            } else {
-                effectiveFrom = from;
-                alias = from.alias();
-                aliasMapper.setAlias(table, alias, path);
-            }
-            // We will only make primary keys available for mapping if the table is not part of the entity graph,
-            // because the entities can already be resolved by their foreign keys.
-            //  tableMapper.mapPrimaryKey(table, alias, getPkComponents(table).toList(), path);
-            if (delete != null) {
-                if (delete.table() != table) {
-                    throw new SqlTemplateException("Delete entity %s does not match From table %s.".formatted(delete.table().getSimpleName(), table.getSimpleName()));
-                }
-                if (delete.alias().isEmpty()) {
-                    if (!effectiveFrom.alias().isEmpty()) {
-                        elements.replaceAll(element -> element instanceof Delete
-                                ? delete(table, alias)
-                                : element);
-                    }
-                }
-            }
-            // We will only make primary keys available for mapping if the table is not part of the entity graph,
-            // because the entities can already be resolved by their foreign keys.
-            // tableMapper.mapPrimaryKey(table, alias, getPkComponents(table).toList(), path);
-            addJoins(table, elements, effectiveFrom, aliasMapper, tableMapper);
-        } else if (delete != null) {
-            throw new SqlTemplateException("From element required when using Delete element.");
-        } else {
-            // If no From element is present, we will only add table aliases.
-            addTableAliases(elements, aliasMapper);
-        }
-    }
-
-    /**
-     * Updates {@code elements} to handle joins and aliases for the table in the scenario where no primary table is
-     * present for the statement.
-     *
-     * @param elements all elements in the sql statement.
-     */
-    private void postProcessUndefined(@Nonnull List<Element> elements,
-                                      @Nonnull AliasMapper aliasMapper,
-                                      @Nonnull TableMapper tableMapper) throws SqlTemplateException {
-        // Process as Select if type is not known.
-        postProcessSelect(elements, aliasMapper, tableMapper);
-    }
-
-    void addJoins(@Nonnull Class<? extends Data> fromTable,
-                  @Nonnull List<Element> elements,
-                  @Nonnull From from,
-                  @Nonnull AliasMapper aliasMapper,
-                  @Nonnull TableMapper tableMapper) throws SqlTemplateException {
-        List<Join> customJoins = new ArrayList<>();
-        for (ListIterator<Element> it = elements.listIterator(); it.hasNext(); ) {
-            Element element = it.next();
-            if (element instanceof Table(var table, var alias)) {
-                aliasMapper.setAlias(table, alias, null);
-            } else if (element instanceof Join j) {
-                String path = ""; // Use "" for custom join, as they for their own root.
-                // Move custom join to list of (auto) joins to allow proper ordering of inner and outer joins.
-                if (j instanceof Join(TableSource ts, var ignore1, var ignore2, var ignore3, var ignore4, boolean ignore5)) {
-                    String alias;
-                    if (j.sourceAlias().isEmpty()) {
-                        alias = aliasMapper.generateAlias(ts.table(), null, dialect);
-                    } else {
-                        alias = j.sourceAlias();
-                        aliasMapper.setAlias(ts.table(), j.sourceAlias(), null);
-                    }
-                    var projectionQuery = getRecordType(ts.table()).getAnnotation(ProjectionQuery.class);
-                    Source source = projectionQuery != null
-                            ? new TemplateSource(TemplateString.of(projectionQuery.value()))
-                            : ts;
-                    customJoins.add(new Join(source, alias, j.target(), j.type(), false));
-                    tableMapper.mapPrimaryKey(fromTable, ts.table(), alias, findPkField(ts.table())
-                            .orElseThrow(() -> new SqlTemplateException("No primary key found for table %s.".formatted(ts.table().getSimpleName()))),
-                            ts.table(), path);
-                    // Make the FKs of the join also available for mapping.
-                    mapForeignKeys(tableMapper, alias, ts.table(), ts.table(), path);
-                } else {
-                    customJoins.add(j);
-                }
-                it.set(new Unsafe("")); // Replace by empty string to keep fragments and values in sync.
-            }
-        }
-        List<Join> joins;
-        if (from.autoJoin()) {
-            joins = new ArrayList<>();
-            addAutoJoins(fromTable, fromTable, customJoins, aliasMapper, tableMapper, joins);
-        } else {
-            joins = customJoins;
-        }
-        if (!joins.isEmpty()) {
-            List<Element> replacementElements = new ArrayList<>();
-            replacementElements.add(from);
-            Select select = elements.stream()
-                    .filter(Select.class::isInstance)
-                    .map(Select.class::cast)
-                    .findAny()
-                    .orElse(null);
-            if (select == null) {
-                replacementElements.addAll(joins);
-            } else {
-                for (var join : joins) {
-                    if (join instanceof Join(TableSource(var joinTable), var ignore1, var ignore2, var ignore3, var ignore4, var autoJoin) &&
-                            joinTable == select.table() && join.type().isOuter()) {
-                        // If join is part of the select table and is an outer join, replace it with an inner join.
-                        replacementElements.add(new Join(new TableSource(joinTable), join.sourceAlias(), join.target(), DefaultJoinType.INNER, autoJoin));
-                    } else {
-                        replacementElements.add(join);
-                    }
-                }
-            }
-            elements.replaceAll(element -> element instanceof From
-                    ? new Wrapped(replacementElements)
-                    : element);
-        }
-    }
-
-    private void addAutoJoins(@Nonnull Class<? extends Data> table,
-                              @Nonnull Class<? extends Data> rootTable,
-                              @Nonnull List<Join> customJoins,
-                              @Nonnull AliasMapper aliasMapper,
-                              @Nonnull TableMapper tableMapper,
-                              @Nonnull List<Join> joins) throws SqlTemplateException {
-        addAutoJoins(getRecordType(table), table, rootTable, List.of(), aliasMapper, tableMapper, joins, null, false);
-        joins.addAll(customJoins);
-        // Move outer joins to the end of the list to ensure proper filtering across multiple databases.
-        joins.sort(comparing(join -> join.type().isOuter()));
-    }
-
-    private void addAutoJoins(@Nonnull RecordType type,
-                              @Nonnull Class<? extends Data> table,
-                              @Nonnull Class<? extends Data> rootTable,
-                              @Nonnull List<RecordField> path,
-                              @Nonnull AliasMapper aliasMapper,
-                              @Nonnull TableMapper tableMapper,
-                              @Nonnull List<Join> joins,
-                              @Nullable String fkName,
-                              boolean outerJoin) throws SqlTemplateException {
-        for (var field : type.fields()) {
-            var list = new ArrayList<>(path);
-            String fkPath = toPathString(path);
-            list.add(field);
-            var copy = copyOf(list);
-            String pkPath = toPathString(copy);
-            if (field.isAnnotationPresent(FK.class)) {
-                if (Ref.class.isAssignableFrom(field.type())) {
-                    // No join needed for ref components, but we will map the table, so we can query the ref component.
-                    String fromAlias;
-                    if (fkName == null) {
-                        fromAlias = aliasMapper.getAlias(table, fkPath, INNER, dialect,
-                                () -> new SqlTemplateException("Table %s for From not found at %s.".formatted(type.type().getSimpleName(), fkPath)));    // Use local resolve mode to prevent shadowing.
-                    } else {
-                        fromAlias = fkName;
-                    }
-                    tableMapper.mapForeignKey(table, getRefDataType(field), fromAlias, field, rootTable, fkPath);
-                    continue;
-                }
-                if (!isRecord(field.type())) {
-                    throw new SqlTemplateException("FK is only allowed on Ref and record types.");
-                }
-                if (field.type() == type.type()) {
-                    throw new SqlTemplateException("Self-referencing FK annotation is not allowed: %s. FK must be marked as Ref.".formatted(type.type().getSimpleName()));
-                }
-                // We may detect that the component is already present by checking
-                // aliasMap.containsKey(componentType), but we'll handle duplicate joins later to detect such issues
-                // in a unified way (auto join vs manual join).
-                String fromAlias;
-                if (fkName == null) {
-                    fromAlias = aliasMapper.getAlias(table, fkPath, INNER, dialect,
-                            () -> new SqlTemplateException("Table %s for From not found at path %s.".formatted(type.type().getSimpleName(), fkPath)));   // Use local resolve mode to prevent shadowing.
-                } else {
-                    fromAlias = fkName;
-                }
-                RecordType fieldType = getRecordType(field.type());
-                String alias = aliasMapper.generateAlias(fieldType.requireDataType(), pkPath, table, fromAlias, dialect);
-                tableMapper.mapForeignKey(table, fieldType.requireDataType(), fromAlias, field, rootTable, fkPath);
-                // We will only make primary keys available for mapping if the table is not part of the entity graph,
-                // because the entities can already be resolved by their foreign keys.
-                //  tableMapper.mapPrimaryKey(componentType, alias, List.of(pkComponent), pkPath);
-                boolean effectiveOuterJoin = outerJoin || field.nullable();
-                JoinType joinType = effectiveOuterJoin ? DefaultJoinType.LEFT : DefaultJoinType.INNER;
-                ProjectionQuery query = fieldType.getAnnotation(ProjectionQuery.class);
-                Source source = query == null
-                        ? new TableSource(fieldType.requireDataType())
-                        : new TemplateSource(TemplateString.of(query.value()));
-                Target target = query == null
-                        ? new TableTarget(table)
-                        : getTemplateTarget(fromAlias, alias, field, findPkField(fieldType.type()).orElseThrow(
-                                () -> new SqlTemplateException("Failed to find primary key for table %s.".formatted(fieldType.type().getSimpleName()))));
-                joins.add(new Join(source, alias, target, fromAlias, joinType, true));
-                addAutoJoins(fieldType, fieldType.requireDataType(), rootTable, copy, aliasMapper, tableMapper, joins, alias, effectiveOuterJoin);
-            } else if (isRecord(field.type())) {
-                if (field.isAnnotationPresent(PK.class) || getORMConverter(field).isPresent()) {
-                    continue;
-                }
-                // @Inlined is implicitly assumed.
-                String fromAlias;
-                if (fkName == null) {
-                    fromAlias = aliasMapper.getAlias(table, fkPath, INNER, dialect,
-                            () -> new SqlTemplateException("Table %s for From not found at path %s.".formatted(type.type().getSimpleName(), fkPath)));   // Use local resolve mode to prevent shadowing.
-                } else {
-                    fromAlias = fkName;
-                }
-                addAutoJoins(getRecordType(field.type()), table, rootTable, copy, aliasMapper, tableMapper, joins, fromAlias, outerJoin);
-            }
-        }
-    }
-
-    @SuppressWarnings("DuplicatedCode")
-    private TemplateTarget getTemplateTarget(@Nonnull String fromAlias,
-                                             @Nonnull String toAlias,
-                                             @Nonnull RecordField fromField,
-                                             @Nonnull RecordField toField) throws SqlTemplateException {
-        var foreignKeys = getForeignKeys(fromField, foreignKeyResolver(), columnNameResolver());
-        var primaryKeys = getPrimaryKeys(toField, foreignKeyResolver(), columnNameResolver());
-        if (foreignKeys.size() != primaryKeys.size()) {
-            throw new SqlTemplateException("Mismatch between foreign keys and primary keys count.");
-        }
-        StringBuilder joinCondition = new StringBuilder();
-        for (int i = 0; i < foreignKeys.size(); i++) {
-            if (i > 0) {
-                joinCondition.append(" AND ");
-            }
-            joinCondition.append(dialectTemplate.process("\0.\0 = \0.\0", fromAlias, foreignKeys.get(i), toAlias, primaryKeys.get(i)));
-        }
-        return new TemplateTarget(TemplateString.of(joinCondition.toString()));
-    }
-
-    private void addTableAliases(@Nonnull List<Element> elements,
-                                 @Nonnull AliasMapper aliasMapper) throws SqlTemplateException {
-        for (Element element : elements) {
-            if (element instanceof Table(var table, var alias)) {
-                aliasMapper.setAlias(table, alias, null);
-            }
-        }
-    }
-
-    /**
-     * Returns the primary table and its alias in the sql statement, such as the table in the FROM clause for a SELECT
-     * or DELETE, or the table in the INSERT or UPDATE clause.
-     *
-     * @param elements all elements in the sql statement.
-     * @param aliasMapper a mapper of table classes to their aliases.
-     * @return the primary table for the sql statement.
-     * @throws SqlTemplateException if no primary table is found or if multiple primary tables are found.
-     */
-    private Optional<PrimaryTable> getPrimaryTable(@Nonnull List<Element> elements,
-                                                   @Nonnull AliasMapper aliasMapper) throws SqlTemplateException {
-        assert elements.stream().noneMatch(Wrapped.class::isInstance);
-        PrimaryTable primaryTable = elements.stream()
-                .filter(From.class::isInstance)
-                .map(From.class::cast)
-                .map(f -> {
-                    if (f.source() instanceof TableSource(var t)) {
-                        return new PrimaryTable(t, f.alias());
-                    }
-                    return null;
-                })
-                .filter(Objects::nonNull)
-                .findAny()
-                .orElse(null);
-        if (primaryTable != null) {
-            return Optional.of(primaryTable);
-        }
-        primaryTable = elements.stream()
-                .map(element -> switch(element) {
-                    case Insert it -> new PrimaryTable(it.table(), "");
-                    case Update it -> new PrimaryTable(it.table(), it.alias());
-                    case Delete it -> new PrimaryTable(it.table(), "");
-                    default -> null;
-                })
-                .filter(Objects::nonNull)
-                .findAny()
-                .orElse(null);
-        if (primaryTable != null) {
-            return Optional.of(primaryTable);
-        }
-        var select = elements.stream()
-                .filter(Select.class::isInstance)
-                .map(Select.class::cast)
-                .findAny();
-        if (select.isPresent()) {
-            return Optional.of(new PrimaryTable(select.get().table(),
-                    aliasMapper.getPrimaryAlias(select.get().table()).orElse("")));
-        }
-        return empty();
-    }
-
-    private void postProcessElements(@Nonnull SqlOperation sqlOperation,
-                                     @Nonnull List<Element> elements,
-                                     @Nonnull AliasMapper aliasMapper,
-                                     @Nonnull TableMapper tableMapper) throws SqlTemplateException {
-        switch (sqlOperation) {
-            case SELECT -> postProcessSelect(elements, aliasMapper, tableMapper);
-            case UPDATE -> postProcessUpdate(elements, aliasMapper, tableMapper);
-            case DELETE -> postProcessDelete(elements, aliasMapper, tableMapper);
-            default -> postProcessUndefined(elements, aliasMapper, tableMapper);
-        }
-    }
-
     /**
      * Processes the specified {@code template} and returns the resulting SQL and parameters.
      *
@@ -1023,121 +327,74 @@ public final class SqlTemplateImpl implements SqlTemplate {
      */
     @Override
     public Sql process(@Nonnull TemplateString template) throws SqlTemplateException {
-        return process(template, isSubquery());
-    }
-
-    /**
-     * Processes the specified {@code stringTemplate} and returns the resulting SQL and parameters.
-     *
-     * @param template the string template to process.
-     * @param subquery whether the call is the context of a subquery.
-     * @return the resulting SQL and parameters.
-     * @throws SqlTemplateException if an error occurs while processing the input.
-     */
-    private Sql process(@Nonnull TemplateString template, boolean subquery) throws SqlTemplateException {
-        var fragments = template.fragments();
-        var values = template.values();
-        Sql generated;
-        var operation = getSqlOperation(template, dialect);
-        if (!values.isEmpty()) {
-            var elements = resolveElements(operation, values, fragments);
-            var tableUse = getTableUse();
-            var tableMapper = getTableMapper(tableUse); // No need to pass parent table mapper as only aliases are correlated.
-            var aliasMapper = getAliasMapper(tableUse);
-            postProcessElements(operation, elements, aliasMapper, tableMapper);
-            var unwrappedElements = elements.stream()
-                    .flatMap(e -> e instanceof Wrapped(var we) ? we.stream() : Stream.of(e))
-                    .toList();
-            assert values.size() == elements.size();
-            Optional<PrimaryTable> primaryTable = getPrimaryTable(unwrappedElements, aliasMapper);
-            if (primaryTable.isPresent()) {
-                validateDataType(primaryTable.get().table(), operation != SELECT && operation != UNDEFINED);
-            }
-            validateWhere(unwrappedElements);
-            List<String> parts = new ArrayList<>();
-            List<Parameter> parameters = new ArrayList<>();
-            AtomicReference<BindVariables> bindVariables = new AtomicReference<>();
-            List<String> generatedKeys = new ArrayList<>();
-            AtomicBoolean versionAware = new AtomicBoolean();
-            AtomicInteger parameterPosition = new AtomicInteger(1);
-            AtomicInteger nameIndex = new AtomicInteger();
-            StringBuilder rawSql = new StringBuilder();
-            interface DelayedResult {
-                void process() throws SqlTemplateException;
-            }
-            SqlTemplateProcessor processor = new SqlTemplateProcessor(this, dialectTemplate, modelBuilder,
-                    parameters, parameterPosition, nameIndex,
-                    tableUse, aliasMapper, tableMapper,
-                    bindVariables, generatedKeys, versionAware,
-                    primaryTable.orElse(null));
-            var results = new ArrayList<DelayedResult>();
-            for (int i = 0; i < fragments.size(); i++) {
-                String fragment = fragments.get(i);
-                try {
-                    if (i < values.size()) {
-                        Element e = elements.get(i);
-                        var result = processor.process(e);
-                        results.add(() -> {
-                            String sql = result.get();
-                            if (!sql.isEmpty()) {
-                                rawSql.append(fragment);
-                                rawSql.append(sql);
-                                if (e instanceof Param) {
-                                    parts.add(rawSql.toString());
-                                    rawSql.setLength(0);
-                                }
-                            } else {
-                                rawSql.append(fragment);
-                            }
-                        });
-                    } else {
-                        results.add(() -> {
-                            rawSql.append(fragment);
-                            parts.add(rawSql.toString());
-                        });
+        BindingContext bindingContext;
+        Object compilationKey;
+        TemplateProcessor processor;
+        try {
+            try (var request = TEMPLATE_METRICS.startRequest()) {
+                bindingContext = templatePreparation.preprocess(template);
+                compilationKey = cache == null ? null : getCompilationKey(bindingContext);
+                processor = compilationKey == null ? null : cache.get(compilationKey);
+                if (processor == null) {
+                    request.miss();
+                    var preparedTemplate = templatePreparation.prepare(bindingContext);
+                    preparedTemplate.processor().compile(preparedTemplate.context(), false);
+                    processor = preparedTemplate.processor();
+                    if (compilationKey != null) {
+                        cache.put(compilationKey, processor);
                     }
-                } catch (MissingFormatArgumentException ex) {
-                    throw new SqlTemplateException("Invalid number of argument placeholders found. Template appears to specify custom %s placeholders.", ex);
+                } else {
+                    request.hit();
                 }
             }
-            for (var result : results) {
-                result.process();
-            }
-            validateParameters(parameters);
-            String sql = String.join("", parts);
-            if (subquery && !sql.startsWith("\n") && sql.contains("\n")) {
-                sql = "\n" + sql.indent(2);
-            }
-            generated = new SqlImpl(operation, sql, parameters, ofNullable(bindVariables.get()),
-                    generatedKeys, versionAware.getPlain(), checkSafety(sql, operation));
-        } else {
-            assert fragments.size() == 1;
-            generated = new SqlImpl(operation, fragments.getFirst(), List.of(), empty(), List.of(), false, checkSafety(fragments.getFirst(), operation));
-        }
-        if (!subquery) {
-            // Don't intercept subquery calls.
-            generated = SqlInterceptorManager.intercept(generated);
+            Sql sql = intercept(processor.bind(bindingContext));
             if (LOGGER.isDebugEnabled()) {
-                String log = "Generated SQL:\n%s".formatted(generated.statement());
+                String log = "SQL:\n%s".formatted(sql.statement());
                 if (LOGGER.isTraceEnabled()) {
                     LOGGER.trace(log);
                 } else {
                     LOGGER.debug(log);
                 }
             }
+            return sql;
+        } catch (UncheckedSqlTemplateException e) {
+            throw e.getCause();
         }
-        return generated;
     }
 
-    private Optional<String> checkSafety(@Nonnull String sql, @Nonnull SqlOperation operation) {
-        return switch (operation) {
-            case SELECT, INSERT, UNDEFINED -> empty();
-            case UPDATE, DELETE -> {
-                if (!hasWhereClause(sql, dialect)) {
-                    yield Optional.of("%s without a WHERE clause is potentially unsafe.".formatted(operation));
+    private Object getCompilationKey(@Nonnull BindingContext bindingContext) {
+        try {
+            var fragments = bindingContext.fragments();
+            var elements = bindingContext.elements();
+            var compilationKey = new ArrayList<>();
+            for (int i = 0, size = fragments.size(); i < size; i++) {
+                compilationKey.add(fragments.get(i));
+                if (i < elements.size()) {
+                    var element = elements.get(i);
+                    if (element instanceof Wrapped(var wrapped)) {
+                        for (var e : wrapped) {
+                            if (!e.synthetic()) {   // Ignore synthetic elements for the compilation key.
+                                var key = getElementProcessor(e.element()).getCompilationKey(e.element(), keyGenerator);
+                                if (key != null) {
+                                    compilationKey.add(key);
+                                } else {
+                                    return null;
+                                }
+                            }
+                        }
+                    } else {
+                        var key = getElementProcessor(element).getCompilationKey(element, keyGenerator);
+                        if (key != null) {
+                            compilationKey.add(key);
+                        } else {
+                            return null;
+                        }
+                    }
                 }
-                yield empty();
             }
-        };
+            return compilationKey;
+        } catch (SqlTemplateException e) {
+            throw new UncheckedSqlTemplateException(e);
+        }
     }
 }

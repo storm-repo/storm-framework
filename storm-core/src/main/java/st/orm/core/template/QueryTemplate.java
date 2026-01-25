@@ -119,9 +119,9 @@ public interface QueryTemplate extends SubqueryTemplate {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    default <T extends Data, R extends Data> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType,
-                                                                              @Nonnull Class<R> selectType) {
-        return selectFrom(fromType, selectType, wrap(selectType));
+    default <T extends Data, R> QueryBuilder<T, R, ?> selectFrom(@Nonnull Class<T> fromType,
+                                                                 @Nonnull Class<R> selectType) {
+        return selectFrom(fromType, selectType, wrap(fromType));
     }
 
     /**

@@ -17,65 +17,91 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import st.orm.core.template.Column;
-import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Insert;
 
-import java.util.List;
+import java.util.ArrayList;
 import java.util.Objects;
 
 import static java.util.stream.Collectors.joining;
-import static st.orm.core.template.impl.RecordReflection.getTableName;
 
-/**
- * A processor for an insert element of a template.
- */
 final class InsertProcessor implements ElementProcessor<Insert> {
 
-    private final SqlTemplate template;
-    private final SqlDialectTemplate dialectTemplate;
-    private final ModelBuilder modelBuilder;
-    private final List<String> generatedKeys;
-
-    InsertProcessor(@Nonnull SqlTemplateProcessor templateProcessor) {
-        this.template = templateProcessor.template();
-        this.dialectTemplate = templateProcessor.dialectTemplate();
-        this.modelBuilder = templateProcessor.modelBuilder();
-        this.generatedKeys = templateProcessor.generatedKeys();
+    /**
+     * Returns a key that represents the compiled shape of the given element.
+     *
+     * <p>The compilation key is used for caching compiled results. It must include all fields that can affect the
+     * compilation output (SQL text, emitted fragments, placeholder shape, etc.). The key is compared using
+     * value-based equality, so it should be immutable and implement stable {@code equals}/{@code hashCode}.</p>
+     *
+     * <p>If this method returns {@code null} for any element in a template, the compiled result is considered
+     * non-cacheable and the template must be recompiled each time it is requested.</p>
+     *
+     * @param insert the element to compute a key for.
+     * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
+     */
+    @Override
+    public Object getCompilationKey(@Nonnull Insert insert) {
+        return insert;
     }
 
     /**
-     * Process an insert element of a template.
+     * Compiles the given element into an {@link CompiledElement}.
      *
-     * @param insert the insert element to process.
-     * @return the result of processing the element.
-     * @throws SqlTemplateException if the template does not comply to the specification.
+     * <p>This method is responsible for producing the compile-time representation of the element. It must not perform
+     * runtime binding. Any binding should be deferred to {@link #bind(Insert, TemplateBinder, BindHint)}.</p>
+     *
+     * @param insert the element to compile.
+     * @param compiler the active compiler context.
+     * @return the compiled result for this element.
+     * @throws SqlTemplateException if compilation fails.
      */
     @Override
-    public ElementResult process(@Nonnull Insert insert) throws SqlTemplateException {
-        var model = modelBuilder.build(insert.table(), false);
-        String columns = model.columns().stream()
+    public CompiledElement compile(@Nonnull Insert insert, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+        var queryModel = compiler.getQueryModel();
+        assert queryModel.getTable().type() == insert.table();
+        var model = compiler.getModel(insert.table());
+        var dialect = compiler.dialect();
+        var generatedKeys = new ArrayList<String>();
+        String columns = model.declaredColumns().stream()
                 .filter(Column::insertable)
                 .map(column -> {
                     if (column.primaryKey() && !insert.ignoreAutoGenerate()) {
                         return switch (column.generation()) {
-                            case NONE -> column.qualifiedName(template.dialect());
+                            case NONE -> column.qualifiedName(dialect);
                             case IDENTITY -> {
-                                generatedKeys.add(column.qualifiedName(template.dialect()));
+                                generatedKeys.add(column.qualifiedName(dialect));
                                 yield null;
                             }
                             case SEQUENCE -> {
                                 if (!column.sequence().isEmpty()) {
-                                    yield column.qualifiedName(template.dialect());
+                                    yield column.qualifiedName(dialect);
                                 }
                                 yield null;
                             }
                         };
                     }
-                    return column.qualifiedName(template.dialect());
+                    return column.qualifiedName(dialect);
                 })
                 .filter(Objects::nonNull)
                 .collect(joining(", "));
-        return new ElementResult(dialectTemplate.process("\0 (\0)", getTableName(insert.table(), template.tableNameResolver()), columns));
+        compiler.setGeneratedKeys(generatedKeys);
+        var table = queryModel.getTable();
+        return new CompiledElement("%s%s (%s)".formatted(table.name(), table.alias().isEmpty() ? "" : " " + table.alias(), columns));
+    }
+
+    /**
+     * Performs post-processing after compilation, typically binding runtime values for the element.
+     *
+     * <p>This method is called after the element has been compiled. Typical responsibilities include binding
+     * parameters, registering bind variables, or applying runtime-only adjustments that must not affect the compiled
+     * SQL shape.</p>
+     *
+     * @param insert the element that was compiled.
+     * @param binder the binder used to bind runtime values.
+     * @param bindHint the bind hint for the element, providing additional context for binding.
+     */
+    @Override
+    public void bind(@Nonnull Insert insert, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
     }
 }

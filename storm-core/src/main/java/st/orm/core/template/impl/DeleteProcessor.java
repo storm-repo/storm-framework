@@ -19,23 +19,54 @@ import jakarta.annotation.Nonnull;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Delete;
 
-/**
- * A processor for a delete element of a template.
- */
 final class DeleteProcessor implements ElementProcessor<Delete> {
 
-    DeleteProcessor(@Nonnull SqlTemplateProcessor templateProcessor) {
+    /**
+     * Returns a key that represents the compiled shape of the given element.
+     *
+     * <p>The compilation key is used for caching compiled results. It must include all fields that can affect the
+     * compilation output (SQL text, emitted fragments, placeholder shape, etc.). The key is compared using
+     * value-based equality, so it should be immutable and implement stable {@code equals}/{@code hashCode}.</p>
+     *
+     * <p>If this method returns {@code null} for any element in a template, the compiled result is considered
+     * non-cacheable and the template must be recompiled each time it is requested.</p>
+     *
+     * @param delete the element to compute a key for.
+     * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
+     */
+    @Override
+    public Object getCompilationKey(@Nonnull Delete delete) {
+        return delete;
     }
 
     /**
-     * Process a delete element of a template.
+     * Compiles the given element into an {@link CompiledElement}.
      *
-     * @param delete the delete element to process.
-     * @return the result of processing the element.
-     * @throws SqlTemplateException if the template does not comply to the specification.
+     * <p>This method is responsible for producing the compile-time representation of the element. It must not perform
+     * runtime binding. Any binding should be deferred to {@link #bind(Delete, TemplateBinder, BindHint)}.</p>
+     *
+     * @param delete the element to compile.
+     * @param compiler the active compiler context.
+     * @return the compiled result for this element.
+     * @throws SqlTemplateException if compilation fails.
      */
     @Override
-    public ElementResult process(@Nonnull Delete delete) throws SqlTemplateException {
-        return new ElementResult(delete.alias().isEmpty() ? "" : delete.alias());
+    public CompiledElement compile(@Nonnull Delete delete, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+        return new CompiledElement(delete.alias().isEmpty() ? "" : compiler.dialect().getSafeIdentifier(delete.alias()));
+    }
+
+    /**
+     * Performs post-processing after compilation, typically binding runtime values for the element.
+     *
+     * <p>This method is called after the element has been compiled. Typical responsibilities include binding
+     * parameters, registering bind variables, or applying runtime-only adjustments that must not affect the compiled
+     * SQL shape.</p>
+     *
+     * @param delete the element that was compiled.
+     * @param binder the binder used to bind runtime values.
+     * @param bindHint the bind hint for the element, providing additional context for binding.
+     */
+    @Override
+    public void bind(@Nonnull Delete delete, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
     }
 }

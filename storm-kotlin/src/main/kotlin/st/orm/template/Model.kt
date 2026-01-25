@@ -62,6 +62,19 @@ interface Model<E : Data, ID : Any> {
     val columns: List<Column>
 
     /**
+     * Returns the columns declared directly on this model.
+     *
+     * <p>Relationship expansion is not applied. The returned list preserves declared order.</p>
+     *
+     * <p><strong>Index semantics:</strong> {@link Column#index()} refers to the index in {@link #columns()},
+     * not in this list.</p>
+     *
+     * @return the declared columns of this model.
+     * @since 1.8
+     */
+    val declaredColumns: List<Column>
+
+    /**
      *
      * This method is used to check if the primary key of the entity is a default value. This is useful when
      * determining if the entity is new or has been persisted before.
@@ -73,69 +86,59 @@ interface Model<E : Data, ID : Any> {
     fun isDefaultPrimaryKey(pk: ID?): Boolean
 
     /**
-     * Iterates over all mapped columns of the given record and emits their extracted values
-     * in stable model column order.
+     * Iterates over the values of the given columns for the supplied record.
      *
-     * The emitted values are the same values that would be passed to the JDBC / data layer.
-     * All conversions have already been applied:
+     * <p>Values are JDBC-ready. Conversions have already been applied.</p>
      *
-     * - `Ref<T>` values are unpacked to their primary-key value
-     * - Foreign-key fields are represented by their primary-key value
-     * - Java time types are converted to JDBC-compatible types
-     *   (for example `LocalDate` → `java.sql.Date`,
-     *   `LocalDateTime` → `java.sql.Timestamp`)
+     * <p><strong>Ordering requirement:</strong> {@code columns} must be ordered according to the model's
+     * column order (usually {@link #columns()} or {@link #declaredColumns()}).</p>
      *
-     * The consumer is invoked once per mapped column. Values may be `null`.
-     *
-     * This function does not allocate intermediate collections and does not mutate the record.
-     * It is intended for efficient value extraction and binding, for example when preparing
-     * SQL statements.
-     *
-     * @param record the record (entity or projection) to extract values from
-     * @param consumer receives each column together with its extracted JDBC-ready value
-     * @throws SqlTemplateException if value extraction fails
-     * @since 1.7
+     * @param columns the columns to extract values for, ordered in model column order.
+     * @param record the record to extract values from.
+     * @param consumer receives each column and its extracted value.
+     * @throws SqlTemplateException if extraction fails.
+     * @since 1.8
      */
     fun forEachValue(
+        columns: List<Column>,
         record: E,
-        consumer: (Column, Any?) -> Unit
-    ) = forEachValue(record, filter = { true }, consumer)
-
-    /**
-     * Iterates over mapped columns of the given record and emits their extracted values
-     * in stable model column order, limited to columns accepted by [filter].
-     *
-     * Value semantics and ordering are identical to
-     * [forEachValue(record, consumer)][forEachValue].
-     *
-     * @param record the record (entity or projection) to extract values from
-     * @param filter predicate deciding which columns are visited
-     * @param consumer receives each visited column together with its extracted JDBC-ready value
-     * @throws SqlTemplateException if value extraction fails
-     * @since 1.7
-     */
-    fun forEachValue(
-        record: E,
-        filter: (Column) -> Boolean,
         consumer: (Column, Any?) -> Unit
     )
 
     /**
-     * Collects extracted column values into a map, optionally filtering which columns to include.
+     * Collects column values into an ordered map.
      *
-     * The returned map preserves iteration order. Its iteration order matches the stable
-     * column order of the underlying model.
+     * <p><strong>Ordering requirement:</strong> {@code columns} must be ordered according to the model's
+     * column order (usually {@link #columns()} or {@link #declaredColumns()}).</p>
      *
-     * Values are the same JDBC-ready values as produced by [forEachValue].
-     *
-     * @param record the record (entity or projection) to extract values from
-     * @param filter predicate deciding which columns are included
-     * @return a map of columns to their extracted JDBC-ready values, in model order
-     * @throws SqlTemplateException if value extraction fails
-     * @since 1.7
+     * @param columns the columns to extract values for.
+     * @param record the record to extract values from.
+     * @return a map of columns to extracted values.
+     * @throws SqlTemplateException if extraction fails.
+     * @since 1.8
      */
     fun values(
-        record: E,
-        filter: (Column) -> Boolean
-    ): Map<Column, Any?>
+        columns: List<Column>,
+        record: E
+    ): Map<Column, Any?> {
+        val values = mutableMapOf<Column, Any?>()
+        forEachValue(columns, record) { column, value ->
+            values[column] = value
+        }
+        return values
+    }
+
+    /**
+     * Collects all column values into an ordered map.
+     *
+     * <p>This method is equivalent to {@link #values(List, Data)} with {@link #columns()}.</p>
+     *
+     * @param record the record to extract values from.
+     * @return a map of columns to extracted values.
+     * @throws SqlTemplateException if extraction fails.
+     * @since 1.8
+     */
+    fun values(
+        record: E
+    ): Map<Column, Any?> = values(columns, record)
 }

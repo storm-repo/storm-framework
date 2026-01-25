@@ -40,6 +40,7 @@ import st.orm.core.template.Column;
  * @param version whether the column is a version column.
  * @param ref whether the column is a lazily fetched record.
  * @param metamodel the metamodel for the column.
+ * @param secondaryMetamodel the secondary metamodel for the column, in case of foreign keys.
  */
 public record ColumnImpl(
         @Nonnull Name columnName,
@@ -55,7 +56,8 @@ public record ColumnImpl(
         boolean updatable,
         boolean version,
         boolean ref,
-        Metamodel<Data, ?> metamodel
+        Metamodel<Data, ?> metamodel,
+        Metamodel<Data, ?> secondaryMetamodel
 ) implements Column {
 
     /**
@@ -76,6 +78,6 @@ public record ColumnImpl(
      */
     @Override
     public String qualifiedName(@Nonnull SqlDialect dialect) {
-        return columnName.getQualifiedName(dialect);
+        return columnName.qualified(dialect);
     }
 }

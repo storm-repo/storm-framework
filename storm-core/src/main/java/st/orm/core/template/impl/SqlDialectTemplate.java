@@ -23,10 +23,10 @@ import st.orm.core.template.TemplateString;
 import static java.util.Objects.requireNonNull;
 
 /**
- * SQL template processor that converts a {@link StringTemplate} into a SQL string using a {@link SqlDialect}.
+ * SQL template processor that converts a {@link TemplateString} into a SQL string using a {@link SqlDialect}.
  *
  * <p><strong>Note:</strong> Only {@code Name} values will be processed by the dialect, regular strings will be
- * appended as is and other types will be converted to strings using their {@code toString()} method.</p>
+ * appended as is, and other types will be converted to strings using their {@code toString()} method.</p>
  */
 final class SqlDialectTemplate {
 
@@ -60,7 +60,7 @@ final class SqlDialectTemplate {
             builder.append(template.fragments().get(i));
             var element = template.values().get(i);
             builder.append(switch (element) {
-                case Name n -> n.getQualifiedName(dialect);
+                case Name n -> n.qualified(dialect);
                 default -> element.toString();
             });
         }

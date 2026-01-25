@@ -39,5 +39,5 @@ public interface Name {
      * @param dialect the SQL dialect.
      * @return the qualified name of the database object.
      */
-    String getQualifiedName(@Nonnull SqlDialect dialect);
+    String qualified(@Nonnull SqlDialect dialect);
 }

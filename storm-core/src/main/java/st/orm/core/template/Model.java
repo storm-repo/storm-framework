@@ -23,181 +23,231 @@ import st.orm.mapping.RecordType;
 
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
+import java.util.SequencedMap;
 import java.util.function.BiConsumer;
-import java.util.function.Predicate;
 
 /**
  * Represents the model of an entity or projection.
  *
+ * <p>A model describes the structural mapping between a record type and its database representation.
+ * It exposes metadata such as schema, table/view name, and columns, and provides mechanisms to extract
+ * JDBC-ready values from entity or projection instances.</p>
+ *
  * @param <E> the type of the entity or projection.
- * @param <ID> the type of the primary key, or {@code Void} in case of a projection without a primary key.
+ * @param <ID> the type of the primary key, or {@code Void} for projections without a primary key.
  */
 public interface Model<E extends Data, ID> {
 
     /**
-     * Returns the schema, or an empty String if the schema is not specified.
+     * Returns the schema, or an empty string if the schema is not specified.
      *
-     * @return the schema, or an empty String if the schema is not specified.
+     * @return the schema, or an empty string if not specified.
      */
     String schema();
 
     /**
      * Returns the name of the table or view.
      *
-     * @return the name of the table or view.
+     * @return the table or view name.
      */
     String name();
 
     /**
-     * Returns the qualified name of the table or view, including the schema and escape characters where necessary.
+     * Returns the qualified name of the table or view, including schema and quoting.
      *
-     * @return the qualified name of the table or view, including the schema and escape characters where necessary.
+     * @param dialect the SQL dialect used for quoting.
+     * @return the qualified table or view name.
      */
     String qualifiedName(@Nonnull SqlDialect dialect);
 
     /**
-     * Returns the type of the entity or projection.
+     * Returns the Java type of the entity or projection.
      *
-     * @return the type of the entity or projection.
+     * @return the record type.
      */
     Class<E> type();
 
     /**
      * Returns the type of the primary key.
      *
-     * @return the type of the primary key.
+     * @return the primary key type, or {@code Void.class} if no primary key exists.
      */
     Class<ID> primaryKeyType();
 
     /**
-     * Returns an immutable list of columns in the entity or projection.
+     * Returns all columns of this model, including columns of expanded relationships.
      *
-     * @return an immutable list of columns in the entity or projection.
+     * <p>The returned list is deterministic and stable. Declared columns are processed in declaration order.
+     * Foreign relationships are expanded depth-first at the position of the foreign-key column.</p>
+     *
+     * <p>Expanded columns always correspond to physical columns of the parent record. Join keys come from the
+     * parent row, not the referenced row.</p>
+     *
+     * @return all columns of this model, including expanded relations.
+     * @since 1.7
      */
     List<Column> columns();
 
     /**
-     * Returns the type of the record.
+     * Returns the columns declared directly on this model.
      *
-     * @return the type of the record.
+     * <p>Relationship expansion is not applied. The returned list preserves declared order.</p>
+     *
+     * <p><strong>Index semantics:</strong> {@link Column#index()} refers to the index in {@link #columns()},
+     * not in this list.</p>
+     *
+     * @return the declared columns of this model.
+     * @since 1.8
+     */
+    List<Column> declaredColumns();
+
+    /**
+     * Returns the record type metadata.
+     *
+     * @return the record type.
      * @since 1.7
      */
     RecordType recordType();
 
     /**
-     * <p>This method is used to check if the primary key of the entity is a default value. This is useful when
-     * determining if the entity is new or has been persisted before.</p>
+     * Returns {@code true} if the given primary key represents a default value.
      *
-     * @param pk primary key to check.
-     * @return {code true} if the specified primary key represents a default value, {@code false} otherwise.
+     * @param pk the primary key to check.
+     * @return {@code true} if the primary key is a default value.
      * @since 1.2
      */
     boolean isDefaultPrimaryKey(@Nullable ID pk);
 
     /**
-     * Resolves the {@link Column}s for the given metamodel.
+     * Returns the metamodel of the primary key, if present.
      *
-     * <p>The provided metamodel must represent one or more columns (see {@link Metamodel#isColumn()}). This method
-     * looks up the metamodel in the model’s column mapping and returns all {@link Column} instances associated with
-     * it.</p>
+     * @return the primary key metamodel, or empty if none exists.
+     * @since 1.7
+     */
+    Optional<Metamodel<E, ID>> getPrimaryKeyMetamodel();
+
+    /**
+     * Resolves all columns associated with the given metamodel.
      *
-     * <p>A single metamodel may resolve to multiple columns, for example, when a foreign key references an entity with
-     * a compound primary key, causing the foreign key metamodel to resolve to two columns, one per key part.</p>
-     *
-     * @param metamodel the metamodel that identifies the columns of this model.
-     * @return the resolved columns for the given metamodel.
-     * @throws SqlTemplateException if the metamodel does not represent columns, or if this model does not contain any
-     *                              columns for the given metamodel.
+     * @param metamodel the metamodel identifying one or more columns.
+     * @return the resolved columns.
+     * @throws SqlTemplateException if the metamodel is invalid or not present.
      * @since 1.7
      */
     List<Column> getColumns(@Nonnull Metamodel<?, ?> metamodel) throws SqlTemplateException;
 
     /**
-     * Resolves a single {@link Column} for the given metamodel.
+     * Resolves a single column for the given metamodel.
      *
-     * <p>The provided metamodel must represent exactly one column (see {@link Metamodel#isColumn()}). The returned
-     * {@link Column} describes the physical database column that corresponds to the given metamodel path.</p>
-     *
-     * @param metamodel the metamodel identifying a single column.
+     * @param metamodel the metamodel identifying exactly one column.
      * @return the resolved column.
-     * @throws SqlTemplateException if the metamodel does not represent a column, or if no column exists for the given
-     *                              metamodel.
+     * @throws SqlTemplateException if zero or multiple columns are resolved.
+     * @since 1.7
      */
     default Column getSingleColumn(@Nonnull Metamodel<?, ?> metamodel) throws SqlTemplateException {
         var columns = getColumns(metamodel);
-        assert !columns().isEmpty();
-        if (columns.size() > 1) {
-            throw new SqlTemplateException("Multiple columns found for metamodel: %s.%s.%s".formatted(metamodel.fieldType(), metamodel.path(), metamodel.field()));
+        if (columns.size() != 1) {
+            throw new SqlTemplateException("Expected exactly one column for metamodel: %s.%s.%s"
+                    .formatted(metamodel.fieldType(), metamodel.path(), metamodel.field()));
         }
         return columns.getFirst();
     }
 
     /**
-     * Extracts column values from the given record and feeds them to a consumer in model column order.
+     * Iterates over the values of the given columns for the supplied record.
      *
-     * <p>The values produced by this method are the same values that would be presented to the JDBC / data layer.
-     * This means conversions have already been applied:</p>
+     * <p>Values are JDBC-ready. Conversions have already been applied.</p>
      *
-     * <ul>
-     *   <li>{@code Ref<T>} is unpacked to its underlying primary-key value.</li>
-     *   <li>Foreign-key fields are represented by their primary-key value.</li>
-     *   <li>Java time types are converted to their JDBC-compatible counterparts (for example {@code LocalDate} to
-     *       {@code java.sql.Date}, {@code LocalDateTime} to {@code java.sql.Timestamp}, etc.).</li>
-     * </ul>
+     * <p><strong>Ordering requirement:</strong> {@code columns} must be ordered according to the model's
+     * column order (usually {@link #columns()} or {@link #declaredColumns()}).</p>
      *
-     * <p>The consumer is invoked once per mapped column, in a stable order that matches the column order of the
-     * underlying model (entity or projection). The extracted value may be {@code null}.</p>
-     *
-     * <p>This method does not allocate intermediate collections and does not mutate the record. It is intended for
-     * efficient value extraction and binding, for example, when preparing SQL statements.</p>
-     *
+     * @param columns the columns to extract values for, ordered in model column order.
      * @param record the record to extract values from.
-     * @param consumer receives each mapped column together with its extracted (JDBC-ready) value.
-     * @throws SqlTemplateException if an error occurs during value extraction.
-     * @since 1.7
+     * @param consumer receives each column and its extracted value.
+     * @throws SqlTemplateException if extraction fails.
+     * @since 1.8
      */
-    default void forEachValue(@Nonnull E record, @Nonnull BiConsumer<Column, Object> consumer) throws SqlTemplateException {
-        forEachValue(record, column -> true, consumer);
-    }
+    void forEachValue(@Nonnull List<Column> columns,
+                      @Nonnull E record,
+                      @Nonnull BiConsumer<Column, Object> consumer)
+            throws SqlTemplateException;
 
     /**
-     * Extracts column values from the given record and feeds them to a consumer in model column order,
-     * limited to columns accepted by {@code columnFilter}.
+     * Collects column values into an ordered map.
      *
-     * <p>See {@link #forEachValue(Data, BiConsumer)} for details about ordering and the produced value types.
-     * In short: the produced values are JDBC-ready and already converted (refs and foreign keys unpacked to ids,
-     * Java time converted to JDBC time types).</p>
+     * <p><strong>Ordering requirement:</strong> {@code columns} must be ordered according to the model's
+     * column order (usually {@link #columns()} or {@link #declaredColumns()}).</p>
      *
-     * @param record the record (entity or projection instance) to extract values from
-     * @param filter predicate that decides whether a column should be visited
-     * @param consumer receives each visited column together with its extracted (JDBC-ready) value
-     * @throws SqlTemplateException if an error occurs during value extraction
-     * @since 1.7
+     * @param columns the columns to extract values for.
+     * @param record the record to extract values from.
+     * @return a map of columns to extracted values.
+     * @throws SqlTemplateException if extraction fails.
+     * @since 1.8
      */
-    void forEachValue(
-            @Nonnull E record,
-            @Nonnull Predicate<Column> filter,
-            @Nonnull BiConsumer<Column, Object> consumer
-    ) throws SqlTemplateException;
-
-    /**
-     * Collects extracted values into a map, optionally filtering which columns to include.
-     *
-     * <p>The returned map preserves iteration order. Its iteration order matches the model's stable column order.</p>
-     *
-     * <p>Values are the same JDBC-ready values as produced by {@link #forEachValue(Data, BiConsumer)}.</p>
-     *
-     * @param record the record (entity or projection instance) to extract values from.
-     * @param filter predicate that decides whether a column should be included.
-     * @return a {@link Map} containing columns and their extracted (JDBC-ready) values in the order of the model.
-     * @throws SqlTemplateException if an error occurs during value extraction.
-     * @since 1.7
-     */
-    default Map<Column, Object> values(@Nonnull E record, @Nonnull Predicate<Column> filter)
+    default SequencedMap<Column, Object> values(@Nonnull List<Column> columns,
+                                                @Nonnull E record)
             throws SqlTemplateException {
-        Map<Column, Object> values = new LinkedHashMap<>();
-        forEachValue(record, filter, values::put);
+        var values = new LinkedHashMap<Column, Object>();
+        forEachValue(columns, record, values::put);
         return values;
     }
+
+    /**
+     * Collects all column values into an ordered map.
+     *
+     * <p>This method is equivalent to {@link #values(List, Data)} with {@link #columns()}.</p>
+     *
+     * @param record the record to extract values from.
+     * @return a map of columns to extracted values.
+     * @throws SqlTemplateException if extraction fails.
+     * @since 1.8
+     */
+    default SequencedMap<Column, Object> values(@Nonnull E record) throws SqlTemplateException {
+        return values(columns(), record);
+    }
+
+    /**
+     * Collects declared column values into an ordered map.
+     *
+     * <p>The returned map preserves the iteration order of {@link #declaredColumns()}.</p>
+     *
+     * @param record the record to extract values from.
+     * @return a map of declared columns to extracted values.
+     * @throws SqlTemplateException if extraction fails.
+     * @since 1.8
+     */
+    default SequencedMap<Column, Object> declaredValues(@Nonnull E record)
+            throws SqlTemplateException {
+        return values(declaredColumns(), record);
+    }
+
+    /**
+     * Finds a unique metamodel referring to the given entity type.
+     *
+     * @param type the referenced entity type.
+     * @return the matching metamodel, or empty if not found or ambiguous.
+     * @since 1.8
+     */
+    Optional<Metamodel<E, ?>> findMetamodel(@Nonnull Class<? extends Data> type);
+
+    /**
+     * Extracts values for a given metamodel and object.
+     *
+     * <p>If {@code object} is a {@link Data} instance, the model extracts its id and maps columns from that id.
+     * Otherwise, {@code object} must be compatible with {@code metamodel.fieldType()}.</p>
+     *
+     * <p>If the resolved value is {@code null} and the metamodel resolves to multiple columns, each column is
+     * emitted with {@code null}.</p>
+     *
+     * @param metamodel the metamodel identifying the column(s).
+     * @param object the value holder or entity instance.
+     * @param consumer receives each resolved column and value.
+     * @throws SqlTemplateException if extraction fails.
+     * @since 1.8
+     */
+    void forEachValue(@Nonnull Metamodel<E, ?> metamodel,
+                      @Nonnull Object object,
+                      @Nonnull BiConsumer<Column, Object> consumer)
+            throws SqlTemplateException;
 }

@@ -32,7 +32,6 @@ import st.orm.mapping.RecordType;
 
 import java.util.BitSet;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -103,7 +102,7 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
     /**
      * Marker for a clean entity (no dirty fields).
      */
-    private static final Optional<Set<Metamodel<? extends Data, ?>>> CLEAN = Optional.empty();
+    private static final Optional<Set<Metamodel<?, ?>>> CLEAN = Optional.empty();
 
     /**
      * Marker indicating that at least one field is dirty, without enumerating specific fields.
@@ -111,25 +110,25 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
      * <p>This marker is used for {@link UpdateMode#OFF} and {@link UpdateMode#ENTITY} (where the existence of a change
      * is sufficient), and as a fallback when field enumeration is not available.</p>
      */
-    private static final Optional<Set<Metamodel<? extends Data, ?>>> DIRTY = Optional.of(Set.of());
+    private static final Optional<Set<Metamodel<?, ?>>> DIRTY = Optional.of(Set.of());
 
     static {
         LOGGER.info("Using default update mode: {}.", DEFAULT_UPDATE_MODE);
         LOGGER.info("Using default dirty check: {}.", DEFAULT_DIRTY_CHECK);
     }
 
-    private final List<Column> columns;
+    private final Model<E, ID> model;
     private final UpdateMode updateMode;
     private final DirtyCheck dirtyCheck;
     private final Column versionColumn;
-    private final ConcurrentMap<BitSet, Set<Metamodel<? extends Data, ?>>> dirtyFieldsCache = new ConcurrentHashMap<>();
+    private final ConcurrentMap<BitSet, Set<Metamodel<?, ?>>> dirtyFieldsCache = new ConcurrentHashMap<>();
 
     DirtySupport(@Nonnull Model<E, ID> model) {
-        this.columns = model.columns();
+        this.model = model;
         RecordType recordType = model.recordType();
         this.updateMode = getUpdateMode(recordType);
         this.dirtyCheck = getDirtyCheck(recordType);
-        this.versionColumn = columns.stream().filter(Column::version).findAny().orElse(null);
+        this.versionColumn = model.declaredColumns().stream().filter(Column::version).findAny().orElse(null);
     }
 
     /**
@@ -220,8 +219,8 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
      * @param cache the entity cache holding the previously observed state
      * @return an optional describing the dirty state, or an empty optional if no fields are dirty
      */
-    Optional<Set<Metamodel<? extends Data, ?>>> getDirty(@Nonnull E entity,
-                                                         @Nullable EntityCache<E, ID> cache) {
+    Optional<Set<Metamodel<?, ?>>> getDirty(@Nonnull E entity,
+                                            @Nullable EntityCache<E, ID> cache) {
         if (updateMode == OFF) {
             // Update mode is OFF, treat all fields as dirty.
             return DIRTY;
@@ -239,8 +238,8 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
             // Cached, no fields are dirty.
             return CLEAN;
         }
-        BitSet dirtyFields = updateMode == ENTITY ? null : new BitSet(columns.size());
-        for (Column column : columns) {
+        BitSet dirtyFields = updateMode == ENTITY ? null : new BitSet();
+        for (Column column : model.declaredColumns()) {
             if (!column.updatable()) {
                 continue;
             }
@@ -257,9 +256,9 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
         }
         BitSet key = (BitSet) dirtyFields.clone(); // Defensive copy.
         return Optional.of(dirtyFieldsCache.computeIfAbsent(key, bits -> {
-            Set<Metamodel<? extends Data, ?>> set = new HashSet<>();
+            Set<Metamodel<?, ?>> set = new HashSet<>();
             for (int i = bits.nextSetBit(0); i >= 0; i = bits.nextSetBit(i + 1)) {
-                set.add(columns.get(i).metamodel());
+                set.add(model.columns().get(i).metamodel());
             }
             if (versionColumn != null) {
                 set.add(versionColumn.metamodel());

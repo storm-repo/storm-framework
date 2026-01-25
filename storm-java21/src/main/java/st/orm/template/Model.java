@@ -20,10 +20,10 @@ import jakarta.annotation.Nullable;
 import st.orm.Data;
 import st.orm.core.template.SqlTemplateException;
 
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.SequencedMap;
 import java.util.function.BiConsumer;
-import java.util.function.Predicate;
 
 /**
  * Represents the model of an entity or projection.
@@ -62,11 +62,31 @@ public interface Model<E extends Data, ID> {
     Class<ID> primaryKeyType();
 
     /**
-     * Returns an immutable list of columns in the entity or projection.
+     * Returns all columns of this model, including columns of expanded relationships.
      *
-     * @return an immutable list of columns in the entity or projection.
+     * <p>The returned list is deterministic and stable. Declared columns are processed in declaration order.
+     * Foreign relationships are expanded depth-first at the position of the foreign-key column.</p>
+     *
+     * <p>Expanded columns always correspond to physical columns of the parent record. Join keys come from the
+     * parent row, not the referenced row.</p>
+     *
+     * @return all columns of this model, including expanded relations.
+     * @since 1.7
      */
     List<Column> columns();
+
+    /**
+     * Returns the columns declared directly on this model.
+     *
+     * <p>Relationship expansion is not applied. The returned list preserves declared order.</p>
+     *
+     * <p><strong>Index semantics:</strong> {@link st.orm.core.template.Column#index()} refers to the index in {@link #columns()},
+     * not in this list.</p>
+     *
+     * @return the declared columns of this model.
+     * @since 1.8
+     */
+    List<Column> declaredColumns();
 
     /**
      * <p>This method is used to check if the primary key of the entity is a default value. This is useful when
@@ -79,61 +99,55 @@ public interface Model<E extends Data, ID> {
     boolean isDefaultPrimaryKey(@Nullable ID pk);
 
     /**
-     * Extracts column values from the given record and feeds them to a consumer in model column order.
+     * Iterates over the values of the given columns for the supplied record.
      *
-     * <p>The values produced by this method are the same values that would be presented to the JDBC / data layer.
-     * This means conversions have already been applied:</p>
+     * <p>Values are JDBC-ready. Conversions have already been applied.</p>
      *
-     * <ul>
-     *   <li>{@code Ref<T>} is unpacked to its underlying primary-key value.</li>
-     *   <li>Foreign-key fields are represented by their primary-key value.</li>
-     *   <li>Java time types are converted to their JDBC-compatible counterparts (for example {@code LocalDate} to
-     *       {@code java.sql.Date}, {@code LocalDateTime} to {@code java.sql.Timestamp}, etc.).</li>
-     * </ul>
+     * <p><strong>Ordering requirement:</strong> {@code columns} must be ordered according to the model's
+     * column order (usually {@link #columns()} or {@link #declaredColumns()}).</p>
      *
-     * <p>The consumer is invoked once per mapped column, in a stable order that matches the column order of the
-     * underlying model (entity or projection). The extracted value may be {@code null}.</p>
-     *
-     * <p>This method does not allocate intermediate collections and does not mutate the record. It is intended for
-     * efficient value extraction and binding, for example, when preparing SQL statements.</p>
-     *
+     * @param columns the columns to extract values for, ordered in model column order.
      * @param record the record to extract values from.
-     * @param consumer receives each mapped column together with its extracted (JDBC-ready) value.
-     * @throws SqlTemplateException if an error occurs during value extraction.
-     * @since 1.7
+     * @param consumer receives each column and its extracted value.
+     * @throws SqlTemplateException if extraction fails.
+     * @since 1.8
      */
-    default void forEachValue(@Nonnull E record, @Nonnull BiConsumer<Column, Object> consumer) throws SqlTemplateException {
-        forEachValue(record, ignore -> true, consumer);
+    void forEachValue(@Nonnull List<Column> columns,
+                      @Nonnull E record,
+                      @Nonnull BiConsumer<Column, Object> consumer)
+            throws SqlTemplateException;
+
+    /**
+     * Collects column values into an ordered map.
+     *
+     * <p><strong>Ordering requirement:</strong> {@code columns} must be ordered according to the model's
+     * column order (usually {@link #columns()} or {@link #declaredColumns()}).</p>
+     *
+     * @param columns the columns to extract values for.
+     * @param record the record to extract values from.
+     * @return a map of columns to extracted values.
+     * @throws SqlTemplateException if extraction fails.
+     * @since 1.8
+     */
+    default SequencedMap<Column, Object> values(@Nonnull List<Column> columns,
+                                                @Nonnull E record)
+            throws SqlTemplateException {
+        var values = new LinkedHashMap<Column, Object>();
+        forEachValue(columns, record, values::put);
+        return values;
     }
 
     /**
-     * Extracts column values from the given record and feeds them to a consumer in model column order,
-     * limited to columns accepted by {@code columnFilter}.
+     * Collects all column values into an ordered map.
      *
-     * <p>See {@link #forEachValue(Data, BiConsumer)} for details about ordering and the produced value types.
-     * In short: the produced values are JDBC-ready and already converted (refs and foreign keys unpacked to ids,
-     * Java time converted to JDBC time types).</p>
+     * <p>This method is equivalent to {@link #values(List, Data)} with {@link #columns()}.</p>
      *
-     * @param record the record (entity or projection instance) to extract values from
-     * @param filter predicate that decides whether a column should be visited
-     * @param consumer receives each visited column together with its extracted (JDBC-ready) value
-     * @throws SqlTemplateException if an error occurs during value extraction
-     * @since 1.7
+     * @param record the record to extract values from.
+     * @return a map of columns to extracted values.
+     * @throws SqlTemplateException if extraction fails.
+     * @since 1.8
      */
-    void forEachValue(@Nonnull E record, @Nonnull Predicate<Column> filter, @Nonnull BiConsumer<Column, Object> consumer) throws SqlTemplateException;
-
-    /**
-     * Collects extracted values into a map, optionally filtering which columns to include.
-     *
-     * <p>The returned map preserves iteration order. Its iteration order matches the model's stable column order.</p>
-     *
-     * <p>Values are the same JDBC-ready values as produced by {@link #forEachValue(Data, BiConsumer)}.</p>
-     *o
-     * @param record the record (entity or projection instance) to extract values from.
-     * @param filter predicate that decides whether a column should be included.
-     * @return a {@link Map} containing columns and their extracted (JDBC-ready) values in the order of the model.
-     * @throws SqlTemplateException if an error occurs during value extraction.
-     * @since 1.7
-     */
-    Map<Column, Object> values(@Nonnull E record, @Nonnull Predicate<Column> filter) throws SqlTemplateException;
+    default SequencedMap<Column, Object> values(@Nonnull E record) throws SqlTemplateException {
+        return values(columns(), record);
+    }
 }

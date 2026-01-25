@@ -64,6 +64,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
     private final TableAliasResolver tableAliasResolver;
     private final Predicate<Provider> providerFilter;
     private final RefFactory refFactory;
+    private final SqlTemplate sqlTemplate;
 
     public JpaTemplateImpl(@Nonnull EntityManager entityManager) {
         validate();
@@ -84,6 +85,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         this.tableAliasResolver = TableAliasResolver.DEFAULT;
         this.providerFilter = null;
         this.refFactory = new RefFactoryImpl(this, modelBuilder, providerFilter);
+        this.sqlTemplate = createSqlTemplate();
     }
 
     private JpaTemplateImpl(@Nonnull TemplateProcessor templateProcessor, @Nonnull ModelBuilder modelBuilder, @Nonnull TableAliasResolver tableAliasResolver, @Nullable Predicate<Provider> providerFilter) {
@@ -92,6 +94,19 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         this.tableAliasResolver = tableAliasResolver;
         this.providerFilter = providerFilter;
         this.refFactory = new RefFactoryImpl(this, modelBuilder, providerFilter);
+        this.sqlTemplate = createSqlTemplate();
+    }
+
+    private SqlTemplate createSqlTemplate() {
+        SqlTemplate template = PS
+                .withTableNameResolver(modelBuilder.tableNameResolver())
+                .withColumnNameResolver(modelBuilder.columnNameResolver())
+                .withForeignKeyResolver(modelBuilder.foreignKeyResolver())
+                .withTableAliasResolver(tableAliasResolver);
+        if (providerFilter != null) {
+            template = template.withDialect(Providers.getSqlDialect(providerFilter));
+        }
+        return template;
     }
 
     private void setParameters(@Nonnull jakarta.persistence.Query query, @Nonnull List<SqlTemplate.Parameter> parameters) {
@@ -158,15 +173,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      */
     @Override
     public SqlTemplate sqlTemplate() {
-        SqlTemplate template = PS
-                .withTableNameResolver(modelBuilder.tableNameResolver())
-                .withColumnNameResolver(modelBuilder.columnNameResolver())
-                .withForeignKeyResolver(modelBuilder.foreignKeyResolver())
-                .withTableAliasResolver(tableAliasResolver);
-        if (providerFilter != null) {
-            template = template.withDialect(Providers.getSqlDialect(providerFilter));
-        }
-        return SqlInterceptorManager.customize(template);
+        return  SqlInterceptorManager.customize(sqlTemplate);
     }
 
     /**

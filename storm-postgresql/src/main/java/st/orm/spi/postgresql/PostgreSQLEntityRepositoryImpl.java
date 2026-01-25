@@ -100,13 +100,13 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
     private TemplateString onConflictClause(@Nonnull AtomicBoolean versionAware) {
         var dialect = ormTemplate.dialect();
         // Determine the conflict target from primary key columns.
-        String conflictTarget = model.columns().stream()
+        String conflictTarget = model.declaredColumns().stream()
                 .filter(Column::primaryKey)
                 .map(c -> c.qualifiedName(dialect))
                 .reduce("%s, %s"::formatted)
                 .orElseThrow(() -> new PersistenceException("No primary key defined."));
         // Build the assignment list for non-primary key updatable columns.
-        var assignments = model.columns().stream()
+        var assignments = model.declaredColumns().stream()
                 .filter(not(Column::primaryKey))
                 .filter(Column::updatable)
                 .map(column -> {
@@ -221,7 +221,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
     private static final class UpsertKey implements PartitionKey {
         private static final UpsertKey INSTANCE = new UpsertKey();
     }
-    private record UpdateKey(@Nonnull Set<Metamodel<? extends Data, ?>> fields) implements PartitionKey {
+    private record UpdateKey(@Nonnull Set<Metamodel<?, ?>> fields) implements PartitionKey {
         UpdateKey() {
             this(Set.of()); // All fields.
         }
@@ -235,7 +235,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
         if (generationStrategy != SEQUENCE) {
             return upsertAndFetchIdsNoSequence(entities);
         }
-        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
+        Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         try {
             var result = new ArrayList<ID>();
             var entityCache = entityCache();
@@ -278,7 +278,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     private List<ID> upsertAndFetchIdsNoSequence(@Nonnull Iterable<E> entities) {
-        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
+        Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
             var result = new ArrayList<ID>();
@@ -333,7 +333,7 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void upsert(@Nonnull Stream<E> entities, int batchSize) {
-        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
+        Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
             var entityCache = entityCache();

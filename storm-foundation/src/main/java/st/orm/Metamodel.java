@@ -20,14 +20,6 @@ import jakarta.annotation.Nonnull;
 /**
  * The metamodel is used to map database columns to the object model in a type-safe way.
  *
- * <h2>Equality</h2>
- * Two metamodel instances are considered equal when they identify the same logical field location
- * in the schema:
- * <ul>
- *   <li>the same owning table as returned by {@link #fieldType()} of {@link #table()},</li>
- *   <li>the same {@link #field()}.</li>
- * </ul>
- *
  * @param <T> the primary table type.
  * @param <E> the field type of the designated element.
  * @since 1.2
@@ -60,6 +52,21 @@ public interface Metamodel<T extends Data, E> {
      */
     static <T extends Data, E> Metamodel<T, E> of(@Nonnull Class<T> rootTable, @Nonnull String path) {
         return MetamodelHelper.of(rootTable, path);
+    }
+
+    /**
+     * Returns the canonical metamodel for the field represented by {@code this} metamodel. The resulting metamodel
+     * captures only the table type and field.
+     *
+     * <p>The result is independent of the position of this field within a table graph. This makes the normalized form
+     * suitable for equality checks, for example, to determine whether two metamodels refer to the same underlying
+     * field.</p>
+     *
+     * @return the canonical metamodel for this metamodel.
+     * @since 1.8
+     */
+    default Metamodel<? extends Data, E> canonical() {
+        return of(tableType(), field());
     }
 
     /**

@@ -18,7 +18,7 @@ package st.orm.core.template;
 import jakarta.annotation.Nonnull;
 
 import java.util.List;
-import java.util.Map;
+import java.util.SequencedMap;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -128,18 +128,22 @@ public interface SqlDialect {
     Pattern getQuoteLiteralPattern();
 
     /**
-     * Returns a string for the given column name.
+     * Builds a multi-value IN clause.
      *
-     * @param values the (multi) values to use in the IN clause.
+     * <p>The provided values are processed in a deterministic order. First, the list is iterated row by row. For each
+     * row, the values of the map are then processed in the map’s iteration order. This order is used both for SQL
+     * rendering and for parameter binding.</p>
+     *
+     * @param values the multi-row values to use in the IN clause. Each map represents a single row.
      * @param parameterFunction the function responsible for binding the parameters to the SQL template and returning
-     *                          the string representation of the parameter, which is either a '?' placeholder or a
-     *                          literal value.
-     * @return the string that represents the multi value IN clause.
+     * the string representation of each parameter, either a '?' placeholder or a literal value.
+     * @return the string that represents the multi-value IN clause.
      * @throws SqlTemplateException if the values are incompatible.
      * @since 1.2
      */
-    String multiValueIn(@Nonnull List<Map<String, Object>> values,
-                        @Nonnull Function<Object, String> parameterFunction) throws SqlTemplateException;
+    String multiValueIn(@Nonnull List<SequencedMap<String, Object>> values,
+                        @Nonnull Function<Object, String> parameterFunction)
+            throws SqlTemplateException;
 
     /**
      * Returns {@code true} if the limit should be applied after the SELECT clause, {@code false} to apply the limit at

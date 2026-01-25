@@ -124,10 +124,25 @@ public interface Column {
     boolean ref();
 
     /**
-     * Returns the metamodel of the column.
+     * Returns the metamodel for this element.
      *
-     * @return the metamodel of the column.
+     * <p>In case of a foreign key relationship, this metamodel represents the foreign key column on the parent entity.
+     * For non-foreign relationships, this is the only metamodel that applies.</p>
+     *
+     * @return the metamodel for this element.
      * @since 1.7
      */
     Metamodel<Data, ?> metamodel();
+
+    /**
+     * Returns the secondary metamodel associated with this element.
+     *
+     * <p>This metamodel is only present for foreign key relationships and represents the primary key of the referenced
+     * (foreign) entity. For all other cases, this method returns {@code null}.</p>
+     *
+     * @return the metamodel of the referenced entity's primary key, or {@code null} if this element does not represent
+     * a foreign relationship.
+     * @since 1.8
+     */
+    Metamodel<Data, ?> secondaryMetamodel();
 }

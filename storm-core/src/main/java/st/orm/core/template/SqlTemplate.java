@@ -222,9 +222,9 @@ public interface SqlTemplate extends TemplateDecorator {
     SqlTemplate withTableNameResolver(@Nonnull TableNameResolver resolver);
 
     /**
-     * Returns the table name resolver that is used by this template.
+     * Returns the table name resolver used by this template.
      *
-     * @return the table name resolver that is used by this template.
+     * @return the table name resolver used by this template.
      */
     TableNameResolver tableNameResolver();
 
@@ -237,9 +237,9 @@ public interface SqlTemplate extends TemplateDecorator {
     SqlTemplate withTableAliasResolver(@Nonnull TableAliasResolver resolver);
 
     /**
-     * Returns the table alias resolver that is used by this template.
+     * Returns the table alias resolver used by this template.
      *
-     * @return the table alias resolver that is used by this template.
+     * @return the table alias resolver used by this template.
      */
     TableAliasResolver tableAliasResolver();
 
@@ -253,9 +253,9 @@ public interface SqlTemplate extends TemplateDecorator {
     SqlTemplate withColumnNameResolver(@Nonnull ColumnNameResolver resolver);
 
     /**
-     * Returns the column name resolver that is used by this template.
+     * Returns the column name resolver used by this template.
      *
-     * @return the column name resolver that is used by this template.
+     * @return the column name resolver used by this template.
      */
     ColumnNameResolver columnNameResolver();
 
@@ -269,9 +269,9 @@ public interface SqlTemplate extends TemplateDecorator {
     SqlTemplate withForeignKeyResolver(@Nonnull ForeignKeyResolver resolver);
 
     /**
-     * Returns the foreign key resolver that is used by this template.
+     * Returns the foreign key resolver used by this template.
      *
-     * @return the foreign key resolver that is used by this template.
+     * @return the foreign key resolver used by this template.
      */
     ForeignKeyResolver foreignKeyResolver();
 
@@ -284,9 +284,9 @@ public interface SqlTemplate extends TemplateDecorator {
     SqlTemplate withDialect(@Nonnull SqlDialect dialect);
 
     /**
-     * Returns the SQL dialect that is used by this template.
+     * Returns the SQL dialect used by this template.
      *
-     * @return the SQL dialect that is used by this template.
+     * @return the SQL dialect used by this template.
      * @since 1.2
      */
     SqlDialect dialect();

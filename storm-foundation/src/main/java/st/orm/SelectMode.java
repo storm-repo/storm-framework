@@ -16,29 +16,29 @@
 package st.orm;
 
 /**
- * Specifies the selection mode for query operations.
+ * Specifies how much data a query should select for an entity or projection.
+ *
+ * <p>The selected column set is deterministic and matches the model's column order.</p>
  */
 public enum SelectMode {
 
     /**
-     * Only the primary key fields are selected.
-     *
-     * <p>This mode returns the minimal data necessary to identify records.</p>
+     * Selects only the columns required to identify the record.
      */
     PK,
 
     /**
-     * Only the fields of the main table are selected, without including nested object hierarchies.
+     * Selects only the columns declared on the root table or view.
      *
-     * <p>This mode is useful if you need the basic attributes of the record without fetching associated records.</p>
+     * <p>This mode does not expand relationships and does not include columns from referenced models.</p>
      */
-    FLAT,
+    DECLARED,
 
     /**
-     * The entire object hierarchy is selected.
+     * Selects the full hierarchical column set.
      *
-     * <p>This mode retrieves the full record along with any nested associations, providing a complete view of the
-     * record.</p>
+     * <p>This mode expands relationships and includes the columns necessary to materialize the
+     * entire object hierarchy.</p>
      */
     NESTED
 }

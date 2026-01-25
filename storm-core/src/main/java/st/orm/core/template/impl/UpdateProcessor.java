@@ -16,36 +16,60 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
-import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Update;
 
-import static st.orm.core.template.impl.RecordReflection.getTableName;
-
-/**
- * A processor for an update element of a template.
- */
 final class UpdateProcessor implements ElementProcessor<Update> {
 
-    private final SqlTemplate template;
-    private final SqlDialectTemplate dialectTemplate;
-
-    UpdateProcessor(@Nonnull SqlTemplateProcessor templateProcessor) {
-        this.template = templateProcessor.template();
-        this.dialectTemplate = templateProcessor.dialectTemplate();
+    /**
+     * Returns a key that represents the compiled shape of the given element.
+     *
+     * <p>The compilation key is used for caching compiled results. It must include all fields that can affect the
+     * compilation output (SQL text, emitted fragments, placeholder shape, etc.). The key is compared using
+     * value-based equality, so it should be immutable and implement stable {@code equals}/{@code hashCode}.</p>
+     *
+     * <p>If this method returns {@code null} for any element in a template, the compiled result is considered
+     * non-cacheable and the template must be recompiled each time it is requested.</p>
+     *
+     * @param update the element to compute a key for.
+     * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
+     */
+    @Override
+    public Object getCompilationKey(@Nonnull Update update) {
+        return update;
     }
 
     /**
-     * Process an update element of a template.
+     * Compiles the given element into an {@link CompiledElement}.
      *
-     * @param update the update element to process.
-     * @return the result of processing the element.
-     * @throws SqlTemplateException if the template does not comply to the specification.
+     * <p>This method is responsible for producing the compile-time representation of the element. It must not perform
+     * runtime binding. Any binding should be deferred to {@link #bind(Update, TemplateBinder, BindHint)}.</p>
+     *
+     * @param update the element to compile.
+     * @param compiler the active compiler context.
+     * @return the compiled result for this element.
+     * @throws SqlTemplateException if compilation fails.
      */
     @Override
-    public ElementResult process(@Nonnull Update update) throws SqlTemplateException {
-        return new ElementResult(dialectTemplate.process("\0\0",
-                getTableName(update.table(), template.tableNameResolver()),
-                update.alias().isEmpty() ? "" : " " + update.alias()));
+    public CompiledElement compile(@Nonnull Update update, @Nonnull TemplateCompiler compiler)
+            throws SqlTemplateException{
+        var queryModel = compiler.getQueryModel();
+        assert queryModel.getTable().type() == update.table();
+        var table = queryModel.getTable();
+        return new CompiledElement("%s%s".formatted(table.name(), table.alias().isEmpty() ? "" : " " + table.alias()));
+    }
+
+    /**
+     * Performs post-processing after compilation, typically binding runtime values for the element.
+     *
+     * <p>This method is called after the element has been compiled. Typical responsibilities include binding
+     * parameters, registering bind variables, or applying runtime-only adjustments that must not affect the compiled
+     * SQL shape.</p>
+     *
+     * @param update the element that was compiled.
+     * @param binder the binder used to bind runtime values.
+     */
+    @Override
+    public void bind(@Nonnull Update update, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
     }
 }

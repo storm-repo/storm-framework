@@ -36,7 +36,7 @@ public record TableName(@Nonnull String table, @Nonnull String schema, boolean e
     }
 
     @Override
-    public String getQualifiedName(@Nonnull SqlDialect dialect) {
+    public String qualified(@Nonnull SqlDialect dialect) {
         String schema = this.schema.isEmpty()
                 ? ""
                 : escape

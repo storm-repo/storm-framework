@@ -42,7 +42,6 @@ import static java.util.Optional.empty;
 import static st.orm.ResolveScope.CASCADE;
 import static st.orm.ResolveScope.INNER;
 import static st.orm.core.template.impl.RecordReflection.getTableName;
-import static st.orm.core.template.impl.SqlTemplateImpl.multiplePathsFoundException;
 
 final class AliasMapper {
 
@@ -95,9 +94,9 @@ final class AliasMapper {
      * <p>The resulting stream emits <code>AliasEntry</code> instances with both the alias string and its {@code level},
      * so callers can apply their own filtering (e.g. only outer or only inner levels).</p>
      *
-     * @param table         the record type whose aliases are being collected
-     * @param path          optional component path; if <code>null</code>, matches all aliases
-     * @param level         the current nesting depth: 0=current, 1=parent, etc.
+     * @param table the record type whose aliases are being collected.
+     * @param path optional component path; if <code>null</code>, matches all aliases.
+     * @param level the current nesting depth: 0=current, 1=parent, etc.
      */
     private Stream<AliasEntry> collectAliasEntries(@Nonnull Class<? extends Data> table,
                                                    @Nullable String path,
@@ -139,7 +138,7 @@ final class AliasMapper {
         return alias;
     }
 
-    public boolean exists(@Nonnull Class<? extends Data> table, @Nonnull ResolveScope scope) throws SqlTemplateException {
+    private boolean exists(@Nonnull Class<? extends Data> table, @Nonnull ResolveScope scope) throws SqlTemplateException {
         return findAlias(table, null, scope).isPresent();
     }
 
@@ -222,7 +221,7 @@ final class AliasMapper {
         }
         if (exists(table, scope)) {
             // Table is registered, but alias could not be resolved (due to empty registration). Revert to full table name.
-            return getTableName(table, tableNameResolver).getQualifiedName(dialect);
+            return getTableName(table, tableNameResolver).qualified(dialect);
         }
         throw exceptionSupplier.get();
     }
@@ -305,5 +304,16 @@ final class AliasMapper {
             throw new SqlTemplateException("Table alias for %s is empty.".formatted(table.getSimpleName()));
         }
         return dialect.getSafeIdentifier(alias);
+    }
+
+    static SqlTemplateException multiplePathsFoundException(@Nonnull Class<?> table, @Nonnull List<String> paths) {
+        paths = paths.stream().filter(Objects::nonNull).distinct().map("'%s'"::formatted).toList();
+        if (paths.isEmpty()) {
+            return new SqlTemplateException("Multiple paths found for %s.".formatted(table.getSimpleName()));
+        }
+        if (paths.size() == 1) {
+            return new SqlTemplateException("Multiple paths found for %s. Specify path %s to uniquely identify the table.".formatted(table.getSimpleName(), paths.getFirst()));
+        }
+        return new SqlTemplateException("Multiple paths found for %s in table graph. Specify one of the following paths to uniquely identify the table: %s.".formatted(table.getSimpleName(), String.join(", ", paths)));
     }
 }
