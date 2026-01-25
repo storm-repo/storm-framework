@@ -105,7 +105,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    fun <T : Data, R : Data> selectFrom(
+    fun <T : Data, R : Any> selectFrom(
         fromType: KClass<T>,
         selectType: KClass<R>
     ): QueryBuilder<T, R, *> {

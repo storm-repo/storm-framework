@@ -146,7 +146,7 @@ final class RecordReflection {
      * @param table the table to obtain the primary key field for.
      * @return the primary key field for the specified table.
      */
-    static Optional<RecordField> findPkField(@Nonnull Class<?> table) {
+    public static Optional<RecordField> findPkField(@Nonnull Class<?> table) {
         return REFLECTION.getRecordType(table).fields().stream()
                 .filter(field -> field.isAnnotationPresent(PK.class))
                 .findFirst();

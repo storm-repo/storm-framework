@@ -18,7 +18,7 @@ package st.orm.core.template;
 import jakarta.annotation.Nonnull;
 import st.orm.Data;
 
-import static st.orm.SelectMode.FLAT;
+import static st.orm.SelectMode.DECLARED;
 import static st.orm.core.template.Templates.select;
 import static st.orm.core.template.TemplateString.wrap;
 
@@ -55,7 +55,7 @@ public interface SubqueryTemplate {
      */
     default <T extends Data, R extends Data> QueryBuilder<T, ?, ?> subquery(@Nonnull Class<T> fromType,
                                                                             @Nonnull Class<R> selectType) {
-        return subquery(fromType, wrap(select(selectType, FLAT)));
+        return subquery(fromType, wrap(select(selectType, DECLARED)));
     }
 
     /**

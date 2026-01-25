@@ -26,14 +26,6 @@ import static java.util.Optional.ofNullable;
 /**
  * Implementation that is used by the generated models.
  *
- * <h2>Equality</h2>
- * Two metamodel instances are considered equal when they identify the same logical field location
- * in the schema:
- * <ul>
- *   <li>the same owning table as returned by {@link #fieldType()} of {@link #table()},</li>
- *   <li>the same {@link #field()}.</li>
- * </ul>
- *
  * @param <T> the primary table type.
  * @param <E> the field type of the designated element.
  * @param <V> the value type of the designated element.
@@ -87,6 +79,7 @@ public abstract class AbstractMetamodel<T extends Data, E, V> implements Metamod
         if (this == o) return true;
         if (!(o instanceof Metamodel<?, ?> other)) return false;
         return Objects.equals(this.table().fieldType(), other.table().fieldType())
+                && Objects.equals(this.path, other.path())
                 && Objects.equals(this.field, other.field());
     }
 
@@ -95,7 +88,7 @@ public abstract class AbstractMetamodel<T extends Data, E, V> implements Metamod
      */
     @Override
     public final int hashCode() {
-        return Objects.hash(table().fieldType(), field);
+        return Objects.hash(table().fieldType(), path, field);
     }
 
     /**
@@ -110,8 +103,6 @@ public abstract class AbstractMetamodel<T extends Data, E, V> implements Metamod
     public boolean isColumn() {
         return isColumn;
     }
-
-
 
     /**
      * Returns the root metamodel. This is typically the table specified in the FROM clause of a query.

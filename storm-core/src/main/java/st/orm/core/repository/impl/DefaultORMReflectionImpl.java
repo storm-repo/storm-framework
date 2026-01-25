@@ -162,7 +162,7 @@ public final class DefaultORMReflectionImpl implements ORMReflection {
             throw new PersistenceException("Unsupported type: %s".formatted(clazz.getClass().getName()));
         }
         if (!Data.class.isAssignableFrom((Class<?>) clazz)) {
-            throw new PersistenceException("Not a Data type: %s".formatted(clazz.getClass().getName()));
+            throw new PersistenceException("Not a Data type: %s".formatted(((Class<?>) clazz).getSimpleName()));
         }
         //noinspection unchecked
         return (Class<? extends Data>) clazz;

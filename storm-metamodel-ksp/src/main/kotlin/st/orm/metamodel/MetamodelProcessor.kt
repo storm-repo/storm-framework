@@ -61,7 +61,6 @@ class MetamodelProcessor(
     companion object {
         private const val GENERATE_METAMODEL = "st.orm.GenerateMetamodel"
         private const val DATA = "st.orm.Data"
-        private const val FOREIGN_KEY = "st.orm.FK"
         private const val REF = "st.orm.Ref"
         private const val PRIMARY_KEY = "st.orm.PK"
 
@@ -313,28 +312,37 @@ class MetamodelProcessor(
         }
     }
 
-    private fun isForeignKey(property: KSPropertyDeclaration): Boolean {
+    private fun isDataType(property: KSPropertyDeclaration): Boolean {
         return try {
-            val hasPropertyAnnotation = property.annotations.any { ann ->
-                ann.annotationType.resolve().declaration.qualifiedName?.asString() == FOREIGN_KEY
-            }
-            if (hasPropertyAnnotation) return true
-
+            if (isDataType(property.type.resolve())) return true
             val parentClass = property.parentDeclaration as? KSClassDeclaration
             if (parentClass != null && parentClass.modifiers.contains(Modifier.DATA)) {
                 val ctor = parentClass.primaryConstructor
                 val param = ctor?.parameters?.find { it.name?.asString() == property.simpleName.asString() }
                 if (param != null) {
-                    return param.annotations.any { ann ->
-                        ann.annotationType.resolve().declaration.qualifiedName?.asString() == FOREIGN_KEY
-                    }
+                    return isDataType(param.type.resolve())
                 }
             }
             false
         } catch (e: Exception) {
-            logger.warn("Error checking foreign key for ${property.simpleName.asString()}: ${e.message}")
+            logger.warn("Error checking data type for ${property.simpleName.asString()}: ${e.message}")
             false
         }
+    }
+
+    private fun isDataType(type: KSType): Boolean {
+        val decl = type.declaration as? KSClassDeclaration ?: return false
+        val qn = decl.qualifiedName?.asString() ?: return false
+
+        if (qn == DATA) return true
+
+        // Covers: class X : Data, interface Y : Data, etc.
+        return decl.superTypes
+            .mapNotNull { st -> runCatching { st.resolve() }.getOrNull() }
+            .any { st ->
+                val stDecl = st.declaration as? KSClassDeclaration
+                stDecl?.qualifiedName?.asString() == DATA || isDataType(st)
+            }
     }
 
     private fun hasAnnotationOrMeta(annotated: KSAnnotated, annotationQn: String): Boolean {
@@ -480,7 +488,7 @@ class MetamodelProcessor(
                 val referencedDecl = typeRef.resolve().declaration as? KSClassDeclaration
                 if (referencedDecl != null) generateMetamodelArtifacts(referencedDecl, resolver)
 
-                val inlineFlag = if (isForeignKey(prop)) "false" else "true"
+                val inlineFlag = if (isDataType(prop)) "false" else "true"
                 val childMetaClass = if (propNullable) "${simpleTypeName}NullableMetamodel" else "${simpleTypeName}Metamodel"
                 val childMetaType = "$childMetaClass<$className>"
                 val getterExpr = "{ t: $className -> t.$fieldName }"
@@ -551,7 +559,7 @@ class MetamodelProcessor(
                 if (typeRef.isNestedDataClass()) return@forEach
 
                 val simpleTypeName = getSimpleTypeName(typeRef, packageName)
-                val inlineFlag = if (isForeignKey(prop)) "false" else "true"
+                val inlineFlag = if (isDataType(prop)) "false" else "true"
                 val childForceNullable = forceNullableChain || propNullable
                 val childMetaClassName =
                     if (childForceNullable) "${simpleTypeName}NullableMetamodel" else "${simpleTypeName}Metamodel"

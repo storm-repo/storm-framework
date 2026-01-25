@@ -796,8 +796,13 @@ public class OracleEntityRepositoryTest {
                 WHEN NOT MATCHED THEN
                 	INSERT (vet_id, specialty_id)
                 	VALUES (src.vet_id, src.specialty_id)""";
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VetSpecialty.class);
+        var orm = PreparedStatementTemplate.ORM(dataSource);
+        var repo = orm.entity(VetSpecialty.class);
         var first = new AtomicBoolean(false);
+        var vet1 = orm.entity(Vet.class).getById(1);
+        var vet6 = orm.entity(Vet.class).getById(6);
+        var specialty2 = orm.entity(Specialty.class).getById(2);
+        var specialty3 = orm.entity(Specialty.class).getById(3);
         observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
@@ -807,8 +812,8 @@ public class OracleEntityRepositoryTest {
             }
         }, () -> {
             var entities = repo.upsertAndFetch(List.of(
-                    VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(1).specialtyId(2).build()).vet(Vet.builder().id(1).build()).specialty(Specialty.builder().id(2).build()).build(),
-                    VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(6).specialtyId(3).build()).vet(Vet.builder().id(6).build()).specialty(Specialty.builder().id(3).build()).build()
+                    VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(1).specialtyId(2).build()).vet(vet1).specialty(specialty2).build(),
+                    VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(6).specialtyId(3).build()).vet(vet6).specialty(specialty3).build()
             )).stream().sorted(Comparator.comparingInt(a -> a.id().vetId())).toList();
             assertEquals(2, entities.size());
             assertEquals(1, entities.getFirst().id().vetId());
@@ -827,8 +832,13 @@ public class OracleEntityRepositoryTest {
                 WHEN NOT MATCHED THEN
                 	INSERT (vet_id, specialty_id)
                 	VALUES (src.vet_id, src.specialty_id)""";
-        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VetSpecialty.class);
+        var orm = PreparedStatementTemplate.ORM(dataSource);
+        var repo = orm.entity(VetSpecialty.class);
         var first = new AtomicBoolean(false);
+        var vet1 = orm.entity(Vet.class).getById(1);
+        var vet3 = orm.entity(Vet.class).getById(3);
+        var specialty1 = orm.entity(Specialty.class).getById(1);
+        var specialty2 = orm.entity(Specialty.class).getById(2);
         observe(sql -> {
             if (!first.getAndSet(true)) {
                 assertEquals(expectedSql, sql.statement());
@@ -838,8 +848,8 @@ public class OracleEntityRepositoryTest {
             }
         }, () -> {
             var entities = repo.upsertAndFetch(List.of(
-                    VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(2).specialtyId(1).build()).vet(Vet.builder().id(1).build()).specialty(Specialty.builder().id(1).build()).build(),
-                    VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(3).specialtyId(2).build()).vet(Vet.builder().id(3).build()).specialty(Specialty.builder().id(2).build()).build()
+                    VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(2).specialtyId(1).build()).vet(vet1).specialty(specialty1).build(),
+                    VetSpecialty.builder().id(VetSpecialtyPK.builder().vetId(3).specialtyId(2).build()).vet(vet3).specialty(specialty2).build()
             )).stream().sorted(Comparator.comparingInt(a -> a.id().vetId())).toList();
             assertEquals(2, entities.size());
             assertEquals(2, entities.getFirst().id().vetId());

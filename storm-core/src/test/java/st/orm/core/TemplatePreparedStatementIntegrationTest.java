@@ -667,12 +667,12 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWhereRefPk() {
-        PersistenceException e = assertThrows(PersistenceException.class, () -> ORMTemplate.of(dataSource).query(raw("""
+        var list = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
                 FROM \0
-                WHERE \0""", VetSpecialtyRefPk.class, VetSpecialtyRefPk.class, where(Ref.of(Vet.builder().id(1).build()))))
-            .getResultStream(VetSpecialtyRefPk.class));
-        assertInstanceOf(SqlTemplateException.class, e.getCause());
+                WHERE \0""", VetSpecialtyRefPk.class, VetSpecialtyRefPk.class, where(Ref.of(Vet.builder().id(2).build()))))
+            .getResultList(VetSpecialtyRefPk.class);
+        assertEquals(1, list.size());
     }
 
     @Test
@@ -693,6 +693,18 @@ public class TemplatePreparedStatementIntegrationTest {
                 SELECT \0
                 FROM \0
                 WHERE \0""", Pet.class, Pet.class, where(Pet_.owner, EQUALS, owner)))
+            .getResultList(Pet.class);
+        assertEquals(2, pets.size());
+        assertEquals(Set.of(owner), pets.stream().map(Pet::owner).collect(toSet()));
+    }
+
+    @Test
+    public void testSelectWhereNoPathForeignRecord() {
+        var owner = ORMTemplate.of(dataSource).entity(Owner.class).getById(3);
+        var pets = ORMTemplate.of(dataSource).query(raw("""
+                SELECT \0
+                FROM \0
+                WHERE \0""", Pet.class, Pet.class, where(owner)))
             .getResultList(Pet.class);
         assertEquals(2, pets.size());
         assertEquals(Set.of(owner), pets.stream().map(Pet::owner).collect(toSet()));
@@ -854,7 +866,7 @@ public class TemplatePreparedStatementIntegrationTest {
     @Test
     public void testUpdateSetWhereWithAliasClash() {
         String expectedSql = """
-                SELECT p.id, p.name, p.birth_date, p.type_id, o1.id, o1.first_name, o1.last_name, o1.address, c1.id, c1.name, o1.telephone, o1.version
+                SELECT p.id, p.name, p.birth_date, p.type_id, p.owner_id, o1.first_name, o1.last_name, o1.address, o1.city_id, c1.name, o1.telephone, o1.version
                 FROM pet p
                 LEFT JOIN owner o1 ON p.owner_id = o1.id
                 LEFT JOIN city c1 ON o1.city_id = c1.id

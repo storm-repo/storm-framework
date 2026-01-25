@@ -75,7 +75,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     public EntityRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
         super(ormTemplate, model);
         this.defaultBatchSize = 1000;
-        this.primaryKeyColumns = model.columns().stream()
+        this.primaryKeyColumns = model.declaredColumns().stream()
                 .filter(Column::primaryKey)
                 .toList();
         this.generationStrategy = primaryKeyColumns.stream()
@@ -889,7 +889,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     private static final class NoOpKey implements PartitionKey {
         private static final NoOpKey INSTANCE = new NoOpKey();
     }
-    private record UpdateKey(@Nonnull Set<Metamodel<? extends Data, ?>> fields) implements PartitionKey {
+    private record UpdateKey(@Nonnull Set<Metamodel<?, ?>> fields) implements PartitionKey {
         UpdateKey() {
             this(Set.of()); // All fields.
         }
@@ -911,7 +911,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void update(@Nonnull Stream<E> entities, int batchSize) {
-        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
+        Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         try {
             var entityCache = entityCache();
             partitioned(entities, batchSize, entity -> {
@@ -941,11 +941,11 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      * @param cache the entity cache.
      * @return an optional containing the dirty fields, or an empty optional if the entity is not dirty.
      */
-    protected Optional<Set<Metamodel<? extends Data, ?>>> getDirty(@Nonnull E entity, @Nullable EntityCache<E, ID> cache) {
+    protected Optional<Set<Metamodel<?, ?>>> getDirty(@Nonnull E entity, @Nullable EntityCache<E, ID> cache) {
         return dirtySupport.getDirty(entity, cache);
     }
 
-    protected PreparedQuery prepareUpdateQuery(@Nonnull Set<Metamodel<? extends Data, ?>> fields) {
+    protected PreparedQuery prepareUpdateQuery(@Nonnull Set<Metamodel<?, ?>> fields) {
         var bindVars = ormTemplate.createBindVars();
         return ormTemplate.query(TemplateString.raw("""
                 UPDATE \0

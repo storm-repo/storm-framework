@@ -21,7 +21,7 @@ import st.orm.core.template.SqlTemplateException;
  * Represents the SQL result of processing a template element.
  */
 @FunctionalInterface
-public interface SqlGenerator {
+public interface SqlCompiler {
 
     /**
      * Returns the SQL string.

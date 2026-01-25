@@ -235,7 +235,7 @@ final class RecordValidation {
                         if (Projection.class.isAssignableFrom(field.type())) {
                             return "Projections inside entities must be marked as @FK or @Inline: %s.%s.".formatted(dataType.getSimpleName(), field.name());
                         }
-                        if (findPkField((Class<? extends Record>) field.type()).isPresent()) {
+                        if (findPkField(field.type()).isPresent()) {
                             return "Inlined field must not have a primary key: %s.%s.".formatted(dataType.getSimpleName(), field.name());
                         }
                     } else if (Projection.class.isAssignableFrom(field.type())) {
@@ -245,7 +245,7 @@ final class RecordValidation {
                         if (Projection.class.isAssignableFrom(field.type())) {
                             return "Projections inside projections must be marked as @FK or @Inline: %s.%s.".formatted(dataType.getSimpleName(), field.name());
                         }
-                        if (findPkField((Class<? extends Record>) field.type()).isPresent()) {
+                        if (findPkField(field.type()).isPresent()) {
                             return "Inlined field must not have a primary key: %s.%s.".formatted(dataType.getSimpleName(), field.name());
                         }
                     }
@@ -383,8 +383,8 @@ final class RecordValidation {
      * @param parameters the parameters to validate.
      * @throws SqlTemplateException if the parameters are invalid.
      */
-    static void validateParameters(@Nonnull List<Parameter> parameters) throws SqlTemplateException {
-        validatePositionalParameters(parameters);
+    static void validateParameters(@Nonnull List<Parameter> parameters, int expectedPositionalParameters) throws SqlTemplateException {
+        validatePositionalParameters(parameters, expectedPositionalParameters);
         validateNamedParameters(parameters);
     }
 
@@ -394,12 +394,15 @@ final class RecordValidation {
      * @param parameters the parameters to validate.
      * @throws SqlTemplateException if a positional parameter is missing or if there are gaps in the positions.
      */
-    private static void validatePositionalParameters(@Nonnull List<Parameter> parameters) throws SqlTemplateException {
+    private static void validatePositionalParameters(@Nonnull List<Parameter> parameters, int expectedPositionalParameters) throws SqlTemplateException {
         SortedSet<Integer> positionSet = new TreeSet<>();
         for (Parameter param : parameters) {
             if (param instanceof PositionalParameter pp) {
                 positionSet.add(pp.position());
             }
+        }
+        if (positionSet.size() != expectedPositionalParameters) {
+            throw new SqlTemplateException("Expected %d positional parameters, but found %d instead.".formatted(expectedPositionalParameters, positionSet.size()));
         }
         if (positionSet.isEmpty()) {
             return;

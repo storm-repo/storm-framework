@@ -16,7 +16,7 @@
 package st.orm.template
 
 import st.orm.Data
-import st.orm.SelectMode.FLAT
+import st.orm.SelectMode.DECLARED
 import st.orm.template.Templates.select
 import kotlin.reflect.KClass
 
@@ -51,7 +51,7 @@ interface SubqueryTemplate {
      * @param <R> the result type.
      */
     fun <T : Data, R : Data> subquery(fromType: KClass<T>, selectType: KClass<R>): QueryBuilder<T, *, *> {
-        return subquery(fromType) { t(select(selectType, FLAT)) }
+        return subquery(fromType) { t(select(selectType, DECLARED)) }
     }
 
     /**

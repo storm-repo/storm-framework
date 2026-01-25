@@ -16,7 +16,6 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Unsafe;
 
 /**
@@ -24,18 +23,51 @@ import st.orm.core.template.impl.Elements.Unsafe;
  */
 final class UnsafeProcessor implements ElementProcessor<Unsafe> {
 
-    public UnsafeProcessor(@Nonnull SqlTemplateProcessor templateProcessor) {
+    /**
+     * Returns a key that represents the compiled shape of the given element.
+     *
+     * <p>The compilation key is used for caching compiled results. It must include all fields that can affect the
+     * compilation output (SQL text, emitted fragments, placeholder shape, etc.). The key is compared using
+     * value-based equality, so it should be immutable and implement stable {@code equals}/{@code hashCode}.</p>
+     *
+     * <p>If this method returns {@code null} for any element in a template, the compiled result is considered
+     * non-cacheable and the template must be recompiled each time it is requested.</p>
+     *
+     * @param unsafe the element to compute a key for.
+     * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
+     */
+    @Override
+    public Object getCompilationKey(@Nonnull Unsafe unsafe) {
+        return unsafe;
     }
 
     /**
-     * Process an unsafe element of a template.
+     * Compiles the given element into an {@link CompiledElement}.
      *
-     * @param unsafe the unsafe element to process.
-     * @return the result of processing the element.
-     * @throws SqlTemplateException if the template does not comply to the specification.
+     * <p>This method is responsible for producing the compile-time representation of the element. It must not perform
+     * runtime binding. Any binding should be deferred to {@link #bind(Unsafe, TemplateBinder, BindHint)}.</p>
+     *
+     * @param unsafe the element to compile.
+     * @param compiler the active compiler context.
+     * @return the compiled result for this element.
      */
     @Override
-    public ElementResult process(@Nonnull Unsafe unsafe) throws SqlTemplateException {
-        return new ElementResult(unsafe.sql());
+    public CompiledElement compile(@Nonnull Unsafe unsafe, @Nonnull TemplateCompiler compiler) {
+        return new CompiledElement(unsafe.sql());
+    }
+
+    /**
+     * Performs post-processing after compilation, typically binding runtime values for the element.
+     *
+     * <p>This method is called after the element has been compiled. Typical responsibilities include binding
+     * parameters, registering bind variables, or applying runtime-only adjustments that must not affect the compiled
+     * SQL shape.</p>
+     *
+     * @param unsafe the element that was compiled.
+     * @param binder the binder used to bind runtime values.
+     * @param bindHint the bind hint for the element, providing additional context for binding.
+     */
+    @Override
+    public void bind(@Nonnull Unsafe unsafe, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
     }
 }

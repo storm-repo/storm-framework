@@ -16,48 +16,66 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
-import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Column;
 
-/**
- * A processor for a column element of a template.
- */
 final class ColumnProcessor implements ElementProcessor<Column> {
 
-    private final SqlTemplate template;
-    private final ModelBuilder modelBuilder;
-    private final AliasMapper aliasMapper;
-    private final PrimaryTable primaryTable;
-
-    ColumnProcessor(@Nonnull SqlTemplateProcessor templateProcessor) {
-        this.template = templateProcessor.template();
-        this.modelBuilder = templateProcessor.modelBuilder();
-        this.aliasMapper = templateProcessor.aliasMapper();
-        this.primaryTable = templateProcessor.primaryTable();
+    /**
+     * Returns a key that represents the compiled shape of the given element.
+     *
+     * <p>The compilation key is used for caching compiled results. It must include all fields that can affect the
+     * compilation output (SQL text, emitted fragments, placeholder shape, etc.). The key is compared using
+     * value-based equality, so it should be immutable and implement stable {@code equals}/{@code hashCode}.</p>
+     *
+     * <p>If this method returns {@code null} for any element in a template, the compiled result is considered
+     * non-cacheable and the template must be recompiled each time it is requested.</p>
+     *
+     * @param column the element to compute a key for.
+     * @return an immutable key for caching, or {@code null} if the element (or its compilation) cannot be cached.
+     */
+    @Override
+    public Object getCompilationKey(@Nonnull Column column) {
+        return column;
     }
 
     /**
-     * Process a column element of a template.
+     * Compiles the given element into an {@link CompiledElement}.
      *
-     * @param column the column element to process.
-     * @return the result of processing the element.
-     * @throws SqlTemplateException if the template does not comply to the specification.
+     * <p>This method is responsible for producing the compile-time representation of the element. It must not perform
+     * runtime binding. Any binding should be deferred to {@link #bind(Column, TemplateBinder, BindHint)}.</p>
+     *
+     * @param column the element to compile.
+     * @param compiler the active compiler context.
+     * @return the compiled result for this element.
+     * @throws SqlTemplateException if compilation fails.
      */
     @Override
-    public ElementResult process(@Nonnull Column column) throws SqlTemplateException {
+    public CompiledElement compile(@Nonnull Column column, @Nonnull TemplateCompiler compiler)
+            throws SqlTemplateException {
         var metamodel = column.field();
-        var model = modelBuilder.build(metamodel.tableType(), false);
-        String alias;
-        if (primaryTable != null && primaryTable.table() == metamodel.root() && metamodel.path().isEmpty()) {
-            // This check allows the alias of the primary table to be left empty, which can be useful in some cases like
-            // update statements.
-            alias = primaryTable.alias();
-        } else{
-            alias = aliasMapper.getAlias(metamodel, column.scope(), template.dialect(),
-                    () -> new SqlTemplateException("Table for Column not found at %s.".formatted(metamodel)));
-        }
-        var columnName = model.getSingleColumn(metamodel).qualifiedName(template.dialect());
-        return new ElementResult("%s%s".formatted(alias.isEmpty() ? "" : alias + ".", columnName));
+        var model = compiler.getModel(metamodel.tableType());
+        String alias = compiler.findQueryModel()
+                .map(QueryModel::getTable)
+                .filter(table -> table.type() == metamodel.root() && metamodel.path().isEmpty())
+                .map(AliasedTable::alias)
+                .orElseGet(() -> compiler.getAlias(metamodel, column.scope()));
+        var columnName = model.getSingleColumn(metamodel).qualifiedName(compiler.dialect());
+        return new CompiledElement("%s%s".formatted(alias.isEmpty() ? "" : alias + ".", columnName));
+    }
+
+    /**
+     * Performs post-processing after compilation, typically binding runtime values for the element.
+     *
+     * <p>This method is called after the element has been compiled. Typical responsibilities include binding
+     * parameters, registering bind variables, or applying runtime-only adjustments that must not affect the compiled
+     * SQL shape.</p>
+     *
+     * @param column the element that was compiled.
+     * @param binder the binder used to bind runtime values.
+     * @param bindHint the bind hint for the element, providing additional context for binding.
+     */
+    @Override
+    public void bind(@Nonnull Column column, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
     }
 }

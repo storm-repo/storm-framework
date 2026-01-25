@@ -95,7 +95,7 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
         var dialect = ormTemplate.dialect();
         var duplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alone fields. Only include them once.
         try {
-            var mapped = model.values(entity, column -> true);
+            var mapped = model.values(entity);
             return mapped.entrySet()
                     .stream()
                     .filter(entry -> duplicates.add(entry.getKey().name()))
@@ -123,13 +123,13 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
         bindVars.setRecordListener(record -> {
             try {
                 //noinspection unchecked
-                values.setPlain(model.values((E) record, column -> true));
+                values.setPlain(model.values((E) record));
             } catch (SqlTemplateException e) {
                 throw new PersistenceException("Failed to map entity to SQL parameters.", e);
             }
         });
         var duplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alone fields. Only include them once.
-        return model.columns().stream()
+        return model.declaredColumns().stream()
                 .filter(column -> duplicates.add(column.name()))
                 .map(c -> combine(wrap(bindVar(bindVars, ignore -> values.getPlain().get(c))), TemplateString.of(" AS %s".formatted(c.qualifiedName(dialect)))))
                 .reduce((left, right) -> combine(left, TemplateString.of(", "), right))
@@ -139,7 +139,7 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
 
     private TemplateString mergeOn() {
         var dialect = ormTemplate.dialect();
-        var primaryKeys = model.columns().stream()
+        var primaryKeys = model.declaredColumns().stream()
                 .filter(Column::primaryKey)
                 .toList();
         String sql = primaryKeys.stream()
@@ -151,7 +151,7 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
     private TemplateString mergeUpdate(@Nonnull AtomicBoolean versionAware) {
         var dialect = ormTemplate.dialect();
         var duplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alone fields. Only include them once.
-        var args = model.columns().stream()
+        var args = model.declaredColumns().stream()
                 .filter(not(Column::primaryKey))
                 .filter(Column::updatable)
                 .filter(column -> duplicates.add(column.name()))
@@ -173,13 +173,13 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
     private TemplateString mergeInsert() {
         var dialect = ormTemplate.dialect();
         var insertDuplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alone fields. Only include them once.
-        var insertArgs = model.columns().stream()
+        var insertArgs = model.declaredColumns().stream()
                 .filter(c -> !c.primaryKey() || c.generation() != IDENTITY)
                 .filter(column -> insertDuplicates.add(column.name()))
                 .map(c -> c.qualifiedName(dialect))
                 .toList();
         var valuesDuplicates = new HashSet<>();   // CompoundPks may also have their columns included as stand-alone fields. Only include them once.
-        var valuesArgs = model.columns().stream()
+        var valuesArgs = model.declaredColumns().stream()
                 .filter(c -> !c.primaryKey() || c.generation() != IDENTITY)
                 .filter(column -> valuesDuplicates.add(column.name()))
                 .map(c -> "src.%s".formatted(c.qualifiedName(dialect)))
@@ -320,7 +320,7 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
     private static final class UpsertKey implements PartitionKey {
         private static final UpsertKey INSTANCE = new UpsertKey();
     }
-    private record UpdateKey(@Nonnull Set<Metamodel<? extends Data, ?>> fields) implements PartitionKey {
+    private record UpdateKey(@Nonnull Set<Metamodel<?, ?>> fields) implements PartitionKey {
         UpdateKey() {
             this(Set.of()); // All fields.
         }
@@ -349,7 +349,7 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
                 throw new PersistenceException("Oracle does not support using sequence-based ID generation together with fetch mode.");
             }
         }
-        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
+        Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         LazySupplier<PreparedQuery> insertQuery = new LazySupplier<>(this::prepareInsertQuery);
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
@@ -443,7 +443,7 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
      */
     @Override
     public void upsert(@Nonnull Stream<E> entities, int batchSize) {
-        Map<Set<Metamodel<? extends Data, ?>>, PreparedQuery> updateQueries = new HashMap<>();
+        Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         LazySupplier<PreparedQuery> insertQuery = new LazySupplier<>(this::prepareInsertQuery);
         LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
         try {
@@ -541,20 +541,5 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
             return super.insertAndFetchIds(entities);
         }
         throw new PersistenceException("Oracle does not support using sequence-based ID generation together with fetch mode.");
-    }
-
-    /**
-     * Helper to close lazy-supplied queries without exceptions interrupting each other.
-     */
-    private void closeQuietly(LazySupplier<PreparedQuery> updateQuery, LazySupplier<PreparedQuery> insertQuery, LazySupplier<PreparedQuery> upsertQuery) {
-        try {
-            upsertQuery.value().ifPresent(PreparedQuery::close);
-        } finally {
-            try {
-                insertQuery.value().ifPresent(PreparedQuery::close);
-            } finally {
-                updateQuery.value().ifPresent(PreparedQuery::close);
-            }
-        }
     }
 }
