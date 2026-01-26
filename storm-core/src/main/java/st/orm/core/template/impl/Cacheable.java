@@ -18,5 +18,17 @@ package st.orm.core.template.impl;
 import st.orm.Element;
 import st.orm.core.template.impl.Elements.Expression;
 
+/**
+ * Wrapper element that marks an {@link Expression} as cacheable during template compilation.
+ *
+ * <p>Expressions are only allowed to appear in a template when they are part of a {@code WHERE} clause. When the
+ * shared compilation logic encounters an expression, it is propagated as a {@code Cacheable} element.</p>
+ *
+ * <p>The wrapped expression is not rendered directly into SQL. It is included as part of the overall compilation key so
+ * that templates containing expressions can be cached and compared correctly.</p>
+ *
+ * @param expression the expression contributing to the compilation key.
+ * @since 1.8
+ */
 public record Cacheable(Expression expression) implements Element {
 }

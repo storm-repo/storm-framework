@@ -165,6 +165,11 @@ class TemplateProcessor {
     private String sql;
 
     /**
+     * Compile-time only: whether the compiled template requires binding.
+     */
+    private boolean requiresBinding;
+
+    /**
      * Compiler implementation used during compilation of elements and nested templates.
      */
     private final TemplateCompiler compiler;
@@ -243,6 +248,18 @@ class TemplateProcessor {
         return aliasMapper;
     }
 
+    private void checkState(boolean frozen) {
+        if (frozen) {
+            if (sql == null) {
+                throw new IllegalStateException("Template processor is not frozen.");
+            }
+        } else {
+            if (sql != null) {
+                throw new IllegalStateException("Template processor is already frozen.");
+            }
+        }
+    }
+
     /**
      * Creates a child processor used for nested compilation.
      *
@@ -286,6 +303,11 @@ class TemplateProcessor {
             }
 
             @Override
+            protected void mapNamedParameter() {
+                TemplateProcessor.this.mapNamedParameter();
+            }
+
+            @Override
             protected void mapBindVars(int count) {
                 TemplateProcessor.this.mapBindVars(count);
             }
@@ -304,11 +326,19 @@ class TemplateProcessor {
 
     /**
      * Records that a positional parameter was produced by compilation.
-     *
-     * <p>Child processors call into the root processor via indirection so that the final expected count is shared.</p>
      */
     protected void mapPositionalParameter() {
+        checkState(false);
+        requiresBinding = true;
         positionalParameterCount.incrementAndGet();
+    }
+
+    /**
+     * Records that a named parameter was produced by compilation.
+     */
+    protected void mapNamedParameter() {
+        checkState(false);
+        requiresBinding = true;
     }
 
     /**
@@ -317,6 +347,11 @@ class TemplateProcessor {
      * @param count the number of values expected for the bind vars segment.
      */
     protected void mapBindVars(int count) {
+        checkState(false);
+        if (count == 0) {
+            throw new IllegalArgumentException("Bind vars segment cannot be empty.");
+        }
+        requiresBinding = true;
         bindVarsCounts.add(count);
     }
 
@@ -328,6 +363,7 @@ class TemplateProcessor {
      * @throws IllegalStateException if version awareness was already set.
      */
     protected void markVersionAware() {
+        checkState(false);
         if (versionAware != null) {
             throw new IllegalStateException("Version aware already set.");
         }
@@ -341,6 +377,7 @@ class TemplateProcessor {
      * @throws IllegalStateException if generated keys were already set.
      */
     protected void setGeneratedKeys(@Nonnull List<String> keys) {
+        checkState(false);
         if (generatedKeys != null) {
             throw new IllegalStateException("Generated keys already set.");
         }
@@ -353,10 +390,8 @@ class TemplateProcessor {
      * @param sql the compiled SQL.
      * @throws IllegalStateException if SQL was already set.
      */
-    private void setSql(@Nonnull String sql) {
-        if (this.sql != null) {
-            throw new IllegalStateException("SQL already set.");
-        }
+    private void freeze(@Nonnull String sql) {
+        checkState(false);
         this.sql = sql;
     }
 
@@ -372,6 +407,7 @@ class TemplateProcessor {
      * @throws SqlTemplateException if compilation fails.
      */
     private CompiledElement compile(@Nonnull Element element, boolean synthetic) throws SqlTemplateException {
+        checkState(false);
         int hintIndex = bindHints.size();
         if (!synthetic) {
             bindHints.add(PLACEHOLDER_HINT);
@@ -401,6 +437,7 @@ class TemplateProcessor {
      * @throws SqlTemplateException if compilation fails or formatting placeholders are invalid.
      */
     String compile(@Nonnull CompilationContext context, boolean subquery) throws SqlTemplateException {
+        checkState(false);
         var fragments = context.fragments();
         var elements = context.elements();
         var parts = new ArrayList<String>();
@@ -451,7 +488,7 @@ class TemplateProcessor {
         if (subquery && !sql.startsWith("\n") && sql.contains("\n")) {
             sql = "\n" + sql.indent(2);
         }
-        setSql(sql);
+        freeze(sql);
         return sql;
     }
 
@@ -481,12 +518,13 @@ class TemplateProcessor {
      * @throws IllegalStateException if called before {@link #compile(CompilationContext, boolean)}.
      */
     Sql bind(@Nonnull BindingContext context) throws SqlTemplateException {
-        if (sql == null) {
-            throw new IllegalStateException("SQL not set.");
-        }
+        checkState(true);
+        assert sql != null;
         var session = new BindingSession();
-        session.bindElements(context);
-        session.assertAllHintsConsumed();
+        if (requiresBinding) {
+            session.bindElements(context);
+            session.assertAllHintsConsumed();
+        }
         validateParameters(session.parameters, positionalParameterCount.getPlain());
         return new SqlImpl(
                 operation,
@@ -770,6 +808,7 @@ class TemplateProcessor {
             if (template.positionalOnly()) {
                 throw new UncheckedSqlTemplateException(new SqlTemplateException("Named parameters not supported."));
             }
+            TemplateProcessor.this.mapNamedParameter();
             return ":%s".formatted(name);
         }
 
@@ -796,8 +835,8 @@ class TemplateProcessor {
                 if (inline) {
                     args.add(toLiteral(v));
                 } else {
-                    args.add("?");
                     TemplateProcessor.this.mapPositionalParameter();
+                    args.add("?");
                 }
                 args.add(", ");
             }

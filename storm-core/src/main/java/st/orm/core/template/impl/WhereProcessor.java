@@ -78,7 +78,7 @@ final class WhereProcessor implements ElementProcessor<Where> {
                     new WhereBindHint(List.of()));
         }
         if (where.bindVars() != null) {
-            return compileBindVars(where.bindVars(), compiler);
+            return compileWhereBindVars(where.bindVars(), compiler);
         }
         throw new SqlTemplateException("No expression or bindVars found for Where.");
     }
@@ -121,15 +121,21 @@ final class WhereProcessor implements ElementProcessor<Where> {
         }
     }
 
-    private List<Column> getIdentifyingColumns(@Nonnull TemplateCompiler compiler) {
+    private List<Column> getIdentifyingColumns(@Nonnull TemplateCompiler compiler)
+            throws SqlTemplateException {
         var table = compiler.getQueryModel().getTable();
-        return compiler.getModel(table.type()).declaredColumns().stream()
+        var columns = compiler.getModel(table.type()).declaredColumns();
+        boolean hasPk = columns.stream().anyMatch(Column::primaryKey);
+        if (!hasPk) {
+            throw new SqlTemplateException("No primary key found for table: %s.".formatted(table.type().getSimpleName()));
+        }
+        return columns.stream()
                 .filter(c -> c.primaryKey() || (compiler.isVersionAware() && c.version()))
                 .toList();
     }
 
-    private CompiledElement compileBindVars(@Nonnull BindVars bindVars,
-                                            @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+    private CompiledElement compileWhereBindVars(@Nonnull BindVars bindVars,
+                                                 @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
         if (bindVars instanceof BindVarsImpl) {
             var queryModel = compiler.getQueryModel();
             var columns = getIdentifyingColumns(compiler);
