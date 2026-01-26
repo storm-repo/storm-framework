@@ -38,7 +38,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 import static java.lang.Integer.parseInt;
-import static java.util.Collections.synchronizedMap;
 import static java.util.Objects.requireNonNull;
 import static st.orm.core.spi.Providers.getSqlDialect;
 import static st.orm.core.template.impl.ElementRouter.getElementProcessor;
@@ -53,7 +52,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
 
     private static final TemplateMetrics TEMPLATE_METRICS = new TemplateMetrics(LoggerFactory.getLogger("st.orm.metrics"));
 
-    private static final Map<Object, Map<Object, TemplateProcessor>> CACHE_MAP = new ConcurrentHashMap<>();
+    private static final Map<Object, SegmentedLruCache<Object, TemplateProcessor>> CACHE_MAP = new ConcurrentHashMap<>();
 
     private static final int TEMPLATE_CACHE_SIZE =
             Math.max(0, parseInt(System.getProperty("storm.templateCacheSize", "2048")));
@@ -75,7 +74,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
     private final SqlDialect dialect;
     private final TemplatePreparation templatePreparation;
     private final Function<TemplateString, Object> keyGenerator;
-    private final Map<Object, TemplateProcessor> cache;
+    private final SegmentedLruCache<Object, TemplateProcessor> cache;
 
     public SqlTemplateImpl(boolean positionalOnly, boolean expandCollection, boolean supportRecords) {
         this(positionalOnly, expandCollection, supportRecords, false, ModelBuilder.newInstance(), TableAliasResolver.DEFAULT, getSqlDialect());
@@ -102,7 +101,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             this.cache = null;
         } else {
             var key = List.of(positionalOnly, expandCollection, supportRecords, new IdentityKey(modelBuilder), new IdentityKey(tableAliasResolver), dialect.name());
-            this.cache = CACHE_MAP.computeIfAbsent(key, ignore -> synchronizedMap(new LruCache<>(TEMPLATE_CACHE_SIZE)));
+            this.cache = CACHE_MAP.computeIfAbsent(key, ignore -> new SegmentedLruCache<>(TEMPLATE_CACHE_SIZE));
         }
     }
 
