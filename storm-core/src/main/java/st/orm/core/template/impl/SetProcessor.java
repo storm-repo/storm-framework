@@ -77,10 +77,10 @@ final class SetProcessor implements ElementProcessor<Set> {
     @Override
     public CompiledElement compile(@Nonnull Set set, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
         if (set.record() != null) {
-            return getRecordString(set.record(), set.fields(), compiler);
+            return compileSet(set.record(), set.fields(), compiler);
         }
         if (set.bindVars() != null) {
-            return getBindVarsString(set.bindVars(), set.fields(), compiler);
+            return compileSetBindVars(set.bindVars(), set.fields(), compiler);
         }
         throw new SqlTemplateException("No values found for Set.");
     }
@@ -146,7 +146,7 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @return the SQL string for the specified record.
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
-    private CompiledElement getRecordString(@Nonnull Data record, @Nonnull Collection<Metamodel<?, ?>> fields, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+    private CompiledElement compileSet(@Nonnull Data record, @Nonnull Collection<Metamodel<?, ?>> fields, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
         var queryModel = compiler.getQueryModel();
         var table = queryModel.getTable();
         //noinspection unchecked
@@ -164,7 +164,7 @@ final class SetProcessor implements ElementProcessor<Set> {
                         column.qualifiedName(compiler.dialect()), compiler.mapParameter(entry.getValue())));
                 args.add(", ");
             } else {
-                var versionString = getVersionString(column.qualifiedName(dialect), column.type(), table.alias(), compiler.dialect());
+                var versionString = compileVersion(column.qualifiedName(dialect), column.type(), table.alias(), compiler.dialect());
                 compiler.setVersionAware();
                 args.add(versionString);
                 args.add(", ");
@@ -184,7 +184,7 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @return the SQL string for the specified bindVars.
      * @throws SqlTemplateException if the template does not comply to the specification.
      */
-    private CompiledElement getBindVarsString(@Nonnull BindVars bindVars, @Nonnull Collection<Metamodel<?, ?>> fields, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
+    private CompiledElement compileSetBindVars(@Nonnull BindVars bindVars, @Nonnull Collection<Metamodel<?, ?>> fields, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
         if (bindVars instanceof BindVarsImpl) {
             var queryModel = compiler.getQueryModel();
             var table = queryModel.getTable();
@@ -202,7 +202,7 @@ final class SetProcessor implements ElementProcessor<Set> {
                             );
                         }
                         compiler.setVersionAware();
-                        return getVersionString(column.qualifiedName(compiler.dialect()), column.type(), table.alias(), compiler.dialect());
+                        return compileVersion(column.qualifiedName(compiler.dialect()), column.type(), table.alias(), compiler.dialect());
                     })
                     .collect(joining(", "));
             compiler.mapBindVars(bindVarsCount.getPlain());
@@ -220,7 +220,7 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @param alias the alias of the table.
      * @return the version string for the version column.
      */
-    private static String getVersionString(@Nonnull String columnName, @Nonnull Class<?> type, @Nonnull String alias, @Nonnull SqlDialect dialect) {
+    private static String compileVersion(@Nonnull String columnName, @Nonnull Class<?> type, @Nonnull String alias, @Nonnull SqlDialect dialect) {
         String a = alias.isEmpty() ? "" : dialect.getSafeIdentifier(alias) + ".";
         String value = switch (type) {
             case Class<?> c when

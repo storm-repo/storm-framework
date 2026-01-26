@@ -19,9 +19,43 @@ import st.orm.core.template.impl.SetProcessor.SetBindHint;
 import st.orm.core.template.impl.ValuesProcessor.ValuesBindHint;
 import st.orm.core.template.impl.WhereProcessor.WhereBindHint;
 
-public sealed interface BindHint permits BindHint.NoBindHint, SetBindHint, ValuesBindHint, WhereBindHint {
+/**
+ * Marker interface that represents a binding hint used during SQL template binding.
+ *
+ * <p>A {@code BindHint} allows information discovered during template compilation to be carried over to the binding
+ * phase. This avoids having to re-derive the same structural or contextual information while binding parameters.</p>
+ *
+ * <p>Hints are emitted during compilation and attached to template elements. During binding, they can influence
+ * placeholder handling, value ordering, or clause-specific behavior without requiring additional inspection of the
+ * model or SQL structure.</p>
+ *
+ * <p>The concrete hint types are scoped to specific SQL clauses, such as {@code SET}, {@code VALUES}, or {@code WHERE},
+ * and are only meaningful within their respective processing phases.</p>
+ *
+ * <p>The {@link NoBindHint} variant represents the absence of any binding hint and can be used as a neutral
+ * default.</p>
+ *
+ * @since 1.8
+ */
+public sealed interface BindHint
+        permits BindHint.NoBindHint,
+                SetBindHint,
+                ValuesBindHint,
+                WhereBindHint {
+
+    /**
+     * Represents the absence of a binding hint.
+     *
+     * <p>This instance is used when no compilation-time information needs to be propagated to the binding stage. It is
+     * implemented as a singleton to avoid unnecessary allocations.</p>
+     *
+     * @since 1.8
+     */
     record NoBindHint() implements BindHint {
+
+        /**
+         * Shared singleton instance.
+         */
         static final NoBindHint INSTANCE = new NoBindHint();
     }
 }
-

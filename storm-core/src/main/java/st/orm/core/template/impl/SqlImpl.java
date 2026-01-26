@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static java.util.List.copyOf;
+import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
 
 /**
@@ -50,8 +51,11 @@ record SqlImpl(
         @Nonnull Optional<String> unsafeWarning
 ) implements Sql {
     public SqlImpl {
+        requireNonNull(operation, "operation");
+        requireNonNull(statement, "statement");
         parameters = copyOf(parameters);
         generatedKeys = copyOf(generatedKeys);
+        requireNonNull(unsafeWarning, "unsafeWarning");
     }
 
     /**

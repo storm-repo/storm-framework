@@ -37,19 +37,53 @@ import static st.orm.core.template.impl.RecordReflection.getTableName;
 import static st.orm.core.template.impl.RecordValidation.validateDataType;
 import static st.orm.core.template.impl.RecordValidation.validateWhere;
 
-class QueryModelFactory {
+/**
+ * Builds a {@link QueryModel} from a parsed template element stream.
+ *
+ * <p>This factory inspects the element list to determine the primary table of the statement validates that the
+ * statement shape is supported, and then creates a {@link QueryModelImpl} backed by an {@link AliasedTable}.</p>
+ *
+ * <p>If no primary table can be determined, {@link #getQueryModel(List, TableMapper, AliasMapper)} returns
+ * {@link Optional#empty()}.</p>
+ *
+ * @since 1.8
+ */
+final class QueryModelFactory {
 
     private final SqlTemplate template;
     private final ModelBuilder modelBuilder;
 
-    public QueryModelFactory(@Nonnull SqlTemplate template, @Nonnull ModelBuilder modelBuilder) {
+    /**
+     * Creates a new factory for the given template and model builder.
+     *
+     * @param template the template context used for dialect and table name resolution
+     * @param modelBuilder the builder used by the created query model to resolve metamodel information
+     */
+    QueryModelFactory(@Nonnull SqlTemplate template, @Nonnull ModelBuilder modelBuilder) {
         this.template = template;
         this.modelBuilder = modelBuilder;
     }
 
-    public Optional<QueryModel> getQueryModel(@Nonnull List<Element> elements,
-                                              @Nonnull TableMapper tableMapper,
-                                              @Nonnull AliasMapper aliasMapper) throws SqlTemplateException{
+    /**
+     * Attempts to create a {@link QueryModel} for the given statement elements.
+     *
+     * <p>The method identifies the primary table (for example the {@code FROM} table for {@code SELECT}/{@code DELETE},
+     * or the target table for {@code INSERT}/{@code UPDATE}), resolves its physical name using the configured table
+     * name resolver, applies dialect-safe quoting to the alias, and validates the statement.</p>
+     *
+     * <p>Validation includes checking that the detected table type is a valid data type and that expressions appear
+     * only in supported contexts (currently validated for {@code WHERE}).</p>
+     *
+     * @param elements all elements that form the SQL statement
+     * @param tableMapper mapper used to resolve table sources during model construction
+     * @param aliasMapper mapper used to resolve aliases, including the primary alias for {@code SELECT}
+     * @return a query model if a primary table can be determined, otherwise {@link Optional#empty()}
+     * @throws SqlTemplateException if the statement is invalid for model creation
+     * @since 1.8
+     */
+    Optional<QueryModel> getQueryModel(@Nonnull List<Element> elements,
+                                       @Nonnull TableMapper tableMapper,
+                                       @Nonnull AliasMapper aliasMapper) throws SqlTemplateException{
         var mutableElements = new ArrayList<>(elements);
         elements = List.copyOf(mutableElements);
         var primaryTable = getPrimaryTable(elements, aliasMapper).orElse(null);

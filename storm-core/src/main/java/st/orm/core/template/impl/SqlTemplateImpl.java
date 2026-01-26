@@ -51,7 +51,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.sql");
 
-    private static final TemplateMetrics TEMPLATE_METRICS = new TemplateMetrics(LoggerFactory.getLogger("st.orm.sql.metrics"));
+    private static final TemplateMetrics TEMPLATE_METRICS = new TemplateMetrics(LoggerFactory.getLogger("st.orm.metrics"));
 
     private static final Map<Object, Map<Object, TemplateProcessor>> CACHE_MAP = new ConcurrentHashMap<>();
 
@@ -97,10 +97,13 @@ public final class SqlTemplateImpl implements SqlTemplate {
         this.dialect = requireNonNull(dialect);
         this.templatePreparation = new TemplatePreparation(this, modelBuilder);
         this.keyGenerator = keyGenerator();
-        var key = List.of(positionalOnly, expandCollection, supportRecords, inlineParameters, new IdentityKey(modelBuilder), new IdentityKey(tableAliasResolver), dialect.name());
-        this.cache = TEMPLATE_CACHE_SIZE == 0
-                ? null
-                : CACHE_MAP.computeIfAbsent(key, ignore -> new LruCache<>(TEMPLATE_CACHE_SIZE));
+        if (TEMPLATE_CACHE_SIZE == 0 || inlineParameters) {
+            // We don't want to cache templates with inline parameters. No caching takes place if inline parameters are enabled.
+            this.cache = null;
+        } else {
+            var key = List.of(positionalOnly, expandCollection, supportRecords, new IdentityKey(modelBuilder), new IdentityKey(tableAliasResolver), dialect.name());
+            this.cache = CACHE_MAP.computeIfAbsent(key, ignore -> synchronizedMap(new LruCache<>(TEMPLATE_CACHE_SIZE)));
+        }
     }
 
     private Function<TemplateString, Object> keyGenerator() {

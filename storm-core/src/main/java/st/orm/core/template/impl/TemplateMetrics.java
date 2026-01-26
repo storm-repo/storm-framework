@@ -20,7 +20,9 @@ import org.slf4j.event.Level;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+import static java.lang.Long.getLong;
 import static java.util.Objects.requireNonNull;
+import static org.slf4j.event.Level.valueOf;
 
 /**
  * Metrics for SQL template processing.
@@ -28,6 +30,9 @@ import static java.util.Objects.requireNonNull;
  * @since 1.8
  */
 public final class TemplateMetrics {
+    private static final long DEFAULT_INITIAL_LOG_AT = getLong("storm.metrics.initialLogAt", 64L);
+    private static final long DEFAULT_MAX_LOG_GAP = getLong("storm.metrics.maxLogGap", 0L);
+    private static final Level DEFAULT_LEVEL = valueOf(System.getProperty("storm.metrics.level", Level.DEBUG.name()));
 
     private final Logger logger;
     private final Level level;
@@ -49,23 +54,41 @@ public final class TemplateMetrics {
 
     // Logging schedule.
     private final AtomicLong nextLogAt;
+    private final AtomicLong logGap;
+    private final long maxLogGap; // <= 0 means "no max"
 
     public TemplateMetrics(Logger logger) {
-        this(logger, Level.DEBUG, 64, false);
+        this(logger, DEFAULT_LEVEL, DEFAULT_INITIAL_LOG_AT, DEFAULT_MAX_LOG_GAP, true);
     }
 
     /**
-     * @param logger logger to output to
-     * @param initialLogAt first request count at which to log (e.g. 64)
-     * @param logOnShutdown if true, registers a shutdown hook that logs a final snapshot
+     * @param logger logger to output to.
+     * @param initialLogAt first request count at which to log (e.g. 64).
+     * @param logOnShutdown if true, registers a shutdown hook that logs a final snapshot.
      */
     public TemplateMetrics(Logger logger, Level level, long initialLogAt, boolean logOnShutdown) {
+        this(logger, level, initialLogAt, 0, logOnShutdown);
+    }
+
+    /**
+     * @param logger logger to output to.
+     * @param level log level.
+     * @param initialLogAt first request count at which to log (e.g. 64).
+     * @param maxLogGap max delta between log lines (e.g. 4096). Use {@code 0} (or negative) for unlimited.
+     * @param logOnShutdown if true, registers a shutdown hook that logs a final snapshot.
+     */
+    public TemplateMetrics(Logger logger, Level level, long initialLogAt, long maxLogGap, boolean logOnShutdown) {
         this.logger = requireNonNull(logger, "logger");
-        this.level = level;
+        this.level = requireNonNull(level, "level");
         if (initialLogAt <= 0) {
             throw new IllegalArgumentException("initialLogAt must be > 0");
         }
+        if (maxLogGap > 0 && maxLogGap < initialLogAt) {
+            throw new IllegalArgumentException("maxLogGap must be >= initialLogAt (or <= 0 for unlimited)");
+        }
+        this.maxLogGap = maxLogGap;
         this.nextLogAt = new AtomicLong(initialLogAt);
+        this.logGap = new AtomicLong(initialLogAt);
         if (logOnShutdown) {
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 try {
@@ -107,7 +130,28 @@ public final class TemplateMetrics {
         }
         long count = requests.get();
         long logAt = nextLogAt.get();
-        if (count == logAt && nextLogAt.compareAndSet(logAt, logAt << 1)) {
+        if (count != logAt) {
+            return;
+        }
+        // Update schedule first (CAS) so only one thread logs.
+        long currentGap = logGap.get();
+        long nextGap;
+        if (maxLogGap > 0) {
+            // clamp the doubling
+            long doubled = currentGap > (Long.MAX_VALUE >> 1) ? Long.MAX_VALUE : (currentGap << 1);
+            nextGap = Math.min(doubled, maxLogGap);
+        } else {
+            nextGap = currentGap > (Long.MAX_VALUE >> 1) ? Long.MAX_VALUE : (currentGap << 1);
+        }
+        long nextAt;
+        if (logAt > Long.MAX_VALUE - currentGap) {
+            nextAt = Long.MAX_VALUE;
+        } else {
+            nextAt = logAt + currentGap;
+        }
+        if (nextLogAt.compareAndSet(logAt, nextAt)) {
+            // keep gap in sync (best-effort, no need to be perfect)
+            logGap.set(nextGap);
             logStats(count);
         }
     }

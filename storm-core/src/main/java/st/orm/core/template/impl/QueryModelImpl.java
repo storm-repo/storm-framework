@@ -60,6 +60,8 @@ import static st.orm.core.template.impl.SqlParser.removeComments;
  *
  * <p>It is stateful per query and assumes that table aliases, joins, and models have already been established by the
  * surrounding query building process.</p>
+ *
+ * @since 1.8
  */
 final class QueryModelImpl implements QueryModel {
 

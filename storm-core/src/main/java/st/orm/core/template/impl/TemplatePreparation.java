@@ -243,7 +243,6 @@ class TemplatePreparation {
                 .flatMap(e -> e instanceof Wrapped(var elements) ? elements.stream().map(ElementNode::element) : Stream.of(e))
                 .toList();
         var queryModel = queryModelFactory.getQueryModel(flattened, tableMapper, aliasMapper).orElse(null);
-
         TemplateProcessor processor;
         if (parentProcessor == null) {
             processor = new TemplateProcessor(template, this, bindingContext.operation(), modelBuilder, tableUse, aliasMapper, queryModel);

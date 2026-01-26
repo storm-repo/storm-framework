@@ -73,7 +73,7 @@ final class ValuesProcessor implements ElementProcessor<Values> {
             return compileValues(values, compiler);
         }
         if (values.bindVars() != null) {
-            return compileBindVars(values, compiler);
+            return compileValuesBindVars(values, compiler);
         }
         throw new SqlTemplateException("No values found for Values.");
     }
@@ -196,7 +196,7 @@ final class ValuesProcessor implements ElementProcessor<Values> {
         return new CompiledElement(String.join("", args), new ValuesBindHint(columns));
     }
 
-    private CompiledElement compileBindVars(@Nonnull Values values, @Nonnull TemplateCompiler compiler)
+    private CompiledElement compileValuesBindVars(@Nonnull Values values, @Nonnull TemplateCompiler compiler)
             throws SqlTemplateException {
         assert values.bindVars() != null;
         if (values.bindVars() instanceof BindVarsImpl) {
