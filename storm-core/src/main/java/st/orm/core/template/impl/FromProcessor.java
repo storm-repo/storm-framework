@@ -64,7 +64,7 @@ final class FromProcessor implements ElementProcessor<From> {
      * @throws SqlTemplateException if compilation fails.
      */
     public CompiledElement compile(@Nonnull From from, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
-        final String alias = from.alias().isEmpty() ? "" : " " + compiler.dialect().getSafeIdentifier(from.alias());
+        final String alias = from.alias().isEmpty() ? "" : " " + from.alias();
         return new CompiledElement(switch (from) {
             case From(TableSource ts, String s, boolean b) ->
                     compiler.dialectTemplate().process("\0\0", getTableName(ts.table(), compiler.template().tableNameResolver()), alias);

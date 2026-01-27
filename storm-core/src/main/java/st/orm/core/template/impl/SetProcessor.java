@@ -160,7 +160,7 @@ final class SetProcessor implements ElementProcessor<Set> {
             if (!column.version()) {
                 args.add("%s%s = %s".formatted(table.alias().isEmpty()
                         ? ""
-                        : compiler.dialect().getSafeIdentifier(table.alias()) + ".",
+                        : table.alias() + ".",
                         column.qualifiedName(compiler.dialect()), compiler.mapParameter(entry.getValue())));
                 args.add(", ");
             } else {
@@ -197,7 +197,7 @@ final class SetProcessor implements ElementProcessor<Set> {
                         if (!column.version()) {
                             bindVarsCount.incrementAndGet();
                             return "%s%s = ?".formatted(
-                                    table.alias().isEmpty() ? "" : compiler.dialect().getSafeIdentifier(table.alias()) + ".",
+                                    table.alias().isEmpty() ? "" : table.alias() + ".",
                                     column.qualifiedName(compiler.dialect())
                             );
                         }
@@ -221,7 +221,7 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @return the version string for the version column.
      */
     private static String compileVersion(@Nonnull String columnName, @Nonnull Class<?> type, @Nonnull String alias, @Nonnull SqlDialect dialect) {
-        String a = alias.isEmpty() ? "" : dialect.getSafeIdentifier(alias) + ".";
+        String a = alias.isEmpty() ? "" : alias + ".";
         String value = switch (type) {
             case Class<?> c when
                     Integer.TYPE.isAssignableFrom(c)

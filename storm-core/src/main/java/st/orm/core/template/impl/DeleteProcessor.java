@@ -52,7 +52,7 @@ final class DeleteProcessor implements ElementProcessor<Delete> {
      */
     @Override
     public CompiledElement compile(@Nonnull Delete delete, @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
-        return new CompiledElement(delete.alias().isEmpty() ? "" : compiler.dialect().getSafeIdentifier(delete.alias()));
+        return new CompiledElement(delete.alias().isEmpty() ? "" : delete.alias());
     }
 
     /**

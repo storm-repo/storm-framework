@@ -93,7 +93,7 @@ final class QueryModelFactory {
         var aliasedTable = new AliasedTable(
                 primaryTable.table(),
                 getTableName(primaryTable.table(), template.tableNameResolver()).qualified(template.dialect()),
-                primaryTable.alias().isEmpty() ? "" : template.dialect().getSafeIdentifier(primaryTable.alias()));
+                primaryTable.alias().isEmpty() ? "" : primaryTable.alias());
         validateDataType(aliasedTable.type());
         validateWhere(elements);
         return Optional.of(new QueryModelImpl(template, modelBuilder, aliasedTable, tableMapper, aliasMapper));
