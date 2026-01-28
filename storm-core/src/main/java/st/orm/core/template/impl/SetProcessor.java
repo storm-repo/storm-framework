@@ -21,7 +21,6 @@ import st.orm.Data;
 import st.orm.Metamodel;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
-import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Set;
 
@@ -164,8 +163,8 @@ final class SetProcessor implements ElementProcessor<Set> {
                         column.qualifiedName(compiler.dialect()), compiler.mapParameter(entry.getValue())));
                 args.add(", ");
             } else {
-                var versionString = compileVersion(column.qualifiedName(dialect), column.type(), table.alias(), compiler.dialect());
                 compiler.setVersionAware();
+                var versionString = compileVersion(column.qualifiedName(dialect), column.type(), table.alias());
                 args.add(versionString);
                 args.add(", ");
             }
@@ -202,7 +201,7 @@ final class SetProcessor implements ElementProcessor<Set> {
                             );
                         }
                         compiler.setVersionAware();
-                        return compileVersion(column.qualifiedName(compiler.dialect()), column.type(), table.alias(), compiler.dialect());
+                        return compileVersion(column.qualifiedName(compiler.dialect()), column.type(), table.alias());
                     })
                     .collect(joining(", "));
             compiler.mapBindVars(bindVarsCount.getPlain());
@@ -220,7 +219,7 @@ final class SetProcessor implements ElementProcessor<Set> {
      * @param alias the alias of the table.
      * @return the version string for the version column.
      */
-    private static String compileVersion(@Nonnull String columnName, @Nonnull Class<?> type, @Nonnull String alias, @Nonnull SqlDialect dialect) {
+    private static String compileVersion(@Nonnull String columnName, @Nonnull Class<?> type, @Nonnull String alias) {
         String a = alias.isEmpty() ? "" : alias + ".";
         String value = switch (type) {
             case Class<?> c when
