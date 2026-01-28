@@ -96,7 +96,7 @@ Java::
 record City(@PK Integer id,
             String name,
             long population
-) implements Entity<City, Integer> {}
+) implements Entity<Integer> {}
 
 record User(@PK Integer id,
             String email,
