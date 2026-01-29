@@ -87,6 +87,31 @@ public final class WeakInterner {
     }
 
     /**
+     * Retrieves a cached entity by its type and primary key, if available.
+     *
+     * <p>This method enables early cache lookups before constructing nested objects. If an entity with the given
+     * type and primary key was previously interned and is still reachable, it is returned.</p>
+     *
+     * @param entityType the entity class.
+     * @param pk the primary key value.
+     * @param <E> the entity type.
+     * @return the cached entity, or {@code null} if not found or already garbage collected.
+     */
+    public <E extends Entity<?>> E get(@Nonnull Class<E> entityType, @Nonnull Object pk) {
+        drainQueue();
+        Ref<?> ref = Ref.of(entityType, pk);
+        WeakReference<Entity<?>> existing = entityMap.get(ref);
+        if (existing != null) {
+            Entity<?> result = existing.get();
+            if (result != null) {
+                //noinspection unchecked
+                return (E) result;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Interns an entity using its primary key (via {@link Ref}) for efficient lookup.
      *
      * <p>This avoids expensive deep equality checks on complex entity objects. The entity is stored with a weak

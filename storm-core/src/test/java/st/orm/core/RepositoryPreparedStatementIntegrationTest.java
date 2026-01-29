@@ -74,6 +74,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.newSetFromMap;
+import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toSet;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -1619,7 +1620,7 @@ public class RepositoryPreparedStatementIntegrationTest {
                 .select()
                 .getResultList();
         assertEquals(14, visits.size());
-        var identitySet = visits.stream().map(it -> it.pet()).collect(Collectors.toCollection(() -> newSetFromMap(new IdentityHashMap<>())));
+        var identitySet = visits.stream().map(it -> it.pet()).collect(toCollection(() -> newSetFromMap(new IdentityHashMap<>())));
         var pkSet = visits.stream().map(it -> it.pet().id()).collect(toSet());
         assertEquals(pkSet.size(), identitySet.size());
     }
@@ -1632,7 +1633,7 @@ public class RepositoryPreparedStatementIntegrationTest {
                 .select()
                 .getResultList();
         assertEquals(14, visits.size());
-        var identitySet = visits.stream().map(it -> it.pet()).collect(Collectors.toCollection(() -> newSetFromMap(new IdentityHashMap<>())));
+        var identitySet = visits.stream().map(it -> it.pet()).collect(toCollection(() -> newSetFromMap(new IdentityHashMap<>())));
         var pkSet = visits.stream().map(it -> it.pet().id()).collect(toSet());
         assertEquals(pkSet.size(), identitySet.size());
     }
@@ -1645,7 +1646,7 @@ public class RepositoryPreparedStatementIntegrationTest {
                 .select()
                 .getResultList();
         assertEquals(14, visits.size());
-        var identitySet = visits.stream().map(it -> it.pet()).collect(Collectors.toCollection(() -> newSetFromMap(new IdentityHashMap<>())));
+        var identitySet = visits.stream().map(it -> it.pet()).collect(toCollection(() -> newSetFromMap(new IdentityHashMap<>())));
         var pkSet = visits.stream().map(it -> it.pet().id()).collect(toSet());
         assertEquals(pkSet.size(), identitySet.size());
     }

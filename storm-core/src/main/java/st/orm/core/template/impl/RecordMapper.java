@@ -46,13 +46,46 @@ import static st.orm.EnumType.NAME;
 import static st.orm.UpdateMode.OFF;
 import static st.orm.core.repository.impl.DirtySupport.getUpdateMode;
 import static st.orm.core.spi.Providers.getORMConverter;
+import static st.orm.core.template.impl.RecordReflection.findPkField;
 import static st.orm.core.template.impl.RecordReflection.getRecordType;
 import static st.orm.core.template.impl.RecordReflection.getRefPkType;
 import static st.orm.core.template.impl.RecordReflection.getRefDataType;
 import static st.orm.core.template.impl.RecordReflection.isRecord;
 
 /**
- * Factory for creating instances for record types.
+ * Factory for creating {@link ObjectMapper} instances that construct Java records from JDBC result set columns.
+ *
+ * <p>This class handles the complex mapping from flat JDBC column arrays to nested record structures, including:</p>
+ * <ul>
+ *   <li>Recursive expansion of nested records</li>
+ *   <li>Custom type converters via {@code @Convert} annotation</li>
+ *   <li>Enum mapping (by name or ordinal)</li>
+ *   <li>{@link Ref} creation for entity references</li>
+ *   <li>Nullable field handling</li>
+ * </ul>
+ *
+ * <h2>Compilation and Caching</h2>
+ * <p>Record mapping plans are compiled once per record type and cached globally. The compilation produces:</p>
+ * <ul>
+ *   <li>An {@link ArgumentPlan} containing {@link Step} instances for each constructor parameter</li>
+ *   <li>Expanded parameter types reflecting the flattened JDBC column structure</li>
+ * </ul>
+ *
+ * <h2>Interning and Caching</h2>
+ * <p>To ensure object identity consistency and reduce memory usage, constructed records are interned:</p>
+ * <ul>
+ *   <li><b>Entities with dirty tracking</b>: Interned via {@link EntityCache} (transaction-scoped)</li>
+ *   <li><b>Other records and entities</b>: Interned via {@link WeakInterner} (query-scoped)</li>
+ * </ul>
+ *
+ * <h2>Early Cache Lookup Optimization</h2>
+ * <p>For nested entities, the mapper can extract the primary key directly from the flat column array
+ * <em>before</em> constructing nested objects. If a cached entity with that PK exists, construction
+ * is skipped entirely, improving performance for queries that return duplicate entity references.</p>
+ *
+ * @see ObjectMapper
+ * @see EntityCache
+ * @see WeakInterner
  */
 final class RecordMapper {
 
@@ -83,10 +116,25 @@ final class RecordMapper {
         return empty();
     }
 
+    /**
+     * Holds the compiled mapping plan and expanded parameter types for a record type.
+     *
+     * @param plan the compiled argument plan for adapting flat JDBC args to constructor args.
+     * @param parameterTypes the expanded JDBC column types (flattened from nested records).
+     */
     private record Compiled(@Nonnull ArgumentPlan plan, @Nonnull Class<?>[] parameterTypes) {}
 
+    /** Global cache of compiled plans, keyed by record class. Thread-safe for concurrent access. */
     private static final ConcurrentMap<Class<?>, Compiled> COMPILED = new ConcurrentHashMap<>();
 
+    /**
+     * Returns the compiled plan for the given record type, creating and caching it if necessary.
+     *
+     * @param type the record type to compile.
+     * @param refFactory the factory for resolving Ref parameter types.
+     * @return the compiled plan.
+     * @throws SqlTemplateException if compilation fails.
+     */
     private static Compiled compiledFor(@Nonnull RecordType type,
                                         @Nonnull RefFactory refFactory) throws SqlTemplateException {
         try {
@@ -204,6 +252,7 @@ final class RecordMapper {
         return expandedTypes.toArray(new Class<?>[0]);
     }
 
+    /** Pattern for validating ordinal enum values. */
     private static final Pattern INT_PATTERN = Pattern.compile("\\d+");
 
     private static boolean isArgNull(@Nullable Object arg) {
@@ -211,9 +260,26 @@ final class RecordMapper {
     }
 
     /**
-     * Compiled, reusable plan for adapting flat JDBC args into constructor args for a specific record type.
+     * A compiled, reusable plan for adapting flat JDBC column values into constructor arguments.
+     *
+     * <p>An argument plan is compiled once per record type and cached. It transforms a flat array of JDBC
+     * column values (in declaration order) into properly nested constructor arguments, handling type
+     * conversion, nullable fields, and recursive record construction.</p>
      */
     private interface ArgumentPlan {
+
+        /**
+         * Adapts flat JDBC column values into constructor arguments for a record type.
+         *
+         * @param flatArgs the flat array of JDBC column values.
+         * @param offset the starting offset into flatArgs.
+         * @param parentNullable whether the parent context allows null values.
+         * @param refFactory factory for creating {@link Ref} instances.
+         * @param interner interner for deduplicating records and entities.
+         * @param tx the transaction context, or null if not in a transaction.
+         * @return the result containing constructor args and updated offset.
+         * @throws SqlTemplateException if adaptation fails due to null constraint violations.
+         */
         Result adapt(@Nonnull Object[] flatArgs,
                      int offset,
                      boolean parentNullable,
@@ -221,11 +287,42 @@ final class RecordMapper {
                      @Nonnull WeakInterner interner,
                      @Nullable TransactionContext tx) throws SqlTemplateException;
 
+        /**
+         * The result of adapting flat args.
+         *
+         * @param constructorArgs the constructor arguments ready for record instantiation.
+         * @param offset the updated offset into flatArgs after consuming this record's columns.
+         */
         record Result(@Nonnull Object[] constructorArgs, int offset) {}
     }
 
+    /**
+     * A single step in the argument adaptation process, responsible for processing one constructor parameter.
+     *
+     * <p>Steps are composed into an {@link ArgumentPlan}. Each step type handles a specific kind of
+     * constructor parameter:</p>
+     * <ul>
+     *   <li>{@link PlainStep}: Simple pass-through for primitive/simple types</li>
+     *   <li>{@link ConverterStep}: Custom type conversion via {@code @Convert}</li>
+     *   <li>{@link EnumStep}: Enum mapping by name or ordinal</li>
+     *   <li>{@link RefStep}: Creates {@link Ref} instances for entity references</li>
+     *   <li>{@link RecordStep}: Recursive construction of nested records/entities</li>
+     * </ul>
+     */
     private interface Step {
 
+        /**
+         * Applies this step to extract and transform a value from the flat args array.
+         *
+         * @param flatArgs the flat array of JDBC column values.
+         * @param offset mutable offset tracker into flatArgs.
+         * @param parentNullable whether the parent context allows null values.
+         * @param refFactory factory for creating {@link Ref} instances.
+         * @param interner interner for deduplicating records and entities.
+         * @param tx the transaction context, or null if not in a transaction.
+         * @return the processed value for this constructor parameter.
+         * @throws SqlTemplateException if processing fails.
+         */
         Object apply(@Nonnull Object[] flatArgs,
                      @Nonnull Offset offset,
                      boolean parentNullable,
@@ -234,7 +331,9 @@ final class RecordMapper {
                      @Nullable TransactionContext tx) throws SqlTemplateException;
 
         /**
-         * Mutable offset holder to avoid allocating pairs/results per step.
+         * Mutable offset holder to track position in flatArgs across steps.
+         *
+         * <p>Using a mutable holder avoids allocating result pairs for each step.</p>
          */
         final class Offset {
             int i;
@@ -242,6 +341,11 @@ final class RecordMapper {
         }
     }
 
+    /**
+     * Default implementation of {@link ArgumentPlan} that applies a sequence of steps.
+     *
+     * <p>Each step corresponds to one constructor parameter of the target record type.</p>
+     */
     private static final class CompiledArgumentPlan implements ArgumentPlan {
         private final RecordType type;
         private final Step[] steps;
@@ -276,6 +380,11 @@ final class RecordMapper {
         }
     }
 
+    /**
+     * Step that passes a single column value through unchanged.
+     *
+     * <p>Used for simple types (primitives, strings, etc.) that don't require conversion.</p>
+     */
     private static final class PlainStep implements Step {
         @Override
         public Object apply(@Nonnull Object[] flatArgs,
@@ -288,8 +397,14 @@ final class RecordMapper {
         }
     }
 
+    /**
+     * Step that applies a custom type converter to one or more columns.
+     *
+     * <p>Used for fields annotated with {@code @Convert}. The converter may consume multiple
+     * columns (e.g., for composite types) as specified by its parameter count.</p>
+     */
     private static final class ConverterStep implements Step {
-        private final Object converter; // keep the concrete type from Providers (compile-time type is whatever getORMConverter returns)
+        private final Object converter;
         private final int paramCount;
 
         private ConverterStep(Object converter, int paramCount) {
@@ -311,8 +426,9 @@ final class RecordMapper {
         }
 
         /**
-         * Small indirection so the compiled step can stay fast without reflection.
-         * We wrap the real converter in an invoker during compilation.
+         * Functional interface for invoking converters without reflection at runtime.
+         *
+         * <p>The actual converter is wrapped in this interface during compilation.</p>
          */
         @FunctionalInterface
         interface ConverterInvoker {
@@ -320,6 +436,15 @@ final class RecordMapper {
         }
     }
 
+    /**
+     * Step that maps a column value to an enum constant.
+     *
+     * <p>Supports two mapping strategies via {@link DbEnum} annotation:</p>
+     * <ul>
+     *   <li>{@link EnumType#NAME}: Maps string values to enum constants by name (default)</li>
+     *   <li>{@link EnumType#ORDINAL}: Maps integer values to enum constants by ordinal</li>
+     * </ul>
+     */
     private static final class EnumStep implements Step {
         private final Class<?> enumType;
         private final EnumType mapping;
@@ -360,6 +485,13 @@ final class RecordMapper {
         }
     }
 
+    /**
+     * Step that creates a {@link Ref} instance from a primary key column.
+     *
+     * <p>Refs are lazy references to entities or projections. The actual entity is not loaded
+     * until the ref is dereferenced. This step consumes a single PK column and delegates to
+     * {@link RefFactory} for ref creation and interning.</p>
+     */
     private static final class RefStep implements Step {
         private final Class<? extends Data> dataType;
 
@@ -384,6 +516,27 @@ final class RecordMapper {
         }
     }
 
+    /**
+     * Step that recursively constructs a nested record or entity from multiple columns.
+     *
+     * <p>This step handles the most complex case: nested record types that may themselves contain
+     * further nested records. It delegates to a sub-{@link ArgumentPlan} for recursive construction.</p>
+     *
+     * <h2>Early Cache Lookup Optimization</h2>
+     * <p>For entity types, this step can extract the primary key directly from the flat column array
+     * <em>before</em> constructing the entity and its nested objects. If a cached entity with that PK
+     * exists (in {@link EntityCache} or {@link WeakInterner}), construction is skipped entirely.</p>
+     *
+     * <p>This optimization is particularly valuable for queries that return duplicate entity references
+     * (e.g., joins that repeat the same entity across multiple rows).</p>
+     *
+     * <h2>Interning</h2>
+     * <p>After construction, entities are interned to ensure identity consistency:</p>
+     * <ul>
+     *   <li>Entities with dirty tracking: via {@link EntityCache} (transaction-scoped)</li>
+     *   <li>Other entities and records: via {@link WeakInterner} (query-scoped)</li>
+     * </ul>
+     */
     private static final class RecordStep implements Step {
         private final RecordField field;
         private final RecordType subType;
@@ -391,12 +544,33 @@ final class RecordMapper {
         private final boolean subIsEntity;
         private final boolean subNeedsCache;
 
-        private RecordStep(@Nonnull RecordField field, @Nonnull RecordType subType, @Nonnull ArgumentPlan subPlan) {
+        // Fields for early PK cache lookup optimization.
+
+        /** Offset within this record's flatArgs where PK starts (-1 if not applicable). */
+        private final int pkFlatOffset;
+        /** Number of columns the PK spans. */
+        private final int pkColumnCount;
+        /** Total columns this record consumes (for skipping on cache hit). */
+        private final int totalColumnCount;
+        /** Constructor for composite PKs (null for simple single-column PKs). */
+        private final Constructor<?> pkConstructor;
+
+        private RecordStep(@Nonnull RecordField field,
+                           @Nonnull RecordType subType,
+                           @Nonnull ArgumentPlan subPlan,
+                           int pkFlatOffset,
+                           int pkColumnCount,
+                           int totalColumnCount,
+                           @Nullable Constructor<?> pkConstructor) {
             this.field = field;
             this.subType = subType;
             this.subPlan = subPlan;
             this.subIsEntity = Entity.class.isAssignableFrom(subType.type());
             this.subNeedsCache = getUpdateMode(subType) != OFF;
+            this.pkFlatOffset = pkFlatOffset;
+            this.pkColumnCount = pkColumnCount;
+            this.totalColumnCount = totalColumnCount;
+            this.pkConstructor = pkConstructor;
         }
 
         @Override
@@ -408,6 +582,36 @@ final class RecordMapper {
                             @Nullable TransactionContext context) throws SqlTemplateException {
             boolean nullableHere = parentNullable || field.nullable();
             int start = offset.i;
+            // Early cache lookup optimization for entities.
+            // If we can extract the PK early, check the cache before constructing nested objects.
+            EntityCache<Entity<?>, ?> entityCache = null;
+            if (context != null && subIsEntity && subNeedsCache) {
+                //noinspection unchecked
+                entityCache = (EntityCache<Entity<?>, ?>) context.entityCache((Class<? extends Entity<?>>) subType.type());
+            }
+            if (subIsEntity && pkFlatOffset >= 0) {
+                Object pk = extractPk(flatArgs, start + pkFlatOffset);
+                if (pk != null) {
+                    // Try EntityCache first if available, otherwise use WeakInterner.
+                    if (entityCache != null) {
+                        //noinspection unchecked,rawtypes
+                        Optional<Entity<?>> cached = ((EntityCache) entityCache).get(pk);
+                        if (cached.isPresent()) {
+                            // Cache hit - skip construction entirely.
+                            offset.i = start + totalColumnCount;
+                            return cached.get();
+                        }
+                    } else {
+                        //noinspection unchecked
+                        Entity<?> cached = interner.get((Class<Entity<?>>) subType.type(), pk);
+                        if (cached != null) {
+                            // Cache hit - skip construction entirely.
+                            offset.i = start + totalColumnCount;
+                            return cached;
+                        }
+                    }
+                }
+            }
             ArgumentPlan.Result r = subPlan.adapt(flatArgs, offset.i, nullableHere, refFactory, interner, context);
             offset.i = r.offset();
             if (field.nullable()) {
@@ -443,20 +647,56 @@ final class RecordMapper {
             }
             // Construct nested record.
             Object record = ObjectMapperFactory.construct(subType.constructor(), childArgs, start);
-            EntityCache<Entity<?>, ?> entityCache;
-            if (context != null && subIsEntity && subNeedsCache) {
-                //noinspection unchecked
-                entityCache = (EntityCache<Entity<?>, ?>) context.entityCache((Class<? extends Entity<?>>) subType.type());
-            } else {
-                entityCache = null;
-            }
             if (entityCache != null) {
                 return entityCache.intern((Entity<?>) record);
             }
             return interner.intern(record);
         }
+
+        /**
+         * Extracts the primary key from flatArgs at the given offset.
+         *
+         * @param flatArgs the flat argument array.
+         * @param pkStart the starting offset for PK columns.
+         * @return the PK value, or null if any PK column is null.
+         */
+        private Object extractPk(@Nonnull Object[] flatArgs, int pkStart) throws SqlTemplateException {
+            if (pkColumnCount == 1) {
+                // Simple PK - just return the value.
+                return flatArgs[pkStart];
+            }
+            // Composite PK - construct from columns.
+            Object[] pkArgs = new Object[pkColumnCount];
+            for (int i = 0; i < pkColumnCount; i++) {
+                Object arg = flatArgs[pkStart + i];
+                if (arg == null) {
+                    return null;  // Null in composite PK means no valid PK.
+                }
+                pkArgs[i] = arg;
+            }
+            return ObjectMapperFactory.construct(pkConstructor, pkArgs, pkStart);
+        }
     }
 
+    /**
+     * Compiles an argument plan for the given record type.
+     *
+     * <p>This method analyzes the record's constructor parameters and creates an appropriate
+     * {@link Step} for each one. The resulting plan can be reused across multiple row mappings.</p>
+     *
+     * <p>Step selection is based on parameter type:</p>
+     * <ul>
+     *   <li>Fields with {@code @Convert}: {@link ConverterStep}</li>
+     *   <li>Nested records: {@link RecordStep} (recursive)</li>
+     *   <li>Enums: {@link EnumStep}</li>
+     *   <li>{@link Ref} types: {@link RefStep}</li>
+     *   <li>All other types: {@link PlainStep}</li>
+     * </ul>
+     *
+     * @param type the record type to compile a plan for.
+     * @return the compiled argument plan.
+     * @throws SqlTemplateException if compilation fails.
+     */
     private static ArgumentPlan compilePlan(@Nonnull RecordType type) throws SqlTemplateException {
         Class<?>[] paramTypes = type.constructor().getParameterTypes();
         Step[] steps = new Step[paramTypes.length];
@@ -475,7 +715,11 @@ final class RecordMapper {
             if (isRecord(p)) {
                 RecordType sub = getRecordType(p);
                 ArgumentPlan subPlan = compilePlan(sub);
-                steps[i] = new RecordStep(field, sub, subPlan);
+                // Calculate PK information for early cache lookup optimization.
+                PkInfo pkInfo = calculatePkInfo(sub);
+                int totalColumnCount = getParameterCount(sub);
+                steps[i] = new RecordStep(field, sub, subPlan, pkInfo.offset, pkInfo.columnCount,
+                        totalColumnCount, pkInfo.constructor);
             } else if (p.isEnum()) {
                 EnumType enumType = ofNullable(field.getAnnotation(DbEnum.class)).map(DbEnum::value).orElse(NAME);
                 steps[i] = new EnumStep(p, enumType, type.type().getSimpleName(), field.name());
@@ -486,5 +730,82 @@ final class RecordMapper {
             }
         }
         return new CompiledArgumentPlan(type, steps);
+    }
+
+    /**
+     * Holds primary key location and construction information for an entity type.
+     *
+     * <p>This information enables the early cache lookup optimization in {@link RecordStep}.</p>
+     *
+     * @param offset the offset into flatArgs where the PK columns start (-1 if not applicable).
+     * @param columnCount the number of columns the PK spans.
+     * @param constructor the constructor for composite PKs (null for simple single-column PKs).
+     */
+    private record PkInfo(int offset, int columnCount, @Nullable Constructor<?> constructor) {
+        /** Sentinel value indicating no PK information is available (non-entity types). */
+        static final PkInfo NONE = new PkInfo(-1, 0, null);
+    }
+
+    /**
+     * Calculates the primary key offset, column count, and constructor for the given record type.
+     *
+     * <p>This information enables early cache lookups by extracting the PK directly from flatArgs
+     * before constructing nested objects.</p>
+     *
+     * @param type the record type to analyze.
+     * @return PkInfo containing offset, column count, and constructor (for composite PKs).
+     */
+    private static PkInfo calculatePkInfo(@Nonnull RecordType type) throws SqlTemplateException {
+        // Only entities have PKs.
+        if (!Entity.class.isAssignableFrom(type.type())) {
+            return PkInfo.NONE;
+        }
+        // Find the PK field.
+        Optional<RecordField> pkFieldOpt = findPkField(type.type());
+        if (pkFieldOpt.isEmpty()) {
+            return PkInfo.NONE;
+        }
+        RecordField pkField = pkFieldOpt.get();
+        // Calculate the offset: sum of column counts for all fields before the PK field.
+        int offset = 0;
+        for (RecordField field : type.fields()) {
+            if (field.name().equals(pkField.name())) {
+                break;
+            }
+            offset += getFieldColumnCount(field);
+        }
+        // Calculate how many columns the PK spans.
+        int pkColumnCount = getFieldColumnCount(pkField);
+        // For composite PKs (record types), we need the constructor.
+        Constructor<?> pkConstructor = null;
+        if (isRecord(pkField.type()) && pkColumnCount > 1) {
+            pkConstructor = getRecordType(pkField.type()).constructor();
+        }
+        return new PkInfo(offset, pkColumnCount, pkConstructor);
+    }
+
+    /**
+     * Returns the number of JDBC columns a field consumes in the flat args array.
+     *
+     * <p>This accounts for:</p>
+     * <ul>
+     *   <li>Custom converters that may consume multiple columns</li>
+     *   <li>Nested records that expand to multiple columns recursively</li>
+     *   <li>Simple fields that consume exactly one column</li>
+     * </ul>
+     *
+     * @param field the field to calculate column count for.
+     * @return the number of columns the field consumes.
+     * @throws SqlTemplateException if the field type cannot be analyzed.
+     */
+    private static int getFieldColumnCount(@Nonnull RecordField field) throws SqlTemplateException {
+        var converter = getORMConverter(field);
+        if (converter.isPresent()) {
+            return converter.get().getParameterCount();
+        }
+        if (isRecord(field.type())) {
+            return getParameterCount(getRecordType(field.type()));
+        }
+        return 1;
     }
 }
