@@ -33,8 +33,6 @@ import st.orm.mapping.TableNameResolver;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 import static java.lang.Integer.parseInt;
@@ -52,7 +50,8 @@ public final class SqlTemplateImpl implements SqlTemplate {
 
     private static final TemplateMetrics TEMPLATE_METRICS = new TemplateMetrics(LoggerFactory.getLogger("st.orm.metrics"));
 
-    private static final Map<Object, SegmentedLruCache<Object, TemplateProcessor>> CACHE_MAP = new ConcurrentHashMap<>();
+    private static final SegmentedLruCache<Object, SegmentedLruCache<Object, TemplateProcessor>> CACHE_MAP =
+            new SegmentedLruCache<>(64);
 
     private static final int TEMPLATE_CACHE_SIZE =
             Math.max(0, parseInt(System.getProperty("storm.templateCacheSize", "2048")));
@@ -101,7 +100,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             this.cache = null;
         } else {
             var key = List.of(positionalOnly, expandCollection, supportRecords, new IdentityKey(modelBuilder), new IdentityKey(tableAliasResolver), dialect.name());
-            this.cache = CACHE_MAP.computeIfAbsent(key, ignore -> new SegmentedLruCache<>(TEMPLATE_CACHE_SIZE));
+            this.cache = CACHE_MAP.getOrCompute(key, () -> new SegmentedLruCache<>(TEMPLATE_CACHE_SIZE));
         }
     }
 
@@ -343,7 +342,10 @@ public final class SqlTemplateImpl implements SqlTemplate {
                     preparedTemplate.processor().compile(preparedTemplate.context(), false);
                     processor = preparedTemplate.processor();
                     if (compilationKey != null) {
-                        cache.put(compilationKey, processor);
+                        var existing = cache.putIfAbsent(compilationKey, processor);
+                        if (existing != null) {
+                            processor = existing;  // Use the processor that won the race.
+                        }
                     }
                 } else {
                     request.hit();
