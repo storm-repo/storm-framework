@@ -1431,6 +1431,11 @@ EntityRepository, a DSL query, or a SQL template. This observed state is used as
 Dirty checking is only applied when updates are executed through an EntityRepository. Manual SQL updates, bulk
 statements, or custom queries bypass dirty checking entirely and may leave in-memory entities stale.
 
+Unless configured otherwise, entity observation is automatically disabled for `READ_UNCOMMITTED` transactions. At this
+isolation level, the application expects to see uncommitted changes from other transactions. Caching observed state
+would mask these changes, contradicting the requested isolation semantics. When observation is disabled, dirty checking
+treats all entities as dirty, resulting in full-row updates.
+
 Dirty checking affects both whether an UPDATE is issued and how that UPDATE is constructed. This behavior is
 controlled by UpdateMode and by the dirty checking strategy.
 
