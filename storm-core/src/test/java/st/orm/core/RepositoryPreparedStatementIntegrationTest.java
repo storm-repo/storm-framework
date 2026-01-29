@@ -12,6 +12,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import org.springframework.transaction.annotation.Transactional;
 import st.orm.Convert;
 import st.orm.Converter;
 import st.orm.Data;
@@ -65,11 +66,13 @@ import javax.sql.DataSource;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static java.util.Collections.newSetFromMap;
+import static java.util.stream.Collectors.toCollection;
+import static java.util.stream.Collectors.toSet;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -77,6 +80,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.transaction.annotation.Isolation.READ_UNCOMMITTED;
+import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
+import static org.springframework.transaction.annotation.Propagation.REQUIRED;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.core.template.Templates.alias;
 import static st.orm.core.template.Templates.column;
@@ -971,7 +977,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testInternerRecord() {
         var pets = ORMTemplate.of(dataSource).entity(Pet.class).select().getResultList();
-        var owners = Collections.newSetFromMap(new IdentityHashMap<>());
+        var owners = newSetFromMap(new IdentityHashMap<>());
         owners.addAll(pets.stream().map(Pet::owner).toList());
         assertEquals(11, owners.size());
     }
@@ -979,7 +985,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testInternerRef() {
         var pets = ORMTemplate.of(dataSource).entity(PetOwnerRef.class).select().getResultList();
-        var owners = Collections.newSetFromMap(new IdentityHashMap<>());
+        var owners = newSetFromMap(new IdentityHashMap<>());
         owners.addAll(pets.stream().map(PetOwnerRef::owner).toList());
         assertEquals(11, owners.size());
     }
@@ -1602,5 +1608,99 @@ public class RepositoryPreparedStatementIntegrationTest {
             });
             assertInstanceOf(JdbcSQLSyntaxErrorException.class, e.getCause());
         });
+    }
+
+    @Transactional(propagation = REQUIRED)
+    @Test
+    public void testInternerRegularTransaction() {
+        // Uses EntityCache.
+        var visits = ORMTemplate.of(dataSource).entity(Visit.class)
+                .select()
+                .getResultList();
+        assertEquals(14, visits.size());
+        var identitySet = visits.stream().map(it -> it.pet()).collect(toCollection(() -> newSetFromMap(new IdentityHashMap<>())));
+        var pkSet = visits.stream().map(it -> it.pet().id()).collect(toSet());
+        assertEquals(pkSet.size(), identitySet.size());
+    }
+
+    @Transactional(readOnly = true)
+    @Test
+    public void testInternerReadOnlyTransaction() {
+        // Uses WeakInterner.
+        var visits = ORMTemplate.of(dataSource).entity(Visit.class)
+                .select()
+                .getResultList();
+        assertEquals(14, visits.size());
+        var identitySet = visits.stream().map(it -> it.pet()).collect(toCollection(() -> newSetFromMap(new IdentityHashMap<>())));
+        var pkSet = visits.stream().map(it -> it.pet().id()).collect(toSet());
+        assertEquals(pkSet.size(), identitySet.size());
+    }
+
+    @Transactional(propagation = NOT_SUPPORTED)
+    @Test
+    public void testInternerNoTransaction() {
+        // Uses WeakInterner.
+        var visits = ORMTemplate.of(dataSource).entity(Visit.class)
+                .select()
+                .getResultList();
+        assertEquals(14, visits.size());
+        var identitySet = visits.stream().map(it -> it.pet()).collect(toCollection(() -> newSetFromMap(new IdentityHashMap<>())));
+        var pkSet = visits.stream().map(it -> it.pet().id()).collect(toSet());
+        assertEquals(pkSet.size(), identitySet.size());
+    }
+
+    @Transactional(isolation = READ_UNCOMMITTED)
+    @Test
+    public void testInternerReadUncomitted() {
+        // Uses WeakInterner.
+        var visits = ORMTemplate.of(dataSource).entity(Visit.class)
+                .select()
+                .getResultList();
+        assertEquals(14, visits.size());
+        var identitySet = visits.stream().map(it -> it.pet()).collect(toCollection(() -> newSetFromMap(new IdentityHashMap<>())));
+        var pkSet = visits.stream().map(it -> it.pet().id()).collect(toSet());
+        assertEquals(pkSet.size(), identitySet.size());
+    }
+
+    @Transactional(propagation = REQUIRED)
+    @Test
+    public void testEntityCacheAcrossQueries() {
+        // With entity cache, the same entity should be returned across multiple queries.
+        var repository = ORMTemplate.of(dataSource).entity(Pet.class);
+        var pet1 = repository.getById(1);
+        var pet2 = repository.getById(1);
+        assertSame(pet1, pet2, "Entity cache should return the same instance across queries");
+    }
+
+    @Transactional(readOnly = true)
+    @Test
+    public void testEntityCacheInReadOnlyTransaction() {
+        // Read-only transactions should also use entity cache for optimization.
+        var repository = ORMTemplate.of(dataSource).entity(Pet.class);
+        var pet1 = repository.getById(1);
+        var pet2 = repository.getById(1);
+        assertSame(pet1, pet2, "Entity cache should return the same instance in read-only transactions");
+    }
+
+    @Transactional(propagation = NOT_SUPPORTED)
+    @Test
+    public void testNoEntityCacheWithoutTransaction() {
+        // Without a transaction, there is no scope for entity cache.
+        var repository = ORMTemplate.of(dataSource).entity(Pet.class);
+        var pet1 = repository.getById(1);
+        var pet2 = repository.getById(1);
+        assertEquals(pet1, pet2, "Entities should be equal");
+        assertTrue(pet1 != pet2, "Without transaction, different instances should be returned");
+    }
+
+    @Transactional(isolation = READ_UNCOMMITTED)
+    @Test
+    public void testNoEntityCacheAtReadUncommitted() {
+        // Without entity cache (READ_UNCOMMITTED), different instances should be returned.
+        var repository = ORMTemplate.of(dataSource).entity(Pet.class);
+        var pet1 = repository.getById(1);
+        var pet2 = repository.getById(1);
+        assertEquals(pet1, pet2, "Entities should be equal");
+        assertTrue(pet1 != pet2, "Without entity cache, different instances should be returned");
     }
 }

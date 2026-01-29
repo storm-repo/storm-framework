@@ -290,15 +290,14 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     /**
-     * Returns the entity cache for the current transaction, or null.
+     * Returns the entity cache for the current transaction, if available.
      *
-     * @return the entity cache for the current transaction, or null.
+     * @return the entity cache for the current transaction, or empty if not available.
      * @since 1.7
      */
     protected Optional<EntityCache<E, ID>> entityCache() {
         //noinspection unchecked
         return TRANSACTION_TEMPLATE.currentContext()
-                .filter(ctx -> !ctx.isReadOnly())
                 .map(ctx -> (EntityCache<E, ID>) ctx.entityCache(model().type()));
     }
 

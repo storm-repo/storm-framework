@@ -64,6 +64,11 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  *   <li>Manual or bulk SQL updates bypass dirty checking and may leave cached entities stale.</li>
  *   <li>Field-level updates are a performance optimization and may fall back to full-row updates to preserve batching
  *       efficiency. This does not affect dirty detection.</li>
+ *   <li>Unless configured otherwise, entity observation is automatically disabled for {@code READ_UNCOMMITTED}
+ *       transactions. At this isolation level, the application expects to see uncommitted changes from other
+ *       transactions. Caching observed state would mask these changes, contradicting the requested isolation
+ *       semantics. When observation is disabled, all entities are treated as dirty, resulting in full-row
+ *       updates.</li>
  * </ul>
  *
  * @since 1.7

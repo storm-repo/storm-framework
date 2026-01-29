@@ -16,6 +16,7 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import st.orm.Entity;
 
 /**
@@ -33,7 +34,19 @@ public interface TransactionContext {
 
     /**
      * Returns a transaction-local cache for entities of the given type, keyed by primary key.
+     *
+     * <p>Returns {@code null} if entity caching is disabled for this transaction. This can happen when the
+     * transaction's isolation level is below the configured minimum for entity caching. At low isolation levels
+     * (e.g., {@code READ_UNCOMMITTED}), entity caching is disabled to prevent the cache from masking changes
+     * that the application expects to see.</p>
+     *
+     * <p>When {@code null} is returned, dirty checking will treat all entities as dirty, resulting in full-row
+     * updates.</p>
+     *
+     * @param entityType the entity type for which to retrieve the cache.
+     * @return the entity cache, or {@code null} if caching is disabled for this transaction.
      */
+    @Nullable
     EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType);
 
     /**

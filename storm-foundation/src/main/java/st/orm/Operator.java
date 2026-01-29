@@ -20,6 +20,12 @@ import jakarta.annotation.Nullable;
 
 /**
  * Represents a comparison operator in a SQL query.
+ *
+ * <p><strong>Caching contract:</strong> Operators may participate in template caching where the operator instance
+ * becomes part of the cache key for a compiled SQL shape. Custom operator implementations must therefore implement
+ * stable {@link Object#equals(Object)} and {@link Object#hashCode()} semantics. Two operators must be considered equal
+ * (and have the same hash code) if they produce the same SQL shape, so that equivalent templates map to the same cached
+ * compilation result.</p>
  */
 @SuppressWarnings({"SwitchStatementWithTooFewBranches", "unused"})
 public interface Operator {

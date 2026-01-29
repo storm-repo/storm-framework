@@ -30,6 +30,34 @@ import javax.sql.DataSource
 import kotlin.reflect.KClass
 
 /**
+ * Minimum transaction isolation level required for entity caching to be enabled.
+ *
+ * Transactions with an isolation level below this threshold will not use entity caching, which means dirty checking
+ * will treat all entities as dirty (resulting in full-row updates). This prevents the entity cache from masking
+ * changes that the application expects to see at lower isolation levels.
+ *
+ * The default value is [TRANSACTION_READ_COMMITTED], meaning entity caching is disabled only for
+ * `READ_UNCOMMITTED` transactions. This can be overridden using the system property
+ * `storm.entityCache.minIsolationLevel`.
+ *
+ * Valid values: `NONE`, `READ_UNCOMMITTED`, `READ_COMMITTED`, `REPEATABLE_READ`, `SERIALIZABLE`, or the
+ * corresponding JDBC integer constants (0, 1, 2, 4, 8).
+ */
+private val MIN_ISOLATION_LEVEL_FOR_CACHE: Int = run {
+    val value = System.getProperty("storm.entityCache.minIsolationLevel")?.trim()?.uppercase()
+    when {
+        value.isNullOrBlank() -> TRANSACTION_READ_COMMITTED
+        value == "NONE" || value == "0" -> TRANSACTION_NONE
+        value == "READ_UNCOMMITTED" || value == "1" -> TRANSACTION_READ_UNCOMMITTED
+        value == "READ_COMMITTED" || value == "2" -> TRANSACTION_READ_COMMITTED
+        value == "REPEATABLE_READ" || value == "4" -> TRANSACTION_REPEATABLE_READ
+        value == "SERIALIZABLE" || value == "8" -> TRANSACTION_SERIALIZABLE
+        else -> value.toIntOrNull()
+            ?: throw PersistenceException("Invalid value for storm.entityCache.minIsolationLevel: '$value'.")
+    }
+}
+
+/**
  * A JDBC transaction context implementation that provides lightweight transaction management based on JDBC.
  * This supports various transaction propagation behaviors.
  *
@@ -156,8 +184,16 @@ internal class JdbcTransactionContext : TransactionContext {
 
     /**
      * Returns a transaction-local cache for entities of the given type, keyed by primary key.
+     *
+     * Returns `null` if the transaction's isolation level is below the configured minimum for entity caching
+     * (see [MIN_ISOLATION_LEVEL_FOR_CACHE]). At low isolation levels, entity caching is disabled to prevent
+     * the cache from masking changes that the application expects to see.
      */
-    override fun entityCache(entityType: Class<out Entity<*>>): EntityCache<out Entity<*>, *> {
+    override fun entityCache(entityType: Class<out Entity<*>>): EntityCache<out Entity<*>, *>? {
+        val isolationLevel = currentState.isolationLevel
+        if (isolationLevel != null && isolationLevel < MIN_ISOLATION_LEVEL_FOR_CACHE) {
+            return null
+        }
         @Suppress("UNCHECKED_CAST")
         return currentState.entityCacheMap.getOrPut(entityType.kotlin) {
             EntityCacheImpl<Entity<Any>, Any>()

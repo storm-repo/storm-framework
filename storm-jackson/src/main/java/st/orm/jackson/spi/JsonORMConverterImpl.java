@@ -40,9 +40,8 @@ import st.orm.Json;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
+import st.orm.core.template.impl.SegmentedLruCache;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES;
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
@@ -56,7 +55,7 @@ import static java.util.Optional.empty;
  */
 public final class JsonORMConverterImpl implements ORMConverter {
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
-    private static final Map<CacheKey, ObjectMapper> OBJECT_MAPPER = new ConcurrentHashMap<>();
+    private static final SegmentedLruCache<CacheKey, ObjectMapper> OBJECT_MAPPER = new SegmentedLruCache<>(1024);
     private static final ThreadLocal<RefFactory> REF_FACTORY = new ThreadLocal<>();
 
     private final RecordField field;
@@ -88,9 +87,9 @@ public final class JsonORMConverterImpl implements ORMConverter {
                 deserializeAnnotation != null && deserializeAnnotation.using() != JsonDeserializer.None.class
                         ? (Class<? extends JsonDeserializer<?>>) deserializeAnnotation.using()
                         : null;
-        this.mapper = OBJECT_MAPPER.computeIfAbsent(
+        this.mapper = OBJECT_MAPPER.getOrCompute(
                 new CacheKey(requireNonNull(json, "json"), type, serializerClass, deserializerClass),
-                key -> {
+                () -> {
                     var mapper = new ObjectMapper();
                     mapper.findAndRegisterModules();
                     if (!json.failOnUnknown()) {
@@ -99,30 +98,30 @@ public final class JsonORMConverterImpl implements ORMConverter {
                     if (!json.failOnMissing()) {
                         mapper.disable(FAIL_ON_MISSING_CREATOR_PROPERTIES);
                     }
-                    if (key.sealedType != null) {
-                        mapper.registerSubtypes(getPermittedSubtypes(key.sealedType));
+                    if (type != null) {
+                        mapper.registerSubtypes(getPermittedSubtypes(type));
                     }
                     // Register StormModule with supplier for dynamic RefFactory resolution.
                     mapper.registerModule(new StormModule(REF_FACTORY::get));
                     // Register custom serializers/deserializers if specified.
-                    if (key.serializer != null || key.deserializer != null) {
+                    if (serializerClass != null || deserializerClass != null) {
                         var customModule = new SimpleModule();
-                        if (key.serializer != null) {
+                        if (serializerClass != null) {
                             try {
                                 Class<?> fieldType = getRawType(typeReference.getType()).orElse(Object.class);
-                                JsonSerializer serializerInstance = key.serializer.getDeclaredConstructor().newInstance();
+                                JsonSerializer serializerInstance = serializerClass.getDeclaredConstructor().newInstance();
                                 customModule.addSerializer(fieldType, serializerInstance);
                             } catch (Exception e) {
-                                throw new RuntimeException("Failed to instantiate custom serializer: " + key.serializer, e);
+                                throw new RuntimeException("Failed to instantiate custom serializer: " + serializerClass, e);
                             }
                         }
-                        if (key.deserializer != null) {
+                        if (deserializerClass != null) {
                             try {
                                 Class fieldType = getRawType(typeReference.getType()).orElse(Object.class);
-                                JsonDeserializer deserializerInstance = key.deserializer.getDeclaredConstructor().newInstance();
+                                JsonDeserializer deserializerInstance = deserializerClass.getDeclaredConstructor().newInstance();
                                 customModule.addDeserializer(fieldType, deserializerInstance);
                             } catch (Exception e) {
-                                throw new RuntimeException("Failed to instantiate custom deserializer: " + key.deserializer, e);
+                                throw new RuntimeException("Failed to instantiate custom deserializer: " + deserializerClass, e);
                             }
                         }
                         mapper.registerModule(customModule);

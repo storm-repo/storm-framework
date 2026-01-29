@@ -108,6 +108,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
             var transactionContext = transactionTemplate.currentContext().orElse(null);
             Connection connection = getConnection(dataSource, transactionContext);
             PreparedStatement preparedStatement = null;
+            boolean success = false;
             try {
                 if (!generatedKeys.isEmpty()) {
                     try {
@@ -128,8 +129,14 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                 } else {
                     bindVariables.setBatchListener(getBatchListener(preparedStatement, parameters));
                 }
+                success = true;
             } finally {
-                if (preparedStatement == null) {
+                if (!success) {
+                    if (preparedStatement != null) {
+                        try {
+                            preparedStatement.close();
+                        } catch (SQLException ignore) {}
+                    }
                     releaseConnection(connection, dataSource, transactionContext);
                 }
             }
@@ -156,27 +163,37 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
             var bindVariables = sql.bindVariables().orElse(null);
             var generatedKeys = sql.generatedKeys();
             PreparedStatement preparedStatement = null;
-            if (!generatedKeys.isEmpty()) {
-                try {
+            boolean success = false;
+            try {
+                if (!generatedKeys.isEmpty()) {
+                    try {
+                        //noinspection SqlSourceToSinkFlow
+                        preparedStatement = connection.prepareStatement(statement, generatedKeys.toArray(new String[0]));
+                    } catch (SQLFeatureNotSupportedException ignore) {}
+                }
+                if (preparedStatement == null) {
                     //noinspection SqlSourceToSinkFlow
-                    preparedStatement = connection.prepareStatement(statement, generatedKeys.toArray(new String[0]));
-                } catch (SQLFeatureNotSupportedException ignore) {}
+                    preparedStatement = connection.prepareStatement(statement);
+                }
+                var transactionContext = transactionTemplate.currentContext().orElse(null);
+                if (transactionContext != null) {
+                    preparedStatement = transactionContext.getDecorator(PreparedStatement.class)
+                            .decorate(preparedStatement);
+                }
+                if (bindVariables == null) {
+                    setParameters(preparedStatement, parameters);
+                } else {
+                    bindVariables.setBatchListener(getBatchListener(preparedStatement, parameters));
+                }
+                success = true;
+                return preparedStatement;
+            } finally {
+                if (!success && preparedStatement != null) {
+                    try {
+                        preparedStatement.close();
+                    } catch (SQLException ignore) {}
+                }
             }
-            if (preparedStatement == null) {
-                //noinspection SqlSourceToSinkFlow
-                preparedStatement = connection.prepareStatement(statement);
-            }
-            var transactionContext = transactionTemplate.currentContext().orElse(null);
-            if (transactionContext != null) {
-                preparedStatement = transactionContext.getDecorator(PreparedStatement.class)
-                        .decorate(preparedStatement);
-            }
-            if (bindVariables == null) {
-                setParameters(preparedStatement, parameters);
-            } else {
-                bindVariables.setBatchListener(getBatchListener(preparedStatement, parameters));
-            }
-            return preparedStatement;
         };
         this.modelBuilder = ModelBuilder.newInstance();
         this.tableAliasResolver = TableAliasResolver.DEFAULT;
