@@ -74,13 +74,34 @@ import static st.orm.core.template.impl.RecordReflection.isRecord;
  * <h2>Interning and Caching</h2>
  * <p>To ensure object identity consistency and reduce memory usage, constructed records are interned:</p>
  * <ul>
- *   <li><b>Entities with dirty tracking</b>: Interned via {@link EntityCache} (transaction-scoped)</li>
+ *   <li><b>Entities within a transaction</b>: Interned via {@link EntityCache} (transaction-scoped)</li>
  *   <li><b>Other records and entities</b>: Interned via {@link WeakInterner} (query-scoped)</li>
  * </ul>
  *
+ * <h3>Entity Cache Scoping</h3>
+ * <p>The entity cache is transaction-scoped and available in both read-write and read-only transactions. This provides
+ * object identity consistency within a transaction: reading the same entity multiple times returns the same instance.</p>
+ *
+ * <p>The entity cache serves two purposes:</p>
+ * <ul>
+ *   <li><b>Dirty tracking</b>: The cached state serves as the baseline for detecting changes when updating entities
+ *       (see {@link st.orm.DynamicUpdate})</li>
+ *   <li><b>Construction optimization</b>: Entities already in cache can be returned directly, skipping reconstruction</li>
+ * </ul>
+ *
+ * <p>The entity cache is <em>not</em> available when:</p>
+ * <ul>
+ *   <li>There is no active transaction (e.g., {@code NOT_SUPPORTED} propagation)</li>
+ *   <li>The transaction isolation level is below the configured minimum (default: {@code READ_UNCOMMITTED})</li>
+ * </ul>
+ *
+ * <p>At {@code READ_UNCOMMITTED}, the entity cache is disabled because the application explicitly expects to see
+ * uncommitted changes from other transactions. Caching would mask these changes, contradicting the requested
+ * isolation semantics.</p>
+ *
  * <h2>Early Cache Lookup Optimization</h2>
- * <p>For nested entities, the mapper can extract the primary key directly from the flat column array
- * <em>before</em> constructing nested objects. If a cached entity with that PK exists, construction
+ * <p>For both top-level and nested entities, the mapper extracts the primary key directly from the flat column array
+ * <em>before</em> constructing the entity or its nested objects. If a cached entity with that PK exists, construction
  * is skipped entirely, improving performance for queries that return duplicate entity references.</p>
  *
  * @see ObjectMapper
@@ -107,11 +128,7 @@ final class RecordMapper {
                                                     @Nonnull RefFactory refFactory,
                                                     @Nullable TransactionContext transactionContext) throws SqlTemplateException {
         if (getParameterCount(type) == columnCount) {
-            return Optional.of(wrapConstructor(
-                    type,
-                    refFactory,
-                    transactionContext == null ? null : transactionContext.isReadOnly() ? null : transactionContext
-            ));
+            return Optional.of(wrapConstructor(type, refFactory, transactionContext));
         }
         return empty();
     }
@@ -122,7 +139,7 @@ final class RecordMapper {
      * @param plan the compiled argument plan for adapting flat JDBC args to constructor args.
      * @param parameterTypes the expanded JDBC column types (flattened from nested records).
      */
-    private record Compiled(@Nonnull ArgumentPlan plan, @Nonnull Class<?>[] parameterTypes) {}
+    private record Compiled(@Nonnull ArgumentPlan plan, @Nonnull Class<?>[] parameterTypes, @Nonnull PkInfo pkInfo) {}
 
     /** Global cache of compiled plans, keyed by record class. Thread-safe for concurrent access. */
     private static final ConcurrentMap<Class<?>, Compiled> COMPILED = new ConcurrentHashMap<>();
@@ -140,7 +157,10 @@ final class RecordMapper {
         try {
             return COMPILED.computeIfAbsent(type.type(), t -> {
                 try {
-                    return new Compiled(compilePlan(type), expandParameterTypes(type, refFactory));
+                    PkInfo pkInfo = Entity.class.isAssignableFrom(type.type())
+                            ? calculatePkInfo(type)
+                            : PkInfo.NONE;
+                    return new Compiled(compilePlan(type), expandParameterTypes(type, refFactory), pkInfo);
                 } catch (SqlTemplateException e) {
                     throw new RuntimeException(e);
                 }
@@ -188,13 +208,15 @@ final class RecordMapper {
                                                        @Nonnull RefFactory refFactory,
                                                        @Nullable TransactionContext transactionContext) throws SqlTemplateException {
         Compiled compiled = compiledFor(type, refFactory);
+        boolean isEntity = Entity.class.isAssignableFrom(type.type());
         EntityCache<Entity<?>, ?> entityCache;
-        if (transactionContext != null && Entity.class.isAssignableFrom(type.type()) && getUpdateMode(type) != OFF) {
+        if (transactionContext != null && isEntity && getUpdateMode(type) != OFF) {
             //noinspection unchecked
             entityCache = (EntityCache<Entity<?>, ?>) transactionContext.entityCache((Class<? extends Entity<?>>) type.type());
         } else {
             entityCache = null;
         }
+        PkInfo pkInfo = compiled.pkInfo();
         var interner = new WeakInterner();
         return new ObjectMapper<>() {
             @Override
@@ -205,6 +227,19 @@ final class RecordMapper {
             @SuppressWarnings("unchecked")
             @Override
             public T newInstance(@Nonnull Object[] args) throws SqlTemplateException {
+                // Early cache lookup optimization for top-level entities.
+                // If we can extract the PK early, check the cache before constructing nested objects.
+                if (entityCache != null && pkInfo.offset >= 0) {
+                    Object pk = extractPk(args, pkInfo);
+                    if (pk != null) {
+                        //noinspection rawtypes
+                        Optional<Entity<?>> cached = ((EntityCache) entityCache).get(pk);
+                        if (cached.isPresent()) {
+                            // Cache hit - skip construction entirely.
+                            return (T) cached.get();
+                        }
+                    }
+                }
                 Object[] adaptedArgs = compiled.plan()
                         .adapt(args, 0, false, refFactory, interner, transactionContext)
                         .constructorArgs();
@@ -215,6 +250,36 @@ final class RecordMapper {
                     return (T) entityCache.intern((Entity<?>) record);
                 }
                 return record;
+            }
+
+            /**
+             * Extracts the primary key from args at the configured offset.
+             *
+             * @param args the flat argument array.
+             * @param pkInfo the PK offset and column count information.
+             * @return the PK value, or null if any PK column is null or PK cannot be extracted.
+             */
+            private Object extractPk(@Nonnull Object[] args, @Nonnull PkInfo pkInfo) throws SqlTemplateException {
+                int pkStart = pkInfo.offset;
+                int pkColumnCount = pkInfo.columnCount;
+                if (pkColumnCount == 1) {
+                    // Simple PK - just return the value.
+                    return args[pkStart];
+                }
+                // Composite PK - construct from columns.
+                if (pkInfo.constructor == null) {
+                    // Cannot construct composite PK without constructor.
+                    return null;
+                }
+                Object[] pkArgs = new Object[pkColumnCount];
+                for (int i = 0; i < pkColumnCount; i++) {
+                    Object arg = args[pkStart + i];
+                    if (arg == null) {
+                        return null;  // Null in composite PK means no valid PK.
+                    }
+                    pkArgs[i] = arg;
+                }
+                return ObjectMapperFactory.construct(pkInfo.constructor, pkArgs, pkStart);
             }
         };
     }
@@ -658,7 +723,7 @@ final class RecordMapper {
          *
          * @param flatArgs the flat argument array.
          * @param pkStart the starting offset for PK columns.
-         * @return the PK value, or null if any PK column is null.
+         * @return the PK value, or null if any PK column is null or PK cannot be extracted.
          */
         private Object extractPk(@Nonnull Object[] flatArgs, int pkStart) throws SqlTemplateException {
             if (pkColumnCount == 1) {
@@ -666,6 +731,10 @@ final class RecordMapper {
                 return flatArgs[pkStart];
             }
             // Composite PK - construct from columns.
+            if (pkConstructor == null) {
+                // Cannot construct composite PK without constructor.
+                return null;
+            }
             Object[] pkArgs = new Object[pkColumnCount];
             for (int i = 0; i < pkColumnCount; i++) {
                 Object arg = flatArgs[pkStart + i];

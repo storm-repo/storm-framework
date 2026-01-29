@@ -12,8 +12,6 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import org.springframework.transaction.annotation.Isolation;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import st.orm.Convert;
 import st.orm.Converter;
@@ -1662,5 +1660,47 @@ public class RepositoryPreparedStatementIntegrationTest {
         var identitySet = visits.stream().map(it -> it.pet()).collect(toCollection(() -> newSetFromMap(new IdentityHashMap<>())));
         var pkSet = visits.stream().map(it -> it.pet().id()).collect(toSet());
         assertEquals(pkSet.size(), identitySet.size());
+    }
+
+    @Transactional(propagation = REQUIRED)
+    @Test
+    public void testEntityCacheAcrossQueries() {
+        // With entity cache, the same entity should be returned across multiple queries.
+        var repository = ORMTemplate.of(dataSource).entity(Pet.class);
+        var pet1 = repository.getById(1);
+        var pet2 = repository.getById(1);
+        assertSame(pet1, pet2, "Entity cache should return the same instance across queries");
+    }
+
+    @Transactional(readOnly = true)
+    @Test
+    public void testEntityCacheInReadOnlyTransaction() {
+        // Read-only transactions should also use entity cache for optimization.
+        var repository = ORMTemplate.of(dataSource).entity(Pet.class);
+        var pet1 = repository.getById(1);
+        var pet2 = repository.getById(1);
+        assertSame(pet1, pet2, "Entity cache should return the same instance in read-only transactions");
+    }
+
+    @Transactional(propagation = NOT_SUPPORTED)
+    @Test
+    public void testNoEntityCacheWithoutTransaction() {
+        // Without a transaction, there is no scope for entity cache.
+        var repository = ORMTemplate.of(dataSource).entity(Pet.class);
+        var pet1 = repository.getById(1);
+        var pet2 = repository.getById(1);
+        assertEquals(pet1, pet2, "Entities should be equal");
+        assertTrue(pet1 != pet2, "Without transaction, different instances should be returned");
+    }
+
+    @Transactional(isolation = READ_UNCOMMITTED)
+    @Test
+    public void testNoEntityCacheAtReadUncommitted() {
+        // Without entity cache (READ_UNCOMMITTED), different instances should be returned.
+        var repository = ORMTemplate.of(dataSource).entity(Pet.class);
+        var pet1 = repository.getById(1);
+        var pet2 = repository.getById(1);
+        assertEquals(pet1, pet2, "Entities should be equal");
+        assertTrue(pet1 != pet2, "Without entity cache, different instances should be returned");
     }
 }
