@@ -57,8 +57,11 @@ import java.util.Optional;
  */
 public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCache<E, ID> {
 
+    /** Queue for tracking garbage-collected entities to enable lazy cleanup of {@link #map}. */
     private final ReferenceQueue<E> queue = new ReferenceQueue<>();
-    private final Map<ID, PkWeakRef<ID, E>> map = new HashMap<>();
+
+    /** Map from primary key to weakly-referenced entity. Keys are held strongly; values are weak references. */
+    private final Map<ID, PkWeakReference<ID, E>> map = new HashMap<>();
 
     /**
      * Retrieves an entity from the cache by primary key, if available.
@@ -76,7 +79,7 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     @Override
     public Optional<E> get(@Nonnull ID pk) {
         drainQueue();
-        PkWeakRef<ID, E> ref = map.get(pk);
+        PkWeakReference<ID, E> ref = map.get(pk);
         if (ref == null) {
             return Optional.empty();
         }
@@ -110,14 +113,14 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     public E intern(@Nonnull E entity) {
         drainQueue();
         ID pk = entity.id();
-        PkWeakRef<ID, E> existingRef = map.get(pk);
+        PkWeakReference<ID, E> existingRef = map.get(pk);
         if (existingRef != null) {
             E existing = existingRef.get();
             if (existing != null && existing.equals(entity)) {
                 return existing;
             }
         }
-        map.put(pk, new PkWeakRef<>(pk, entity, queue));
+        map.put(pk, new PkWeakReference<>(pk, entity, queue));
         return entity;
     }
 
@@ -135,7 +138,7 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     public void set(@Nonnull E entity) {
         drainQueue();
         ID pk = entity.id();
-        map.put(pk, new PkWeakRef<>(pk, entity, queue));
+        map.put(pk, new PkWeakReference<>(pk, entity, queue));
     }
 
     /**
@@ -153,7 +156,7 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
         drainQueue();
         for (E entity : entities) {
             ID pk = entity.id();
-            map.put(pk, new PkWeakRef<>(pk, entity, queue));
+            map.put(pk, new PkWeakReference<>(pk, entity, queue));
         }
     }
 
@@ -239,18 +242,34 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
         drainQueue();
     }
 
+    /**
+     * Removes stale entries from {@link #map} by polling the reference queue.
+     *
+     * <p>When an entity is garbage collected, its {@link PkWeakReference} is enqueued. This method polls the queue
+     * and removes the corresponding entries from the map. Uses a two-argument remove to ensure only the exact
+     * weak reference is removed, preventing removal of a newer entry that may have been added with the same key.</p>
+     */
     private void drainQueue() {
-        PkWeakRef<ID, E> ref;
+        PkWeakReference<ID, E> weakReference;
         //noinspection unchecked
-        while ((ref = (PkWeakRef<ID, E>) queue.poll()) != null) {
-            map.remove(ref.pk, ref);
+        while ((weakReference = (PkWeakReference<ID, E>) queue.poll()) != null) {
+            map.remove(weakReference.pk, weakReference);
         }
     }
 
-    private static final class PkWeakRef<ID, E> extends WeakReference<E> {
+    /**
+     * A weak reference to an entity that retains the associated primary key for map cleanup.
+     *
+     * <p>When the entity is garbage collected, this reference is enqueued in the {@link ReferenceQueue}, allowing
+     * {@link #drainQueue()} to remove the corresponding entry from {@link #map} using the stored primary key.</p>
+     *
+     * @param <ID> the primary key type.
+     * @param <E> the entity type.
+     */
+    private static final class PkWeakReference<ID, E> extends WeakReference<E> {
         final ID pk;
 
-        PkWeakRef(ID pk, E referent, ReferenceQueue<? super E> q) {
+        PkWeakReference(ID pk, E referent, ReferenceQueue<? super E> q) {
             super(referent, q);
             this.pk = pk;
         }

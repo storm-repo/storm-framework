@@ -59,8 +59,9 @@ public interface Ref<T extends Data> {
         class DetachedEntity<TE extends Entity<?>> extends AbstractRef<TE> {
             private final TE entity;
 
-            DetachedEntity(TE entity) {
+            DetachedEntity(@Nonnull TE entity) {
                 requireNonNull(entity, "Entity cannot be null.");
+                requireNonNull(entity.id(), "Entity ID cannot be null.");
                 this.entity = entity;
             }
 

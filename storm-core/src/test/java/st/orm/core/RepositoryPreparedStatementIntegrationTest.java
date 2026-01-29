@@ -12,6 +12,8 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import st.orm.Convert;
 import st.orm.Converter;
 import st.orm.Data;
@@ -69,7 +71,10 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
+import static java.util.Collections.newSetFromMap;
+import static java.util.stream.Collectors.toSet;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -77,6 +82,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
+import static org.springframework.transaction.annotation.Propagation.REQUIRED;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.core.template.Templates.alias;
 import static st.orm.core.template.Templates.column;
@@ -971,7 +978,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testInternerRecord() {
         var pets = ORMTemplate.of(dataSource).entity(Pet.class).select().getResultList();
-        var owners = Collections.newSetFromMap(new IdentityHashMap<>());
+        var owners = newSetFromMap(new IdentityHashMap<>());
         owners.addAll(pets.stream().map(Pet::owner).toList());
         assertEquals(11, owners.size());
     }
@@ -979,7 +986,7 @@ public class RepositoryPreparedStatementIntegrationTest {
     @Test
     public void testInternerRef() {
         var pets = ORMTemplate.of(dataSource).entity(PetOwnerRef.class).select().getResultList();
-        var owners = Collections.newSetFromMap(new IdentityHashMap<>());
+        var owners = newSetFromMap(new IdentityHashMap<>());
         owners.addAll(pets.stream().map(PetOwnerRef::owner).toList());
         assertEquals(11, owners.size());
     }
@@ -1602,5 +1609,44 @@ public class RepositoryPreparedStatementIntegrationTest {
             });
             assertInstanceOf(JdbcSQLSyntaxErrorException.class, e.getCause());
         });
+    }
+
+    @Transactional(propagation = REQUIRED)
+    @Test
+    public void testInternerRegularTransaction() {
+        // Uses EntityCache.
+        var visits = ORMTemplate.of(dataSource).entity(Visit.class)
+                .select()
+                .getResultList();
+        assertEquals(14, visits.size());
+        var identitySet = visits.stream().map(it -> it.pet()).collect(Collectors.toCollection(() -> newSetFromMap(new IdentityHashMap<>())));
+        var pkSet = visits.stream().map(it -> it.pet().id()).collect(toSet());
+        assertEquals(pkSet.size(), identitySet.size());
+    }
+
+    @Transactional(readOnly = true)
+    @Test
+    public void testInternerReadOnlyTransaction() {
+        // Uses WeakInterner.
+        var visits = ORMTemplate.of(dataSource).entity(Visit.class)
+                .select()
+                .getResultList();
+        assertEquals(14, visits.size());
+        var identitySet = visits.stream().map(it -> it.pet()).collect(Collectors.toCollection(() -> newSetFromMap(new IdentityHashMap<>())));
+        var pkSet = visits.stream().map(it -> it.pet().id()).collect(toSet());
+        assertEquals(pkSet.size(), identitySet.size());
+    }
+
+    @Transactional(propagation = NOT_SUPPORTED)
+    @Test
+    public void testInternerNoTransaction() {
+        // Uses WeakInterner.
+        var visits = ORMTemplate.of(dataSource).entity(Visit.class)
+                .select()
+                .getResultList();
+        assertEquals(14, visits.size());
+        var identitySet = visits.stream().map(it -> it.pet()).collect(Collectors.toCollection(() -> newSetFromMap(new IdentityHashMap<>())));
+        var pkSet = visits.stream().map(it -> it.pet().id()).collect(toSet());
+        assertEquals(pkSet.size(), identitySet.size());
     }
 }

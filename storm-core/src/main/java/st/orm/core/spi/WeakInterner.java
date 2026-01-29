@@ -16,64 +16,155 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Entity;
+import st.orm.Ref;
 
+import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * A weak interner that allows fast lookups and retrieval of existing instances based on equality, while holding
- * elements weakly to permit garbage collection.
+ * A weak interner that ensures canonical instances of objects while holding them weakly to permit garbage collection.
+ *
+ * <p>This class uses a dual-path interning strategy optimized for different object types:</p>
+ * <ul>
+ *   <li><b>Entities</b>: Uses primary key-based lookup via {@link Ref} for efficient equality checks. Entities are
+ *       stored in a separate map with {@link ReferenceQueue}-based cleanup to ensure stale entries are removed when
+ *       entities are garbage collected.</li>
+ *   <li><b>Non-entities</b>: Uses object equality-based lookup via {@link WeakHashMap}, which provides automatic
+ *       cleanup when objects are no longer strongly referenced.</li>
+ * </ul>
+ *
+ * <p>The primary key-based lookup for entities avoids potentially expensive deep equality checks on complex entity
+ * objects, while maintaining correct identity semantics (same primary key = same canonical instance).</p>
+ *
+ * <p>This class is not thread-safe. A new instance is expected to be created for each result set processing call,
+ * ensuring that interning is scoped to a single query execution.</p>
  */
 public final class WeakInterner {
+
+    /** Map for non-entity objects, using object equality for lookup. Keys are held weakly. */
     private final Map<Object, WeakReference<Object>> map;
 
+    /** Queue for tracking garbage-collected entities to enable lazy cleanup of {@link #entityMap}. */
+    private final ReferenceQueue<Entity<?>> queue;
+
+    /** Map for entities, using {@link Ref} (primary key) for efficient lookup. Keys are held strongly. */
+    private final Map<Ref<?>, RefWeakReference> entityMap;
+
+    /**
+     * Creates a new weak interner.
+     */
     public WeakInterner() {
         map = new WeakHashMap<>();
+        queue = new ReferenceQueue<>();
+        entityMap = new HashMap<>();
     }
 
     /**
      * Interns the given object, ensuring that only one canonical instance exists. If an equivalent object is already
      * present, returns the existing instance. Otherwise, adds the new object to the interner and returns it.
      *
-     * @param obj The object to intern.
+     * <p>For {@link Entity} instances, lookup is performed using the entity's primary key (via {@link Ref}) for
+     * efficiency. For all other objects, lookup is based on object equality.</p>
+     *
+     * @param object the object to intern.
+     * @param <T> the type of the object.
      * @return the canonical instance of the object.
+     * @throws NullPointerException if {@code object} is {@code null}.
      */
-    public <T> T intern(@Nonnull T obj) {
-        requireNonNull(obj, "Cannot intern null object.");
-        // Check if an equivalent object already exists.
-        WeakReference<Object> existing = map.get(obj);
+    public <T> T intern(@Nonnull T object) {
+        requireNonNull(object, "Cannot intern null object.");
+        if (object instanceof Entity<?> entity) {
+            //noinspection unchecked
+            return (T) internEntity(entity);
+        }
+        return internObject(object);
+    }
+
+    /**
+     * Interns an entity using its primary key (via {@link Ref}) for efficient lookup.
+     *
+     * <p>This avoids expensive deep equality checks on complex entity objects. The entity is stored with a weak
+     * reference, and cleanup is handled via {@link #drainQueue()} when entities are garbage collected.</p>
+     *
+     * @param entity the entity to intern.
+     * @param <E> the entity type.
+     * @return the canonical instance for the entity's primary key.
+     */
+    private <E extends Entity<?>> E internEntity(@Nonnull E entity) {
+        drainQueue();
+        Ref<?> ref = Ref.of(entity);
+        WeakReference<Entity<?>> existing = entityMap.get(ref);
+        if (existing != null) {
+            var result = existing.get();
+            if (result != null) {
+                //noinspection unchecked
+                return (E) result;
+            }
+        }
+        entityMap.put(ref, new RefWeakReference(ref, entity, queue));
+        return entity;
+    }
+
+    /**
+     * Interns a non-entity object using object equality for lookup.
+     *
+     * <p>Uses {@link WeakHashMap} which automatically removes entries when keys are garbage collected.</p>
+     *
+     * @param object the object to intern.
+     * @param <T> the type of the object.
+     * @return the canonical instance.
+     * @throws IllegalArgumentException if an equivalent object of a different class is already interned.
+     */
+    private <T> T internObject(@Nonnull T object) {
+        WeakReference<Object> existing = map.get(object);
         if (existing != null) {
             // Equivalent object found; return existing instance
             var result = existing.get();
             if (result != null) {
-                if (result.getClass() != obj.getClass()) {
+                if (result.getClass() != object.getClass()) {
                     throw new IllegalArgumentException("Cannot intern objects of different classes.");
                 }
                 //noinspection unchecked
                 return (T) result;
             }
-            return obj;
+            return object;
         }
-        map.put(obj, new WeakReference<>(obj));
-        return obj;
+        map.put(object, new WeakReference<>(object));
+        return object;
     }
 
     /**
-     * Returns the number of interned objects currently in the interner.
+     * Removes stale entries from {@link #entityMap} by polling the reference queue.
      *
-     * @return The number of interned objects.
+     * <p>When an entity is garbage collected, its {@link RefWeakReference} is enqueued. This method polls the queue
+     * and removes the corresponding entries from the map. Uses a two-argument remove to ensure only the exact
+     * weak reference is removed, preventing removal of a newer entry with the same key.</p>
      */
-    public int size() {
-        return map.size();
+    private void drainQueue() {
+        RefWeakReference weakReference;
+        while ((weakReference = (RefWeakReference) queue.poll()) != null) {
+            entityMap.remove(weakReference.ref, weakReference);
+        }
     }
 
     /**
-     * Clears all interned objects from the interner.
+     * A weak reference to an entity that retains the associated {@link Ref} for map cleanup.
+     *
+     * <p>When the entity is garbage collected, this reference is enqueued in the {@link ReferenceQueue}, allowing
+     * {@link #drainQueue()} to remove the corresponding entry from {@link #entityMap} using the stored ref.</p>
      */
-    public void clear() {
-        map.clear();
+    private static final class RefWeakReference extends WeakReference<Entity<?>> {
+        final Ref<?> ref;
+
+        RefWeakReference(Ref<?> ref, Entity<?> referent, ReferenceQueue<? super Entity<?>> q) {
+            super(referent, q);
+            this.ref = ref;
+        }
     }
 }
