@@ -200,9 +200,9 @@ public class DefaultSqlDialect implements SqlDialect {
     }
 
     /**
-     * Regex for single-quoted string literals, handling double single quotes.
+     * Regex for single-quoted string literals, handling double single quotes and backslash escapes.
      */
-    private static final Pattern QUOTE_LITERAL_PATTERN = Pattern.compile("'(?:''|[^'])*'");
+    private static final Pattern QUOTE_LITERAL_PATTERN = Pattern.compile("'(?:''|\\.|[^'])*'");
 
     /**
      * Returns the pattern for string literals.
@@ -293,7 +293,7 @@ public class DefaultSqlDialect implements SqlDialect {
      * @since 1.2
      */
     @Override
-    public String limit(int limit, int offset) {
+    public String limit(int offset, int limit) {
         // Taking the most basic approach that is supported by most database in test (containers).
         // For production use, ensure the right dialect is used.
         return "LIMIT %s OFFSET %s".formatted(limit, offset);

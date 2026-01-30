@@ -44,6 +44,19 @@ public interface Ref<T extends Data> {
      */
     Class<T> type();
 
+    /**
+     * Creates a detached ref instance for the given type and primary key.
+     *
+     * <p>The returned ref is not connected to a database context. Calling {@link #fetch()} or {@link #fetchOrNull()}
+     * on a detached ref will return {@code null} since there is no database connection available to retrieve the
+     * record.</p>
+     *
+     * @param type the class of the record.
+     * @param pk the primary key of the record.
+     * @param <T> the type of the record, which must extend {@link Data}.
+     * @param <ID> the type of the primary key.
+     * @return a detached ref instance for the given type and primary key.
+     */
     static <T extends Data, ID> Ref<T> of(@Nonnull Class<T> type, @Nonnull ID pk) {
         return new DetachedRef<>(type, pk);
     }
@@ -114,7 +127,7 @@ public interface Ref<T extends Data> {
             private final TE projection;
 
             DetachedProjection(TID id, TE projection) {
-                this.id = requireNonNull(id, "ID cannot be null.");;
+                this.id = requireNonNull(id, "ID cannot be null.");
                 this.projection = requireNonNull(projection, "Projection cannot be null.");
             }
 

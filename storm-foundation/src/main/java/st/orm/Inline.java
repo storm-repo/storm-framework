@@ -32,22 +32,22 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  * <p>Example:</p>
  * <pre>{@code
  * record City(@PK int id, String name, long population)
- *         implements Entity<City, Integer> {};
+ *         implements Entity<Integer> {};
  *
  * record Address(String street, String postalCode, @FK City city) {};
  *
  * record User(@PK int id, String email, LocalDate birthDate, @Inline Address address)
- *         implements Entity<User, Integer> {};
+ *         implements Entity<Integer> {};
  * }</pre>
  *
  * <p>Is similar to:</p>
  * <pre>{@code
  * record User(@PK int id, String email, LocalDate birthDate,
  *             String street, String postalCode, @FK City city)
- *         implements Entity<User, Integer> {};
+ *         implements Entity<Integer> {};
  *
  * record City(@PK int id, String name, long population)
- *         implements Entity<City, Integer> {};
+ *         implements Entity<Integer> {};
  * }</pre>
  */
 @Target({RECORD_COMPONENT, PARAMETER})

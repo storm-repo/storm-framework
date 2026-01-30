@@ -35,7 +35,7 @@ class SpringConnectionProviderImpl : ConnectionProvider {
 
     override fun getConnection(dataSource: DataSource, context: TransactionContext?): Connection {
         if (context != null) {
-            require(context is SpringTransactionContext) { "Transaction context must be of type JdbcTransactionContext." }
+            require(context is SpringTransactionContext) { "Transaction context must be of type SpringTransactionContext." }
             context.useDataSource(dataSource)
         }
         try {
@@ -47,7 +47,7 @@ class SpringConnectionProviderImpl : ConnectionProvider {
 
     override fun releaseConnection(connection: Connection, dataSource: DataSource, context: TransactionContext?) {
         if (context != null) {
-            require(context is SpringTransactionContext) { "Transaction context must be of type JdbcTransactionContext." }
+            require(context is SpringTransactionContext) { "Transaction context must be of type SpringTransactionContext." }
         }
         DataSourceUtils.releaseConnection(connection, dataSource)
     }

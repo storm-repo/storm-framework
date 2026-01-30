@@ -517,7 +517,7 @@ Kotlin::
 ----
 data class GroupedByCity(
     val city: City,
-    val count: count
+    val count: Long
 )
 ----
 ====
@@ -721,7 +721,7 @@ record User(@PK Integer id,
             String street,
             String postalCode,
             @FK Ref<City> city
-) implements Entity<User, Integer> {}
+) implements Entity<Integer> {}
 ----
 
 ==== Preventing Circular Dependencies
@@ -742,7 +742,7 @@ record User(@PK Integer id,
             String street,
             String postalCode,
             @FK City city,
-            @FK Ref<User> invitedBy
+            @Nullable @FK Ref<User> invitedBy
 ) implements Entity<Integer> {}
 ----
 Kotlin::
@@ -756,14 +756,13 @@ data class User(
     val street: String,
     val postalCode: String,
     @FK val city: City,
-    @FK val invitedBy: Ref<User>
+    @FK val invitedBy: Ref<User>?
 ) : Entity<Int>
 ----
 ====
 
 In this example, the `invitedBy` field is a Ref to another User entity. The Ref represents a nullable field. When the
-underlying database field is null, it is set to the `Ref.ofNull()` instance. The null state of the `Ref` can be checked
-by calling its `isNull()` method.
+underlying database field is null, the `Ref` field will be `null`.
 
 ==== Optimizing Memory and Performance
 
@@ -911,6 +910,50 @@ Map<Ref<City>, Long> counts = orm.query(RAW."""
 ----
 ====
 
+==== Fetching
+
+Fetching entity data through Refs is always explicit, which means there are no hidden database queries that could lead
+to N+1 query problems. For any given Ref instance, calling `fetch()` will query the database at most once; subsequent
+calls return the previously fetched entity. When a result set contains multiple Refs pointing to the same entity, the
+underlying data is typically loaded only once. Additionally, within the scope of a transaction, calling `fetch()` on a
+Ref may return an entity that was already loaded earlier, without requiring another database query. This behavior may
+vary depending on the transaction isolation level and other factors.
+
+==== Creating Refs with Ref.of()
+
+The `Ref.of()` factory methods allow you to create Ref instances programmatically. This is useful when you have an
+entity or its primary key and need to create a Ref for use in queries, as map keys, or for passing to other parts of
+your application.
+
+[tabs]
+====
+Java::
++
+[source,java]
+----
+// Create a Ref from a type and primary key
+Ref<User> userRef = Ref.of(User.class, 42);
+
+// Create a Ref from an existing entity
+User user = ...;
+Ref<User> ref = Ref.of(user);
+----
+Kotlin::
++
+[source,kotlin]
+----
+// Create a Ref from a type and primary key
+val userRef: Ref<User> = Ref.of(User::class.java, 42)
+
+// Create a Ref from an existing entity
+val user: User = ...
+val ref: Ref<User> = Ref.of(user)
+----
+====
+
+Refs created with `Ref.of()` are detached, meaning they are not connected to a database context. Calling `fetch()` on
+a detached Ref created from just a type and primary key will fail, since there is no database connection available.
+However, a Ref created from an existing entity will return that entity when `fetch()` is called.
 
 === Transaction Management
 
@@ -970,7 +1013,7 @@ Programmatic (Kotlin)::
 transaction(isolation = REPEATABLE_READ, timeoutSeconds = 30) {
     val orders = orderRepository.findPendingOrders()
     orders.forEach { processOrder(it) }
-    orderRepositoryupdate(order.copy(pending = false))
+    orderRepository.update(order.copy(pending = false))
 }
 ----
 Programmatic Blocking (Kotlin)::
@@ -985,7 +1028,7 @@ transactionBlocking(isolation = REPEATABLE_READ, timeoutSeconds = 30) {
         heavyComputation(orders)
     }
 
-    orderRepositoryupdate(order.copy(pending = false))
+    orderRepository.update(order.copy(pending = false))
 }
 ----
 ====
