@@ -188,7 +188,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
 
     @Override
     public Query create(@Nonnull TemplateString template) {
-        return new JpaPreparedQuery(template, false);
+        return new JpaPreparedQuery(template);
     }
 
     /**
@@ -256,11 +256,9 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
 
     private class JpaPreparedQuery implements PreparedQuery {
         private final TemplateString template;
-        private final boolean safe;
 
-        public JpaPreparedQuery(@Nonnull TemplateString template, boolean safe) {
+        public JpaPreparedQuery(@Nonnull TemplateString template) {
             this.template = template;
-            this.safe = safe;
         }
 
         @Override
@@ -268,9 +266,22 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
             return this;
         }
 
+        /**
+         * Returns this query unchanged. The managed flag has no effect for JPA queries since JPA does not use the
+         * entity cache mechanism.
+         */
+        @Override
+        public Query managed() {
+            return this;
+        }
+
+        /**
+         * Returns this query unchanged. The safe flag has no effect for JPA queries since unsafe query checks are not
+         * enforced in direct JPA mode.
+         */
         @Override
         public Query safe() {
-            return new JpaPreparedQuery(template, safe);
+            return this;
         }
 
         @SuppressWarnings("unchecked")

@@ -66,7 +66,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import static java.time.temporal.ChronoUnit.*;
 import static st.orm.core.spi.Providers.getConnection;
 import static st.orm.core.spi.Providers.releaseConnection;
 import static st.orm.core.template.SqlTemplate.PS;
@@ -446,7 +445,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                 } catch (SQLException e) {
                     throw new PersistenceException(e);
                 }
-            }, bindVariables == null ? null : bindVariables.getHandle(), sql.versionAware(), getExceptionTransformer(sql));
+            }, bindVariables == null ? null : bindVariables.getHandle(), sql.affectedType().orElse(null), sql.versionAware(), false, getExceptionTransformer(sql));
         } catch (SqlTemplateException e) {
             throw new PersistenceException(e);
         }

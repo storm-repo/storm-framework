@@ -125,7 +125,7 @@ open class QueryImpl(private val core: st.orm.core.template.Query) : Query {
         get() = core.isVersionAware()
 
     /**
-     * Execute a command, such as an INSERT, UPDATE or DELETE statement.
+     * Execute a command, such as an INSERT, UPDATE, or DELETE statement.
      *
      * @return the number of rows impacted as result of the statement.
      * @throws st.orm.PersistenceException if the statement fails.

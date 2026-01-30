@@ -18,6 +18,7 @@ package st.orm.core.spi;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
+import st.orm.Entity;
 import st.orm.Ref;
 import st.orm.core.template.QueryBuilder;
 import st.orm.core.template.QueryTemplate;
@@ -28,6 +29,7 @@ import st.orm.core.template.impl.ORMTemplateImpl;
 import java.util.function.Predicate;
 
 import static java.util.Objects.requireNonNull;
+import static st.orm.core.spi.Providers.getTransactionTemplate;
 
 /**
  * Implementation of {@link RefFactory}.
@@ -53,6 +55,8 @@ public final class RefFactoryImpl implements RefFactory {
      * Creates a ref instance for the specified record {@code type} and {@code pk}. This method can be used to generate
      * ref instances for entities, projections and regular records.
      *
+     * <p>For entity types, this method first checks the entity cache (if available) before querying the database.</p>
+     *
      * @param type record type.
      * @param pk primary key.
      * @return ref instance.
@@ -62,11 +66,26 @@ public final class RefFactoryImpl implements RefFactory {
     @SuppressWarnings("unchecked")
     @Override
     public <T extends Data, ID> Ref<T> create(@Nonnull Class<T> type, @Nonnull ID pk) {
-        var supplier = new LazySupplier<>(() ->
-                ((QueryBuilder<T, T, ID>) template
-                        .selectFrom(type))
-                        .where(pk)
-                        .getSingleResult());
+        var supplier = new LazySupplier<>(() -> {
+            // Cache-first lookup for entities.
+            if (Entity.class.isAssignableFrom(type)) {
+                var context = getTransactionTemplate().currentContext();
+                if (context.isPresent()) {
+                    var cache = (EntityCache<?, ID>) context.get()
+                        .entityCache((Class<? extends Entity<?>>) type);
+                    if (cache != null) {
+                        var cached = cache.get(pk);
+                        if (cached.isPresent()) {
+                            return (T) cached.get();
+                        }
+                    }
+                }
+            }
+            return ((QueryBuilder<T, T, ID>) template
+                    .selectFrom(type))
+                    .where(pk)
+                    .getSingleResult();
+        });
         return create(supplier, type, pk);
     }
 

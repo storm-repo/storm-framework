@@ -16,7 +16,6 @@
 package st.orm.spi.mariadb;
 
 import jakarta.annotation.Nonnull;
-import st.orm.Data;
 import st.orm.Metamodel;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.template.Model;
@@ -63,7 +62,7 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
         try (var query = ormTemplate.query(TemplateString.raw("""
                 INSERT INTO \0
                 VALUES \0
-                RETURNING %s""".formatted(pkName), model.type(), entity)).prepare()) {
+                RETURNING %s""".formatted(pkName), model.type(), entity)).managed().prepare()) {
             return query.getSingleResult(model.primaryKeyType());
         }
     }
@@ -80,7 +79,8 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
         var query = ormTemplate.query(TemplateString.raw("""
             INSERT INTO \0
             VALUES \0
-            RETURNING %s""".formatted(pkName), model.type(), entities));
+            RETURNING %s""".formatted(pkName), model.type(), entities))
+                .managed();
         return query.getResultList(model.primaryKeyType());
     }
 
@@ -94,6 +94,15 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
             return entity.id();
         }
         validateUpsert(entity);
+        entityCache().ifPresent(cache -> {
+            if (model.isDefaultPrimaryKey(entity.id())) {
+                // MySQL/MariaDB can update a record with the same unique key so we need to clear the cache
+                // as we cannot predict which record is updated.
+                cache.clear();
+            } else {
+                cache.remove(entity.id());
+            }
+        });
         var versionAware = new AtomicBoolean();
         assert primaryKeyColumns.size() == 1;
         var primaryKeyColumn = primaryKeyColumns.getFirst();
@@ -102,7 +111,8 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
             var query = ormTemplate.query(flatten(raw("""
                 INSERT INTO \0
                 VALUES \0\0
-                RETURNING %s""".formatted(pkName), model.type(), entity, onDuplicateKey(versionAware))));
+                RETURNING %s""".formatted(pkName), model.type(), entity, onDuplicateKey(versionAware))))
+                    .managed();
             return query.getSingleResult(model.primaryKeyType());
         });
     }
@@ -129,7 +139,18 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
             }, getMaxShapes(), new UpdateKey()).forEach(partition -> {
                 switch (partition.key()) {
                     case NoOpKey ignore -> result.addAll(partition.chunk().stream().map(E::id).toList());
-                    case UpsertKey ignore -> result.addAll(getUpsertQuery(partition.chunk()).getResultList(model.primaryKeyType()));
+                    case UpsertKey ignore -> {
+                        entityCache.ifPresent(cache -> {
+                            if (partition.chunk().stream().anyMatch(e -> model.isDefaultPrimaryKey(e.id()))) {
+                                // MySQL/MariaDB can update a record with the same unique key so we need to clear the
+                                // cache as we cannot predict which record is updated.
+                                cache.clear();
+                            } else {
+                                cache.removeEntities(partition.chunk());
+                            }
+                        });
+                        result.addAll(getUpsertQuery(partition.chunk()).getResultList(model.primaryKeyType()));
+                    }
                     case UpdateKey u -> result.addAll(updateAndFetchIds(partition.chunk(),
                             updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields())),
                             entityCache.orElse(null)));
@@ -150,7 +171,7 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
                 ormTemplate.query(flatten(raw("""
                     INSERT INTO \0
                     VALUES \0\0
-                    RETURNING %s""".formatted(pkName), model.type(), entities, onDuplicateKey(versionAware)))
-                ));
+                    RETURNING %s""".formatted(pkName), model.type(), entities, onDuplicateKey(versionAware))))
+                        .managed());
     }
 }

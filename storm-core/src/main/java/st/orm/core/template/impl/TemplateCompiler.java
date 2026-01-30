@@ -207,4 +207,13 @@ interface TemplateCompiler {
      * @param bindVarsCount the number of positional placeholders to be produced by the bind vars segment.
      */
     void mapBindVars(int bindVarsCount);
+
+    /**
+     * Sets the type affected by an INSERT, UPDATE, or DELETE operation.
+     *
+     * <p>This information is used to invalidate caches after raw INSERT/UPDATE/DELETE queries are executed.</p>
+     *
+     * @param type the type affected by the operation.
+     */
+    void setAffectedType(@Nonnull Class<? extends Data> type);
 }

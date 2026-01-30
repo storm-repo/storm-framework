@@ -54,7 +54,7 @@ public class MariaDBEntityRepositoryTest {
 
     @SuppressWarnings("resource")
     @Container
-    public static MariaDBContainer<?> mysqlContainer = new MariaDBContainer<>("mariadb:latest")
+    public static MariaDBContainer<?> mariadbContainer = new MariaDBContainer<>("mariadb:latest")
             .withDatabaseName("test")
             .withUsername("test")
             .withPassword("test")
@@ -63,9 +63,9 @@ public class MariaDBEntityRepositoryTest {
 
     @DynamicPropertySource
     static void overrideProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", mysqlContainer::getJdbcUrl);
-        registry.add("spring.datasource.username", mysqlContainer::getUsername);
-        registry.add("spring.datasource.password", mysqlContainer::getPassword);
+        registry.add("spring.datasource.url", mariadbContainer::getJdbcUrl);
+        registry.add("spring.datasource.username", mariadbContainer::getUsername);
+        registry.add("spring.datasource.password", mariadbContainer::getPassword);
     }
 
     @Autowired
@@ -573,7 +573,7 @@ public class MariaDBEntityRepositoryTest {
 
     @Test
     public void testUpsertUniqueKey() {
-        // Mysql is able to update a record with the same unique key, where Oracle throws an exception.
+        // Mariadb is able to update a record with the same unique key, where Oracle throws an exception.
         String expectedSql = """
                 INSERT INTO pet_type (name, description)
                 VALUES (?, ?)

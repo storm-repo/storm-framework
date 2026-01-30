@@ -198,8 +198,10 @@ public interface Ref<T extends Data> {
     T getOrNull();
 
     /**
-     * Fetches the record from the database if the record has not been fetched yet. The record will be fetched at most
-     * once.
+     * Fetches the record if it has not been fetched yet. The record will be fetched at most once.
+     *
+     * <p>Within a transaction, this method may return the same instance as other retrieval operations for the same
+     * primary key without querying the database, depending on the transaction isolation level.</p>
      *
      * @return the fetched record.
      * @throws PersistenceException if the record is not available and the Ref is not attached.
@@ -213,8 +215,11 @@ public interface Ref<T extends Data> {
     }
 
     /**
-     * Fetches the record from the database if the record has not been fetched yet. Returns {@code null} if the record
-     * is not available and the Ref is not attached.
+     * Fetches the record if it has not been fetched yet. Returns {@code null} if the record is not available and the
+     * Ref is not attached.
+     *
+     * <p>Within a transaction, this method may return the same instance as other retrieval operations for the same
+     * primary key without querying the database, depending on the transaction isolation level.</p>
      *
      * @return the fetched record, or {@code null} if the record is not available and the Ref is not attached.
      * @since 1.7

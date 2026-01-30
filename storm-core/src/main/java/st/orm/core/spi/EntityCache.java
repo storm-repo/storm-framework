@@ -39,6 +39,19 @@ import java.util.Optional;
  * <p>This behavior allows identity stability for logically identical data while still permitting newer or different
  * representations of the same primary key to replace older ones.</p>
  *
+ * <h2>Mutation handling</h2>
+ * <p>When entities are mutated (insert, update, upsert, delete), the cache entries must be <em>invalidated</em>
+ * (removed) rather than updated. This is because the database may modify data in ways not visible to the application:</p>
+ * <ul>
+ *   <li><strong>Triggers</strong> &ndash; Database triggers can modify data after INSERT/UPDATE operations.</li>
+ *   <li><strong>Version fields</strong> &ndash; Optimistic locking columns are incremented by the database.</li>
+ *   <li><strong>Default values</strong> &ndash; The database may apply default values not known to the application.</li>
+ *   <li><strong>Computed columns</strong> &ndash; Some databases support generated or computed columns.</li>
+ *   <li><strong>ON UPDATE constraints</strong> &ndash; For example, {@code ON UPDATE CURRENT_TIMESTAMP}.</li>
+ * </ul>
+ * <p>By invalidating rather than updating, the next access forces a fresh fetch from the database, guaranteeing
+ * consistency with the actual persisted state.</p>
+ *
  * @param <E> the entity type.
  * @param <ID> the primary key type.
  * @since 1.7
@@ -72,26 +85,6 @@ public interface EntityCache<E extends Entity<ID>, ID> {
      * @return the canonical cached instance for the entity's primary key.
      */
     E intern(@Nonnull E entity);
-
-    /**
-     * Stores the given entity in the cache under its primary key.
-     *
-     * <p>This is a "replace" operation: the cache entry for {@code entity.id()} is updated to point to the given
-     * instance, regardless of whether a logically equal instance is already cached.</p>
-     *
-     * @param entity the entity to cache.
-     */
-    void set(@Nonnull E entity);
-
-    /**
-     * Stores all given entities in the cache.
-     *
-     * <p>This is a batch form of {@link #set(Entity)}. If multiple entities with the same primary key appear in the
-     * input, the last one wins.</p>
-     *
-     * @param entities the entities to cache.
-     */
-    void set(@Nonnull Iterable<? extends E> entities);
 
     /**
      * Removes the cached entry for the given primary key, if present.

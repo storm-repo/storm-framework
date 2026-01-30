@@ -45,13 +45,13 @@ Maven (Java)::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-java21</artifactId>
-    <version>1.8.1</version>
+    <version>1.8.2</version>
     <scope>compile</scope>
 </dependency>
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-core</artifactId>
-    <version>1.8.1</version>
+    <version>1.8.2</version>
     <scope>runtime</scope>
 </dependency>
 ----
@@ -59,15 +59,15 @@ Gradle (Java)::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-java21:1.8.1'
-runtimeOnly 'st.orm:storm-core:1.8.1'
+implementation 'st.orm:storm-java21:1.8.2'
+runtimeOnly 'st.orm:storm-core:1.8.2'
 ----
 Gradle (Kotlin)::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-kotlin:1.8.1'
-runtimeOnly 'st.orm:storm-core:1.8.1'
+implementation 'st.orm:storm-kotlin:1.8.2'
+runtimeOnly 'st.orm:storm-core:1.8.2'
 ----
 ====
 
@@ -1192,7 +1192,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-oracle</artifactId>
-    <version>1.8.1</version>
+    <version>1.8.2</version>
     <scope>runtime</scope>
 </dependency>
 ----
@@ -1200,7 +1200,7 @@ Gradle::
 +
 [source,groovy]
 ----
-runtimeOnly 'st.orm:storm-oracle:1.8.1'
+runtimeOnly 'st.orm:storm-oracle:1.8.2'
 ----
 ====
 
@@ -1222,7 +1222,7 @@ Maven::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-metamodel-processor</artifactId>
-    <version>1.8.1</version>
+    <version>1.8.2</version>
     <scope>provided</scope>
 </dependency>
 ----
@@ -1230,7 +1230,7 @@ Gradle::
 +
 [source,groovy]
 ----
-annotationProcessor 'st.orm:storm-metamodel-processor:1.8.1'
+annotationProcessor 'st.orm:storm-metamodel-processor:1.8.2'
 ----
 ====
 
@@ -1294,7 +1294,7 @@ Maven (Jackson)::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-jackson</artifactId>
-    <version>1.8.1</version>
+    <version>1.8.2</version>
     <scope>compile</scope>
 </dependency>
 ----
@@ -1302,13 +1302,13 @@ Gradle (Jackson)::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-jackson:1.8.1'
+implementation 'st.orm:storm-jackson:1.8.2'
 ----
 Gradle (Kotlinx Serialization)::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-kotlinx-serialization:1.8.1'
+implementation 'st.orm:storm-kotlinx-serialization:1.8.2'
 ----
 ====
 
@@ -1603,7 +1603,7 @@ Maven (Java)::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-spring</artifactId>
-    <version>1.8.1</version>
+    <version>1.8.2</version>
     <scope>compile</scope>
 </dependency>
 ----
@@ -1611,7 +1611,7 @@ Gradle (Java)::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-spring:1.8.1'
+implementation 'st.orm:storm-spring:1.8.2'
 ----
 Maven (Kotlin)::
 +
@@ -1620,7 +1620,7 @@ Maven (Kotlin)::
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-kotlin-spring</artifactId>
-    <version>1.8.1</version>
+    <version>1.8.2</version>
     <scope>compile</scope>
 </dependency>
 ----
@@ -1628,7 +1628,7 @@ Gradle (Kotlin)::
 +
 [source,groovy]
 ----
-implementation 'st.orm:storm-kotlin-spring:1.8.1'
+implementation 'st.orm:storm-kotlin-spring:1.8.2'
 ----
 ====
 
