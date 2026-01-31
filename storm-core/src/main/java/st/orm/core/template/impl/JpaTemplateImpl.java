@@ -24,6 +24,7 @@ import st.orm.Data;
 import st.orm.Ref;
 import st.orm.core.spi.RefFactory;
 import st.orm.core.spi.RefFactoryImpl;
+import st.orm.core.spi.WeakInterner;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.template.Query;
 import st.orm.core.spi.Provider;
@@ -298,8 +299,9 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
 
         @Override
         public <T extends Data> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
+            var interner = new WeakInterner();
             return getResultStream(pkType)
-                    .map(pk -> pk == null ? null : refFactory.create(type, pk));
+                    .map(pk -> pk == null ? null : interner.intern(refFactory.create(type, pk)));
         }
 
         @Override

@@ -25,6 +25,7 @@ import st.orm.core.spi.EntityCache;
 import st.orm.core.spi.Providers;
 import st.orm.core.spi.RefFactory;
 import st.orm.core.spi.TransactionTemplate;
+import st.orm.core.spi.WeakInterner;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.template.Query;
 import st.orm.core.template.SqlTemplateException;
@@ -285,8 +286,9 @@ class QueryImpl implements Query {
      */
     @Override
     public <T extends Data> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
+        var interner = new WeakInterner();
         return getResultStream(pkType)
-                .map(pk -> pk == null ? null : refFactory.create(type, pk));
+                .map(pk -> pk == null ? null : interner.intern(refFactory.create(type, pk)));
     }
 
     protected void close(@Nonnull ResultSet resultSet, @Nonnull PreparedStatement statement) {

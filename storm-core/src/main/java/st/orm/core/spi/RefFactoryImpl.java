@@ -38,7 +38,6 @@ import static st.orm.core.spi.Providers.getTransactionTemplate;
  */
 public final class RefFactoryImpl implements RefFactory {
     private final QueryTemplate template;
-    private final WeakInterner interner;
 
     public RefFactoryImpl(@Nonnull QueryFactory factory,
                           @Nonnull ModelBuilder modelBuilder,
@@ -48,7 +47,6 @@ public final class RefFactoryImpl implements RefFactory {
 
     public RefFactoryImpl(@Nonnull QueryTemplate template) {
         this.template = requireNonNull(template, "template");
-        this.interner = new WeakInterner();
     }
 
     /**
@@ -122,7 +120,6 @@ public final class RefFactoryImpl implements RefFactory {
      * @param <ID> primary key type.
      */
     private <T extends Data, ID> Ref<T> create(@Nonnull LazySupplier<T> supplier, @Nonnull Class<T> type, @Nonnull ID pk) {
-        // Use the interner to reuse the same ref to reduce fetch calls for the same entity.
-        return interner.intern(new RefImpl<>(supplier, type, pk));
+        return new RefImpl<>(supplier, type, pk);
     }
 }
