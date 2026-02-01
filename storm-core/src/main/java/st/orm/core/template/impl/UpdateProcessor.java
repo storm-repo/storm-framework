@@ -56,6 +56,7 @@ final class UpdateProcessor implements ElementProcessor<Update> {
         var queryModel = compiler.getQueryModel();
         assert queryModel.getTable().type() == update.table();
         var table = queryModel.getTable();
+        compiler.setAffectedType(update.table());
         return new CompiledElement("%s%s".formatted(table.name(), table.alias().isEmpty() ? "" : " " + table.alias()));
     }
 

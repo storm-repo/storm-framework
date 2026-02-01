@@ -44,9 +44,11 @@ final class PreparedQueryImpl extends QueryImpl implements PreparedQuery {
     public PreparedQueryImpl(@Nonnull RefFactory refFactory,
                              @Nonnull PreparedStatement statement,
                              @Nullable BindVarsHandle bindVarsHandle,
+                             @Nullable Class<? extends Data> affectedType,
                              boolean versionAware,
+                             boolean managed,
                              @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        super(refFactory, ignore -> statement, bindVarsHandle, versionAware, exceptionTransformer);
+        super(refFactory, ignore -> statement, bindVarsHandle, affectedType, versionAware, managed, false, exceptionTransformer);
         this.refFactory = refFactory;
         this.statement = statement;
         this.bindVarsHandle = bindVarsHandle;

@@ -57,6 +57,17 @@ public interface Query {
     Query safe();
 
     /**
+     * Marks this query as repository-managed, indicating that cache invalidation
+     * and other side effects are handled explicitly by the repository rather than
+     * automatically by the framework. Non-managed DML queries will trigger automatic
+     * cache invalidation.
+     *
+     * @return a new query marked as managed.
+     * @since 1.8
+     */
+    Query managed();
+
+    /**
      * Execute a SELECT query and returns a single row, where the columns of the row corresponds to the order of values
      * in the list.
      *
@@ -241,7 +252,7 @@ public interface Query {
     boolean isVersionAware();
 
     /**
-     * Execute a command, such as an INSERT, UPDATE or DELETE statement.
+     * Execute a command, such as an INSERT, UPDATE, or DELETE statement.
      *
      * @return the number of rows impacted as result of the statement.
      * @throws PersistenceException if the statement fails.

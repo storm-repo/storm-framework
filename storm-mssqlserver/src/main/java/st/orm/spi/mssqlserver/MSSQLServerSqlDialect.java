@@ -220,7 +220,7 @@ public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDiale
     public String limit(int offset, int limit) {
         // For SQL Server 2012 and later, use the OFFSET-FETCH clause.
         // Note: An ORDER BY clause is required for OFFSET-FETCH to work correctly.
-        return "OFFSET %d ROWS FETCH NEXT %d ROWS ONLY". formatted(offset, limit);
+        return "OFFSET %d ROWS FETCH NEXT %d ROWS ONLY".formatted(offset, limit);
     }
 
     /**

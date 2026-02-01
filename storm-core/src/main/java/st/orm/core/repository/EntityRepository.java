@@ -541,7 +541,8 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
     /**
      * Retrieves an entity based on its primary key.
      *
-     * <p>This method performs a lookup in the database, returning the corresponding entity if it exists.</p>
+     * <p>Within a transaction, subsequent requests for the same primary key may return the same instance without
+     * querying the database, depending on the transaction isolation level.</p>
      *
      * @param id the primary key of the entity to retrieve.
      * @return the entity associated with the provided primary key. The returned entity encapsulates all relevant data
@@ -554,7 +555,8 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
     /**
      * Retrieves an entity based on its primary key, expressed by a ref.
      *
-     * <p>This method performs a lookup in the database, returning the corresponding entity if it exists.</p>
+     * <p>Within a transaction, subsequent requests for the same primary key may return the same instance without
+     * querying the database, depending on the transaction isolation level.</p>
      *
      * @param ref the ref to match.
      * @return the entity associated with the provided primary key. The returned entity encapsulates all relevant data
@@ -567,7 +569,8 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
     /**
      * Retrieves an entity based on its primary key.
      *
-     * <p>This method performs a lookup in the database, returning the corresponding entity if it exists.</p>
+     * <p>Within a transaction, subsequent requests for the same primary key may return the same instance without
+     * querying the database, depending on the transaction isolation level.</p>
      *
      * @param id the primary key of the entity to retrieve.
      * @return the entity associated with the provided primary key. The returned entity encapsulates all relevant data
@@ -582,7 +585,8 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
     /**
      * Retrieves an entity based on its primary key, expressed by a ref.
      *
-     * <p>This method performs a lookup in the database, returning the corresponding entity if it exists.</p>
+     * <p>Within a transaction, subsequent requests for the same primary key may return the same instance without
+     * querying the database, depending on the transaction isolation level.</p>
      *
      * @param ref the ref to match.
      * @return the entity associated with the provided primary key. The returned entity encapsulates all relevant data

@@ -17,6 +17,7 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Data;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlOperation;
 import st.orm.core.template.SqlTemplate;
@@ -38,6 +39,7 @@ import static java.util.Optional.ofNullable;
  * @param parameters    the parameters that were used to generate the SQL.
  * @param bindVariables a bind variables object that can be used to add bind variables to a batch.
  * @param generatedKeys the primary key that have been auto generated as part of in insert statement.
+ * @param affectedType  the type affected by INSERT, UPDATE, or DELETE operations.
  * @param versionAware  true if the statement is version aware, false otherwise.
  * @param unsafeWarning a warning message if the statement is deemed potentially unsafe, an empty optional otherwise.
  */
@@ -47,6 +49,7 @@ record SqlImpl(
         @Nonnull List<Parameter> parameters,
         @Nonnull Optional<BindVariables> bindVariables,
         @Nonnull List<String> generatedKeys,
+        @Nonnull Optional<Class<? extends Data>> affectedType,
         boolean versionAware,
         @Nonnull Optional<String> unsafeWarning
 ) implements Sql {
@@ -55,6 +58,7 @@ record SqlImpl(
         requireNonNull(statement, "statement");
         parameters = copyOf(parameters);
         generatedKeys = copyOf(generatedKeys);
+        requireNonNull(affectedType, "affectedType");
         requireNonNull(unsafeWarning, "unsafeWarning");
     }
 
@@ -66,7 +70,7 @@ record SqlImpl(
      */
     @Override
     public Sql operation(@Nonnull SqlOperation operation) {
-        return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, versionAware, unsafeWarning);
+        return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, affectedType, versionAware, unsafeWarning);
     }
 
     /**
@@ -77,7 +81,7 @@ record SqlImpl(
      */
     @Override
     public Sql statement(@Nonnull String statement) {
-        return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, versionAware, unsafeWarning);
+        return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, affectedType, versionAware, unsafeWarning);
     }
 
     /**
@@ -88,7 +92,7 @@ record SqlImpl(
      */
     @Override
     public Sql parameters(@Nonnull List<Parameter> parameters) {
-        return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, versionAware, unsafeWarning);
+        return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, affectedType, versionAware, unsafeWarning);
     }
 
     /**
@@ -99,7 +103,7 @@ record SqlImpl(
      */
     @Override
     public Sql bindVariables(@Nullable SqlTemplate.BindVariables bindVariables) {
-        return new SqlImpl(operation, statement, parameters, ofNullable(bindVariables), generatedKeys, versionAware, unsafeWarning);
+        return new SqlImpl(operation, statement, parameters, ofNullable(bindVariables), generatedKeys, affectedType, versionAware, unsafeWarning);
     }
 
     /**
@@ -111,7 +115,19 @@ record SqlImpl(
      */
     @Override
     public Sql generatedKeys(@Nonnull List<String> generatedKeys) {
-        return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, versionAware, unsafeWarning);
+        return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, affectedType, versionAware, unsafeWarning);
+    }
+
+    /**
+     * Returns a new instance of the SQL statement with the given affected type.
+     *
+     * @param affectedType the type affected by this INSERT, UPDATE, or DELETE operation.
+     * @return a new instance of the SQL statement with the given affected type.
+     * @since 1.8
+     */
+    @Override
+    public Sql affectedType(@Nullable Class<? extends Data> affectedType) {
+        return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, ofNullable(affectedType), versionAware, unsafeWarning);
     }
 
     /**
@@ -123,7 +139,7 @@ record SqlImpl(
      */
     @Override
     public Sql versionAware(boolean versionAware) {
-        return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, versionAware, unsafeWarning);
+        return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, affectedType, versionAware, unsafeWarning);
     }
 
     /**
@@ -135,6 +151,6 @@ record SqlImpl(
      */
     @Override
     public Sql unsafeWarning(@Nullable String unsafeWarning) {
-        return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, versionAware, ofNullable(unsafeWarning));
+        return new SqlImpl(operation, statement, parameters, bindVariables, generatedKeys, affectedType, versionAware, ofNullable(unsafeWarning));
     }
 }

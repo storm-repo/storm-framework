@@ -140,7 +140,7 @@ public class QueryImpl implements Query {
     }
 
     /**
-     * Execute a command, such as an INSERT, UPDATE or DELETE statement.
+     * Execute a command, such as an INSERT, UPDATE, or DELETE statement.
      *
      * @return the number of rows impacted as result of the statement.
      * @throws PersistenceException if the statement fails.

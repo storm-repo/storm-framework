@@ -44,6 +44,19 @@ public interface Ref<T extends Data> {
      */
     Class<T> type();
 
+    /**
+     * Creates a detached ref instance for the given type and primary key.
+     *
+     * <p>The returned ref is not connected to a database context. Calling {@link #fetch()} or {@link #fetchOrNull()}
+     * on a detached ref will return {@code null} since there is no database connection available to retrieve the
+     * record.</p>
+     *
+     * @param type the class of the record.
+     * @param pk the primary key of the record.
+     * @param <T> the type of the record, which must extend {@link Data}.
+     * @param <ID> the type of the primary key.
+     * @return a detached ref instance for the given type and primary key.
+     */
     static <T extends Data, ID> Ref<T> of(@Nonnull Class<T> type, @Nonnull ID pk) {
         return new DetachedRef<>(type, pk);
     }
@@ -114,7 +127,7 @@ public interface Ref<T extends Data> {
             private final TE projection;
 
             DetachedProjection(TID id, TE projection) {
-                this.id = requireNonNull(id, "ID cannot be null.");;
+                this.id = requireNonNull(id, "ID cannot be null.");
                 this.projection = requireNonNull(projection, "Projection cannot be null.");
             }
 
@@ -198,8 +211,10 @@ public interface Ref<T extends Data> {
     T getOrNull();
 
     /**
-     * Fetches the record from the database if the record has not been fetched yet. The record will be fetched at most
-     * once.
+     * Fetches the record if it has not been fetched yet. The record will be fetched at most once.
+     *
+     * <p>Within a transaction, this method may return the same instance as other retrieval operations for the same
+     * primary key without querying the database, depending on the transaction isolation level.</p>
      *
      * @return the fetched record.
      * @throws PersistenceException if the record is not available and the Ref is not attached.
@@ -213,8 +228,11 @@ public interface Ref<T extends Data> {
     }
 
     /**
-     * Fetches the record from the database if the record has not been fetched yet. Returns {@code null} if the record
-     * is not available and the Ref is not attached.
+     * Fetches the record if it has not been fetched yet. Returns {@code null} if the record is not available and the
+     * Ref is not attached.
+     *
+     * <p>Within a transaction, this method may return the same instance as other retrieval operations for the same
+     * primary key without querying the database, depending on the transaction isolation level.</p>
      *
      * @return the fetched record, or {@code null} if the record is not available and the Ref is not attached.
      * @since 1.7

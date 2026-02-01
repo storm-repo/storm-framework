@@ -25,6 +25,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * Transaction-local cache that interns entities by primary key using weak references.
  *
@@ -79,7 +81,7 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     @Override
     public Optional<E> get(@Nonnull ID pk) {
         drainQueue();
-        PkWeakReference<ID, E> ref = map.get(pk);
+        PkWeakReference<ID, E> ref = map.get(requireNonNull(pk));
         if (ref == null) {
             return Optional.empty();
         }
@@ -125,42 +127,6 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     }
 
     /**
-     * Stores the given entity in the cache under its primary key.
-     *
-     * <p>This is a "replace" operation: the cache entry for {@code entity.id()} is updated to point to the given
-     * instance, regardless of whether a logically equal instance is already cached.</p>
-     *
-     * <p>As with all operations, stale entries are cleaned up lazily before the update is applied.</p>
-     *
-     * @param entity the entity to cache.
-     */
-    @Override
-    public void set(@Nonnull E entity) {
-        drainQueue();
-        ID pk = entity.id();
-        map.put(pk, new PkWeakReference<>(pk, entity, queue));
-    }
-
-    /**
-     * Stores all given entities in the cache.
-     *
-     * <p>This is a batch form of {@link #set(Entity)}. It drains the reference queue once and then applies all updates,
-     * reducing per-call overhead compared to repeated {@code set(...)} calls.</p>
-     *
-     * <p>If multiple entities with the same primary key appear in the input, the last one wins.</p>
-     *
-     * @param entities the entities to cache.
-     */
-    @Override
-    public void set(@Nonnull Iterable<? extends E> entities) {
-        drainQueue();
-        for (E entity : entities) {
-            ID pk = entity.id();
-            map.put(pk, new PkWeakReference<>(pk, entity, queue));
-        }
-    }
-
-    /**
      * Removes the cached entry for the given primary key, if present.
      *
      * <p>If an entity instance for {@code pk} is currently cached, the mapping is removed. If the instance has already
@@ -171,7 +137,7 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     @Override
     public void remove(@Nonnull ID pk) {
         drainQueue();
-        map.remove(pk);
+        map.remove(requireNonNull(pk));
     }
 
     /**
@@ -188,7 +154,7 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     public void remove(@Nonnull Iterable<? extends ID> pks) {
         drainQueue();
         for (ID pk : pks) {
-            map.remove(pk);
+            map.remove(requireNonNull(pk));
         }
     }
 

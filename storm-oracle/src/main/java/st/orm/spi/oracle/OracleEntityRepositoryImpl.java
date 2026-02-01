@@ -16,9 +16,10 @@
 package st.orm.spi.oracle;
 
 import jakarta.annotation.Nonnull;
-import st.orm.Data;
+import jakarta.annotation.Nullable;
 import st.orm.Metamodel;
 import st.orm.core.repository.EntityRepository;
+import st.orm.core.spi.EntityCache;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.repository.impl.EntityRepositoryImpl;
 import st.orm.core.template.Column;
@@ -228,11 +229,12 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
         }
         validateUpsert(entity);
         var versionAware = new AtomicBoolean();
+        entityCache().ifPresent(cache -> cache.remove(entity.id()));
         intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
             var query = ormTemplate.query(flatten(raw("""
                     MERGE INTO \0 t
                     USING (\0) src
-                    ON (\0)\0\0""", table(model.type()), mergeSelect(entity), mergeOn(), mergeUpdate(versionAware), mergeInsert())));
+                    ON (\0)\0\0""", table(model.type()), mergeSelect(entity), mergeOn(), mergeUpdate(versionAware), mergeInsert()))).managed();
             query.executeUpdate();
         });
     }
@@ -267,7 +269,16 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
             return insertAndFetchId(entity);
         }
         validateUpsert(entity);
-        upsert(entity);
+        entityCache().ifPresent(cache -> cache.remove(entity.id()));
+        var versionAware = new AtomicBoolean();
+        intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
+            var query = ormTemplate.query(flatten(raw("""
+                    MERGE INTO \0 t
+                    USING (\0) src
+                    ON (\0)\0\0""", table(model.type()), mergeSelect(entity), mergeOn(), mergeUpdate(versionAware), mergeInsert())))
+                    .managed();
+            query.executeUpdate();
+        });
         return entity.id();
     }
 
@@ -371,7 +382,8 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
                 switch (partition.key()) {
                     case NoOpKey ignore -> result.addAll(partition.chunk().stream().map(E::id).toList());
                     case InsertKey ignore -> result.addAll(insertAndFetchIds(partition.chunk(), insertQuery.get()));
-                    case UpsertKey ignore -> result.addAll(upsertAndFetchIds(partition.chunk(), upsertQuery.get()));
+                    case UpsertKey ignore -> result.addAll(upsertAndFetchIds(partition.chunk(), upsertQuery.get(),
+                            entityCache.orElse(null)));
                     case UpdateKey u -> result.addAll(updateAndFetchIds(partition.chunk(),
                             updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields())),
                             entityCache.orElse(null)));
@@ -464,7 +476,8 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
                 switch (partition.key()) {
                     case NoOpKey ignore -> {}
                     case InsertKey ignore -> insert(partition.chunk(), insertQuery.get());
-                    case UpsertKey ignore -> upsert(partition.chunk(), upsertQuery.get());
+                    case UpsertKey ignore -> upsert(partition.chunk(), upsertQuery.get(),
+                            entityCache.orElse(null));
                     case UpdateKey u -> update(partition.chunk(),
                             updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields())),
                             entityCache.orElse(null));
@@ -495,26 +508,32 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
                 ormTemplate.query(flatten(raw("""
                     MERGE INTO \0 t
                     USING (\0) src
-                    ON (\0)\0\0""", table(model.type()), mergeSelect(bindVars), mergeOn(), mergeUpdate(versionAware), mergeInsert()))
-                ).prepare());
+                    ON (\0)\0\0""", table(model.type()), mergeSelect(bindVars), mergeOn(), mergeUpdate(versionAware), mergeInsert())))
+                        .managed().prepare());
     }
 
-    protected void upsert(@Nonnull List<E> batch, @Nonnull PreparedQuery query) {
+    protected void upsert(@Nonnull List<E> batch, @Nonnull PreparedQuery query, @Nullable EntityCache<E, ID> cache) {
         if (batch.isEmpty()) {
             return;
         }
         batch.stream().map(this::validateUpsert).forEach(query::addBatch);
+        if (cache != null) {
+            cache.removeEntities(batch);
+        }
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
             throw new PersistenceException("Batch upsert failed.");
         }
     }
 
-    protected List<ID> upsertAndFetchIds(@Nonnull List<E> batch, @Nonnull PreparedQuery query) {
+    protected List<ID> upsertAndFetchIds(@Nonnull List<E> batch, @Nonnull PreparedQuery query, @Nullable EntityCache<E, ID> cache) {
         if (batch.isEmpty()) {
             return List.of();
         }
         batch.stream().map(this::validateUpsert).forEach(query::addBatch);
+        if (cache != null) {
+            cache.removeEntities(batch);
+        }
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
             throw new PersistenceException("Batch upsert failed.");

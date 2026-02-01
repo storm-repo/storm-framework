@@ -16,10 +16,11 @@
 package st.orm.spi.mssqlserver;
 
 import jakarta.annotation.Nonnull;
-import st.orm.Data;
+import jakarta.annotation.Nullable;
 import st.orm.Metamodel;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.template.PreparedQuery;
+import st.orm.core.spi.EntityCache;
 import st.orm.core.repository.impl.EntityRepositoryImpl;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
@@ -298,13 +299,14 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
             return;
         }
         validateUpsert(entity);
+        entityCache().ifPresent(cache -> cache.remove(entity.id()));
         var versionAware = new AtomicBoolean();
         intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
-            // Note: SQL Server’s MERGE syntax does not require a FROM DUAL clause.
+            // Note: SQL Server's MERGE syntax does not require a FROM DUAL clause.
             var query = ormTemplate.query(flatten(raw("""
                 MERGE INTO \0 t
                 USING (\0) src
-                ON (\0)\0\0;""", model.type(), mergeSelect(entity), mergeOn(), mergeUpdate(versionAware), mergeInsert())));
+                ON (\0)\0\0;""", model.type(), mergeSelect(entity), mergeOn(), mergeUpdate(versionAware), mergeInsert()))).managed();
                 query.executeUpdate();
         });
     }
@@ -322,7 +324,16 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
             return insertAndFetchId(entity);
         }
         validateUpsert(entity);
-        upsert(entity);
+        entityCache().ifPresent(cache -> cache.remove(entity.id()));
+        var versionAware = new AtomicBoolean();
+        intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
+            var query = ormTemplate.query(flatten(raw("""
+                MERGE INTO \0 t
+                USING (\0) src
+                ON (\0)\0\0;""", model.type(), mergeSelect(entity), mergeOn(), mergeUpdate(versionAware), mergeInsert())))
+                    .managed();
+            query.executeUpdate();
+        });
         return entity.id();
     }
 
@@ -404,7 +415,13 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
                 switch (partition.key()) {
                     case NoOpKey ignore -> result.addAll(partition.chunk().stream().map(E::id).toList());
                     case InsertKey ignore -> throw new PersistenceException("Unexpected state.");
-                    case UpsertKey ignore -> result.addAll(getUpsertQuery(partition.chunk()).getResultList(model.primaryKeyType()));
+                    case UpsertKey ignore -> {
+                        // Remove from cache entities with non-default PKs (could be updates via MERGE).
+                        entityCache.ifPresent(cache -> partition.chunk().stream()
+                                .filter(e -> !model.isDefaultPrimaryKey(e.id()))
+                                .forEach(e -> cache.remove(e.id())));
+                        result.addAll(getUpsertQuery(partition.chunk()).getResultList(model.primaryKeyType()));
+                    }
                     case UpdateKey u -> result.addAll(updateAndFetchIds(partition.chunk(),
                             updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields())),
                             entityCache.orElse(null)));
@@ -426,8 +443,8 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
                     MERGE INTO \0 t
                     USING (\0) AS src(\0)
                     ON (\0)\0\0
-                    OUTPUT INSERTED.%s;""".formatted(pkName), model.type(), mergeSelect(entities), mergeSource(), mergeOn(), mergeUpdate(versionAware), mergeInsert()))
-                ));
+                    OUTPUT INSERTED.%s;""".formatted(pkName), model.type(), mergeSelect(entities), mergeSource(), mergeOn(), mergeUpdate(versionAware), mergeInsert())))
+                        .managed());
     }
 
     private List<ID> upsertAndFetchIdsNoSequence(@Nonnull Iterable<E> entities) {
@@ -453,7 +470,8 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
                 switch (partition.key()) {
                     case NoOpKey ignore -> result.addAll(partition.chunk().stream().map(E::id).toList());
                     case InsertKey ignore -> result.addAll(insertAndFetchIds(partition.chunk(), insertQuery.get()));
-                    case UpsertKey ignore -> result.addAll(upsertAndFetchIds(partition.chunk(), upsertQuery.get()));
+                    case UpsertKey ignore -> result.addAll(upsertAndFetchIds(partition.chunk(), upsertQuery.get(),
+                            entityCache.orElse(null)));
                     case UpdateKey u -> result.addAll(updateAndFetchIds(partition.chunk(),
                             updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields())),
                             entityCache.orElse(null)));
@@ -512,7 +530,8 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
                 switch (partition.key()) {
                     case NoOpKey ignore -> {}
                     case InsertKey ignore -> insert(partition.chunk(), insertQuery.get());
-                    case UpsertKey ignore -> upsert(partition.chunk(), upsertQuery.get());
+                    case UpsertKey ignore -> upsert(partition.chunk(), upsertQuery.get(),
+                            entityCache.orElse(null));
                     case UpdateKey u -> update(partition.chunk(),
                             updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields())),
                             entityCache.orElse(null));
@@ -539,26 +558,32 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
                 ormTemplate.query(flatten(raw("""
                     MERGE INTO \0 t
                     USING (\0) src
-                    ON (\0)\0\0;""", model.type(), mergeSelect(bindVars), mergeOn(), mergeUpdate(versionAware), mergeInsert()))
-                ).prepare());
+                    ON (\0)\0\0;""", model.type(), mergeSelect(bindVars), mergeOn(), mergeUpdate(versionAware), mergeInsert())))
+                        .managed().prepare());
     }
 
-    private void upsert(@Nonnull List<E> batch, @Nonnull PreparedQuery query) {
+    private void upsert(@Nonnull List<E> batch, @Nonnull PreparedQuery query, @Nullable EntityCache<E, ID> cache) {
         if (batch.isEmpty()) {
             return;
         }
         batch.stream().map(this::validateUpsert).forEach(query::addBatch);
+        if (cache != null) {
+            cache.removeEntities(batch);
+        }
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
             throw new PersistenceException("Batch upsert failed.");
         }
     }
 
-    private List<ID> upsertAndFetchIds(@Nonnull List<E> batch, @Nonnull PreparedQuery query) {
+    private List<ID> upsertAndFetchIds(@Nonnull List<E> batch, @Nonnull PreparedQuery query, @Nullable EntityCache<E, ID> cache) {
         if (batch.isEmpty()) {
             return List.of();
         }
         batch.stream().map(this::validateUpsert).forEach(query::addBatch);
+        if (cache != null) {
+            cache.removeEntities(batch);
+        }
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
             throw new PersistenceException("Batch upsert failed.");
@@ -583,7 +608,7 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
         try (var query = ormTemplate.query(raw("""
                 INSERT INTO \0
                 OUTPUT INSERTED.%s
-                VALUES \0""".formatted(pkName), model.type(), entity)).prepare()) {
+                VALUES \0""".formatted(pkName), model.type(), entity)).managed().prepare()) {
             return query.getSingleResult(model.primaryKeyType());
         }
     }
@@ -601,7 +626,8 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
         var query = ormTemplate.query(raw("""
             INSERT INTO \0
             OUTPUT INSERTED.%s
-            VALUES \0""".formatted(pkName), model.type(), entities));
+            VALUES \0""".formatted(pkName), model.type(), entities))
+                .managed();
         return query.getResultList(model.primaryKeyType());
     }
 }

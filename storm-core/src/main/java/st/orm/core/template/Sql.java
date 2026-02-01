@@ -17,6 +17,7 @@ package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.Data;
 import st.orm.core.template.SqlTemplate.BindVariables;
 import st.orm.core.template.SqlTemplate.Parameter;
 import st.orm.core.template.impl.Elements.Insert;
@@ -116,6 +117,26 @@ public interface Sql {
      * @since 1.2
      */
     Sql versionAware(boolean versionAware);
+
+    /**
+     * Returns the type affected by this INSERT, UPDATE, or DELETE operation.
+     *
+     * <p>This information is used to invalidate caches after raw INSERT/UPDATE/DELETE queries are executed.
+     * For SELECT and INSERT operations, this returns empty.</p>
+     *
+     * @return the type affected by this operation, or empty for SELECT.
+     * @since 1.8
+     */
+    Optional<Class<? extends Data>> affectedType();
+
+    /**
+     * Returns a new instance of the SQL statement with the given affected type.
+     *
+     * @param affectedType the type affected by this INSERT, UPDATE, or DELETE operation.
+     * @return a new instance of the SQL statement with the given affected type.
+     * @since 1.8
+     */
+    Sql affectedType(@Nullable Class<? extends Data> affectedType);
 
     /**
      * Returns a warning message if the statement is deemed potentially unsafe, an empty optional otherwise.

@@ -157,6 +157,12 @@ class TemplateProcessor {
     private List<String> generatedKeys;
 
     /**
+     * Compile-time only: type affected by INSERT, UPDATE, or DELETE operation.
+     */
+    @Nullable
+    private Class<? extends Data> affectedType;
+
+    /**
      * The compiled SQL string.
      *
      * <p>This is set exactly once by {@link #compile(CompilationContext, boolean)}.</p>
@@ -532,6 +538,7 @@ class TemplateProcessor {
                 session.parameters,
                 ofNullable(session.bindVariables),
                 generatedKeys != null ? generatedKeys : List.of(),
+                ofNullable(affectedType),
                 versionAware != null && versionAware,
                 checkSafety(sql, operation)
         );
@@ -820,6 +827,19 @@ class TemplateProcessor {
         @Override
         public void mapBindVars(int bindVarsCount) {
             TemplateProcessor.this.mapBindVars(bindVarsCount);
+        }
+
+        /**
+         * Sets the type affected by an INSERT, UPDATE, or DELETE operation.
+         *
+         * @param type the type affected by the operation.
+         */
+        @Override
+        public void setAffectedType(@Nonnull Class<? extends Data> type) {
+            if (affectedType != null) {
+                throw new IllegalStateException("Affected type already set.");
+            }
+            affectedType = type;
         }
 
         /**

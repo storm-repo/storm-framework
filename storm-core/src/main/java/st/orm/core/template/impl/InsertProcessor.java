@@ -87,6 +87,7 @@ final class InsertProcessor implements ElementProcessor<Insert> {
                 .collect(joining(", "));
         compiler.setGeneratedKeys(generatedKeys);
         var table = queryModel.getTable();
+        compiler.setAffectedType(insert.table());
         return new CompiledElement("%s%s (%s)".formatted(table.name(), table.alias().isEmpty() ? "" : " " + table.alias(), columns));
     }
 

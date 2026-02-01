@@ -21,7 +21,6 @@ import st.orm.Metamodel;
 import st.orm.Ref;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
-import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.repository.Repository;
 import st.orm.core.template.ORMTemplate;

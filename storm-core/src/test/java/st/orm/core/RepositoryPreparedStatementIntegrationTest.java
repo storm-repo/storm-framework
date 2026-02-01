@@ -1703,4 +1703,168 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertEquals(pet1, pet2, "Entities should be equal");
         assertTrue(pet1 != pet2, "Without entity cache, different instances should be returned");
     }
+
+    @Transactional(propagation = REQUIRED)
+    @Test
+    public void testCacheFirstLookupNoSqlOnSecondRequest() {
+        // First request should execute SQL, second request should hit cache without SQL.
+        var repository = ORMTemplate.of(dataSource).entity(Pet.class);
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        // First request - SQL should be executed.
+        observe(sql::set, () -> repository.getById(1));
+        assertNotNull(sql.get(), "First request should execute SQL");
+        // Second request - should hit cache, no SQL executed.
+        sql.set(null);
+        observe(sql::set, () -> repository.getById(1));
+        assertNull(sql.get(), "Second request should not execute SQL due to cache hit");
+    }
+
+    @Transactional(propagation = REQUIRED)
+    @Test
+    public void testCacheFirstLookupSameInstance() {
+        // Both requests should return the exact same instance when cache is active.
+        var repository = ORMTemplate.of(dataSource).entity(Pet.class);
+        var pet1 = repository.getById(1);
+        var pet2 = repository.getById(1);
+        assertSame(pet1, pet2, "Cache should return the exact same instance");
+    }
+
+    @Transactional(propagation = REQUIRED)
+    @Test
+    public void testCacheFirstLookupFindByIdNoSqlOnSecondRequest() {
+        // Test findById variant as well.
+        var repository = ORMTemplate.of(dataSource).entity(Pet.class);
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        // First request - SQL should be executed.
+        observe(sql::set, () -> repository.findById(1));
+        assertNotNull(sql.get(), "First findById should execute SQL");
+        // Second request - should hit cache.
+        sql.set(null);
+        observe(sql::set, () -> repository.findById(1));
+        assertNull(sql.get(), "Second findById should not execute SQL due to cache hit");
+    }
+
+    @Transactional(propagation = REQUIRED)
+    @Test
+    public void testCacheFirstLookupByRefNoSqlWhenCached() {
+        // Loading entity, then fetching by ref should not execute SQL.
+        var orm = ORMTemplate.of(dataSource);
+        var repository = orm.entity(Pet.class);
+        // Load entity into cache.
+        var pet = repository.getById(1);
+        // Create ref and fetch - should hit cache.
+        Ref<Pet> ref = orm.ref(Pet.class, 1);
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        observe(sql::set, () -> repository.getByRef(ref));
+        assertNull(sql.get(), "Fetching by ref should not execute SQL when entity is cached");
+        // Verify same instance returned.
+        assertSame(pet, repository.getByRef(ref), "getByRef should return the cached instance");
+    }
+
+    @Transactional(propagation = REQUIRED)
+    @Test
+    public void testRefFetchNoSqlWhenCached() {
+        // When entity is already loaded, Ref.fetch() should return cached instance without SQL.
+        var orm = ORMTemplate.of(dataSource);
+        var repository = orm.entity(Pet.class);
+        // Load entity into cache first.
+        var pet = repository.getById(1);
+        // Create ref pointing to the same entity.
+        Ref<Pet> ref = orm.ref(Pet.class, 1);
+        // Fetch through ref - should hit cache.
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        observe(sql::set, ref::fetch);
+        assertNull(sql.get(), "Ref.fetch() should not execute SQL when entity is cached");
+        // Verify same instance returned.
+        assertSame(pet, ref.fetch(), "Ref.fetch() should return the cached instance");
+    }
+
+    @Transactional(propagation = REQUIRED)
+    @Test
+    public void testSelectByIdPartialCacheHit() {
+        // When some entities are cached, only uncached ones should be queried.
+        var repository = ORMTemplate.of(dataSource).entity(Pet.class);
+        // Pre-load entity 1 into cache.
+        var pet1 = repository.getById(1);
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        // Select by multiple IDs - should query only uncached IDs.
+        observe(sql::set, () -> repository.selectById(List.of(1, 2, 3).stream(), 100).toList());
+        assertNotNull(sql.get(), "Should execute SQL for uncached IDs");
+        // Verify cached entity is same instance.
+        var result = repository.selectById(List.of(1).stream(), 100).toList();
+        assertEquals(1, result.size());
+        assertSame(pet1, result.get(0), "Cached entity should be the same instance");
+    }
+
+    @Transactional(propagation = REQUIRED)
+    @Test
+    public void testRefFetchFromCachedOwner() {
+        // When all owners are loaded, fetching a pet's owner ref should not execute SQL.
+        var orm = ORMTemplate.of(dataSource);
+        // Load all owners into cache.
+        var owners = orm.entity(Owner.class).findAll();
+        assertNotNull(owners);
+        assertTrue(owners.size() > 0, "Should have at least one owner");
+        // Fetch a pet that has an owner ref.
+        var pet = orm.entity(PetOwnerRef.class).getById(1);
+        assertNotNull(pet.owner(), "Pet should have an owner ref");
+        // Find the cached owner for verification.
+        Owner cachedOwner = owners.stream()
+                .filter(o -> o.id().equals(pet.owner().id()))
+                .findFirst()
+                .orElseThrow();
+        // Fetch through the ref - should hit cache, no SQL.
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        observe(sql::set, () -> pet.owner().fetch());
+        assertNull(sql.get(), "Ref.fetch() should not execute SQL when owner is already cached");
+        // Verify same instance returned.
+        assertSame(cachedOwner, pet.owner().fetch(), "Ref.fetch() should return the cached owner instance");
+    }
+
+    @Transactional(propagation = REQUIRED)
+    @Test
+    public void testFindAllByIdPartialCacheHit() {
+        // When some entities are cached, findAllById should only query uncached ones.
+        var repository = ORMTemplate.of(dataSource).entity(Pet.class);
+        // Pre-load entities 1 and 2 into cache.
+        var pet1 = repository.getById(1);
+        var pet2 = repository.getById(2);
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        // findAllById with mix of cached and uncached - should query only uncached IDs.
+        observe(sql::set, () -> repository.findAllById(List.of(1, 2, 3)));
+        assertNotNull(sql.get(), "Should execute SQL for uncached ID 3");
+        // When all IDs are cached, no SQL should be executed.
+        sql.set(null);
+        List<Pet> result = observe(sql::set, () -> repository.findAllById(List.of(1, 2)));
+        assertNull(sql.get(), "Should not execute SQL when all IDs are cached");
+        assertEquals(2, result.size());
+        assertTrue(result.contains(pet1), "Result should contain cached pet1");
+        assertTrue(result.contains(pet2), "Result should contain cached pet2");
+    }
+
+    @Transactional(propagation = REQUIRED)
+    @Test
+    public void testFindAllByRefPartialCacheHit() {
+        // When some entities are cached, findAllByRef should only query uncached ones.
+        var orm = ORMTemplate.of(dataSource);
+        var repository = orm.entity(Pet.class);
+        // Pre-load entities 1 and 2 into cache.
+        var pet1 = repository.getById(1);
+        var pet2 = repository.getById(2);
+        // Create refs.
+        var ref1 = orm.ref(Pet.class, 1);
+        var ref2 = orm.ref(Pet.class, 2);
+        var ref3 = orm.ref(Pet.class, 3);
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        // findAllByRef with mix of cached and uncached - should query only uncached refs.
+        observe(sql::set, () -> repository.findAllByRef(List.of(ref1, ref2, ref3)));
+        assertNotNull(sql.get(), "Should execute SQL for uncached ref 3");
+        // When all refs are cached, no SQL should be executed.
+        sql.set(null);
+        List<Pet> result = observe(sql::set, () -> repository.findAllByRef(List.of(ref1, ref2)));
+        assertNull(sql.get(), "Should not execute SQL when all refs are cached");
+        assertEquals(2, result.size());
+        assertTrue(result.contains(pet1), "Result should contain cached pet1");
+        assertTrue(result.contains(pet2), "Result should contain cached pet2");
+    }
 }

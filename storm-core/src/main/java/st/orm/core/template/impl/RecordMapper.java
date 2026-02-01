@@ -577,7 +577,7 @@ final class RecordMapper {
             if (pk == null) {
                 return null;
             }
-            return refFactory.create(dataType, pk);
+            return interner.intern(refFactory.create(dataType, pk));
         }
     }
 

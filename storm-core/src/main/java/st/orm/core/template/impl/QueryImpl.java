@@ -18,14 +18,20 @@ package st.orm.core.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
+import st.orm.Entity;
 import st.orm.PersistenceException;
 import st.orm.Ref;
+import st.orm.core.spi.EntityCache;
+import st.orm.core.spi.Providers;
 import st.orm.core.spi.RefFactory;
+import st.orm.core.spi.TransactionTemplate;
+import st.orm.core.spi.WeakInterner;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.template.Query;
 import st.orm.core.template.SqlTemplateException;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -53,11 +59,15 @@ import static st.orm.core.template.impl.ObjectMapperFactory.getObjectMapper;
 
 @SuppressWarnings("ALL")
 class QueryImpl implements Query {
+    private static final TransactionTemplate TRANSACTION_TEMPLATE = Providers.getTransactionTemplate();
+
     private final RefFactory refFactory;
     private final Function<Boolean, PreparedStatement> statement;
     private final BindVarsHandle bindVarsHandle;
     private final boolean versionAware;
+    private final Class<? extends Data> affectedType;
     private final boolean safe;
+    private final boolean managed;
     private final Function<Throwable, PersistenceException> exceptionTransformer;
 
     QueryImpl(@Nonnull RefFactory refFactory,
@@ -65,7 +75,7 @@ class QueryImpl implements Query {
               @Nullable BindVarsHandle bindVarsHandle,
               boolean versionAware,
               @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        this(refFactory, statement, bindVarsHandle, versionAware, false, exceptionTransformer);
+        this(refFactory, statement, bindVarsHandle, null, versionAware, false, false, exceptionTransformer);
     }
 
     QueryImpl(@Nonnull RefFactory refFactory,
@@ -74,10 +84,33 @@ class QueryImpl implements Query {
               boolean versionAware,
               boolean safe,
               @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
+        this(refFactory, statement, bindVarsHandle, null, versionAware, false, safe, exceptionTransformer);
+    }
+
+    QueryImpl(@Nonnull RefFactory refFactory,
+              @Nonnull Function<Boolean, PreparedStatement> statement,
+              @Nullable BindVarsHandle bindVarsHandle,
+              @Nullable Class<? extends Data> affectedType,
+              boolean versionAware,
+              boolean safe,
+              @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
+        this(refFactory, statement, bindVarsHandle, affectedType, versionAware, false, safe, exceptionTransformer);
+    }
+
+    QueryImpl(@Nonnull RefFactory refFactory,
+              @Nonnull Function<Boolean, PreparedStatement> statement,
+              @Nullable BindVarsHandle bindVarsHandle,
+              @Nullable Class<? extends Data> affectedType,
+              boolean versionAware,
+              boolean managed,
+              boolean safe,
+              @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
         this.refFactory = refFactory;
         this.statement = statement;
         this.bindVarsHandle = bindVarsHandle;
         this.versionAware = versionAware;
+        this.affectedType = affectedType;
+        this.managed = managed;
         this.safe = safe;
         this.exceptionTransformer = exceptionTransformer;
     }
@@ -96,7 +129,18 @@ class QueryImpl implements Query {
      */
     @Override
     public PreparedQuery prepare() {
-        return MonitoredResource.wrap(new PreparedQueryImpl(refFactory, statement.apply(safe), bindVarsHandle, versionAware, exceptionTransformer));
+        return MonitoredResource.wrap(new PreparedQueryImpl(refFactory, statement.apply(safe), bindVarsHandle, affectedType, versionAware, managed, exceptionTransformer));
+    }
+
+    /**
+     * Returns a new query that is marked as managed. This indicates that the query is managed by a repository.
+     *
+     * @return a new query that is marked as managed.
+     * @since 1.8
+     */
+    @Override
+    public Query managed() {
+        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, true, safe, exceptionTransformer);
     }
 
     /**
@@ -108,7 +152,7 @@ class QueryImpl implements Query {
      */
     @Override
     public Query safe() {
-        return new QueryImpl(refFactory, statement, bindVarsHandle, versionAware, true, exceptionTransformer);
+        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, managed, true, exceptionTransformer);
     }
 
     private PreparedStatement getStatement() {
@@ -242,8 +286,9 @@ class QueryImpl implements Query {
      */
     @Override
     public <T extends Data> Stream<Ref<T>> getRefStream(@Nonnull Class<T> type, @Nonnull Class<?> pkType) {
+        var interner = new WeakInterner();
         return getResultStream(pkType)
-                .map(pk -> pk == null ? null : refFactory.create(type, pk));
+                .map(pk -> pk == null ? null : interner.intern(refFactory.create(type, pk)));
     }
 
     protected void close(@Nonnull ResultSet resultSet, @Nonnull PreparedStatement statement) {
@@ -271,7 +316,7 @@ class QueryImpl implements Query {
     }
 
     /**
-     * Execute a command, such as an INSERT, UPDATE or DELETE statement.
+     * Execute a command, such as an INSERT, UPDATE, or DELETE statement.
      *
      * @return the number of rows impacted as result of the statement.
      * @throws PersistenceException if the statement fails.
@@ -281,7 +326,9 @@ class QueryImpl implements Query {
         PreparedStatement statement = getStatement();
         try {
             try {
-                return statement.executeUpdate();
+                int result = statement.executeUpdate();
+                invalidateAffectedEntityCaches();
+                return result;
             } finally {
                 if (closeStatement()) {
                     statement.close();
@@ -290,6 +337,28 @@ class QueryImpl implements Query {
         } catch (SQLException e) {
             throw exceptionTransformer.apply(e);
         }
+    }
+
+    /**
+     * Invalidates the entity cache for the type affected by this INSERT, UPDATE, or DELETE operation.
+     */
+    @SuppressWarnings("unchecked")
+    private void invalidateAffectedEntityCaches() {
+        if (managed) {
+            return;  // Caller is managing cache.
+        }
+        if (affectedType == null) {
+            return;
+        }
+        if (!Entity.class.isAssignableFrom(affectedType)) {
+            return;
+        }
+        TRANSACTION_TEMPLATE.currentContext().ifPresent(ctx -> {
+            var cache = ctx.entityCache((Class<? extends Entity<?>>) affectedType);
+            if (cache != null) {
+                cache.clear();
+            }
+        });
     }
 
     /**
@@ -305,7 +374,9 @@ class QueryImpl implements Query {
         PreparedStatement statement = getStatement();
         try {
             try {
-                return statement.executeBatch();
+                int[] result = statement.executeBatch();
+                invalidateAffectedEntityCaches();
+                return result;
             } finally {
                 if (closeStatement()) {
                     statement.close();
