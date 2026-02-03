@@ -188,10 +188,15 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
     }
 
     private boolean fieldsEqual(@Nonnull Metamodel<Data, ?> metamodel, E a, E b) {
-        if (dirtyCheck == DirtyCheck.INSTANCE) {
-            return metamodel.isIdentical(a, b);
-        }
-        return metamodel.isSame(a, b);
+        return switch (dirtyCheck) {
+            case INSTANCE -> metamodel.isIdentical(a, b);
+            case VALUE -> metamodel.isSame(a, b);
+            case DEFAULT -> switch (DEFAULT_DIRTY_CHECK) {
+                case INSTANCE -> metamodel.isIdentical(a, b);
+                case VALUE -> metamodel.isSame(a, b);
+                case DEFAULT -> throw new IllegalStateException("Invalid default dirty check mode.");
+            };
+        };
     }
 
     /**

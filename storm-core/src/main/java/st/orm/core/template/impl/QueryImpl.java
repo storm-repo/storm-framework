@@ -341,22 +341,25 @@ class QueryImpl implements Query {
 
     /**
      * Invalidates the entity cache for the type affected by this INSERT, UPDATE, or DELETE operation.
+     *
+     * <p>If the affected type is known, only the cache for that type is cleared. If the affected type is unknown
+     * (e.g., for raw SQL mutations), all entity caches are cleared to ensure dirty checking does not rely on stale
+     * observed state.</p>
      */
     @SuppressWarnings("unchecked")
     private void invalidateAffectedEntityCaches() {
         if (managed) {
             return;  // Caller is managing cache.
         }
-        if (affectedType == null) {
-            return;
-        }
-        if (!Entity.class.isAssignableFrom(affectedType)) {
-            return;
-        }
         TRANSACTION_TEMPLATE.currentContext().ifPresent(ctx -> {
-            var cache = ctx.entityCache((Class<? extends Entity<?>>) affectedType);
-            if (cache != null) {
-                cache.clear();
+            if (affectedType == null) {
+                // Unknown affected type: clear all caches to avoid stale observed state.
+                ctx.clearAllEntityCaches();
+            } else if (Entity.class.isAssignableFrom(affectedType)) {
+                var cache = ctx.entityCache((Class<? extends Entity<?>>) affectedType);
+                if (cache != null) {
+                    cache.clear();
+                }
             }
         });
     }

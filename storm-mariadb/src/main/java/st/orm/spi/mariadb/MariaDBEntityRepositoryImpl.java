@@ -146,7 +146,7 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
                                 // cache as we cannot predict which record is updated.
                                 cache.clear();
                             } else {
-                                cache.removeEntities(partition.chunk());
+                                partition.chunk().forEach(e -> cache.remove(e.id()));
                             }
                         });
                         result.addAll(getUpsertQuery(partition.chunk()).getResultList(model.primaryKeyType()));

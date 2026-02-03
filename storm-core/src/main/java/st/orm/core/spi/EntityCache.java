@@ -17,7 +17,6 @@ package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
 import st.orm.Entity;
-import st.orm.Ref;
 
 import java.util.Optional;
 
@@ -89,40 +88,9 @@ public interface EntityCache<E extends Entity<ID>, ID> {
     /**
      * Removes the cached entry for the given primary key, if present.
      *
-     * @param pk the primary key to remove.
+     * @param pk the primary key to remove; must not be {@code null}.
      */
     void remove(@Nonnull ID pk);
-
-    /**
-     * Removes cached entries for the given primary keys.
-     *
-     * <p>If a primary key is not present, it is ignored.</p>
-     *
-     * @param pks the primary keys to remove.
-     */
-    void remove(@Nonnull Iterable<? extends ID> pks);
-
-    /**
-     * Removes cached entries for the given entities by their primary keys.
-     *
-     * <p>This removes by primary key only. It does not check whether the cached instance is identical to the provided
-     * entity instance.</p>
-     *
-     * @param entities the entities whose primary keys should be removed.
-     */
-    void removeEntities(@Nonnull Iterable<? extends E> entities);
-
-    /**
-     * Removes cached entries for the given {@link Ref references} by their ids.
-     *
-     * <p>This removes by id only. The cache does not require the referenced entity to be loaded.</p>
-     *
-     * <p><strong>Type note:</strong> {@link Ref#id()} returns {@code Object}. Implementations typically assume that the
-     * id value is assignable to {@code ID}. If not, a {@link ClassCastException} may be thrown.</p>
-     *
-     * @param entities the references whose ids should be removed.
-     */
-    void removeRefs(@Nonnull Iterable<? extends Ref<E>> entities);
 
     /**
      * Clears all cached mappings.

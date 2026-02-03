@@ -81,6 +81,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.transaction.annotation.Isolation.READ_UNCOMMITTED;
+import static org.springframework.transaction.annotation.Isolation.REPEATABLE_READ;
 import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
 import static org.springframework.transaction.annotation.Propagation.REQUIRED;
 import static st.orm.GenerationStrategy.NONE;
@@ -1695,13 +1696,25 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Transactional(isolation = READ_UNCOMMITTED)
     @Test
-    public void testNoEntityCacheAtReadUncommitted() {
-        // Without entity cache (READ_UNCOMMITTED), different instances should be returned.
+    public void testNoHydrationAtReadUncommitted() {
+        // At READ_UNCOMMITTED, hydration is disabled so different instances should be returned.
+        // Dirty checking still works because observed state is stored.
         var repository = ORMTemplate.of(dataSource).entity(Pet.class);
         var pet1 = repository.getById(1);
         var pet2 = repository.getById(1);
         assertEquals(pet1, pet2, "Entities should be equal");
-        assertTrue(pet1 != pet2, "Without entity cache, different instances should be returned");
+        assertTrue(pet1 != pet2, "Without hydration, different instances should be returned");
+    }
+
+    @Transactional(isolation = REPEATABLE_READ)
+    @Test
+    public void testHydrationEnabledAtRepeatableRead() {
+        // At REPEATABLE_READ, hydration is enabled so the same cached instance should be returned.
+        var repository = ORMTemplate.of(dataSource).entity(Pet.class);
+        var pet1 = repository.getById(1);
+        var pet2 = repository.getById(1);
+        assertEquals(pet1, pet2, "Entities should be equal");
+        assertTrue(pet1 == pet2, "With hydration enabled, same instance should be returned");
     }
 
     @Transactional(propagation = REQUIRED)

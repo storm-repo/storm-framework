@@ -443,7 +443,7 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
                 // as we cannot predict which record is updated.
                 cache.clear();
             } else {
-                cache.removeEntities(batch);
+                batch.forEach(e -> cache.remove(e.id()));
             }
         }
         int[] result = query.executeBatch();
@@ -463,7 +463,7 @@ public class MySQLEntityRepositoryImpl<E extends Entity<ID>, ID>
                 // as we cannot predict which record is updated.
                 cache.clear();
             } else {
-                cache.removeEntities(batch);
+                batch.forEach(e -> cache.remove(e.id()));
             }
         }
         int[] result = query.executeBatch();

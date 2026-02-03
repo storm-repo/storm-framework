@@ -209,8 +209,14 @@ final class RecordMapper {
                                                        @Nullable TransactionContext transactionContext) throws SqlTemplateException {
         Compiled compiled = compiledFor(type, refFactory);
         boolean isEntity = Entity.class.isAssignableFrom(type.type());
+        // Determine cache read/write policy.
+        // Cache read: return cached instances (identity preservation) - only at REPEATABLE_READ+
+        // Cache write: store for dirty tracking OR for identity preservation
+        boolean cacheReadEnabled = transactionContext != null && transactionContext.isRepeatableRead();
+        boolean dirtyTrackingEnabled = getUpdateMode(type) != OFF;
+        boolean cacheWriteEnabled = cacheReadEnabled || dirtyTrackingEnabled;
         EntityCache<Entity<?>, ?> entityCache;
-        if (transactionContext != null && isEntity && getUpdateMode(type) != OFF) {
+        if (transactionContext != null && isEntity && cacheWriteEnabled) {
             //noinspection unchecked
             entityCache = (EntityCache<Entity<?>, ?>) transactionContext.entityCache((Class<? extends Entity<?>>) type.type());
         } else {
@@ -229,10 +235,11 @@ final class RecordMapper {
             public T newInstance(@Nonnull Object[] args) throws SqlTemplateException {
                 // Early cache lookup optimization for top-level entities.
                 // If we can extract the PK early, check the cache before constructing nested objects.
-                if (entityCache != null && pkInfo.offset >= 0) {
+                // Only perform cache lookup if cache read is enabled (identity preservation).
+                if (entityCache != null && cacheReadEnabled && pkInfo.offset >= 0) {
                     Object pk = extractPk(args, pkInfo);
                     if (pk != null) {
-                        //noinspection rawtypes
+                        //noinspection unchecked,rawtypes
                         Optional<Entity<?>> cached = ((EntityCache) entityCache).get(pk);
                         if (cached.isPresent()) {
                             // Cache hit - skip construction entirely.
@@ -246,8 +253,12 @@ final class RecordMapper {
                 // Don't intern top level records.
                 var record = ObjectMapperFactory.construct((Constructor<T>) type.constructor(), adaptedArgs, 0);
                 if (entityCache != null) {
-                    // Only intern entities when they need to be cached.
-                    return (T) entityCache.intern((Entity<?>) record);
+                    // Intern for dirty tracking and/or identity preservation.
+                    Entity<?> interned = entityCache.intern((Entity<?>) record);
+                    // Only return cached instance if cache read is enabled.
+                    if (cacheReadEnabled) {
+                        return (T) interned;
+                    }
                 }
                 return record;
             }
@@ -647,18 +658,21 @@ final class RecordMapper {
                             @Nullable TransactionContext context) throws SqlTemplateException {
             boolean nullableHere = parentNullable || field.nullable();
             int start = offset.i;
-            // Early cache lookup optimization for entities.
-            // If we can extract the PK early, check the cache before constructing nested objects.
+            // Determine cache read/write policy for nested entities.
+            // Cache read: return cached instances (identity preservation) - only at REPEATABLE_READ+
+            // Cache write: store for dirty tracking OR for identity preservation
+            boolean cacheReadEnabled = context != null && context.isRepeatableRead();
+            boolean cacheWriteEnabled = cacheReadEnabled || subNeedsCache;
             EntityCache<Entity<?>, ?> entityCache = null;
-            if (context != null && subIsEntity && subNeedsCache) {
+            if (context != null && subIsEntity && cacheWriteEnabled) {
                 //noinspection unchecked
                 entityCache = (EntityCache<Entity<?>, ?>) context.entityCache((Class<? extends Entity<?>>) subType.type());
             }
             if (subIsEntity && pkFlatOffset >= 0) {
                 Object pk = extractPk(flatArgs, start + pkFlatOffset);
                 if (pk != null) {
-                    // Try EntityCache first if available, otherwise use WeakInterner.
-                    if (entityCache != null) {
+                    if (entityCache != null && cacheReadEnabled) {
+                        // Cache read enabled: use EntityCache for transaction-scoped identity.
                         //noinspection unchecked,rawtypes
                         Optional<Entity<?>> cached = ((EntityCache) entityCache).get(pk);
                         if (cached.isPresent()) {
@@ -667,6 +681,7 @@ final class RecordMapper {
                             return cached.get();
                         }
                     } else {
+                        // Cache read disabled or no entity cache: use WeakInterner for query-scoped identity.
                         //noinspection unchecked
                         Entity<?> cached = interner.get((Class<Entity<?>>) subType.type(), pk);
                         if (cached != null) {
@@ -713,7 +728,15 @@ final class RecordMapper {
             // Construct nested record.
             Object record = ObjectMapperFactory.construct(subType.constructor(), childArgs, start);
             if (entityCache != null) {
-                return entityCache.intern((Entity<?>) record);
+                // Intern for dirty tracking and/or identity preservation.
+                Entity<?> interned = entityCache.intern((Entity<?>) record);
+                if (cacheReadEnabled) {
+                    // Return cached instance for transaction-scoped identity.
+                    return interned;
+                }
+                // Cache read disabled: use WeakInterner for query-scoped identity only.
+                // The entity was already stored in entityCache for dirty tracking.
+                return interner.intern(record);
             }
             return interner.intern(record);
         }

@@ -27,6 +27,7 @@ import st.orm.OptimisticLockException;
 import st.orm.PersistenceException;
 import st.orm.core.spi.EntityCache;
 import st.orm.core.spi.Providers;
+import st.orm.core.spi.TransactionContext;
 import st.orm.core.spi.TransactionTemplate;
 import st.orm.core.template.PreparedQuery;
 import st.orm.core.template.Templates;
@@ -303,20 +304,38 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                 .map(ctx -> (EntityCache<E, ID>) ctx.entityCache(model().type()));
     }
 
+    /**
+     * Returns true if the transaction isolation level is {@code REPEATABLE_READ} or higher.
+     *
+     * <p>At {@code REPEATABLE_READ} and above, cached entities are returned when re-reading the same entity,
+     * preserving entity identity. At lower isolation levels, fresh data is fetched.</p>
+     *
+     * @return true if isolation level is {@code REPEATABLE_READ} or higher, false otherwise.
+     * @since 1.8
+     */
+    protected boolean isRepeatableRead() {
+        return TRANSACTION_TEMPLATE.currentContext()
+                .map(TransactionContext::isRepeatableRead)
+                .orElse(false);
+    }
+
     // Cache-first lookup methods.
 
     /**
      * {@inheritDoc}
      *
-     * <p>This implementation first checks the entity cache (if available) before querying the database.</p>
+     * <p>This implementation first checks the entity cache (if available and isolation is REPEATABLE_READ or higher)
+     * before querying the database.</p>
      */
     @Override
     public Optional<E> findById(@Nonnull ID id) {
-        var cache = entityCache();
-        if (cache.isPresent()) {
-            Optional<E> cached = cache.get().get(id);
-            if (cached.isPresent()) {
-                return cached;
+        if (isRepeatableRead()) {
+            var cache = entityCache();
+            if (cache.isPresent()) {
+                Optional<E> cached = cache.get().get(id);
+                if (cached.isPresent()) {
+                    return cached;
+                }
             }
         }
         return super.findById(id);
@@ -325,15 +344,18 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     /**
      * {@inheritDoc}
      *
-     * <p>This implementation first checks the entity cache (if available) before querying the database.</p>
+     * <p>This implementation first checks the entity cache (if available and isolation is REPEATABLE_READ or higher)
+     * before querying the database.</p>
      */
     @Override
     public E getById(@Nonnull ID id) {
-        var cache = entityCache();
-        if (cache.isPresent()) {
-            Optional<E> cached = cache.get().get(id);
-            if (cached.isPresent()) {
-                return cached.get();
+        if (isRepeatableRead()) {
+            var cache = entityCache();
+            if (cache.isPresent()) {
+                Optional<E> cached = cache.get().get(id);
+                if (cached.isPresent()) {
+                    return cached.get();
+                }
             }
         }
         return super.getById(id);
@@ -342,16 +364,19 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     /**
      * {@inheritDoc}
      *
-     * <p>This implementation first checks the entity cache (if available) before querying the database.</p>
+     * <p>This implementation first checks the entity cache (if available and isolation is REPEATABLE_READ or higher)
+     * before querying the database.</p>
      */
     @Override
     public Optional<E> findByRef(@Nonnull Ref<E> ref) {
-        var cache = entityCache();
-        if (cache.isPresent()) {
-            //noinspection unchecked
-            Optional<E> cached = cache.get().get((ID) ref.id());
-            if (cached.isPresent()) {
-                return cached;
+        if (isRepeatableRead()) {
+            var cache = entityCache();
+            if (cache.isPresent()) {
+                //noinspection unchecked
+                Optional<E> cached = cache.get().get((ID) ref.id());
+                if (cached.isPresent()) {
+                    return cached;
+                }
             }
         }
         return super.findByRef(ref);
@@ -360,16 +385,19 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     /**
      * {@inheritDoc}
      *
-     * <p>This implementation first checks the entity cache (if available) before querying the database.</p>
+     * <p>This implementation first checks the entity cache (if available and isolation is REPEATABLE_READ or higher)
+     * before querying the database.</p>
      */
     @Override
     public E getByRef(@Nonnull Ref<E> ref) {
-        var cache = entityCache();
-        if (cache.isPresent()) {
-            //noinspection unchecked
-            Optional<E> cached = cache.get().get((ID) ref.id());
-            if (cached.isPresent()) {
-                return cached.get();
+        if (isRepeatableRead()) {
+            var cache = entityCache();
+            if (cache.isPresent()) {
+                //noinspection unchecked
+                Optional<E> cached = cache.get().get((ID) ref.id());
+                if (cached.isPresent()) {
+                    return cached.get();
+                }
             }
         }
         return super.getByRef(ref);
@@ -378,11 +406,14 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     /**
      * {@inheritDoc}
      *
-     * <p>This implementation partitions IDs into cached and uncached, returning cached entities immediately
-     * and only querying the database for uncached IDs.</p>
+     * <p>This implementation partitions IDs into cached and uncached (when isolation is REPEATABLE_READ or higher),
+     * returning cached entities immediately and only querying the database for uncached IDs.</p>
      */
     @Override
     public Stream<E> selectById(@Nonnull Stream<ID> ids, int chunkSize) {
+        if (!isRepeatableRead()) {
+            return super.selectById(ids, chunkSize);
+        }
         var cache = entityCache();
         if (cache.isEmpty()) {
             return super.selectById(ids, chunkSize);
@@ -410,12 +441,15 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     /**
      * {@inheritDoc}
      *
-     * <p>This implementation partitions refs into cached and uncached, returning cached entities immediately
-     * and only querying the database for uncached refs.</p>
+     * <p>This implementation partitions refs into cached and uncached (when isolation is REPEATABLE_READ or higher),
+     * returning cached entities immediately and only querying the database for uncached refs.</p>
      */
     @Override
     @SuppressWarnings("unchecked")
     public Stream<E> selectByRef(@Nonnull Stream<Ref<E>> refs, int chunkSize) {
+        if (!isRepeatableRead()) {
+            return super.selectByRef(refs, chunkSize);
+        }
         var cache = entityCache();
         if (cache.isEmpty()) {
             return super.selectByRef(refs, chunkSize);
@@ -459,7 +493,11 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
             return;
         }
         validateUpdate(entity);
-        entityCache.ifPresent(cache -> cache.remove(entity.id()));
+        entityCache.ifPresent(cache -> {
+            if (!model.isDefaultPrimaryKey(entity.id())) {
+                cache.remove(entity.id());
+            }
+        });
         var query = ormTemplate.query(TemplateString.raw("""
                 UPDATE \0
                 SET \0
@@ -571,7 +609,11 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     @Override
     public void delete(@Nonnull E entity) {
         validateDelete(entity);
-        entityCache().ifPresent(cache -> cache.remove(entity.id()));
+        entityCache().ifPresent(cache -> {
+            if (!model.isDefaultPrimaryKey(entity.id())) {
+                cache.remove(entity.id());
+            }
+        });
         // Don't use query builder to prevent WHERE IN clause.
         int result = ormTemplate.query(TemplateString.raw("""
                 DELETE FROM \0
@@ -1103,7 +1145,9 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         }
         batch.stream().map(this::validateUpdate).forEach(query::addBatch);
         if (cache != null) {
-            cache.removeEntities(batch);
+            batch.stream()
+                    .filter(e -> !model.isDefaultPrimaryKey(e.id()))
+                    .forEach(e -> cache.remove(e.id()));
         }
         int[] result = query.executeBatch();
         if (query.isVersionAware() && IntStream.of(result).anyMatch(r -> r == 0)) {
@@ -1119,7 +1163,9 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         }
         batch.stream().map(this::validateUpdate).forEach(query::addBatch);
         if (cache != null) {
-            cache.removeEntities(batch);
+            batch.stream()
+                    .filter(e -> !model.isDefaultPrimaryKey(e.id()))
+                    .forEach(e -> cache.remove(e.id()));
         }
         int[] result = query.executeBatch();
         if (query.isVersionAware() && IntStream.of(result).anyMatch(r -> r == 0)) {
@@ -1216,7 +1262,9 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                 WHERE \0""", model.type(), bindVars)).managed().prepare()) {
             chunked(entities, batchSize).forEach(chunk -> {
                 chunk.stream().map(this::validateDelete).forEach(query::addBatch);
-                entityCache.ifPresent(cache -> cache.removeEntities(chunk));
+                entityCache.ifPresent(cache -> chunk.stream()
+                        .filter(e -> !model.isDefaultPrimaryKey(e.id()))
+                        .forEach(e -> cache.remove(e.id())));
                 int[] result = query.executeBatch();
                 if (IntStream.of(result).anyMatch(r -> r != 1)) {
                     throw new PersistenceException("Batch delete failed.");
@@ -1263,7 +1311,10 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     public void deleteByRef(@Nonnull Stream<Ref<E>> refs, int batchSize) {
         var entityCache = entityCache();
         chunked(refs, batchSize).forEach(chunk -> {
-            entityCache.ifPresent(cache -> cache.removeRefs(chunk));
+            //noinspection unchecked
+            entityCache.ifPresent(cache -> chunk.stream()
+                    .filter(r -> !model.isDefaultPrimaryKey((ID) r.id()))
+                    .forEach(r -> cache.remove((ID) r.id())));
             // Don't use query builder to prevent WHERE IN clause.
             int result = ormTemplate.query(TemplateString.raw("""
                     DELETE FROM \0
