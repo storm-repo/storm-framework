@@ -79,25 +79,22 @@ import static st.orm.core.template.impl.RecordReflection.isRecord;
  * </ul>
  *
  * <h3>Entity Cache Scoping</h3>
- * <p>The entity cache is transaction-scoped and available in both read-write and read-only transactions. This provides
- * object identity consistency within a transaction: reading the same entity multiple times returns the same instance.</p>
+ * <p>The entity cache is transaction-scoped. Its behavior depends on the transaction isolation level:</p>
+ * <ul>
+ *   <li>At {@code REPEATABLE_READ} or higher: Cached instances are returned, providing object identity consistency</li>
+ *   <li>At {@code READ_COMMITTED} or lower: Fresh data is fetched from the database on each read</li>
+ * </ul>
  *
  * <p>The entity cache serves two purposes:</p>
  * <ul>
  *   <li><b>Dirty tracking</b>: The cached state serves as the baseline for detecting changes when updating entities
- *       (see {@link st.orm.DynamicUpdate})</li>
- *   <li><b>Construction optimization</b>: Entities already in cache can be returned directly, skipping reconstruction</li>
+ *       (see {@link st.orm.DynamicUpdate}). Cache writes occur at all isolation levels when dirty tracking is enabled.</li>
+ *   <li><b>Identity preservation</b>: At {@code REPEATABLE_READ}+, entities already in cache are returned directly,
+ *       ensuring the same database row returns the same object instance within a transaction.</li>
  * </ul>
  *
- * <p>The entity cache is <em>not</em> available when:</p>
- * <ul>
- *   <li>There is no active transaction (e.g., {@code NOT_SUPPORTED} propagation)</li>
- *   <li>The transaction isolation level is below the configured minimum (default: {@code READ_UNCOMMITTED})</li>
- * </ul>
- *
- * <p>At {@code READ_UNCOMMITTED}, the entity cache is disabled because the application explicitly expects to see
- * uncommitted changes from other transactions. Caching would mask these changes, contradicting the requested
- * isolation semantics.</p>
+ * <p>The entity cache is <em>not</em> available when there is no active transaction (e.g., {@code NOT_SUPPORTED}
+ * propagation).</p>
  *
  * <h2>Early Cache Lookup Optimization</h2>
  * <p>For both top-level and nested entities, the mapper extracts the primary key directly from the flat column array

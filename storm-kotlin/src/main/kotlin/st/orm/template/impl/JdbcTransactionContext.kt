@@ -146,28 +146,18 @@ internal class JdbcTransactionContext : TransactionContext {
     fun currentConnection(): Connection? = stack.lastOrNull()?.connection
 
     /**
-     * Returns true if the transaction is marked as read-only, false otherwise.
-     *
-     * @return true if the transaction is marked as read-only, false otherwise.
-     * @since 1.7
-     */
-    override fun isReadOnly(): Boolean =
-        currentState.readOnly ?: false
-
-    /**
      * Returns true if the transaction has repeatable-read semantics.
      *
-     * This is true when:
-     * - The isolation level is `REPEATABLE_READ` or higher, or
-     * - The transaction is read-only (can't see changes since you can't make any)
+     * This is true when the isolation level is `REPEATABLE_READ` or higher.
      *
      * When true, cached entities are returned when re-reading the same entity, preserving
      * entity identity. When false, fresh data is fetched from the database.
      */
     override fun isRepeatableRead(): Boolean {
-        // Read-only transactions have repeatable-read semantics
-        if (isReadOnly()) return true
-        val isolationLevel = currentState.isolationLevel ?: return true
+        // When isolation level is not explicitly set, the database default is used. Since most
+        // databases default to READ_COMMITTED, we return false to ensure fresh data is fetched
+        // on each read. Users who want cached instances should explicitly set REPEATABLE_READ.
+        val isolationLevel = currentState.isolationLevel ?: return false
         return isolationLevel >= TRANSACTION_REPEATABLE_READ
     }
 

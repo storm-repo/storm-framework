@@ -4,7 +4,7 @@ Storm maintains a transaction-scoped entity cache that optimizes database intera
 
 ## Design Principles
 
-**Semantics-preserving:** The cache is carefully designed to align with your chosen transaction isolation level. At `READ_COMMITTED`, you see fresh data on every read; the cache won't return stale instances. At `REPEATABLE_READ` or in read-only transactions, returning cached instances is safe and matches what the database guarantees.
+**Semantics-preserving:** The cache is carefully designed to align with your chosen transaction isolation level. At `READ_COMMITTED` or lower, you see fresh data on every read; the cache won't return stale instances. At `REPEATABLE_READ` or higher, returning cached instances is safe and matches what the database guarantees.
 
 **Transparent:** You don't need to manage the cache. It's automatically scoped to the transaction and cleared on commit or rollback. There's no flush, no detach, no merge. Just predictable behavior aligned with your isolation level.
 
@@ -45,15 +45,16 @@ When you read an entity within a transaction, Storm stores it in a transaction-l
 
 ## Cache Behavior
 
-Whether Storm returns cached instances depends on isolation level and read-only status:
+Whether Storm returns cached instances depends on the transaction isolation level:
 
-| Condition | Cache Write | Cache Read |
-|-----------|-------------|------------|
-| `READ_COMMITTED` or lower (read-write) | If dirty checking enabled | No |
+| Isolation Level | Cache Write | Cache Read |
+|-----------------|-------------|------------|
+| `READ_COMMITTED` or lower | If dirty checking enabled | No |
 | `REPEATABLE_READ` or higher | Yes | Yes |
-| Read-only transaction (any isolation) | Yes | Yes |
 
-At `READ_COMMITTED` in a read-write transaction, Storm fetches fresh data on every read. At `REPEATABLE_READ` or in read-only transactions, cached instances are returned. This matches what the database guarantees at each isolation level.
+At `READ_COMMITTED` or lower, Storm fetches fresh data on every read. At `REPEATABLE_READ` or higher, cached instances are returned. This matches what the database guarantees at each isolation level.
+
+When no isolation level is explicitly set, Storm uses the database default and fetches fresh data on each read. Most databases default to `READ_COMMITTED`.
 
 ---
 
@@ -303,8 +304,8 @@ val customer2 = orders[1].customer.fetch()  // Same instance if same customer
 - **Consistent identity:** Within a query, `===` works as expected for same-row entities
 
 **Relationship with transaction-level caching:**
-- At `READ_COMMITTED` (read-write): Identity preserved within each query, but separate queries may return different instances
-- At `REPEATABLE_READ`+ or read-only: Query-level identity is extended transaction-wide via the cache
+- At `READ_COMMITTED` or lower: Identity preserved within each query, but separate queries may return different instances
+- At `REPEATABLE_READ` or higher: Query-level identity is extended transaction-wide via the cache
 
 For details on how the query interner works during hydration, see [Hydration](hydration.md#query-level-identity-interning).
 
@@ -312,17 +313,26 @@ For details on how the query interner works during hydration, see [Hydration](hy
 
 ## Best Practices
 
-### 1. Use Read-Only Transactions for Read-Heavy Workloads
+### 1. Choose the Right Isolation Level
 
-Read-only transactions get full cache benefits at any isolation level, without the locking overhead of higher isolation levels:
+When no isolation level is explicitly set, Storm uses the database default (typically `READ_COMMITTED` for most databases). Use higher isolation levels only when you have a specific consistency requirement:
 
 ```kotlin
-transaction(readOnly = true) {
-    // Full cache benefits: lookups, identity preservation, no redundant queries
+// Database default: Fresh data on each read
+transaction {
     val user = userRepository.findById(1)
-    val sameUser = userRepository.findById(1)  // Cache read, same instance
+    // ... later ...
+    val freshUser = userRepository.findById(1)  // Fresh database query
+}
+
+// REPEATABLE_READ: Consistent snapshot, cached instances, more locking
+transaction(isolation = REPEATABLE_READ) {
+    val user = userRepository.findById(1)
+    val sameUser = userRepository.findById(1)  // Cache hit, same instance
 }
 ```
+
+See [Transactions](transactions.md#isolation-levels) for guidance on choosing isolation levels.
 
 ### 2. Leverage Ref.fetch() Caching
 

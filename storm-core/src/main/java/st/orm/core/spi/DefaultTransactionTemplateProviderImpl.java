@@ -121,23 +121,15 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
         }
 
         @Override
-        public boolean isReadOnly() {
-            return springReflection.isCurrentTransactionReadOnly();
-        }
-
-        @Override
         public boolean isRepeatableRead() {
-            // Read-only transactions have repeatable-read semantics
-            // (can't see changes since you can't make any).
-            if (isReadOnly()) {
-                return true;
-            }
             // Check if isolation level is REPEATABLE_READ or higher.
             Integer isolationLevel = springReflection.getCurrentTransactionIsolationLevel();
             // Spring returns null when no explicit isolation level is set (database default).
-            // In that case, we assume the database default is sufficient and return true.
+            // Most databases default to READ_COMMITTED, so we return false to ensure fresh
+            // data is fetched on each read. Users who want cached instances should explicitly
+            // set REPEATABLE_READ or higher.
             if (isolationLevel == null || isolationLevel < 0) {
-                return true;
+                return false;
             }
             return isolationLevel >= Connection.TRANSACTION_REPEATABLE_READ;
         }
@@ -185,7 +177,6 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
                 "org.springframework.transaction.support.TransactionSynchronization";
 
         private final Method isActualTransactionActive;
-        private final Method isCurrentTransactionReadOnly;
         private final Method getCurrentTransactionIsolationLevel;
         private final Method getResource;
         private final Method bindResource;
@@ -195,7 +186,6 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
 
         private SpringReflection(
                 Method isActualTransactionActive,
-                Method isCurrentTransactionReadOnly,
                 Method getCurrentTransactionIsolationLevel,
                 Method getResource,
                 Method bindResource,
@@ -204,7 +194,6 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
                 Class<?> transactionSynchronizationType
         ) {
             this.isActualTransactionActive = isActualTransactionActive;
-            this.isCurrentTransactionReadOnly = isCurrentTransactionReadOnly;
             this.getCurrentTransactionIsolationLevel = getCurrentTransactionIsolationLevel;
             this.getResource = getResource;
             this.bindResource = bindResource;
@@ -218,7 +207,6 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
                 ClassLoader classLoader = DefaultTransactionTemplateProviderImpl.class.getClassLoader();
                 Class<?> tsm = Class.forName(TSM_FQCN, false, classLoader);
                 Method isActualTransactionActive = tsm.getMethod("isActualTransactionActive");
-                Method isCurrentTransactionReadOnly = tsm.getMethod("isCurrentTransactionReadOnly");
                 Method getCurrentTransactionIsolationLevel = tsm.getMethod("getCurrentTransactionIsolationLevel");
                 Method getResource = tsm.getMethod("getResource", Object.class);
                 Method bindResource = tsm.getMethod("bindResource", Object.class, Object.class);
@@ -235,7 +223,6 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
                 }
                 return new SpringReflection(
                         isActualTransactionActive,
-                        isCurrentTransactionReadOnly,
                         getCurrentTransactionIsolationLevel,
                         getResource,
                         bindResource,
@@ -251,14 +238,6 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
         boolean isActualTransactionActive() {
             try {
                 return (boolean) isActualTransactionActive.invoke(null);
-            } catch (Throwable t) {
-                return false;
-            }
-        }
-
-        boolean isCurrentTransactionReadOnly() {
-            try {
-                return (boolean) isCurrentTransactionReadOnly.invoke(null);
             } catch (Throwable t) {
                 return false;
             }

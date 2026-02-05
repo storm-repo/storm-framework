@@ -173,33 +173,19 @@ internal class SpringTransactionContext : TransactionContext {
     }
 
     /**
-     * Returns true if the transaction is marked as read-only, false otherwise.
-     *
-     * @return true if the transaction is marked as read-only, false otherwise.
-     * @since 1.7
-     */
-    override fun isReadOnly(): Boolean =
-        currentState.transactionDefinition?.isReadOnly ?: false
-
-    /**
      * Returns true if the transaction has repeatable-read semantics.
      *
-     * This is true when:
-     * - The isolation level is `REPEATABLE_READ` or higher, or
-     * - The transaction is read-only (can't see changes since you can't make any)
+     * This is true when the isolation level is `REPEATABLE_READ` or higher.
      *
      * When true, cached entities are returned when re-reading the same entity, preserving
      * entity identity. When false, fresh data is fetched from the database.
-     *
-     * Spring uses ISOLATION_DEFAULT (-1) when no specific isolation level is set; in that case, we assume
-     * the database default is sufficient and return true.
      */
     override fun isRepeatableRead(): Boolean {
-        // Read-only transactions have repeatable-read semantics
-        if (isReadOnly()) return true
-        val isolationLevel = currentState.transactionDefinition?.isolationLevel ?: return true
+        val isolationLevel = currentState.transactionDefinition?.isolationLevel ?: return false
         // Spring uses ISOLATION_DEFAULT (-1) when no specific isolation level is set.
-        if (isolationLevel < 0) return true
+        // Since most databases default to READ_COMMITTED, we return false to ensure fresh
+        // data is fetched on each read.
+        if (isolationLevel < 0) return false
         return isolationLevel >= TRANSACTION_REPEATABLE_READ
     }
 

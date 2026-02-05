@@ -25,21 +25,9 @@ import st.orm.Entity;
 public interface TransactionContext {
 
     /**
-     * Returns true if the transaction is marked as read-only, false otherwise.
-     *
-     * @return true if the transaction is marked as read-only, false otherwise.
-     * @since 1.7
-     */
-    boolean isReadOnly();
-
-    /**
      * Returns true if the transaction has repeatable-read semantics.
      *
-     * <p>This is true when:</p>
-     * <ul>
-     *   <li>The isolation level is {@code REPEATABLE_READ} or higher, or</li>
-     *   <li>The transaction is read-only (can't see changes since you can't make any)</li>
-     * </ul>
+     * <p>This is true when the isolation level is {@code REPEATABLE_READ} or higher.</p>
      *
      * <p>When {@code true}, cached entities are returned when re-reading the same entity, preserving
      * entity identity within the transaction. When {@code false}, fresh data is fetched from the database.</p>
@@ -51,7 +39,7 @@ public interface TransactionContext {
      * @since 1.8
      */
     default boolean isRepeatableRead() {
-        return true;
+        return false;
     }
 
     /**
