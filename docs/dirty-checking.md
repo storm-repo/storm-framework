@@ -104,7 +104,7 @@ val updatedUser = user.copy(name = "New Name")
 orm update updatedUser
 ```
 
-Storm does not observe entity state in this mode. No comparison is performed; every update is unconditional.
+No comparison is performed; every update is unconditional.
 
 ### When to Use OFF Mode
 

@@ -57,8 +57,11 @@ data class User(
 // DSL—query nested properties like city.name in one go
 val users = orm.findAll { User_.city.name eq "Sunnyvale" }
 
-// Repository CRUD operations and custom queries
-val user = userRepository.findByEmail("alice@example.com")
+// Custom repository—inherits all CRUD operations, add your own queries
+interface UserRepository : EntityRepository<User, Int> {
+    fun findByCityName(name: String) = findAll { User_.city.name eq name }
+}
+val users = userRepository.findByCityName("Sunnyvale")
 
 // Query Builder for more complex operations
 val users = orm.entity(User::class)
@@ -75,8 +78,13 @@ val users = orm.query { "SELECT ${t(User::class)} FROM ${t(User::class)} WHERE $
 Full coroutine support with `Flow` for streaming and programmatic transactions:
 
 ```kotlin
+// Streaming with Flow
+val users: Flow<User> = orm.entity(User::class).selectAll()
+users.collect { user -> println(user.name) }
+
+// Programmatic transactions
 transaction {
-    val city = orm insert City(name = "New York", population = 8_300_000)
+    val city = orm insert City(name = "Sunnyvale", population = 155_000)
     val user = orm insert User(email = "bob@example.com", name = "Bob", city = city)
 }
 ```
@@ -91,8 +99,13 @@ record User(@PK Integer id,
             @FK City city
 ) implements Entity<Integer> {}
 
-// Repository CRUD operations and custom queries
-Optional<User> user = userRepository.findByEmail("alice@example.com");
+// Custom repository—inherits all CRUD operations, add your own queries
+interface UserRepository extends EntityRepository<User, Integer> {
+    default List<User> findByCityName(String name) {
+        return select().where(User_.city.name, EQUALS, name).getResultList();
+    }
+}
+List<User> users = userRepository.findByCityName("Sunnyvale");
 
 // Query Builder for more complex operations
 List<User> users = orm.entity(User.class)
@@ -147,17 +160,17 @@ Everything you need to build applications with Storm. Start with Getting Started
 | Topic | Description |
 |-------|-------------|
 | [Getting Started](docs/getting-started.md) | Installation and first steps (5 min) |
-| [Entities](docs/entities.md) | Defining entities, annotations, naming (8 min) |
+| [Entities](docs/entities.md) | Defining entities, annotations, naming (10 min) |
 | [Projections](docs/projections.md) | Read-only database views (8 min) |
-| [Relationships](docs/relationships.md) | One-to-one, many-to-one, many-to-many (7 min) |
+| [Relationships](docs/relationships.md) | One-to-one, many-to-one, many-to-many (12 min) |
 | [Repositories](docs/repositories.md) | Repository pattern and custom methods (3 min) |
 | [Queries](docs/queries.md) | Select, filter, aggregate, order (5 min) |
-| [Metamodel](docs/metamodel.md) | Compile-time type safety (3 min) |
+| [Metamodel](docs/metamodel.md) | Compile-time type safety (9 min) |
 | [Refs](docs/refs.md) | Lazy loading and optimized references (4 min) |
 | [Batch & Streaming](docs/batch-streaming.md) | Bulk operations and Flow/Stream (2 min) |
 | [Upserts](docs/upserts.md) | Insert-or-update operations (3 min) |
 | [JSON Support](docs/json.md) | JSON columns and aggregation (4 min) |
-| [Transactions](docs/transactions.md) | Transaction management and propagation (15 min) |
+| [Transactions](docs/transactions.md) | Transaction management and propagation (19 min) |
 | [Spring Integration](docs/spring-integration.md) | Spring Boot configuration (4 min) |
 | [Database Dialects](docs/dialects.md) | Database-specific support (2 min) |
 

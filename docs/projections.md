@@ -198,9 +198,9 @@ Efficiently fetch multiple projections by ID:
 val ids = listOf(1, 2, 3)
 val owners = ownerViews.findAllById(ids)
 
-// Stream-based batch fetching (lazy evaluation)
-val idStream = sequenceOf(1, 2, 3, 4, 5).asStream()
-ownerViews.selectById(idStream).forEach { owner ->
+// Flow-based batch fetching (lazy evaluation)
+val idFlow = flowOf(1, 2, 3, 4, 5)
+ownerViews.selectById(idFlow).collect { owner ->
     // Process each owner
 }
 ```
@@ -315,8 +315,8 @@ Use `@DbColumn` to map fields to columns with different names.
 | `existsById(id)` | Check if projection exists |
 | `findAll()` | Fetch all as a list |
 | `findAllById(ids)` | Fetch multiple by IDs |
-| `selectAll()` | Lazy stream of all projections |
-| `selectById(ids)` | Lazy stream by IDs |
+| `selectAll()` | Lazy Flow of all projections |
+| `selectById(ids)` | Lazy Flow by IDs |
 | `select()` | Query builder for filtering |
 | `selectCount()` | Query builder for counting |
 

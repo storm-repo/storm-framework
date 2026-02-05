@@ -1,12 +1,23 @@
 # Transactions
 
-Storm works directly with the underlying database platform and integrates seamlessly with existing transaction management mechanisms.
+Transaction management is fundamental to database programming. Storm takes a practical approach: rather than inventing new abstractions, it provides first-class support for standard transaction semantics while integrating seamlessly with your existing infrastructure.
+
+Storm works directly with JDBC transactions and supports both programmatic and declarative transaction management. For Kotlin, Storm provides a coroutine-friendly API inspired by Exposed. For Java, Storm integrates with Spring's transaction management or works directly with JDBC connections.
 
 ---
 
 ## Kotlin
 
-Storm for Kotlin provides a fully programmatic transaction solution that is **completely coroutine-friendly**. It supports **all isolation levels and propagation modes** found in traditional transaction management systems. You can freely switch coroutine dispatchers within a transaction—offload CPU-bound work to `Dispatchers.Default` or IO work to `Dispatchers.IO`—and still remain in the **same active transaction**.
+Storm for Kotlin provides a fully programmatic transaction solution (following the style popularized by [Exposed](https://github.com/JetBrains/Exposed)) that is **completely coroutine-friendly**. It supports **all isolation levels and propagation modes** found in traditional transaction management systems. You can freely switch coroutine dispatchers within a transaction—offload CPU-bound work to `Dispatchers.Default` or IO work to `Dispatchers.IO`—and still remain in the **same active transaction**.
+
+The API is designed around Kotlin's type system and coroutine model. Import the transaction functions and enums from `st.orm.template`:
+
+```kotlin
+import st.orm.template.transaction
+import st.orm.template.transactionBlocking
+import st.orm.template.TransactionPropagation.*
+import st.orm.template.TransactionIsolation.*
+```
 
 ### Suspend Transactions
 
@@ -50,7 +61,9 @@ transactionBlocking {
 
 ### Transaction Propagation
 
-Propagation modes control how transactions interact when code calls another transactional method. This is essential for building composable services where each method can define its transactional requirements independently.
+Propagation modes are one of the most powerful features of enterprise transaction management, yet they're often misunderstood. They control how transactions interact when code calls another transactional method. This is essential for building composable services where each method can define its transactional requirements independently.
+
+Storm supports all seven standard propagation modes. Understanding when to use each mode helps you build robust, maintainable applications where components work correctly both standalone and when composed together.
 
 #### REQUIRED (Default)
 
@@ -339,7 +352,9 @@ fun runBatchJob() {
 
 ### Isolation Levels
 
-Isolation levels control what data a transaction can see from other concurrent transactions. When multiple transactions run simultaneously, they can interfere with each other in various ways. Isolation levels let you choose the trade-off between data consistency and performance—higher isolation means fewer anomalies but typically lower throughput.
+Isolation levels are the database's answer to concurrency. When multiple transactions run simultaneously, they can interfere with each other in various ways. The SQL standard defines four isolation levels, each preventing different types of concurrency anomalies.
+
+Storm exposes all four standard isolation levels through its API, giving you full control over the consistency-performance trade-off. Most applications work fine with the database's default isolation level (typically `READ_COMMITTED`), but understanding when to use higher levels is crucial for building correct applications.
 
 #### Concurrency Phenomena
 
@@ -623,21 +638,13 @@ withTransactionOptionsBlocking(isolation = SERIALIZABLE) {
 
 ### Spring-Managed Transactions
 
-When using Spring, you can combine declarative `@Transactional` with programmatic transactions:
+While Storm's programmatic transaction API works standalone, many applications use Spring's transaction management for its declarative `@Transactional` support and integration with other Spring components. Storm integrates seamlessly with Spring's transaction management.
 
-```kotlin
-@Transactional
-suspend fun processUsers() {
-    // Spring manages outer transaction
+When `@EnableTransactionIntegration` is configured, Storm's programmatic `transaction` blocks automatically detect and participate in Spring-managed transactions. This gives you the best of both worlds: Spring's declarative transaction boundaries with Storm's coroutine-friendly transaction blocks.
 
-    transaction {
-        // Participates in Spring transaction
-        orm.deleteAll<Visit>()
-    }
-}
-```
+#### Configuration
 
-Enable integration in your configuration:
+Enable Spring integration in your configuration class:
 
 ```kotlin
 @EnableTransactionIntegration
@@ -648,74 +655,318 @@ class ORMConfiguration(private val dataSource: DataSource) {
 }
 ```
 
+#### Combining Declarative and Programmatic Transactions
+
+You can use Spring's `@Transactional` annotation alongside Storm's programmatic `transaction` blocks. Storm will join the existing Spring transaction:
+
+```kotlin
+@Service
+class UserService(private val orm: ORMTemplate) {
+
+    @Transactional
+    suspend fun createUserWithOrders(user: User, orders: List<Order>) {
+        // Spring starts the transaction
+
+        transaction {
+            // Storm joins the Spring transaction (REQUIRED propagation by default)
+            orm insert user
+        }
+
+        transaction {
+            // Still in the same Spring transaction
+            orders.forEach { orm insert it }
+        }
+
+        // Spring commits when the method returns successfully
+    }
+}
+```
+
+#### Propagation Interaction
+
+Storm's propagation modes work with Spring transactions:
+
+```kotlin
+@Transactional
+suspend fun processWithAudit(user: User) {
+    transaction {
+        orm insert user
+    }
+
+    // REQUIRES_NEW creates an independent transaction, even within Spring's transaction
+    transaction(propagation = REQUIRES_NEW) {
+        auditRepository.log("User created: ${user.id}")
+        // Commits independently - audit survives even if outer transaction rolls back
+    }
+}
+```
+
+#### Suspend Functions with @Transactional
+
+For suspend functions, use Spring's `@Transactional` with the coroutine-aware transaction manager:
+
+```kotlin
+@Configuration
+@EnableTransactionManagement
+class TransactionConfig {
+    @Bean
+    fun transactionManager(dataSource: DataSource): ReactiveTransactionManager {
+        return DataSourceTransactionManager(dataSource)
+    }
+}
+
+@Service
+class OrderService(private val orm: ORMTemplate) {
+
+    @Transactional
+    suspend fun placeOrder(order: Order): Order {
+        val savedOrder = orm insert order
+
+        // Can switch dispatchers while staying in the same transaction
+        withContext(Dispatchers.Default) {
+            calculateLoyaltyPoints(savedOrder)
+        }
+
+        return savedOrder
+    }
+}
+```
+
+#### Using Storm Without @Transactional
+
+You can also use Storm's programmatic transactions without Spring's `@Transactional`. Storm manages the transaction lifecycle directly:
+
+```kotlin
+@Service
+class UserService(private val orm: ORMTemplate) {
+
+    // No @Transactional needed - Storm handles it
+    suspend fun createUser(user: User): User {
+        return transaction {
+            orm insert user
+        }
+    }
+
+    // Explicit propagation and isolation
+    suspend fun transferFunds(from: Account, to: Account, amount: BigDecimal) {
+        transaction(
+            propagation = REQUIRED,
+            isolation = SERIALIZABLE
+        ) {
+            accountRepository.debit(from, amount)
+            accountRepository.credit(to, amount)
+        }
+    }
+}
+```
+
 ---
 
 ## Java
 
-Storm for Java integrates with existing transaction management mechanisms. Use Spring's transaction support or direct JDBC transaction control.
+Storm for Java follows the principle of integration over invention. Rather than providing its own transaction API, Storm works with your existing transaction infrastructure. Whether you use Spring's `@Transactional` annotation, programmatic `TransactionTemplate`, or direct JDBC connection management, Storm participates correctly in the active transaction.
+
+This approach has several benefits: no new APIs to learn, full compatibility with existing code, and consistent behavior across your application. Storm simply uses the JDBC connection associated with the current transaction.
 
 ### Spring-Managed Transactions
 
-Use Spring's `@Transactional` annotation:
+Spring's transaction management is the most common approach for Java enterprise applications. Storm integrates naturally with Spring's `@Transactional` annotation, participating in the same transaction as other Spring-managed components like JPA repositories, JDBC templates, or other data access code.
+
+#### Configuration
+
+Configure Storm with Spring's transaction management:
 
 ```java
-@Transactional
-public void processUser(User user) {
-    userRepository.insert(user);
-    // Commits on success, rolls back on exception
+@Configuration
+@EnableTransactionManagement
+public class ORMConfiguration {
+
+    @Bean
+    public ORMTemplate ormTemplate(DataSource dataSource) {
+        return ORMTemplate.of(dataSource);
+    }
+
+    @Bean
+    public PlatformTransactionManager transactionManager(DataSource dataSource) {
+        return new DataSourceTransactionManager(dataSource);
+    }
 }
 ```
 
-### Programmatic Transactions with Spring
+#### Declarative Transactions with @Transactional
+
+Use Spring's `@Transactional` annotation on service methods. Storm automatically participates in the active transaction:
 
 ```java
-@Autowired
-private TransactionTemplate transactionTemplate;
+@Service
+public class UserService {
 
-public void processUsers() {
-    transactionTemplate.execute(status -> {
-        userRepository.insert(user);
-        return null;
-    });
+    private final ORMTemplate orm;
+
+    public UserService(ORMTemplate orm) {
+        this.orm = orm;
+    }
+
+    @Transactional
+    public void createUserWithOrders(User user, List<Order> orders) {
+        // Storm uses the Spring-managed transaction
+        orm.entity(User.class).insert(user);
+
+        for (Order order : orders) {
+            orm.entity(Order.class).insert(order);
+        }
+        // Spring commits when the method returns successfully
+        // Rolls back automatically on unchecked exceptions
+    }
+
+    @Transactional(readOnly = true)
+    public List<User> findActiveUsers() {
+        return orm.entity(User.class)
+            .select()
+            .where(User_.active, EQUALS, true)
+            .getResultList();
+    }
+
+    @Transactional(isolation = Isolation.SERIALIZABLE)
+    public void transferFunds(Account from, Account to, BigDecimal amount) {
+        orm.entity(Account.class).update(from.debit(amount));
+        orm.entity(Account.class).update(to.credit(amount));
+    }
 }
+```
+
+#### Propagation with @Transactional
+
+Spring's propagation modes control how transactions interact:
+
+```java
+@Service
+public class OrderService {
+
+    @Transactional
+    public void placeOrder(Order order) {
+        orm.entity(Order.class).insert(order);
+
+        // Audit log commits independently - survives even if outer transaction rolls back
+        auditService.logOrderCreated(order);
+
+        inventoryService.decreaseStock(order.getItems());
+    }
+}
+
+@Service
+public class AuditService {
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void logOrderCreated(Order order) {
+        orm.entity(AuditLog.class).insert(new AuditLog("Order created: " + order.getId()));
+        // Commits in its own transaction
+    }
+}
+```
+
+#### Programmatic Transactions
+
+While `@Transactional` works well for most cases, sometimes you need finer control over transaction boundaries. For example, processing a batch where each item should be in its own transaction, or conditionally rolling back based on runtime conditions. Spring's `TransactionTemplate` provides this control while still integrating with Spring's transaction infrastructure.
+
+```java
+@Service
+public class BatchService {
+
+    private final TransactionTemplate transactionTemplate;
+    private final ORMTemplate orm;
+
+    public BatchService(PlatformTransactionManager transactionManager, ORMTemplate orm) {
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.orm = orm;
+    }
+
+    public void processBatch(List<Item> items) {
+        for (Item item : items) {
+            // Each item processed in its own transaction
+            transactionTemplate.execute(status -> {
+                orm.entity(Item.class).update(item.markProcessed());
+                return null;
+            });
+        }
+    }
+
+    public User createUserOrRollback(User user, boolean shouldRollback) {
+        return transactionTemplate.execute(status -> {
+            User saved = orm.entity(User.class).insert(user);
+
+            if (shouldRollback) {
+                status.setRollbackOnly();  // Mark for rollback
+            }
+
+            return saved;
+        });
+    }
+}
+```
+
+Configure `TransactionTemplate` with specific settings:
+
+```java
+TransactionTemplate template = new TransactionTemplate(transactionManager);
+template.setIsolationLevel(TransactionDefinition.ISOLATION_SERIALIZABLE);
+template.setTimeout(30);  // 30 seconds
+template.setReadOnly(true);
+
+List<User> users = template.execute(status -> {
+    return orm.entity(User.class).selectAll().getResultList();
+});
 ```
 
 ### JDBC Transactions
 
-For direct JDBC control:
+For applications not using Spring, or for maximum control, you can manage transactions directly through JDBC. Storm works with any JDBC connection. Create an `ORMTemplate` from the connection and use it within your transaction scope.
 
 ```java
 try (Connection connection = dataSource.getConnection()) {
     connection.setAutoCommit(false);
 
-    var orm = ORMTemplate.of(connection);
-    orm.entity(User.class).insert(user);
+    try {
+        var orm = ORMTemplate.of(connection);
+        orm.entity(User.class).insert(user);
+        orm.entity(Order.class).insert(order);
 
-    connection.commit();
-} catch (Exception e) {
-    connection.rollback();
-    throw e;
+        connection.commit();
+    } catch (Exception e) {
+        connection.rollback();
+        throw e;
+    }
 }
 ```
 
-### JPA Entity Manager
+### JPA EntityManager
 
-Storm also works with JPA EntityManager:
+Storm can coexist with JPA in the same application. This is useful when migrating from JPA to Storm gradually, or when you want to use Storm for specific operations (like bulk inserts or complex queries) while keeping JPA for others. Storm can create an `ORMTemplate` directly from a JPA `EntityManager`, sharing the same underlying connection and transaction.
 
 ```java
-@PersistenceContext
-private EntityManager entityManager;
+@Service
+public class HybridService {
 
-@Transactional
-public void processUser(User user) {
-    var orm = ORMTemplate.of(entityManager);
-    orm.entity(User.class).insert(user);
+    @PersistenceContext
+    private EntityManager entityManager;
+
+    @Transactional
+    public void processWithBothOrms(User user) {
+        // Use Storm for efficient bulk operations
+        var orm = ORMTemplate.of(entityManager);
+        orm.entity(User.class).insert(user);
+
+        // JPA and Storm share the same transaction
+        entityManager.flush();
+    }
 }
 ```
 
 ---
 
 ## Important Notes
+
+Understanding these nuances helps avoid common pitfalls when working with transactions.
 
 ### Concurrency
 

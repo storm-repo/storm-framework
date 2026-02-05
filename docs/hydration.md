@@ -137,7 +137,7 @@ Storm flattens nested records into consecutive columns:
   │ User                │                     │ col 1 │  col 2  │    col 3    │    col 4    │ col 5  │
   │  ├─ id: Int         │ ──────────────────▶ │  id   │  name   │   street    │ postalCode  │ active │
   │  ├─ name: String    │                     ├───────┼─────────┼─────────────┼─────────────┼────────┤
-  │  ├─ address ────────┼──┐                  │  42   │ "Alice" │ "Main St 1" │   "12345"   │  true  │
+  │  ├─ address ────────┼──┐                  │  42   │ "Alice" │ "Main St 1" │   "94086"   │  true  │
   │  │  ┌───────────────┼──┘                  └───────┴─────────┴─────────────┴─────────────┴────────┘
   │  │  │ Address       │                           │         │           │             │        │
   │  │  │  ├─ street    │                           │         │           └──────┬──────┘        │
@@ -166,8 +166,8 @@ During hydration, Storm reconstructs the nested hierarchy from the flat columns.
   ┌───────────────────────┐          ┌─────────────────────────────────────────────────────┐
   │ Address(              │          │ User(                                               │
   │   street = "Main St 1"│ ───────▶ │   id = 42,                                          │
-  │   postalCode = "12345"│          │   name = "Alice",                                   │
-  │ )                     │          │   address = Address("Main St 1", "12345"),          │
+  │   postalCode = "94086"│          │   name = "Alice",                                   │
+  │ )                     │          │   address = Address("Main St 1", "94086"),          │
   └───────────────────────┘          │   active = true                                     │
                                      │ )                                                   │
                                      └─────────────────────────────────────────────────────┘
@@ -202,12 +202,12 @@ The nested structure flattens to 4 columns, with innermost records at the end:
   Record Structure                       Flattened Columns
   ────────────────                       ─────────────────
 
-  ┌────────────────────────┐             ┌──────┬───────────┬─────────────┬──────┐
-  │ User                   │             │col 1 │   col 2   │    col 3    │col 4 │
-  │  ├─ id: Int            │────────────▶│  id  │ city.name │country.name │ code │
-  │  └─ city ──────────────┼──┐          ├──────┼───────────┼─────────────┼──────┤
-  │     ┌──────────────────┼──┘          │  42  │"Amsterdam"│"Netherlands"│ "NL" │
-  │     │ City             │             └──────┴───────────┴─────────────┴──────┘
+  ┌────────────────────────┐             ┌──────┬───────────┬───────────────┬──────┐
+  │ User                   │             │col 1 │   col 2   │     col 3     │col 4 │
+  │  ├─ id: Int            │────────────▶│  id  │ city.name │ country.name  │ code │
+  │  └─ city ──────────────┼──┐          ├──────┼───────────┼───────────────┼──────┤
+  │     ┌──────────────────┼──┘          │  42  │"Sunnyvale"│"United States"│ "US" │
+  │     │ City             │             └──────┴───────────┴───────────────┴──────┘
   │     │  ├─ name: String │                 │         │           │          │
   │     │  └─ country ─────┼──┐              │         │           └────┬─────┘
   │     │     ┌────────────┼──┘              │         │                │
@@ -230,12 +230,12 @@ Hydration reconstructs from the **innermost** level outward:
   cols [3..4]                   col [2] + Country            col [1] + City
        │                              │                            │
        ▼                              ▼                            ▼
-  ┌────────────────┐            ┌────────────────┐           ┌──────────────────┐
-  │ Country(       │            │ City(          │           │ User(            │
-  │  "Netherlands",│ ─────────▶ │  "Amsterdam",  │ ────────▶ │   id = 42,       │
-  │  "NL"          │            │   country ─────┼───┐       │   city ──────────┼─┐
-  │ )              │            │ )              │   │       │ )                │ │
-  └────────────────┘            └────────────────┘   │       └──────────────────┘ │
+  ┌──────────────────┐          ┌────────────────┐           ┌──────────────────┐
+  │ Country(         │          │ City(          │           │ User(            │
+  │  "United States",│ ───────▶ │  "Sunnyvale",  │ ────────▶ │   id = 42,       │
+  │  "US"            │          │   country ─────┼───┐       │   city ──────────┼─┐
+  │ )                │          │ )              │   │       │ )                │ │
+  └──────────────────┘          └────────────────┘   │       └──────────────────┘ │
                                        ▲             │              ▲             │
                                        └─────────────┘              └─────────────┘
 ```
@@ -353,12 +353,12 @@ When the same entity appears multiple times in a query result (e.g., through joi
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                          Query Result Set                               │
 │                                                                         │
-│  SELECT o.*, c.* FROM orders o JOIN customers c ON o.customer_id = c.id │
+│  SELECT u.*, c.* FROM user u JOIN city c ON u.city_id = c.id            │
 │                                                                         │
 │  ┌───────────────────────────────────────────────────────────────────┐  │
-│  │ Row 1: Order(id=1, customer_id=42) │ Customer(id=42, name="Alice")│  │
-│  │ Row 2: Order(id=2, customer_id=42) │ Customer(id=42, name="Alice")│  │
-│  │ Row 3: Order(id=3, customer_id=99) │ Customer(id=99, name="Bob")  │  │
+│  │ Row 1: User(id=1, city_id=42) │ City(id=42, name="Sunnyvale")     │  │
+│  │ Row 2: User(id=2, city_id=42) │ City(id=42, name="Sunnyvale")     │  │
+│  │ Row 3: User(id=3, city_id=99) │ City(id=99, name="Austin")        │  │
 │  └───────────────────────────────────────────────────────────────────┘  │
 │                             │                                           │
 │                             ▼                                           │
@@ -367,22 +367,22 @@ When the same entity appears multiple times in a query result (e.g., through joi
 │                 │  ┌────────┬────────┐  │                               │
 │                 │  │   PK   │ Entity │  │                               │
 │                 │  ├────────┼────────┤  │                               │
-│                 │  │   42   │ ──────────▶ Customer(42)                  │
-│                 │  │   99   │ ──────────▶ Customer(99)                  │
+│                 │  │   42   │ ──────────▶ City(42)                      │
+│                 │  │   99   │ ──────────▶ City(99)                      │
 │                 │  └────────┴────────┘  │                               │
 │                 └───────────────────────┘                               │
 │                             │                                           │
 │                             ▼                                           │
 │  ┌───────────────────────────────────────────────────────────────────┐  │
 │  │ Result:                                                           │  │
-│  │   Order(1) ──▶ Customer(42) ◀── same instance                     │  │
-│  │   Order(2) ──▶ Customer(42) ◀──┘                                  │  │
-│  │   Order(3) ──▶ Customer(99)                                       │  │
+│  │   User(1) ──▶ City(42) ◀── same instance                          │  │
+│  │   User(2) ──▶ City(42) ◀──┘                                       │  │
+│  │   User(3) ──▶ City(99)                                            │  │
 │  └───────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-Three rows contain `Customer(42)` data twice, but the interner ensures only one instance is created. Both `Order(1)` and `Order(2)` reference the same `Customer` object in memory.
+Three rows contain `City(42)` data twice, but the interner ensures only one instance is created. Both `User(1)` and `User(2)` reference the same `City` object in memory.
 
 ### How Interning Works
 
@@ -411,18 +411,18 @@ When a cache hit occurs, Storm skips the entire construction process for that en
 **Example with joins:**
 
 ```kotlin
-// Query returns 1000 orders, but only 50 unique customers
-val orders = orderRepository.findAll { Order_.status eq "pending" }
+// Query returns 1000 users, but only 50 unique cities
+val users = userRepository.findAll { User_.active eq true }
 ```
 
-Without early lookup, Storm would construct 1000 `Customer` objects and then deduplicate. With early lookup:
+Without early lookup, Storm would construct 1000 `City` objects and then deduplicate. With early lookup:
 
-- Row 1: Customer PK=42 not in cache → construct Customer, store in interner
-- Row 2: Customer PK=42 found in interner → skip construction, reuse instance
-- Row 3: Customer PK=42 found in interner → skip construction, reuse instance
+- Row 1: City PK=42 not in cache → construct City, store in interner
+- Row 2: City PK=42 found in interner → skip construction, reuse instance
+- Row 3: City PK=42 found in interner → skip construction, reuse instance
 - ...
 
-Result: Only 50 Customer objects are ever constructed, not 1000.
+Result: Only 50 City objects are ever constructed, not 1000.
 
 **This optimization applies to:**
 
@@ -461,36 +461,39 @@ At `REPEATABLE_READ` and above, the entity cache extends query-level identity to
 
 ## Composite Primary Keys
 
-Records can have composite primary keys (multiple columns):
+When a table has a composite primary key (multiple columns forming the PK), model it as a separate record containing each key column:
 
 ```kotlin
-data class OrderItemPk(
-    val orderId: Int,
-    val productId: Int
+data class UserRolePk(
+    val userId: Int,    // PK column 1
+    val role: String    // PK column 2
 )
 
-data class OrderItem(
-    @PK val pk: OrderItemPk,
-    val quantity: Int,
-    val price: BigDecimal
-) : Entity<OrderItemPk>
+data class UserRole(
+    @PK val pk: UserRolePk,
+    val grantedAt: Instant,
+    @FK val grantedBy: Ref<User>
+) : Entity<UserRolePk>
 ```
 
-Column layout:
+This maps to a `user_role` table where `user_id` and `role` together form the primary key:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
 │  Column:         1           2           3          4                  │
-│                ┌───────────┬────────────┬──────────┬─────────┐         │
-│                │ pk.orderId│pk.productId│ quantity │  price  │         │
-│                └───────────┴────────────┴──────────┴─────────┘         │
+│                ┌───────────┬────────────┬──────────┬───────────┐       │
+│                │  user_id  │    role    │granted_at│granted_by │       │
+│                └───────────┴────────────┴──────────┴───────────┘       │
+│                 \___________ __________/                               │
+│                             v                                          │
+│                     composite primary key                              │
 │                                                                        │
-│  OrderItemPk:   [1..2]                                                 │
-│  OrderItem:     [1..4] (includes nested PK)                            │
+│  UserRolePk:    [1..2]                                                 │
+│  UserRole:      [1..4] (includes nested PK)                            │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-The composite PK spans columns 1-2. Storm first constructs `OrderItemPk` from these columns, then uses it along with columns 3-4 to construct the full `OrderItem` entity.
+Storm first constructs `UserRolePk` from the primary key columns (1-2), then uses it along with columns 3-4 to construct the full `UserRole` entity.
 
 ---
 

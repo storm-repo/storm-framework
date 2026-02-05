@@ -1442,7 +1442,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
         selectRef().resultList
 
     /**
-     * Retrieves all entities of type [T] from the repository.
+     * Retrieves all entities of type [E] from the repository.
      *
      * The resulting sequence is lazily loaded, meaning that the entities are only retrieved from the database as they
      * are consumed by the sequence. This approach is efficient and minimizes the memory footprint, especially when
@@ -1458,7 +1458,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
         selectRef().resultFlow
 
     /**
-     * Retrieves an optional entity of type [T] based on a single field and its value.
+     * Retrieves an optional entity of type [E] based on a single field and its value.
      * Returns null if no matching entity is found.
      *
      * @param field metamodel reference of the entity field.

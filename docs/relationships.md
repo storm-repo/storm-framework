@@ -5,23 +5,34 @@ Automatic relationship loading is a core part of Storm's design. Your data model
 This design enables:
 
 - **Single-query loading.** No N+1 problems. One query returns the complete entity graph.
-- **Type-safe path expressions.** Filter on joined fields with full IDE support, including auto-completion across relationships: `User_.city.name eq "Amsterdam"`
+- **Type-safe path expressions.** Filter on joined fields with full IDE support, including auto-completion across relationships: `User_.city.name eq "Sunnyvale"`
 - **Concise syntax.** No manual joins, no fetch configuration, no lazy loading surprises.
 - **Predictable behavior.** What you define is what you get. The entity structure *is* the query structure.
 
 ```kotlin
-// Define the relationship once
+// Define the relationships once
+data class Country(
+    @PK val code: String,
+    val name: String
+) : Entity<String>
+
+data class City(
+    @PK val id: Int = 0,
+    val name: String,
+    @FK val country: Country
+) : Entity<Int>
+
 data class User(
     @PK val id: Int = 0,
     val name: String,
-    @FK val city: City      // Auto-joins City and its foreign relationships
+    @FK val city: City      // Auto-joins City, Country, and all nested relationships
 ) : Entity<Int>
 
-// Query with type-safe access to nested fields
-val users = orm.findAll { User_.city.name eq "Amsterdam" }
+// Query with type-safe access to nested fields throughout the entire entity graph
+val users = orm.findAll { User_.city.country.code eq "US" }
 
-// Result: fully populated User with City included
-users.forEach { println("${it.name} lives in ${it.city.name}") }
+// Result: fully populated User with City and Country included
+users.forEach { println("${it.name} lives in ${it.city.name}, ${it.city.country.name}") }
 ```
 
 All relationship types are supported through the `@FK` annotation.
@@ -88,10 +99,12 @@ data class UserRolePk(
 
 data class UserRole(
     @PK val userRolePk: UserRolePk,
-    @FK val user: User,
-    @FK val role: Role
+    @FK @Persist(insertable = false, updatable = false) val user: User,
+    @FK @Persist(insertable = false, updatable = false) val role: Role
 ) : Entity<UserRolePk>
 ```
+
+The `@Persist(insertable = false, updatable = false)` annotation indicates that the FK columns overlap with the composite PK columns. The FK fields are used to load the related entities, but the column values come from the PK during insert/update operations.
 
 Query through the join entity:
 
@@ -115,6 +128,50 @@ val roles: List<Role> = orm.entity(Role::class)
     .resultList
 ```
 
+### Composite Foreign Keys
+
+When referencing an entity with a composite primary key, Storm automatically generates multi-column join conditions:
+
+```kotlin
+// Entity with composite PK
+data class UserRolePk(
+    val userId: Int,
+    val roleId: Int
+)
+
+data class UserRole(
+    @PK val pk: UserRolePk,
+    @FK val user: User,
+    @FK val role: Role,
+    val grantedAt: Instant
+) : Entity<UserRolePk>
+
+// Entity referencing the composite PK entity
+data class AuditLog(
+    @PK val id: Int = 0,
+    val action: String,
+    @FK val userRole: UserRole?  // References entity with composite PK
+) : Entity<Int>
+```
+
+Storm generates a multi-column join condition:
+
+```sql
+LEFT JOIN user_role ur
+  ON al.user_id = ur.user_id
+  AND al.role_id = ur.role_id
+```
+
+**Custom column names:** Use `@DbColumn` annotations to specify custom FK column names:
+
+```kotlin
+data class AuditLog(
+    @PK val id: Int = 0,
+    val action: String,
+    @FK @DbColumn("audit_user_id") @DbColumn("audit_role_id") val userRole: UserRole?
+) : Entity<Int>
+```
+
 ### Self-Referential Relationships
 
 Use `Ref` to prevent circular loading:
@@ -126,6 +183,55 @@ data class Employee(
     @FK val manager: Ref<Employee>?  // Self-reference with Ref
 ) : Entity<Int>
 ```
+
+### Primary Key as Foreign Key
+
+Sometimes a table's primary key is also a foreign key to another entity. This is common for:
+
+- **Dependent one-to-one relationships** where a child entity cannot exist without its parent
+- **Extension tables** that add optional data to an existing entity
+- **Specialized subtypes** in a table-per-subtype inheritance strategy
+
+Use both `@PK` and `@FK` annotations on the same field, with `generation = NONE` since the key value comes from the related entity rather than being auto-generated:
+
+```kotlin
+data class UserProfile(
+    @PK(generation = NONE) @FK val user: User,  // PK is also FK to User
+    val bio: String?,
+    val avatarUrl: String?,
+    val theme: Theme?
+) : Entity<User>
+```
+
+The `generation = NONE` tells Storm that the primary key is not auto-generated—the value must be provided when inserting. This is necessary because the key comes from the related `User` entity.
+
+**Column name resolution:** When both `@PK` and `@FK` are present, Storm resolves the column name in this order:
+
+1. Explicit name in `@PK` (e.g., `@PK("user_profile_id")`)
+2. Explicit name in `@DbColumn`
+3. Foreign key naming convention (default)
+
+For a field named `user`, the FK convention produces `user_id`. To override this, specify the name explicitly:
+
+```kotlin
+@PK("user_profile_id", generation = NONE) @FK val user: User  // Uses "user_profile_id"
+```
+
+The entity's type parameter is the related entity type (`User`), not a primitive key type. This reflects that the `UserProfile` is uniquely identified by its associated `User`.
+
+When inserting, provide the related entity:
+
+```kotlin
+val profile = UserProfile(
+    user = existingUser,
+    bio = "Software developer",
+    avatarUrl = null,
+    theme = Theme.DARK
+)
+orm.insert(profile)
+```
+
+Storm extracts the primary key from the `User` entity and uses it as the value for the `user_id` column.
 
 ---
 
@@ -189,10 +295,12 @@ Use a join entity with composite primary key:
 record UserRolePk(int userId, int roleId) {}
 
 record UserRole(@PK UserRolePk userRolePk,
-                @Nonnull @FK User user,
-                @Nonnull @FK Role role
+                @Nonnull @FK @Persist(insertable = false, updatable = false) User user,
+                @Nonnull @FK @Persist(insertable = false, updatable = false) Role role
 ) implements Entity<UserRolePk> {}
 ```
+
+The `@Persist(insertable = false, updatable = false)` annotation indicates that the FK columns overlap with the composite PK columns. The FK fields are used to load the related entities, but the column values come from the PK during insert/update operations.
 
 Query through the join entity:
 
@@ -218,6 +326,45 @@ List<Role> roles = orm.entity(Role.class)
     .getResultList();
 ```
 
+### Composite Foreign Keys
+
+When referencing an entity with a composite primary key, Storm automatically generates multi-column join conditions:
+
+```java
+// Entity with composite PK
+record UserRolePk(int userId, int roleId) {}
+
+record UserRole(@PK UserRolePk pk,
+                @Nonnull @FK User user,
+                @Nonnull @FK Role role,
+                Instant grantedAt
+) implements Entity<UserRolePk> {}
+
+// Entity referencing the composite PK entity
+record AuditLog(@PK Integer id,
+                String action,
+                @Nullable @FK UserRole userRole  // References entity with composite PK
+) implements Entity<Integer> {}
+```
+
+Storm generates a multi-column join condition:
+
+```sql
+LEFT JOIN user_role ur
+  ON al.user_id = ur.user_id
+  AND al.role_id = ur.role_id
+```
+
+**Custom column names:** Use `@DbColumn` annotations to specify custom FK column names:
+
+```java
+record AuditLog(@PK Integer id,
+                String action,
+                @Nullable @FK @DbColumn("audit_user_id") @DbColumn("audit_role_id")
+                UserRole userRole
+) implements Entity<Integer> {}
+```
+
 ### Self-Referential Relationships
 
 Use `Ref` to prevent circular loading:
@@ -228,6 +375,49 @@ record Employee(@PK Integer id,
                 @Nullable @FK Ref<Employee> manager  // Self-reference with Ref
 ) implements Entity<Integer> {}
 ```
+
+### Primary Key as Foreign Key
+
+Sometimes a table's primary key is also a foreign key to another entity. This is common for:
+
+- **Dependent one-to-one relationships** where a child entity cannot exist without its parent
+- **Extension tables** that add optional data to an existing entity
+- **Specialized subtypes** in a table-per-subtype inheritance strategy
+
+Use both `@PK` and `@FK` annotations on the same field, with `generation = NONE` since the key value comes from the related entity rather than being auto-generated:
+
+```java
+record UserProfile(@PK(generation = NONE) @FK User user,  // PK is also FK to User
+                   @Nullable String bio,
+                   @Nullable String avatarUrl,
+                   @Nullable Theme theme
+) implements Entity<User> {}
+```
+
+The `generation = NONE` tells Storm that the primary key is not auto-generated—the value must be provided when inserting. This is necessary because the key comes from the related `User` entity.
+
+**Column name resolution:** When both `@PK` and `@FK` are present, Storm resolves the column name in this order:
+
+1. Explicit name in `@PK` (e.g., `@PK("user_profile_id")`)
+2. Explicit name in `@DbColumn`
+3. Foreign key naming convention (default)
+
+For a field named `user`, the FK convention produces `user_id`. To override this, specify the name explicitly:
+
+```java
+@PK(value = "user_profile_id", generation = NONE) @FK User user  // Uses "user_profile_id"
+```
+
+The entity's type parameter is the related entity type (`User`), not a primitive key type. This reflects that the `UserProfile` is uniquely identified by its associated `User`.
+
+When inserting, provide the related entity:
+
+```java
+var profile = new UserProfile(existingUser, "Software developer", null, Theme.DARK);
+orm.entity(UserProfile.class).insert(profile);
+```
+
+Storm extracts the primary key from the `User` entity and uses it as the value for the `user_id` column.
 
 ---
 

@@ -18,9 +18,47 @@ package st.orm;
 import jakarta.annotation.Nonnull;
 
 /**
- * The metamodel is used to map database columns to the object model in a type-safe way.
+ * The metamodel provides type-safe references to entity fields for use in queries. Generated metamodel classes
+ * (e.g., {@code User_} for a {@code User} entity) contain static fields representing each entity field, enabling
+ * compile-time verification of field references.
  *
- * @param <T> the primary table type.
+ * <h2>Nested Paths (Fully Qualified)</h2>
+ *
+ * <p>Nested paths traverse from the root entity through relationships by chaining field accessors:
+ * <pre>{@code
+ * // Traverse User → City → Country → name
+ * User_.city.country.name
+ * }</pre>
+ *
+ * <p>Nested paths are <strong>always unambiguous</strong> because they explicitly specify the traversal from the
+ * root entity. Storm automatically generates the necessary JOINs based on the path.
+ *
+ * <h2>Short Form</h2>
+ *
+ * <p>Short form references a table's metamodel directly without specifying the path:
+ * <pre>{@code
+ * // Reference Country directly
+ * Country_.name
+ * }</pre>
+ *
+ * <p>Short form works <strong>only when the table appears exactly once</strong> in the entity graph. If the table
+ * is referenced in multiple places, Storm cannot determine which occurrence you mean and throws an exception.
+ *
+ * <p>Short form is also used to reference tables added via custom joins, since those tables are not reachable
+ * through nested paths.
+ *
+ * <h2>Path Resolution</h2>
+ *
+ * <p>When resolving a metamodel reference, Storm follows this order:
+ * <ol>
+ *   <li><strong>Nested path</strong> — If a path is specified (e.g., {@code User_.city.country}), use the alias
+ *       for that specific traversal</li>
+ *   <li><strong>Unique table lookup</strong> — If short form (e.g., {@code Country_}), check if the table appears
+ *       exactly once in the entity graph or registered joins</li>
+ *   <li><strong>Error</strong> — If multiple paths exist, throw an exception indicating the ambiguity</li>
+ * </ol>
+ *
+ * @param <T> the root table type (the entity from which the path originates).
  * @param <E> the field type of the designated element.
  * @since 1.2
  */

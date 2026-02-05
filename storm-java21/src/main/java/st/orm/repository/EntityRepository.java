@@ -593,6 +593,23 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
     List<E> findAll();
 
     /**
+     * Returns a list of refs to all entities of the type supported by this repository. Each element in the list
+     * represents a lightweight reference to an entity in the database, containing only the primary key.
+     *
+     * <p>This method is useful when you need to retrieve all entity identifiers without loading the full entity data.
+     * The complete entity can be fetched on demand by calling {@link Ref#fetch()} on any of the returned refs.</p>
+     *
+     * <p><strong>Note:</strong> While this method is more memory-efficient than {@link #findAll()} since it only
+     * loads primary keys, loading all refs into memory at once can still be memory-intensive for very large tables.</p>
+     *
+     * @return a list of refs to all entities of the type supported by this repository.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     * @since 1.3
+     */
+    List<Ref<E>> findAllRef();
+
+    /**
      * Retrieves a list of entities based on their primary keys.
      *
      * <p>This method retrieves entities matching the provided IDs in batches, consolidating them into a single list.
@@ -843,6 +860,29 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      *                              connectivity.
      */
     Stream<E> selectAll();
+
+    /**
+     * Returns a stream of refs to all entities of the type supported by this repository. Each element in the stream
+     * represents a lightweight reference to an entity in the database, containing only the primary key.
+     *
+     * <p>This method is useful when you need to retrieve all entity identifiers without loading the full entity data.
+     * The complete entity can be fetched on demand by calling {@link Ref#fetch()} on any of the returned refs.</p>
+     *
+     * <p>The resulting stream is lazily loaded, meaning that the refs are only retrieved from the database as they
+     * are consumed by the stream. This approach is efficient and minimizes the memory footprint, especially when
+     * dealing with large volumes of entities.</p>
+     *
+     * <p><strong>Note:</strong> Calling this method does trigger the execution of the underlying
+     * query, so it should only be invoked when the query is intended to run. Since the stream holds resources open
+     * while in use, it must be closed after usage to prevent resource leaks. As the stream is {@code AutoCloseable}, it
+     * is recommended to use it within a {@code try-with-resources} block.</p>
+     *
+     * @return a stream of refs to all entities of the type supported by this repository.
+     * @throws PersistenceException if the selection operation fails due to underlying database issues, such as
+     *                              connectivity.
+     * @since 1.3
+     */
+    Stream<Ref<E>> selectAllRef();
 
     /**
      * Retrieves a stream of entities based on their primary keys.

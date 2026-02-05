@@ -113,7 +113,7 @@ Use data classes for embedded components:
 
 ```kotlin
 data class Address(
-    val address: String? = null,
+    val street: String? = null,
     @FK val city: City? = null
 )
 
@@ -151,6 +151,57 @@ data class UserRole(
     @FK val role: Role
 ) : Entity<UserRolePk>
 ```
+
+### Primary Key Generation
+
+The `@PK` annotation supports a `generation` parameter that controls how primary key values are generated:
+
+| Strategy | Description |
+|----------|-------------|
+| `IDENTITY` | Database generates the key using an identity/auto-increment column (default) |
+| `SEQUENCE` | Database generates the key using a named sequence |
+| `NONE` | No generation; the caller must provide the key value |
+
+**IDENTITY (default):**
+
+```kotlin
+data class User(
+    @PK val id: Int = 0,  // Database generates via auto-increment
+    val name: String
+) : Entity<Int>
+```
+
+When inserting, Storm omits the PK column and retrieves the generated value:
+
+```kotlin
+val user = User(name = "Alice")
+val inserted = orm.insert(user)  // Returns User with generated id
+```
+
+**SEQUENCE:**
+
+```kotlin
+data class Order(
+    @PK(generation = SEQUENCE, sequence = "order_seq") val id: Long = 0,
+    val total: BigDecimal
+) : Entity<Long>
+```
+
+Storm fetches the next value from the sequence before inserting.
+
+**NONE:**
+
+```kotlin
+data class Country(
+    @PK(generation = NONE) val code: String,  // Caller provides the value
+    val name: String
+) : Entity<String>
+```
+
+Use `NONE` when:
+- The key is a natural key (like country codes or UUIDs)
+- The key comes from an external source
+- The primary key is also a foreign key (see [Primary Key as Foreign Key](relationships.md#primary-key-as-foreign-key))
 
 ---
 
@@ -254,7 +305,7 @@ record Pet(@PK Integer id,
 Use records for embedded components:
 
 ```java
-record Address(String address,
+record Address(String street,
                @FK City city) {}
 
 record Owner(@PK Integer id,
@@ -285,6 +336,54 @@ record UserRole(@PK UserRolePk userRolePk,
                 @Nonnull @FK Role role
 ) implements Entity<UserRolePk> {}
 ```
+
+### Primary Key Generation
+
+The `@PK` annotation supports a `generation` parameter that controls how primary key values are generated:
+
+| Strategy | Description |
+|----------|-------------|
+| `IDENTITY` | Database generates the key using an identity/auto-increment column (default) |
+| `SEQUENCE` | Database generates the key using a named sequence |
+| `NONE` | No generation; the caller must provide the key value |
+
+**IDENTITY (default):**
+
+```java
+record User(@PK Integer id,  // Database generates via auto-increment
+            @Nonnull String name
+) implements Entity<Integer> {}
+```
+
+When inserting, Storm omits the PK column and retrieves the generated value:
+
+```java
+var user = new User(null, "Alice");
+var inserted = orm.entity(User.class).insert(user);  // Returns User with generated id
+```
+
+**SEQUENCE:**
+
+```java
+record Order(@PK(generation = SEQUENCE, sequence = "order_seq") Long id,
+             @Nonnull BigDecimal total
+) implements Entity<Long> {}
+```
+
+Storm fetches the next value from the sequence before inserting.
+
+**NONE:**
+
+```java
+record Country(@PK(generation = NONE) String code,  // Caller provides the value
+               @Nonnull String name
+) implements Entity<String> {}
+```
+
+Use `NONE` when:
+- The key is a natural key (like country codes or UUIDs)
+- The key comes from an external source
+- The primary key is also a foreign key (see [Primary Key as Foreign Key](relationships.md#primary-key-as-foreign-key))
 
 ### Builder Pattern (with Lombok)
 

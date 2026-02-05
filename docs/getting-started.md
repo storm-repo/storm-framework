@@ -161,14 +161,14 @@ Storm provides full programmatic transaction control:
 ```kotlin
 // Blocking transactions
 transactionBlocking {
-    val city = orm insert City(name = "New York", population = 8_300_000)
+    val city = orm insert City(name = "Sunnyvale", population = 155_000)
     val user = orm insert User(email = "bob@example.com", name = "Bob", city = city)
     // Commits on success, rolls back on exception
 }
 
 // Suspend transactions for coroutines
 transaction {
-    val city = orm insert City(name = "New York", population = 8_300_000)
+    val city = orm insert City(name = "Sunnyvale", population = 155_000)
     val user = orm insert User(email = "bob@example.com", name = "Bob", city = city)
 }
 

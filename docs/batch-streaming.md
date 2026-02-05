@@ -17,23 +17,23 @@ val users = listOf(
     User(email = "charlie@example.com", name = "Charlie")
 )
 
-orm.insertAll(users)
+orm insert users
 ```
 
 ### Batch Update
 
 ```kotlin
 val updatedUsers = users.map { it.copy(active = true) }
-orm.updateAll(updatedUsers)
+orm update updatedUsers
 ```
 
 ### Batch Delete
 
 ```kotlin
-orm.deleteAll(users)
+orm delete users
 
-// Or delete by condition
-orm.deleteAll<User> { User_.active eq false }
+// Or delete all
+orm.deleteAll<User>()
 ```
 
 ### Streaming with Flow

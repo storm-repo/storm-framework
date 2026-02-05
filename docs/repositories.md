@@ -38,8 +38,8 @@ orm update user.copy(name = "Alice Johnson")
 // Delete
 orm delete user
 
-// Delete all matching
-orm.deleteAll<User> { User_.city eq city }
+// Delete by condition
+orm.delete<User> { User_.city eq city }
 ```
 
 ### Streaming with Flow
@@ -156,7 +156,7 @@ try (Stream<Ref<User>> refs = userRepository.selectAllRef()) {
 
 // Select by refs
 List<Ref<User>> refList = ...;
-try (Stream<User> users = userRepository.selectByRef(refList)) {
+try (Stream<User> users = userRepository.selectByRef(refList.stream())) {
     // Process users
 }
 ```

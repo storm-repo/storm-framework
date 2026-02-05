@@ -218,7 +218,7 @@ Metamodel fields support path navigation for `@FK` relationships:
 orm.query { """
     SELECT ${t(User::class)}
     FROM ${t(User::class)}
-    WHERE ${t(User_.city.country.code)} = ${t("NL")}
+    WHERE ${t(User_.city.country.code)} = ${t("US")}
 """ }
 ```
 
@@ -269,7 +269,7 @@ For advanced use cases like batch operations, subqueries, or custom insert/updat
 val users = orm.query { """
     SELECT ${t(User::class)}
     FROM ${t(User::class)}
-    WHERE ${t(User_.city.country.code)} = ${t("NL")}
+    WHERE ${t(User_.city.country.code)} = ${t("US")}
       AND ${t(User_.email)} LIKE ${t("%@example.com")}
 """ }.getResultList(User::class)
 ```

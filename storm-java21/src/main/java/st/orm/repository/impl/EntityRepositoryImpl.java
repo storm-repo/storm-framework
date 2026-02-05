@@ -209,6 +209,11 @@ public final class EntityRepositoryImpl<E extends Entity<ID>, ID> implements Ent
     }
 
     @Override
+    public List<Ref<E>> findAllRef() {
+        return selectRef().getResultList();
+    }
+
+    @Override
     public List<E> findAllById(@Nonnull Iterable<ID> ids) {
         return core.findAllById(ids);
     }
@@ -276,6 +281,11 @@ public final class EntityRepositoryImpl<E extends Entity<ID>, ID> implements Ent
     @Override
     public Stream<E> selectAll() {
         return core.selectAll();
+    }
+
+    @Override
+    public Stream<Ref<E>> selectAllRef() {
+        return selectRef().getResultStream();
     }
 
     @Override
