@@ -20,9 +20,11 @@
 
 ## Why Storm?
 
-Storm stands on the shoulders of giants and draws inspiration from established ORMs, such as Hibernate. Built from scratch with a clear design philosophy—*what is the minimal amount of code required to express intent?*—Storm takes a fresh approach optimized for modern Kotlin and Java.
+Storm draws inspiration from established ORMs such as Hibernate, but is built from scratch around a clear design philosophy: capturing exactly what you want to do using the minimum amount of code, optimized for modern Kotlin and Java.
 
-**Storm's mission:** Make database development productive and enjoyable while keeping developers in full control. Storm simplifies database interactions without hiding what's happening underneath. It is engineered for both rapid development and high-performance execution, scaling seamlessly from prototypes to enterprise systems. Abstracting away from SQL is explicitly a non-goal; strong database and SQL expertise is fundamental to building robust applications.
+**Storm’s mission:** Make database development productive and enjoyable, with full developer control and high performance.
+
+Storm embraces SQL rather than abstracting it away. It simplifies database interactions while remaining transparent, and scales from prototypes to enterprise systems.
 
 | Traditional ORM Pain | Storm Solution |
 |----------------------|----------------|
@@ -66,7 +68,7 @@ val users = orm.entity(User::class)
     .resultList
 
 // SQL Template for full control
-val users = orm.query { "SELECT ${t(User::class)} FROM ${t(User::class)} WHERE ${User_.city.name} = $cityName" }
+val users = orm.query { "SELECT ${t(User::class)} FROM ${t(User::class)} WHERE ${t(User_.city.name)} = ${t(cityName)}" }
     .resultList<User>()
 ```
 
@@ -138,26 +140,46 @@ dependencies {
 
 ## Documentation
 
+### Core Concepts
+
+Everything you need to build applications with Storm. Start with Getting Started and work through the topics as needed.
+
 | Topic | Description |
 |-------|-------------|
-| [Getting Started](docs/getting-started.md) | Installation and first steps |
-| [Entities](docs/entities.md) | Defining entities, annotations, naming |
-| [Projections](docs/projections.md) | Read-only database views |
-| [Relationships](docs/relationships.md) | One-to-one, many-to-one, many-to-many |
-| [Queries](docs/queries.md) | Select, filter, aggregate, order |
-| [Metamodel](docs/metamodel.md) | Compile-time type safety |
-| [Repositories](docs/repositories.md) | Repository pattern and custom methods |
-| [Refs](docs/refs.md) | Lazy loading and optimized references |
-| [Batch & Streaming](docs/batch-streaming.md) | Bulk operations and Flow/Stream |
-| [Upserts](docs/upserts.md) | Insert-or-update operations |
-| [JSON Support](docs/json.md) | JSON columns and aggregation |
-| [Transactions](docs/transactions.md) | Transaction management and propagation |
-| [Dirty Checking](docs/dirty-checking.md) | Update modes and change detection |
-| [Entity Cache](docs/entity-cache.md) | Transaction-scoped caching and identity |
-| [SQL Templates](docs/sql-templates.md) | Template parameters and result mapping |
-| [SQL Interceptors](docs/interceptors.md) | Query logging and modification |
-| [Spring Integration](docs/spring-integration.md) | Spring Boot configuration |
-| [Database Dialects](docs/dialects.md) | Database-specific support |
+| [Getting Started](docs/getting-started.md) | Installation and first steps (5 min) |
+| [Entities](docs/entities.md) | Defining entities, annotations, naming (8 min) |
+| [Projections](docs/projections.md) | Read-only database views (8 min) |
+| [Relationships](docs/relationships.md) | One-to-one, many-to-one, many-to-many (7 min) |
+| [Repositories](docs/repositories.md) | Repository pattern and custom methods (3 min) |
+| [Queries](docs/queries.md) | Select, filter, aggregate, order (5 min) |
+| [Metamodel](docs/metamodel.md) | Compile-time type safety (3 min) |
+| [Refs](docs/refs.md) | Lazy loading and optimized references (4 min) |
+| [Batch & Streaming](docs/batch-streaming.md) | Bulk operations and Flow/Stream (2 min) |
+| [Upserts](docs/upserts.md) | Insert-or-update operations (3 min) |
+| [JSON Support](docs/json.md) | JSON columns and aggregation (4 min) |
+| [Transactions](docs/transactions.md) | Transaction management and propagation (15 min) |
+| [Spring Integration](docs/spring-integration.md) | Spring Boot configuration (4 min) |
+| [Database Dialects](docs/dialects.md) | Database-specific support (2 min) |
+
+### Advanced Topics
+
+Deep dives into Storm's internals. You don't need these to be productive, but they help you understand what happens under the hood and optimize performance.
+
+| Topic | Description |
+|-------|-------------|
+| [SQL Templates](docs/sql-templates.md) | Template parameters and query generation (10 min) |
+| [Hydration](docs/hydration.md) | Result mapping to records (20 min) |
+| [Dirty Checking](docs/dirty-checking.md) | Update modes and change detection (25 min) |
+| [Entity Cache](docs/entity-cache.md) | Transaction-scoped caching and identity (12 min) |
+| [SQL Interceptors](docs/interceptors.md) | Query logging and modification (2 min) |
+| [Configuration](docs/configuration.md) | System properties reference (5 min) |
+
+### Resources
+
+Guides for evaluating Storm and transitioning from other frameworks.
+
+| Topic | Description |
+|-------|-------------|
 | [Comparison](docs/comparison.md) | Storm vs other frameworks |
 | [FAQ](docs/faq.md) | Frequently asked questions |
 | [Migration from JPA](docs/migration-from-jpa.md) | Transitioning from JPA/Hibernate |

@@ -1,19 +1,19 @@
 # Entity Cache
 
-Storm maintains a transaction-scoped entity cache that optimizes database interactions. The cache is a pure performance optimization—it never changes the semantics of your transactions. What you read from the database is exactly what you would read without caching; the cache simply avoids redundant work.
+Storm maintains a transaction-scoped entity cache that optimizes database interactions. The cache is a pure performance optimization: it never changes the semantics of your transactions. What you read from the database is exactly what you would read without caching; the cache simply avoids redundant work.
 
 ## Design Principles
 
-**Semantics-preserving:** The cache is carefully designed to align with your chosen transaction isolation level. At `READ_COMMITTED`, you see fresh data on every read—the cache won't return stale instances. At `REPEATABLE_READ` or in read-only transactions, returning cached instances is safe and matches what the database guarantees.
+**Semantics-preserving:** The cache is carefully designed to align with your chosen transaction isolation level. At `READ_COMMITTED`, you see fresh data on every read; the cache won't return stale instances. At `REPEATABLE_READ` or in read-only transactions, returning cached instances is safe and matches what the database guarantees.
 
-**Transparent:** You don't need to manage the cache. It's automatically scoped to the transaction and cleared on commit or rollback. There's no flush, no detach, no merge—just predictable behavior aligned with your isolation level.
+**Transparent:** You don't need to manage the cache. It's automatically scoped to the transaction and cleared on commit or rollback. There's no flush, no detach, no merge. Just predictable behavior aligned with your isolation level.
 
 **Multi-purpose:** The cache serves four complementary goals:
 
-1. **Query optimization** — Avoid redundant database round-trips for the same entity
-2. **Hydration optimization** — Skip entity construction when a cached instance exists
-3. **Identity preservation** — Same database row returns the same object instance
-4. **Dirty checking** — Track observed state for efficient updates
+1. **Query optimization:** Avoid redundant database round-trips for the same entity
+2. **Hydration optimization:** Skip entity construction when a cached instance exists
+3. **Identity preservation:** Same database row returns the same object instance
+4. **Dirty checking:** Track observed state for efficient updates
 
 ## How It Works
 
@@ -135,7 +135,7 @@ transaction(isolation = REPEATABLE_READ) {
 }
 ```
 
-This identity guarantee simplifies application logic—you can use reference equality (`===`) to check if two variables refer to the same database row.
+This identity guarantee simplifies application logic: you can use reference equality (`===`) to check if two variables refer to the same database row.
 
 ---
 
@@ -190,7 +190,7 @@ To preserve cache efficiency, prefer using repository methods or typed templates
 
 ## Memory Management
 
-The entity cache is scoped to a single transaction and automatically discarded when the transaction commits or rolls back. You don't need to manage cache lifecycle—it's tied to the transaction boundary.
+The entity cache is scoped to a single transaction and automatically discarded when the transaction commits or rolls back. You don't need to manage cache lifecycle; it's tied to the transaction boundary.
 
 Within a transaction, memory is managed automatically based on what your code is using:
 
@@ -287,48 +287,7 @@ transaction {
 
 ## Query-Level Identity
 
-Even without transaction-level caching, Storm preserves entity identity within a single query result. When the same entity appears multiple times in one query (e.g., through joins), Storm interns these to the same object instance.
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           Query Result Set                                  │
-│                                                                             │
-│   SELECT o.*, c.* FROM orders o JOIN customers c ON o.customer_id = c.id    │
-│                                                                             │
-│   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │  Row 1: Order(id=1, customer_id=42) │ Customer(id=42, name="Alice") │   │
-│   │  Row 2: Order(id=2, customer_id=42) │ Customer(id=42, name="Alice") │   │
-│   │  Row 3: Order(id=3, customer_id=99) │ Customer(id=99, name="Bob")   │   │
-│   └─────────────────────────────────────────────────────────────────────┘   │
-│                              │                                              │
-│                              ▼                                              │
-│                  ┌───────────────────────┐                                  │
-│                  │       Interner        │                                  │
-│                  │  ┌────────┬────────┐  │                                  │
-│                  │  │   PK   │ Entity │  │                                  │
-│                  │  ├────────┼────────┤  │                                  │
-│                  │  │   42   │ ─────────────▶ Customer(42)                  │
-│                  │  │   99   │ ─────────────▶ Customer(99)                  │
-│                  │  └────────┴────────┘  │                                  │
-│                  └───────────────────────┘                                  │
-│                              │                                              │
-│                              ▼                                              │
-│   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │  Result:                                                            │   │
-│   │    Order(1) ──▶ Customer(42) ◀── same instance                      │   │
-│   │    Order(2) ──▶ Customer(42) ◀──┘                                   │   │
-│   │    Order(3) ──▶ Customer(99)                                        │   │
-│   └─────────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-The diagram shows a join query returning three orders with their customers. Customer 42 ("Alice") appears in two rows—once for Order 1 and once for Order 2. Without interning, Storm would construct two separate `Customer` objects with identical data, wasting memory and breaking identity checks.
-
-Instead, Storm uses a query-scoped interner that tracks entities by primary key as they're constructed. When Row 1 is processed, `Customer(42)` is constructed and stored in the interner. When Row 2 is processed, the interner recognizes that a `Customer` with PK 42 already exists and returns the same instance instead of constructing a new one.
-
-The result: both `Order(1)` and `Order(2)` reference the exact same `Customer` object in memory. This happens automatically during result set hydration, regardless of isolation level.
-
-**Memory-safe:** The interner only retains entities as long as your code holds onto them. Once you're done with an entity and release it, the interner won't prevent garbage collection. This makes streaming and flow-based processing safe: as you process and release entities, memory is reclaimed. You won't accumulate unbounded state when processing large result sets.
+Even without transaction-level caching, Storm preserves entity identity within a single query result. When the same entity appears multiple times in one query (e.g., through joins), Storm interns these to the same object instance. This happens automatically during result set hydration.
 
 ```kotlin
 // Even at READ_COMMITTED in a read-write transaction:
@@ -340,12 +299,14 @@ val customer2 = orders[1].customer.fetch()  // Same instance if same customer
 ```
 
 **Why this matters:**
-- **Memory efficiency** — Duplicate entities in a result set share one instance
-- **Consistent identity** — Within a query, `===` works as expected for same-row entities
+- **Memory efficiency:** Duplicate entities in a result set share one instance
+- **Consistent identity:** Within a query, `===` works as expected for same-row entities
 
 **Relationship with transaction-level caching:**
 - At `READ_COMMITTED` (read-write): Identity preserved within each query, but separate queries may return different instances
 - At `REPEATABLE_READ`+ or read-only: Query-level identity is extended transaction-wide via the cache
+
+For details on how the query interner works during hydration, see [Hydration](hydration.md#query-level-identity-interning).
 
 ---
 

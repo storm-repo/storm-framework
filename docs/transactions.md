@@ -180,12 +180,12 @@ transaction {
     val order = orderRepository.insert(newOrder)
 
     transaction(propagation = NESTED) {
-        val promo = promoRepository.findByCode(promoCode)
-        if (promo == null || promo.expired) {
-            setRollbackOnly()  // Only rolls back the promo attempt
-            return@transaction
-        }
+        val promo = promoRepository.findByCode(promoCode) ?: return@transaction
         discountRepository.insert(Discount(order.id, promo.amount))
+        
+        if (promo.expired) {
+            setRollbackOnly()  // Rolls back the discount insert
+        }
     }
 
     // Continues regardless of whether discount was applied

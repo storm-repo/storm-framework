@@ -140,7 +140,7 @@ try (Stream<User> users = userRepository.selectAll()) {
 
 ## Batch Size Configuration
 
-Storm automatically batches operations for optimal performance. The batch size can be configured through the underlying JDBC driver or connection pool settings.
+Storm automatically batches operations for optimal performance. Batch operations have overloaded methods that accept a batch size parameter, allowing you to control how many rows are grouped together before being sent to the database.
 
 ## Tips
 

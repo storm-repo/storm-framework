@@ -7,7 +7,7 @@ Dirty checking is the process of determining which fields of an entity have chan
 1. **Whether** to execute an UPDATE statement at all
 2. **Which columns** to include in the UPDATE statement
 
-Storm's entities are **stateless** and **immutable** by design—plain Kotlin data classes or Java records with no proxies, no bytecode manipulation, and no hidden state. This design simplifies the dirty checking logic and allows for high performance.
+Storm's entities are **stateless** and **immutable** by design: plain Kotlin data classes or Java records with no proxies, no bytecode manipulation, and no hidden state. This design simplifies the dirty checking logic and allows for high performance.
 
 Instead of tracking changes implicitly, Storm:
 
@@ -104,7 +104,7 @@ val updatedUser = user.copy(name = "New Name")
 orm update updatedUser
 ```
 
-Storm does not observe entity state in this mode. No comparison is performed—every update is unconditional.
+Storm does not observe entity state in this mode. No comparison is performed; every update is unconditional.
 
 ### When to Use OFF Mode
 
@@ -310,7 +310,7 @@ record User(@PK Integer id,
 
 ### How It Works
 
-The `@DynamicUpdate` annotation is processed at compile time by Storm's annotation processor (or KSP for Kotlin). The update mode is encoded in the generated metamodel class (`User_`), so there's no runtime reflection cost.
+The `@DynamicUpdate` annotation is processed at compile time by Storm's KSP processor (Kotlin) or annotation processor (Java). The update mode is encoded in the generated metamodel class (`User_`), so there's no runtime reflection cost.
 
 ```
 ┌─────────────────────┐      Compile Time      ┌─────────────────────┐
@@ -363,7 +363,7 @@ data class MetricSample(
 
 ## Dirty Checking Strategy
 
-When comparing an entity to its observed state, Storm needs to determine whether each field has changed. Storm supports two strategies for this comparison. Both strategies are correct—this is purely a performance tuning choice.
+When comparing an entity to its observed state, Storm needs to determine whether each field has changed. Storm supports two strategies for this comparison. Both strategies are correct; this is purely a performance tuning choice.
 
 ### Instance-Based (Default)
 
@@ -512,7 +512,7 @@ Entity-level annotations always override global settings. This allows you to set
 
 ## Entity Cache Integration
 
-Dirty checking relies on Storm's [entity cache](entity-cache.md), which stores observed entity state within a transaction. The cache serves multiple purposes beyond dirty checking—see the [Entity Cache](entity-cache.md) documentation for details on:
+Dirty checking relies on Storm's [entity cache](entity-cache.md), which stores observed entity state within a transaction. The cache serves multiple purposes beyond dirty checking. See the [Entity Cache](entity-cache.md) documentation for details on:
 
 - Cache behavior at different isolation levels
 - Memory management and retention configuration
