@@ -20,7 +20,16 @@ import st.orm.GenerationStrategy;
 import st.orm.Metamodel;
 
 /**
- * Represents a column in a database table.
+ * Represents metadata about a single column in a database table, as derived from the entity or projection model.
+ *
+ * <p>A {@code Column} provides information about the column's name, type, nullability, and role (primary key,
+ * foreign key, version column, etc.). Columns are obtained from a {@link Model} via {@link Model#columns()} or
+ * {@link Model#declaredColumns()}.</p>
+ *
+ * <p>The {@link #index()} method returns the 1-based index of the column within the expanded column list of the
+ * model, which includes columns from foreign key relationships.</p>
+ *
+ * @see Model
  */
 public interface Column {
     /**

@@ -26,22 +26,32 @@ import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 
 /**
- * Provides access to repositories.
+ * Provides access to entity and projection repositories, as well as custom repository implementations.
  *
- * Entity repositories returned by `entity` provide basic CRUD operations for database tables. Projection
- * repositories returned by `projection` provide read operations for database views and projection queries. The
- * repositories returned by the `repository` method
- * allow to implement specialized repository logic by implementing default methods. The default methods have full access
- * to the CRUD and `QueryBuilder` logic of the repository it extends:
+ * Entity repositories returned by [entity] provide full CRUD operations for database tables. Projection
+ * repositories returned by [projection] provide read operations for database views and projection queries.
+ * Custom repositories returned by [repository] allow specialized repository logic to be implemented as default
+ * methods with full access to CRUD and [QueryBuilder] capabilities.
  *
- * ```
- * interface UserRepository : EntityRepository<User, Integer> {
- *   fun findByName(String name): User? =
- *     find { User_.name eq name }  // Type-safe metamodel.
+ * In addition to the core repository lookup methods, this file provides a rich set of Kotlin extension functions
+ * on `RepositoryLookup` for convenient, type-safe data access without explicit repository instantiation.
  *
- *   fun findByCity(City city): List<User> =
- *     findAll { User_.city eq city }    // Type-safe metamodel.
+ * ## Example: Custom repository
+ * ```kotlin
+ * interface UserRepository : EntityRepository<User, Int> {
+ *     fun findByName(name: String): User? =
+ *         find { User_.name eq name }
+ *
+ *     fun findByCity(city: City): List<User> =
+ *         findAll { User_.city eq city }
  * }
+ * ```
+ *
+ * ## Example: Extension function usage
+ * ```kotlin
+ * val orm = dataSource.orm
+ * val users: List<User> = orm.findAll()
+ * val alice: User? = orm.findBy(User_.name, "Alice")
  * ```
  *
  * @see EntityRepository

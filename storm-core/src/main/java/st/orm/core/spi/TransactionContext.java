@@ -25,29 +25,52 @@ import st.orm.Entity;
 public interface TransactionContext {
 
     /**
-     * Returns true if the transaction is marked as read-only, false otherwise.
+     * Returns true if the transaction has repeatable-read semantics.
      *
-     * @return true if the transaction is marked as read-only, false otherwise.
-     * @since 1.7
+     * <p>This is true when the isolation level is {@code REPEATABLE_READ} or higher.</p>
+     *
+     * <p>When {@code true}, cached entities are returned when re-reading the same entity, preserving
+     * entity identity within the transaction. When {@code false}, fresh data is fetched from the database.</p>
+     *
+     * <p>Note: Cache writes for dirty tracking still occur at all isolation levels when dirty tracking
+     * is enabled for the entity type.</p>
+     *
+     * @return true if transaction has repeatable-read semantics, false otherwise.
+     * @since 1.8
      */
-    boolean isReadOnly();
+    default boolean isRepeatableRead() {
+        return false;
+    }
 
     /**
      * Returns a transaction-local cache for entities of the given type, keyed by primary key.
      *
-     * <p>Returns {@code null} if entity caching is disabled for this transaction. This can happen when the
-     * transaction's isolation level is below the configured minimum for entity caching. At low isolation levels
-     * (e.g., {@code READ_UNCOMMITTED}), entity caching is disabled to prevent the cache from masking changes
-     * that the application expects to see.</p>
+     * <p>The entity cache serves two purposes:</p>
+     * <ul>
+     *   <li><b>Dirty tracking:</b> The cached state serves as the baseline for detecting changes when updating
+     *       entities. This is always enabled regardless of isolation level.</li>
+     *   <li><b>Hydration/identity:</b> When {@link #isRepeatableRead()} returns {@code true}, reading the same
+     *       entity returns the cached instance. When {@code false}, fresh data is fetched.</li>
+     * </ul>
      *
-     * <p>When {@code null} is returned, dirty checking will treat all entities as dirty, resulting in full-row
-     * updates.</p>
+     * <p>Returns {@code null} only when there is no active transaction context.</p>
      *
      * @param entityType the entity type for which to retrieve the cache.
-     * @return the entity cache, or {@code null} if caching is disabled for this transaction.
+     * @return the entity cache, or {@code null} if there is no active transaction.
      */
     @Nullable
     EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType);
+
+    /**
+     * Clears all entity caches associated with this transaction context.
+     *
+     * <p>This method is used when a mutating SQL operation is executed but the affected entity types cannot be
+     * determined. In such cases, all caches are cleared to ensure that dirty checking does not rely on stale observed
+     * state.</p>
+     *
+     * <p>If entity caching is disabled for this transaction, this method has no effect.</p>
+     */
+    void clearAllEntityCaches();
 
     /**
      * Decorates a transaction resource before it is used.

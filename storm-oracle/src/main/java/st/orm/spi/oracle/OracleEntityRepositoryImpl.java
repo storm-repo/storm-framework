@@ -229,7 +229,11 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
         }
         validateUpsert(entity);
         var versionAware = new AtomicBoolean();
-        entityCache().ifPresent(cache -> cache.remove(entity.id()));
+        entityCache().ifPresent(cache -> {
+            if (!model.isDefaultPrimaryKey(entity.id())) {
+                cache.remove(entity.id());
+            }
+        });
         intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
             var query = ormTemplate.query(flatten(raw("""
                     MERGE INTO \0 t
@@ -269,7 +273,11 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
             return insertAndFetchId(entity);
         }
         validateUpsert(entity);
-        entityCache().ifPresent(cache -> cache.remove(entity.id()));
+        entityCache().ifPresent(cache -> {
+            if (!model.isDefaultPrimaryKey(entity.id())) {
+                cache.remove(entity.id());
+            }
+        });
         var versionAware = new AtomicBoolean();
         intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
             var query = ormTemplate.query(flatten(raw("""
@@ -518,7 +526,9 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
         }
         batch.stream().map(this::validateUpsert).forEach(query::addBatch);
         if (cache != null) {
-            cache.removeEntities(batch);
+            batch.stream()
+                    .filter(e -> !model.isDefaultPrimaryKey(e.id()))
+                    .forEach(e -> cache.remove(e.id()));
         }
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
@@ -532,7 +542,9 @@ public class OracleEntityRepositoryImpl<E extends Entity<ID>, ID> extends Entity
         }
         batch.stream().map(this::validateUpsert).forEach(query::addBatch);
         if (cache != null) {
-            cache.removeEntities(batch);
+            batch.stream()
+                    .filter(e -> !model.isDefaultPrimaryKey(e.id()))
+                    .forEach(e -> cache.remove(e.id()));
         }
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {

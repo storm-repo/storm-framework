@@ -21,13 +21,15 @@ import st.orm.template.Templates.select
 import kotlin.reflect.KClass
 
 /**
- * The subquery template is used to construct subqueries that can be linked to the outer query.
+ * Provides factory methods for constructing subqueries that can be correlated with or embedded in an outer query.
  *
- * Unlike regular queries, subqueries only select fields from the primary table; fields from nested (foreign key)
- * records are not included. Additionally, subqueries cannot be directly built — they should be passed as
- * a query builder object when constructing the outer query.
+ * Unlike regular queries created by [QueryTemplate], subqueries only select fields from the primary table; fields
+ * from nested (foreign key) records are not included. Subqueries cannot be directly executed -- they must be passed
+ * as a [QueryBuilder] object to the outer query (e.g., via [WhereBuilder.exists] or [Templates.subquery]).
  *
  * @since 1.1
+ * @see QueryTemplate
+ * @see WhereBuilder.exists
  */
 interface SubqueryTemplate {
     /**
@@ -42,7 +44,7 @@ interface SubqueryTemplate {
     }
 
     /**
-     * Crate a subquery for the given table and select type.
+     * Create a subquery for the given table and select type.
      *
      * @param fromType the table to create the subquery for.
      * @param selectType the type to select.

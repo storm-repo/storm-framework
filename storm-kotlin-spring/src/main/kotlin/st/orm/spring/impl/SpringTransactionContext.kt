@@ -38,34 +38,6 @@ import kotlin.math.min
 import kotlin.reflect.KClass
 
 /**
- * Minimum transaction isolation level required for entity caching to be enabled.
- *
- * Transactions with an isolation level below this threshold will not use entity caching, which means dirty checking
- * will treat all entities as dirty (resulting in full-row updates). This prevents the entity cache from masking
- * changes that the application expects to see at lower isolation levels.
- *
- * The default value is [TRANSACTION_READ_COMMITTED], meaning entity caching is disabled only for
- * `READ_UNCOMMITTED` transactions. This can be overridden using the system property
- * `storm.entityCache.minIsolationLevel`.
- *
- * Valid values: `NONE`, `READ_UNCOMMITTED`, `READ_COMMITTED`, `REPEATABLE_READ`, `SERIALIZABLE`, or the
- * corresponding JDBC integer constants (0, 1, 2, 4, 8).
- */
-private val MIN_ISOLATION_LEVEL_FOR_CACHE: Int = run {
-    val value = System.getProperty("storm.entityCache.minIsolationLevel")?.trim()?.uppercase()
-    when {
-        value.isNullOrBlank() -> TRANSACTION_READ_COMMITTED
-        value == "NONE" || value == "0" -> TRANSACTION_NONE
-        value == "READ_UNCOMMITTED" || value == "1" -> TRANSACTION_READ_UNCOMMITTED
-        value == "READ_COMMITTED" || value == "2" -> TRANSACTION_READ_COMMITTED
-        value == "REPEATABLE_READ" || value == "4" -> TRANSACTION_REPEATABLE_READ
-        value == "SERIALIZABLE" || value == "8" -> TRANSACTION_SERIALIZABLE
-        else -> value.toIntOrNull()
-            ?: throw PersistenceException("Invalid value for storm.entityCache.minIsolationLevel: '$value'.")
-    }
-}
-
-/**
  * Internal implementation of transaction context management for Spring-managed transactions.
  * This class provides thread-local transaction context tracking and management capabilities.
  *
@@ -201,32 +173,40 @@ internal class SpringTransactionContext : TransactionContext {
     }
 
     /**
-     * Returns true if the transaction is marked as read-only, false otherwise.
+     * Returns true if the transaction has repeatable-read semantics.
      *
-     * @return true if the transaction is marked as read-only, false otherwise.
-     * @since 1.7
+     * This is true when the isolation level is `REPEATABLE_READ` or higher.
+     *
+     * When true, cached entities are returned when re-reading the same entity, preserving
+     * entity identity. When false, fresh data is fetched from the database.
      */
-    override fun isReadOnly(): Boolean =
-        currentState.transactionDefinition?.isReadOnly ?: false
+    override fun isRepeatableRead(): Boolean {
+        val isolationLevel = currentState.transactionDefinition?.isolationLevel ?: return false
+        // Spring uses ISOLATION_DEFAULT (-1) when no specific isolation level is set.
+        // Since most databases default to READ_COMMITTED, we return false to ensure fresh
+        // data is fetched on each read.
+        if (isolationLevel < 0) return false
+        return isolationLevel >= TRANSACTION_REPEATABLE_READ
+    }
 
     /**
      * Returns a transaction-local cache for entities of the given type, keyed by primary key.
      *
-     * Returns `null` if the transaction's isolation level is below the configured minimum for entity caching
-     * (see [MIN_ISOLATION_LEVEL_FOR_CACHE]). At low isolation levels, entity caching is disabled to prevent
-     * the cache from masking changes that the application expects to see.
+     * The cache is used for dirty checking and/or identity preservation. Whether cached instances are
+     * returned during reads is controlled by [isRepeatableRead].
      */
-    override fun entityCache(entityType: Class<out Entity<*>>): EntityCache<out Entity<*>, *>? {
-        val isolationLevel = currentState.transactionDefinition?.isolationLevel
-        // Spring uses ISOLATION_DEFAULT (-1) when no specific isolation level is set.
-        // In that case, we assume the database default (typically READ_COMMITTED or higher) and enable caching.
-        if (isolationLevel != null && isolationLevel >= 0 && isolationLevel < MIN_ISOLATION_LEVEL_FOR_CACHE) {
-            return null
-        }
+    override fun entityCache(entityType: Class<out Entity<*>>): EntityCache<out Entity<*>, *> {
         @Suppress("UNCHECKED_CAST")
         return currentState.entityCacheMap.getOrPut(entityType.kotlin) {
             EntityCacheImpl<Entity<Any>, Any>()
         } as EntityCache<Entity<*>, *>
+    }
+
+    /**
+     * Clears all entity caches associated with this transaction context.
+     */
+    override fun clearAllEntityCaches() {
+        currentState.entityCacheMap.values.forEach { it.clear() }
     }
 
     /**

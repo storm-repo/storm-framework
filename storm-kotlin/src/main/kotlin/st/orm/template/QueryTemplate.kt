@@ -22,7 +22,28 @@ import st.orm.template.TemplateString.Companion.wrap
 import kotlin.reflect.KClass
 
 /**
- * The query template is used to construct queries.
+ * Provides methods for constructing SQL queries and query builders using Storm's template string DSL or the fluent API.
+ *
+ * `QueryTemplate` is the core interface for interacting with the Storm SQL template engine in Kotlin. It offers two
+ * complementary approaches to database access:
+ * - **Template Strings** -- Write SQL using Storm's `TemplateString` with type-safe interpolation of
+ *   entity classes, records, and parameters via the [query] method.
+ * - **Query Builder** -- Construct queries programmatically using the fluent [selectFrom] and [deleteFrom]
+ *   methods, which return a [QueryBuilder].
+ *
+ * This interface also provides utility methods for creating [BindVars] for batch operations and retrieving
+ * [Model] metadata for entity types.
+ *
+ * ## Example: Query with QueryBuilder
+ * ```kotlin
+ * val users = orm.selectFrom(User::class)
+ *     .where(User_.name, EQUALS, "Alice")
+ *     .getResultList()
+ * ```
+ *
+ * @see ORMTemplate
+ * @see QueryBuilder
+ * @see Query
  */
 interface QueryTemplate : SubqueryTemplate {
     /**

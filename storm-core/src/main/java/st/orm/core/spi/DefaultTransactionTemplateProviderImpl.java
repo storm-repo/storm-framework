@@ -36,42 +36,6 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
     private static final Object SPRING_CTX_RESOURCE_KEY =
             DefaultTransactionTemplateProviderImpl.class.getName() + ".SPRING_TX_CONTEXT";
 
-    /**
-     * Minimum transaction isolation level required for entity caching to be enabled.
-     *
-     * <p>Transactions with an isolation level below this threshold will not use entity caching, which means dirty
-     * checking will treat all entities as dirty (resulting in full-row updates). This prevents the entity cache from
-     * masking changes that the application expects to see at lower isolation levels.</p>
-     *
-     * <p>The default value is {@link Connection#TRANSACTION_READ_COMMITTED}, meaning entity caching is disabled only
-     * for {@code READ_UNCOMMITTED} transactions. This can be overridden using the system property
-     * {@code storm.entityCache.minIsolationLevel}.</p>
-     */
-    private static final int MIN_ISOLATION_LEVEL_FOR_CACHE = parseMinIsolationLevel();
-
-    private static int parseMinIsolationLevel() {
-        String value = System.getProperty("storm.entityCache.minIsolationLevel");
-        if (value == null || value.isBlank()) {
-            return Connection.TRANSACTION_READ_COMMITTED;
-        }
-        value = value.trim().toUpperCase();
-        return switch (value) {
-            case "NONE", "0" -> Connection.TRANSACTION_NONE;
-            case "READ_UNCOMMITTED", "1" -> Connection.TRANSACTION_READ_UNCOMMITTED;
-            case "READ_COMMITTED", "2" -> Connection.TRANSACTION_READ_COMMITTED;
-            case "REPEATABLE_READ", "4" -> Connection.TRANSACTION_REPEATABLE_READ;
-            case "SERIALIZABLE", "8" -> Connection.TRANSACTION_SERIALIZABLE;
-            default -> {
-                try {
-                    yield Integer.parseInt(value);
-                } catch (NumberFormatException e) {
-                    throw new PersistenceException(
-                            "Invalid value for storm.entityCache.minIsolationLevel: '%s'.".formatted(value));
-                }
-            }
-        };
-    }
-
     @Override
     public TransactionTemplate getTransactionTemplate() {
         return new TransactionTemplate() {
@@ -157,19 +121,24 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
         }
 
         @Override
-        public boolean isReadOnly() {
-            return springReflection.isCurrentTransactionReadOnly();
+        public boolean isRepeatableRead() {
+            // Check if isolation level is REPEATABLE_READ or higher.
+            Integer isolationLevel = springReflection.getCurrentTransactionIsolationLevel();
+            // Spring returns null when no explicit isolation level is set (database default).
+            // Most databases default to READ_COMMITTED, so we return false to ensure fresh
+            // data is fetched on each read. Users who want cached instances should explicitly
+            // set REPEATABLE_READ or higher.
+            if (isolationLevel == null || isolationLevel < 0) {
+                return false;
+            }
+            return isolationLevel >= Connection.TRANSACTION_REPEATABLE_READ;
         }
 
         @Override
         public EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType) {
-            // Check if entity caching is disabled for this isolation level.
-            Integer isolationLevel = springReflection.getCurrentTransactionIsolationLevel();
-            // Spring returns null when no explicit isolation level is set (database default).
-            // In that case, we assume the database default (typically READ_COMMITTED or higher) and enable caching.
-            if (isolationLevel != null && isolationLevel < MIN_ISOLATION_LEVEL_FOR_CACHE) {
-                return null;
-            }
+            // Cache is used for dirty checking and/or identity preservation.
+            // Whether cached instances are returned during reads is controlled by isRepeatableRead().
+            //
             // We use computeIfAbsent so the "get or create" is a single operation.
             //
             // Why:
@@ -180,6 +149,13 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
             //   expose reliable hooks here for "rolled back to savepoint", only for transaction completion.
             // - computeIfAbsent avoids duplicate allocations and keeps the method simpler and harder to get wrong.
             return caches.computeIfAbsent(entityType, k -> new EntityCacheImpl<>());
+        }
+
+        @Override
+        public void clearAllEntityCaches() {
+            for (EntityCache<? extends Entity<?>, ?> cache : caches.values()) {
+                cache.clear();
+            }
         }
 
         @Override
@@ -201,7 +177,6 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
                 "org.springframework.transaction.support.TransactionSynchronization";
 
         private final Method isActualTransactionActive;
-        private final Method isCurrentTransactionReadOnly;
         private final Method getCurrentTransactionIsolationLevel;
         private final Method getResource;
         private final Method bindResource;
@@ -211,7 +186,6 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
 
         private SpringReflection(
                 Method isActualTransactionActive,
-                Method isCurrentTransactionReadOnly,
                 Method getCurrentTransactionIsolationLevel,
                 Method getResource,
                 Method bindResource,
@@ -220,7 +194,6 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
                 Class<?> transactionSynchronizationType
         ) {
             this.isActualTransactionActive = isActualTransactionActive;
-            this.isCurrentTransactionReadOnly = isCurrentTransactionReadOnly;
             this.getCurrentTransactionIsolationLevel = getCurrentTransactionIsolationLevel;
             this.getResource = getResource;
             this.bindResource = bindResource;
@@ -234,7 +207,6 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
                 ClassLoader classLoader = DefaultTransactionTemplateProviderImpl.class.getClassLoader();
                 Class<?> tsm = Class.forName(TSM_FQCN, false, classLoader);
                 Method isActualTransactionActive = tsm.getMethod("isActualTransactionActive");
-                Method isCurrentTransactionReadOnly = tsm.getMethod("isCurrentTransactionReadOnly");
                 Method getCurrentTransactionIsolationLevel = tsm.getMethod("getCurrentTransactionIsolationLevel");
                 Method getResource = tsm.getMethod("getResource", Object.class);
                 Method bindResource = tsm.getMethod("bindResource", Object.class, Object.class);
@@ -251,7 +223,6 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
                 }
                 return new SpringReflection(
                         isActualTransactionActive,
-                        isCurrentTransactionReadOnly,
                         getCurrentTransactionIsolationLevel,
                         getResource,
                         bindResource,
@@ -267,14 +238,6 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
         boolean isActualTransactionActive() {
             try {
                 return (boolean) isActualTransactionActive.invoke(null);
-            } catch (Throwable t) {
-                return false;
-            }
-        }
-
-        boolean isCurrentTransactionReadOnly() {
-            try {
-                return (boolean) isCurrentTransactionReadOnly.invoke(null);
             } catch (Throwable t) {
                 return false;
             }

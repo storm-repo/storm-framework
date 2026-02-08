@@ -24,7 +24,39 @@ import st.orm.Ref;
 import static java.lang.StringTemplate.RAW;
 
 /**
- * The query template is used to construct queries.
+ * Provides methods for constructing SQL queries and query builders using String Templates or the fluent API.
+ *
+ * <p>{@code QueryTemplate} is the core interface for interacting with the Storm SQL template engine. It offers two
+ * complementary approaches to database access:</p>
+ * <ul>
+ *   <li><strong>String Templates</strong> -- Write SQL using Java String Templates with type-safe interpolation of
+ *       entity classes, records, and parameters via the {@link #query(StringTemplate)} method.</li>
+ *   <li><strong>Query Builder</strong> -- Construct queries programmatically using the fluent
+ *       {@link #selectFrom(Class)} and {@link #deleteFrom(Class)} methods, which return a {@link QueryBuilder}.</li>
+ * </ul>
+ *
+ * <p>This interface also provides utility methods for accessing the {@link st.orm.core.template.SqlDialect},
+ * creating {@link st.orm.BindVars} for batch operations, and retrieving {@link Model} metadata for entity types.</p>
+ *
+ * <h2>Example: Query with String Template</h2>
+ * <pre>{@code
+ * Query query = orm.query(RAW."""
+ *         SELECT \{User.class}
+ *         FROM \{User.class}
+ *         WHERE \{User_.name} = \{"Alice"}""");
+ * List<User> users = query.getResultList(User.class);
+ * }</pre>
+ *
+ * <h2>Example: Query with QueryBuilder</h2>
+ * <pre>{@code
+ * List<User> users = orm.selectFrom(User.class)
+ *         .where(User_.name, EQUALS, "Alice")
+ *         .getResultList();
+ * }</pre>
+ *
+ * @see ORMTemplate
+ * @see QueryBuilder
+ * @see Query
  */
 public interface QueryTemplate extends SubqueryTemplate {
 

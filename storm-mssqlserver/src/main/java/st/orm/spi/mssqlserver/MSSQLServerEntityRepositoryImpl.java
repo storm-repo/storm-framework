@@ -299,7 +299,11 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
             return;
         }
         validateUpsert(entity);
-        entityCache().ifPresent(cache -> cache.remove(entity.id()));
+        entityCache().ifPresent(cache -> {
+            if (!model.isDefaultPrimaryKey(entity.id())) {
+                cache.remove(entity.id());
+            }
+        });
         var versionAware = new AtomicBoolean();
         intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
             // Note: SQL Server's MERGE syntax does not require a FROM DUAL clause.
@@ -324,7 +328,11 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
             return insertAndFetchId(entity);
         }
         validateUpsert(entity);
-        entityCache().ifPresent(cache -> cache.remove(entity.id()));
+        entityCache().ifPresent(cache -> {
+            if (!model.isDefaultPrimaryKey(entity.id())) {
+                cache.remove(entity.id());
+            }
+        });
         var versionAware = new AtomicBoolean();
         intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
             var query = ormTemplate.query(flatten(raw("""
@@ -568,7 +576,9 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
         }
         batch.stream().map(this::validateUpsert).forEach(query::addBatch);
         if (cache != null) {
-            cache.removeEntities(batch);
+            batch.stream()
+                    .filter(e -> !model.isDefaultPrimaryKey(e.id()))
+                    .forEach(e -> cache.remove(e.id()));
         }
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
@@ -582,7 +592,9 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
         }
         batch.stream().map(this::validateUpsert).forEach(query::addBatch);
         if (cache != null) {
-            cache.removeEntities(batch);
+            batch.stream()
+                    .filter(e -> !model.isDefaultPrimaryKey(e.id()))
+                    .forEach(e -> cache.remove(e.id()));
         }
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {

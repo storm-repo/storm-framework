@@ -38,6 +38,44 @@ import static st.orm.GenerationStrategy.IDENTITY;
  *
  * <p>If no value is specified (i.e., both {@code value()} and {@code name()} are {@code ""}),
  * the automatic column name resolution strategy will be applied.
+ *
+ * <h2>Composite Primary Keys</h2>
+ *
+ * <p>For composite primary keys, define a separate record containing the key components and use it as the
+ * primary key field:
+ * <pre>{@code
+ * record UserRolePk(int userId, int roleId) {}
+ *
+ * record UserRole(@PK UserRolePk pk,
+ *                 @FK @Persist(insertable = false, updatable = false) User user,
+ *                 @FK @Persist(insertable = false, updatable = false) Role role
+ * ) implements Entity<UserRolePk> {}
+ * }</pre>
+ *
+ * <p>The {@link Persist @Persist} annotation indicates that the FK columns overlap with the composite PK columns.
+ * The FK fields are used to load the related entities, but the column values come from the PK during insert/update
+ * operations.
+ *
+ * <h2>Primary Key as Foreign Key</h2>
+ *
+ * <p>A primary key can also be a foreign key, which is useful for dependent one-to-one relationships,
+ * extension tables, or table-per-subtype inheritance. Use both {@code @PK} and {@link FK @FK} on the same
+ * field with {@code generation = NONE}:
+ * <pre>{@code
+ * record UserProfile(@PK(generation = NONE) @FK User user,
+ *                    String bio
+ * ) implements Entity<User> {}
+ * }</pre>
+ *
+ * <p>Column name resolution when both {@code @PK} and {@code @FK} are present:
+ * <ol>
+ *   <li>Explicit name in {@code @PK} (e.g., {@code @PK("user_profile_id")})</li>
+ *   <li>Explicit name in {@code @DbColumn}</li>
+ *   <li>Foreign key naming convention (default)</li>
+ * </ol>
+ *
+ * @see FK
+ * @see GenerationStrategy
  */
 @Target({RECORD_COMPONENT, PARAMETER})
 @Retention(RUNTIME)

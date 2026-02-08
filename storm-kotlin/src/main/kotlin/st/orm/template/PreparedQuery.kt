@@ -20,8 +20,27 @@ import java.util.stream.Stream
 import kotlin.reflect.KClass
 
 /**
- * Represents a prepared query that can be executed multiple times, allows adding records to a batch and retrieving
- * generated keys.
+ * Represents an eagerly constructed, reusable query that supports batch operations and generated key retrieval.
+ *
+ * Unlike regular [Query] instances which are constructed lazily, a `PreparedQuery` is constructed eagerly when
+ * [Query.prepare] or [QueryBuilder.prepare] is called. This enables:
+ * - **Batch operations** -- Add multiple records via [addBatch] and execute them in a single database round-trip
+ *   with [executeBatch].
+ * - **Generated keys** -- Retrieve auto-generated primary keys after INSERT via [getGeneratedKeys].
+ *
+ * As `PreparedQuery` implements [AutoCloseable], it must be closed after usage to release database resources.
+ * Use it within a `use` block:
+ *
+ * ```kotlin
+ * val bindVars = orm.createBindVars()
+ * orm.query("INSERT INTO ${User::class} VALUES ${bindVars}").prepare().use { query ->
+ *     users.forEach { query.addBatch(it) }
+ *     query.executeBatch()
+ * }
+ * ```
+ *
+ * @see Query.prepare
+ * @see QueryBuilder.prepare
  */
 interface PreparedQuery : Query, AutoCloseable {
     /**

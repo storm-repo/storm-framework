@@ -22,11 +22,32 @@ import st.orm.Ref
 import st.orm.template.TemplateString.Companion.raw
 
 /**
- * A builder for constructing the WHERE clause of the query.
+ * A builder for constructing the WHERE clause of a query, providing type-safe predicate construction.
  *
- * @param <T> the type of the table being queried.
- * @param <R> the type of the result.
- * @param <ID> the type of the primary key.
+ * The `WhereBuilder` is passed to the lambda argument of [QueryBuilder.where] and offers methods for matching by
+ * primary key, record, ref, metamodel path, or custom template string expressions. Each method returns a
+ * [PredicateBuilder] that can be further composed using `and()` and `or()` combinators.
+ *
+ * Methods named `where` are type-safe and restrict metamodel paths to the root table's entity graph.
+ * Methods named `whereAny` accept metamodel paths from any table, including manually added joins.
+ *
+ * ## Example
+ * ```kotlin
+ * val users = userRepository
+ *     .select()
+ *     .where { predicate ->
+ *         predicate
+ *             .where(User_.active, EQUALS, true)
+ *             .and(predicate.where(User_.address.city.name, EQUALS, "Sunnyvale"))
+ *     }
+ *     .getResultList()
+ * ```
+ *
+ * @param T the type of the table being queried.
+ * @param R the type of the result.
+ * @param ID the type of the primary key.
+ * @see QueryBuilder.where
+ * @see PredicateBuilder
  */
 interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
 

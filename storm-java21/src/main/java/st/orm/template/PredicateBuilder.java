@@ -19,11 +19,31 @@ import jakarta.annotation.Nonnull;
 import st.orm.Data;
 
 /**
- * A builder for constructing the predicates of the WHERE clause of the query.
+ * Represents a composable predicate for the WHERE clause of a query, supporting {@code AND} and {@code OR} composition.
+ *
+ * <p>{@code PredicateBuilder} instances are returned by the methods on {@link WhereBuilder} and can be combined
+ * using {@link #and(PredicateBuilder)} and {@link #or(PredicateBuilder)} to build compound conditions. Each
+ * combinator returns a new {@code PredicateBuilder} that represents the combined expression.</p>
+ *
+ * <p>Methods named {@code and}/{@code or} are type-safe and restrict predicates to the root table's entity graph.
+ * Methods named {@code andAny}/{@code orAny} accept predicates from any table, including manually added joins.</p>
+ *
+ * <h2>Example</h2>
+ * <pre>{@code
+ * List<User> users = userRepository
+ *         .select()
+ *         .where(predicate -> predicate
+ *             .where(User_.active, EQUALS, true)
+ *             .and(predicate.where(User_.email, IS_NOT_NULL))
+ *             .or(predicate.where(User_.role, EQUALS, "admin")))
+ *         .getResultList();
+ * }</pre>
  *
  * @param <T>  the type of the table being queried.
  * @param <R>  the type of the result.
  * @param <ID> the type of the primary key.
+ * @see WhereBuilder
+ * @see QueryBuilder
  */
 public interface PredicateBuilder<T extends Data, R, ID> {
 

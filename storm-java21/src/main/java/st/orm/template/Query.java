@@ -27,8 +27,33 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * Abstraction for DQL (Data Query Language) statements, such as SELECT queries and  DML (Data Manipulation Language)
- * statements, such as INSERT, UPDATE and DELETE statements
+ * Represents a constructed SQL statement that is ready for execution.
+ *
+ * <p>{@code Query} is the result of building a query via the {@link QueryBuilder} or the
+ * {@link QueryTemplate#query(StringTemplate)} method. It supports both DQL (Data Query Language) statements such as
+ * SELECT, and DML (Data Manipulation Language) statements such as INSERT, UPDATE, and DELETE.</p>
+ *
+ * <p>For SELECT statements, results can be retrieved as streams, lists, single results, or optional results. The
+ * result type can be raw {@code Object[]} arrays (columns in order) or mapped to a specific record type.</p>
+ *
+ * <p>For DML statements (INSERT, UPDATE, DELETE), use {@link #executeUpdate()} to execute the statement and obtain the
+ * number of affected rows. For batch operations, use {@link #executeBatch()}.</p>
+ *
+ * <p>A query can also be converted to a {@link PreparedQuery} via {@link #prepare()}, which enables bind variable
+ * usage, batch processing, and retrieval of generated keys.</p>
+ *
+ * <h2>Example: Execute a raw query</h2>
+ * <pre>{@code
+ * List<User> users = orm.query(RAW."""
+ *         SELECT \{User.class}
+ *         FROM \{User.class}
+ *         WHERE \{User_.name} = \{"Alice"}""")
+ *     .getResultList(User.class);
+ * }</pre>
+ *
+ * @see QueryBuilder
+ * @see PreparedQuery
+ * @see QueryTemplate
  */
 public interface Query {
 

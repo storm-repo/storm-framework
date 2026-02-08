@@ -290,7 +290,7 @@ class QueryBuilderImpl<T : Data, R, ID>(
     internal class PredicateBuilderImpl<TX : Data, RX, IDX>(
         val core: st.orm.core.template.PredicateBuilder<TX, RX, IDX>
     ) : PredicateBuilder<TX, RX, IDX> {
-        override fun and(predicate: PredicateBuilder<TX, *, *>): PredicateBuilder<TX, RX, IDX> {
+        override infix fun and(predicate: PredicateBuilder<TX, *, *>): PredicateBuilder<TX, RX, IDX> {
             return PredicateBuilderImpl<TX, RX, IDX>(core.and((predicate as PredicateBuilderImpl<TX, *, *>).core))
         }
 
@@ -302,7 +302,7 @@ class QueryBuilderImpl<T : Data, R, ID>(
             return PredicateBuilderImpl<TX, RX, IDX>(core.and(template.unwrap))
         }
 
-        override fun or(predicate: PredicateBuilder<TX, *, *>): PredicateBuilder<TX, RX, IDX> {
+        override infix fun or(predicate: PredicateBuilder<TX, *, *>): PredicateBuilder<TX, RX, IDX> {
             return PredicateBuilderImpl<TX, RX, IDX>(core.or((predicate as PredicateBuilderImpl<TX, *, *>).core))
         }
 

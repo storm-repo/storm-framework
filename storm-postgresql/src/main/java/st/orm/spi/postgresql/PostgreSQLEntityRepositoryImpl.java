@@ -140,7 +140,11 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
             return;
         }
         validateUpsert(entity);
-        entityCache().ifPresent(cache -> cache.remove(entity.id()));
+        entityCache().ifPresent(cache -> {
+            if (!model.isDefaultPrimaryKey(entity.id())) {
+                cache.remove(entity.id());
+            }
+        });
         var versionAware = new AtomicBoolean();
         intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
             var query = ormTemplate.query(flatten(raw("""
@@ -163,7 +167,11 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
             return entity.id();
         }
         validateUpsert(entity);
-        entityCache().ifPresent(cache -> cache.remove(entity.id()));
+        entityCache().ifPresent(cache -> {
+            if (!model.isDefaultPrimaryKey(entity.id())) {
+                cache.remove(entity.id());
+            }
+        });
         var versionAware = new AtomicBoolean();
         assert primaryKeyColumns.size() == 1;
         var primaryKeyColumn = primaryKeyColumns.getFirst();
@@ -184,7 +192,11 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
             return entity.id();
         }
         validateUpsert(entity);
-        entityCache().ifPresent(cache -> cache.remove(entity.id()));
+        entityCache().ifPresent(cache -> {
+            if (!model.isDefaultPrimaryKey(entity.id())) {
+                cache.remove(entity.id());
+            }
+        });
         var versionAware = new AtomicBoolean();
         return intercept(sql -> sql.versionAware(versionAware.getPlain()), () -> {
             try (var query = ormTemplate.query(flatten(raw("""
@@ -398,7 +410,9 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
         }
         batch.stream().map(this::validateUpsert).forEach(query::addBatch);
         if (cache != null) {
-            cache.removeEntities(batch);
+            batch.stream()
+                    .filter(e -> !model.isDefaultPrimaryKey(e.id()))
+                    .forEach(e -> cache.remove(e.id()));
         }
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {
@@ -412,7 +426,9 @@ public class PostgreSQLEntityRepositoryImpl<E extends Entity<ID>, ID>
         }
         batch.stream().map(this::validateUpsert).forEach(query::addBatch);
         if (cache != null) {
-            cache.removeEntities(batch);
+            batch.stream()
+                    .filter(e -> !model.isDefaultPrimaryKey(e.id()))
+                    .forEach(e -> cache.remove(e.id()));
         }
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 0 && r != 1 && r != 2)) {

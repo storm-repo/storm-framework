@@ -80,7 +80,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.transaction.annotation.Isolation.READ_COMMITTED;
 import static org.springframework.transaction.annotation.Isolation.READ_UNCOMMITTED;
+import static org.springframework.transaction.annotation.Isolation.REPEATABLE_READ;
 import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
 import static org.springframework.transaction.annotation.Propagation.REQUIRED;
 import static st.orm.GenerationStrategy.NONE;
@@ -1610,10 +1612,10 @@ public class RepositoryPreparedStatementIntegrationTest {
         });
     }
 
-    @Transactional(propagation = REQUIRED)
+    @Transactional(propagation = REQUIRED, isolation = REPEATABLE_READ)
     @Test
-    public void testInternerRegularTransaction() {
-        // Uses EntityCache.
+    public void testEntityCacheIdentityDeduplication() {
+        // At REPEATABLE_READ, entity cache deduplicates by identity within a single query result.
         var visits = ORMTemplate.of(dataSource).entity(Visit.class)
                 .select()
                 .getResultList();
@@ -1662,7 +1664,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertEquals(pkSet.size(), identitySet.size());
     }
 
-    @Transactional(propagation = REQUIRED)
+    @Transactional(propagation = REQUIRED, isolation = REPEATABLE_READ)
     @Test
     public void testEntityCacheAcrossQueries() {
         // With entity cache, the same entity should be returned across multiple queries.
@@ -1672,7 +1674,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertSame(pet1, pet2, "Entity cache should return the same instance across queries");
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = REPEATABLE_READ)
     @Test
     public void testEntityCacheInReadOnlyTransaction() {
         // Read-only transactions should also use entity cache for optimization.
@@ -1695,16 +1697,81 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Transactional(isolation = READ_UNCOMMITTED)
     @Test
-    public void testNoEntityCacheAtReadUncommitted() {
-        // Without entity cache (READ_UNCOMMITTED), different instances should be returned.
+    public void testNoHydrationAtReadUncommitted() {
+        // At READ_UNCOMMITTED, hydration is disabled so different instances should be returned.
+        // Dirty checking still works because observed state is stored.
         var repository = ORMTemplate.of(dataSource).entity(Pet.class);
         var pet1 = repository.getById(1);
         var pet2 = repository.getById(1);
         assertEquals(pet1, pet2, "Entities should be equal");
-        assertTrue(pet1 != pet2, "Without entity cache, different instances should be returned");
+        assertTrue(pet1 != pet2, "Without hydration, different instances should be returned");
     }
 
-    @Transactional(propagation = REQUIRED)
+    @Transactional(isolation = REPEATABLE_READ)
+    @Test
+    public void testHydrationEnabledAtRepeatableRead() {
+        // At REPEATABLE_READ, hydration is enabled so the same cached instance should be returned.
+        var repository = ORMTemplate.of(dataSource).entity(Pet.class);
+        var pet1 = repository.getById(1);
+        var pet2 = repository.getById(1);
+        assertEquals(pet1, pet2, "Entities should be equal");
+        assertTrue(pet1 == pet2, "With hydration enabled, same instance should be returned");
+    }
+
+    @Transactional(isolation = READ_COMMITTED)
+    @Test
+    public void testNoHydrationAtReadCommitted() {
+        // At READ_COMMITTED, hydration is disabled so different instances should be returned.
+        // Dirty checking still works because observed state is stored.
+        var repository = ORMTemplate.of(dataSource).entity(Pet.class);
+        var pet1 = repository.getById(1);
+        var pet2 = repository.getById(1);
+        assertEquals(pet1, pet2, "Entities should be equal");
+        assertTrue(pet1 != pet2, "Without hydration, different instances should be returned");
+    }
+
+    @Transactional(isolation = READ_COMMITTED)
+    @Test
+    public void testSqlExecutedOnSecondRequestAtReadCommitted() {
+        // At READ_COMMITTED, cache does not short-circuit reads, so SQL should be executed on each request.
+        var repository = ORMTemplate.of(dataSource).entity(Pet.class);
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        // First request.
+        observe(sql::set, () -> repository.getById(1));
+        assertNotNull(sql.get(), "First request should execute SQL");
+        // Second request should also execute SQL.
+        sql.set(null);
+        observe(sql::set, () -> repository.getById(1));
+        assertNotNull(sql.get(), "Second request should also execute SQL at READ_COMMITTED");
+    }
+
+    @Transactional(isolation = READ_COMMITTED)
+    @Test
+    public void testFindByIdSqlExecutedOnSecondRequestAtReadCommitted() {
+        // At READ_COMMITTED, findById should execute SQL on each request.
+        var repository = ORMTemplate.of(dataSource).entity(Pet.class);
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        observe(sql::set, () -> repository.findById(1));
+        assertNotNull(sql.get(), "First findById should execute SQL");
+        sql.set(null);
+        observe(sql::set, () -> repository.findById(1));
+        assertNotNull(sql.get(), "Second findById should also execute SQL at READ_COMMITTED");
+    }
+
+    @Transactional(isolation = READ_COMMITTED)
+    @Test
+    public void testGetByRefExecutesSqlAtReadCommitted() {
+        // At READ_COMMITTED, repository getByRef should execute SQL even when the entity was previously loaded.
+        var orm = ORMTemplate.of(dataSource);
+        var repository = orm.entity(Pet.class);
+        repository.getById(1);
+        Ref<Pet> ref = orm.ref(Pet.class, 1);
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        observe(sql::set, () -> repository.getByRef(ref));
+        assertNotNull(sql.get(), "getByRef should execute SQL at READ_COMMITTED");
+    }
+
+    @Transactional(propagation = REQUIRED, isolation = REPEATABLE_READ)
     @Test
     public void testCacheFirstLookupNoSqlOnSecondRequest() {
         // First request should execute SQL, second request should hit cache without SQL.
@@ -1719,7 +1786,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertNull(sql.get(), "Second request should not execute SQL due to cache hit");
     }
 
-    @Transactional(propagation = REQUIRED)
+    @Transactional(propagation = REQUIRED, isolation = REPEATABLE_READ)
     @Test
     public void testCacheFirstLookupSameInstance() {
         // Both requests should return the exact same instance when cache is active.
@@ -1729,7 +1796,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertSame(pet1, pet2, "Cache should return the exact same instance");
     }
 
-    @Transactional(propagation = REQUIRED)
+    @Transactional(propagation = REQUIRED, isolation = REPEATABLE_READ)
     @Test
     public void testCacheFirstLookupFindByIdNoSqlOnSecondRequest() {
         // Test findById variant as well.
@@ -1744,7 +1811,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertNull(sql.get(), "Second findById should not execute SQL due to cache hit");
     }
 
-    @Transactional(propagation = REQUIRED)
+    @Transactional(propagation = REQUIRED, isolation = REPEATABLE_READ)
     @Test
     public void testCacheFirstLookupByRefNoSqlWhenCached() {
         // Loading entity, then fetching by ref should not execute SQL.
@@ -1761,7 +1828,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertSame(pet, repository.getByRef(ref), "getByRef should return the cached instance");
     }
 
-    @Transactional(propagation = REQUIRED)
+    @Transactional(propagation = REQUIRED, isolation = REPEATABLE_READ)
     @Test
     public void testRefFetchNoSqlWhenCached() {
         // When entity is already loaded, Ref.fetch() should return cached instance without SQL.
@@ -1779,7 +1846,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertSame(pet, ref.fetch(), "Ref.fetch() should return the cached instance");
     }
 
-    @Transactional(propagation = REQUIRED)
+    @Transactional(propagation = REQUIRED, isolation = REPEATABLE_READ)
     @Test
     public void testSelectByIdPartialCacheHit() {
         // When some entities are cached, only uncached ones should be queried.
@@ -1796,7 +1863,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertSame(pet1, result.get(0), "Cached entity should be the same instance");
     }
 
-    @Transactional(propagation = REQUIRED)
+    @Transactional(propagation = REQUIRED, isolation = REPEATABLE_READ)
     @Test
     public void testRefFetchFromCachedOwner() {
         // When all owners are loaded, fetching a pet's owner ref should not execute SQL.
@@ -1821,7 +1888,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertSame(cachedOwner, pet.owner().fetch(), "Ref.fetch() should return the cached owner instance");
     }
 
-    @Transactional(propagation = REQUIRED)
+    @Transactional(propagation = REQUIRED, isolation = REPEATABLE_READ)
     @Test
     public void testFindAllByIdPartialCacheHit() {
         // When some entities are cached, findAllById should only query uncached ones.
@@ -1842,7 +1909,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertTrue(result.contains(pet2), "Result should contain cached pet2");
     }
 
-    @Transactional(propagation = REQUIRED)
+    @Transactional(propagation = REQUIRED, isolation = REPEATABLE_READ)
     @Test
     public void testFindAllByRefPartialCacheHit() {
         // When some entities are cached, findAllByRef should only query uncached ones.

@@ -26,11 +26,31 @@ import static st.orm.Operator.EQUALS;
 import static st.orm.Operator.IN;
 
 /**
- * A builder for constructing the WHERE clause of the query.
+ * A builder for constructing the WHERE clause of a query, providing type-safe predicate construction.
+ *
+ * <p>The {@code WhereBuilder} is passed to the lambda argument of {@link QueryBuilder#where(java.util.function.Function)}
+ * and offers methods for matching by primary key, record, ref, metamodel path, or custom string template
+ * expressions. Each method returns a {@link PredicateBuilder} that can be further composed using
+ * {@code and()} and {@code or()} combinators.</p>
+ *
+ * <p>Methods named {@code where} are type-safe and restrict metamodel paths to the root table's entity graph.
+ * Methods named {@code whereAny} accept metamodel paths from any table, including manually added joins.</p>
+ *
+ * <h2>Example</h2>
+ * <pre>{@code
+ * List<User> users = userRepository
+ *         .select()
+ *         .where(predicate -> predicate
+ *             .where(User_.active, EQUALS, true)
+ *             .and(predicate.where(User_.address.city.name, EQUALS, "Sunnyvale")))
+ *         .getResultList();
+ * }</pre>
  *
  * @param <T>  the type of the table being queried.
  * @param <R>  the type of the result.
  * @param <ID> the type of the primary key.
+ * @see QueryBuilder#where(java.util.function.Function)
+ * @see PredicateBuilder
  */
 public abstract class WhereBuilder<T extends Data, R, ID> implements SubqueryTemplate {
 

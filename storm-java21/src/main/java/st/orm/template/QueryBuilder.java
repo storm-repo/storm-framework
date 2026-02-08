@@ -36,11 +36,51 @@ import static st.orm.Operator.EQUALS;
 import static st.orm.Operator.IN;
 
 /**
- * A query builder that constructs a query from a template.
+ * A fluent builder for constructing type-safe SELECT and DELETE queries using the entity graph and metamodel.
+ *
+ * <p>The {@code QueryBuilder} provides a composable, chainable API for building SQL queries without writing raw SQL.
+ * It supports joins, WHERE clauses with type-safe metamodel paths, GROUP BY, HAVING, ORDER BY, LIMIT/OFFSET,
+ * row locking (FOR SHARE/FOR UPDATE), and result retrieval as streams, lists, or single results.</p>
+ *
+ * <p>Instances are obtained from an {@link st.orm.repository.EntityRepository} or
+ * {@link st.orm.repository.ProjectionRepository} via their {@code select()}, {@code selectCount()}, or
+ * {@code delete()} methods, or from a {@link QueryTemplate} via {@code selectFrom()} and {@code deleteFrom()}.
+ *
+ * <h2>Example: Select with type-safe WHERE clause</h2>
+ * <pre>{@code
+ * List<User> users = userRepository
+ *         .select()
+ *         .where(User_.address.city.name, EQUALS, "Sunnyvale")
+ *         .orderBy(User_.email)
+ *         .limit(10)
+ *         .getResultList();
+ * }</pre>
+ *
+ * <h2>Example: Delete with WHERE clause</h2>
+ * <pre>{@code
+ * int deleted = userRepository
+ *         .delete()
+ *         .where(User_.email, IS_NULL)
+ *         .executeUpdate();
+ * }</pre>
+ *
+ * <h2>Example: Join and subquery</h2>
+ * <pre>{@code
+ * List<User> users = userRepository
+ *         .select()
+ *         .innerJoin(Order.class).on(User.class)
+ *         .where(predicate -> predicate
+ *             .where(User_.active, EQUALS, true)
+ *             .and(predicate.where(Order_.total, GREATER_THAN, 100)))
+ *         .getResultList();
+ * }</pre>
  *
  * @param <T> the type of the table being queried.
  * @param <R> the type of the result.
  * @param <ID> the type of the primary key.
+ * @see st.orm.repository.EntityRepository
+ * @see st.orm.repository.ProjectionRepository
+ * @see QueryTemplate
  */
 public abstract class QueryBuilder<T extends Data, R, ID> {
 

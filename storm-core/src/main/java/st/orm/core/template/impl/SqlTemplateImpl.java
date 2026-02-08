@@ -54,7 +54,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             new SegmentedLruCache<>(64);
 
     private static final int TEMPLATE_CACHE_SIZE =
-            Math.max(0, parseInt(System.getProperty("storm.templateCacheSize", "2048")));
+            Math.max(0, parseInt(System.getProperty("storm.templateCache.size", "2048")));
 
     record ElementNode(@Nonnull Element element, boolean synthetic) {}
 

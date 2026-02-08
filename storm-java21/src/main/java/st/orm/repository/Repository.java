@@ -18,7 +18,14 @@ package st.orm.repository;
 import st.orm.template.ORMTemplate;
 
 /**
- * Base interface for all repositories.
+ * Base interface for all Storm repositories, providing access to the underlying {@link ORMTemplate}.
+ *
+ * <p>Both {@link EntityRepository} and {@link ProjectionRepository} extend this interface. Custom repository
+ * interfaces should extend one of those specialized interfaces rather than this one directly.</p>
+ *
+ * @see EntityRepository
+ * @see ProjectionRepository
+ * @see ORMTemplate
  */
 public interface Repository {
 
