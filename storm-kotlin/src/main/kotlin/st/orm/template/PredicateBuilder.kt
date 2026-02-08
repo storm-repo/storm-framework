@@ -18,11 +18,33 @@ package st.orm.template
 import st.orm.Data
 
 /**
- * A builder for constructing the predicates of the WHERE clause of the query.
+ * Represents a composable predicate for the WHERE clause of a query, supporting `AND` and `OR` composition.
  *
- * @param <T> the type of the table being queried.
- * @param <R> the type of the result.
- * @param <ID> the type of the primary key.
+ * `PredicateBuilder` instances are returned by the methods on [WhereBuilder] and can be combined using [and]
+ * and [or] to build compound conditions. Each combinator returns a new `PredicateBuilder` that represents the
+ * combined expression.
+ *
+ * Methods named `and`/`or` are type-safe and restrict predicates to the root table's entity graph.
+ * Methods named `andAny`/`orAny` accept predicates from any table, including manually added joins.
+ *
+ * ## Example
+ * ```kotlin
+ * val users = userRepository
+ *     .select()
+ *     .where { predicate ->
+ *         predicate
+ *             .where(User_.active, EQUALS, true)
+ *             .and(predicate.where(User_.email, IS_NOT_NULL))
+ *             .or(predicate.where(User_.role, EQUALS, "admin"))
+ *     }
+ *     .getResultList()
+ * ```
+ *
+ * @param T the type of the table being queried.
+ * @param R the type of the result.
+ * @param ID the type of the primary key.
+ * @see WhereBuilder
+ * @see QueryBuilder
  */
 interface PredicateBuilder<T : Data, R, ID> {
     /**

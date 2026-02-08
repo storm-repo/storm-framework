@@ -29,6 +29,8 @@ data class User(
 
 ### Nullability
 
+Kotlin's type system maps directly to Storm's null handling. A non-nullable field produces an `INNER JOIN` for foreign keys and a `NOT NULL` expectation for columns. A nullable field produces a `LEFT JOIN` for foreign keys and allows `NULL` values from the database. This means your entity definition fully describes the expected schema constraints.
+
 Use nullable types (`?`) to indicate nullable fields:
 
 ```kotlin
@@ -42,6 +44,8 @@ data class User(
 ```
 
 ### Enumerations
+
+Storm persists enum values as their `name()` string by default, which is readable and resilient to reordering. If storage efficiency is a priority or your schema uses integer columns for enums, you can switch to ordinal storage with `@DbEnum(ORDINAL)`. Be aware that ordinal storage is sensitive to the order of enum constants: adding or reordering values will break existing data.
 
 Enums are stored by their name by default:
 
@@ -70,6 +74,8 @@ data class Role(
 
 ### Versioning (Optimistic Locking)
 
+Optimistic locking prevents lost updates when multiple users or threads modify the same record concurrently. Storm checks the version value during updates: if another transaction has already changed the row, the update fails with an exception rather than silently overwriting the other change. You can use either an integer counter or a timestamp.
+
 Use `@Version` for optimistic locking:
 
 ```kotlin
@@ -95,6 +101,8 @@ data class Visit(
 
 ### Non-Updatable Fields
 
+Some fields should be set once at creation and never changed by the application, such as creation timestamps, entity types, or references that define an object's identity. Marking a field with `@Persist(updatable = false)` tells Storm to include it in INSERT statements but exclude it from UPDATE statements.
+
 Use `@Persist(updatable = false)` for fields that should only be set on insert:
 
 ```kotlin
@@ -108,6 +116,8 @@ data class Pet(
 ```
 
 ### Embedded Components
+
+Embedded components group related fields into a reusable data class without creating a separate database table. The component's fields are stored as columns in the parent entity's table. This is useful for value objects like addresses, coordinates, or monetary amounts that appear in multiple entities.
 
 Use data classes for embedded components:
 
@@ -138,6 +148,8 @@ data class User(
 ```
 
 ### Composite Primary Keys
+
+For join tables or entities whose identity is defined by a combination of columns, wrap the key fields in a separate data class and annotate it with `@PK`. Storm treats all fields in the composite key class as part of the primary key.
 
 ```kotlin
 data class UserRolePk(
@@ -228,7 +240,7 @@ record User(@PK Integer id,
 
 ### Nullability
 
-Use `@Nonnull` for non-nullable fields. Primitive types are inherently non-nullable:
+In Java, record components are nullable by default. Use `@Nonnull` to mark fields that must always have a value. Primitive types (`int`, `long`, etc.) are inherently non-nullable. As with Kotlin, nullability determines JOIN behavior: a non-nullable `@FK` field produces an `INNER JOIN`, while a `@Nullable` one produces a `LEFT JOIN`.
 
 ```java
 record User(@PK Integer id,
@@ -318,6 +330,8 @@ record Owner(@PK Integer id,
 
 ### Custom Table and Column Names
 
+When the database schema does not follow Storm's default camelCase-to-snake_case convention, use annotations to specify the exact names. `@DbTable` overrides the table name, `@DbColumn` overrides a column name, and the string parameter on `@PK` or `@FK` overrides their respective column names. These annotations take precedence over any configured name resolver.
+
 ```java
 @DbTable("app_users")
 record User(@PK("user_id") Integer id,
@@ -327,6 +341,8 @@ record User(@PK("user_id") Integer id,
 ```
 
 ### Composite Primary Keys
+
+Composite keys work the same as in Kotlin. Define a plain record with the key fields and use it as the `@PK` type.
 
 ```java
 record UserRolePk(int userId, int roleId) {}
@@ -417,7 +433,7 @@ CamelCase field names are converted to snake_case column names. Foreign keys aut
 
 ## Naming Conventions
 
-Storm uses pluggable name resolvers to convert Java/Kotlin names to database identifiers. By default, camelCase names are converted to snake_case.
+Storm uses pluggable name resolvers to convert Kotlin/Java names to database identifiers. By default, camelCase names are converted to snake_case.
 
 ### Name Resolvers
 
@@ -600,4 +616,4 @@ Nullability affects how relationships are loaded:
 
 ## Entity Interface
 
-Implementing the `Entity` interface is optional but required for using `EntityRepository` with built-in CRUD operations. The type parameter specifies the primary key type.
+Implementing the `Entity<ID>` interface is optional but required for using `EntityRepository` with built-in CRUD operations. The type parameter specifies the primary key type. Without this interface, you can still use Storm's SQL template features and query builder, but you lose the convenience methods like `findById`, `insert`, `update`, and `delete`. If you only need read access, consider using `Projection<ID>` instead (see [Projections](projections.md)).

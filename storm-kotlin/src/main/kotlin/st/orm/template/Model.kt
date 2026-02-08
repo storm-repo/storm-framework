@@ -20,10 +20,24 @@ import st.orm.core.template.SqlTemplateException
 import kotlin.reflect.KClass
 
 /**
- * Represents the model of an entity or projection.
+ * Provides metadata about an entity or projection type, including its table name, primary key type, and column
+ * definitions.
  *
- * @param <E> the type of the entity or projection.
- * @param <ID> the type of the primary key, or `Void` in case of a projection without a primary key.
+ * The `Model` is obtained via [QueryTemplate.model] or from a repository's `model` property. It can be used to
+ * introspect the database mapping of a data class type, access column metadata, check primary key defaults, and
+ * extract column values from record instances.
+ *
+ * ## Example
+ * ```kotlin
+ * val model = orm.model(User::class)
+ * val tableName = model.name
+ * val columns = model.columns
+ * ```
+ *
+ * @param E the type of the entity or projection.
+ * @param ID the type of the primary key, or `Void` in case of a projection without a primary key.
+ * @see Column
+ * @see QueryTemplate.model
  */
 interface Model<E : Data, ID : Any> {
     /**

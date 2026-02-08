@@ -22,8 +22,32 @@ import st.orm.PersistenceException;
 import java.util.stream.Stream;
 
 /**
- * Represents a prepared query that can be executed multiple times, allows adding records to a batch and retrieving
- * generated keys.
+ * Represents an eagerly constructed, reusable query that supports batch operations and generated key retrieval.
+ *
+ * <p>Unlike regular {@link Query} instances which are constructed lazily, a {@code PreparedQuery} is constructed
+ * eagerly when {@link Query#prepare()} or {@link QueryBuilder#prepare()} is called. This enables:</p>
+ * <ul>
+ *   <li><strong>Batch operations</strong> -- Add multiple records via {@link #addBatch(Data)} and execute them
+ *       in a single database round-trip with {@link #executeBatch()}.</li>
+ *   <li><strong>Generated keys</strong> -- Retrieve auto-generated primary keys after INSERT via
+ *       {@link #getGeneratedKeys(Class)}.</li>
+ * </ul>
+ *
+ * <p>As {@code PreparedQuery} implements {@link AutoCloseable}, it must be closed after usage to release database
+ * resources. Use it within a try-with-resources block:</p>
+ *
+ * <pre>{@code
+ * var bindVars = orm.createBindVars();
+ * try (var query = orm.query(RAW."""
+ *         INSERT INTO \{User.class}
+ *         VALUES \{bindVars}""").prepare()) {
+ *     users.forEach(query::addBatch);
+ *     query.executeBatch();
+ * }
+ * }</pre>
+ *
+ * @see Query#prepare()
+ * @see QueryBuilder#prepare()
  */
 public interface PreparedQuery extends Query, AutoCloseable {
 

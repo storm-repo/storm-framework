@@ -16,8 +16,20 @@
 package st.orm.template
 
 /**
+ * Represents a compiled SQL template string that can be passed to Storm's query engine for execution.
+ *
+ * A `TemplateString` is typically produced by a [TemplateBuilder] lambda (via the [build] extension function)
+ * or by the companion factory methods [raw], [wrap], and [combine]. It encapsulates both the SQL fragments and
+ * any interpolated parameters, allowing the query engine to generate a safe, parameterized SQL statement.
+ *
+ * ```
+ * val template = TemplateString.raw { "SELECT ${t(User::class)} FROM ${t(User::class)} WHERE ${t(User::class)}.name = ${t("Alice")}" }
+ * orm.query(template).getResultList(User::class)
+ * ```
  *
  * @since 1.4
+ * @see TemplateBuilder
+ * @see TemplateContext
  */
 sealed interface TemplateString {
     companion object {
@@ -27,36 +39,72 @@ sealed interface TemplateString {
         fun raw(builder: TemplateBuilder): TemplateString = builder.build()
 
         /**
-         * Create a new template string from the given [TemplateBuilder].
+         * Create a new template string from a raw SQL string. No parameter interpolation is performed.
          */
         fun raw(str: String): TemplateString =
             TemplateStringHolder(st.orm.core.template.TemplateString.of(str))
 
         /**
-         * Create a new template string from the given [TemplateBuilder].
+         * Create a new template string that wraps a single value as a bound parameter.
          */
         fun wrap(value: Any?): TemplateString =
             TemplateStringHolder(st.orm.core.template.TemplateString.wrap(value))
 
+        /**
+         * Combine multiple template strings into a single template string.
+         */
         fun combine(vararg templates: TemplateString): TemplateString =
             TemplateStringHolder(st.orm.core.template.TemplateString.combine(*templates.map { it.unwrap }.toTypedArray()))
     }
 }
 
 /**
- * A little alias for “build me a SQL string in the StringTemplate DSL.”
+ * A function type alias for building SQL template strings. The receiver [TemplateContext] provides the [t][TemplateContext.t]
+ * function used to interpolate values, types, and elements into the template.
+ *
+ * ```
+ * val builder: TemplateBuilder = { "SELECT ${t(User::class)} FROM ${t(User::class)}" }
+ * ```
+ *
+ * @see TemplateContext
+ * @see TemplateString
  */
 typealias TemplateBuilder = TemplateContext.() -> String
 
+/**
+ * Provides the interpolation context for building SQL template strings.
+ *
+ * Within a [TemplateBuilder] lambda, use [t] (or its longer form [insert]) to interpolate values, types,
+ * and SQL elements into the template. The interpolated objects are processed by the Storm template engine,
+ * which resolves them into the appropriate SQL fragments and bound parameters based on their position in the query.
+ *
+ * @see TemplateBuilder
+ * @see TemplateString
+ */
 interface TemplateContext {
 
+    /**
+     * Interpolates the given object into the SQL template. Shorthand for [insert].
+     *
+     * @param o the object to interpolate (a value, [KClass][kotlin.reflect.KClass], [Element], record, etc.).
+     * @return a placeholder string that the template engine replaces with the appropriate SQL fragment.
+     */
     fun t(o: Any?): String {
         return insert(o)
     }
 
+    /**
+     * Interpolates the given object into the SQL template.
+     *
+     * @param o the object to interpolate.
+     * @return a placeholder string that the template engine replaces with the appropriate SQL fragment.
+     */
     fun insert(o: Any?): String
 }
 
+/**
+ * Builds this [TemplateBuilder] into a [TemplateString] ready for use with the Storm query engine.
+ */
 fun TemplateBuilder.build(): TemplateString =
     TemplateStringHolder(st.orm.core.template.TemplateBuilder.create { ctx ->
         with(object : TemplateContext {

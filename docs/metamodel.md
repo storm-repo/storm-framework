@@ -71,6 +71,8 @@ annotationProcessor 'st.orm:storm-metamodel-processor:1.8.2'
 
 ## Usage
 
+Once the metamodel is generated, you use the `_` suffixed classes in place of string-based field references throughout your queries. The metamodel provides type-safe field accessors that the compiler can verify, so a renamed or removed field produces a compile error rather than a runtime exception. The following examples demonstrate the metamodel in queries for both Kotlin and Java.
+
 ### Kotlin
 
 ```kotlin
@@ -240,6 +242,8 @@ When Storm detects ambiguity, it throws an exception with a message indicating w
 
 ### Custom Joins
 
+Sometimes you need to join a table that has no `@FK` relationship defined in your entity model. For example, you might query users and filter by their orders without adding an `orders` field to the `User` entity. Custom joins add these tables to the query at runtime, making them available for filtering and projection.
+
 Custom joins add tables that are not part of the entity graph:
 
 ```
@@ -292,7 +296,7 @@ When resolving a metamodel reference, Storm follows this order:
 
 ## Generated Code
 
-The metamodel mirrors your entity structure, providing typed accessors for each field:
+Understanding the generated code helps when debugging or reading compiler errors. The metamodel mirrors your entity structure, creating a static field for each entity field. Each field carries generic type parameters that encode both the root entity type and the field's value type, which is how the compiler enforces type safety in queries.
 
 ```
 Entity                              Metamodel
@@ -345,7 +349,7 @@ Foreign key fields like `city` generate their own metamodel classes, enabling na
 
 ## Without the Metamodel
 
-You can still use Storm without the metamodel using SQL Templates or string-based field references, but you lose compile-time type safety.
+The metamodel is not required. You can use Storm with SQL Templates (Java) or raw query methods and string-based field references. This approach works well for prototyping, small projects, or queries that are too dynamic to express through the DSL. The trade-off is that field references become strings, which the compiler cannot verify. Typos and type mismatches will surface as runtime exceptions rather than compile errors.
 
 ## Tips
 

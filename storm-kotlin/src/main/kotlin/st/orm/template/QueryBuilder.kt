@@ -30,11 +30,40 @@ import java.util.stream.Stream
 import kotlin.reflect.KClass
 
 /**
- * A query builder that constructs a query from a template.
+ * A fluent builder for constructing type-safe SELECT and DELETE queries using the entity graph and metamodel.
  *
- * @param <T> the type of the table being queried.
- * @param <R> the type of the result.
- * @param <ID> the type of the primary key.
+ * The `QueryBuilder` provides a composable, chainable API for building SQL queries without writing raw SQL.
+ * It supports joins, WHERE clauses with type-safe metamodel paths, GROUP BY, HAVING, ORDER BY, LIMIT/OFFSET,
+ * row locking (FOR SHARE/FOR UPDATE), and result retrieval as flows, lists, or single results.
+ *
+ * Instances are obtained from an [st.orm.repository.EntityRepository] or
+ * [st.orm.repository.ProjectionRepository] via their `select()`, `selectCount()`, or
+ * `delete()` methods, or from a [QueryTemplate] via `selectFrom()` and `deleteFrom()`.
+ *
+ * ## Example: Select with type-safe WHERE clause
+ * ```kotlin
+ * val users = userRepository
+ *     .select()
+ *     .where(User_.address.city.name, EQUALS, "Sunnyvale")
+ *     .orderBy(User_.email)
+ *     .limit(10)
+ *     .getResultList()
+ * ```
+ *
+ * ## Example: Delete with WHERE clause
+ * ```kotlin
+ * val deleted = userRepository
+ *     .delete()
+ *     .where(User_.email, IS_NULL)
+ *     .executeUpdate()
+ * ```
+ *
+ * @param T the type of the table being queried.
+ * @param R the type of the result.
+ * @param ID the type of the primary key.
+ * @see st.orm.repository.EntityRepository
+ * @see st.orm.repository.ProjectionRepository
+ * @see QueryTemplate
  */
 interface QueryBuilder<T : Data, R, ID> {
     /**

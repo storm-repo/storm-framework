@@ -60,6 +60,8 @@ When no isolation level is explicitly set, Storm uses the database default and f
 
 ## Query Optimization
 
+The primary benefit of the entity cache is avoiding redundant database round-trips. When your code reads the same entity multiple times within a transaction, the cache short-circuits the second read. This matters most in business logic that navigates entity graphs, where the same parent entity may be reached through multiple paths.
+
 ### Repository Lookups
 
 Repository methods that fetch by primary key check the cache first:
@@ -98,7 +100,7 @@ This is particularly useful when navigating entity graphs where the same entity 
 
 ### Select Operations
 
-When selecting multiple entities, Storm queries only for cache misses:
+Batch select operations benefit from cache-aware splitting. When you request multiple entities by ID, Storm partitions the IDs into cache hits and cache misses, queries the database only for the misses, and merges the results. This is transparent to the caller and reduces query size when some entities have already been loaded.
 
 ```kotlin
 transaction {
@@ -142,7 +144,7 @@ This identity guarantee simplifies application logic: you can use reference equa
 
 ## Cache Invalidation
 
-The cache is invalidated when entities are mutated to ensure consistency with the database:
+The cache must stay consistent with the database. Rather than trying to predict what the database will store after a mutation (which is impossible when triggers, computed columns, or version increments are involved), Storm invalidates the cache entry for any mutated entity. The next read fetches the authoritative state from the database.
 
 ### After Mutations
 
@@ -201,6 +203,8 @@ Within a transaction, memory is managed automatically based on what your code is
 
 ### Retention Modes
 
+The cache uses weak or soft references internally so that cached entities do not prevent garbage collection when your code no longer holds a reference to them. The retention mode controls how aggressively the JVM is allowed to reclaim these entries. In most applications, the default `minimal` mode is sufficient. Switch to `aggressive` when you process entities in a streaming pipeline where you read, transform, and discard entities before updating them later in the same transaction.
+
 Configure retention behavior via system property:
 
 ```bash
@@ -225,7 +229,7 @@ If an entity's cache entry is cleaned up before you call `update()`, Storm falls
 
 ## Dirty Checking Integration
 
-The entity cache stores observed state that enables dirty checking for efficient updates:
+The entity cache serves a dual purpose beyond query optimization: it stores the original state of entities at the time they were read. This original state is the baseline for dirty checking. When you update an entity, Storm compares the new values against the cached original to determine which fields changed, producing a minimal UPDATE statement. Without the cache, Storm falls back to updating all columns.
 
 ```kotlin
 transaction {
@@ -247,11 +251,11 @@ Cache writes for dirty checking occur at all isolation levels when dirty checkin
 
 ## Transaction Boundaries
 
-The entity cache is scoped to a single transaction. When the transaction commits or rolls back, all cached state is discarded.
+The entity cache is scoped to a single transaction. When the transaction commits or rolls back, all cached state is discarded. This ensures that no stale data leaks across transaction boundaries.
 
 ### Nested Transactions
 
-Cache behavior with nested transactions depends on propagation:
+Cache behavior with nested transactions follows from the underlying transaction semantics. Propagation modes that share the parent transaction also share the parent cache. Propagation modes that create a new transaction (or suspend the current one) start with a fresh, empty cache.
 
 | Propagation | Cache Behavior |
 |-------------|----------------|

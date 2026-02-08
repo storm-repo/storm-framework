@@ -1,14 +1,24 @@
 # Getting Started
 
-Storm offers a flexible and layered approach to database interaction. This guide will help you get up and running quickly.
+Storm is a modern SQL Template and ORM framework for Kotlin 2.0+ and Java 21+. It uses immutable records and data classes instead of proxied entities, giving you predictable behavior and type-safe queries.
+
+This guide walks you through setup, entity definition, and basic operations.
 
 Choose your language:
-- **[Kotlin](#kotlin)** — Recommended. Clean DSL, coroutine support, no preview features required.
-- **[Java](#java)** — Full-featured API using String Templates (preview feature).
+- **[Kotlin](#kotlin)** -- clean DSL, coroutine support, no preview features required.
+- **[Java](#java)** -- full-featured API using String Templates (preview feature in Java 21+).
+
+> **Note on Java String Templates:** The Java API is built on String Templates, a preview feature that is still evolving in the JDK. Storm is a forward-looking framework, and String Templates are the best way to write SQL that is both readable and injection-safe by design. Rather than wait for the feature to stabilize, Storm ships with String Template support today. If you prefer a stable API right now, the Kotlin API is fully stable and requires no preview features. Only the `storm-java21` module depends on this preview feature; the core framework and the Kotlin API are unaffected. The Java API is production-ready from a quality perspective, but its API surface will adapt as String Templates move toward a stable release.
 
 ---
 
 ## Kotlin
+
+### Prerequisites
+
+- JDK 21+
+- Kotlin 2.0+
+- A JDBC DataSource (any JDBC-compatible database)
 
 ### Dependencies
 
@@ -17,9 +27,8 @@ Choose your language:
 ```kotlin
 dependencies {
     implementation("st.orm:storm-kotlin:1.8.2")
-    runtimeOnly("st.orm:storm-core:1.8.2")
 
-    // Optional: Static metamodel generation (KSP)
+    // Optional: Static metamodel generation (KSP) -- enables User_, City_, etc.
     ksp("st.orm:storm-metamodel-processor:1.8.2")
 
     // Optional: Database dialect (example: PostgreSQL)
@@ -30,9 +39,21 @@ dependencies {
 }
 ```
 
+**Maven:**
+
+```xml
+<dependencies>
+    <dependency>
+        <groupId>st.orm</groupId>
+        <artifactId>storm-kotlin</artifactId>
+        <version>1.8.2</version>
+    </dependency>
+</dependencies>
+```
+
 ### Define Entities
 
-Entities are simple Kotlin data classes:
+Storm entities are plain Kotlin data classes that implement the `Entity<ID>` interface. Mark the primary key with `@PK` and foreign keys with `@FK`. Storm derives table and column names automatically (e.g., `birthDate` becomes `birth_date`), so no XML mapping or additional configuration is needed. See [Entities](entities.md) for the full set of annotations and conventions.
 
 ```kotlin
 data class City(
@@ -51,6 +72,8 @@ data class User(
 
 ### Create the ORM Template
 
+The `ORMTemplate` is the central entry point for all database operations. Create one from any JDBC `DataSource`. It is thread-safe and typically created once at application startup or provided as a Spring bean.
+
 ```kotlin
 val orm = ORMTemplate.of(dataSource)
 
@@ -60,7 +83,7 @@ val orm = dataSource.orm
 
 ### Two Ways to Work
 
-Storm for Kotlin offers two complementary styles. Use whichever fits your situation best—or mix them freely.
+Storm for Kotlin offers two complementary styles. Use whichever fits your situation best, or mix them freely.
 
 #### Style 1: Concise Infix Operations
 
@@ -141,7 +164,7 @@ val counts = users.select(CityCount::class) { "${t(City::class)}, COUNT(*)" }
 
 ### Streaming with Flow
 
-Process large datasets efficiently without loading everything into memory:
+Kotlin's `Flow` provides lazy, backpressure-aware streaming. Storm's `selectAll()` and `select()` methods return `Flow<T>`, which means rows are fetched from the database only as you consume them. This is the preferred approach for processing large datasets without loading everything into memory:
 
 ```kotlin
 val users: Flow<User> = orm.entity(User::class).selectAll()
@@ -159,29 +182,22 @@ val emails: List<String> = users.map { it.email }.toList()
 Storm provides full programmatic transaction control:
 
 ```kotlin
-// Blocking transactions
-transactionBlocking {
+transaction {
     val city = orm insert City(name = "Sunnyvale", population = 155_000)
     val user = orm insert User(email = "bob@example.com", name = "Bob", city = city)
     // Commits on success, rolls back on exception
 }
 
-// Suspend transactions for coroutines
-transaction {
-    val city = orm insert City(name = "Sunnyvale", population = 155_000)
-    val user = orm insert User(email = "bob@example.com", name = "Bob", city = city)
-}
-
 // With options
-transactionBlocking(propagation = REQUIRED, isolation = REPEATABLE_READ) {
+transaction(propagation = REQUIRED, isolation = REPEATABLE_READ) {
     // ...
 }
 
 // Nested transactions with savepoints
-transactionBlocking {
+transaction {
     orm insert User(email = "alice@example.com", name = "Alice", city = city)
 
-    transactionBlocking(propagation = NESTED) {
+    transaction(propagation = NESTED) {
         orm insert User(email = "bob@example.com", name = "Bob", city = city)
         if (someCondition) setRollbackOnly()  // Only rolls back this nested block
     }
@@ -200,8 +216,8 @@ interface UserRepository : EntityRepository<User, Int> {
     fun findByEmail(email: String): User? =
         find { User_.email eq email }
 
-    fun findActiveInCity(city: City): List<User> =
-        findAll((User_.city eq city) and (User_.active eq true))
+    fun findByNameInCity(name: String, city: City): List<User> =
+        findAll((User_.city eq city) and (User_.name eq name))
 
     fun streamByCity(city: City): Flow<User> =
         select { User_.city eq city }
@@ -216,6 +232,12 @@ val user = userRepository.findByEmail("alice@example.com")
 
 ## Java
 
+### Prerequisites
+
+- JDK 21+
+- Maven 3.9+ or Gradle 8+
+- `--enable-preview` compiler flag (required for String Templates)
+
 ### Dependencies
 
 **Maven:**
@@ -227,14 +249,8 @@ val user = userRepository.findByEmail("alice@example.com")
         <artifactId>storm-java21</artifactId>
         <version>1.8.2</version>
     </dependency>
-    <dependency>
-        <groupId>st.orm</groupId>
-        <artifactId>storm-core</artifactId>
-        <version>1.8.2</version>
-        <scope>runtime</scope>
-    </dependency>
 
-    <!-- Optional: Static metamodel generation -->
+    <!-- Optional: Static metamodel generation -- enables User_, City_, etc. -->
     <dependency>
         <groupId>st.orm</groupId>
         <artifactId>storm-metamodel-processor</artifactId>
@@ -242,6 +258,17 @@ val user = userRepository.findByEmail("alice@example.com")
         <scope>provided</scope>
     </dependency>
 </dependencies>
+```
+
+**Gradle (Kotlin DSL):**
+
+```kotlin
+dependencies {
+    implementation("st.orm:storm-java21:1.8.2")
+
+    // Optional: Static metamodel generation
+    annotationProcessor("st.orm:storm-metamodel-processor:1.8.2")
+}
 ```
 
 ### Enable Preview Features
@@ -263,7 +290,7 @@ The Java API uses String Templates (JEP 430), a preview feature:
 
 ### Define Entities
 
-Entities are Java records:
+Storm entities are Java records that implement the `Entity<ID>` interface. Mark the primary key with `@PK` and foreign keys with `@FK`. Storm converts camelCase field names to snake_case column names automatically. See [Entities](entities.md) for the complete annotation reference.
 
 ```java
 record City(@PK Integer id,
@@ -279,6 +306,8 @@ record User(@PK Integer id,
 ```
 
 ### Create the ORM Template
+
+Create an `ORMTemplate` from any JDBC `DataSource`. This is the central entry point for all Storm operations and is thread-safe.
 
 ```java
 var orm = ORMTemplate.of(dataSource);
@@ -346,7 +375,7 @@ try (Stream<User> users = orm.entity(User.class).selectAll()) {
 
 ### Transactions
 
-Use Spring's `@Transactional`:
+With Spring's `@Transactional`:
 
 ```java
 @Transactional
@@ -354,6 +383,18 @@ public User createUser(String email, String name, City city) {
     return orm.entity(User.class)
         .insertAndFetch(new User(null, email, name, city));
 }
+```
+
+Or programmatically (without Spring):
+
+```java
+orm.transaction(() -> {
+    var city = orm.entity(City.class).insertAndFetch(
+        new City(null, "Sunnyvale", 155_000));
+    var user = orm.entity(User.class).insertAndFetch(
+        new User(null, "bob@example.com", "Bob", city));
+    // Commits on success, rolls back on exception
+});
 ```
 
 ### Custom Repositories
@@ -374,11 +415,33 @@ UserRepository userRepository = orm.repository(UserRepository.class);
 
 ---
 
-## Next Steps
+## What's Next
 
-- [Entities](entities.md) — Annotations, nullability, naming conventions
-- [Queries](queries.md) — Query DSL and SQL Templates
-- [Relationships](relationships.md) — One-to-one, many-to-one, many-to-many
-- [Repositories](repositories.md) — Repository pattern and custom methods
-- [Transactions](transactions.md) — Transaction management and propagation
-- [Spring Integration](spring-integration.md) — Spring Boot configuration
+Now that you have the basics, explore the features that match your needs:
+
+**Core Concepts:**
+- [Entities](entities.md) -- annotations, nullability, naming conventions
+- [Queries](queries.md) -- query DSL, filtering, joins, aggregation
+- [Relationships](relationships.md) -- one-to-one, many-to-one, many-to-many
+- [Repositories](repositories.md) -- custom repository pattern
+
+**Operations:**
+- [Transactions](transactions.md) -- transaction management and propagation
+- [Upserts](upserts.md) -- insert-or-update operations
+- [Batch Processing & Streaming](batch-streaming.md) -- bulk operations and large datasets
+- [Dirty Checking](dirty-checking.md) -- automatic change detection on update
+
+**Integration:**
+- [Spring Integration](spring-integration.md) -- Spring Boot configuration and DI
+- [JSON Support](json.md) -- JSON columns and aggregation
+- [Database Dialects](dialects.md) -- database-specific features
+
+**Advanced:**
+- [Refs](refs.md) -- lightweight entity references for deferred loading
+- [Projections](projections.md) -- read-only views of entities
+- [SQL Templates](sql-templates.md) -- raw SQL with type safety
+- [Metamodel](metamodel.md) -- compile-time type-safe field references
+
+**Migration:**
+- [Migration from JPA](migration-from-jpa.md) -- step-by-step guide
+- [Storm vs Other Frameworks](comparison.md) -- feature comparison

@@ -26,8 +26,24 @@ import java.util.stream.Stream
 import kotlin.reflect.KClass
 
 /**
- * Abstraction for DQL (Data Query Language) statements, such as SELECT queries and  DML (Data Manipulation Language)
- * statements, such as INSERT, UPDATE and DELETE statements
+ * Represents a constructed SQL statement that is ready for execution.
+ *
+ * `Query` is the result of building a query via the [QueryBuilder] or the [QueryTemplate.query] method. It supports
+ * both DQL (Data Query Language) statements such as SELECT, and DML (Data Manipulation Language) statements such as
+ * INSERT, UPDATE, and DELETE.
+ *
+ * For SELECT statements, results can be retrieved as flows, lists, single results, or optional results. The result
+ * type can be raw `Array<Any?>` arrays (columns in order) or mapped to a specific data class type.
+ *
+ * For DML statements (INSERT, UPDATE, DELETE), use [executeUpdate] to execute the statement and obtain the number of
+ * affected rows. For batch operations, use [executeBatch].
+ *
+ * A query can also be converted to a [PreparedQuery] via [prepare], which enables bind variable usage, batch
+ * processing, and retrieval of generated keys.
+ *
+ * @see QueryBuilder
+ * @see PreparedQuery
+ * @see QueryTemplate
  */
 interface Query {
     /**

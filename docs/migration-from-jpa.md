@@ -1,6 +1,6 @@
 # Migration from JPA
 
-This guide helps you transition from JPA/Hibernate to Storm. The two frameworks can coexist, allowing gradual migration.
+This guide helps you transition from JPA/Hibernate to Storm. The two frameworks can coexist in the same application, allowing you to migrate gradually, one entity or repository at a time.
 
 ## Key Differences
 
@@ -15,6 +15,10 @@ This guide helps you transition from JPA/Hibernate to Storm. The two frameworks 
 | `@OneToMany`, `@ManyToOne` | `@FK` annotation |
 
 ## Entity Migration
+
+The biggest conceptual shift from JPA to Storm is the move from mutable, proxy-backed classes to immutable records and data classes. In JPA, entities carry hidden state: change-tracking proxies, managed lifecycle, and lazy-loading hooks injected via bytecode. Storm eliminates all of this. An entity is a plain value object with annotations that describe its mapping. The database interaction happens in repositories and templates, not inside the entity itself.
+
+This separation makes entities safe to pass across layers, serialize, and store in collections without worrying about detachment or session scope.
 
 ### JPA Entity
 
@@ -62,6 +66,8 @@ record User(@PK Long id,
 
 ## Annotation Mapping
 
+Storm uses fewer annotations than JPA because it derives most mapping information from the entity structure itself. Table names follow from the class name (converted to snake_case), and column names follow from field names. You only need annotations for primary keys, foreign keys, and cases where the default naming does not match your schema.
+
 | JPA | Storm |
 |-----|-------|
 | `@Entity` | Implement `Entity<T>` interface |
@@ -73,6 +79,8 @@ record User(@PK Long id,
 | `@Version` | `@Version` |
 
 ## Repository Migration
+
+JPA repositories (particularly Spring Data JPA) rely on method name conventions or `@Query` annotations to define queries. Storm repositories use explicit method bodies with a type-safe DSL. This means slightly more code per method, but every query is visible in the source, IDE-navigable, and compiler-checked. There are no hidden query derivation rules to memorize.
 
 ### JPA Repository
 
@@ -117,6 +125,8 @@ interface UserRepository extends EntityRepository<User, Long> {
 ```
 
 ## Query Migration
+
+Storm offers two query approaches: the type-safe DSL (using the generated metamodel) and SQL Templates (for raw SQL with type interpolation). The DSL covers common CRUD patterns concisely, while SQL Templates let you write arbitrary SQL without losing type safety on parameters and result mapping. The examples below show how each JPA query style maps to Storm equivalents.
 
 ### JPQL
 
@@ -171,7 +181,9 @@ orm.query(RAW."SELECT \{User.class} FROM \{User.class} WHERE email LIKE \{patter
 
 ## Relationship Changes
 
-### Lazy Loading → Eager/Ref
+JPA models relationships bidirectionally with annotations like `@OneToMany` and `@ManyToOne`, relying on lazy-loading proxies to defer fetching. Storm takes a different approach: relationships are unidirectional, defined by `@FK` on the owning side, and loaded eagerly by default in the same query. When you need deferred loading (for example, to avoid loading a large sub-graph), wrap the field type in `Ref<T>` to make fetching explicit.
+
+### Lazy Loading to Eager/Ref
 
 JPA default: lazy loading with proxy
 
@@ -210,6 +222,8 @@ val orders = orm.findAll { Order_.user eq user }
 
 ## Transaction Migration
 
+Storm supports both Spring's `@Transactional` annotation and its own programmatic `transaction {}` block. If you are migrating a Spring application, your existing `@Transactional` annotations continue to work unchanged. Storm participates in the same Spring-managed transaction. The programmatic API is useful when you want explicit control over isolation levels, propagation, or when working outside of Spring entirely.
+
 ### JPA @Transactional
 
 ```java
@@ -238,17 +252,19 @@ transaction {
 
 ## Gradual Migration Strategy
 
-1. **Add Storm dependencies** alongside JPA
-2. **Create Storm entities** for new tables
-3. **Migrate simple entities first** (no complex relationships)
-4. **Replace lazy loading with Ref** where needed
-5. **Migrate repositories** one at a time
-6. **Update service layer** to use Storm repositories
-7. **Remove JPA entities and dependencies** when complete
+A full rewrite is rarely practical. Storm and JPA can share the same DataSource, so you can migrate incrementally without a flag day. Start with leaf entities (those with no inbound foreign keys from other JPA entities) and work inward. Each migrated entity reduces your JPA surface area without breaking existing code.
+
+1. **Add Storm dependencies** alongside JPA.
+2. **Create Storm entities** for new tables.
+3. **Migrate simple entities first** (no complex relationships).
+4. **Replace lazy loading with Ref** where needed.
+5. **Migrate repositories** one at a time.
+6. **Update service layer** to use Storm repositories.
+7. **Remove JPA entities and dependencies** when complete.
 
 ## Coexistence
 
-Storm and JPA can coexist in the same application:
+Storm and JPA can coexist in the same application. Both frameworks use JDBC under the hood, so they share connection pools and participate in the same transactions when managed by Spring. The key requirement is that you configure Storm's `ORMTemplate` with the same `DataSource` that JPA uses.
 
 ```kotlin
 @Configuration
@@ -265,9 +281,11 @@ class PersistenceConfig(
 
 ## Common Pitfalls
 
+The most frequent issues arise from habits carried over from JPA. The following patterns cover the mistakes that developers encounter most often during migration.
+
 ### Missing Eager Fetch
 
-JPA developers often forget that Storm doesn't have lazy loading. If you need the related entity, include `@FK`:
+In JPA, relationships are lazy-loaded by default, so you can define a foreign key column as a raw ID and still access the related entity through the proxy. Storm has no proxies. If you declare a field as a raw ID (e.g., `val cityId: Long`), Storm treats it as a plain column value with no relationship. To load the related entity, use `@FK` with the entity type.
 
 ```kotlin
 // Wrong - city not available
@@ -279,7 +297,7 @@ data class User(@PK val id: Long = 0, @FK val city: City) : Entity<Long>
 
 ### Mutable Habits
 
-Storm entities are immutable. Use `copy()` instead of setters:
+JPA entities are mutable: you call setters, and the persistence context tracks changes automatically. Storm entities are immutable values. To modify an entity, create a new instance with the changed fields using Kotlin's `copy()` method or Java's record `with` pattern. The original instance remains unchanged, which makes reasoning about state straightforward.
 
 ```kotlin
 // Wrong (JPA style)
@@ -292,7 +310,7 @@ orm update updated
 
 ### Collection Expectations
 
-Storm intentionally doesn't support collection fields on entities. This is a deliberate design choice—collections on entities lead to lazy loading, N+1 queries, and unpredictable behavior. Query relationships explicitly:
+Storm intentionally does not support collection fields on entities. This is a deliberate design choice. Collections on entities lead to lazy loading, N+1 queries, and unpredictable behavior. Query relationships explicitly:
 
 ```kotlin
 // Wrong expectation
@@ -301,3 +319,14 @@ val orders = user.orders  // Not supported
 // Right approach
 val orders = orm.findAll { Order_.user eq user }
 ```
+
+## What You Gain
+
+After migrating from JPA to Storm, you can expect:
+
+- **No more N+1 queries.** Entity graphs load in a single query by default.
+- **No more LazyInitializationException.** No proxies, no surprise database hits.
+- **No more detached entity errors.** Entities are stateless and always safe to use.
+- **Simpler entities.** Records and data classes with a few annotations replace complex JPA mappings.
+- **Predictable SQL.** What you see is what gets executed, no hidden query generation.
+- **Fewer lines of code.** Typically ~5 lines per entity vs. ~30 for JPA.

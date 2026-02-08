@@ -8,7 +8,7 @@ Storm works directly with JDBC transactions and supports both programmatic and d
 
 ## Kotlin
 
-Storm for Kotlin provides a fully programmatic transaction solution (following the style popularized by [Exposed](https://github.com/JetBrains/Exposed)) that is **completely coroutine-friendly**. It supports **all isolation levels and propagation modes** found in traditional transaction management systems. You can freely switch coroutine dispatchers within a transaction—offload CPU-bound work to `Dispatchers.Default` or IO work to `Dispatchers.IO`—and still remain in the **same active transaction**.
+Storm for Kotlin provides a fully programmatic transaction solution (following the style popularized by [Exposed](https://github.com/JetBrains/Exposed)) that is **completely coroutine-friendly**. It supports **all isolation levels and propagation modes** found in traditional transaction management systems. You can freely switch coroutine dispatchers within a transaction (offload CPU-bound work to `Dispatchers.Default` or IO work to `Dispatchers.IO`) and still remain in the **same active transaction**.
 
 The API is designed around Kotlin's type system and coroutine model. Import the transaction functions and enums from `st.orm.template`:
 
@@ -67,7 +67,7 @@ Storm supports all seven standard propagation modes. Understanding when to use e
 
 #### REQUIRED (Default)
 
-Joins an existing transaction if one is active, otherwise creates a new one. This is the most common mode—it allows methods to participate in a larger transactional context while still working standalone.
+Joins an existing transaction if one is active, otherwise creates a new one. This is the most common mode: it allows methods to participate in a larger transactional context while still working standalone.
 
 When called without an existing transaction, a new transaction is started:
 
@@ -106,7 +106,7 @@ transaction(propagation = REQUIRED) {
 
 Always creates a new, independent transaction. If an outer transaction exists, it is suspended until the inner transaction completes. The inner transaction commits or rolls back independently of the outer one.
 
-The following diagram shows the outer transaction being suspended while the inner transaction runs. Notice that the inner transaction commits before the outer transaction fails—the audit log persists even though the outer transaction rolls back:
+The following diagram shows the outer transaction being suspended while the inner transaction runs. Notice that the inner transaction commits before the outer transaction fails, so the audit log persists even though the outer transaction rolls back:
 
 ```
 [BEGIN outer]
@@ -147,7 +147,7 @@ transaction {
 
 #### NESTED
 
-Creates a savepoint within the current transaction. If the nested block fails, only changes since the savepoint are rolled back—the outer transaction can continue. Unlike `REQUIRES_NEW`, nested transactions share the same database connection and only fully commit when the outer transaction commits. If no transaction exists, behaves like `REQUIRED`.
+Creates a savepoint within the current transaction. If the nested block fails, only changes since the savepoint are rolled back, and the outer transaction can continue. Unlike `REQUIRES_NEW`, nested transactions share the same database connection and only fully commit when the outer transaction commits. If no transaction exists, behaves like `REQUIRED`.
 
 When the nested block succeeds, the savepoint is released and all changes commit together with the outer transaction:
 
@@ -210,7 +210,7 @@ transaction {
 
 #### MANDATORY
 
-Requires an active transaction—throws `PersistenceException` if none exists. Use this to enforce that a method is never called outside a transactional context. This is a defensive programming technique to catch integration errors early.
+Requires an active transaction; throws `PersistenceException` if none exists. Use this to enforce that a method is never called outside a transactional context. This is a defensive programming technique to catch integration errors early.
 
 ```
 No transaction active:
@@ -230,7 +230,7 @@ This pattern is useful for operations that must never run standalone. A fund tra
 // In a repository or service that must run within a transaction
 fun transferFunds(from: Account, to: Account, amount: BigDecimal) {
     transaction(propagation = MANDATORY) {
-        // Guaranteed to be in a transaction—fails fast if not
+        // Guaranteed to be in a transaction. Fails fast if not.
         accountRepository.debit(from, amount)
         accountRepository.credit(to, amount)
     }
@@ -241,7 +241,7 @@ fun transferFunds(from: Account, to: Account, amount: BigDecimal) {
 
 #### SUPPORTS
 
-Uses an existing transaction if available, otherwise runs without one. The code adapts to its calling context—transactional when called from a transaction, non-transactional otherwise.
+Uses an existing transaction if available, otherwise runs without one. The code adapts to its calling context: transactional when called from a transaction, non-transactional otherwise.
 
 ```
 No transaction active:
@@ -308,7 +308,7 @@ transaction {
 
 #### NEVER
 
-Fails with `PersistenceException` if a transaction is active. Use this to enforce that code runs outside any transactional context. This is the opposite of `MANDATORY`—a defensive check to prevent accidental transactional execution.
+Fails with `PersistenceException` if a transaction is active. Use this to enforce that code runs outside any transactional context. This is the opposite of `MANDATORY`, serving as a defensive check to prevent accidental transactional execution.
 
 ```
 No transaction active:
@@ -397,11 +397,11 @@ transaction(isolation = READ_UNCOMMITTED) {
 
 **Use cases:** Approximate counts for dashboards, monitoring queries, or any scenario where "close enough" is acceptable and performance matters more than accuracy.
 
-> **Note:** At `READ_UNCOMMITTED` and `READ_COMMITTED` isolation levels, Storm returns fresh data from the database on every read rather than cached instances. This ensures repeated reads see the latest database state. Dirty checking remains available at all isolation levels—Storm stores observed state for detecting changes even when not returning cached instances. See [dirty checking](dirty-checking.md) for details.
+> **Note:** At `READ_UNCOMMITTED` and `READ_COMMITTED` isolation levels, Storm returns fresh data from the database on every read rather than cached instances. This ensures repeated reads see the latest database state. Dirty checking remains available at all isolation levels. Storm stores observed state for detecting changes even when not returning cached instances. See [dirty checking](dirty-checking.md) for details.
 
 #### READ_COMMITTED
 
-Transactions only see data that has been committed. This prevents dirty reads—you'll never see data that might be rolled back. However, if you read the same row twice, you might get different values if another transaction modified and committed it in between (non-repeatable read).
+Transactions only see data that has been committed. This prevents dirty reads: you will never see data that might be rolled back. However, if you read the same row twice, you might get different values if another transaction modified and committed it in between (non-repeatable read).
 
 In this timeline, Transaction A reads a balance of 1000. While it's still running, Transaction B updates and commits a new balance. When Transaction A reads again, it sees the new value:
 
@@ -437,7 +437,7 @@ transaction(isolation = READ_COMMITTED) {
 
 #### REPEATABLE_READ
 
-Guarantees that if you read a row once, subsequent reads return the same data—even if other transactions modify and commit changes to that row. The transaction works with a consistent snapshot taken at the start. However, phantom reads may still occur: new rows inserted by other transactions can appear in range queries.
+Guarantees that if you read a row once, subsequent reads return the same data, even if other transactions modify and commit changes to that row. The transaction works with a consistent snapshot taken at the start. However, phantom reads may still occur: new rows inserted by other transactions can appear in range queries.
 
 This timeline shows Transaction A getting consistent results for the same row, even though Transaction B modified it. The snapshot isolation ensures Transaction A sees the value as of when it started:
 
@@ -517,7 +517,7 @@ transaction(isolation = SERIALIZABLE) {
 
     if (availableSeats.isNotEmpty()) {
         // No other transaction can insert/modify seats for this flight
-        // until we commit—prevents double-booking
+        // until we commit, which prevents double-booking
         seatRepository.book(availableSeats.first(), passengerId)
     }
 }
@@ -540,7 +540,7 @@ transaction(isolation = SERIALIZABLE) {
 
 Start with `READ_COMMITTED` (often the database default) and only increase isolation when you have a specific consistency requirement. Here's a guide for common scenarios:
 
-**Simple CRUD operations** — Use `READ_COMMITTED`. Seeing the latest committed data is usually what you want:
+**Simple CRUD operations:** Use `READ_COMMITTED`. Seeing the latest committed data is usually what you want:
 
 ```kotlin
 transaction(isolation = READ_COMMITTED) {
@@ -548,7 +548,7 @@ transaction(isolation = READ_COMMITTED) {
 }
 ```
 
-**Reports and calculations** — Use `REPEATABLE_READ` when you need multiple queries to see a consistent snapshot. This ensures totals, counts, and details all reflect the same point in time:
+**Reports and calculations:** Use `REPEATABLE_READ` when you need multiple queries to see a consistent snapshot. This ensures totals, counts, and details all reflect the same point in time:
 
 ```kotlin
 transaction(isolation = REPEATABLE_READ) {
@@ -558,7 +558,7 @@ transaction(isolation = REPEATABLE_READ) {
 }
 ```
 
-**Critical operations with race conditions** — Use `SERIALIZABLE` when concurrent transactions could cause problems like double-booking or overselling. The performance cost is worth the correctness guarantee:
+**Critical operations with race conditions:** Use `SERIALIZABLE` when concurrent transactions could cause problems like double-booking or overselling. The performance cost is worth the correctness guarantee:
 
 ```kotlin
 transaction(isolation = SERIALIZABLE) {
@@ -574,6 +574,8 @@ transaction(isolation = SERIALIZABLE) {
 
 ### Transaction Timeout
 
+Long-running transactions hold database locks and consume connection pool resources. Setting a timeout ensures that a stuck or unexpectedly slow transaction is automatically rolled back rather than blocking indefinitely. The timeout is measured from the start of the transaction block.
+
 ```kotlin
 transaction(timeoutSeconds = 30) {
     orm.deleteAll<Visit>()
@@ -583,6 +585,8 @@ transaction(timeoutSeconds = 30) {
 
 ### Read-Only Transactions
 
+Marking a transaction as read-only allows the database to apply optimizations such as skipping write-ahead logging or acquiring lighter locks. This is a hint, not an enforcement mechanism; the database may or may not reject writes depending on the driver and database engine.
+
 ```kotlin
 transaction(readOnly = true) {
     // Hints to the database that no modifications will occur
@@ -591,6 +595,8 @@ transaction(readOnly = true) {
 ```
 
 ### Manual Rollback
+
+Sometimes you need to abort a transaction based on a runtime condition rather than an exception. Calling `setRollbackOnly()` marks the transaction for rollback without throwing. The block continues executing, but the transaction rolls back when it completes instead of committing.
 
 ```kotlin
 transaction {
@@ -618,7 +624,7 @@ setGlobalTransactionOptions(
 
 ### Scoped Transaction Options
 
-Override options for a specific scope:
+When you need different transaction settings for a specific section of code without changing global defaults, use scoped options. All transactions created within the scope inherit the overridden settings. This is useful for test harnesses, batch processing regions, or any bounded context that needs distinct transaction behavior.
 
 ```kotlin
 withTransactionOptions(timeoutSeconds = 60) {
@@ -820,10 +826,10 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public List<User> findActiveUsers() {
+    public List<User> findUsersByName(String name) {
         return orm.entity(User.class)
             .select()
-            .where(User_.active, EQUALS, true)
+            .where(User_.name, EQUALS, name)
             .getResultList();
     }
 

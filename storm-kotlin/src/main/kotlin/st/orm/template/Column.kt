@@ -21,7 +21,16 @@ import st.orm.Metamodel
 import kotlin.reflect.KClass
 
 /**
- * Represents a column in a database table.
+ * Represents metadata about a single column in a database table, as derived from the entity or projection model.
+ *
+ * A `Column` provides information about the column's name, type, nullability, and role (primary key,
+ * foreign key, version column, etc.). Columns are obtained from a [Model] via [Model.columns] or
+ * [Model.declaredColumns].
+ *
+ * The [index] property returns the 1-based index of the column within the expanded column list of the
+ * model, which includes columns from foreign key relationships.
+ *
+ * @see Model
  */
 interface Column {
     /**

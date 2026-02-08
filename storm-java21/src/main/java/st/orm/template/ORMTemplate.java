@@ -28,8 +28,32 @@ import java.sql.Connection;
 import java.util.function.UnaryOperator;
 
 /**
- * <p>The {@code ORMTemplate} is the primary interface that extends the {@code QueryTemplate} and
- * {@code RepositoryLooking} interfaces, providing access to both the SQL Template engine and ORM logic.
+ * The primary entry point for Storm's ORM functionality, combining SQL template query construction with
+ * repository access.
+ *
+ * <p>{@code ORMTemplate} extends both {@link QueryTemplate} (for constructing and executing SQL queries) and
+ * {@link RepositoryLookup} (for obtaining type-safe {@link EntityRepository} and {@link ProjectionRepository}
+ * instances). It is the central interface from which all database operations originate.</p>
+ *
+ * <p>Instances are created using the static factory methods {@link #of(jakarta.persistence.EntityManager)},
+ * {@link #of(javax.sql.DataSource)}, or {@link #of(java.sql.Connection)}, or via the convenience methods
+ * in the {@link Templates} class.</p>
+ *
+ * <h2>Example</h2>
+ * <pre>{@code
+ * ORMTemplate orm = ORMTemplate.of(dataSource);
+ *
+ * // Repository-based access
+ * EntityRepository<User, Integer> users = orm.entity(User.class);
+ * Optional<User> user = users.findById(42);
+ *
+ * // Template-based query
+ * List<User> result = orm.query(RAW."""
+ *         SELECT \{User.class}
+ *         FROM \{User.class}
+ *         WHERE \{User_.name} = \{"Alice"}""")
+ *     .getResultList(User.class);
+ * }</pre>
  *
  * @see Templates
  * @see EntityRepository
@@ -113,23 +137,13 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
     }
 
     /**
-     * Returns an {@link ORMTemplate} for use with JPA.
+     * Returns an {@link ORMTemplate} for use with JPA, with a custom template decorator.
      *
-     * <p>This method creates an ORM repository template using the provided {@link EntityManager}.
-     * It allows you to perform database operations using JPA in a type-safe manner.
-     *
-     * <p>Example usage:
-     * <pre>{@code
-     * EntityManager entityManager = ...;
-     * ORMTemplate orm = ORMTemplate.of(entityManager);
-     * List<MyTable> otherTables = orm.query(RAW."""
-     *         SELECT \{MyTable.class}
-     *         FROM \{MyTable.class}
-     *         WHERE \{MyTable_.name} = \{"ABC"}""")
-     *     .getResultList(MyTable.class);
-     * }</pre>
+     * <p>This method creates an ORM repository template using the provided {@link EntityManager} and applies
+     * the specified decorator to customize template processing behavior.
      *
      * @param entityManager the {@link EntityManager} to use for database operations; must not be {@code null}.
+     * @param decorator a function that transforms the {@link TemplateDecorator} to customize template processing.
      * @return an {@link ORMTemplate} configured for use with JPA.
      */
     static ORMTemplate of(@Nonnull EntityManager entityManager, @Nonnull UnaryOperator<TemplateDecorator> decorator) {
@@ -138,23 +152,13 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
     }
 
     /**
-     * Returns an {@link ORMTemplate} for use with JDBC.
+     * Returns an {@link ORMTemplate} for use with JDBC, with a custom template decorator.
      *
-     * <p>This method creates an ORM repository template using the provided {@link DataSource}.
-     * It allows you to perform database operations using JDBC in a type-safe manner.
-     *
-     * <p>Example usage:
-     * <pre>{@code
-     * DataSource dataSource = ...;
-     * ORMTemplate orm = ORMTemplate.of(dataSource);
-     * List<MyTable> otherTables = orm.query(RAW."""
-     *         SELECT \{MyTable.class}
-     *         FROM \{MyTable.class}
-     *         WHERE \{MyTable_.name} = \{"ABC"}""")
-     *     .getResultList(MyTable.class);
-     * }</pre>
+     * <p>This method creates an ORM repository template using the provided {@link DataSource} and applies
+     * the specified decorator to customize template processing behavior.
      *
      * @param dataSource the {@link DataSource} to use for database operations; must not be {@code null}.
+     * @param decorator a function that transforms the {@link TemplateDecorator} to customize template processing.
      * @return an {@link ORMTemplate} configured for use with JDBC.
      */
     static ORMTemplate of(@Nonnull DataSource dataSource, @Nonnull UnaryOperator<TemplateDecorator> decorator) {
@@ -162,26 +166,15 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
     }
 
     /**
-     * Returns an {@link ORMTemplate} for use with JDBC.
+     * Returns an {@link ORMTemplate} for use with JDBC, with a custom template decorator.
      *
-     * <p>This method creates an ORM repository template using the provided {@link Connection}.
-     * It allows you to perform database operations using JDBC in a type-safe manner.</p>
+     * <p>This method creates an ORM repository template using the provided {@link Connection} and applies
+     * the specified decorator to customize template processing behavior.</p>
      *
      * <p><strong>Note:</strong> The caller is responsible for closing the connection after usage.</p>
      *
-     * <p>Example usage:
-     * <pre>{@code
-     * try (Connection connection = ...) {
-     *     ORMTemplate orm = ORMTemplate.of(connection);
-     *     List<MyTable> otherTables = orm.query(RAW."""
-     *             SELECT \{MyTable.class}
-     *             FROM \{MyTable.class}
-     *             WHERE \{MyTable_.name} = \{"ABC"}""")
-     *         .getResultList(MyTable.class)
-     * }
-     * }</pre>
-     *
      * @param connection the {@link Connection} to use for database operations; must not be {@code null}.
+     * @param decorator a function that transforms the {@link TemplateDecorator} to customize template processing.
      * @return an {@link ORMTemplate} configured for use with JDBC.
      */
     static ORMTemplate of(@Nonnull Connection connection, @Nonnull UnaryOperator<TemplateDecorator> decorator) {

@@ -43,7 +43,7 @@ All relationship types are supported through the `@FK` annotation.
 
 ### One-to-One / Many-to-One
 
-Use `@FK` to reference another entity:
+The most common relationship type. A foreign key field on one entity points to the primary key of another. Storm automatically generates a JOIN when querying and populates the referenced entity in the result. Use `@FK` to reference another entity:
 
 ```kotlin
 data class City(
@@ -68,7 +68,7 @@ println(user?.city.name)  // City is already loaded
 
 ### Nullable Relationships
 
-Nullable foreign keys result in LEFT JOIN:
+When a foreign key can be null (the referenced entity is optional), Storm uses a LEFT JOIN instead of an INNER JOIN. This ensures that parent rows are still returned even when the referenced entity does not exist.
 
 ```kotlin
 data class User(
@@ -80,7 +80,7 @@ data class User(
 
 ### One-to-Many
 
-Query the "many" side to get related entities:
+Storm does not store collections on the "one" side of a relationship. Instead, query the "many" side and filter by the parent entity. This keeps entities stateless and avoids the lazy-loading pitfalls found in traditional ORMs.
 
 ```kotlin
 // Find all users in a city
@@ -174,7 +174,7 @@ data class AuditLog(
 
 ### Self-Referential Relationships
 
-Use `Ref` to prevent circular loading:
+When an entity references itself (e.g., employees with managers, categories with parents), eager loading would recurse infinitely. Use `Ref<T>` to break the cycle. `Ref` stores only the foreign key value without loading the referenced entity, so Storm stops the JOIN chain at that point.
 
 ```kotlin
 data class Employee(
@@ -203,7 +203,7 @@ data class UserProfile(
 ) : Entity<User>
 ```
 
-The `generation = NONE` tells Storm that the primary key is not auto-generated—the value must be provided when inserting. This is necessary because the key comes from the related `User` entity.
+The `generation = NONE` tells Storm that the primary key is not auto-generated; the value must be provided when inserting. This is necessary because the key comes from the related `User` entity.
 
 **Column name resolution:** When both `@PK` and `@FK` are present, Storm resolves the column name in this order:
 
@@ -266,7 +266,7 @@ user.ifPresent(u -> System.out.println(u.city().name()));  // City is already lo
 
 ### Nullable Relationships
 
-Nullable foreign keys result in LEFT JOIN:
+In Java, use `@Nullable` on foreign key fields to indicate that the referenced entity is optional. Storm switches from INNER JOIN to LEFT JOIN for nullable foreign keys.
 
 ```java
 record User(@PK Integer id,
@@ -277,7 +277,7 @@ record User(@PK Integer id,
 
 ### One-to-Many
 
-Query the "many" side to get related entities:
+As with Kotlin, query the child entity and filter by the parent. Storm does not use collection-valued fields on entities.
 
 ```java
 // Find all users in a city
@@ -394,7 +394,7 @@ record UserProfile(@PK(generation = NONE) @FK User user,  // PK is also FK to Us
 ) implements Entity<User> {}
 ```
 
-The `generation = NONE` tells Storm that the primary key is not auto-generated—the value must be provided when inserting. This is necessary because the key comes from the related `User` entity.
+The `generation = NONE` tells Storm that the primary key is not auto-generated; the value must be provided when inserting. This is necessary because the key comes from the related `User` entity.
 
 **Column name resolution:** When both `@PK` and `@FK` are present, Storm resolves the column name in this order:
 

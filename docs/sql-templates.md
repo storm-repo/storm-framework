@@ -10,11 +10,13 @@ For details on how query results are mapped to records, see [Hydration](hydratio
 
 ## Template Syntax
 
-Storm uses string interpolation to inject template elements into SQL. The syntax differs between Kotlin and Java.
+Storm uses string interpolation to inject template elements into SQL. Rather than concatenating strings or using positional placeholders, you embed type references, metamodel fields, and parameter values directly in the SQL text. Storm resolves these at compilation time into proper column lists, table aliases, and parameterized placeholders.
+
+The syntax differs between Kotlin and Java due to language-level string interpolation support.
 
 ### Kotlin
 
-Kotlin uses `${}` interpolation inside a lambda that provides template functions:
+Kotlin uses `${}` interpolation inside a lambda that provides template functions. The lambda receiver exposes the `t()` function, which is the single entry point for all template elements.
 
 ```kotlin
 orm.query { """
@@ -43,7 +45,9 @@ orm.query(RAW."""
 
 ## Data Interface
 
-Implement `Data` when you want Storm to generate SQL from your type. This enables template expressions that automatically generate SELECT columns, FROM clauses, and joins.
+The `Data` interface marks a record or data class as eligible for Storm's SQL generation. Without this marker, Storm treats the type as a plain container and expects you to write all SQL manually. With it, template expressions like `t(MyType::class)` in a SELECT clause expand into the full column list, and the same expression in a FROM clause generates the table name with appropriate joins for `@FK` fields.
+
+Use `Data` for query-specific result types that do not need full repository support (insert, update, delete). If you need CRUD operations, use `Entity` or `Projection` instead, which extend `Data`.
 
 ```kotlin
 data class PetWithOwner(
@@ -194,11 +198,11 @@ orm.query { """
 
 ## Column References with Metamodel
 
-Storm generates metamodel classes at compile time (via KSP for Kotlin or annotation processing for Java) that provide type-safe column references.
+Hardcoding column names as strings in SQL is error-prone: a renamed field silently breaks at runtime. Storm's compile-time metamodel eliminates this risk. For each entity or data class, the annotation processor (KSP for Kotlin, APT for Java) generates a companion class (e.g., `User_`) with a static field for every column. These fields resolve to the correct column name and table alias at template compilation time, so a renamed field causes a compile error instead of a runtime failure.
 
 ### Basic Column Reference
 
-For an entity `User`, Storm generates `User_` with fields for each column:
+For an entity `User`, Storm generates `User_` with fields for each column. Use these fields anywhere you would write a column name in SQL.
 
 ```kotlin
 // Reference a column in WHERE clause
@@ -211,7 +215,7 @@ orm.query { """
 
 ### Nested Column References
 
-Metamodel fields support path navigation for `@FK` relationships:
+Metamodel fields support path navigation for `@FK` relationships. This lets you reference columns on joined tables without writing the join alias yourself. Storm resolves the path to the correct alias based on the auto-generated joins.
 
 ```kotlin
 // Reference a column through a relationship
@@ -263,6 +267,8 @@ For advanced use cases like batch operations, subqueries, or custom insert/updat
 
 ## Examples
 
+The following examples demonstrate common query patterns using SQL templates. Each combines multiple template features (type references, metamodel columns, parameter binding) into a complete query.
+
 ### Filtering with Metamodel
 
 ```kotlin
@@ -276,6 +282,8 @@ val users = orm.query { """
 
 ### Custom Joins
 
+When auto-join does not produce the join type or condition you need, disable it with `from(Class, autoJoin = false)` and write explicit join clauses. This is common for LEFT JOINs with aggregation or joins on non-FK conditions.
+
 ```kotlin
 orm.query { """
     SELECT ${t(User::class)}, COUNT(${t(Order_.id)})
@@ -286,6 +294,8 @@ orm.query { """
 ```
 
 ### Subquery
+
+Subqueries use `column()` and `table()` to reference columns and tables without triggering auto-join generation. This keeps the subquery self-contained, with its own FROM clause and alias scope.
 
 ```kotlin
 orm.query { """
@@ -307,9 +317,9 @@ Since all Storm operations are built on the SQL template engine, understanding h
 
 Storm processes templates in two distinct steps:
 
-1. **Compilation** — The template is parsed and analyzed. Storm resolves table aliases, traverses record type graphs to determine `@FK` relationships, generates the appropriate joins, and produces a reusable SQL shape with parameter placeholders. This step involves type introspection, alias management, and SQL construction.
+1. **Compilation.** The template is parsed and analyzed. Storm resolves table aliases, traverses record type graphs to determine `@FK` relationships, generates the appropriate joins, and produces a reusable SQL shape with parameter placeholders. This step involves type introspection, alias management, and SQL construction.
 
-2. **Binding** — Parameter values are substituted into the compiled template. This step is lightweight: it simply fills in the placeholders with actual values and prepares the statement for execution.
+2. **Binding.** Parameter values are substituted into the compiled template. This step is lightweight: it simply fills in the placeholders with actual values and prepares the statement for execution.
 
 The compilation step does the heavy lifting. It analyzes your record types, walks through nested relationships, determines which joins are needed and in what order, and assembles the final SQL structure. The binding step, by contrast, is a straightforward value substitution.
 

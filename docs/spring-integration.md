@@ -1,16 +1,18 @@
 # Spring Integration
 
-Storm integrates seamlessly with Spring Framework and Spring Boot for dependency injection, transaction management, and repository auto-wiring.
+Storm integrates seamlessly with Spring Framework and Spring Boot for dependency injection, transaction management, and repository auto-wiring. This guide covers setup for both Kotlin and Java.
 
 ## Installation
 
 ### Kotlin
 
-```groovy
-implementation 'st.orm:storm-kotlin-spring:1.8.2'
+```kotlin
+// Gradle (Kotlin DSL)
+implementation("st.orm:storm-kotlin-spring:1.8.2")
 ```
 
 ```xml
+<!-- Maven -->
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-kotlin-spring</artifactId>
@@ -20,11 +22,13 @@ implementation 'st.orm:storm-kotlin-spring:1.8.2'
 
 ### Java
 
-```groovy
-implementation 'st.orm:storm-spring:1.8.2'
+```kotlin
+// Gradle (Kotlin DSL)
+implementation("st.orm:storm-spring:1.8.2")
 ```
 
 ```xml
+<!-- Maven -->
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-spring</artifactId>
@@ -32,11 +36,15 @@ implementation 'st.orm:storm-spring:1.8.2'
 </dependency>
 ```
 
+The Spring integration modules provide transaction integration and repository auto-discovery. They are in addition to the base `storm-kotlin` or `storm-java21` dependency.
+
 ---
 
 ## Kotlin
 
 ### Configuration
+
+The minimum setup requires a single `ORMTemplate` bean. This bean is the entry point for all Storm operations and takes a standard `DataSource` as its only dependency. Spring Boot applications typically have a `DataSource` already configured through `application.properties`, so the `ORMTemplate` bean is the only Storm-specific configuration you need to add.
 
 ```kotlin
 @Configuration
@@ -50,7 +58,7 @@ class ORMConfiguration(private val dataSource: DataSource) {
 
 ### Transaction Integration
 
-Enable integration between Storm's programmatic transactions and Spring:
+By default, Storm manages its own transactions independently of Spring's transaction context. The `@EnableTransactionIntegration` annotation bridges the two systems so that Storm's programmatic `transaction` and `transactionBlocking` blocks participate in Spring-managed transactions. Without this annotation, a transaction block inside a `@Transactional` method would open a separate database connection and transaction.
 
 ```kotlin
 @EnableTransactionIntegration
@@ -78,7 +86,7 @@ fun processUsers() {
 
 ### Repository Injection
 
-Configure repository auto-discovery:
+Storm repositories are interfaces with default method implementations. Spring cannot discover them automatically because they are not annotated with `@Component` or `@Repository`. The `RepositoryBeanFactoryPostProcessor` scans specified packages for interfaces that extend `EntityRepository` or `ProjectionRepository` and registers them as Spring beans. This makes them available for constructor injection like any other Spring-managed dependency.
 
 ```kotlin
 @Configuration
@@ -137,6 +145,8 @@ class UserService(
 
 ### Configuration
 
+The Java configuration mirrors the Kotlin setup. Define a single `ORMTemplate` bean that wraps the Spring-managed `DataSource`.
+
 ```java
 @Configuration
 public class ORMConfiguration {
@@ -156,7 +166,7 @@ public class ORMConfiguration {
 
 ### Repository Injection
 
-Configure repository auto-discovery:
+Register a `RepositoryBeanFactoryPostProcessor` that scans your repository packages. This works identically to the Kotlin version: Storm discovers interfaces extending `EntityRepository` or `ProjectionRepository` and registers them as Spring beans.
 
 ```java
 @Configuration
@@ -231,7 +241,7 @@ public class UserService {
 
 ## Spring Boot Auto-Configuration
 
-Storm works with Spring Boot's auto-configured DataSource. Simply inject the DataSource and create the ORMTemplate bean:
+Storm works with Spring Boot's auto-configured DataSource. No special configuration is needed beyond defining the ORM bean:
 
 ```kotlin
 @Configuration
@@ -242,9 +252,49 @@ class StormConfig(private val dataSource: DataSource) {
 }
 ```
 
+Spring Boot automatically configures the DataSource from your `application.properties`:
+
+```properties
+spring.datasource.url=jdbc:postgresql://localhost:5432/mydb
+spring.datasource.username=myuser
+spring.datasource.password=mypassword
+```
+
+Storm picks up this DataSource and auto-detects the dialect from the JDBC URL.
+
+## Minimal Spring Boot Setup
+
+Here is a complete minimal setup for a Spring Boot application with Storm:
+
+```kotlin
+@SpringBootApplication
+@EnableTransactionManagement
+class Application
+
+@Configuration
+@EnableTransactionIntegration
+class StormConfig(private val dataSource: DataSource) {
+
+    @Bean
+    fun ormTemplate() = ORMTemplate.of(dataSource)
+}
+
+@Configuration
+class MyRepositoryBeanFactoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
+
+    override val repositoryBasePackages: Array<String>
+        get() = arrayOf("com.myapp.repository")
+}
+```
+
+This gives you:
+- Automatic DataSource from Spring Boot
+- Transaction integration between Spring and Storm
+- Repository auto-discovery and injection
+
 ## JPA Entity Manager
 
-Storm can also work with JPA's EntityManager:
+Storm can create an `ORMTemplate` from a JPA `EntityManager`, which lets you use Storm queries within existing JPA transactions and services. This is particularly useful during incremental [migration from JPA](migration-from-jpa.md), where you can convert one repository or query at a time without changing your transaction management strategy.
 
 ```java
 @PersistenceContext
@@ -253,13 +303,15 @@ private EntityManager entityManager;
 @Transactional
 public void doWork() {
     var orm = ORMTemplate.of(entityManager);
-    // Use orm...
+    // Use orm alongside existing JPA code
 }
 ```
 
 ## Transaction Propagation
 
-When `@EnableTransactionIntegration` is active, Storm's programmatic transactions participate in Spring's transaction propagation:
+When `@EnableTransactionIntegration` is active, Storm's programmatic transactions participate in Spring's transaction propagation. This means a `transaction` or `transactionBlocking` block checks for an existing Spring-managed transaction before starting a new one. If a transaction already exists, the block joins it. If not, it creates a new independent transaction.
+
+Understanding this behavior is important for controlling atomicity. When multiple operations must commit or roll back as a unit, they need to share the same transaction. When operations should be independent (for example, logging that should persist even if the main operation fails), they need separate transactions.
 
 ### Joining Existing Transactions
 
@@ -284,7 +336,7 @@ fun outerMethod() {
 
 ### Starting New Transactions
 
-Without an outer `@Transactional`, each `transactionBlocking` starts its own transaction:
+Without an outer `@Transactional`, each `transactionBlocking` block starts and commits its own transaction independently. A failure in one block does not affect previously committed blocks.
 
 ```kotlin
 fun methodWithoutTransactional() {
@@ -302,10 +354,10 @@ fun methodWithoutTransactional() {
 
 ### Key Benefits of Programmatic Transactions
 
-1. **Explicit boundaries** — See exactly where transactions start and end
-2. **Compile-time safety** — No risk of forgetting `@Transactional` on a method
-3. **Flexible composition** — Easily combine with Spring's declarative model
-4. **Reduced proxy overhead** — No need for Spring's transaction proxies in pure Storm code
+1. **Explicit boundaries.** See exactly where transactions start and end.
+2. **Compile-time safety.** No risk of forgetting `@Transactional` on a method.
+3. **Flexible composition.** Easily combine with Spring's declarative model.
+4. **Reduced proxy overhead.** No need for Spring's transaction proxies in pure Storm code.
 
 ### Mixing Approaches
 
@@ -335,7 +387,9 @@ class OrderService(
 
 ## Tips
 
-1. **Use `@Transactional` for declarative transactions** — Simple and familiar
-2. **Use programmatic transactions for complex flows** — Nested transactions, explicit propagation
-3. **Enable transaction integration for Kotlin** — Allows mixing declarative and programmatic styles
-4. **Configure repository packages** — Auto-wire custom repositories like any Spring bean
+1. **Use `@Transactional` for declarative transactions.** Simple and familiar for Spring developers.
+2. **Use programmatic transactions for complex flows.** Nested transactions, savepoints, and explicit propagation are easier to express in code.
+3. **Enable `@EnableTransactionIntegration` for Kotlin.** This allows mixing `@Transactional` with programmatic `transaction {}` blocks.
+4. **Configure repository packages.** Auto-wire custom repositories like any Spring bean via `RepositoryBeanFactoryPostProcessor`.
+5. **One `ORMTemplate` bean is enough.** Inject it into services or let repositories use it automatically.
+6. **Works with any DataSource.** HikariCP, Tomcat pool, or any other connection pool that Spring Boot configures.

@@ -122,7 +122,7 @@ List<User> users = orm.query(RAW."""
     .getResultList(User.class);
 ```
 
-> **Note:** The Java API uses String Templates (JEP 430), a preview feature. The core library has no preview dependencies—only the Java API module requires preview features.
+> **Note on Java String Templates:** The Java API is built on String Templates, a preview feature that is still evolving in the JDK. Storm is a forward-looking framework, and String Templates are the best way to write SQL that is both readable and injection-safe by design. Rather than wait for the feature to stabilize, Storm ships with String Template support today. If you prefer a stable API right now, the Kotlin API is fully stable and requires no preview features. Only `storm-java21` depends on this preview feature; the core framework and the Kotlin API are unaffected. The Java API is production-ready from a quality perspective, but its API surface will adapt as String Templates move toward a stable release.
 
 ## Quick Start
 
@@ -159,20 +159,20 @@ Everything you need to build applications with Storm. Start with Getting Started
 
 | Topic | Description |
 |-------|-------------|
-| [Getting Started](docs/getting-started.md) | Installation and first steps (5 min) |
-| [Entities](docs/entities.md) | Defining entities, annotations, naming (10 min) |
+| [Getting Started](docs/getting-started.md) | Installation and first steps (7 min) |
+| [Entities](docs/entities.md) | Defining entities, annotations, naming (12 min) |
 | [Projections](docs/projections.md) | Read-only database views (8 min) |
-| [Relationships](docs/relationships.md) | One-to-one, many-to-one, many-to-many (12 min) |
-| [Repositories](docs/repositories.md) | Repository pattern and custom methods (3 min) |
-| [Queries](docs/queries.md) | Select, filter, aggregate, order (5 min) |
-| [Metamodel](docs/metamodel.md) | Compile-time type safety (9 min) |
-| [Refs](docs/refs.md) | Lazy loading and optimized references (4 min) |
-| [Batch & Streaming](docs/batch-streaming.md) | Bulk operations and Flow/Stream (2 min) |
-| [Upserts](docs/upserts.md) | Insert-or-update operations (3 min) |
-| [JSON Support](docs/json.md) | JSON columns and aggregation (4 min) |
-| [Transactions](docs/transactions.md) | Transaction management and propagation (19 min) |
-| [Spring Integration](docs/spring-integration.md) | Spring Boot configuration (4 min) |
-| [Database Dialects](docs/dialects.md) | Database-specific support (2 min) |
+| [Relationships](docs/relationships.md) | One-to-one, many-to-one, many-to-many (13 min) |
+| [Repositories](docs/repositories.md) | Repository pattern and custom methods (5 min) |
+| [Queries](docs/queries.md) | Select, filter, aggregate, order (8 min) |
+| [Metamodel](docs/metamodel.md) | Compile-time type safety (10 min) |
+| [Refs](docs/refs.md) | Lazy loading and optimized references (7 min) |
+| [Batch & Streaming](docs/batch-streaming.md) | Bulk operations and Flow/Stream (5 min) |
+| [Upserts](docs/upserts.md) | Insert-or-update operations (6 min) |
+| [JSON Support](docs/json.md) | JSON columns and aggregation (6 min) |
+| [Transactions](docs/transactions.md) | Transaction management and propagation (22 min) |
+| [Spring Integration](docs/spring-integration.md) | Spring Boot configuration (6 min) |
+| [Database Dialects](docs/dialects.md) | Database-specific support (5 min) |
 
 ### Advanced Topics
 
@@ -181,11 +181,11 @@ Deep dives into Storm's internals. You don't need these to be productive, but th
 | Topic | Description |
 |-------|-------------|
 | [SQL Templates](docs/sql-templates.md) | Template parameters and query generation (10 min) |
-| [Hydration](docs/hydration.md) | Result mapping to records (20 min) |
-| [Dirty Checking](docs/dirty-checking.md) | Update modes and change detection (25 min) |
-| [Entity Cache](docs/entity-cache.md) | Transaction-scoped caching and identity (12 min) |
-| [SQL Interceptors](docs/interceptors.md) | Query logging and modification (2 min) |
-| [Configuration](docs/configuration.md) | System properties reference (5 min) |
+| [Hydration](docs/hydration.md) | Result mapping to records (16 min) |
+| [Dirty Checking](docs/dirty-checking.md) | Update modes and change detection (19 min) |
+| [Entity Cache](docs/entity-cache.md) | Transaction-scoped caching and identity (10 min) |
+| [SQL Interceptors](docs/interceptors.md) | Query logging and modification (6 min) |
+| [Configuration](docs/configuration.md) | System properties reference (7 min) |
 
 ### Resources
 
@@ -214,7 +214,7 @@ Storm works with any JDBC-compatible database. Dialect packages provide optimize
 
 Storm targets Kotlin 2.0+ and Java 21+ as minimum supported versions. These baselines will be maintained for the foreseeable future.
 
-> **Note:** Java String Templates (JEP 430) are a preview feature. The core library has no preview dependencies.
+> **Note on Java String Templates:** The Java API is built on String Templates, a preview feature that is still evolving in the JDK. Only `storm-java21` depends on this preview feature; the core framework and the Kotlin API are unaffected. The Java API is production-ready from a quality perspective, but its API surface will adapt as String Templates move toward a stable release.
 
 ## Contributing
 

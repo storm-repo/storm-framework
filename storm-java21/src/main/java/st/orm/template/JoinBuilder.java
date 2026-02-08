@@ -19,11 +19,25 @@ import jakarta.annotation.Nonnull;
 import st.orm.Data;
 
 /**
- * A builder for constructing join clause of the query using custom join conditions.
+ * A builder for specifying the ON condition of a JOIN clause using a custom string template expression.
+ *
+ * <p>{@code JoinBuilder} is returned by the join methods on {@link QueryBuilder} that accept a {@link StringTemplate}
+ * or a subquery. It provides a single {@link #on(StringTemplate)} method to specify the join condition.</p>
+ *
+ * <h2>Example</h2>
+ * <pre>{@code
+ * List<User> users = userRepository
+ *         .select()
+ *         .innerJoin(RAW."\{Order.class}", "o")
+ *             .on(RAW."\{User_.id} = o.user_id")
+ *         .getResultList();
+ * }</pre>
  *
  * @param <T>  the type of the table being queried.
  * @param <R>  the type of the result.
  * @param <ID> the type of the primary key.
+ * @see TypedJoinBuilder
+ * @see QueryBuilder
  */
 public interface JoinBuilder<T extends Data, R, ID> {
 

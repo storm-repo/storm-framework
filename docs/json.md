@@ -1,10 +1,14 @@
 # JSON Support
 
-Storm provides first-class support for JSON columns, allowing you to store and query JSON data directly in your entities.
+Storm provides first-class support for JSON columns, allowing you to store and query JSON data directly in your entities. Annotate a field with `@Json` and Storm handles serialization/deserialization automatically.
 
 ## Installation
 
-### Jackson (Java & Kotlin)
+Storm supports two JSON serialization libraries. Choose the one that fits your project:
+
+### Jackson (Kotlin & Java)
+
+The most common choice for Java projects, and also works with Kotlin.
 
 ```xml
 <dependency>
@@ -20,9 +24,19 @@ implementation 'st.orm:storm-jackson:1.8.2'
 
 ### Kotlinx Serialization (Kotlin)
 
-```groovy
-implementation 'st.orm:storm-kotlinx-serialization:1.8.2'
+A Kotlin-native option with compile-time safety. Requires the `kotlinx-serialization` Gradle plugin.
+
+```kotlin
+plugins {
+    kotlin("plugin.serialization") version "2.0.0"
+}
+
+dependencies {
+    implementation("st.orm:storm-kotlinx-serialization:1.8.2")
+}
 ```
+
+Storm auto-detects the serialization library at runtime. Just add the dependency and it works.
 
 ---
 
@@ -44,6 +58,10 @@ The `preferences` field is automatically serialized to JSON when writing and des
 
 ### Complex Types
 
+JSON columns are not limited to maps and primitive collections. You can store structured domain objects directly, preserving their full type hierarchy during serialization and deserialization. This is useful when the nested object has a well-defined shape but does not need its own database table.
+
+When using kotlinx.serialization, annotate the nested type with `@Serializable`. Jackson discovers types automatically through reflection, so no additional annotation is needed.
+
 ```kotlin
 @Serializable  // For kotlinx.serialization
 data class Address(
@@ -61,7 +79,9 @@ data class User(
 
 ### JSON Aggregation
 
-Aggregate related entities into JSON:
+JSON aggregation solves the problem of loading one-to-many or many-to-many relationships in a single query. Instead of issuing separate queries or relying on lazy loading, you can use SQL aggregation functions like `JSON_OBJECTAGG` to collect related rows into a JSON array within the main query result. Storm then deserializes that array back into a typed collection on the result object.
+
+This approach eliminates N+1 query problems for relationship loading at the cost of shifting serialization work to both the database and the application layer. It works best when the aggregated collection is moderate in size (see the performance section below).
 
 ```kotlin
 data class RolesByUser(
@@ -98,6 +118,8 @@ The `preferences` field is automatically serialized to JSON when writing and des
 
 ### Complex Types
 
+Structured domain objects work the same way in Java. Jackson handles serialization automatically for Java records without additional annotations.
+
 ```java
 record Address(String street,
                String city,
@@ -111,7 +133,7 @@ record User(@PK Integer id,
 
 ### JSON Aggregation
 
-Aggregate related entities into JSON:
+The same aggregation pattern applies in Java using string templates. The `JSON_OBJECTAGG` function collects related entities into a JSON object that Storm deserializes into the annotated `@Json` field.
 
 ```java
 record RolesByUser(User user, @Json List<Role> roles) {}
@@ -144,9 +166,11 @@ JSON storage works differently across databases:
 
 ## Use Cases
 
+JSON columns are most valuable when relational normalization would add complexity without proportional benefit. The following patterns illustrate the three main scenarios where JSON storage is the right choice.
+
 ### Flexible Schema
 
-Store dynamic attributes without schema changes:
+When different rows need different sets of attributes, a JSON column avoids the overhead of schema migrations and sparse nullable columns. This is common in product catalogs, configuration storage, and user-defined fields.
 
 ```kotlin
 data class Product(
@@ -158,7 +182,7 @@ data class Product(
 
 ### Denormalized Data
 
-Avoid joins for frequently accessed related data:
+Storing a snapshot of related data directly in the parent row avoids joins at read time and preserves the exact state at the moment of creation. This is useful for data that should not change retroactively, such as a shipping address on an order or the line items at the time of purchase.
 
 ```kotlin
 data class Order(
@@ -171,13 +195,13 @@ data class Order(
 
 ### Aggregation Results
 
-Fetch one-to-many or many-to-many relationships in a single query using JSON aggregation.
+Fetch one-to-many or many-to-many relationships in a single query using JSON aggregation. This is the primary alternative to issuing multiple queries or using lazy loading. The trade-off is that the aggregated data arrives as a serialized blob rather than discrete rows, so it works best when the client consumes the collection as a whole rather than filtering or paging within it.
 
 ## Tips
 
-1. **Use for truly dynamic data** — Don't use JSON to avoid proper schema design
-2. **Consider query patterns** — JSON columns are harder to filter/index
-3. **Size limits** — Be aware of column size limits for large JSON documents
+1. **Use for truly dynamic data.** Don't use JSON to avoid proper schema design.
+2. **Consider query patterns.** JSON columns are harder to filter and index than normalized columns.
+3. **Size limits.** Be aware of column size limits for large JSON documents.
 
 ## JSON Aggregation Performance
 

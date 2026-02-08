@@ -4,6 +4,8 @@ There is no universally “best” database framework. Each has strengths suited
 
 ## Storm vs JPA/Hibernate
 
+JPA (typically implemented by Hibernate) is the most widely used persistence framework in the Java ecosystem. It provides a full object-relational mapping layer with managed entities, lifecycle callbacks, and second-level caching. Storm takes a fundamentally different approach: entities are plain values with no managed state, and database interactions are explicit rather than implicit. This makes Storm simpler to reason about at the cost of JPA's more automated (but less predictable) features.
+
 | Aspect | Storm | JPA/Hibernate                            |
 |--------|-------|------------------------------------------|
 | **Entities** | Immutable records/data classes | Mutable classes with getters/setters     |
@@ -34,6 +36,8 @@ There is no universally “best” database framework. Each has strengths suited
 
 ## Storm vs Spring Data JPA
 
+Spring Data JPA wraps JPA with a repository abstraction that derives query implementations from method names. It reduces boilerplate but inherits all of JPA's runtime complexity (proxies, managed state, lazy loading). Storm's Spring integration provides similar repository convenience with explicit query bodies instead of naming conventions.
+
 | Aspect | Storm | Spring Data JPA |
 |--------|-------|-----------------|
 | **Foundation** | Custom ORM | JPA/Hibernate |
@@ -56,6 +60,8 @@ There is no universally “best” database framework. Each has strengths suited
 - You're already invested in the JPA ecosystem
 
 ## Storm vs MyBatis
+
+MyBatis is a SQL mapper that gives you full control over every query. You write SQL in XML files or annotations and map results to POJOs manually. Storm sits at a higher abstraction level, inferring SQL from entity definitions while still allowing raw SQL when needed. The trade-off is flexibility vs. automation: MyBatis never generates SQL for you, while Storm handles the common cases and lets you drop to raw SQL for complex queries.
 
 | Aspect | Storm | MyBatis |
 |--------|-------|---------|
@@ -87,6 +93,8 @@ There is no universally “best” database framework. Each has strengths suited
 
 ## Storm vs jOOQ
 
+jOOQ generates Java code from your database schema, providing a type-safe SQL DSL that mirrors the structure of your tables. Storm takes the opposite direction: you define entities in code, and the metamodel is generated from those entities. jOOQ excels at complex SQL (window functions, CTEs, recursive queries) where its DSL closely follows SQL syntax. Storm excels at entity-oriented operations where automatic relationship handling and repository patterns reduce boilerplate.
+
 | Aspect | Storm | jOOQ |
 |--------|-------|------|
 | **Approach** | Entity-first, convention | SQL-first, code generation |
@@ -111,6 +119,8 @@ There is no universally “best” database framework. Each has strengths suited
 - You want native DSL support for advanced SQL features (window functions, CTEs)
 
 ## Storm vs JDBI
+
+JDBI is a lightweight SQL convenience library that sits just above JDBC. It handles parameter binding, result mapping, and connection management without imposing an object model. Storm provides more structure with entity definitions, automatic relationship loading, and a repository pattern. Choose JDBI when you want minimal abstraction and full SQL control; choose Storm when you want the framework to handle common patterns while still allowing raw SQL escape hatches.
 
 | Aspect | Storm | JDBI |
 |--------|-------|------|
@@ -139,6 +149,8 @@ There is no universally “best” database framework. Each has strengths suited
 The following frameworks are Kotlin-only. Storm supports both Kotlin and Java.
 
 ## Storm vs Exposed
+
+Exposed is JetBrains' official Kotlin database framework. It offers two APIs: a DSL that mirrors SQL syntax and a DAO layer for ORM-style access. Exposed defines tables as Kotlin objects rather than annotations on data classes. Storm and Exposed share the goal of idiomatic Kotlin database access but differ in entity design (mutable DAO entities vs. immutable data classes) and relationship loading strategy (lazy references vs. eager single-query loading).
 
 | Aspect | Exposed | Storm                                |
 |--------|---------|--------------------------------------|
@@ -174,6 +186,8 @@ The following frameworks are Kotlin-only. Storm supports both Kotlin and Java.
 
 ## Storm vs Ktorm
 
+Ktorm is a lightweight Kotlin ORM that uses entity interfaces and DSL-based table definitions. It requires no code generation and has minimal dependencies. Storm differs primarily in its use of immutable data classes (instead of mutable interfaces), automatic relationship loading, and optional metamodel generation for compile-time type safety.
+
 | Aspect | Ktorm | Storm |
 |--------|-------|-------|
 | **Language** | Kotlin only | Kotlin + Java |
@@ -207,6 +221,8 @@ The following frameworks are Kotlin-only. Storm supports both Kotlin and Java.
 
 ## Feature Comparison
 
+The following table provides a side-by-side comparison of concrete features across all frameworks discussed above. "Yes" and "No" indicate built-in support; "Manual" means the feature is achievable but requires explicit effort from the developer.
+
 | Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm |
 |---------|-------|-----|-------------|---------|------|------|---------|-------|
 | Lines per entity | ~5 | ~30* | ~30* | ~20+ | Generated | ~15 | ~12 | ~15 |
@@ -239,6 +255,8 @@ Choose Storm if you value:
 - **Immutability** over managed state
 - **Explicit** over implicit behavior
 - **Kotlin-first** development (or modern Java with records)
+
+Ready to try it? See the [Getting Started](getting-started.md) guide.
 
 ## Framework Links
 

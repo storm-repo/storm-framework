@@ -2,7 +2,7 @@
 
 ## What Are Projections?
 
-Projections are **read-only** data structures that represent database views or complex queries defined via `@ProjectionQuery`. Like entities, they are plain Java records or Kotlin data classes—no proxies, no bytecode manipulation. Unlike entities, projections support only read operations: no insert, update, or delete.
+Projections are **read-only** data structures that represent database views or complex queries defined via `@ProjectionQuery`. Like entities, they are plain Java records or Kotlin data classes with no proxies and no bytecode manipulation. Unlike entities, projections support only read operations: no insert, update, or delete.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -25,7 +25,7 @@ Projections are **read-only** data structures that represent database views or c
 
 **Complex reusable queries:** Use `@ProjectionQuery` to define projections backed by complex SQL involving joins, aggregations, or subqueries that you want to reuse across your application.
 
-For simple ad-hoc queries or one-off aggregations, prefer using a plain data class—projections are best suited for reusable, view-like structures. See [SQL Templates](sql-templates.md) for details.
+For simple ad-hoc queries or one-off aggregations, prefer using a plain data class. Projections are best suited for reusable, view-like structures. See [SQL Templates](sql-templates.md) for details.
 
 ---
 
@@ -131,6 +131,8 @@ This is useful for aggregations, complex joins, or mapping database views.
 
 ### Getting a ProjectionRepository
 
+Obtain a `ProjectionRepository` from the ORM template. This is the read-only counterpart to `EntityRepository`. It provides find, select, count, and existence-check operations, but no insert, update, or delete.
+
 ```kotlin
 val ownerViews = orm.projection(OwnerView::class)
 ```
@@ -140,6 +142,8 @@ ProjectionRepository<OwnerView, Integer> ownerViews = orm.projection(OwnerView.c
 ```
 
 ### Basic Operations
+
+The `ProjectionRepository` supports the same query patterns as `EntityRepository`, minus write operations. Results are plain data objects with no proxy behavior or session attachment.
 
 ```kotlin
 // Count all
@@ -264,6 +268,8 @@ Use `Owner` when creating or updating owners. Use `OwnerListItem` for displaying
 ---
 
 ## Working with Refs
+
+When a projection references another entity or projection but you do not need the full related object in every query, use `Ref<T>` to store only the foreign key value. This avoids the cost of an additional JOIN when you only need the key. You can resolve the reference later by fetching the full object on demand.
 
 Projections support the `Ref<T>` pattern for lightweight references that defer loading:
 

@@ -71,7 +71,7 @@ The three columns from the result set are passed directly to the `User` construc
 
 ## Plain Records
 
-You don't need to implement any interface to map query results. Plain Kotlin data classes or Java records work directly. Storm maps columns to constructor parameters by position.
+Not every query result maps to a full entity. Aggregate queries, reports, and ad-hoc projections return custom column sets that do not correspond to any database table. Storm handles these cases without requiring special interfaces or annotations. You can define a plain Kotlin data class or Java record whose constructor parameters match the query's columns by position and type, and Storm will hydrate it directly.
 
 ```kotlin
 data class MonthlySales(
@@ -109,7 +109,9 @@ For SQL generation features (template expressions, automatic joins via `@FK`), i
 
 ## Nested Records
 
-When a record contains another record as a field, Storm **flattens** the nested structure into a single column sequence. During hydration, it reconstructs the nested hierarchy.
+Real-world data models rarely consist of flat structures. Addresses, coordinates, monetary amounts, and other value objects are naturally represented as separate types composed into larger entities. Storm supports this composition without requiring any special annotations for embedded records.
+
+When a record contains another record as a field, Storm **flattens** the nested structure into a single column sequence. During hydration, it reconstructs the nested hierarchy. This means you can model your domain with fine-grained value objects while Storm handles the mapping to and from flat database rows.
 
 ### Column Flattening
 
@@ -296,10 +298,12 @@ When `city` is nullable and all city columns are NULL in a row, the hydrated `ci
 
 ## Refs (Lazy References)
 
-A `Ref<T>` is a lightweight reference that stores only the foreign key value, not the full entity. This is useful for:
-- Breaking circular dependencies (self-referential entities)
-- Deferring entity loading until needed
-- Reducing memory usage in large result sets
+Eagerly loading every related entity is not always desirable. When a `User` references a `City`, which references a `Country`, a simple user query can cascade into loading the entire object graph. In many cases, the calling code only needs the foreign key value, not the full related entity.
+
+A `Ref<T>` is a lightweight reference that stores only the foreign key value, not the full entity. This gives you control over how much data is loaded during hydration. Use `Ref<T>` when:
+- You need to break circular dependencies (self-referential entities like a tree structure)
+- You want to defer entity loading until the related data is actually needed
+- You are processing large result sets and want to minimize memory consumption
 
 ### Ref Column Layout
 
@@ -412,7 +416,7 @@ When a cache hit occurs, Storm skips the entire construction process for that en
 
 ```kotlin
 // Query returns 1000 users, but only 50 unique cities
-val users = userRepository.findAll { User_.active eq true }
+val users = userRepository.findAll { User_.city eq city }
 ```
 
 Without early lookup, Storm would construct 1000 `City` objects and then deduplicate. With early lookup:
@@ -461,7 +465,7 @@ At `REPEATABLE_READ` and above, the entity cache extends query-level identity to
 
 ## Composite Primary Keys
 
-When a table has a composite primary key (multiple columns forming the PK), model it as a separate record containing each key column:
+Some tables use multiple columns as their primary key rather than a single auto-incremented ID. Junction tables (many-to-many relationships) are a common example: the combination of two foreign keys forms the primary key. Storm supports composite primary keys by modeling the key as a separate record type that contains each key column.
 
 ```kotlin
 data class UserRolePk(
@@ -499,6 +503,8 @@ Storm first constructs `UserRolePk` from the primary key columns (1-2), then use
 
 ## Custom Type Converters
 
+Storm's built-in type support covers standard JDBC types, but applications often use domain-specific value types that do not map directly to any JDBC type. Examples include durations stored as seconds, monetary amounts stored as cents, or encoded identifiers stored as strings. Custom type converters bridge this gap by defining a bidirectional mapping between a database column type and your domain type.
+
 For types not natively supported by Storm, use `@Convert` to specify a custom converter:
 
 ```kotlin
@@ -526,7 +532,7 @@ Converters map a single column to a custom type. For composite types spanning mu
 
 ## Nullability Handling
 
-Storm respects nullability annotations to validate hydrated data:
+Database columns can contain NULL values, but not every field in your data model should accept null. Storm enforces nullability constraints during hydration, catching data integrity issues at the application boundary rather than letting null values propagate silently through your code.
 
 ### Kotlin
 

@@ -23,13 +23,26 @@ import static st.orm.SelectMode.DECLARED;
 import static st.orm.template.Templates.select;
 
 /**
- * The subquery template is used to construct subqueries that can be linked to the outer query.
+ * Provides factory methods for constructing subqueries that can be correlated with or embedded in an outer query.
  *
- * <p>Unlike regular queries, subqueries only select fields from the primary table; fields from nested (foreign key)
- * records are not included. Additionally, subqueries cannot be directly built — they should be passed as
- * a query builder object when constructing the outer query.</p>
+ * <p>Unlike regular queries created by {@link QueryTemplate}, subqueries only select fields from the primary table;
+ * fields from nested (foreign key) records are not included. Subqueries cannot be directly executed -- they must be
+ * passed as a {@link QueryBuilder} object to the outer query (e.g., via
+ * {@link WhereBuilder#exists(QueryBuilder)} or {@link Templates#subquery(QueryBuilder, boolean)}).</p>
+ *
+ * <h2>Example: EXISTS subquery</h2>
+ * <pre>{@code
+ * List<User> usersWithOrders = userRepository
+ *         .select()
+ *         .where(predicate -> predicate.exists(
+ *             predicate.subquery(Order.class)
+ *                 .where(Order_.userId, EQUALS, User_.id)))
+ *         .getResultList();
+ * }</pre>
  *
  * @since 1.1
+ * @see QueryTemplate
+ * @see WhereBuilder#exists(QueryBuilder)
  */
 public interface SubqueryTemplate {
 
@@ -45,7 +58,7 @@ public interface SubqueryTemplate {
     }
 
     /**
-     * Crate a subquery for the given table and select type.
+     * Create a subquery for the given table and select type.
      *
      * @param fromType the table to create the subquery for.
      * @param selectType the type to select.

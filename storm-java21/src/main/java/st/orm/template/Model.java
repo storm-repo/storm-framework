@@ -26,10 +26,24 @@ import java.util.SequencedMap;
 import java.util.function.BiConsumer;
 
 /**
- * Represents the model of an entity or projection.
+ * Provides metadata about an entity or projection type, including its table name, primary key type, and column
+ * definitions.
+ *
+ * <p>The {@code Model} is obtained via {@link QueryTemplate#model(Class)} or from a repository's
+ * {@code model()} method. It can be used to introspect the database mapping of a record type, access column
+ * metadata, check primary key defaults, and extract column values from record instances.</p>
+ *
+ * <h2>Example</h2>
+ * <pre>{@code
+ * Model<User, Integer> model = orm.model(User.class);
+ * String tableName = model.name();
+ * List<Column> columns = model.columns();
+ * }</pre>
  *
  * @param <E> the type of the entity or projection.
  * @param <ID> the type of the primary key, or {@code Void} in case of a projection without a primary key.
+ * @see Column
+ * @see QueryTemplate#model(Class)
  */
 public interface Model<E extends Data, ID> {
 

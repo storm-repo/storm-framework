@@ -158,7 +158,7 @@ When multiple entities of the same type are updated in a transaction, JDBC can b
 
 ```kotlin
 // All updates have identical SQL shape - JDBC batches them
-val users = userRepository.findAll { User_.active eq true }
+val users = userRepository.findAll { User_.city eq city }
 userRepository.update(users.map { it.copy(lastLogin = now()) })
 ```
 
@@ -367,11 +367,15 @@ When comparing an entity to its observed state, Storm needs to determine whether
 
 ### Instance-Based (Default)
 
-Instance-based checking treats a field as changed when the object reference differs. This is the fastest option and works well in most cases.
+Instance-based checking treats a field as changed when the object reference differs (`!=` identity comparison). This is the fastest option because reference comparison is a single pointer check with no method dispatch. It works correctly in the vast majority of cases because Kotlin's `copy()` and Java's `with...()` patterns create new instances for modified fields while reusing the same references for unchanged fields.
+
+The only scenario where instance-based checking produces a false positive is when you construct a new object with identical content. For example, `user.copy(name = user.name)` creates a new `String` reference for `name`, even though the value is unchanged. In practice, this is rare and the cost of an extra column in the UPDATE is negligible.
 
 ### Value-Based
 
-Value-based checking compares field values using `equals()`. In some scenarios this provides more accurate dirty checking at the expense of higher CPU usage.
+Value-based checking compares field values using `equals()`. This avoids false positives from the scenario described above, at the cost of calling `equals()` on every field during comparison. For entities with simple fields (primitives, strings), the overhead is minimal. For entities with complex nested objects or large collections, the `equals()` calls can become measurable.
+
+Choose value-based checking when your update patterns frequently reconstruct fields with identical values, and you want to minimize unnecessary column writes. In most applications, instance-based checking is sufficient.
 
 **Enabling Value-Based Checking**
 
@@ -550,7 +554,7 @@ orm update user.copy(name = "New Name")
 
 ### 2. Raw SQL Mutations Clear All Observed State
 
-For template-based updates, Storm knows the entity type and only clears observed state of that type. However, when you execute raw SQL mutations without entity type information, Storm cannot determine which entities may have been affected. To ensure correctness, Storm clears all observed state in the current transaction:
+Storm tracks which entity types are affected by each mutation so it can selectively invalidate observed state. For template-based updates (using `orm update entity`), Storm knows the entity type and only clears observed state of that type. However, when you execute raw SQL mutations without entity type information, Storm cannot determine which entities may have been affected. Rather than risk stale comparisons that could silently skip a necessary UPDATE, Storm clears all observed state in the current transaction:
 
 ```kotlin
 val user = orm.get { User_.id eq 1 }     // Storm observes User state
@@ -568,7 +572,7 @@ This ensures correctness at the cost of losing dirty checking optimization for t
 
 ### 3. Nested Records Are Inspected
 
-When entities contain embedded records or value objects, Storm inspects them at the column level:
+Storm's dirty checking is not limited to top-level fields. When entities contain embedded records or value objects, Storm flattens the nested structure and inspects individual columns. This means that changing a single field inside a nested record produces a targeted UPDATE rather than rewriting the entire nested structure.
 
 ```kotlin
 data class Address(val street: String, val city: String)

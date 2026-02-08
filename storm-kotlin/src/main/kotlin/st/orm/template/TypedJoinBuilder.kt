@@ -19,11 +19,26 @@ import st.orm.Data
 import kotlin.reflect.KClass
 
 /**
- * A builder for constructing join clause of the query.
+ * A builder for specifying the ON condition of a JOIN clause using a type-safe entity relation or a custom expression.
  *
- * @param <T> the type of the table being queried.
- * @param <R> the type of the result.
- * @param <ID> the type of the primary key.
+ * `TypedJoinBuilder` extends [JoinBuilder] and is returned by the join methods on [QueryBuilder] that accept an
+ * entity class. In addition to the template-based [JoinBuilder.on] method, it provides an [on] method that accepts
+ * a [KClass] to resolve the join condition automatically based on the foreign key relationships defined in the
+ * entity graph.
+ *
+ * ## Example: Automatic join resolution
+ * ```kotlin
+ * val users = userRepository
+ *     .select()
+ *     .innerJoin(Order::class).on(User::class)
+ *     .getResultList()
+ * ```
+ *
+ * @param T the type of the table being queried.
+ * @param R the type of the result.
+ * @param ID the type of the primary key.
+ * @see JoinBuilder
+ * @see QueryBuilder
  */
 interface TypedJoinBuilder<T : Data, R, ID> : JoinBuilder<T, R, ID> {
     /**
