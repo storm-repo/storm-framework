@@ -200,7 +200,7 @@ Everything you need to build applications with Storm. Start with Getting Started
 | [Upserts](docs/upserts.md) | Insert-or-update operations (6 min) |
 | [JSON Support](docs/json.md) | JSON columns and aggregation (6 min) |
 | [Transactions](docs/transactions.md) | Transaction management and propagation (22 min) |
-| [Spring Integration](docs/spring-integration.md) | Spring Boot configuration (6 min) |
+| [Spring Integration](docs/spring-integration.md) | Spring Boot Starter and auto-configuration (8 min) |
 | [Database Dialects](docs/dialects.md) | Database-specific support (5 min) |
 
 ### Advanced Topics

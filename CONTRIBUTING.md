@@ -32,20 +32,22 @@ mvn clean install
 
 ```
 storm-framework/
-├── storm-bom/            # Bill of Materials (BOM) for version management
-├── storm-core/           # Core library (no preview dependencies)
-├── storm-java21/         # Java 21+ API (uses String Templates)
-├── storm-kotlin/         # Kotlin API
-├── storm-spring/         # Spring integration (Java)
-├── storm-kotlin-spring/  # Spring integration (Kotlin)
-├── storm-oracle/         # Oracle dialect
-├── storm-mysql/          # MySQL dialect
-├── storm-mariadb/        # MariaDB dialect
-├── storm-postgresql/     # PostgreSQL dialect
-├── storm-mssqlserver/    # MS SQL Server dialect
-├── storm-jackson/        # Jackson JSON support
-├── storm-kotlinx-serialization/  # Kotlinx serialization support
-└── storm-metamodel-processor/    # Annotation processor
+├── storm-bom/                         # Bill of Materials (BOM) for version management
+├── storm-core/                        # Core library (no preview dependencies)
+├── storm-java21/                      # Java 21+ API (uses String Templates)
+├── storm-kotlin/                      # Kotlin API
+├── storm-spring/                      # Spring integration (Java)
+├── storm-kotlin-spring/               # Spring integration (Kotlin)
+├── storm-spring-boot-starter/         # Spring Boot Starter (Java)
+├── storm-kotlin-spring-boot-starter/  # Spring Boot Starter (Kotlin)
+├── storm-oracle/                      # Oracle dialect
+├── storm-mysql/                       # MySQL dialect
+├── storm-mariadb/                     # MariaDB dialect
+├── storm-postgresql/                  # PostgreSQL dialect
+├── storm-mssqlserver/                 # MS SQL Server dialect
+├── storm-jackson/                     # Jackson JSON support
+├── storm-kotlinx-serialization/       # Kotlinx serialization support
+└── storm-metamodel-processor/         # Annotation processor
 ```
 
 ## Code Guidelines

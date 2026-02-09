@@ -4,7 +4,49 @@ Storm integrates seamlessly with Spring Framework and Spring Boot for dependency
 
 ## Installation
 
-### Kotlin
+Storm provides Spring Boot Starter modules that auto-configure everything you need. If you use the starter, you do not need to add `storm-kotlin-spring` or `storm-spring` separately; the starter includes them.
+
+### Spring Boot Starter (Recommended)
+
+The starter modules provide zero-configuration setup: an `ORMTemplate` bean is created automatically from the `DataSource`, repositories are discovered from the application's base package, and (for Kotlin) transaction integration is enabled. See [Spring Boot Starter](#spring-boot-starter) for full details.
+
+#### Kotlin
+
+```kotlin
+// Gradle (Kotlin DSL)
+implementation("st.orm:storm-kotlin-spring-boot-starter:1.8.2")
+```
+
+```xml
+<!-- Maven -->
+<dependency>
+    <groupId>st.orm</groupId>
+    <artifactId>storm-kotlin-spring-boot-starter</artifactId>
+    <version>1.8.2</version>
+</dependency>
+```
+
+#### Java
+
+```kotlin
+// Gradle (Kotlin DSL)
+implementation("st.orm:storm-spring-boot-starter:1.8.2")
+```
+
+```xml
+<!-- Maven -->
+<dependency>
+    <groupId>st.orm</groupId>
+    <artifactId>storm-spring-boot-starter</artifactId>
+    <version>1.8.2</version>
+</dependency>
+```
+
+### Spring Integration Without Auto-Configuration
+
+If you prefer manual configuration, or need to customize the setup beyond what the starter provides, use the integration modules directly:
+
+#### Kotlin
 
 ```kotlin
 // Gradle (Kotlin DSL)
@@ -20,7 +62,7 @@ implementation("st.orm:storm-kotlin-spring:1.8.2")
 </dependency>
 ```
 
-### Java
+#### Java
 
 ```kotlin
 // Gradle (Kotlin DSL)
@@ -239,20 +281,31 @@ public class UserService {
 
 ---
 
-## Spring Boot Auto-Configuration
+## Spring Boot Starter
 
-Storm works with Spring Boot's auto-configured DataSource. No special configuration is needed beyond defining the ORM bean:
+The Spring Boot Starter modules provide zero-configuration setup for Storm. Add the starter dependency and Storm auto-configures itself from the Spring Boot `DataSource`.
+
+### What the Starter Provides
+
+The starter auto-configures:
+
+1. **`ORMTemplate` bean** created from the auto-configured `DataSource`. If you define your own `ORMTemplate` bean, the auto-configured one backs off.
+2. **Repository scanning** via `AutoConfiguredRepositoryBeanFactoryPostProcessor`, which discovers repository interfaces in the `@SpringBootApplication` base package (and its sub-packages). If you define your own `RepositoryBeanFactoryPostProcessor` bean, the auto-configured one backs off.
+3. **Transaction integration** (Kotlin only) by automatically activating `SpringTransactionConfiguration`, removing the need for `@EnableTransactionIntegration`.
+4. **Configuration properties** bound from `storm.*` in `application.yml`/`application.properties`, bridged to JVM system properties.
+
+### Minimal Spring Boot Setup (with Starter)
+
+With the starter, a complete Spring Boot application requires no Storm-specific configuration classes:
 
 ```kotlin
-@Configuration
-class StormConfig(private val dataSource: DataSource) {
+@SpringBootApplication
+class Application
 
-    @Bean
-    fun ormTemplate() = ORMTemplate.of(dataSource)
+fun main(args: Array<String>) {
+    runApplication<Application>(*args)
 }
 ```
-
-Spring Boot automatically configures the DataSource from your `application.properties`:
 
 ```properties
 spring.datasource.url=jdbc:postgresql://localhost:5432/mydb
@@ -260,11 +313,64 @@ spring.datasource.username=myuser
 spring.datasource.password=mypassword
 ```
 
-Storm picks up this DataSource and auto-detects the dialect from the JDBC URL.
+That is it. The starter creates the `ORMTemplate`, discovers repositories, and enables transaction integration automatically.
 
-## Minimal Spring Boot Setup
+### Configuration via application.yml
 
-Here is a complete minimal setup for a Spring Boot application with Storm:
+The starter bridges Spring properties to Storm's JVM system properties, so you can configure Storm from `application.yml` instead of JVM flags:
+
+```yaml
+storm:
+  ansi-escaping: false
+  update:
+    default-mode: ENTITY
+    dirty-check: INSTANCE
+    max-shapes: 5
+  entity-cache:
+    retention: minimal
+  template-cache:
+    size: 2048
+  metrics:
+    level: DEBUG
+  validation:
+    skip: false
+    warnings-only: false
+```
+
+Explicit JVM flags (`-Dstorm.*`) always take precedence over Spring properties.
+
+See the [Configuration](configuration.md) guide for a description of each property.
+
+### Overriding Auto-Configuration
+
+Each auto-configured bean backs off when you provide your own. This lets you customize behavior incrementally.
+
+**Custom ORMTemplate:**
+
+```kotlin
+@Configuration
+class StormConfig(private val dataSource: DataSource) {
+
+    @Bean
+    fun ormTemplate(): ORMTemplate =
+        ORMTemplate.of(dataSource) { decorator -> decorator /* customize */ }
+}
+```
+
+**Custom repository scanning:**
+
+```kotlin
+@Configuration
+class MyRepositoryPostProcessor : RepositoryBeanFactoryPostProcessor() {
+
+    override val repositoryBasePackages: Array<String>
+        get() = arrayOf("com.myapp.repository", "com.myapp.other")
+}
+```
+
+### Minimal Spring Boot Setup (without Starter)
+
+If you use the integration module directly (without the starter), you need to configure Storm manually:
 
 ```kotlin
 @SpringBootApplication
@@ -387,9 +493,9 @@ class OrderService(
 
 ## Tips
 
-1. **Use `@Transactional` for declarative transactions.** Simple and familiar for Spring developers.
-2. **Use programmatic transactions for complex flows.** Nested transactions, savepoints, and explicit propagation are easier to express in code.
-3. **Enable `@EnableTransactionIntegration` for Kotlin.** This allows mixing `@Transactional` with programmatic `transaction {}` blocks.
-4. **Configure repository packages.** Auto-wire custom repositories like any Spring bean via `RepositoryBeanFactoryPostProcessor`.
+1. **Use the Spring Boot Starter.** It eliminates boilerplate configuration and auto-discovers your repositories.
+2. **Use `@Transactional` for declarative transactions.** Simple and familiar for Spring developers.
+3. **Use programmatic transactions for complex flows.** Nested transactions, savepoints, and explicit propagation are easier to express in code.
+4. **Configure Storm via `application.yml`.** The starter bridges Spring properties to Storm's system properties.
 5. **One `ORMTemplate` bean is enough.** Inject it into services or let repositories use it automatically.
 6. **Works with any DataSource.** HikariCP, Tomcat pool, or any other connection pool that Spring Boot configures.

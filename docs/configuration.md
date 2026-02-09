@@ -36,7 +36,29 @@ System.setProperty("storm.entityCache.retention", "aggressive")
 System.setProperty("storm.templateCache.size", "4096")
 ```
 
-**In Spring Boot's `application.properties`** (using JVM args via `JAVA_OPTS`):
+**In Spring Boot's `application.yml`** (requires `storm-spring-boot-starter` or `storm-kotlin-spring-boot-starter`):
+
+```yaml
+storm:
+  ansi-escaping: false
+  update:
+    default-mode: ENTITY
+    dirty-check: INSTANCE
+    max-shapes: 5
+  entity-cache:
+    retention: minimal
+  template-cache:
+    size: 2048
+  metrics:
+    level: DEBUG
+  validation:
+    skip: false
+    warnings-only: false
+```
+
+The Spring Boot Starter includes an `EnvironmentPostProcessor` that reads these properties and sets the corresponding JVM system properties before Storm initializes. Explicit JVM flags (`-Dstorm.*`) always take precedence over Spring properties. See [Spring Integration](spring-integration.md#configuration-via-applicationyml) for details.
+
+**Without the starter** (using JVM args via `JAVA_OPTS`):
 
 ```properties
 # These are JVM system properties, not Spring properties.

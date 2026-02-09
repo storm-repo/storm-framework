@@ -141,6 +141,16 @@
                 <artifactId>storm-mssqlserver</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>st.orm</groupId>
+                <artifactId>storm-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>st.orm</groupId>
+                <artifactId>storm-kotlin-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 </project>

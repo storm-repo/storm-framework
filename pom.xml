@@ -56,6 +56,8 @@
         <module>storm-kotlin</module>
         <module>storm-kotlin-validator</module>
         <module>storm-kotlin-spring</module>
+        <module>storm-spring-boot-starter</module>
+        <module>storm-kotlin-spring-boot-starter</module>
     </modules>
     <dependencyManagement>
         <dependencies>

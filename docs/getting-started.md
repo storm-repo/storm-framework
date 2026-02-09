@@ -460,7 +460,7 @@ Now that you have the basics, explore the features that match your needs:
 - [Dirty Checking](dirty-checking.md) -- automatic change detection on update
 
 **Integration:**
-- [Spring Integration](spring-integration.md) -- Spring Boot configuration and DI
+- [Spring Integration](spring-integration.md) -- Spring Boot Starter, auto-configuration, and DI
 - [JSON Support](json.md) -- JSON columns and aggregation
 - [Database Dialects](dialects.md) -- database-specific features
 
