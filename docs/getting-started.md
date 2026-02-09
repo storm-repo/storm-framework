@@ -22,31 +22,46 @@ Choose your language:
 
 ### Dependencies
 
+Storm provides a BOM (Bill of Materials) for centralized version management. Import the BOM once and omit version numbers from individual Storm dependencies. This prevents version mismatches between modules.
+
 **Gradle (Kotlin DSL):**
 
 ```kotlin
 dependencies {
-    implementation("st.orm:storm-kotlin:1.8.2")
+    implementation(platform("st.orm:storm-bom:1.8.2"))
+
+    implementation("st.orm:storm-kotlin")
 
     // Optional: Static metamodel generation (KSP) -- enables User_, City_, etc.
     ksp("st.orm:storm-metamodel-processor:1.8.2")
 
     // Optional: Database dialect (example: PostgreSQL)
-    runtimeOnly("st.orm:storm-postgresql:1.8.2")
+    runtimeOnly("st.orm:storm-postgresql")
 
     // Optional: JSON support
-    implementation("st.orm:storm-kotlinx-serialization:1.8.2")
+    implementation("st.orm:storm-kotlinx-serialization")
 }
 ```
 
 **Maven:**
 
 ```xml
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>st.orm</groupId>
+            <artifactId>storm-bom</artifactId>
+            <version>1.8.2</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
 <dependencies>
     <dependency>
         <groupId>st.orm</groupId>
         <artifactId>storm-kotlin</artifactId>
-        <version>1.8.2</version>
     </dependency>
 </dependencies>
 ```
@@ -240,21 +255,33 @@ val user = userRepository.findByEmail("alice@example.com")
 
 ### Dependencies
 
+Import the BOM for centralized version management (see [Kotlin section](#dependencies) above for details), then add the Java module:
+
 **Maven:**
 
 ```xml
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>st.orm</groupId>
+            <artifactId>storm-bom</artifactId>
+            <version>1.8.2</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
 <dependencies>
     <dependency>
         <groupId>st.orm</groupId>
         <artifactId>storm-java21</artifactId>
-        <version>1.8.2</version>
     </dependency>
 
     <!-- Optional: Static metamodel generation -- enables User_, City_, etc. -->
     <dependency>
         <groupId>st.orm</groupId>
         <artifactId>storm-metamodel-processor</artifactId>
-        <version>1.8.2</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>
@@ -264,7 +291,8 @@ val user = userRepository.findByEmail("alice@example.com")
 
 ```kotlin
 dependencies {
-    implementation("st.orm:storm-java21:1.8.2")
+    implementation(platform("st.orm:storm-bom:1.8.2"))
+    implementation("st.orm:storm-java21")
 
     // Optional: Static metamodel generation
     annotationProcessor("st.orm:storm-metamodel-processor:1.8.2")

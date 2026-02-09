@@ -32,6 +32,7 @@ mvn clean install
 
 ```
 storm-framework/
+├── storm-bom/            # Bill of Materials (BOM) for version management
 ├── storm-core/           # Core library (no preview dependencies)
 ├── storm-java21/         # Java 21+ API (uses String Templates)
 ├── storm-kotlin/         # Kotlin API

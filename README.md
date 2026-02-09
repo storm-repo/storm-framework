@@ -126,12 +126,43 @@ List<User> users = orm.query(RAW."""
 
 ## Quick Start
 
+### Dependency Management (BOM)
+
+Storm provides a Bill of Materials (BOM) for centralized version management. Import the BOM once and omit version numbers from individual Storm dependencies.
+
+**Maven:**
+
+```xml
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>st.orm</groupId>
+            <artifactId>storm-bom</artifactId>
+            <version>1.8.2</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+```
+
+**Gradle (Kotlin DSL):**
+
+```kotlin
+dependencies {
+    implementation(platform("st.orm:storm-bom:1.8.2"))
+}
+```
+
+With the BOM imported, add Storm modules without specifying versions:
+
 ### Kotlin
 
 ```kotlin
 dependencies {
-    implementation("st.orm:storm-kotlin:1.8.2")
-    runtimeOnly("st.orm:storm-core:1.8.2")
+    implementation(platform("st.orm:storm-bom:1.8.2"))
+    implementation("st.orm:storm-kotlin")
+    runtimeOnly("st.orm:storm-core")
 }
 ```
 
@@ -141,12 +172,10 @@ dependencies {
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-java21</artifactId>
-    <version>1.8.2</version>
 </dependency>
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-core</artifactId>
-    <version>1.8.2</version>
     <scope>runtime</scope>
 </dependency>
 ```

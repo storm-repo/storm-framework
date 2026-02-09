@@ -39,6 +39,7 @@
         <url>https://github.com/storm-repo/storm-framework/</url>
     </scm>
     <modules>
+        <module>storm-bom</module>
         <module>storm-metamodel-processor</module>
         <module>storm-metamodel-ksp</module>
         <module>storm-foundation</module>
