@@ -39,7 +39,10 @@ import java.util.concurrent.ConcurrentMap;
 
 import st.orm.StormConfig;
 
+import static st.orm.DirtyCheck.INSTANCE;
+import static st.orm.DirtyCheck.VALUE;
 import static st.orm.UpdateMode.ENTITY;
+import static st.orm.UpdateMode.FIELD;
 import static st.orm.UpdateMode.OFF;
 
 /**
@@ -90,6 +93,7 @@ import static st.orm.UpdateMode.OFF;
 public final class DirtySupport<E extends Entity<ID>, ID> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DirtySupport.class);
+    private static final DirtyCheckMetrics dirtyCheckMetrics = DirtyCheckMetrics.getInstance();
 
     // Implementation note: dirty field checks can be performed efficiently due to the immutable record types.
 
@@ -127,6 +131,7 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
         this.updateMode = getUpdateMode(recordType);
         this.dirtyCheck = getDirtyCheck(recordType);
         this.versionColumn = model.declaredColumns().stream().filter(Column::version).findAny().orElse(null);
+        dirtyCheckMetrics.registerEntity(model.type().getName(), updateMode.name(), dirtyCheck.name(), maxShapes);
         LOGGER.debug("{}: updateMode={}, dirtyCheck={}, maxShapes={}", model.type().getSimpleName(), updateMode, dirtyCheck, maxShapes);
     }
 
@@ -245,39 +250,51 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
                                             @Nullable EntityCache<E, ID> cache) {
         if (updateMode == OFF) {
             // Update mode is OFF, treat all fields as dirty.
+            dirtyCheckMetrics.recordDirty();
             return DIRTY;
         }
         if (cache == null) {
             // No cache available, assume all fields are dirty.
+            dirtyCheckMetrics.recordDirtyCacheMiss();
             return DIRTY;
         }
         var cached = cache.get(entity.id()).orElse(null);
         if (cached == null) {
             // Not cached, assume all fields are dirty.
+            dirtyCheckMetrics.recordDirtyCacheMiss();
             return DIRTY;
         }
         if (cached == entity) {
             // Cached, no fields are dirty.
+            dirtyCheckMetrics.recordCleanIdentityMatch();
             return CLEAN;
         }
+        // Record update mode and dirty check strategy for checks that reach field comparison.
+        recordModeAndStrategy();
         BitSet dirtyFields = updateMode == ENTITY ? null : new BitSet();
         for (Column column : model.declaredColumns()) {
             if (!column.updatable()) {
                 continue;
             }
             if (fieldsEqual(column.metamodel(), entity, cached)) {
+                dirtyCheckMetrics.recordFieldClean();
                 continue;
             }
+            dirtyCheckMetrics.recordFieldDirty();
             if (dirtyFields == null) {
+                dirtyCheckMetrics.recordDirty();
                 return DIRTY;
             }
             dirtyFields.set(column.index() - 1);
         }
         if (dirtyFields == null || dirtyFields.isEmpty()) {
+            dirtyCheckMetrics.recordClean();
             return CLEAN;
         }
+        dirtyCheckMetrics.recordDirty();
         BitSet key = (BitSet) dirtyFields.clone(); // Defensive copy.
-        return Optional.of(dirtyFieldsCache.computeIfAbsent(key, bits -> {
+        int sizeBefore = dirtyFieldsCache.size();
+        var result = Optional.of(dirtyFieldsCache.computeIfAbsent(key, bits -> {
             Set<Metamodel<?, ?>> set = new HashSet<>();
             for (int i = bits.nextSetBit(0); i >= 0; i = bits.nextSetBit(i + 1)) {
                 set.add(model.columns().get(i).metamodel());
@@ -287,5 +304,26 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
             }
             return Set.copyOf(set);
         }));
+        if (dirtyFieldsCache.size() > sizeBefore) {
+            dirtyCheckMetrics.recordNewShape(model.type().getSimpleName());
+        }
+        return result;
+    }
+
+    /**
+     * Records the update mode and dirty check strategy for this entity type.
+     */
+    private void recordModeAndStrategy() {
+        if (updateMode == ENTITY) {
+            dirtyCheckMetrics.recordEntityModeCheck();
+        } else if (updateMode == FIELD) {
+            dirtyCheckMetrics.recordFieldModeCheck();
+        }
+        DirtyCheck effectiveStrategy = dirtyCheck == DirtyCheck.DEFAULT ? defaultDirtyCheck : dirtyCheck;
+        if (effectiveStrategy == INSTANCE) {
+            dirtyCheckMetrics.recordInstanceStrategyCheck();
+        } else if (effectiveStrategy == VALUE) {
+            dirtyCheckMetrics.recordValueStrategyCheck();
+        }
     }
 }

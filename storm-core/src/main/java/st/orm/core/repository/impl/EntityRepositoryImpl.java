@@ -29,6 +29,7 @@ import st.orm.OptimisticLockException;
 import st.orm.PersistenceException;
 import st.orm.core.spi.EntityCache;
 import st.orm.core.spi.CacheRetention;
+import st.orm.core.spi.EntityCacheMetrics;
 import st.orm.core.spi.Providers;
 import st.orm.core.spi.TransactionContext;
 import st.orm.core.spi.TransactionTemplate;
@@ -94,6 +95,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         this.dirtySupport = new DirtySupport<>(model, ormTemplate.config());
         this.cacheRetention = CacheRetention.valueOf(
                 ormTemplate.config().getProperty("storm.entity_cache.retention", "MINIMAL").trim().toUpperCase());
+        EntityCacheMetrics.getInstance().registerEntity(model.type().getName(), cacheRetention.name());
         LOGGER.debug("{}: cacheRetention={}", model.type().getSimpleName(), cacheRetention);
     }
 

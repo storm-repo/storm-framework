@@ -130,6 +130,7 @@ public final class SqlTemplateImpl implements SqlTemplate {
             this.cache = CacheHolder.INSTANCE.getOrCompute(key, () -> new SegmentedLruCache<>(templateCacheSize));
         }
         this.templateMetrics = TemplateMetrics.getInstance();
+        this.templateMetrics.registerCacheSize(templateCacheSize);
         LOGGER.debug("Storm config: templateCacheSize={}", templateCacheSize);
     }
 

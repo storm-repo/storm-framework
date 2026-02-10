@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import java.lang.management.ManagementFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -66,6 +67,9 @@ public final class TemplateMetrics implements TemplateMetricsMXBean {
     private final AtomicLong missNanosTotal = new AtomicLong();
     private final AtomicLong missNanosMax = new AtomicLong();
 
+    // Configuration.
+    private final AtomicInteger templateCacheSize = new AtomicInteger();
+
     private TemplateMetrics() {
         try {
             MBeanServer server = ManagementFactory.getPlatformMBeanServer();
@@ -76,6 +80,15 @@ public final class TemplateMetrics implements TemplateMetricsMXBean {
         } catch (Exception e) {
             LOGGER.warn("Failed to register TemplateMetrics MBean: {}", e.getMessage());
         }
+    }
+
+    /**
+     * Registers the configured template cache size.
+     *
+     * @param size the template cache size.
+     */
+    public void registerCacheSize(int size) {
+        templateCacheSize.set(size);
     }
 
     /**
@@ -155,6 +168,11 @@ public final class TemplateMetrics implements TemplateMetricsMXBean {
     @Override
     public long getMaxMissMicros() {
         return missNanosMax.get() / 1_000;
+    }
+
+    @Override
+    public int getTemplateCacheSize() {
+        return templateCacheSize.get();
     }
 
     @Override

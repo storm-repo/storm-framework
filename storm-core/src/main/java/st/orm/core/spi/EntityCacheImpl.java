@@ -69,6 +69,8 @@ import static java.util.Objects.requireNonNull;
  */
 public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCache<E, ID> {
 
+    private static final EntityCacheMetrics metrics = EntityCacheMetrics.getInstance();
+
     private final CacheRetention retention;
 
     /**
@@ -107,14 +109,17 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     public Optional<E> get(@Nonnull ID pk) {
         PkReference<ID, E> ref = map.get(requireNonNull(pk));
         if (ref == null) {
+            metrics.recordGetMiss();
             return Optional.empty();
         }
         E value = ref.get();
         if (value != null) {
+            metrics.recordGetHit();
             return Optional.of(value);
         }
         // Collected but not yet drained.
         map.remove(pk, ref);
+        metrics.recordGetMiss();
         return Optional.empty();
     }
 
@@ -143,10 +148,12 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
         if (existingRef != null) {
             E existing = existingRef.get();
             if (existing != null && existing.equals(entity)) {
+                metrics.recordInternHit();
                 return existing;
             }
         }
         map.put(pk, createReference(pk, entity));
+        metrics.recordInternMiss();
         return entity;
     }
 
@@ -174,6 +181,7 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     @Override
     public void remove(@Nonnull ID pk) {
         map.remove(requireNonNull(pk));
+        metrics.recordRemoval();
     }
 
     /**
@@ -185,6 +193,7 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     @Override
     public void clear() {
         map.clear();
+        metrics.recordClear();
     }
 
     /**
@@ -199,7 +208,9 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
         while ((ref = queue.poll()) != null) {
             if (ref instanceof PkReference<?, ?> pkRef) {
                 //noinspection unchecked
-                map.remove(((PkReference<ID, E>) pkRef).pk(), pkRef);
+                if (map.remove(((PkReference<ID, E>) pkRef).pk(), pkRef)) {
+                    metrics.recordEviction();
+                }
             }
         }
     }
