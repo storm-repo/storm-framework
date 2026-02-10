@@ -54,7 +54,6 @@ import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.partitioningBy;
 import static st.orm.GenerationStrategy.IDENTITY;
 import static st.orm.GenerationStrategy.SEQUENCE;
-import static st.orm.core.repository.impl.DirtySupport.getMaxShapes;
 import static st.orm.core.repository.impl.StreamSupport.partitioned;
 import static st.orm.core.template.Templates.table;
 import static st.orm.core.template.Templates.bindVar;

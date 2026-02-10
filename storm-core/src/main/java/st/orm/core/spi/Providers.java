@@ -19,6 +19,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
 import st.orm.Entity;
+import st.orm.StormConfig;
 import st.orm.Ref;
 import st.orm.Projection;
 import st.orm.mapping.RecordField;
@@ -30,7 +31,6 @@ import st.orm.core.template.QueryBuilder;
 import st.orm.core.template.QueryTemplate;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.TemplateString;
-import st.orm.core.template.impl.LazySupplier;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -197,20 +197,26 @@ public final class Providers {
                 .orElseThrow();
     }
 
-    private static final Supplier<SqlDialect> SQL_DIALECT = new LazySupplier<>(
-            () -> Orderable.sort(SQL_DIALECT_PROVIDERS.get().stream())
-                    .map(SqlDialectProvider::getSqlDialect)
-                    .findFirst()
-                    .orElseThrow());
-
     public static SqlDialect getSqlDialect() {
-        return SQL_DIALECT.get();
+        return getSqlDialect(StormConfig.defaults());
+    }
+
+    public static SqlDialect getSqlDialect(@Nonnull StormConfig config) {
+        return Orderable.sort(SQL_DIALECT_PROVIDERS.get().stream())
+                .map(p -> p.getSqlDialect(config))
+                .findFirst()
+                .orElseThrow();
     }
 
     public static SqlDialect getSqlDialect(@Nonnull Predicate<? super SqlDialectProvider> filter) {
+        return getSqlDialect(filter, StormConfig.defaults());
+    }
+
+    public static SqlDialect getSqlDialect(@Nonnull Predicate<? super SqlDialectProvider> filter,
+                                            @Nonnull StormConfig config) {
         return Orderable.sort(SQL_DIALECT_PROVIDERS.get().stream())
                 .filter(filter)
-                .map(SqlDialectProvider::getSqlDialect)
+                .map(p -> p.getSqlDialect(config))
                 .findFirst()
                 .orElseThrow();
     }

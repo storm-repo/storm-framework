@@ -14,12 +14,12 @@ The most common choice for Java projects, and also works with Kotlin.
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-jackson</artifactId>
-    <version>1.8.2</version>
+    <version>1.9.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation 'st.orm:storm-jackson:1.8.2'
+implementation 'st.orm:storm-jackson:1.9.0'
 ```
 
 ### Kotlinx Serialization (Kotlin)
@@ -32,7 +32,7 @@ plugins {
 }
 
 dependencies {
-    implementation("st.orm:storm-kotlinx-serialization:1.8.2")
+    implementation("st.orm:storm-kotlinx-serialization:1.9.0")
 }
 ```
 

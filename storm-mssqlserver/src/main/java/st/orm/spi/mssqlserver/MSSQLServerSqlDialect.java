@@ -16,6 +16,7 @@
 package st.orm.spi.mssqlserver;
 
 import jakarta.annotation.Nonnull;
+import st.orm.StormConfig;
 import st.orm.core.spi.DefaultSqlDialect;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplateException;
@@ -31,6 +32,13 @@ import java.util.stream.Stream;
 import static java.util.stream.Collectors.toSet;
 
 public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDialect {
+
+    public MSSQLServerSqlDialect() {
+    }
+
+    public MSSQLServerSqlDialect(@Nonnull StormConfig config) {
+        super(config);
+    }
 
     /**
      * Returns the name of the SQL dialect.

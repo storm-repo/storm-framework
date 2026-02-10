@@ -28,12 +28,12 @@ Storm provides a BOM (Bill of Materials) for centralized version management. Imp
 
 ```kotlin
 dependencies {
-    implementation(platform("st.orm:storm-bom:1.8.2"))
+    implementation(platform("st.orm:storm-bom:1.9.0"))
 
     implementation("st.orm:storm-kotlin")
 
     // Optional: Static metamodel generation (KSP) -- enables User_, City_, etc.
-    ksp("st.orm:storm-metamodel-processor:1.8.2")
+    ksp("st.orm:storm-metamodel-processor:1.9.0")
 
     // Optional: Database dialect (example: PostgreSQL)
     runtimeOnly("st.orm:storm-postgresql")
@@ -51,7 +51,7 @@ dependencies {
         <dependency>
             <groupId>st.orm</groupId>
             <artifactId>storm-bom</artifactId>
-            <version>1.8.2</version>
+            <version>1.9.0</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
@@ -87,13 +87,29 @@ data class User(
 
 ### Create the ORM Template
 
-The `ORMTemplate` is the central entry point for all database operations. Create one from any JDBC `DataSource`. It is thread-safe and typically created once at application startup or provided as a Spring bean.
+The `ORMTemplate` is the central entry point for all database operations. Create one from any JDBC `DataSource`, `Connection`, or JPA `EntityManager`. It is thread-safe and typically created once at application startup or provided as a Spring bean.
+
+Storm provides Kotlin extension properties and functions on `DataSource`, `Connection`, and `EntityManager` as a concise alternative to the `ORMTemplate.of(...)` factory methods:
 
 ```kotlin
-val orm = ORMTemplate.of(dataSource)
-
-// Or using extension property
+// Extension property (simplest form)
 val orm = dataSource.orm
+
+// With StormConfig
+val orm = dataSource.orm(config)
+
+// With a template decorator
+val orm = dataSource.orm { decorator -> decorator }
+
+// With both StormConfig and a decorator
+val orm = dataSource.orm(config) { decorator -> decorator }
+```
+
+The same extensions are available on `Connection` and `EntityManager`:
+
+```kotlin
+val orm = connection.orm
+val orm = entityManager.orm(config)
 ```
 
 ### Two Ways to Work
@@ -265,7 +281,7 @@ Import the BOM for centralized version management (see [Kotlin section](#depende
         <dependency>
             <groupId>st.orm</groupId>
             <artifactId>storm-bom</artifactId>
-            <version>1.8.2</version>
+            <version>1.9.0</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
@@ -291,11 +307,11 @@ Import the BOM for centralized version management (see [Kotlin section](#depende
 
 ```kotlin
 dependencies {
-    implementation(platform("st.orm:storm-bom:1.8.2"))
+    implementation(platform("st.orm:storm-bom:1.9.0"))
     implementation("st.orm:storm-java21")
 
     // Optional: Static metamodel generation
-    annotationProcessor("st.orm:storm-metamodel-processor:1.8.2")
+    annotationProcessor("st.orm:storm-metamodel-processor:1.9.0")
 }
 ```
 

@@ -38,15 +38,15 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  * guarantee. Correctness under concurrent updates must be enforced using optimistic locking, for example via a version
  * column.</p>
  *
- * <p>If not specified, the global default {@link UpdateMode} applies. The global default can be configured using the
- * system property {@code storm.update.defaultMode}. If the property is not set, the default update mode is
- * {@link UpdateMode#ENTITY}.</p>
+ * <p>If not specified, the default {@link UpdateMode} applies. The default can be configured via the
+ * {@code storm.update.default_mode} property (see {@link StormConfig}). If the property is not set, the default
+ * update mode is {@link UpdateMode#ENTITY}.</p>
  *
  * <p>The dirty checking strategy can be configured separately. By default, dirty checking is instance-based, meaning
  * that reference changes are detected using instance identity rather than semantic value comparison.</p>
  *
- * <p>Value-based dirty checking can be enabled globally using the system property {@code storm.update.dirtyCheck}, or
- * per entity via this annotation.</p>
+ * <p>Value-based dirty checking can be enabled via the {@code storm.update.dirty_check} property
+ * (see {@link StormConfig}), or per entity via this annotation.</p>
  *
  * <p>For example, replacing a referenced entity with a different instance that has the same identifier is considered a
  * change when instance-based dirty checking is used.</p>
@@ -95,8 +95,8 @@ public @interface DynamicUpdate {
      *
      * <p>This setting controls whether changes are detected based on instance identity or semantic value comparison.</p>
      *
-     * <p>If set to {@link DirtyCheck#DEFAULT}, the globally configured dirty check strategy applies. The global default
-     * can be configured using the system property {@code storm.update.dirtyCheck}.</p>
+     * <p>If set to {@link DirtyCheck#DEFAULT}, the configured dirty check strategy applies. The default
+     * can be configured via the {@code storm.update.dirty_check} property (see {@link StormConfig}).</p>
      *
      * <p>This setting only affects dirty detection. It does not change the selected {@link UpdateMode}.</p>
      */

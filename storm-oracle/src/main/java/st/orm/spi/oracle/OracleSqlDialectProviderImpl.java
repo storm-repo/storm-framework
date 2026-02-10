@@ -15,6 +15,8 @@
  */
 package st.orm.spi.oracle;
 
+import jakarta.annotation.Nonnull;
+import st.orm.StormConfig;
 import st.orm.core.spi.SqlDialectProvider;
 import st.orm.core.template.SqlDialect;
 
@@ -24,7 +26,7 @@ import st.orm.core.template.SqlDialect;
 public class OracleSqlDialectProviderImpl implements SqlDialectProvider {
 
     @Override
-    public SqlDialect getSqlDialect() {
-        return new OracleSqlDialect();
+    public SqlDialect getSqlDialect(@Nonnull StormConfig config) {
+        return new OracleSqlDialect(config);
     }
 }

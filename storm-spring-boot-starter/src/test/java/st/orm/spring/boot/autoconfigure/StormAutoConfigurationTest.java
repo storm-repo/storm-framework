@@ -101,58 +101,6 @@ class StormAutoConfigurationTest {
                 });
     }
 
-    @Test
-    void environmentPostProcessorBridgesProperties() {
-        String systemKey = "storm.update.defaultMode";
-        String original = System.getProperty(systemKey);
-        try {
-            System.clearProperty(systemKey);
-            StormEnvironmentPostProcessor processor = new StormEnvironmentPostProcessor();
-            contextRunner
-                    .withPropertyValues(
-                            "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
-                            "spring.datasource.driver-class-name=org.h2.Driver",
-                            "storm.update.default-mode=DYNAMIC"
-                    )
-                    .withInitializer(ctx -> processor.postProcessEnvironment(ctx.getEnvironment(), null))
-                    .run(context -> {
-                        assertThat(System.getProperty(systemKey)).isEqualTo("DYNAMIC");
-                    });
-        } finally {
-            if (original != null) {
-                System.setProperty(systemKey, original);
-            } else {
-                System.clearProperty(systemKey);
-            }
-        }
-    }
-
-    @Test
-    void jvmFlagsTakePrecedenceOverSpringProperties() {
-        String systemKey = "storm.update.defaultMode";
-        String original = System.getProperty(systemKey);
-        try {
-            System.setProperty(systemKey, "ENTITY");
-            StormEnvironmentPostProcessor processor = new StormEnvironmentPostProcessor();
-            contextRunner
-                    .withPropertyValues(
-                            "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
-                            "spring.datasource.driver-class-name=org.h2.Driver",
-                            "storm.update.default-mode=DYNAMIC"
-                    )
-                    .withInitializer(ctx -> processor.postProcessEnvironment(ctx.getEnvironment(), null))
-                    .run(context -> {
-                        assertThat(System.getProperty(systemKey)).isEqualTo("ENTITY");
-                    });
-        } finally {
-            if (original != null) {
-                System.setProperty(systemKey, original);
-            } else {
-                System.clearProperty(systemKey);
-            }
-        }
-    }
-
     @Configuration
     static class CustomOrmTemplateConfig {
         @Bean

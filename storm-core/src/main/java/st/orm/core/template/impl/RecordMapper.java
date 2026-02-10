@@ -42,6 +42,8 @@ import static java.lang.System.arraycopy;
 import static java.util.Collections.addAll;
 import static java.util.Optional.empty;
 import static java.util.Optional.ofNullable;
+import st.orm.StormConfig;
+
 import static st.orm.EnumType.NAME;
 import static st.orm.UpdateMode.OFF;
 import static st.orm.core.repository.impl.DirtySupport.getUpdateMode;
@@ -210,7 +212,7 @@ final class RecordMapper {
         // Cache read: return cached instances (identity preservation) - only at REPEATABLE_READ+
         // Cache write: store for dirty tracking OR for identity preservation
         boolean cacheReadEnabled = transactionContext != null && transactionContext.isRepeatableRead();
-        boolean dirtyTrackingEnabled = getUpdateMode(type) != OFF;
+        boolean dirtyTrackingEnabled = getUpdateMode(type, StormConfig.defaults()) != OFF;
         boolean cacheWriteEnabled = cacheReadEnabled || dirtyTrackingEnabled;
         EntityCache<Entity<?>, ?> entityCache;
         if (transactionContext != null && isEntity && cacheWriteEnabled) {
@@ -639,7 +641,7 @@ final class RecordMapper {
             this.subType = subType;
             this.subPlan = subPlan;
             this.subIsEntity = Entity.class.isAssignableFrom(subType.type());
-            this.subNeedsCache = getUpdateMode(subType) != OFF;
+            this.subNeedsCache = getUpdateMode(subType, StormConfig.defaults()) != OFF;
             this.pkFlatOffset = pkFlatOffset;
             this.pkColumnCount = pkColumnCount;
             this.totalColumnCount = totalColumnCount;

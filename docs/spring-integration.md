@@ -14,7 +14,7 @@ The starter modules provide zero-configuration setup: an `ORMTemplate` bean is c
 
 ```kotlin
 // Gradle (Kotlin DSL)
-implementation("st.orm:storm-kotlin-spring-boot-starter:1.8.2")
+implementation("st.orm:storm-kotlin-spring-boot-starter:1.9.0")
 ```
 
 ```xml
@@ -22,7 +22,7 @@ implementation("st.orm:storm-kotlin-spring-boot-starter:1.8.2")
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-kotlin-spring-boot-starter</artifactId>
-    <version>1.8.2</version>
+    <version>1.9.0</version>
 </dependency>
 ```
 
@@ -30,7 +30,7 @@ implementation("st.orm:storm-kotlin-spring-boot-starter:1.8.2")
 
 ```kotlin
 // Gradle (Kotlin DSL)
-implementation("st.orm:storm-spring-boot-starter:1.8.2")
+implementation("st.orm:storm-spring-boot-starter:1.9.0")
 ```
 
 ```xml
@@ -38,7 +38,7 @@ implementation("st.orm:storm-spring-boot-starter:1.8.2")
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-spring-boot-starter</artifactId>
-    <version>1.8.2</version>
+    <version>1.9.0</version>
 </dependency>
 ```
 
@@ -50,7 +50,7 @@ If you prefer manual configuration, or need to customize the setup beyond what t
 
 ```kotlin
 // Gradle (Kotlin DSL)
-implementation("st.orm:storm-kotlin-spring:1.8.2")
+implementation("st.orm:storm-kotlin-spring:1.9.0")
 ```
 
 ```xml
@@ -58,7 +58,7 @@ implementation("st.orm:storm-kotlin-spring:1.8.2")
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-kotlin-spring</artifactId>
-    <version>1.8.2</version>
+    <version>1.9.0</version>
 </dependency>
 ```
 
@@ -66,7 +66,7 @@ implementation("st.orm:storm-kotlin-spring:1.8.2")
 
 ```kotlin
 // Gradle (Kotlin DSL)
-implementation("st.orm:storm-spring:1.8.2")
+implementation("st.orm:storm-spring:1.9.0")
 ```
 
 ```xml
@@ -74,7 +74,7 @@ implementation("st.orm:storm-spring:1.8.2")
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-spring</artifactId>
-    <version>1.8.2</version>
+    <version>1.9.0</version>
 </dependency>
 ```
 
@@ -94,7 +94,7 @@ The minimum setup requires a single `ORMTemplate` bean. This bean is the entry p
 class ORMConfiguration(private val dataSource: DataSource) {
 
     @Bean
-    fun ormTemplate(): ORMTemplate = ORMTemplate.of(dataSource)
+    fun ormTemplate(): ORMTemplate = dataSource.orm
 }
 ```
 
@@ -108,7 +108,7 @@ By default, Storm manages its own transactions independently of Spring's transac
 class ORMConfiguration(private val dataSource: DataSource) {
 
     @Bean
-    fun ormTemplate(): ORMTemplate = ORMTemplate.of(dataSource)
+    fun ormTemplate(): ORMTemplate = dataSource.orm
 }
 ```
 
@@ -292,7 +292,7 @@ The starter auto-configures:
 1. **`ORMTemplate` bean** created from the auto-configured `DataSource`. If you define your own `ORMTemplate` bean, the auto-configured one backs off.
 2. **Repository scanning** via `AutoConfiguredRepositoryBeanFactoryPostProcessor`, which discovers repository interfaces in the `@SpringBootApplication` base package (and its sub-packages). If you define your own `RepositoryBeanFactoryPostProcessor` bean, the auto-configured one backs off.
 3. **Transaction integration** (Kotlin only) by automatically activating `SpringTransactionConfiguration`, removing the need for `@EnableTransactionIntegration`.
-4. **Configuration properties** bound from `storm.*` in `application.yml`/`application.properties`, bridged to JVM system properties.
+4. **Configuration properties** bound from `storm.*` in `application.yml`/`application.properties`, passed to the `ORMTemplate` via `StormConfig`.
 
 ### Minimal Spring Boot Setup (with Starter)
 
@@ -317,7 +317,7 @@ That is it. The starter creates the `ORMTemplate`, discovers repositories, and e
 
 ### Configuration via application.yml
 
-The starter bridges Spring properties to Storm's JVM system properties, so you can configure Storm from `application.yml` instead of JVM flags:
+The starter binds Spring properties and builds a `StormConfig` that is passed to the `ORMTemplate` factory. Values not set in YAML fall back to system properties and then to built-in defaults:
 
 ```yaml
 storm:
@@ -330,16 +330,12 @@ storm:
     retention: minimal
   template-cache:
     size: 2048
-  metrics:
-    level: DEBUG
   validation:
     skip: false
     warnings-only: false
 ```
 
-Explicit JVM flags (`-Dstorm.*`) always take precedence over Spring properties.
-
-See the [Configuration](configuration.md) guide for a description of each property.
+See the [Configuration](configuration.md) guide for a description of each property and the full precedence rules.
 
 ### Overriding Auto-Configuration
 
@@ -353,7 +349,7 @@ class StormConfig(private val dataSource: DataSource) {
 
     @Bean
     fun ormTemplate(): ORMTemplate =
-        ORMTemplate.of(dataSource) { decorator -> decorator /* customize */ }
+        dataSource.orm { decorator -> decorator /* customize */ }
 }
 ```
 
@@ -382,7 +378,7 @@ class Application
 class StormConfig(private val dataSource: DataSource) {
 
     @Bean
-    fun ormTemplate() = ORMTemplate.of(dataSource)
+    fun ormTemplate() = dataSource.orm
 }
 
 @Configuration
@@ -496,6 +492,6 @@ class OrderService(
 1. **Use the Spring Boot Starter.** It eliminates boilerplate configuration and auto-discovers your repositories.
 2. **Use `@Transactional` for declarative transactions.** Simple and familiar for Spring developers.
 3. **Use programmatic transactions for complex flows.** Nested transactions, savepoints, and explicit propagation are easier to express in code.
-4. **Configure Storm via `application.yml`.** The starter bridges Spring properties to Storm's system properties.
+4. **Configure Storm via `application.yml`.** The starter builds a `StormConfig` from Spring properties and passes it to the `ORMTemplate`.
 5. **One `ORMTemplate` bean is enough.** Inject it into services or let repositories use it automatically.
 6. **Works with any DataSource.** HikariCP, Tomcat pool, or any other connection pool that Spring Boot configures.

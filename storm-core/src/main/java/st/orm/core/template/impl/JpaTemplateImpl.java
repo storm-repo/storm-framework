@@ -22,6 +22,7 @@ import jakarta.persistence.PersistenceException;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Ref;
+import st.orm.StormConfig;
 import st.orm.core.spi.RefFactory;
 import st.orm.core.spi.RefFactoryImpl;
 import st.orm.core.spi.WeakInterner;
@@ -50,7 +51,7 @@ import java.util.stream.Stream;
 import static jakarta.persistence.TemporalType.DATE;
 import static jakarta.persistence.TemporalType.TIME;
 import static jakarta.persistence.TemporalType.TIMESTAMP;
-import static st.orm.core.template.SqlTemplate.PS;
+import static st.orm.core.template.SqlTemplate.JPA;
 import static st.orm.core.template.impl.RecordValidation.validate;
 
 public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
@@ -66,9 +67,14 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
     private final Predicate<Provider> providerFilter;
     private final RefFactory refFactory;
     private final SqlTemplate sqlTemplate;
+    private final StormConfig config;
 
     public JpaTemplateImpl(@Nonnull EntityManager entityManager) {
-        validate();
+        this(entityManager, StormConfig.defaults());
+    }
+
+    public JpaTemplateImpl(@Nonnull EntityManager entityManager, @Nonnull StormConfig config) {
+        validate(config);
         templateProcessor = (sql, resultClass, safe) -> {
             if (!safe) {
                 sql.unsafeWarning().ifPresent(warning -> {
@@ -85,27 +91,33 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         this.modelBuilder = ModelBuilder.newInstance();
         this.tableAliasResolver = TableAliasResolver.DEFAULT;
         this.providerFilter = null;
+        this.config = config;
         this.refFactory = new RefFactoryImpl(this, modelBuilder, providerFilter);
         this.sqlTemplate = createSqlTemplate();
     }
 
-    private JpaTemplateImpl(@Nonnull TemplateProcessor templateProcessor, @Nonnull ModelBuilder modelBuilder, @Nonnull TableAliasResolver tableAliasResolver, @Nullable Predicate<Provider> providerFilter) {
+    private JpaTemplateImpl(@Nonnull TemplateProcessor templateProcessor,
+                            @Nonnull ModelBuilder modelBuilder,
+                            @Nonnull TableAliasResolver tableAliasResolver,
+                            @Nullable Predicate<Provider> providerFilter,
+                            @Nonnull StormConfig config) {
         this.templateProcessor = templateProcessor;
         this.modelBuilder = modelBuilder;
         this.tableAliasResolver = tableAliasResolver;
         this.providerFilter = providerFilter;
+        this.config = config;
         this.refFactory = new RefFactoryImpl(this, modelBuilder, providerFilter);
         this.sqlTemplate = createSqlTemplate();
     }
 
     private SqlTemplate createSqlTemplate() {
-        SqlTemplate template = PS
+        SqlTemplate template = JPA.withConfig(config)
                 .withTableNameResolver(modelBuilder.tableNameResolver())
                 .withColumnNameResolver(modelBuilder.columnNameResolver())
                 .withForeignKeyResolver(modelBuilder.foreignKeyResolver())
                 .withTableAliasResolver(tableAliasResolver);
         if (providerFilter != null) {
-            template = template.withDialect(Providers.getSqlDialect(providerFilter));
+            template = template.withDialect(Providers.getSqlDialect(providerFilter, config));
         }
         return template;
     }
@@ -197,7 +209,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      */
     @Override
     public ORMTemplate toORM() {
-        return new ORMTemplateImpl(this, ModelBuilder.newInstance(), providerFilter);
+        return new ORMTemplateImpl(this, ModelBuilder.newInstance(), providerFilter, config);
     }
 
     /**
@@ -208,7 +220,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      */
     @Override
     public JpaTemplate withTableNameResolver(@Nullable TableNameResolver tableNameResolver) {
-        return new JpaTemplateImpl(templateProcessor, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, providerFilter);
+        return new JpaTemplateImpl(templateProcessor, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, providerFilter, config);
     }
 
     /**
@@ -219,7 +231,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      */
     @Override
     public JpaTemplate withColumnNameResolver(@Nullable ColumnNameResolver columnNameResolver) {
-        return new JpaTemplateImpl(templateProcessor, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, providerFilter);
+        return new JpaTemplateImpl(templateProcessor, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, providerFilter, config);
     }
 
     /**
@@ -230,7 +242,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      */
     @Override
     public JpaTemplate withForeignKeyResolver(@Nullable ForeignKeyResolver foreignKeyResolver) {
-        return new JpaTemplateImpl(templateProcessor, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, providerFilter);
+        return new JpaTemplateImpl(templateProcessor, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, providerFilter, config);
     }
 
     /**
@@ -241,7 +253,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      */
     @Override
     public JpaTemplate withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver) {
-        return new JpaTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter);
+        return new JpaTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter, config);
     }
 
     /**
@@ -252,7 +264,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
      */
     @Override
     public JpaTemplate withProviderFilter(@Nullable Predicate<Provider> providerFilter) {
-        return new JpaTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter);
+        return new JpaTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter, config);
     }
 
     private class JpaPreparedQuery implements PreparedQuery {

@@ -15,7 +15,8 @@
  */
 package st.orm.template.impl
 
-import st.orm.*
+import st.orm.Entity
+import st.orm.Projection
 import st.orm.core.spi.ORMReflection
 import st.orm.core.spi.Providers
 import st.orm.repository.EntityRepository

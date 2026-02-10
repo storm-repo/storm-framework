@@ -18,6 +18,7 @@ package st.orm.core.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.PersistenceException;
+import st.orm.StormConfig;
 import st.orm.Entity;
 import st.orm.Projection;
 import st.orm.core.repository.EntityRepository;
@@ -51,12 +52,26 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     private final ConcurrentMap<Class<?>, ProjectionRepository<?, ?>> projectionRepositories = new ConcurrentHashMap<>();
     private final ConcurrentMap<Class<?>, Repository> repositories = new ConcurrentHashMap<>();
     private final Predicate<? super Provider> providerFilter;
+    private final StormConfig config;
 
     public ORMTemplateImpl(@Nonnull QueryFactory factory,
                            @Nonnull ModelBuilder modelBuilder,
                            @Nullable Predicate<? super Provider> providerFilter) {
+        this(factory, modelBuilder, providerFilter, StormConfig.defaults());
+    }
+
+    public ORMTemplateImpl(@Nonnull QueryFactory factory,
+                           @Nonnull ModelBuilder modelBuilder,
+                           @Nullable Predicate<? super Provider> providerFilter,
+                           @Nonnull StormConfig config) {
         super(factory, modelBuilder);
         this.providerFilter = providerFilter;
+        this.config = config;
+    }
+
+    @Override
+    public StormConfig config() {
+        return config;
     }
 
     /**

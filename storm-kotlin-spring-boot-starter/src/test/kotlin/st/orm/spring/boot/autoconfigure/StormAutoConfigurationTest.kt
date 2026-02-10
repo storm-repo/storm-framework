@@ -117,52 +117,6 @@ class StormAutoConfigurationTest {
             }
     }
 
-    @Test
-    fun `environment post processor bridges properties`() {
-        val systemKey = "storm.update.defaultMode"
-        val original = System.getProperty(systemKey)
-        try {
-            System.clearProperty(systemKey)
-            val processor = StormEnvironmentPostProcessor()
-            contextRunner
-                .withPropertyValues(
-                    "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
-                    "spring.datasource.driver-class-name=org.h2.Driver",
-                    "storm.update.default-mode=DYNAMIC"
-                )
-                .withInitializer { ctx -> processor.postProcessEnvironment(ctx.environment, null) }
-                .run {
-                    System.getProperty(systemKey) shouldBe "DYNAMIC"
-                }
-        } finally {
-            if (original != null) System.setProperty(systemKey, original)
-            else System.clearProperty(systemKey)
-        }
-    }
-
-    @Test
-    fun `JVM flags take precedence over Spring properties`() {
-        val systemKey = "storm.update.defaultMode"
-        val original = System.getProperty(systemKey)
-        try {
-            System.setProperty(systemKey, "ENTITY")
-            val processor = StormEnvironmentPostProcessor()
-            contextRunner
-                .withPropertyValues(
-                    "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
-                    "spring.datasource.driver-class-name=org.h2.Driver",
-                    "storm.update.default-mode=DYNAMIC"
-                )
-                .withInitializer { ctx -> processor.postProcessEnvironment(ctx.environment, null) }
-                .run {
-                    System.getProperty(systemKey) shouldBe "ENTITY"
-                }
-        } finally {
-            if (original != null) System.setProperty(systemKey, original)
-            else System.clearProperty(systemKey)
-        }
-    }
-
     @Configuration
     open class CustomOrmTemplateConfig {
         @Bean

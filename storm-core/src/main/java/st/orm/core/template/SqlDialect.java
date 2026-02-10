@@ -217,4 +217,5 @@ public interface SqlDialect {
      * @since 1.6
      */
     String sequenceNextVal(String sequenceName);
+
 }

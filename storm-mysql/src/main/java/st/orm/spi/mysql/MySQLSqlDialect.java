@@ -17,6 +17,7 @@ package st.orm.spi.mysql;
 
 import jakarta.annotation.Nonnull;
 import st.orm.PersistenceException;
+import st.orm.StormConfig;
 import st.orm.core.spi.DefaultSqlDialect;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplateException;
@@ -33,6 +34,13 @@ import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toSet;
 
 public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
+
+    public MySQLSqlDialect() {
+    }
+
+    public MySQLSqlDialect(@Nonnull StormConfig config) {
+        super(config);
+    }
 
     /**
      * Returns the name of the SQL dialect.

@@ -16,26 +16,40 @@
 package st.orm.core.template.impl;
 
 import org.slf4j.Logger;
-import org.slf4j.event.Level;
+import org.slf4j.LoggerFactory;
 
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
+import java.lang.management.ManagementFactory;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static java.lang.Long.getLong;
-import static java.util.Objects.requireNonNull;
-import static org.slf4j.event.Level.valueOf;
-
 /**
- * Metrics for SQL template processing.
+ * Singleton JMX MBean for SQL template cache metrics.
+ *
+ * <p>Registered as {@code st.orm:type=TemplateMetrics} in the platform MBean server. All {@code SqlTemplateImpl}
+ * instances share this single metrics collector. If JMX registration fails, metrics are still collected in-memory
+ * and accessible via {@link #getInstance()}.</p>
  *
  * @since 1.8
  */
-public final class TemplateMetrics {
-    private static final long DEFAULT_INITIAL_LOG_AT = getLong("storm.metrics.initialLogAt", 64L);
-    private static final long DEFAULT_MAX_LOG_GAP = getLong("storm.metrics.maxLogGap", 0L);
-    private static final Level DEFAULT_LEVEL = valueOf(System.getProperty("storm.metrics.level", Level.DEBUG.name()));
+public final class TemplateMetrics implements TemplateMetricsMXBean {
 
-    private final Logger logger;
-    private final Level level;
+    private static final Logger LOGGER = LoggerFactory.getLogger(TemplateMetrics.class);
+
+    /**
+     * Initialization-on-demand holder for the singleton instance. Uses the same pattern as
+     * {@code SqlTemplateImpl.CacheHolder} to avoid class initialization issues.
+     */
+    private static final class Holder {
+        static final TemplateMetrics INSTANCE = new TemplateMetrics();
+    }
+
+    /**
+     * Returns the singleton metrics instance.
+     */
+    public static TemplateMetrics getInstance() {
+        return Holder.INSTANCE;
+    }
 
     // Request totals.
     private final AtomicLong requests = new AtomicLong();
@@ -52,51 +66,15 @@ public final class TemplateMetrics {
     private final AtomicLong missNanosTotal = new AtomicLong();
     private final AtomicLong missNanosMax = new AtomicLong();
 
-    // Logging schedule.
-    private final AtomicLong nextLogAt;
-    private final AtomicLong logGap;
-    private final long maxLogGap; // <= 0 means "no max"
-
-    public TemplateMetrics(Logger logger) {
-        this(logger, DEFAULT_LEVEL, DEFAULT_INITIAL_LOG_AT, DEFAULT_MAX_LOG_GAP, true);
-    }
-
-    /**
-     * @param logger logger to output to.
-     * @param initialLogAt first request count at which to log (e.g. 64).
-     * @param logOnShutdown if true, registers a shutdown hook that logs a final snapshot.
-     */
-    public TemplateMetrics(Logger logger, Level level, long initialLogAt, boolean logOnShutdown) {
-        this(logger, level, initialLogAt, 0, logOnShutdown);
-    }
-
-    /**
-     * @param logger logger to output to.
-     * @param level log level.
-     * @param initialLogAt first request count at which to log (e.g. 64).
-     * @param maxLogGap max delta between log lines (e.g. 4096). Use {@code 0} (or negative) for unlimited.
-     * @param logOnShutdown if true, registers a shutdown hook that logs a final snapshot.
-     */
-    public TemplateMetrics(Logger logger, Level level, long initialLogAt, long maxLogGap, boolean logOnShutdown) {
-        this.logger = requireNonNull(logger, "logger");
-        this.level = requireNonNull(level, "level");
-        if (initialLogAt <= 0) {
-            throw new IllegalArgumentException("initialLogAt must be > 0");
-        }
-        if (maxLogGap > 0 && maxLogGap < initialLogAt) {
-            throw new IllegalArgumentException("maxLogGap must be >= initialLogAt (or <= 0 for unlimited)");
-        }
-        this.maxLogGap = maxLogGap;
-        this.nextLogAt = new AtomicLong(initialLogAt);
-        this.logGap = new AtomicLong(initialLogAt);
-        if (logOnShutdown) {
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                try {
-                    logStats(requests.get());
-                } catch (Throwable ignored) {
-                    // Never fail shutdown.
-                }
-            }, "template-metrics-shutdown"));
+    private TemplateMetrics() {
+        try {
+            MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+            ObjectName name = new ObjectName("st.orm:type=TemplateMetrics");
+            if (!server.isRegistered(name)) {
+                server.registerMBean(this, name);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to register TemplateMetrics MBean: {}", e.getMessage());
         }
     }
 
@@ -121,67 +99,75 @@ public final class TemplateMetrics {
             missNanosTotal.addAndGet(nanos);
             missNanosMax.accumulateAndGet(nanos, Math::max);
         }
-        maybeLog();
     }
 
-    private void maybeLog() {
-        if (!logger.isEnabledForLevel(level)) {
-            return;
-        }
-        long count = requests.get();
-        long logAt = nextLogAt.get();
-        if (count != logAt) {
-            return;
-        }
-        // Update schedule first (CAS) so only one thread logs.
-        long currentGap = logGap.get();
-        long nextGap;
-        if (maxLogGap > 0) {
-            // clamp the doubling
-            long doubled = currentGap > (Long.MAX_VALUE >> 1) ? Long.MAX_VALUE : (currentGap << 1);
-            nextGap = Math.min(doubled, maxLogGap);
-        } else {
-            nextGap = currentGap > (Long.MAX_VALUE >> 1) ? Long.MAX_VALUE : (currentGap << 1);
-        }
-        long nextAt;
-        if (logAt > Long.MAX_VALUE - currentGap) {
-            nextAt = Long.MAX_VALUE;
-        } else {
-            nextAt = logAt + currentGap;
-        }
-        if (nextLogAt.compareAndSet(logAt, nextAt)) {
-            // keep gap in sync (best-effort, no need to be perfect)
-            logGap.set(nextGap);
-            logStats(count);
-        }
+    @Override
+    public long getRequests() {
+        return requests.get();
     }
 
-    private void logStats(long count) {
+    @Override
+    public long getHits() {
+        return hits.get();
+    }
+
+    @Override
+    public long getMisses() {
+        return misses.get();
+    }
+
+    @Override
+    public long getHitRatioPercent() {
         long h = hits.get();
         long m = misses.get();
         long total = h + m;
-        long req = requests.get();
-        long avgReqUs = req == 0 ? 0 : (requestNanosTotal.get() / req) / 1_000;
-        long maxReqUs = requestNanosMax.get() / 1_000;
-        long avgHitUs = h == 0 ? 0 : (hitNanosTotal.get() / h) / 1_000;
-        long maxHitUs = hitNanosMax.get() / 1_000;
-        long avgMissUs = m == 0 ? 0 : (missNanosTotal.get() / m) / 1_000;
-        long maxMissUs = missNanosMax.get() / 1_000;
-        long hitRatioPct = total == 0 ? 0 : (h * 100 / total);
-        logger.atLevel(level).log(
-                "Template metrics after {} requests: hits={}, misses={}, hitRatio={}%, " +
-                        "avgRequest={}µs (max={}µs), avgHit={}µs (max={}µs), avgMiss={}µs (max={}µs)",
-                count,
-                h,
-                m,
-                hitRatioPct,
-                avgReqUs,
-                maxReqUs,
-                avgHitUs,
-                maxHitUs,
-                avgMissUs,
-                maxMissUs
-        );
+        return total == 0 ? 0 : (h * 100 / total);
+    }
+
+    @Override
+    public long getAvgRequestMicros() {
+        long r = requests.get();
+        return r == 0 ? 0 : (requestNanosTotal.get() / r) / 1_000;
+    }
+
+    @Override
+    public long getMaxRequestMicros() {
+        return requestNanosMax.get() / 1_000;
+    }
+
+    @Override
+    public long getAvgHitMicros() {
+        long h = hits.get();
+        return h == 0 ? 0 : (hitNanosTotal.get() / h) / 1_000;
+    }
+
+    @Override
+    public long getMaxHitMicros() {
+        return hitNanosMax.get() / 1_000;
+    }
+
+    @Override
+    public long getAvgMissMicros() {
+        long m = misses.get();
+        return m == 0 ? 0 : (missNanosTotal.get() / m) / 1_000;
+    }
+
+    @Override
+    public long getMaxMissMicros() {
+        return missNanosMax.get() / 1_000;
+    }
+
+    @Override
+    public void reset() {
+        requests.set(0);
+        requestNanosTotal.set(0);
+        requestNanosMax.set(0);
+        hits.set(0);
+        hitNanosTotal.set(0);
+        hitNanosMax.set(0);
+        misses.set(0);
+        missNanosTotal.set(0);
+        missNanosMax.set(0);
     }
 
     private enum Outcome { HIT, MISS }

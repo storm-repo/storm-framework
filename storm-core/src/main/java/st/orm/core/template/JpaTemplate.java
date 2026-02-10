@@ -18,6 +18,7 @@ package st.orm.core.template;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
+import st.orm.StormConfig;
 import st.orm.mapping.ColumnNameResolver;
 import st.orm.mapping.ForeignKeyResolver;
 import st.orm.mapping.TableNameResolver;
@@ -43,6 +44,17 @@ public interface JpaTemplate extends TemplateDecorator {
     }
 
     /**
+     * Creates a new JPA template for the given entity manager, configured with the provided {@link StormConfig}.
+     *
+     * @param entityManager the entity manager.
+     * @param config the Storm configuration to apply.
+     * @return the JPA template.
+     */
+    static JpaTemplate of(@Nonnull EntityManager entityManager, @Nonnull StormConfig config) {
+        return new JpaTemplateImpl(entityManager, config);
+    }
+
+    /**
      * Creates a new ORM template for the given entity manager.
      *
      * @param entityManager the entity manager.
@@ -50,6 +62,17 @@ public interface JpaTemplate extends TemplateDecorator {
      */
     static ORMTemplate ORM(@Nonnull EntityManager entityManager) {
         return new JpaTemplateImpl(entityManager).toORM();
+    }
+
+    /**
+     * Creates a new ORM template for the given entity manager, configured with the provided {@link StormConfig}.
+     *
+     * @param entityManager the entity manager.
+     * @param config the Storm configuration to apply.
+     * @return the ORM template.
+     */
+    static ORMTemplate ORM(@Nonnull EntityManager entityManager, @Nonnull StormConfig config) {
+        return new JpaTemplateImpl(entityManager, config).toORM();
     }
 
     /**

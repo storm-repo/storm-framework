@@ -16,8 +16,8 @@
 package st.orm.template
 
 import jakarta.persistence.EntityManager
+import st.orm.StormConfig
 import st.orm.mapping.TemplateDecorator
-import st.orm.core.template.Templates
 import st.orm.repository.RepositoryLookup
 import st.orm.template.impl.ORMTemplateImpl
 import java.sql.Connection
@@ -181,7 +181,95 @@ interface ORMTemplate : QueryTemplate, RepositoryLookup {
         ): ORMTemplate {
             return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, decorator))
         }
-    }    
+
+        /**
+         * Returns an [ORMTemplate] for use with JPA, configured with the provided [StormConfig].
+         *
+         * @param entityManager the [EntityManager] to use for database operations.
+         * @param config the Storm configuration to apply.
+         * @return an [ORMTemplate] configured for use with JPA.
+         */
+        fun of(entityManager: EntityManager, config: StormConfig): ORMTemplate {
+            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(entityManager, config))
+        }
+
+        /**
+         * Returns an [ORMTemplate] for use with JPA, configured with the provided [StormConfig] and a custom
+         * template decorator.
+         *
+         * @param entityManager the [EntityManager] to use for database operations.
+         * @param config the Storm configuration to apply.
+         * @param decorator a function that transforms the [TemplateDecorator] to customize template processing.
+         * @return an [ORMTemplate] configured for use with JPA.
+         */
+        fun of(
+            entityManager: EntityManager,
+            config: StormConfig,
+            decorator: (TemplateDecorator) -> TemplateDecorator
+        ): ORMTemplate {
+            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(entityManager, config, decorator))
+        }
+
+        /**
+         * Returns an [ORMTemplate] for use with JDBC, configured with the provided [StormConfig].
+         *
+         * @param dataSource the [DataSource] to use for database operations.
+         * @param config the Storm configuration to apply.
+         * @return an [ORMTemplate] configured for use with JDBC.
+         */
+        fun of(dataSource: DataSource, config: StormConfig): ORMTemplate {
+            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config))
+        }
+
+        /**
+         * Returns an [ORMTemplate] for use with JDBC, configured with the provided [StormConfig] and a custom
+         * template decorator.
+         *
+         * @param dataSource the [DataSource] to use for database operations.
+         * @param config the Storm configuration to apply.
+         * @param decorator a function that transforms the [TemplateDecorator] to customize template processing.
+         * @return an [ORMTemplate] configured for use with JDBC.
+         */
+        fun of(
+            dataSource: DataSource,
+            config: StormConfig,
+            decorator: (TemplateDecorator) -> TemplateDecorator
+        ): ORMTemplate {
+            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config, decorator))
+        }
+
+        /**
+         * Returns an [ORMTemplate] for use with JDBC, configured with the provided [StormConfig].
+         *
+         * **Note:** The caller is responsible for closing the connection after usage.
+         *
+         * @param connection the [Connection] to use for database operations.
+         * @param config the Storm configuration to apply.
+         * @return an [ORMTemplate] configured for use with JDBC.
+         */
+        fun of(connection: Connection, config: StormConfig): ORMTemplate {
+            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config))
+        }
+
+        /**
+         * Returns an [ORMTemplate] for use with JDBC, configured with the provided [StormConfig] and a custom
+         * template decorator.
+         *
+         * **Note:** The caller is responsible for closing the connection after usage.
+         *
+         * @param connection the [Connection] to use for database operations.
+         * @param config the Storm configuration to apply.
+         * @param decorator a function that transforms the [TemplateDecorator] to customize template processing.
+         * @return an [ORMTemplate] configured for use with JDBC.
+         */
+        fun of(
+            connection: Connection,
+            config: StormConfig,
+            decorator: (TemplateDecorator) -> TemplateDecorator
+        ): ORMTemplate {
+            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config, decorator))
+        }
+    }
 }
 
 val EntityManager.orm: ORMTemplate
@@ -201,3 +289,19 @@ fun DataSource.orm(decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemp
 
 fun Connection.orm(decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate =
     ORMTemplate.of(this, decorator)
+
+fun EntityManager.orm(config: StormConfig): ORMTemplate = ORMTemplate.of(this, config)
+
+fun DataSource.orm(config: StormConfig): ORMTemplate = ORMTemplate.of(this, config)
+
+fun Connection.orm(config: StormConfig): ORMTemplate = ORMTemplate.of(this, config)
+
+fun EntityManager.orm(config: StormConfig, decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate =
+    ORMTemplate.of(this, config, decorator)
+
+fun DataSource.orm(config: StormConfig, decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate =
+    ORMTemplate.of(this, config, decorator)
+
+fun Connection.orm(config: StormConfig, decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate =
+    ORMTemplate.of(this, config, decorator)
+

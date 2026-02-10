@@ -205,11 +205,16 @@ Within a transaction, memory is managed automatically based on what your code is
 
 The cache uses weak or soft references internally so that cached entities do not prevent garbage collection when your code no longer holds a reference to them. The retention mode controls how aggressively the JVM is allowed to reclaim these entries. In most applications, the default `minimal` mode is sufficient. Switch to `aggressive` when you process entities in a streaming pipeline where you read, transform, and discard entities before updating them later in the same transaction.
 
-Configure retention behavior via system property:
+Configure retention behavior via `StormConfig` or system property:
+
+```kotlin
+val config = StormConfig.of(mapOf("storm.entity_cache.retention" to "aggressive"))
+val orm = ORMTemplate.of(dataSource, config)
+```
 
 ```bash
--Dstorm.entityCache.retention=minimal   # Default
--Dstorm.entityCache.retention=aggressive
+-Dstorm.entity_cache.retention=minimal   # Default
+-Dstorm.entity_cache.retention=aggressive
 ```
 
 | Mode | Behavior | Use Case |
@@ -286,7 +291,7 @@ transaction {
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `storm.entityCache.retention` | `minimal` | Cache retention: `minimal` or `aggressive` |
+| `storm.entity_cache.retention` | `minimal` | Cache retention: `minimal` or `aggressive` |
 
 ---
 

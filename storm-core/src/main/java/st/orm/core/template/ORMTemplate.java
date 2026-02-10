@@ -18,6 +18,7 @@ package st.orm.core.template;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.EntityManager;
 import st.orm.PersistenceException;
+import st.orm.StormConfig;
 import st.orm.mapping.TemplateDecorator;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.repository.ProjectionRepository;
@@ -38,6 +39,15 @@ import java.util.function.UnaryOperator;
  * @see ProjectionRepository
  */
 public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
+
+    /**
+     * Returns the configuration associated with this template.
+     *
+     * @return the Storm configuration; never {@code null}.
+     * @since 1.9
+     */
+    StormConfig config();
+
     /**
      * Returns an {@link ORMTemplate} for use with JPA.
      *
@@ -197,6 +207,104 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
     static ORMTemplate of(@Nonnull Connection connection,
                           @Nonnull UnaryOperator<TemplateDecorator> decorator) {
         var template = new PreparedStatementTemplateImpl(connection);
+        var decorated = decorator.apply(template);
+        if (!(decorated instanceof PreparedStatementTemplateImpl)) {
+            throw new PersistenceException("Decorator must return the same template type.");
+        }
+        return ((PreparedStatementTemplateImpl) decorated).toORM();
+    }
+
+    /**
+     * Returns an {@link ORMTemplate} for use with JPA, configured with the provided {@link StormConfig}.
+     *
+     * @param entityManager the {@link EntityManager} to use for database operations; must not be {@code null}.
+     * @param config the Storm configuration to apply; must not be {@code null}.
+     * @return an {@link ORMTemplate} configured for use with JPA.
+     */
+    static ORMTemplate of(@Nonnull EntityManager entityManager, @Nonnull StormConfig config) {
+        return new JpaTemplateImpl(entityManager, config).toORM();
+    }
+
+    /**
+     * Returns an {@link ORMTemplate} for use with JPA, configured with the provided {@link StormConfig} and a custom
+     * template decorator.
+     *
+     * @param entityManager the {@link EntityManager} to use for database operations; must not be {@code null}.
+     * @param config the Storm configuration to apply; must not be {@code null}.
+     * @param decorator a function that transforms the {@link TemplateDecorator} to customize template processing.
+     * @return an {@link ORMTemplate} configured for use with JPA.
+     */
+    static ORMTemplate of(@Nonnull EntityManager entityManager, @Nonnull StormConfig config,
+                          @Nonnull UnaryOperator<TemplateDecorator> decorator) {
+        var template = new JpaTemplateImpl(entityManager, config);
+        var decorated = decorator.apply(template);
+        if (!(decorated instanceof JpaTemplateImpl)) {
+            throw new PersistenceException("Decorator must return the same template type.");
+        }
+        return ((JpaTemplateImpl) decorated).toORM();
+    }
+
+    /**
+     * Returns an {@link ORMTemplate} for use with JDBC, configured with the provided {@link StormConfig}.
+     *
+     * <p>The provided configuration is applied to the template instance, not as a process-wide default.</p>
+     *
+     * @param dataSource the {@link DataSource} to use for database operations; must not be {@code null}.
+     * @param config the Storm configuration to apply; must not be {@code null}.
+     * @return an {@link ORMTemplate} configured for use with JDBC.
+     */
+    static ORMTemplate of(@Nonnull DataSource dataSource, @Nonnull StormConfig config) {
+        return new PreparedStatementTemplateImpl(dataSource, config).toORM();
+    }
+
+    /**
+     * Returns an {@link ORMTemplate} for use with JDBC, configured with the provided {@link StormConfig} and a custom
+     * template decorator.
+     *
+     * @param dataSource the {@link DataSource} to use for database operations; must not be {@code null}.
+     * @param config the Storm configuration to apply; must not be {@code null}.
+     * @param decorator a function that transforms the {@link TemplateDecorator} to customize template processing.
+     * @return an {@link ORMTemplate} configured for use with JDBC.
+     */
+    static ORMTemplate of(@Nonnull DataSource dataSource, @Nonnull StormConfig config,
+                          @Nonnull UnaryOperator<TemplateDecorator> decorator) {
+        var template = new PreparedStatementTemplateImpl(dataSource, config);
+        var decorated = decorator.apply(template);
+        if (!(decorated instanceof PreparedStatementTemplateImpl)) {
+            throw new PersistenceException("Decorator must return the same template type.");
+        }
+        return ((PreparedStatementTemplateImpl) decorated).toORM();
+    }
+
+    /**
+     * Returns an {@link ORMTemplate} for use with JDBC, configured with the provided {@link StormConfig}.
+     *
+     * <p>The provided configuration is applied to the template instance, not as a process-wide default.</p>
+     *
+     * <p><strong>Note:</strong> The caller is responsible for closing the connection after usage.</p>
+     *
+     * @param connection the {@link Connection} to use for database operations; must not be {@code null}.
+     * @param config the Storm configuration to apply; must not be {@code null}.
+     * @return an {@link ORMTemplate} configured for use with JDBC.
+     */
+    static ORMTemplate of(@Nonnull Connection connection, @Nonnull StormConfig config) {
+        return new PreparedStatementTemplateImpl(connection, config).toORM();
+    }
+
+    /**
+     * Returns an {@link ORMTemplate} for use with JDBC, configured with the provided {@link StormConfig} and a custom
+     * template decorator.
+     *
+     * <p><strong>Note:</strong> The caller is responsible for closing the connection after usage.</p>
+     *
+     * @param connection the {@link Connection} to use for database operations; must not be {@code null}.
+     * @param config the Storm configuration to apply; must not be {@code null}.
+     * @param decorator a function that transforms the {@link TemplateDecorator} to customize template processing.
+     * @return an {@link ORMTemplate} configured for use with JDBC.
+     */
+    static ORMTemplate of(@Nonnull Connection connection, @Nonnull StormConfig config,
+                          @Nonnull UnaryOperator<TemplateDecorator> decorator) {
+        var template = new PreparedStatementTemplateImpl(connection, config);
         var decorated = decorator.apply(template);
         if (!(decorated instanceof PreparedStatementTemplateImpl)) {
             throw new PersistenceException("Decorator must return the same template type.");

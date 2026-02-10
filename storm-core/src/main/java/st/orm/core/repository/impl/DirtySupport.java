@@ -37,7 +37,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import static java.lang.Integer.parseInt;
+import st.orm.StormConfig;
+
 import static st.orm.UpdateMode.ENTITY;
 import static st.orm.UpdateMode.OFF;
 
@@ -55,10 +56,11 @@ import static st.orm.UpdateMode.OFF;
  *       UPDATE.</li>
  * </ul>
  *
- * <p>The global default update mode can be configured using the system property {@code storm.update.defaultMode}.</p>
+ * <p>The default update mode can be configured via the {@code storm.update.default_mode} property
+ * (see {@link StormConfig}).</p>
  *
  * <p>When dynamic updates are enabled, different UPDATE statement shapes may be generated depending on which fields are
- * dirty. The system property {@code storm.update.maxShapes} limits the number of distinct shapes that may be generated.
+ * dirty. The {@code storm.update.max_shapes} property limits the number of distinct shapes that may be generated.
  * Once the limit is exceeded, a full-entity update is used to preserve batching efficiency.</p>
  *
  * <p>Dirty checking is performed for all <strong>updatable columns</strong> of the entity. This includes any record
@@ -71,8 +73,9 @@ import static st.orm.UpdateMode.OFF;
  * reflective accessors are used and type-appropriate equality checks for primitive fields are applied where possible.</p>
  *
  * <p>By default, dirty checking is based on <em>identity</em>. A field is considered dirty as soon as its extracted
- * value is no longer identical. Value-based dirty checking can be enabled by setting the system property
- * {@code storm.update.dirtyCheck=value}. In this mode, values are compared by semantic equality after a fast identity
+ * value is no longer identical. Value-based dirty checking can be enabled by setting the
+ * {@code storm.update.dirty_check} property to {@code value} (see {@link StormConfig}). In this mode, values are
+ * compared by semantic equality after a fast identity
  * check when applicable.</p>
  *
  * <p>The dirty checking strategy can also be configured per entity using {@link DynamicUpdate#dirtyCheck()}.</p>
@@ -86,18 +89,9 @@ import static st.orm.UpdateMode.OFF;
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public final class DirtySupport<E extends Entity<ID>, ID> {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(DirtySupport.class);
+
     // Implementation note: dirty field checks can be performed efficiently due to the immutable record types.
-
-    private static final Logger LOGGER = LoggerFactory.getLogger("st.orm.update");
-
-    private static final UpdateMode DEFAULT_UPDATE_MODE =
-            UpdateMode.valueOf(System.getProperty("storm.update.defaultMode", "entity").trim().toUpperCase());
-
-    private static final int MAX_SHAPES =
-            Math.max(1, parseInt(System.getProperty("storm.update.maxShapes", "5")));
-
-    private static final DirtyCheck DEFAULT_DIRTY_CHECK =
-            DirtyCheck.valueOf(System.getProperty("storm.update.dirtyCheck", "instance").trim().toUpperCase());
 
     /**
      * Marker for a clean entity (no dirty fields).
@@ -112,23 +106,46 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
      */
     private static final Optional<Set<Metamodel<?, ?>>> DIRTY = Optional.of(Set.of());
 
-    static {
-        LOGGER.info("Using default update mode: {}.", DEFAULT_UPDATE_MODE);
-        LOGGER.info("Using default dirty check: {}.", DEFAULT_DIRTY_CHECK);
-    }
-
     private final Model<E, ID> model;
     private final UpdateMode updateMode;
     private final DirtyCheck dirtyCheck;
     private final Column versionColumn;
     private final ConcurrentMap<BitSet, Set<Metamodel<?, ?>>> dirtyFieldsCache = new ConcurrentHashMap<>();
+    private final UpdateMode defaultUpdateMode;
+    private final DirtyCheck defaultDirtyCheck;
+    private final int maxShapes;
 
-    DirtySupport(@Nonnull Model<E, ID> model) {
+    DirtySupport(@Nonnull Model<E, ID> model, @Nonnull StormConfig config) {
         this.model = model;
+        this.defaultUpdateMode = UpdateMode.valueOf(
+                config.getProperty("storm.update.default_mode", "ENTITY").trim().toUpperCase());
+        this.defaultDirtyCheck = DirtyCheck.valueOf(
+                config.getProperty("storm.update.dirty_check", "INSTANCE").trim().toUpperCase());
+        this.maxShapes = Math.max(1, Integer.parseInt(
+                config.getProperty("storm.update.max_shapes", "5")));
         RecordType recordType = model.recordType();
         this.updateMode = getUpdateMode(recordType);
         this.dirtyCheck = getDirtyCheck(recordType);
         this.versionColumn = model.declaredColumns().stream().filter(Column::version).findAny().orElse(null);
+        LOGGER.debug("{}: updateMode={}, dirtyCheck={}, maxShapes={}", model.type().getSimpleName(), updateMode, dirtyCheck, maxShapes);
+    }
+
+    /**
+     * Returns the effective {@link UpdateMode} for the given record type using the given config for defaults.
+     *
+     * <p>If the record type is annotated with {@link DynamicUpdate}, the annotation value is used. Otherwise, the
+     * configured default update mode applies.</p>
+     *
+     * @param recordType the entity record type.
+     * @param config the Storm configuration to use for the default update mode.
+     * @return the effective update mode for the given record type.
+     */
+    public static UpdateMode getUpdateMode(@Nonnull RecordType recordType, @Nonnull StormConfig config) {
+        DynamicUpdate dynamicUpdate = recordType.getAnnotation(DynamicUpdate.class);
+        if (dynamicUpdate != null) {
+            return dynamicUpdate.value();
+        }
+        return UpdateMode.valueOf(config.getProperty("storm.update.default_mode", "ENTITY").trim().toUpperCase());
     }
 
     /**
@@ -137,15 +154,15 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
      * <p>If the record type is annotated with {@link DynamicUpdate}, the annotation value is used. Otherwise, the
      * globally configured default update mode applies.</p>
      *
-     * <p>The global default update mode can be configured using the system property {@code storm.update.defaultMode}.
-     * If the property is not set, the default is {@link UpdateMode#ENTITY}.</p>
+     * <p>The default update mode can be configured via the {@code storm.update.default_mode} property
+     * (see {@link StormConfig}). If the property is not set, the default is {@link UpdateMode#ENTITY}.</p>
      *
      * @param recordType the entity record type.
      * @return the effective update mode for the given record type.
      */
-    public static UpdateMode getUpdateMode(@Nonnull RecordType recordType) {
+    public UpdateMode getUpdateMode(@Nonnull RecordType recordType) {
         DynamicUpdate dynamicUpdate = recordType.getAnnotation(DynamicUpdate.class);
-        return dynamicUpdate == null ? DEFAULT_UPDATE_MODE : dynamicUpdate.value();
+        return dynamicUpdate == null ? defaultUpdateMode : dynamicUpdate.value();
     }
 
     /**
@@ -156,26 +173,26 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
      *
      * <p>Otherwise, the globally configured dirty check strategy applies.</p>
      *
-     * <p>The global default dirty check strategy can be configured using the system property
-     * {@code storm.update.dirtyCheck}. If the property is not set, the default strategy is
+     * <p>The default dirty check strategy can be configured via the {@code storm.update.dirty_check} property
+     * (see {@link StormConfig}). If the property is not set, the default strategy is
      * {@link DirtyCheck#INSTANCE}.</p>
      *
      * @param recordType the entity record type.
      * @return the effective dirty check strategy for the given record type.
      */
-    public static DirtyCheck getDirtyCheck(@Nonnull RecordType recordType) {
+    public DirtyCheck getDirtyCheck(@Nonnull RecordType recordType) {
         DynamicUpdate dynamicUpdate = recordType.getAnnotation(DynamicUpdate.class);
         if (dynamicUpdate == null) {
-            return DEFAULT_DIRTY_CHECK;
+            return defaultDirtyCheck;
         }
         DirtyCheck configured = dynamicUpdate.dirtyCheck();
-        return configured == DirtyCheck.DEFAULT ? DEFAULT_DIRTY_CHECK : configured;
+        return configured == DirtyCheck.DEFAULT ? defaultDirtyCheck : configured;
     }
 
     /**
      * Returns the maximum number of distinct update shapes that may be generated when dynamic updates are enabled.
      *
-     * <p>This value is configured via the system property {@code storm.update.maxShapes}. It limits the number of
+     * <p>This value is configured via the {@code storm.update.max_shapes} property (see {@link StormConfig}). It limits the number of
      * different column combinations that UPDATE statements may be generated for.</p>
      *
      * <p>If the limit is exceeded, a full-entity update is used to avoid excessive statement fan-out and preserve
@@ -183,15 +200,15 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
      *
      * @return the maximum number of allowed update shapes
      */
-    public static int getMaxShapes() {
-        return MAX_SHAPES;
+    public int getMaxShapes() {
+        return maxShapes;
     }
 
     private boolean fieldsEqual(@Nonnull Metamodel<Data, ?> metamodel, E a, E b) {
         return switch (dirtyCheck) {
             case INSTANCE -> metamodel.isIdentical(a, b);
             case VALUE -> metamodel.isSame(a, b);
-            case DEFAULT -> switch (DEFAULT_DIRTY_CHECK) {
+            case DEFAULT -> switch (defaultDirtyCheck) {
                 case INSTANCE -> metamodel.isIdentical(a, b);
                 case VALUE -> metamodel.isSame(a, b);
                 case DEFAULT -> throw new IllegalStateException("Invalid default dirty check mode.");

@@ -16,6 +16,7 @@
 package st.orm.spi.postgresql;
 
 import jakarta.annotation.Nonnull;
+import st.orm.StormConfig;
 import st.orm.core.spi.DefaultSqlDialect;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplateException;
@@ -33,6 +34,13 @@ import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toSet;
 
 public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
+
+    public PostgreSQLSqlDialect() {
+    }
+
+    public PostgreSQLSqlDialect(@Nonnull StormConfig config) {
+        super(config);
+    }
 
     /**
      * Returns the name of the SQL dialect.

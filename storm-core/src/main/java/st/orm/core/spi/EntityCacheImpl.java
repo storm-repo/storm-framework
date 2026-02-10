@@ -38,7 +38,8 @@ import static java.util.Objects.requireNonNull;
  * <p>Cache entries are cleaned up lazily when new entries are interned.</p>
  *
  * <h2>Retention configuration</h2>
- * <p>The retention behavior can be configured globally via the system property {@code storm.entityCache.retention}:</p>
+ * <p>The retention behavior can be configured via the {@code storm.entity_cache.retention} property
+ * (see {@link st.orm.StormConfig}):</p>
  * <ul>
  *   <li>{@code minimal} (default): Observed state may be cleaned up as soon as the application no longer holds a
  *       reference to the entity. This minimizes memory overhead.</li>
@@ -68,22 +69,23 @@ import static java.util.Objects.requireNonNull;
  */
 public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCache<E, ID> {
 
+    private final CacheRetention retention;
+
     /**
-     * Indicates whether the cache uses aggressive retention ({@code true}) or minimal retention ({@code false}).
-     *
-     * <p>This value is determined by the system property {@code storm.entityCache.retention}:</p>
-     * <ul>
-     *   <li>{@code minimal} (default): Observed state may be cleaned up as soon as the application no longer holds
-     *       a reference to the entity. This minimizes memory overhead.</li>
-     *   <li>{@code aggressive}: Observed state is retained more aggressively, improving the dirty-check hit rate at
-     *       the cost of higher memory usage.</li>
-     * </ul>
-     *
-     * <p>Implementation note: minimal retention uses {@link WeakReference}, aggressive retention uses
-     * {@link SoftReference}.</p>
+     * Creates a new entity cache with the default retention behavior ({@link CacheRetention#MINIMAL}).
      */
-    public static final boolean AGGRESSIVE_RETENTION =
-            "aggressive".equalsIgnoreCase(System.getProperty("storm.entityCache.retention", "minimal").trim());
+    public EntityCacheImpl() {
+        this(CacheRetention.MINIMAL);
+    }
+
+    /**
+     * Creates a new entity cache with the specified retention behavior.
+     *
+     * @param retention the cache retention strategy to use.
+     */
+    public EntityCacheImpl(@Nonnull CacheRetention retention) {
+        this.retention = retention;
+    }
 
     /** Queue for tracking garbage-collected entities to enable lazy cleanup of {@link #map}. */
     private final ReferenceQueue<E> queue = new ReferenceQueue<>();
@@ -153,10 +155,10 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
      *
      * @param pk the primary key.
      * @param entity the entity to reference.
-     * @return a reference based on {@link #AGGRESSIVE_RETENTION}.
+     * @return a reference based on {@link #retention}.
      */
     private PkReference<ID, E> createReference(ID pk, E entity) {
-        return AGGRESSIVE_RETENTION
+        return retention == CacheRetention.AGGRESSIVE
                 ? new PkSoftReference<>(pk, entity, queue)
                 : new PkWeakReference<>(pk, entity, queue);
     }

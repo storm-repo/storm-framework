@@ -21,8 +21,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * Configuration properties for the Storm ORM framework.
  *
  * <p>These properties are bound from the {@code storm.*} namespace in {@code application.yml} or
- * {@code application.properties}. The {@link st.orm.spring.boot.autoconfigure.StormEnvironmentPostProcessor} bridges
- * these properties to JVM system properties so that Storm's static initializers can read them.</p>
+ * {@code application.properties}. The auto-configuration builds a {@link st.orm.StormConfig} from these properties
+ * and passes it to the {@code ORMTemplate} factory.</p>
  *
  * <p>Example configuration:</p>
  * <pre>{@code
@@ -34,7 +34,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *     max-shapes: 5
  * }</pre>
  *
- * @see StormEnvironmentPostProcessor
+ * @see st.orm.StormConfig
  */
 @ConfigurationProperties(prefix = "storm")
 public class StormProperties {
@@ -47,9 +47,6 @@ public class StormProperties {
 
     /** Template cache configuration. */
     private TemplateCache templateCache = new TemplateCache();
-
-    /** Metrics configuration. */
-    private Metrics metrics = new Metrics();
 
     /** Validation configuration. */
     private Validation validation = new Validation();
@@ -75,12 +72,6 @@ public class StormProperties {
     /** Sets the template cache configuration. */
     public void setTemplateCache(TemplateCache templateCache) { this.templateCache = templateCache; }
 
-    /** Returns the metrics configuration. */
-    public Metrics getMetrics() { return metrics; }
-
-    /** Sets the metrics configuration. */
-    public void setMetrics(Metrics metrics) { this.metrics = metrics; }
-
     /** Returns the validation configuration. */
     public Validation getValidation() { return validation; }
 
@@ -100,7 +91,7 @@ public class StormProperties {
      */
     public static class Update {
 
-        /** The default update mode ({@code ENTITY}, {@code DYNAMIC}, or {@code OFF}). */
+        /** The default update mode ({@code ENTITY}, {@code FIELD}, or {@code OFF}). */
         private String defaultMode;
 
         /** The dirty-check strategy ({@code INSTANCE} or {@code FIELD}). */
@@ -160,41 +151,6 @@ public class StormProperties {
 
         /** Sets the maximum number of templates to cache. */
         public void setSize(Integer size) { this.size = size; }
-    }
-
-    /**
-     * Configuration properties for Storm's metrics.
-     *
-     * <p>Mapped to the {@code storm.metrics.*} namespace.</p>
-     */
-    public static class Metrics {
-
-        /** The metrics level. */
-        private String level;
-
-        /** The initial number of queries before metrics are first logged. */
-        private Long initialLogAt;
-
-        /** The maximum gap (in number of queries) between metric log entries. */
-        private Long maxLogGap;
-
-        /** Returns the metrics level. */
-        public String getLevel() { return level; }
-
-        /** Sets the metrics level. */
-        public void setLevel(String level) { this.level = level; }
-
-        /** Returns the initial number of queries before metrics are first logged. */
-        public Long getInitialLogAt() { return initialLogAt; }
-
-        /** Sets the initial number of queries before metrics are first logged. */
-        public void setInitialLogAt(Long initialLogAt) { this.initialLogAt = initialLogAt; }
-
-        /** Returns the maximum gap between metric log entries. */
-        public Long getMaxLogGap() { return maxLogGap; }
-
-        /** Sets the maximum gap between metric log entries. */
-        public void setMaxLogGap(Long maxLogGap) { this.maxLogGap = maxLogGap; }
     }
 
     /**

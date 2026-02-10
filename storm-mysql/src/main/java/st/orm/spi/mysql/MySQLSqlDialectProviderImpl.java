@@ -16,6 +16,8 @@
 package st.orm.spi.mysql;
 
 
+import jakarta.annotation.Nonnull;
+import st.orm.StormConfig;
 import st.orm.core.spi.SqlDialectProvider;
 import st.orm.core.template.SqlDialect;
 
@@ -25,7 +27,7 @@ import st.orm.core.template.SqlDialect;
 public class MySQLSqlDialectProviderImpl implements SqlDialectProvider {
 
     @Override
-    public SqlDialect getSqlDialect() {
-        return new MySQLSqlDialect();
+    public SqlDialect getSqlDialect(@Nonnull StormConfig config) {
+        return new MySQLSqlDialect(config);
     }
 }

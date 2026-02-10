@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicReference
  * and falls back to Dispatchers.IO on older JVMs (to avoid VT pinning on Java 21–23).
  *
  * You can override with:
- *   -Dstorm.virtualThreads.enabled=true|false
+ *   -Dstorm.virtual_threads.enabled=true|false
  *
  * @since 1.5
  */
@@ -64,7 +64,7 @@ object TransactionDispatchers {
     private fun isVirtualThreadsEnabled(): Boolean {
         // Explicit property takes precedence, otherwise enable only if Java >= 24 to prevent pinning issues with
         // suspendTransaction.
-        val propEnabled = System.getProperty("storm.virtualThreads.enabled", "false")
+        val propEnabled = System.getProperty("storm.virtual_threads.enabled", "false")
             .equals("true", ignoreCase = true)
         return propEnabled || isJava24OrNewer()
     }

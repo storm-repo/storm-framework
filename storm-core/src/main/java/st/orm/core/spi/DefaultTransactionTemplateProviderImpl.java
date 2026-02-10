@@ -136,6 +136,12 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
 
         @Override
         public EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType) {
+            return entityCache(entityType, CacheRetention.MINIMAL);
+        }
+
+        @Override
+        public EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType,
+                                                                @Nonnull CacheRetention retention) {
             // Cache is used for dirty checking and/or identity preservation.
             // Whether cached instances are returned during reads is controlled by isRepeatableRead().
             //
@@ -148,7 +154,7 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
             // - This class intentionally does not try to clear or split caches for NESTED savepoints. Spring does not
             //   expose reliable hooks here for "rolled back to savepoint", only for transaction completion.
             // - computeIfAbsent avoids duplicate allocations and keeps the method simpler and harder to get wrong.
-            return caches.computeIfAbsent(entityType, k -> new EntityCacheImpl<>());
+            return caches.computeIfAbsent(entityType, k -> new EntityCacheImpl<>(retention));
         }
 
         @Override

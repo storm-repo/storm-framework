@@ -51,7 +51,6 @@ import java.util.stream.Stream;
 import static java.util.function.Function.identity;
 import static java.util.function.Predicate.not;
 import static st.orm.GenerationStrategy.SEQUENCE;
-import static st.orm.core.repository.impl.DirtySupport.getMaxShapes;
 import static st.orm.core.repository.impl.StreamSupport.partitioned;
 import static st.orm.core.template.Templates.table;
 import static st.orm.core.template.SqlInterceptor.intercept;

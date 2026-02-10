@@ -17,6 +17,7 @@ package st.orm.template;
 
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.EntityManager;
+import st.orm.StormConfig;
 import st.orm.mapping.TemplateDecorator;
 import st.orm.repository.EntityRepository;
 import st.orm.repository.ProjectionRepository;
@@ -179,5 +180,86 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      */
     static ORMTemplate of(@Nonnull Connection connection, @Nonnull UnaryOperator<TemplateDecorator> decorator) {
         return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, decorator));
+    }
+
+    /**
+     * Returns an {@link ORMTemplate} for use with JPA, configured with the provided {@link StormConfig}.
+     *
+     * @param entityManager the {@link EntityManager} to use for database operations; must not be {@code null}.
+     * @param config the Storm configuration to apply; must not be {@code null}.
+     * @return an {@link ORMTemplate} configured for use with JPA.
+     */
+    static ORMTemplate of(@Nonnull EntityManager entityManager, @Nonnull StormConfig config) {
+        return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(entityManager, config));
+    }
+
+    /**
+     * Returns an {@link ORMTemplate} for use with JPA, configured with the provided {@link StormConfig} and a custom
+     * template decorator.
+     *
+     * @param entityManager the {@link EntityManager} to use for database operations; must not be {@code null}.
+     * @param config the Storm configuration to apply; must not be {@code null}.
+     * @param decorator a function that transforms the {@link TemplateDecorator} to customize template processing.
+     * @return an {@link ORMTemplate} configured for use with JPA.
+     */
+    static ORMTemplate of(@Nonnull EntityManager entityManager, @Nonnull StormConfig config,
+                          @Nonnull UnaryOperator<TemplateDecorator> decorator) {
+        return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(entityManager, config, decorator));
+    }
+
+    /**
+     * Returns an {@link ORMTemplate} for use with JDBC, configured with the provided {@link StormConfig}.
+     *
+     * <p>The provided configuration is applied to the template instance, not as a process-wide default.</p>
+     *
+     * @param dataSource the {@link DataSource} to use for database operations; must not be {@code null}.
+     * @param config the Storm configuration to apply; must not be {@code null}.
+     * @return an {@link ORMTemplate} configured for use with JDBC.
+     */
+    static ORMTemplate of(@Nonnull DataSource dataSource, @Nonnull StormConfig config) {
+        return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config));
+    }
+
+    /**
+     * Returns an {@link ORMTemplate} for use with JDBC, configured with the provided {@link StormConfig} and a custom
+     * template decorator.
+     *
+     * @param dataSource the {@link DataSource} to use for database operations; must not be {@code null}.
+     * @param config the Storm configuration to apply; must not be {@code null}.
+     * @param decorator a function that transforms the {@link TemplateDecorator} to customize template processing.
+     * @return an {@link ORMTemplate} configured for use with JDBC.
+     */
+    static ORMTemplate of(@Nonnull DataSource dataSource, @Nonnull StormConfig config,
+                          @Nonnull UnaryOperator<TemplateDecorator> decorator) {
+        return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config, decorator));
+    }
+
+    /**
+     * Returns an {@link ORMTemplate} for use with JDBC, configured with the provided {@link StormConfig}.
+     *
+     * <p><strong>Note:</strong> The caller is responsible for closing the connection after usage.</p>
+     *
+     * @param connection the {@link Connection} to use for database operations; must not be {@code null}.
+     * @param config the Storm configuration to apply; must not be {@code null}.
+     * @return an {@link ORMTemplate} configured for use with JDBC.
+     */
+    static ORMTemplate of(@Nonnull Connection connection, @Nonnull StormConfig config) {
+        return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config));
+    }
+
+    /**
+     * Returns an {@link ORMTemplate} for use with JDBC, configured with the provided {@link StormConfig} and a custom
+     * template decorator.
+     *
+     * <p><strong>Note:</strong> The caller is responsible for closing the connection after usage.</p>
+     *
+     * @param connection the {@link Connection} to use for database operations; must not be {@code null}.
+     * @param config the Storm configuration to apply; must not be {@code null}.
+     * @param decorator a function that transforms the {@link TemplateDecorator} to customize template processing.
+     * @return an {@link ORMTemplate} configured for use with JDBC.
+     */
+    static ORMTemplate of(@Nonnull Connection connection, @Nonnull StormConfig config,
+                          @Nonnull UnaryOperator<TemplateDecorator> decorator) {
+        return new ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config, decorator));
     }
 }

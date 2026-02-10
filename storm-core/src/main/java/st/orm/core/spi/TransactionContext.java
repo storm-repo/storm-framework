@@ -62,6 +62,20 @@ public interface TransactionContext {
     EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType);
 
     /**
+     * Returns a transaction-local cache for entities of the given type, with the specified retention behavior.
+     *
+     * @param entityType the entity type for which to retrieve the cache.
+     * @param retention the cache retention strategy to use.
+     * @return the entity cache, or {@code null} if there is no active transaction.
+     * @since 1.9
+     */
+    @Nullable
+    default EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType,
+                                                            @Nonnull CacheRetention retention) {
+        return entityCache(entityType);
+    }
+
+    /**
      * Clears all entity caches associated with this transaction context.
      *
      * <p>This method is used when a mutating SQL operation is executed but the affected entity types cannot be

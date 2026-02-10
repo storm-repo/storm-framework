@@ -19,6 +19,7 @@ import jakarta.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.Data;
+import st.orm.StormConfig;
 import st.orm.Element;
 import st.orm.Entity;
 import st.orm.FK;
@@ -51,8 +52,6 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -79,26 +78,40 @@ final class RecordValidation {
     record TypeValidationKey(@Nonnull Class<? extends Data> type, boolean requirePrimaryKey) {}
     private static final Map<TypeValidationKey, String> VALIDATE_RECORD_TYPE_CACHE = new ConcurrentHashMap<>();
 
-    private static AtomicBoolean VALIDATION_INITIALIZED = new AtomicBoolean(false);
+    private static volatile boolean validationCompleted = false;
+
     static void validate() {
-        if (VALIDATION_INITIALIZED.compareAndSet(false, true)) {
-            boolean skipValidation = Boolean.getBoolean("storm.validation.skip");
-            boolean warningsOnly = Boolean.getBoolean("storm.validation.warningsOnly");
+        validate(StormConfig.defaults());
+    }
+
+    static void validate(@Nonnull StormConfig config) {
+        if (validationCompleted) {
+            return;
+        }
+        boolean skipValidation = Boolean.parseBoolean(config.getProperty("storm.validation.skip", "false"));
+        boolean warningsOnly = Boolean.parseBoolean(config.getProperty("storm.validation.warnings_only", "false"));
+        synchronized (RecordValidation.class) {
+            if (validationCompleted) {
+                return;
+            }
             if (skipValidation) {
                 LOGGER.info("Skipping Data type validation. Set -Dstorm.validation.skip=false to enable validation.");
+                validationCompleted = true;
                 return;
             }
             LOGGER.info("Validating Data types.");
             var dataTypes = TypeDiscovery.getDataTypes();
-            var validationErrors = new AtomicInteger();
+            var validationErrors = new AtomicReference<>(0);
             var firstError = new AtomicReference<String>();
             dataTypes.forEach(
                     dataType -> {
                         try {
                             validateDataType(dataType, Entity.class.isAssignableFrom(dataType));
                         } catch (SqlTemplateException e) {
-                            validationErrors.incrementAndGet();
-                            firstError.weakCompareAndSetPlain(null, e.getMessage());
+                            validationErrors.setPlain(validationErrors.getPlain() + 1);
+                            if (firstError.getPlain() == null) {
+                                firstError.setPlain(e.getMessage());
+                            }
                             LOGGER.warn("Validation failed for %s: %s"
                                     .formatted(dataType.getSimpleName(), e.getMessage()));
                         }
@@ -108,11 +121,12 @@ final class RecordValidation {
                 throw new PersistenceException(firstError.getPlain());
             }
             if (validationErrors.getPlain() > 0) {
-                LOGGER.warn("Entity validation found %d issues. Set -Dstorm.validation.warningsOnly=false to fail on startup."
+                LOGGER.warn("Entity validation found %d issues. Set -Dstorm.validation.warnings_only=false to fail on startup."
                         .formatted(validationErrors.getPlain()));
             } else {
                 LOGGER.info("Successfully validated %s Data types.".formatted(dataTypes.size()));
             }
+            validationCompleted = true;
         }
     }
 

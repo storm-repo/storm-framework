@@ -17,6 +17,7 @@ package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
 import st.orm.PersistenceException;
+import st.orm.StormConfig;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplateException;
 
@@ -27,13 +28,21 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
-import static java.lang.Boolean.getBoolean;
+import static java.lang.Boolean.parseBoolean;
 import static java.util.stream.Collectors.joining;
 import static st.orm.Operator.EQUALS;
 
 public class DefaultSqlDialect implements SqlDialect {
 
-    private static final boolean ANSI_ESCAPING = getBoolean("storm.ansiEscaping");
+    private final boolean ansiEscaping;
+
+    public DefaultSqlDialect() {
+        this(StormConfig.defaults());
+    }
+
+    public DefaultSqlDialect(@Nonnull StormConfig config) {
+        this.ansiEscaping = parseBoolean(config.getProperty("storm.ansi_escaping", "false"));
+    }
 
     /**
      * Returns the name of the SQL dialect.
@@ -43,13 +52,13 @@ public class DefaultSqlDialect implements SqlDialect {
      */
     @Override
     public String name() {
-        return "Default";
+        return ansiEscaping ? "Default[ansi]" : "Default";
     }
 
     /**
      * Indicates whether the SQL dialect supports delete aliases.
      *
-     * <p>Delete aliases allow delete statements to use table aliases in joins,  making it easier to filter rows based
+     * <p>Delete aliases allow delete statements to use table aliases in joins, making it easier to filter rows based
      * on related data.</p>
      *
      * @return {@code true} if delete aliases are supported, {@code false} otherwise.
@@ -148,7 +157,7 @@ public class DefaultSqlDialect implements SqlDialect {
      */
     @Override
     public String escape(@Nonnull String name) {
-        if (ANSI_ESCAPING) {
+        if (ansiEscaping) {
             // Escape identifier for ANSI SQL by wrapping it in double quotes and doubling any embedded double quotes.
             return "\"" + name.replace("\"", "\"\"") + "\"";
         }

@@ -15,6 +15,8 @@
  */
 package st.orm.spi.mariadb;
 
+import jakarta.annotation.Nonnull;
+import st.orm.StormConfig;
 import st.orm.core.spi.Orderable.Before;
 import st.orm.core.spi.SqlDialectProvider;
 import st.orm.core.template.SqlDialect;
@@ -27,7 +29,7 @@ import st.orm.spi.mysql.MySQLSqlDialectProviderImpl;
 public class MariaDBSqlDialectProviderImpl implements SqlDialectProvider {
 
     @Override
-    public SqlDialect getSqlDialect() {
-        return new MariaDBSqlDialect();
+    public SqlDialect getSqlDialect(@Nonnull StormConfig config) {
+        return new MariaDBSqlDialect(config);
     }
 }

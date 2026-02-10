@@ -34,7 +34,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static st.orm.GenerationStrategy.SEQUENCE;
-import static st.orm.core.repository.impl.DirtySupport.getMaxShapes;
 import static st.orm.core.repository.impl.StreamSupport.partitioned;
 import static st.orm.core.template.SqlInterceptor.intercept;
 import static st.orm.core.template.TemplateString.raw;

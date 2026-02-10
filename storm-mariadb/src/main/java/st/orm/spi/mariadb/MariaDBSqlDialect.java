@@ -15,9 +15,18 @@
  */
 package st.orm.spi.mariadb;
 
+import jakarta.annotation.Nonnull;
+import st.orm.StormConfig;
 import st.orm.spi.mysql.MySQLSqlDialect;
 
 public class MariaDBSqlDialect extends MySQLSqlDialect {
+
+    public MariaDBSqlDialect() {
+    }
+
+    public MariaDBSqlDialect(@Nonnull StormConfig config) {
+        super(config);
+    }
 
     /**
      * Returns the name of the SQL dialect.

@@ -56,7 +56,6 @@ import static java.util.stream.Collectors.joining;
 import static st.orm.GenerationStrategy.IDENTITY;
 import static st.orm.GenerationStrategy.NONE;
 import static st.orm.GenerationStrategy.SEQUENCE;
-import static st.orm.core.repository.impl.DirtySupport.getMaxShapes;
 import static st.orm.core.repository.impl.StreamSupport.partitioned;
 import static st.orm.core.template.Templates.bindVar;
 import static st.orm.core.template.SqlInterceptor.intercept;

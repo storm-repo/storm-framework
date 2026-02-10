@@ -6,7 +6,7 @@
     <parent>
         <groupId>st.orm</groupId>
         <artifactId>storm-framework</artifactId>
-        <version>1.8.2</version>
+        <version>1.9.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>storm-kotlin</artifactId>
@@ -46,7 +46,7 @@
                         --add-opens storm.kotlin/st.orm.template=kotlin.reflect
                         --add-opens storm.kotlin/st.orm.template.model=storm.foundation
                         --add-opens storm.kotlin/st.orm.template.model=storm.core
-                        -Dstorm.ansiEscaping=true
+                        -Dstorm.ansi_escaping=true
                     </argLine>
                 </configuration>
             </plugin>
