@@ -21,6 +21,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
+import st.orm.EntityCallback
 import st.orm.StormConfig
 import st.orm.template.ORMTemplate
 import javax.sql.DataSource
@@ -53,8 +54,13 @@ open class StormAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(ORMTemplate::class)
-    open fun ormTemplate(dataSource: DataSource, properties: StormProperties): ORMTemplate =
-        ORMTemplate.of(dataSource, toStormConfig(properties))
+    open fun ormTemplate(
+        dataSource: DataSource,
+        properties: StormProperties,
+        entityCallbacks: List<EntityCallback<*>>
+    ): ORMTemplate {
+        return ORMTemplate.of(dataSource, toStormConfig(properties)).withEntityCallbacks(entityCallbacks)
+    }
 
     private fun toStormConfig(properties: StormProperties): StormConfig {
         val map = mutableMapOf<String, String>()

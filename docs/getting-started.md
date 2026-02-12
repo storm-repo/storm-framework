@@ -165,6 +165,28 @@ val exists: Boolean = users.existsById(userId)
 users.deleteAll()
 ```
 
+### Custom Repositories
+
+Encapsulate domain-specific queries:
+
+```kotlin
+interface UserRepository : EntityRepository<User, Int> {
+
+    fun findByEmail(email: String): User? =
+        find { User_.email eq email }
+
+    fun findByNameInCity(name: String, city: City): List<User> =
+        findAll((User_.city eq city) and (User_.name eq name))
+
+    fun streamByCity(city: City): Flow<User> =
+        select { User_.city eq city }
+}
+
+// Get the repository
+val userRepository = orm.repository<UserRepository>()
+val user = userRepository.findByEmail("alice@example.com")
+```
+
 ### Type-Safe Queries
 
 Build complex queries with the fluent API:
@@ -235,28 +257,6 @@ transaction {
 
     // Alice is still inserted even if Bob's insert was rolled back
 }
-```
-
-### Custom Repositories
-
-Encapsulate domain-specific queries:
-
-```kotlin
-interface UserRepository : EntityRepository<User, Int> {
-
-    fun findByEmail(email: String): User? =
-        find { User_.email eq email }
-
-    fun findByNameInCity(name: String, city: City): List<User> =
-        findAll((User_.city eq city) and (User_.name eq name))
-
-    fun streamByCity(city: City): Flow<User> =
-        select { User_.city eq city }
-}
-
-// Get the repository
-val userRepository = orm.repository<UserRepository>()
-val user = userRepository.findByEmail("alice@example.com")
 ```
 
 ---
@@ -380,6 +380,22 @@ users.update(new User(user.id(), "alice@example.com", "Alice Johnson", user.city
 users.delete(user);
 ```
 
+### Custom Repositories
+
+```java
+interface UserRepository extends EntityRepository<User, Integer> {
+
+    default Optional<User> findByEmail(String email) {
+        return select()
+            .where(User_.email, EQUALS, email)
+            .getOptionalResult();
+    }
+}
+
+// Get the repository
+UserRepository userRepository = orm.repository(UserRepository.class);
+```
+
 ### Type-Safe Queries
 
 ```java
@@ -419,7 +435,7 @@ try (Stream<User> users = orm.entity(User.class).selectAll()) {
 
 ### Transactions
 
-With Spring's `@Transactional`:
+Using Spring's `@Transactional`:
 
 ```java
 @Transactional
@@ -427,34 +443,6 @@ public User createUser(String email, String name, City city) {
     return orm.entity(User.class)
         .insertAndFetch(new User(null, email, name, city));
 }
-```
-
-Or programmatically (without Spring):
-
-```java
-orm.transaction(() -> {
-    var city = orm.entity(City.class).insertAndFetch(
-        new City(null, "Sunnyvale", 155_000));
-    var user = orm.entity(User.class).insertAndFetch(
-        new User(null, "bob@example.com", "Bob", city));
-    // Commits on success, rolls back on exception
-});
-```
-
-### Custom Repositories
-
-```java
-interface UserRepository extends EntityRepository<User, Integer> {
-
-    default Optional<User> findByEmail(String email) {
-        return select()
-            .where(User_.email, EQUALS, email)
-            .getOptionalResult();
-    }
-}
-
-// Get the repository
-UserRepository userRepository = orm.repository(UserRepository.class);
 ```
 
 ---

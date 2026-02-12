@@ -21,6 +21,7 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import st.orm.EntityCallback;
 import st.orm.spring.RepositoryBeanFactoryPostProcessor;
 import st.orm.template.ORMTemplate;
 
@@ -88,6 +89,33 @@ class StormAutoConfigurationTest {
     }
 
     @Test
+    void entityCallbackBeanAutoDetected() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver"
+                )
+                .withUserConfiguration(EntityCallbackConfig.class)
+                .run(context -> {
+                    assertThat(context).hasSingleBean(ORMTemplate.class);
+                    assertThat(context).hasSingleBean(EntityCallback.class);
+                });
+    }
+
+    @Test
+    void noEntityCallbackByDefault() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver"
+                )
+                .run(context -> {
+                    assertThat(context).hasSingleBean(ORMTemplate.class);
+                    assertThat(context).doesNotHaveBean(EntityCallback.class);
+                });
+    }
+
+    @Test
     void userDefinedRepositoryBeanFactoryPostProcessorTakesPrecedence() {
         contextRunner
                 .withPropertyValues(
@@ -99,6 +127,14 @@ class StormAutoConfigurationTest {
                     assertThat(context).hasSingleBean(RepositoryBeanFactoryPostProcessor.class);
                     assertThat(context).doesNotHaveBean(AutoConfiguredRepositoryBeanFactoryPostProcessor.class);
                 });
+    }
+
+    @Configuration
+    static class EntityCallbackConfig {
+        @Bean
+        public EntityCallback<?> entityCallback() {
+            return new EntityCallback<>() {};
+        }
     }
 
     @Configuration

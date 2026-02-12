@@ -17,6 +17,7 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import st.orm.EntityCallback;
 import st.orm.PersistenceException;
 import st.orm.StormConfig;
 import st.orm.Entity;
@@ -34,6 +35,8 @@ import st.orm.core.template.SqlTemplateException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -53,6 +56,7 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     private final ConcurrentMap<Class<?>, Repository> repositories = new ConcurrentHashMap<>();
     private final Predicate<? super Provider> providerFilter;
     private final StormConfig config;
+    private final List<EntityCallback<?>> entityCallbacks;
 
     public ORMTemplateImpl(@Nonnull QueryFactory factory,
                            @Nonnull ModelBuilder modelBuilder,
@@ -64,14 +68,38 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
                            @Nonnull ModelBuilder modelBuilder,
                            @Nullable Predicate<? super Provider> providerFilter,
                            @Nonnull StormConfig config) {
+        this(factory, modelBuilder, providerFilter, config, List.of());
+    }
+
+    public ORMTemplateImpl(@Nonnull QueryFactory factory,
+                           @Nonnull ModelBuilder modelBuilder,
+                           @Nullable Predicate<? super Provider> providerFilter,
+                           @Nonnull StormConfig config,
+                           @Nonnull List<EntityCallback<?>> entityCallbacks) {
         super(factory, modelBuilder);
         this.providerFilter = providerFilter;
         this.config = config;
+        this.entityCallbacks = List.copyOf(entityCallbacks);
     }
 
     @Override
     public StormConfig config() {
         return config;
+    }
+
+    @Override
+    public List<EntityCallback<?>> entityCallbacks() {
+        return entityCallbacks;
+    }
+
+    @Override
+    public ORMTemplate withEntityCallbacks(@Nonnull List<EntityCallback<?>> callbacks) {
+        if (callbacks.isEmpty()) {
+            return this;
+        }
+        var newCallbacks = new ArrayList<>(entityCallbacks);
+        newCallbacks.addAll(callbacks);
+        return new ORMTemplateImpl(queryFactory, modelBuilder, providerFilter, config, newCallbacks);
     }
 
     /**

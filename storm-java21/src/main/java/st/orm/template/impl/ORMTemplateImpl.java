@@ -17,6 +17,7 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 
+import st.orm.EntityCallback;
 import st.orm.repository.EntityRepository;
 import st.orm.repository.ProjectionRepository;
 import st.orm.repository.Repository;
@@ -31,6 +32,7 @@ import st.orm.template.ORMTemplate;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.List;
 import java.util.Optional;
 
 import static java.lang.System.identityHashCode;
@@ -44,6 +46,16 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     public ORMTemplateImpl(st.orm.core.template.ORMTemplate core) {
         super(core);
         this.core = core;
+    }
+
+    @Override
+    public ORMTemplate withEntityCallback(@Nonnull EntityCallback<?> callback) {
+        return new ORMTemplateImpl(core.withEntityCallback(callback));
+    }
+
+    @Override
+    public ORMTemplate withEntityCallbacks(@Nonnull List<EntityCallback<?>> callbacks) {
+        return new ORMTemplateImpl(core.withEntityCallbacks(callbacks));
     }
 
     /**

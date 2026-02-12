@@ -16,6 +16,7 @@
 package st.orm.template.impl
 
 import st.orm.Entity
+import st.orm.EntityCallback
 import st.orm.Projection
 import st.orm.core.spi.ORMReflection
 import st.orm.core.spi.Providers
@@ -32,6 +33,12 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) : Quer
     companion object {
         val REFLECTION: ORMReflection = Providers.getORMReflection()
     }
+
+    override fun withEntityCallback(callback: EntityCallback<*>): ORMTemplate =
+        ORMTemplateImpl(core.withEntityCallback(callback))
+
+    override fun withEntityCallbacks(callbacks: List<EntityCallback<*>>): ORMTemplate =
+        ORMTemplateImpl(core.withEntityCallbacks(callbacks))
 
     /**
      * Returns the repository for the given entity type.

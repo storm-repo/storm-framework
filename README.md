@@ -198,6 +198,7 @@ Everything you need to build applications with Storm. Start with Getting Started
 | [Refs](docs/refs.md) | Lazy loading and optimized references (7 min) |
 | [Batch & Streaming](docs/batch-streaming.md) | Bulk operations and Flow/Stream (5 min) |
 | [Upserts](docs/upserts.md) | Insert-or-update operations (6 min) |
+| [Entity Lifecycle](docs/entity-lifecycle.md) | Callbacks for auditing, validation, and logging (8 min) |
 | [JSON Support](docs/json.md) | JSON columns and aggregation (6 min) |
 | [Transactions](docs/transactions.md) | Transaction management and propagation (22 min) |
 | [Spring Integration](docs/spring-integration.md) | Spring Boot Starter and auto-configuration (8 min) |

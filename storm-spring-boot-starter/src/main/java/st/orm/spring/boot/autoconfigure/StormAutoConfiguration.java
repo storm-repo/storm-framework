@@ -21,11 +21,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import st.orm.EntityCallback;
 import st.orm.StormConfig;
 import st.orm.template.ORMTemplate;
 
 import javax.sql.DataSource;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -57,8 +59,9 @@ public class StormAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(ORMTemplate.class)
-    public ORMTemplate ormTemplate(DataSource dataSource, StormProperties properties) {
-        return ORMTemplate.of(dataSource, toStormConfig(properties));
+    public ORMTemplate ormTemplate(DataSource dataSource, StormProperties properties,
+                                   List<EntityCallback<?>> entityCallbacks) {
+        return ORMTemplate.of(dataSource, toStormConfig(properties)).withEntityCallbacks(entityCallbacks);
     }
 
     private static StormConfig toStormConfig(StormProperties properties) {

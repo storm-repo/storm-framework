@@ -16,6 +16,7 @@
 package st.orm.template
 
 import jakarta.persistence.EntityManager
+import st.orm.EntityCallback
 import st.orm.StormConfig
 import st.orm.mapping.TemplateDecorator
 import st.orm.repository.RepositoryLookup
@@ -52,6 +53,33 @@ import javax.sql.DataSource
  * @see st.orm.repository.ProjectionRepository
  */
 interface ORMTemplate : QueryTemplate, RepositoryLookup {
+
+    /**
+     * Returns a new [ORMTemplate] with the specified entity callback added.
+     *
+     * The returned template shares the same underlying connection and configuration, but applies the given
+     * callback to entity lifecycle operations (insert, update, delete) performed through its repositories. The
+     * callback is only invoked for entities matching its type parameter. Multiple callbacks can be registered by
+     * chaining calls to this method.
+     *
+     * @param callback the entity callback to add.
+     * @return a new [ORMTemplate] with the callback added.
+     * @since 1.9
+     */
+    fun withEntityCallback(callback: EntityCallback<*>): ORMTemplate
+
+    /**
+     * Returns a new [ORMTemplate] with the specified entity callbacks added.
+     *
+     * The returned template shares the same underlying connection and configuration, but applies the given
+     * callbacks to entity lifecycle operations (insert, update, delete) performed through its repositories. Each
+     * callback is only invoked for entities matching its type parameter.
+     *
+     * @param callbacks the entity callbacks to add.
+     * @return a new [ORMTemplate] with the callbacks added.
+     * @since 1.9
+     */
+    fun withEntityCallbacks(callbacks: List<EntityCallback<*>>): ORMTemplate
 
     companion object {
         /**

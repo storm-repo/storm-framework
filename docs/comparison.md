@@ -4,7 +4,7 @@ There is no universally “best” database framework. Each has strengths suited
 
 ## Storm vs JPA/Hibernate
 
-JPA (typically implemented by Hibernate) is the most widely used persistence framework in the Java ecosystem. It provides a full object-relational mapping layer with managed entities, lifecycle callbacks, and second-level caching. Storm takes a fundamentally different approach: entities are plain values with no managed state, and database interactions are explicit rather than implicit. This makes Storm simpler to reason about at the cost of JPA's more automated (but less predictable) features.
+JPA (typically implemented by Hibernate) is the most widely used persistence framework in the Java ecosystem. It provides a full object-relational mapping layer with managed entities and second-level caching. Storm takes a fundamentally different approach: entities are plain values with no managed state, and database interactions are explicit rather than implicit. This makes Storm simpler to reason about at the cost of JPA's more automated (but less predictable) features.
 
 | Aspect | Storm | JPA/Hibernate                            |
 |--------|-------|------------------------------------------|
@@ -117,6 +117,7 @@ jOOQ generates Java code from your database schema, providing a type-safe SQL DS
 
 - You prefer pure SQL control
 - You want native DSL support for advanced SQL features (window functions, CTEs)
+- You want a thin layer over SQL with minimal runtime overhead
 
 ## Storm vs JDBI
 
@@ -140,7 +141,7 @@ JDBI is a lightweight SQL convenience library that sits just above JDBC. It hand
 
 - You want full SQL control
 - You prefer minimal abstraction
-- You have complex queries that don't fit ORM patterns
+- You have mostly complex queries that don't fit ORM patterns
 
 ---
 
@@ -225,25 +226,28 @@ The following table provides a side-by-side comparison of concrete features acro
 
 | Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm |
 |---------|-------|-----|-------------|---------|------|------|---------|-------|
-| Lines per entity | ~5 | ~30* | ~30* | ~20+ | Generated | ~15 | ~12 | ~15 |
+| Lines per entity | ~5 | ~30&sup1; | ~30&sup1; | ~20+ | Generated | ~15 | ~12 | ~15 |
 | Immutable entities | Yes | No | No | Yes | Yes | Yes | DSL only | No |
 | Type-safe queries | Yes | Criteria | No | No | Yes | No | Yes | Yes |
-| Automatic relationships | Yes | Yes** | Via JPA | No | No | No | DAO only | No |
+| Automatic relationships | Yes | Yes&sup2; | Via JPA | No | No | No | DAO only | No |
 | Cascade persist | No | Yes | Yes | No | No | No | No | No |
+| Lifecycle callbacks | Yes | Yes | Via JPA | No | Yes | No | DAO only | No |
 | N+1 prevention | Yes | No | No | No | Manual | Manual | No | No |
 | Lazy loading | Refs | Yes | Yes | No | No | No | Yes | Yes |
 | SQL Templates | Yes | No | No | XML/Ann | Yes | Yes | No | No |
 | Transactions | Both | Both | Declarative | Both | Programmatic | Both | Required | Required |
 | Kotlin support | First-class | Good | Good | Good | Good | Good | Native | Native |
 | Coroutines | Yes | No | No | No | No | No | Yes | Limited |
-| Runtime mechanism | Codegen* | Bytecode | Bytecode | Reflection | Codegen | Reflection | Reflection | Reflection |
+| Runtime mechanism | Codegen&sup3; | Bytecode | Bytecode | Reflection | Codegen | Reflection | Reflection | Reflection |
 | Spring integration | Yes | Yes | Native | Yes | Yes | Yes | Yes | Yes |
 | Java support | Yes | Yes | Yes | Yes | Yes | Yes | No | No |
 | Community | New | Huge | Huge | Large | Medium | Medium | Medium | Small |
 
-*\* JPA/Spring Data lines without Lombok; ~10 lines with Lombok. Storm uses codegen with reflection fallback.*
+&sup1; JPA/Spring Data lines without Lombok; ~10 lines with Lombok.
 
-*\*\* JPA relationships are runtime-managed via proxies.*
+&sup2; JPA relationships are runtime-managed via proxies.
+
+&sup3; Storm uses codegen with reflection fallback.
 
 ## Summary
 

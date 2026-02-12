@@ -84,13 +84,9 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     @Override
-    public ID upsertAndFetchId(@Nonnull E entity) {
+    protected ID doUpsertAndFetchId(@Nonnull E entity) {
         if (generationStrategy != SEQUENCE) {
-            return super.upsertAndFetchId(entity);
-        }
-        if (isUpdate(entity)) {
-            update(entity);
-            return entity.id();
+            return super.doUpsertAndFetchId(entity);
         }
         validateUpsert(entity);
         entityCache().ifPresent(cache -> {
@@ -116,43 +112,69 @@ public class MariaDBEntityRepositoryImpl<E extends Entity<ID>, ID>
         });
     }
 
+    // Partition keys for the SEQUENCE-specific upsertAndFetchIds.
+    private sealed interface SeqPartitionKey {}
+    private static final class SeqNoOpKey implements SeqPartitionKey {
+        private static final SeqNoOpKey INSTANCE = new SeqNoOpKey();
+    }
+    private static final class SeqUpsertKey implements SeqPartitionKey {
+        private static final SeqUpsertKey INSTANCE = new SeqUpsertKey();
+    }
+    private record SeqUpdateKey(@Nonnull Set<Metamodel<?, ?>> fields) implements SeqPartitionKey {
+        SeqUpdateKey() {
+            this(Set.of());
+        }
+    }
+
     @Override
     public List<ID> upsertAndFetchIds(@Nonnull Iterable<E> entities) {
         if (generationStrategy != SEQUENCE) {
             return super.upsertAndFetchIds(entities);
         }
+        // SEQUENCE path: use a single query with RETURNING clause instead of batched prepared statements.
         Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         try {
             var result = new ArrayList<ID>();
             var entityCache = entityCache();
             partitioned(toStream(entities), defaultBatchSize, entity -> {
-                if (isUpdate(entity)) {
+                if (isUpsertUpdate(entity)) {
                     var dirty = getDirty(entity, entityCache.orElse(null));
                     if (dirty.isEmpty()) {
-                        return NoOpKey.INSTANCE;
+                        return SeqNoOpKey.INSTANCE;
                     }
-                    return new UpdateKey(dirty.get());
+                    return new SeqUpdateKey(dirty.get());
                 } else {
-                    return UpsertKey.INSTANCE;
+                    return SeqUpsertKey.INSTANCE;
                 }
-            }, getMaxShapes(), new UpdateKey()).forEach(partition -> {
+            }, getMaxShapes(), new SeqUpdateKey()).forEach(partition -> {
                 switch (partition.key()) {
-                    case NoOpKey ignore -> result.addAll(partition.chunk().stream().map(E::id).toList());
-                    case UpsertKey ignore -> {
+                    case SeqNoOpKey ignore -> result.addAll(partition.chunk().stream().map(E::id).toList());
+                    case SeqUpsertKey ignore -> {
+                        List<E> batch = hasEntityCallbacks()
+                                ? partition.chunk().stream().map(this::fireBeforeUpsert).toList()
+                                : partition.chunk();
                         entityCache.ifPresent(cache -> {
-                            if (partition.chunk().stream().anyMatch(e -> model.isDefaultPrimaryKey(e.id()))) {
+                            if (batch.stream().anyMatch(e -> model.isDefaultPrimaryKey(e.id()))) {
                                 // MySQL/MariaDB can update a record with the same unique key so we need to clear the
                                 // cache as we cannot predict which record is updated.
                                 cache.clear();
                             } else {
-                                partition.chunk().forEach(e -> cache.remove(e.id()));
+                                batch.forEach(e -> cache.remove(e.id()));
                             }
                         });
-                        result.addAll(getUpsertQuery(partition.chunk()).getResultList(model.primaryKeyType()));
+                        result.addAll(getUpsertQuery(batch).getResultList(model.primaryKeyType()));
+                        if (hasEntityCallbacks()) {
+                            batch.forEach(this::fireAfterUpsert);
+                        }
                     }
-                    case UpdateKey u -> result.addAll(updateAndFetchIds(partition.chunk(),
-                            updateQueries.computeIfAbsent(u.fields(), ignore -> prepareUpdateQuery(u.fields())),
-                            entityCache.orElse(null)));
+                    case SeqUpdateKey u -> {
+                        List<E> batch = hasEntityCallbacks()
+                                ? partition.chunk().stream().map(this::fireBeforeUpdate).toList()
+                                : partition.chunk();
+                        result.addAll(updateAndFetchIds(batch,
+                                updateQueries.computeIfAbsent(u.fields(), this::prepareUpdateQuery),
+                                entityCache.orElse(null)));
+                    }
                 }
             });
             return result;

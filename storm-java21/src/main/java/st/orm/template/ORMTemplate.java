@@ -17,6 +17,7 @@ package st.orm.template;
 
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.EntityManager;
+import st.orm.EntityCallback;
 import st.orm.StormConfig;
 import st.orm.mapping.TemplateDecorator;
 import st.orm.repository.EntityRepository;
@@ -26,6 +27,7 @@ import st.orm.template.impl.ORMTemplateImpl;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
+import java.util.List;
 import java.util.function.UnaryOperator;
 
 /**
@@ -61,6 +63,33 @@ import java.util.function.UnaryOperator;
  * @see ProjectionRepository
  */
 public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
+
+    /**
+     * Returns a new {@code ORMTemplate} with the specified entity callback added.
+     *
+     * <p>The returned template shares the same underlying connection and configuration, but applies the given
+     * callback to entity lifecycle operations (insert, update, delete) performed through its repositories. The
+     * callback is only invoked for entities matching its type parameter. Multiple callbacks can be registered by
+     * chaining calls to this method.</p>
+     *
+     * @param callback the entity callback to add; must not be {@code null}.
+     * @return a new {@code ORMTemplate} with the callback added.
+     * @since 1.9
+     */
+    ORMTemplate withEntityCallback(@Nonnull EntityCallback<?> callback);
+
+    /**
+     * Returns a new {@code ORMTemplate} with the specified entity callbacks added.
+     *
+     * <p>The returned template shares the same underlying connection and configuration, but applies the given
+     * callbacks to entity lifecycle operations (insert, update, delete) performed through its repositories. Each
+     * callback is only invoked for entities matching its type parameter.</p>
+     *
+     * @param callbacks the entity callbacks to add; must not be {@code null}.
+     * @return a new {@code ORMTemplate} with the callbacks added.
+     * @since 1.9
+     */
+    ORMTemplate withEntityCallbacks(@Nonnull List<EntityCallback<?>> callbacks);
 
     /**
      * Returns an {@link ORMTemplate} for use with JPA.
