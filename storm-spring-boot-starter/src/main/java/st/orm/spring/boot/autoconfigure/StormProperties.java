@@ -126,7 +126,7 @@ public class StormProperties {
      */
     public static class EntityCache {
 
-        /** The cache retention policy ({@code minimal} or {@code aggressive}). */
+        /** The cache retention policy ({@code default} or {@code light}). */
         private String retention;
 
         /** Returns the cache retention policy. */

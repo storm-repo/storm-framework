@@ -43,7 +43,8 @@ public interface TransactionContext {
     }
 
     /**
-     * Returns a transaction-local cache for entities of the given type, keyed by primary key.
+     * Returns a transaction-local cache for entities of the given type, creating one with the specified retention
+     * behavior if it does not yet exist.
      *
      * <p>The entity cache serves two purposes:</p>
      * <ul>
@@ -53,27 +54,35 @@ public interface TransactionContext {
      *       entity returns the cached instance. When {@code false}, fresh data is fetched.</li>
      * </ul>
      *
-     * <p>Returns {@code null} only when there is no active transaction context.</p>
-     *
-     * @param entityType the entity type for which to retrieve the cache.
-     * @return the entity cache, or {@code null} if there is no active transaction.
+     * @param entityType the entity type for which to retrieve or create the cache.
+     * @param retention the cache retention strategy to use when creating a new cache.
+     * @return the entity cache; never {@code null}.
+     * @since 1.9
      */
-    @Nullable
-    EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType);
+    @Nonnull
+    EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType,
+                                                    @Nonnull CacheRetention retention);
 
     /**
-     * Returns a transaction-local cache for entities of the given type, with the specified retention behavior.
+     * Returns an existing transaction-local cache for entities of the given type.
      *
      * @param entityType the entity type for which to retrieve the cache.
-     * @param retention the cache retention strategy to use.
-     * @return the entity cache, or {@code null} if there is no active transaction.
+     * @return the entity cache.
+     * @throws IllegalStateException if no cache exists for the given entity type.
+     * @since 1.9
+     */
+    @Nonnull
+    EntityCache<? extends Entity<?>, ?> getEntityCache(@Nonnull Class<? extends Entity<?>> entityType);
+
+    /**
+     * Returns an existing transaction-local cache for entities of the given type, or {@code null} if none exists.
+     *
+     * @param entityType the entity type for which to retrieve the cache.
+     * @return the entity cache, or {@code null} if no cache has been created for this entity type.
      * @since 1.9
      */
     @Nullable
-    default EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType,
-                                                            @Nonnull CacheRetention retention) {
-        return entityCache(entityType);
-    }
+    EntityCache<? extends Entity<?>, ?> findEntityCache(@Nonnull Class<? extends Entity<?>> entityType);
 
     /**
      * Clears all entity caches associated with this transaction context.

@@ -327,7 +327,7 @@ storm:
     dirty-check: INSTANCE
     max-shapes: 5
   entity-cache:
-    retention: minimal
+    retention: default
   template-cache:
     size: 2048
   validation:

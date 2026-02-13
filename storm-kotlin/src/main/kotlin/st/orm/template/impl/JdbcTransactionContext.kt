@@ -161,17 +161,25 @@ internal class JdbcTransactionContext : TransactionContext {
         return isolationLevel >= TRANSACTION_REPEATABLE_READ
     }
 
-    /**
-     * Returns a transaction-local cache for entities of the given type, keyed by primary key.
-     *
-     * The cache is used for dirty checking and/or identity preservation. Whether cached instances are
-     * returned during reads is controlled by [isRepeatableRead].
-     */
-    override fun entityCache(entityType: Class<out Entity<*>>): EntityCache<out Entity<*>, *> {
+    override fun entityCache(
+        entityType: Class<out Entity<*>>,
+        retention: CacheRetention,
+    ): EntityCache<out Entity<*>, *> {
         @Suppress("UNCHECKED_CAST")
         return currentState.entityCacheMap.getOrPut(entityType.kotlin) {
-            EntityCacheImpl<Entity<Any>, Any>()
+            EntityCacheImpl<Entity<Any>, Any>(retention)
         } as EntityCache<Entity<*>, *>
+    }
+
+    override fun getEntityCache(entityType: Class<out Entity<*>>): EntityCache<out Entity<*>, *> {
+        @Suppress("UNCHECKED_CAST")
+        return currentState.entityCacheMap[entityType.kotlin] as? EntityCache<Entity<*>, *>
+            ?: throw IllegalStateException("No entity cache exists for ${entityType.name}.")
+    }
+
+    override fun findEntityCache(entityType: Class<out Entity<*>>): EntityCache<out Entity<*>, *>? {
+        @Suppress("UNCHECKED_CAST")
+        return currentState.entityCacheMap[entityType.kotlin] as? EntityCache<Entity<*>, *>
     }
 
     /**

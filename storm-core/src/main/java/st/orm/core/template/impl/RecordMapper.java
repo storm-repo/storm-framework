@@ -22,6 +22,7 @@ import st.orm.Entity;
 import st.orm.EnumType;
 import st.orm.DbEnum;
 import st.orm.Ref;
+import st.orm.core.spi.CacheRetention;
 import st.orm.core.spi.EntityCache;
 import st.orm.core.spi.RefFactory;
 import st.orm.core.spi.TransactionContext;
@@ -217,7 +218,8 @@ final class RecordMapper {
         EntityCache<Entity<?>, ?> entityCache;
         if (transactionContext != null && isEntity && cacheWriteEnabled) {
             //noinspection unchecked
-            entityCache = (EntityCache<Entity<?>, ?>) transactionContext.entityCache((Class<? extends Entity<?>>) type.type());
+            entityCache = (EntityCache<Entity<?>, ?>) transactionContext.entityCache(
+                    (Class<? extends Entity<?>>) type.type(), CacheRetention.fromConfig(StormConfig.defaults()));
         } else {
             entityCache = null;
         }
@@ -665,7 +667,8 @@ final class RecordMapper {
             EntityCache<Entity<?>, ?> entityCache = null;
             if (context != null && subIsEntity && cacheWriteEnabled) {
                 //noinspection unchecked
-                entityCache = (EntityCache<Entity<?>, ?>) context.entityCache((Class<? extends Entity<?>>) subType.type());
+                entityCache = (EntityCache<Entity<?>, ?>) context.entityCache(
+                        (Class<? extends Entity<?>>) subType.type(), CacheRetention.fromConfig(StormConfig.defaults()));
             }
             if (subIsEntity && pkFlatOffset >= 0) {
                 Object pk = extractPk(flatArgs, start + pkFlatOffset);

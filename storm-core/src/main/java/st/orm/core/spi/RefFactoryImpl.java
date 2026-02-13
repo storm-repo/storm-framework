@@ -70,7 +70,7 @@ public final class RefFactoryImpl implements RefFactory {
                 var context = getTransactionTemplate().currentContext();
                 if (context.isPresent()) {
                     var cache = (EntityCache<?, ID>) context.get()
-                        .entityCache((Class<? extends Entity<?>>) type);
+                        .findEntityCache((Class<? extends Entity<?>>) type);
                     if (cache != null) {
                         var cached = cache.get(pk);
                         if (cached.isPresent()) {

@@ -15,10 +15,13 @@
  */
 package st.orm.core.spi;
 
+import jakarta.annotation.Nonnull;
+import st.orm.StormConfig;
+
 /**
  * Controls the retention behavior of the transaction-scoped entity cache.
  *
- * <p>This setting determines how aggressively cached entity state is retained for dirty checking purposes. It can be
+ * <p>This setting determines how long cached entity state is retained for dirty checking purposes. It can be
  * configured via the {@code storm.entity_cache.retention} property (see {@link st.orm.StormConfig}).</p>
  *
  * @since 1.9
@@ -26,14 +29,28 @@ package st.orm.core.spi;
 public enum CacheRetention {
 
     /**
-     * Observed state may be cleaned up as soon as the application no longer holds a reference to the entity. This
-     * minimizes memory overhead. Uses weak references internally.
+     * Observed state is retained for the duration of the transaction, improving the dirty-check hit rate at the cost
+     * of higher memory usage during transactions. The JVM may still reclaim entries under memory pressure.
+     *
+     * <p>This is the recommended mode for most applications.</p>
      */
-    MINIMAL,
+    DEFAULT,
 
     /**
-     * Observed state is retained more aggressively, improving the dirty-check hit rate at the cost of higher memory
-     * usage during transactions. Uses soft references internally.
+     * Observed state may be cleaned up as soon as the application no longer holds a reference to the entity. This
+     * reduces memory overhead but may cause dirty-check cache misses, resulting in full-row updates.
      */
-    AGGRESSIVE
+    LIGHT;
+
+    /**
+     * Resolves the cache retention from the given configuration.
+     *
+     * @param config the configuration to read from.
+     * @return the configured cache retention.
+     */
+    @Nonnull
+    public static CacheRetention fromConfig(@Nonnull StormConfig config) {
+        return CacheRetention.valueOf(
+                config.getProperty("storm.entity_cache.retention", "DEFAULT").trim().toUpperCase());
+    }
 }

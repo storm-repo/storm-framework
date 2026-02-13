@@ -105,8 +105,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
             throw new PersistenceException("Sequence generation is only supported for single-column primary keys.");
         }
         this.dirtySupport = new DirtySupport<>(model, ormTemplate.config());
-        this.cacheRetention = CacheRetention.valueOf(
-                ormTemplate.config().getProperty("storm.entity_cache.retention", "MINIMAL").trim().toUpperCase());
+        this.cacheRetention = CacheRetention.fromConfig(ormTemplate.config());
         this.entityCallbacks = resolveCallbacks(ormTemplate.entityCallbacks(), model.type());
         EntityCacheMetrics.getInstance().registerEntity(model.type().getName(), cacheRetention.name());
         LOGGER.debug("{}: cacheRetention={}", model.type().getSimpleName(), cacheRetention);

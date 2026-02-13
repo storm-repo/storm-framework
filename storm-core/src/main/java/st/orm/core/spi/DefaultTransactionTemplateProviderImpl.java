@@ -135,11 +135,6 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
         }
 
         @Override
-        public EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType) {
-            return entityCache(entityType, CacheRetention.MINIMAL);
-        }
-
-        @Override
         public EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType,
                                                                 @Nonnull CacheRetention retention) {
             // Cache is used for dirty checking and/or identity preservation.
@@ -155,6 +150,20 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
             //   expose reliable hooks here for "rolled back to savepoint", only for transaction completion.
             // - computeIfAbsent avoids duplicate allocations and keeps the method simpler and harder to get wrong.
             return caches.computeIfAbsent(entityType, k -> new EntityCacheImpl<>(retention));
+        }
+
+        @Override
+        public EntityCache<? extends Entity<?>, ?> getEntityCache(@Nonnull Class<? extends Entity<?>> entityType) {
+            var cache = caches.get(entityType);
+            if (cache == null) {
+                throw new IllegalStateException("No entity cache exists for " + entityType.getName() + ".");
+            }
+            return cache;
+        }
+
+        @Override
+        public EntityCache<? extends Entity<?>, ?> findEntityCache(@Nonnull Class<? extends Entity<?>> entityType) {
+            return caches.get(entityType);
         }
 
         @Override

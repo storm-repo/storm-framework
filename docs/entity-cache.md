@@ -203,30 +203,32 @@ Within a transaction, memory is managed automatically based on what your code is
 
 ### Retention Modes
 
-The cache uses weak or soft references internally so that cached entities do not prevent garbage collection when your code no longer holds a reference to them. The retention mode controls how aggressively the JVM is allowed to reclaim these entries. In most applications, the default `minimal` mode is sufficient. Switch to `aggressive` when you process entities in a streaming pipeline where you read, transform, and discard entities before updating them later in the same transaction.
+The retention mode controls how long the JVM retains cached entities within a transaction.
+
+The `default` mode retains entities for the duration of the transaction, which provides reliable dirty checking. The JVM may still reclaim entries under memory pressure. Switch to `light` only if you have memory-constrained transactions that load a very large number of entities and you are willing to trade dirty-checking accuracy for lower memory usage.
 
 Configure retention behavior via `StormConfig` or system property:
 
 ```kotlin
-val config = StormConfig.of(mapOf("storm.entity_cache.retention" to "aggressive"))
+val config = StormConfig.of(mapOf("storm.entity_cache.retention" to "light"))
 val orm = ORMTemplate.of(dataSource, config)
 ```
 
 ```bash
--Dstorm.entity_cache.retention=minimal   # Default
--Dstorm.entity_cache.retention=aggressive
+-Dstorm.entity_cache.retention=default   # Default
+-Dstorm.entity_cache.retention=light
 ```
 
 | Mode | Behavior | Use Case |
 |------|----------|----------|
-| `minimal` | Entries may be cleaned up when entity is no longer referenced | Most applications |
-| `aggressive` | Entries retained more strongly | Streaming, DTO pipelines |
+| `default` | Entries retained for the transaction duration (reclaimable under memory pressure) | Most applications |
+| `light` | Entries may be cleaned up when entity is no longer referenced | Memory-constrained bulk operations |
 
 ### Impact on Dirty Checking
 
-If an entity's cache entry is cleaned up before you call `update()`, Storm falls back to a full-row update. This is correct but less optimal. If you observe frequent fallbacks, consider:
+If an entity's cache entry is cleaned up before you call `update()`, Storm falls back to a full-row update. This is correct but less optimal. With the `default` retention mode, this rarely happens. If you use `light` retention and observe frequent fallbacks, consider:
 
-- Using `aggressive` retention
+- Switching to `default` retention
 - Keeping references to entities until update
 - Restructuring code to update sooner after reading
 
@@ -291,7 +293,7 @@ transaction {
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `storm.entity_cache.retention` | `minimal` | Cache retention: `minimal` or `aggressive` |
+| `storm.entity_cache.retention` | `default` | Cache retention: `default` or `light` |
 
 ---
 

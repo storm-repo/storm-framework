@@ -11,7 +11,7 @@ Storm can be configured through `StormConfig`, system properties, or Spring Boot
 | `storm.update.default_mode` | `ENTITY` | Default update mode for entities without `@DynamicUpdate` |
 | `storm.update.dirty_check` | `INSTANCE` | Default dirty check strategy (`INSTANCE` or `VALUE`) |
 | `storm.update.max_shapes` | `5` | Maximum UPDATE shapes before fallback to full-row |
-| `storm.entity_cache.retention` | `minimal` | Cache retention mode: `minimal` or `aggressive` |
+| `storm.entity_cache.retention` | `default` | Cache retention mode: `default` or `light` |
 | `storm.template_cache.size` | `2048` | Maximum number of compiled templates to cache |
 
 ### Setting Properties
@@ -22,7 +22,7 @@ Storm can be configured through `StormConfig`, system properties, or Spring Boot
 java -Dstorm.update.default_mode=FIELD \
      -Dstorm.update.dirty_check=VALUE \
      -Dstorm.update.max_shapes=10 \
-     -Dstorm.entity_cache.retention=aggressive \
+     -Dstorm.entity_cache.retention=light \
      -Dstorm.template_cache.size=4096 \
      -jar myapp.jar
 ```
@@ -34,7 +34,7 @@ java -Dstorm.update.default_mode=FIELD \
 ```kotlin
 val config = StormConfig.of(mapOf(
     "storm.update.default_mode" to "FIELD",
-    "storm.entity_cache.retention" to "aggressive",
+    "storm.entity_cache.retention" to "light",
     "storm.template_cache.size" to "4096"
 ))
 
@@ -47,7 +47,7 @@ val orm = dataSource.orm(config)
 ```java
 var config = StormConfig.of(Map.of(
     "storm.update.default_mode", "FIELD",
-    "storm.entity_cache.retention", "aggressive",
+    "storm.entity_cache.retention", "light",
     "storm.template_cache.size", "4096"
 ));
 
@@ -66,7 +66,7 @@ storm:
     dirty-check: INSTANCE
     max-shapes: 5
   entity-cache:
-    retention: minimal
+    retention: default
   template-cache:
     size: 2048
   validation:
@@ -115,12 +115,12 @@ Storm maintains a transaction-scoped entity cache that ensures the same database
 
 ### storm.entity_cache.retention
 
-Controls how aggressively entities are retained in the cache during a transaction. The choice is a trade-off between memory consumption and identity consistency. With `minimal`, the JVM can reclaim cached entities when your code no longer holds a reference, which is important for transactions that read large result sets. With `aggressive`, every entity loaded during the transaction is guaranteed to remain the same object instance if loaded again, which simplifies code that relies on reference equality.
+Controls how long entities are retained in the cache during a transaction. The choice is a trade-off between memory consumption and dirty-checking reliability. With `default`, entities are retained for the duration of the transaction, which provides reliable dirty checking while still allowing the JVM to reclaim entries under memory pressure. With `light`, the JVM can reclaim cached entities as soon as your code no longer holds a reference, which reduces memory usage but may cause dirty-check cache misses.
 
 | Value | Behavior |
 |-------|----------|
-| `minimal` | Entities can be garbage collected when no longer referenced by your code. Memory-efficient for large result sets. |
-| `aggressive` | Entities are strongly retained for the duration of the transaction. Guarantees identity but uses more memory. |
+| `default` | Entities retained for the transaction duration. Reliable dirty checking. The JVM may still reclaim entries under memory pressure. |
+| `light` | Entities can be garbage collected when no longer referenced by your code. Memory-efficient but may cause full-row updates due to cache misses. |
 
 ---
 
@@ -234,7 +234,7 @@ The following profiles cover common scenarios. Start with the defaults and adjus
 The built-in defaults work well for most applications. No configuration needed:
 - `ENTITY` mode skips UPDATE when nothing changed, but sends all columns when any field changes
 - `INSTANCE` comparison is fast and correct with immutable records/data classes
-- `minimal` cache retention keeps memory usage low
+- `default` cache retention provides reliable dirty checking
 
 ### High-Write Applications
 
@@ -248,13 +248,13 @@ java -Dstorm.update.default_mode=FIELD \
 
 This reduces network bandwidth by only sending changed columns.
 
-### Long-Running Transactions
+### Memory-Constrained Bulk Operations
 
-For applications with long transactions that read many entities, aggressive cache retention guarantees that loading the same row twice within a transaction returns the same object instance. This is important for code that relies on reference equality or builds in-memory graphs from query results. The trade-off is increased memory usage, since every loaded entity remains in the cache until the transaction completes.
+For transactions that load a very large number of entities (bulk migrations, large reports), light cache retention allows the JVM to reclaim cached entities sooner. The trade-off is that dirty checking may encounter cache misses, resulting in full-row updates.
 
 ```bash
-java -Dstorm.entity_cache.retention=aggressive \
+java -Dstorm.entity_cache.retention=light \
      -jar myapp.jar
 ```
 
-This guarantees entity identity within a transaction at the cost of higher memory usage.
+This reduces memory usage at the cost of less efficient dirty checking.

@@ -41,10 +41,10 @@ import static java.util.Objects.requireNonNull;
  * <p>The retention behavior can be configured via the {@code storm.entity_cache.retention} property
  * (see {@link st.orm.StormConfig}):</p>
  * <ul>
- *   <li>{@code minimal} (default): Observed state may be cleaned up as soon as the application no longer holds a
- *       reference to the entity. This minimizes memory overhead.</li>
- *   <li>{@code aggressive}: Observed state is retained more aggressively, improving the dirty-check hit rate at the
- *       cost of higher memory usage during transactions.</li>
+ *   <li>{@code default} (default): Observed state is retained for the duration of the transaction, improving the
+ *       dirty-check hit rate at the cost of higher memory usage during transactions.</li>
+ *   <li>{@code light}: Observed state may be cleaned up as soon as the application no longer holds a reference to
+ *       the entity. This reduces memory overhead.</li>
  * </ul>
  *
  * <h2>Interning semantics</h2>
@@ -72,13 +72,6 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     private static final EntityCacheMetrics metrics = EntityCacheMetrics.getInstance();
 
     private final CacheRetention retention;
-
-    /**
-     * Creates a new entity cache with the default retention behavior ({@link CacheRetention#MINIMAL}).
-     */
-    public EntityCacheImpl() {
-        this(CacheRetention.MINIMAL);
-    }
 
     /**
      * Creates a new entity cache with the specified retention behavior.
@@ -165,9 +158,9 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
      * @return a reference based on {@link #retention}.
      */
     private PkReference<ID, E> createReference(ID pk, E entity) {
-        return retention == CacheRetention.AGGRESSIVE
-                ? new PkSoftReference<>(pk, entity, queue)
-                : new PkWeakReference<>(pk, entity, queue);
+        return retention == CacheRetention.LIGHT
+                ? new PkWeakReference<>(pk, entity, queue)
+                : new PkSoftReference<>(pk, entity, queue);
     }
 
     /**

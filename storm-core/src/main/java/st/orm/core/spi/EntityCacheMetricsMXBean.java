@@ -68,7 +68,7 @@ public interface EntityCacheMetricsMXBean {
      * Returns the effective {@link CacheRetention} per entity type.
      *
      * <p>Each key is the simple class name of the entity type, and the value is the retention mode name
-     * (e.g., {@code "MINIMAL"}, {@code "AGGRESSIVE"}).</p>
+     * (e.g., {@code "DEFAULT"}, {@code "LIGHT"}).</p>
      */
     Map<String, String> getRetentionPerEntity();
 

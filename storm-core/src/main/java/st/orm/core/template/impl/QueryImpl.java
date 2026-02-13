@@ -356,7 +356,7 @@ class QueryImpl implements Query {
                 // Unknown affected type: clear all caches to avoid stale observed state.
                 ctx.clearAllEntityCaches();
             } else if (Entity.class.isAssignableFrom(affectedType)) {
-                var cache = ctx.entityCache((Class<? extends Entity<?>>) affectedType);
+                var cache = ctx.findEntityCache((Class<? extends Entity<?>>) affectedType);
                 if (cache != null) {
                     cache.clear();
                 }
