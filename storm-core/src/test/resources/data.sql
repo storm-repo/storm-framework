@@ -1,6 +1,7 @@
 drop table if exists city CASCADE;
 drop table if exists owner CASCADE;
 drop table if exists pet CASCADE;
+drop table if exists pet_extension CASCADE;
 drop table if exists pet_type CASCADE;
 drop table if exists specialty CASCADE;
 drop table if exists vet CASCADE;
@@ -15,7 +16,9 @@ create table specialty (id integer auto_increment, name varchar(255), primary ke
 create table vet (id integer auto_increment, first_name varchar(255), last_name varchar(255), primary key (id));
 create table vet_specialty (vet_id integer, specialty_id integer not null, primary key (vet_id, specialty_id));
 create table visit (id integer auto_increment, visit_date date, description varchar(255), vet_id integer null, specialty_id integer null, pet_id integer not null, "timestamp" timestamp default CURRENT_TIMESTAMP, primary key (id));
+create table pet_extension (pet_id integer not null, notes varchar(255), primary key (pet_id));
 alter table owner add constraint owner_city_fk foreign key (city_id) references city (id);
+alter table pet_extension add constraint pet_extension_pet_fk foreign key (pet_id) references pet (id);
 alter table pet add constraint pet_owner_fk foreign key (owner_id) references owner (id);
 alter table pet add constraint pet_pet_type_fk foreign key (type_id) references pet_type (id);
 alter table vet_specialty add constraint vet_specialty_specialty_fk foreign key (specialty_id) references specialty (id);
@@ -94,3 +97,7 @@ INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-12', 'rabie
 INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-13', 'spayed', 6);
 INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-13', 'rabies shot', 6);
 INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-13', 'spayed', 7);
+
+INSERT INTO pet_extension (pet_id, notes) VALUES (1, 'Good cat');
+INSERT INTO pet_extension (pet_id, notes) VALUES (3, 'Friendly dog');
+INSERT INTO pet_extension (pet_id, notes) VALUES (7, 'Indoor cat');

@@ -133,6 +133,17 @@ final class ModelFactory {
             boolean pkAnnotation = field.isAnnotationPresent(PK.class);
             boolean fkAnnotation = field.isAnnotationPresent(FK.class);
             if (expandingRelation && pkAnnotation) {
+                if (fkAnnotation && isRecord(field.type()) && Data.class.isAssignableFrom(field.type())) {
+                    // The parent's FK column already provides this entity's PK value, but we still
+                    // need to expand the referenced entity's non-PK fields via a join.
+                    @SuppressWarnings("unchecked")
+                    Metamodel<Data, ?> ownMetamodel = (Metamodel<Data, ?>) Metamodel.of(
+                            (Class<? extends Data>) parentMetamodel.root(),
+                            parentMetamodel.fieldPath().isEmpty() ? field.name() : parentMetamodel.fieldPath() + "." + field.name()
+                    );
+                    boolean nullable = parentNullable || field.nullable();
+                    expandForeignRelation(ctx, ownMetamodel, field, nullable);
+                }
                 return;
             }
             PkContext pkContext = pkAnnotation ? PkContext.start(field) : inheritedPkContext;

@@ -34,6 +34,7 @@ import st.orm.SelectMode;
 import st.orm.Version;
 import st.orm.core.model.Owner_;
 import st.orm.core.model.Pet;
+import st.orm.core.model.PetExtension;
 import st.orm.core.model.PetOwnerRecursion;
 import st.orm.core.model.PetOwnerRef;
 import st.orm.core.model.PetOwnerRef_;
@@ -1933,5 +1934,19 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertEquals(2, result.size());
         assertTrue(result.contains(pet1), "Result should contain cached pet1");
         assertTrue(result.contains(pet2), "Result should contain cached pet2");
+    }
+
+    @Test
+    public void testSelectEntityTypedPkFk() {
+        var repository = ORMTemplate.of(dataSource).entity(PetExtension.class);
+        var extensions = repository.select().getResultList();
+        assertEquals(3, extensions.size());
+        // Verify the entity-typed PK is fully populated (not just the FK id).
+        var ext = extensions.stream().filter(e -> e.pet().id() == 1).findFirst().orElseThrow();
+        assertEquals("Leo", ext.pet().name());
+        assertEquals("Good cat", ext.notes());
+        // Verify nested FK within the PK entity (Pet -> Owner) is also populated.
+        assertNotNull(ext.pet().owner());
+        assertEquals("Betty", ext.pet().owner().firstName());
     }
 }
