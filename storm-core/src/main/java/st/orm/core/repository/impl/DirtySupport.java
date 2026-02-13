@@ -112,11 +112,6 @@ public final class DirtySupport<E extends Entity<ID>, ID> {
      */
     private static final Optional<Set<Metamodel<?, ?>>> DIRTY = Optional.of(Set.of());
 
-    static {
-        LOGGER.info("Using default update mode: {}.", DEFAULT_UPDATE_MODE);
-        LOGGER.info("Using default dirty check: {}.", DEFAULT_DIRTY_CHECK);
-    }
-
     private final Model<E, ID> model;
     private final UpdateMode updateMode;
     private final DirtyCheck dirtyCheck;
