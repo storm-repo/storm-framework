@@ -15,6 +15,15 @@
  */
 package st.orm.core.template.impl;
 
+import static st.orm.ResolveScope.INNER;
+import static st.orm.core.template.impl.RecordReflection.findPkField;
+import static st.orm.core.template.impl.RecordReflection.findRecordField;
+import static st.orm.core.template.impl.RecordReflection.getFkFields;
+import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
+import static st.orm.core.template.impl.RecordReflection.getPrimaryKeys;
+import static st.orm.core.template.impl.RecordReflection.getTableName;
+import static st.orm.core.template.impl.RecordValidation.validateDataType;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
@@ -25,15 +34,6 @@ import st.orm.core.template.impl.Elements.TableTarget;
 import st.orm.core.template.impl.Elements.TemplateSource;
 import st.orm.core.template.impl.Elements.TemplateTarget;
 import st.orm.mapping.RecordField;
-
-import static st.orm.ResolveScope.INNER;
-import static st.orm.core.template.impl.RecordReflection.findPkField;
-import static st.orm.core.template.impl.RecordReflection.findRecordField;
-import static st.orm.core.template.impl.RecordReflection.getFkFields;
-import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
-import static st.orm.core.template.impl.RecordReflection.getPrimaryKeys;
-import static st.orm.core.template.impl.RecordReflection.getTableName;
-import static st.orm.core.template.impl.RecordValidation.validateDataType;
 
 final class JoinProcessor implements ElementProcessor<Join> {
 

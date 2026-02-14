@@ -116,7 +116,7 @@ interface Model<E : Data, ID : Any> {
     fun forEachValue(
         columns: List<Column>,
         record: E,
-        consumer: (Column, Any?) -> Unit
+        consumer: (Column, Any?) -> Unit,
     )
 
     /**
@@ -133,7 +133,7 @@ interface Model<E : Data, ID : Any> {
      */
     fun values(
         columns: List<Column>,
-        record: E
+        record: E,
     ): Map<Column, Any?> {
         val values = mutableMapOf<Column, Any?>()
         forEachValue(columns, record) { column, value ->
@@ -153,6 +153,6 @@ interface Model<E : Data, ID : Any> {
      * @since 1.8
      */
     fun values(
-        record: E
+        record: E,
     ): Map<Column, Any?> = values(columns, record)
 }

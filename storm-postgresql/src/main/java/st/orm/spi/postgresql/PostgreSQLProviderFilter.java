@@ -15,10 +15,9 @@
  */
 package st.orm.spi.postgresql;
 
+import java.util.function.Predicate;
 import st.orm.core.spi.Provider;
 import st.orm.core.spi.SqlDialectProvider;
-
-import java.util.function.Predicate;
 
 /**
  * Provider filter to select the PostgreSQL entity repository provider.

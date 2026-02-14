@@ -15,9 +15,9 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
-import st.orm.Entity;
+import static java.util.Objects.requireNonNull;
 
+import jakarta.annotation.Nonnull;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
@@ -25,8 +25,7 @@ import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-
-import static java.util.Objects.requireNonNull;
+import st.orm.Entity;
 
 /**
  * Transaction-local cache that interns entities by primary key with configurable retention behavior.

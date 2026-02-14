@@ -75,7 +75,7 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
             firstName = "Simon",
             lastName = "McDonald",
             address = address,
-            telephone = "555-555-5555"
+            telephone = "555-555-5555",
         )
         val inserted = repository.insertAndFetch(owner)
         assertEquals(address, inserted.address)
@@ -102,9 +102,8 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
         @PK val id: Int,
         @Json val person: Person,
         @Json val address: Address,
-        val telephone: String?
+        val telephone: String?,
     ) : Entity<Int>
-
 
     @Test
     fun `computed JSON person column should deserialize correctly for all 10 owners`() {
@@ -123,7 +122,7 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
         val firstName: String,
         val lastName: String,
         @Json val address: Map<String, String>,
-        val telephone: String?
+        val telephone: String?,
     ) : Entity<Int>
 
     @Test
@@ -142,7 +141,7 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
         val firstName: String,
         val lastName: String,
         @Json @Inline val address: Map<String, String>,
-        val telephone: String?
+        val telephone: String?,
     ) : Entity<Int>
 
     @Test
@@ -160,7 +159,7 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
 
     data class SpecialtiesByVet(
         val vet: Vet,
-        @Json val specialties: List<Specialty>  // Note that Specialty has been made @Serializable.
+        @Json val specialties: List<Specialty>, // Note that Specialty has been made @Serializable.
     )
 
     @Test
@@ -189,7 +188,7 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
 
     internal data class SpecialtyNamesByVet(
         val vet: Vet,
-        @Json val specialties: List<String>
+        @Json val specialties: List<String>,
     )
 
     @Test
@@ -219,7 +218,7 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
                 INNER JOIN vet_specialty vs ON vs.vet_id = v.id
                 INNER JOIN specialty s ON vs.specialty_id = s.id
                 GROUP BY v.id
-                """.trimIndent()
+        """.trimIndent()
         SqlInterceptor.observe(
             { sql -> Assertions.assertEquals(expectedSql, sql!!.statement()) },
             {
@@ -236,7 +235,8 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
                 } catch (ignore: PersistenceException) {
                     // H2 Does not support JSON_OBJECTAGG. We only check the expected SQL.
                 }
-            })
+            },
+        )
     }
 
     @JsonClassDiscriminator("@type")
@@ -257,7 +257,7 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
         @PK val id: Int,
         @Json val person: PolymorphicPerson,
         @Json val address: Address,
-        val telephone: String?
+        val telephone: String?,
     ) : Entity<Int>
 
     @Test

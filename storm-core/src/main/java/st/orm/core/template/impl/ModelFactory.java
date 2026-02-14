@@ -15,30 +15,6 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
-import st.orm.Data;
-import st.orm.DbColumn;
-import st.orm.FK;
-import st.orm.GenerationStrategy;
-import st.orm.Metamodel;
-import st.orm.PK;
-import st.orm.Persist;
-import st.orm.PersistenceException;
-import st.orm.Ref;
-import st.orm.Version;
-import st.orm.core.spi.Name;
-import st.orm.core.template.Column;
-import st.orm.core.template.Model;
-import st.orm.core.template.SqlTemplateException;
-import st.orm.mapping.RecordField;
-import st.orm.mapping.RecordType;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import static java.util.Collections.nCopies;
 import static st.orm.core.spi.Providers.getORMConverter;
 import static st.orm.core.template.impl.RecordReflection.findPkField;
@@ -51,6 +27,28 @@ import static st.orm.core.template.impl.RecordReflection.getSequence;
 import static st.orm.core.template.impl.RecordReflection.getTableName;
 import static st.orm.core.template.impl.RecordReflection.isRecord;
 import static st.orm.core.template.impl.RecordValidation.validateDataType;
+
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import st.orm.Data;
+import st.orm.DbColumn;
+import st.orm.FK;
+import st.orm.GenerationStrategy;
+import st.orm.Metamodel;
+import st.orm.PK;
+import st.orm.Persist;
+import st.orm.Ref;
+import st.orm.Version;
+import st.orm.core.spi.Name;
+import st.orm.core.template.Column;
+import st.orm.core.template.Model;
+import st.orm.core.template.SqlTemplateException;
+import st.orm.mapping.RecordField;
+import st.orm.mapping.RecordType;
 
 /**
  * Factory for creating models.

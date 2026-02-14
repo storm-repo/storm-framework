@@ -15,10 +15,10 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.stream.Collectors.joining;
+
 import jakarta.annotation.Nonnull;
 import st.orm.core.template.impl.Elements.Select;
-
-import static java.util.stream.Collectors.joining;
 
 final class SelectProcessor implements ElementProcessor<Select> {
 

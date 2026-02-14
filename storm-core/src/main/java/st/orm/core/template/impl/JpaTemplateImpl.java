@@ -15,44 +15,43 @@
  */
 package st.orm.core.template.impl;
 
+import static jakarta.persistence.TemporalType.DATE;
+import static jakarta.persistence.TemporalType.TIME;
+import static jakarta.persistence.TemporalType.TIMESTAMP;
+import static st.orm.core.template.SqlTemplate.JPA;
+import static st.orm.core.template.impl.RecordValidation.validate;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceException;
+import java.util.List;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Ref;
 import st.orm.StormConfig;
-import st.orm.core.spi.RefFactory;
-import st.orm.core.spi.RefFactoryImpl;
-import st.orm.core.spi.WeakInterner;
-import st.orm.core.template.PreparedQuery;
-import st.orm.core.template.Query;
 import st.orm.core.spi.Provider;
 import st.orm.core.spi.Providers;
 import st.orm.core.spi.QueryFactory;
-import st.orm.mapping.ColumnNameResolver;
-import st.orm.mapping.ForeignKeyResolver;
+import st.orm.core.spi.RefFactory;
+import st.orm.core.spi.RefFactoryImpl;
+import st.orm.core.spi.WeakInterner;
 import st.orm.core.template.JpaTemplate;
 import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.PreparedQuery;
+import st.orm.core.template.Query;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplate.NamedParameter;
 import st.orm.core.template.SqlTemplate.PositionalParameter;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TableAliasResolver;
-import st.orm.mapping.TableNameResolver;
 import st.orm.core.template.TemplateString;
-
-import java.util.List;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
-
-import static jakarta.persistence.TemporalType.DATE;
-import static jakarta.persistence.TemporalType.TIME;
-import static jakarta.persistence.TemporalType.TIMESTAMP;
-import static st.orm.core.template.SqlTemplate.JPA;
-import static st.orm.core.template.impl.RecordValidation.validate;
+import st.orm.mapping.ColumnNameResolver;
+import st.orm.mapping.ForeignKeyResolver;
+import st.orm.mapping.TableNameResolver;
 
 public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
 

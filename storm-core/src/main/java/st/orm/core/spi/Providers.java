@@ -15,24 +15,17 @@
  */
 package st.orm.core.spi;
 
+import static java.lang.Thread.currentThread;
+import static java.util.Arrays.asList;
+import static java.util.Objects.requireNonNullElseGet;
+import static java.util.Optional.ofNullable;
+import static java.util.ServiceLoader.load;
+import static java.util.stream.Collectors.collectingAndThen;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.StreamSupport.stream;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.Data;
-import st.orm.Entity;
-import st.orm.StormConfig;
-import st.orm.Ref;
-import st.orm.Projection;
-import st.orm.mapping.RecordField;
-import st.orm.core.repository.EntityRepository;
-import st.orm.core.template.Model;
-import st.orm.core.repository.ProjectionRepository;
-import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.QueryBuilder;
-import st.orm.core.template.QueryTemplate;
-import st.orm.core.template.SqlDialect;
-import st.orm.core.template.TemplateString;
-
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.util.Collections;
 import java.util.List;
@@ -44,15 +37,21 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-
-import static java.lang.Thread.currentThread;
-import static java.util.Arrays.asList;
-import static java.util.Objects.requireNonNullElseGet;
-import static java.util.Optional.ofNullable;
-import static java.util.ServiceLoader.load;
-import static java.util.stream.Collectors.collectingAndThen;
-import static java.util.stream.Collectors.toList;
-import static java.util.stream.StreamSupport.stream;
+import javax.sql.DataSource;
+import st.orm.Data;
+import st.orm.Entity;
+import st.orm.Projection;
+import st.orm.Ref;
+import st.orm.StormConfig;
+import st.orm.core.repository.EntityRepository;
+import st.orm.core.repository.ProjectionRepository;
+import st.orm.core.template.Model;
+import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.QueryBuilder;
+import st.orm.core.template.QueryTemplate;
+import st.orm.core.template.SqlDialect;
+import st.orm.core.template.TemplateString;
+import st.orm.mapping.RecordField;
 
 /**
  * Helper class for loading providers from the storm framework.

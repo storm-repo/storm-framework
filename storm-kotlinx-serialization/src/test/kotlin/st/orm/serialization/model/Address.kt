@@ -8,5 +8,5 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Address(
     val address: String? = null,
-    val city: String? = null
+    val city: String? = null,
 )

@@ -1,11 +1,11 @@
 package st.orm.core.template.impl;
 
-import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static st.orm.core.spi.Providers.getSqlDialect;
 import static st.orm.core.template.impl.SqlParser.clearQuotedIdentifiers;
 import static st.orm.core.template.impl.SqlParser.clearStringLiterals;
+
+import org.junit.jupiter.api.Test;
 
 public class SqlParserTest {
 

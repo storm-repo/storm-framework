@@ -28,5 +28,5 @@ internal data class TransactionOptions(
     val propagation: TransactionPropagation = TransactionPropagation.REQUIRED,
     val isolation: TransactionIsolation? = null,
     val timeoutSeconds: Int? = null,
-    val readOnly: Boolean = false
+    val readOnly: Boolean = false,
 )

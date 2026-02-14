@@ -15,16 +15,14 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Objects.requireNonNull;
+import static java.util.Optional.empty;
+import static st.orm.ResolveScope.CASCADE;
+import static st.orm.ResolveScope.INNER;
+import static st.orm.core.template.impl.RecordReflection.getTableName;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.Data;
-import st.orm.Metamodel;
-import st.orm.core.template.SqlDialect;
-import st.orm.ResolveScope;
-import st.orm.core.template.SqlTemplateException;
-import st.orm.core.template.TableAliasResolver;
-import st.orm.mapping.TableNameResolver;
-
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -36,12 +34,13 @@ import java.util.SequencedCollection;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
-
-import static java.util.Objects.requireNonNull;
-import static java.util.Optional.empty;
-import static st.orm.ResolveScope.CASCADE;
-import static st.orm.ResolveScope.INNER;
-import static st.orm.core.template.impl.RecordReflection.getTableName;
+import st.orm.Data;
+import st.orm.Metamodel;
+import st.orm.ResolveScope;
+import st.orm.core.template.SqlDialect;
+import st.orm.core.template.SqlTemplateException;
+import st.orm.core.template.TableAliasResolver;
+import st.orm.mapping.TableNameResolver;
 
 final class AliasMapper {
 

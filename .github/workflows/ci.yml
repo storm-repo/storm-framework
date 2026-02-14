@@ -21,6 +21,9 @@ jobs:
           java-version: '21'
           cache: 'maven'
 
+      - name: Check formatting
+        run: mvn spotless:check -B
+
       - name: Build and test
         run: mvn verify -B
 

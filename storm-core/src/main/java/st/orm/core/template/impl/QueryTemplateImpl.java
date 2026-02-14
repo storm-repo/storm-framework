@@ -15,25 +15,25 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Objects.requireNonNull;
+
 import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
 import st.orm.Data;
-import st.orm.Ref;
 import st.orm.PersistenceException;
-import st.orm.core.spi.RefFactory;
-import st.orm.core.spi.RefFactoryImpl;
-import st.orm.core.template.PreparedQuery;
-import st.orm.core.template.Query;
+import st.orm.Ref;
 import st.orm.core.spi.Providers;
 import st.orm.core.spi.QueryFactory;
-import st.orm.core.template.SqlDialect;
+import st.orm.core.spi.RefFactory;
+import st.orm.core.spi.RefFactoryImpl;
 import st.orm.core.template.Model;
+import st.orm.core.template.PreparedQuery;
+import st.orm.core.template.Query;
 import st.orm.core.template.QueryBuilder;
 import st.orm.core.template.QueryTemplate;
+import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
-
-import static java.util.Objects.requireNonNull;
 
 class QueryTemplateImpl implements QueryTemplate {
     protected final QueryFactory queryFactory;

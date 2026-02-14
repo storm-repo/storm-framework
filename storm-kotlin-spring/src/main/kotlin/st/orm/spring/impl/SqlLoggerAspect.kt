@@ -31,34 +31,34 @@ import java.util.function.Supplier
 class SqlLoggerAspect {
 
     @Around("@within(sqlLogger)")
-    fun wrapType(joinPoint: ProceedingJoinPoint, sqlLogger: SqlLogger): Any? {
-        return wrap(joinPoint, sqlLogger)
-    }
+    fun wrapType(joinPoint: ProceedingJoinPoint, sqlLogger: SqlLogger): Any? = wrap(joinPoint, sqlLogger)
 
     @Around("@annotation(sqlLogger)")
-    fun wrapMethod(joinPoint: ProceedingJoinPoint, sqlLogger: SqlLogger): Any? {
-        return wrap(joinPoint, sqlLogger)
-    }
+    fun wrapMethod(joinPoint: ProceedingJoinPoint, sqlLogger: SqlLogger): Any? = wrap(joinPoint, sqlLogger)
 
     private fun wrap(joinPoint: ProceedingJoinPoint, sqlLogger: SqlLogger): Any? {
         val logger = sqlLogger.getLogger(joinPoint)
         if (!logger.isEnabledForLevel(sqlLogger.level)) {
             return joinPoint.proceed()
         }
-        return intercept( { it.withInlineParameters(sqlLogger.inlineParameters) }, {
-            val indentedSql = it.statement()
-                .lines()
-                .joinToString(separator = "\n") { "\t$it" }
-            logger.atLevel(sqlLogger.level).log("[SQL] (${joinPoint.signature.toShortString()})\n${indentedSql}")
-            it
-        }, Supplier {
-            joinPoint.proceed()
-        })
+        return intercept(
+            { it.withInlineParameters(sqlLogger.inlineParameters) },
+            {
+                val indentedSql = it.statement()
+                    .lines()
+                    .joinToString(separator = "\n") { "\t$it" }
+                logger.atLevel(sqlLogger.level).log("[SQL] (${joinPoint.signature.toShortString()})\n$indentedSql")
+                it
+            },
+            Supplier {
+                joinPoint.proceed()
+            },
+        )
     }
 
     private fun SqlLogger.getLogger(joinPoint: JoinPoint): Logger = if (this.name.isNotEmpty()) {
-            getLogger(this.name)
-        } else {
-            getLogger(joinPoint.signature.declaringTypeName)
-        }
+        getLogger(this.name)
+    } else {
+        getLogger(joinPoint.signature.declaringTypeName)
+    }
 }

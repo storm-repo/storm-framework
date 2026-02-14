@@ -17,13 +17,12 @@ package st.orm.core.model;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.time.Instant;
+import java.time.LocalDate;
 import lombok.Builder;
 import st.orm.FK;
 import st.orm.Projection;
 import st.orm.Version;
-
-import java.time.Instant;
-import java.time.LocalDate;
 
 /**
  * Simple domain object representing a visit.

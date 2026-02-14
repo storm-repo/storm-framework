@@ -15,29 +15,27 @@
  */
 package st.orm.template.impl;
 
+import static java.lang.System.identityHashCode;
+import static java.lang.reflect.Proxy.newProxyInstance;
+import static java.util.Optional.empty;
+
 import jakarta.annotation.Nonnull;
-
-import st.orm.EntityCallback;
-import st.orm.repository.EntityRepository;
-import st.orm.repository.ProjectionRepository;
-import st.orm.repository.Repository;
-import st.orm.core.spi.ORMReflection;
-import st.orm.core.spi.Providers;
-import st.orm.Entity;
-import st.orm.Projection;
-import st.orm.repository.impl.EntityRepositoryImpl;
-import st.orm.repository.impl.ProjectionRepositoryImpl;
-import st.orm.template.ORMTemplate;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Optional;
-
-import static java.lang.System.identityHashCode;
-import static java.lang.reflect.Proxy.newProxyInstance;
-import static java.util.Optional.empty;
+import st.orm.Entity;
+import st.orm.EntityCallback;
+import st.orm.Projection;
+import st.orm.core.spi.ORMReflection;
+import st.orm.core.spi.Providers;
+import st.orm.repository.EntityRepository;
+import st.orm.repository.ProjectionRepository;
+import st.orm.repository.Repository;
+import st.orm.repository.impl.EntityRepositoryImpl;
+import st.orm.repository.impl.ProjectionRepositoryImpl;
+import st.orm.template.ORMTemplate;
 
 public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTemplate {
     private static final ORMReflection REFLECTION = Providers.getORMReflection();

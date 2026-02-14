@@ -15,24 +15,18 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Collections.nCopies;
+import static java.util.List.copyOf;
+import static java.util.Objects.requireNonNull;
+import static java.util.Optional.empty;
+import static java.util.Optional.ofNullable;
+import static java.util.stream.Collectors.toSet;
+import static st.orm.EnumType.NAME;
+import static st.orm.core.spi.Providers.getORMConverter;
+import static st.orm.core.template.impl.RecordReflection.isRecord;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.Data;
-import st.orm.DbEnum;
-import st.orm.FK;
-import st.orm.Metamodel;
-import st.orm.PK;
-import st.orm.Ref;
-import st.orm.core.spi.ORMConverter;
-import st.orm.core.spi.ORMReflection;
-import st.orm.core.spi.Providers;
-import st.orm.core.template.Column;
-import st.orm.core.template.Model;
-import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlTemplateException;
-import st.orm.mapping.RecordField;
-import st.orm.mapping.RecordType;
-
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -48,16 +42,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiConsumer;
-
-import static java.util.Collections.nCopies;
-import static java.util.List.copyOf;
-import static java.util.Objects.requireNonNull;
-import static java.util.Optional.empty;
-import static java.util.Optional.ofNullable;
-import static java.util.stream.Collectors.toSet;
-import static st.orm.EnumType.NAME;
-import static st.orm.core.spi.Providers.getORMConverter;
-import static st.orm.core.template.impl.RecordReflection.isRecord;
+import st.orm.Data;
+import st.orm.DbEnum;
+import st.orm.FK;
+import st.orm.Metamodel;
+import st.orm.PK;
+import st.orm.Ref;
+import st.orm.core.spi.ORMConverter;
+import st.orm.core.spi.ORMReflection;
+import st.orm.core.spi.Providers;
+import st.orm.core.template.Column;
+import st.orm.core.template.Model;
+import st.orm.core.template.SqlDialect;
+import st.orm.core.template.SqlTemplateException;
+import st.orm.mapping.RecordField;
+import st.orm.mapping.RecordType;
 
 /**
  * Default {@link Model} implementation backed by {@link RecordType} and precomputed column metadata.

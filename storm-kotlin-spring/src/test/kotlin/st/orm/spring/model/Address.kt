@@ -8,5 +8,5 @@ import st.orm.FK
 @JvmRecord
 data class Address(
     val address: String? = null,
-    @FK val city: City? = null
+    @FK val city: City? = null,
 )

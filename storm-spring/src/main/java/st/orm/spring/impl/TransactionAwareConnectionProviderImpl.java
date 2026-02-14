@@ -17,14 +17,13 @@ package st.orm.spring.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.sql.Connection;
+import javax.sql.DataSource;
 import org.springframework.jdbc.CannotGetJdbcConnectionException;
 import org.springframework.jdbc.datasource.DataSourceUtils;
 import st.orm.PersistenceException;
 import st.orm.core.spi.ConnectionProvider;
 import st.orm.core.spi.TransactionContext;
-
-import javax.sql.DataSource;
-import java.sql.Connection;
 
 public class TransactionAwareConnectionProviderImpl implements ConnectionProvider {
 

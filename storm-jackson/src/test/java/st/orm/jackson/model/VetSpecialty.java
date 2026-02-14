@@ -1,13 +1,13 @@
 package st.orm.jackson.model;
 
+import static st.orm.GenerationStrategy.NONE;
+
 import jakarta.annotation.Nonnull;
 import lombok.Builder;
 import st.orm.Entity;
 import st.orm.FK;
 import st.orm.PK;
 import st.orm.Persist;
-
-import static st.orm.GenerationStrategy.NONE;
 
 @Builder(toBuilder = true)
 public record VetSpecialty(

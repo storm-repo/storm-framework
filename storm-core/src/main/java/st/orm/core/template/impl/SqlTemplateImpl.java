@@ -15,12 +15,23 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Objects.requireNonNull;
+import static st.orm.core.spi.Providers.getSqlDialect;
+import static st.orm.core.template.impl.ElementRouter.getElementProcessor;
+import static st.orm.core.template.impl.SqlInterceptorManager.intercept;
+
 import jakarta.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.BindVars;
-import st.orm.StormConfig;
 import st.orm.Element;
+import st.orm.StormConfig;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplate;
@@ -31,18 +42,6 @@ import st.orm.core.template.impl.TemplatePreparation.BindingContext;
 import st.orm.mapping.ColumnNameResolver;
 import st.orm.mapping.ForeignKeyResolver;
 import st.orm.mapping.TableNameResolver;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-
-import static java.util.Objects.requireNonNull;
-import static st.orm.core.spi.Providers.getSqlDialect;
-import static st.orm.core.template.impl.ElementRouter.getElementProcessor;
-import static st.orm.core.template.impl.SqlInterceptorManager.intercept;
 
 /**
  * The sql template implementation that is responsible for generating SQL queries.

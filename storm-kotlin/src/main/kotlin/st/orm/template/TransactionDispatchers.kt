@@ -41,7 +41,9 @@ object TransactionDispatchers {
      */
     var Default: CoroutineDispatcher
         get() = overrideRef.get() ?: resolveDefault()
-        set(value) { overrideRef.set(value) }
+        set(value) {
+            overrideRef.set(value)
+        }
 
     /**
      * Virtual-thread dispatcher (created lazily).
@@ -57,9 +59,7 @@ object TransactionDispatchers {
         (Virtual as? Closeable)?.close()
     }
 
-    private fun resolveDefault(): CoroutineDispatcher {
-        return if (isVirtualThreadsEnabled()) Virtual else Dispatchers.IO
-    }
+    private fun resolveDefault(): CoroutineDispatcher = if (isVirtualThreadsEnabled()) Virtual else Dispatchers.IO
 
     private fun isVirtualThreadsEnabled(): Boolean {
         // Explicit property takes precedence, otherwise enable only if Java >= 24 to prevent pinning issues with

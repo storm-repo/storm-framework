@@ -12,5 +12,5 @@ data class OwnerView(
     val lastName: String,
     val address: Address,
     val telephone: String?,
-    @Version val version: Int
+    @Version val version: Int,
 ) : Projection<Int>

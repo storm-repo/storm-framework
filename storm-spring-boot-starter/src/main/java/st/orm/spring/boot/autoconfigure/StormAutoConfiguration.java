@@ -15,6 +15,10 @@
  */
 package st.orm.spring.boot.autoconfigure;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import javax.sql.DataSource;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -24,11 +28,6 @@ import org.springframework.context.annotation.Bean;
 import st.orm.EntityCallback;
 import st.orm.StormConfig;
 import st.orm.template.ORMTemplate;
-
-import javax.sql.DataSource;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Auto-configuration for the Storm ORM framework.

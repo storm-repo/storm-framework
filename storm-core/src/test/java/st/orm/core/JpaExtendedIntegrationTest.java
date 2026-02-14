@@ -1,31 +1,24 @@
 package st.orm.core;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import st.orm.PersistenceException;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-import st.orm.StormConfig;
-import st.orm.core.model.City;
-import st.orm.core.model.Owner;
-import st.orm.core.model.Pet;
-import st.orm.core.model.Vet;
-import st.orm.core.model.VetView;
-import st.orm.core.model.Visit;
-import st.orm.core.template.JpaTemplate;
-import st.orm.core.template.ORMTemplate;
-
-import java.util.Map;
-import java.util.Objects;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static st.orm.core.template.JpaTemplate.ORM;
 import static st.orm.core.template.TemplateString.raw;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.PersistenceException;
+import st.orm.StormConfig;
+import st.orm.core.model.Vet;
+import st.orm.core.template.JpaTemplate;
+import st.orm.core.template.ORMTemplate;
 
 /**
  * Extended integration tests for JPA-backed template operations.

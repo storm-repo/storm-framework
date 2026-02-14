@@ -17,15 +17,14 @@ package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.List;
+import java.util.Optional;
 import st.orm.Data;
 import st.orm.core.template.SqlTemplate.BindVariables;
 import st.orm.core.template.SqlTemplate.Parameter;
 import st.orm.core.template.impl.Elements.Insert;
 import st.orm.core.template.impl.Elements.Set;
 import st.orm.core.template.impl.Elements.Table;
-
-import java.util.List;
-import java.util.Optional;
 
 /**
  * Represents the generated SQL statement with parameters.
@@ -87,7 +86,7 @@ public interface Sql {
     /**
      * The primary key that have been auto generated as part of in insert statement.
      *
-     * <p><strong>Note:</strong> The generated keys are only set when the SQL is generated using an {@link Insert} 
+     * <p><strong>Note:</strong> The generated keys are only set when the SQL is generated using an {@link Insert}
      * element, either directly or indirectly using {@link Table}.</p>
      */
     List<String> generatedKeys();
@@ -104,7 +103,7 @@ public interface Sql {
     /**
      * Returns {@code true} if the statement is version aware, {@code false} otherwise.
      *
-     * <p><strong>Note:</strong> The version-aware flag is only set when the SQL is generated using a {@link Set} 
+     * <p><strong>Note:</strong> The version-aware flag is only set when the SQL is generated using a {@link Set}
      * element.</p>
      */
     boolean versionAware();

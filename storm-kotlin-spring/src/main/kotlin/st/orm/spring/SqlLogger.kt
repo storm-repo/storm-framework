@@ -39,6 +39,8 @@ import kotlin.annotation.AnnotationTarget.FUNCTION
  */
 @Target(FUNCTION, CLASS)
 @Retention(RUNTIME)
-annotation class SqlLogger(val inlineParameters: Boolean = false,
-                           val level: Level = INFO,
-                           val name: String = "")
+annotation class SqlLogger(
+    val inlineParameters: Boolean = false,
+    val level: Level = INFO,
+    val name: String = "",
+)

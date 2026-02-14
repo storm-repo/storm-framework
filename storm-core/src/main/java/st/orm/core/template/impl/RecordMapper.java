@@ -15,13 +15,35 @@
  */
 package st.orm.core.template.impl;
 
+import static java.lang.System.arraycopy;
+import static java.util.Collections.addAll;
+import static java.util.Optional.empty;
+import static java.util.Optional.ofNullable;
+import static st.orm.EnumType.NAME;
+import static st.orm.UpdateMode.OFF;
+import static st.orm.core.repository.impl.DirtySupport.getUpdateMode;
+import static st.orm.core.spi.Providers.getORMConverter;
+import static st.orm.core.template.impl.RecordReflection.findPkField;
+import static st.orm.core.template.impl.RecordReflection.getRecordType;
+import static st.orm.core.template.impl.RecordReflection.getRefDataType;
+import static st.orm.core.template.impl.RecordReflection.getRefPkType;
+import static st.orm.core.template.impl.RecordReflection.isRecord;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.lang.reflect.Constructor;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.regex.Pattern;
 import st.orm.Data;
+import st.orm.DbEnum;
 import st.orm.Entity;
 import st.orm.EnumType;
-import st.orm.DbEnum;
 import st.orm.Ref;
+import st.orm.StormConfig;
 import st.orm.core.spi.CacheRetention;
 import st.orm.core.spi.EntityCache;
 import st.orm.core.spi.RefFactory;
@@ -30,30 +52,6 @@ import st.orm.core.spi.WeakInterner;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.mapping.RecordField;
 import st.orm.mapping.RecordType;
-
-import java.lang.reflect.Constructor;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.regex.Pattern;
-
-import static java.lang.System.arraycopy;
-import static java.util.Collections.addAll;
-import static java.util.Optional.empty;
-import static java.util.Optional.ofNullable;
-import st.orm.StormConfig;
-
-import static st.orm.EnumType.NAME;
-import static st.orm.UpdateMode.OFF;
-import static st.orm.core.repository.impl.DirtySupport.getUpdateMode;
-import static st.orm.core.spi.Providers.getORMConverter;
-import static st.orm.core.template.impl.RecordReflection.findPkField;
-import static st.orm.core.template.impl.RecordReflection.getRecordType;
-import static st.orm.core.template.impl.RecordReflection.getRefPkType;
-import static st.orm.core.template.impl.RecordReflection.getRefDataType;
-import static st.orm.core.template.impl.RecordReflection.isRecord;
 
 /**
  * Factory for creating {@link ObjectMapper} instances that construct Java records from JDBC result set columns.

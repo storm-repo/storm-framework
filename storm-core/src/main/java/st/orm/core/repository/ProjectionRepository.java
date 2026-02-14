@@ -16,18 +16,17 @@
 package st.orm.core.repository;
 
 import jakarta.annotation.Nonnull;
-import st.orm.Data;
-import st.orm.Ref;
-import st.orm.NoResultException;
-import st.orm.PersistenceException;
-import st.orm.core.template.Model;
-import st.orm.core.template.QueryBuilder;
-import st.orm.core.template.TemplateString;
-import st.orm.Projection;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
+import st.orm.Data;
+import st.orm.NoResultException;
+import st.orm.PersistenceException;
+import st.orm.Projection;
+import st.orm.Ref;
+import st.orm.core.template.Model;
+import st.orm.core.template.QueryBuilder;
+import st.orm.core.template.TemplateString;
 
 /**
  * Provides a generic interface with read operations for projections.
@@ -43,7 +42,7 @@ import java.util.stream.Stream;
  * @param <ID> the type of the primary key of the projection, or {@link Void} if the projection has no primary key.
  */
 public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repository {
-    
+
     /**
      * Returns the default slice size applied by the repository.
      *
@@ -274,7 +273,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      */
     List<P> findAllById(@Nonnull Iterable<ID> ids);
 
-    /** 
+    /**
      * Retrieves a list of projections based on their primary keys.
      *
      * <p>This method retrieves projections matching the provided IDs in batches, consolidating them into a single list.

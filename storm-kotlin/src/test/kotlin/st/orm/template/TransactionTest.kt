@@ -25,7 +25,7 @@ import kotlin.test.assertFalse
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
 open class TransactionTest(
-    @Autowired val orm: ORMTemplate
+    @Autowired val orm: ORMTemplate,
 ) {
 
     @AfterEach
@@ -35,7 +35,7 @@ open class TransactionTest(
             propagation = REQUIRED,
             isolation = null,
             timeoutSeconds = null,
-            readOnly = false
+            readOnly = false,
         )
     }
 
@@ -348,7 +348,7 @@ open class TransactionTest(
 
     @Test
     fun `uncommitted deleteAll should be visible with READ_UNCOMMITTED`(): Unit = runBlocking {
-        val started  = CompletableDeferred<Unit>()
+        val started = CompletableDeferred<Unit>()
         val sawEmpty = CompletableDeferred<Boolean>()
         // Transaction1: deleteAll but delay before commit.
         launch {
@@ -392,8 +392,8 @@ open class TransactionTest(
 
     @Test
     fun `non-repeatable read of deleteAll should occur with READ_COMMITTED`(): Unit = runBlocking {
-        val deleted      = CompletableDeferred<Unit>()
-        val firstExists  = CompletableDeferred<Boolean>()
+        val deleted = CompletableDeferred<Unit>()
+        val firstExists = CompletableDeferred<Boolean>()
         val secondExists = CompletableDeferred<Boolean>()
         // Transaction: after a short delay, deleteAll and commit.
         launch {
@@ -406,9 +406,9 @@ open class TransactionTest(
         // Transaction2: under READ_COMMITTED we expect a non-repeatable read of existence.
         launch {
             transaction(isolation = READ_COMMITTED) {
-                firstExists.complete(orm.exists<Visit>())   // should be true
+                firstExists.complete(orm.exists<Visit>()) // should be true
                 deleted.await()
-                secondExists.complete(orm.exists<Visit>())  // should be false
+                secondExists.complete(orm.exists<Visit>()) // should be false
             }
         }
         firstExists.await().shouldBeTrue()
@@ -417,8 +417,8 @@ open class TransactionTest(
 
     @Test
     fun `non-repeatable read of deleteAll should not occur with REPEATABLE_READ`(): Unit = runBlocking {
-        val deleted      = CompletableDeferred<Unit>()
-        val firstExists  = CompletableDeferred<Boolean>()
+        val deleted = CompletableDeferred<Unit>()
+        val firstExists = CompletableDeferred<Boolean>()
         val secondExists = CompletableDeferred<Boolean>()
         // Transaction1: after a short delay, deleteAll and commit.
         launch {
@@ -431,9 +431,9 @@ open class TransactionTest(
         // Transaction2: under REPEATABLE_READ we expect repeatable existence
         launch {
             transaction(isolation = REPEATABLE_READ) {
-                firstExists.complete(orm.exists<Visit>())   // should be true
+                firstExists.complete(orm.exists<Visit>()) // should be true
                 deleted.await()
-                secondExists.complete(orm.exists<Visit>())  // should still be true
+                secondExists.complete(orm.exists<Visit>()) // should still be true
             }
         }
         firstExists.await().shouldBeTrue()
@@ -475,10 +475,10 @@ open class TransactionTest(
                 orm.deleteAll<Visit>()
                 orm.query(
                     """
-                        SELECT COUNT(*) 
+                        SELECT COUNT(*)
                         FROM SYSTEM_RANGE(1, 1_000_000) AS A
                         CROSS JOIN SYSTEM_RANGE(1, 1_000_000) AS B
-                    """.trimIndent()
+                    """.trimIndent(),
                 ).singleResult
             }
         }
@@ -545,19 +545,19 @@ open class TransactionTest(
                     val job1 = launch(Dispatchers.IO) {
                         orm.query(
                             """
-                                SELECT COUNT(*) 
+                                SELECT COUNT(*)
                                 FROM SYSTEM_RANGE(1, 1_000_000) AS A
                                 CROSS JOIN SYSTEM_RANGE(1, 1_000_000) AS B
-                            """.trimIndent()
+                            """.trimIndent(),
                         ).singleResult
                     }
                     val job2 = launch(Dispatchers.IO) {
                         orm.query(
                             """
-                            SELECT COUNT(*) 
+                            SELECT COUNT(*)
                             FROM SYSTEM_RANGE(1, 1_000_000) AS A
                             CROSS JOIN SYSTEM_RANGE(1, 1_000_000) AS B
-                        """.trimIndent()
+                            """.trimIndent(),
                         ).singleResult
                     }
                     joinAll(job1, job2)
@@ -603,10 +603,10 @@ open class TransactionTest(
         transactionBlocking {
             transactionBlocking(REQUIRED) {
                 orm.deleteAll<Visit>()
-                setRollbackOnly()               // Inner marks global tx rollback-only.
+                setRollbackOnly() // Inner marks global tx rollback-only.
             }
             orm.exists<Visit>().shouldBeFalse() // Mid-scope still sees uncommitted change.
-            setRollbackOnly()                   // Outer makes rollback explicit/expected.
+            setRollbackOnly() // Outer makes rollback explicit/expected.
             // exit -> should roll back WITHOUT throwing UnexpectedRollbackException.
         }
         orm.exists<Visit>().shouldBeTrue()

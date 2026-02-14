@@ -24,14 +24,12 @@ import st.orm.template.model.*
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
 open class QueryBuilderTest(
-    @Autowired val orm: ORMTemplate
+    @Autowired val orm: ORMTemplate,
 ) {
 
     // Helper to get a typed metamodel from column for use in typed where/orderBy calls.
     @Suppress("UNCHECKED_CAST")
-    private fun <T : st.orm.Data, V> metamodel(model: Model<*, *>, columnName: String): Metamodel<T, V> {
-        return model.columns.first { it.name == columnName }.metamodel as Metamodel<T, V>
-    }
+    private fun <T : st.orm.Data, V> metamodel(model: Model<*, *>, columnName: String): Metamodel<T, V> = model.columns.first { it.name == columnName }.metamodel as Metamodel<T, V>
 
     // --- WHERE clause tests ---
 
@@ -592,7 +590,7 @@ open class QueryBuilderTest(
         val firstNamePath = metamodel<Owner, String>(repo.model, "first_name")
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
         val result = repo.select().where(
-            (firstNamePath eq "Harold") and (lastNamePath eq "Davis")
+            (firstNamePath eq "Harold") and (lastNamePath eq "Davis"),
         ).resultList
         result shouldHaveSize 1
         result[0].firstName shouldBe "Harold"
@@ -603,7 +601,7 @@ open class QueryBuilderTest(
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
         val result = repo.select().where(
-            (namePath eq "Madison") or (namePath eq "Windsor")
+            (namePath eq "Madison") or (namePath eq "Windsor"),
         ).resultList
         result shouldHaveSize 2
     }

@@ -15,8 +15,20 @@
  */
 package st.orm.core.repository.impl;
 
+import static st.orm.DirtyCheck.INSTANCE;
+import static st.orm.DirtyCheck.VALUE;
+import static st.orm.UpdateMode.ENTITY;
+import static st.orm.UpdateMode.FIELD;
+import static st.orm.UpdateMode.OFF;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.BitSet;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.Data;
@@ -24,26 +36,12 @@ import st.orm.DirtyCheck;
 import st.orm.DynamicUpdate;
 import st.orm.Entity;
 import st.orm.Metamodel;
+import st.orm.StormConfig;
 import st.orm.UpdateMode;
 import st.orm.core.spi.EntityCache;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.mapping.RecordType;
-
-import java.util.BitSet;
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
-import st.orm.StormConfig;
-
-import static st.orm.DirtyCheck.INSTANCE;
-import static st.orm.DirtyCheck.VALUE;
-import static st.orm.UpdateMode.ENTITY;
-import static st.orm.UpdateMode.FIELD;
-import static st.orm.UpdateMode.OFF;
 
 /**
  * Determines which fields of an entity are considered dirty for update purposes.

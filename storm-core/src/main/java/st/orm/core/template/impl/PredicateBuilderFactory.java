@@ -15,6 +15,8 @@
  */
 package st.orm.core.template.impl;
 
+import static st.orm.core.template.TemplateString.wrap;
+
 import jakarta.annotation.Nonnull;
 import st.orm.Data;
 import st.orm.Metamodel;
@@ -23,8 +25,6 @@ import st.orm.Ref;
 import st.orm.core.template.PredicateBuilder;
 import st.orm.core.template.impl.Elements.ObjectExpression;
 import st.orm.core.template.impl.QueryBuilderImpl.PredicateBuilderImpl;
-
-import static st.orm.core.template.TemplateString.wrap;
 
 /**
  * Factory for creating instances of {@link PredicateBuilder}.

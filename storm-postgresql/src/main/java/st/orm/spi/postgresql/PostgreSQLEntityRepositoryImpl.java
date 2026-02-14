@@ -15,24 +15,17 @@
  */
 package st.orm.spi.postgresql;
 
+import static java.util.function.Predicate.not;
+import static st.orm.GenerationStrategy.SEQUENCE;
+import static st.orm.core.repository.impl.StreamSupport.partitioned;
+import static st.orm.core.template.SqlInterceptor.intercept;
+import static st.orm.core.template.TemplateString.combine;
+import static st.orm.core.template.TemplateString.raw;
+import static st.orm.core.template.Templates.table;
+import static st.orm.core.template.impl.StringTemplates.flatten;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.Data;
-import st.orm.Metamodel;
-import st.orm.core.repository.EntityRepository;
-import st.orm.core.template.PreparedQuery;
-import st.orm.core.spi.EntityCache;
-import st.orm.core.repository.impl.EntityRepositoryImpl;
-import st.orm.core.template.Column;
-import st.orm.core.template.Model;
-import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.Query;
-import st.orm.core.template.TemplateString;
-import st.orm.Entity;
-import st.orm.NoResultException;
-import st.orm.NonUniqueResultException;
-import st.orm.PersistenceException;
-
 import java.math.BigInteger;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -45,15 +38,21 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
-
-import static java.util.function.Predicate.not;
-import static st.orm.GenerationStrategy.SEQUENCE;
-import static st.orm.core.repository.impl.StreamSupport.partitioned;
-import static st.orm.core.template.Templates.table;
-import static st.orm.core.template.SqlInterceptor.intercept;
-import static st.orm.core.template.TemplateString.combine;
-import static st.orm.core.template.TemplateString.raw;
-import static st.orm.core.template.impl.StringTemplates.flatten;
+import st.orm.Data;
+import st.orm.Entity;
+import st.orm.Metamodel;
+import st.orm.NoResultException;
+import st.orm.NonUniqueResultException;
+import st.orm.PersistenceException;
+import st.orm.core.repository.EntityRepository;
+import st.orm.core.repository.impl.EntityRepositoryImpl;
+import st.orm.core.spi.EntityCache;
+import st.orm.core.template.Column;
+import st.orm.core.template.Model;
+import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.PreparedQuery;
+import st.orm.core.template.Query;
+import st.orm.core.template.TemplateString;
 
 /**
  * Implementation of {@link EntityRepository} for PostgreSQL.

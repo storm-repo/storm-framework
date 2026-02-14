@@ -23,58 +23,34 @@ import kotlin.reflect.KClass
 
 open class QueryTemplateImpl(private val core: st.orm.core.template.QueryTemplate) : QueryTemplate {
 
-    override fun createBindVars(): BindVars {
-        return core.createBindVars()
-    }
+    override fun createBindVars(): BindVars = core.createBindVars()
 
-    override fun <T : Data, ID : Any> ref(type: KClass<T>, id: ID): Ref<T> {
-        return core.ref<T, ID>(type.java, id)
-    }
+    override fun <T : Data, ID : Any> ref(type: KClass<T>, id: ID): Ref<T> = core.ref<T, ID>(type.java, id)
 
-    override fun <T : Data, ID : Any> ref(record: T, id: ID): Ref<T> {
-        return core.ref<T, ID>(record, id)
-    }
+    override fun <T : Data, ID : Any> ref(record: T, id: ID): Ref<T> = core.ref<T, ID>(record, id)
 
-    override fun <T : Data> model(type: KClass<T>): Model<T, *> {
-        return ModelImpl(core.model(type.java))
-    }
+    override fun <T : Data> model(type: KClass<T>): Model<T, *> = ModelImpl(core.model(type.java))
 
-    override fun <T : Data> model(type: KClass<T>, requirePrimaryKey: Boolean): Model<T, *> {
-        return ModelImpl(core.model(type.java, requirePrimaryKey))
-    }
+    override fun <T : Data> model(type: KClass<T>, requirePrimaryKey: Boolean): Model<T, *> = ModelImpl(core.model(type.java, requirePrimaryKey))
 
     override fun <T : Data, R : Any> selectFrom(
         fromType: KClass<T>,
         selectType: KClass<R>,
-        template: TemplateString
-    ): QueryBuilder<T, R, *> {
-        return QueryBuilderImpl(core.selectFrom(fromType.java, selectType.java, template.unwrap))
-    }
+        template: TemplateString,
+    ): QueryBuilder<T, R, *> = QueryBuilderImpl(core.selectFrom(fromType.java, selectType.java, template.unwrap))
 
-    override fun <T : Data> deleteFrom(fromType: KClass<T>): QueryBuilder<T, *, *> {
-        return QueryBuilderImpl(core.deleteFrom<T>(fromType.java))
-    }
+    override fun <T : Data> deleteFrom(fromType: KClass<T>): QueryBuilder<T, *, *> = QueryBuilderImpl(core.deleteFrom<T>(fromType.java))
 
-    override fun query(query: String): Query {
-        return QueryImpl(core.query(query))
-    }
+    override fun query(query: String): Query = QueryImpl(core.query(query))
 
-    override fun query(template: TemplateString): Query {
-        return QueryImpl(core.query(template.unwrap))
-    }
+    override fun query(template: TemplateString): Query = QueryImpl(core.query(template.unwrap))
 
-    override fun <T : Data> subquery(fromType: KClass<T>): QueryBuilder<T, *, *> {
-        return QueryBuilderImpl(core.subquery(fromType.java))
-    }
+    override fun <T : Data> subquery(fromType: KClass<T>): QueryBuilder<T, *, *> = QueryBuilderImpl(core.subquery(fromType.java))
 
     override fun <T : Data, R : Data> subquery(
         fromType: KClass<T>,
-        selectType: KClass<R>
-    ): QueryBuilder<T, *, *> {
-        return QueryBuilderImpl(core.subquery(fromType.java, selectType.java))
-    }
+        selectType: KClass<R>,
+    ): QueryBuilder<T, *, *> = QueryBuilderImpl(core.subquery(fromType.java, selectType.java))
 
-    override fun <T : Data> subquery(fromType: KClass<T>, template: TemplateString): QueryBuilder<T, *, *> {
-        return QueryBuilderImpl(core.subquery<T>(fromType.java, template.unwrap))
-    }
+    override fun <T : Data> subquery(fromType: KClass<T>, template: TemplateString): QueryBuilder<T, *, *> = QueryBuilderImpl(core.subquery<T>(fromType.java, template.unwrap))
 }

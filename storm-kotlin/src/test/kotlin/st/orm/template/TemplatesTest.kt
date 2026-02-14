@@ -27,7 +27,7 @@ import javax.sql.DataSource
 @Sql("/data.sql")
 open class TemplatesTest(
     @Autowired val orm: ORMTemplate,
-    @Autowired val dataSource: DataSource
+    @Autowired val dataSource: DataSource,
 ) {
 
     // ======================================================================
@@ -595,7 +595,9 @@ open class TemplatesTest(
     fun `create predicate builder should return PredicateBuilder`() {
         val metamodel = Metamodel.of<City, Int>(City::class.java, "id")
         val predicate = st.orm.template.impl.create<City, City, Int>(
-            metamodel, Operator.IN, listOf(1, 2, 3)
+            metamodel,
+            Operator.IN,
+            listOf(1, 2, 3),
         )
         predicate.shouldNotBe(null)
         predicate.shouldBeInstanceOf<PredicateBuilder<*, *, *>>()
@@ -605,7 +607,9 @@ open class TemplatesTest(
     fun `createWithId predicate builder should return PredicateBuilder`() {
         val metamodel = Metamodel.of<City, Int>(City::class.java, "id")
         val predicate = st.orm.template.impl.createWithId<City, City, Int, Int>(
-            metamodel, Operator.IN, listOf(1, 2, 3)
+            metamodel,
+            Operator.IN,
+            listOf(1, 2, 3),
         )
         predicate.shouldNotBe(null)
         predicate.shouldBeInstanceOf<PredicateBuilder<*, *, *>>()
@@ -615,10 +619,14 @@ open class TemplatesTest(
     fun `predicate builder or composition should return PredicateBuilder`() {
         val metamodel = Metamodel.of<City, Int>(City::class.java, "id")
         val p1 = st.orm.template.impl.create<City, City, Int>(
-            metamodel, Operator.IN, listOf(1, 2)
+            metamodel,
+            Operator.IN,
+            listOf(1, 2),
         )
         val p2 = st.orm.template.impl.create<City, City, Int>(
-            metamodel, Operator.IN, listOf(3, 4)
+            metamodel,
+            Operator.IN,
+            listOf(3, 4),
         )
         val combined = p1 or p2
         combined.shouldNotBe(null)
@@ -629,10 +637,14 @@ open class TemplatesTest(
     fun `predicate builder and composition should return PredicateBuilder`() {
         val metamodel = Metamodel.of<City, Int>(City::class.java, "id")
         val p1 = st.orm.template.impl.create<City, City, Int>(
-            metamodel, Operator.EQUALS, listOf(1)
+            metamodel,
+            Operator.EQUALS,
+            listOf(1),
         )
         val p2 = st.orm.template.impl.create<City, City, Int>(
-            metamodel, Operator.EQUALS, listOf(2)
+            metamodel,
+            Operator.EQUALS,
+            listOf(2),
         )
         val combined = p1 and p2
         combined.shouldNotBe(null)

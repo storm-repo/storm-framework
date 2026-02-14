@@ -16,9 +16,8 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
-import st.orm.Entity;
-
 import java.util.Optional;
+import st.orm.Entity;
 
 /**
  * Transaction-local cache that interns entities by primary key.

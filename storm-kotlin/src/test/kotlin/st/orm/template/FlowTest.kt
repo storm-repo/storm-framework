@@ -16,7 +16,7 @@ import st.orm.template.model.Visit
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
 open class FlowTest(
-    @Autowired val orm: ORMTemplate
+    @Autowired val orm: ORMTemplate,
 ) {
 
     // --- Flow operations without explicit transaction ---

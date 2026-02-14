@@ -258,9 +258,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a new query builder for the specialized `selectType`.
      * @param <R> the result type of the query.
      */
-    fun <R : Any> select(selectType: KClass<R>, template: TemplateBuilder): QueryBuilder<E, R, ID> {
-        return select(selectType, template.build())
-    }
+    fun <R : Any> select(selectType: KClass<R>, template: TemplateBuilder): QueryBuilder<E, R, ID> = select(selectType, template.build())
 
     /**
      * Creates a new query builder for the specialized `selectType` and specialized `template` for the select clause.
@@ -1165,7 +1163,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * violation of database constraints, connectivity issues, or if any entity in the
      * flow is null.
      */
-    fun insertAndFetchIds(entities: Flow<E>, batchSize: Int) : Flow<ID>
+    fun insertAndFetchIds(entities: Flow<E>, batchSize: Int): Flow<ID>
 
     /**
      * Inserts a flow of entities into the database with the insertion process divided into batches of the specified size,
@@ -1438,8 +1436,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      *
      * @return a list containing all entities.
      */
-    fun findAllRef(): List<Ref<E>> =
-        selectRef().resultList
+    fun findAllRef(): List<Ref<E>> = selectRef().resultList
 
     /**
      * Retrieves all entities of type [E] from the repository.
@@ -1454,8 +1451,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      *
      * @return a sequence containing all entities.
      */
-    fun selectAllRef(): Flow<Ref<E>> =
-        selectRef().resultFlow
+    fun selectAllRef(): Flow<Ref<E>> = selectRef().resultFlow
 
     /**
      * Retrieves an optional entity of type [E] based on a single field and its value.
@@ -1465,8 +1461,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V> findBy(field: Metamodel<E, V>, value: V): E? =
-        select().where(field, EQUALS, value).optionalResult
+    fun <V> findBy(field: Metamodel<E, V>, value: V): E? = select().where(field, EQUALS, value).optionalResult
 
     /**
      * Retrieves an optional entity of type [T] based on a single field and its value.
@@ -1476,8 +1471,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V : Data> findBy(field: Metamodel<E, V>, value: Ref<V>): E? =
-        select().where(field, value).optionalResult
+    fun <V : Data> findBy(field: Metamodel<E, V>, value: Ref<V>): E? = select().where(field, value).optionalResult
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -1487,8 +1481,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return list of matching entities.
      */
-    fun <V> findAllBy(field: Metamodel<E, V>, value: V): List<E> =
-        select().where(field, EQUALS, value).resultList
+    fun <V> findAllBy(field: Metamodel<E, V>, value: V): List<E> = select().where(field, EQUALS, value).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -1506,8 +1499,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V> selectBy(field: Metamodel<E, V>, value: V): Flow<E> =
-        select().where(field, EQUALS, value).resultFlow
+    fun <V> selectBy(field: Metamodel<E, V>, value: V): Flow<E> = select().where(field, EQUALS, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -1517,8 +1509,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllBy(field: Metamodel<E, V>, value: Ref<V>): List<E> =
-        select().where(field, value).resultList
+    fun <V : Data> findAllBy(field: Metamodel<E, V>, value: Ref<V>): List<E> = select().where(field, value).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -1536,8 +1527,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Data> selectBy(field: Metamodel<E, V>, value: Ref<V>): Flow<E> =
-        select().where(field, value).resultFlow
+    fun <V : Data> selectBy(field: Metamodel<E, V>, value: Ref<V>): Flow<E> = select().where(field, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1547,8 +1537,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return list of matching entities.
      */
-    fun <V> findAllBy(field: Metamodel<E, V>, values: Iterable<V>): List<E> =
-        select().where(field, IN, values).resultList
+    fun <V> findAllBy(field: Metamodel<E, V>, values: Iterable<V>): List<E> = select().where(field, IN, values).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1566,8 +1555,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return at sequence of matching entities.
      */
-    fun <V> selectBy(field: Metamodel<E, V>, values: Iterable<V>): Flow<E> =
-        select().where(field, IN, values).resultFlow
+    fun <V> selectBy(field: Metamodel<E, V>, values: Iterable<V>): Flow<E> = select().where(field, IN, values).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1577,8 +1565,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): List<E> =
-        select().whereRef(field, values).resultList
+    fun <V : Data> findAllByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): List<E> = select().whereRef(field, values).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1588,8 +1575,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Data> selectByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): Flow<E> =
-        select().whereRef(field, values).resultFlow
+    fun <V : Data> selectByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): Flow<E> = select().whereRef(field, values).resultFlow
 
     /**
      * Retrieves exactly one entity of type [T] based on a single field and its value.
@@ -1601,8 +1587,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V> getBy(field: Metamodel<E, V>, value: V): E =
-        select().where(field, EQUALS, value).singleResult
+    fun <V> getBy(field: Metamodel<E, V>, value: V): E = select().where(field, EQUALS, value).singleResult
 
     /**
      * Retrieves exactly one entity of type [T] based on a single field and its value.
@@ -1614,8 +1599,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V : Data> getBy(field: Metamodel<E, V>, value: Ref<V>): E =
-        select().where(field, value).singleResult
+    fun <V : Data> getBy(field: Metamodel<E, V>, value: Ref<V>): E = select().where(field, value).singleResult
 
     /**
      * Retrieves an optional entity of type [T] based on a single field and its value.
@@ -1625,8 +1609,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <T, ID, V> findRefBy(field: Metamodel<E, V>, value: V): Ref<E>? =
-        selectRef().where(field, EQUALS, value).optionalResult
+    fun <T, ID, V> findRefBy(field: Metamodel<E, V>, value: V): Ref<E>? = selectRef().where(field, EQUALS, value).optionalResult
 
     /**
      * Retrieves an optional entity of type [T] based on a single field and its value.
@@ -1636,8 +1619,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V : Data> findRefBy(field: Metamodel<E, V>, value: Ref<V>): Ref<E>? =
-        selectRef().where(field, value).optionalResult
+    fun <V : Data> findRefBy(field: Metamodel<E, V>, value: Ref<V>): Ref<E>? = selectRef().where(field, value).optionalResult
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -1647,8 +1629,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V> findAllRefBy(field: Metamodel<E, V>, value: V): List<Ref<E>> =
-        selectRef().where(field, EQUALS, value).resultList
+    fun <V> findAllRefBy(field: Metamodel<E, V>, value: V): List<Ref<E>> = selectRef().where(field, EQUALS, value).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -1666,8 +1647,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V> selectRefBy(field: Metamodel<E, V>, value: V): Flow<Ref<E>> =
-        selectRef().where(field, EQUALS, value).resultFlow
+    fun <V> selectRefBy(field: Metamodel<E, V>, value: V): Flow<Ref<E>> = selectRef().where(field, EQUALS, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -1677,8 +1657,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllRefBy(field: Metamodel<E, V>, value: Ref<V>): List<Ref<E>> =
-        selectRef().where(field, value).resultList
+    fun <V : Data> findAllRefBy(field: Metamodel<E, V>, value: Ref<V>): List<Ref<E>> = selectRef().where(field, value).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -1696,8 +1675,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Data> selectRefBy(field: Metamodel<E, V>, value: Ref<V>): Flow<Ref<E>> =
-        selectRef().where(field, value).resultFlow
+    fun <V : Data> selectRefBy(field: Metamodel<E, V>, value: Ref<V>): Flow<Ref<E>> = selectRef().where(field, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1707,8 +1685,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllRefBy(field: Metamodel<E, V>, values: Iterable<V>): List<Ref<E>> =
-        selectRef().where(field, IN, values).resultList
+    fun <V : Data> findAllRefBy(field: Metamodel<E, V>, values: Iterable<V>): List<Ref<E>> = selectRef().where(field, IN, values).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1726,8 +1703,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return a sequence of matching entities.
      */
-    fun <V> selectRefBy(field: Metamodel<E, V>, values: Iterable<V>): Flow<Ref<E>> =
-        selectRef().where(field, IN, values).resultFlow
+    fun <V> selectRefBy(field: Metamodel<E, V>, values: Iterable<V>): Flow<Ref<E>> = selectRef().where(field, IN, values).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1737,8 +1713,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllRefByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): List<Ref<E>> =
-        selectRef().whereRef(field, values).resultList
+    fun <V : Data> findAllRefByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): List<Ref<E>> = selectRef().whereRef(field, values).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1756,8 +1731,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Data> selectRefByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): Flow<Ref<E>> =
-        selectRef().whereRef(field, values).resultFlow
+    fun <V : Data> selectRefByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): Flow<Ref<E>> = selectRef().whereRef(field, values).resultFlow
 
     /**
      * Retrieves exactly one entity of type [T] based on a single field and its value.
@@ -1769,8 +1743,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V> getRefBy(field: Metamodel<E, V>, value: V): Ref<E> =
-        selectRef().where(field, EQUALS, value).singleResult
+    fun <V> getRefBy(field: Metamodel<E, V>, value: V): Ref<E> = selectRef().where(field, EQUALS, value).singleResult
 
     /**
      * Retrieves exactly one entity of type [T] based on a single field and its value.
@@ -1782,24 +1755,21 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V : Data> getRefBy(field: Metamodel<E, V>, value: Ref<V>): Ref<E> =
-        selectRef().where(field, value).singleResult
+    fun <V : Data> getRefBy(field: Metamodel<E, V>, value: Ref<V>): Ref<E> = selectRef().where(field, value).singleResult
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
-    fun findAll(predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>): List<E> =
-        select().whereBuilder(predicate).resultList
+    fun findAll(predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>): List<E> = select().whereBuilder(predicate).resultList
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
-    fun findAll(predicate: PredicateBuilder<E, *, *>): List<E> =
-        select().where(predicate).resultList
+    fun findAll(predicate: PredicateBuilder<E, *, *>): List<E> = select().where(predicate).resultList
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -1807,17 +1777,15 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a list of matching entities.
      */
     fun findAllRef(
-        predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>
-    ): List<Ref<E>> =
-        selectRef().whereBuilder(predicate).resultList
+        predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>,
+    ): List<Ref<E>> = selectRef().whereBuilder(predicate).resultList
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
-    fun findAllRef(predicate: PredicateBuilder<E, *, *>): List<Ref<E>> =
-        selectRef().where(predicate).resultList
+    fun findAllRef(predicate: PredicateBuilder<E, *, *>): List<Ref<E>> = selectRef().where(predicate).resultList
 
     /**
      * Retrieves an optional entity of type [T] matching the specified predicate.
@@ -1826,9 +1794,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return an optional entity, or null if none found.
      */
     fun find(
-        predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>
-    ): E? =
-        select().whereBuilder(predicate).optionalResult
+        predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>,
+    ): E? = select().whereBuilder(predicate).optionalResult
 
     /**
      * Retrieves an optional entity of type [T] matching the specified predicate.
@@ -1837,9 +1804,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return an optional entity, or null if none found.
      */
     fun find(
-        predicate: PredicateBuilder<E, *, *>
-    ): E? =
-        select().where(predicate).optionalResult
+        predicate: PredicateBuilder<E, *, *>,
+    ): E? = select().where(predicate).optionalResult
 
     /**
      * Retrieves an optional entity of type [T] matching the specified predicate.
@@ -1848,9 +1814,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return an optional entity, or null if none found.
      */
     fun findRef(
-        predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>
-    ): Ref<E>? =
-        selectRef().whereBuilder(predicate).optionalResult
+        predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>,
+    ): Ref<E>? = selectRef().whereBuilder(predicate).optionalResult
 
     /**
      * Retrieves an optional entity of type [T] matching the specified predicate.
@@ -1859,9 +1824,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return an optional entity, or null if none found.
      */
     fun findRef(
-        predicate: PredicateBuilder<E, *, *>
-    ): Ref<E>? =
-        selectRef().where(predicate).optionalResult
+        predicate: PredicateBuilder<E, *, *>,
+    ): Ref<E>? = selectRef().where(predicate).optionalResult
 
     /**
      * Retrieves a single entity of type [T] matching the specified predicate.
@@ -1872,9 +1836,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
     fun get(
-        predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>
-    ): E =
-        select().whereBuilder(predicate).singleResult
+        predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>,
+    ): E = select().whereBuilder(predicate).singleResult
 
     /**
      * Retrieves a single entity of type [T] matching the specified predicate.
@@ -1885,9 +1848,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
     fun get(
-        predicate: PredicateBuilder<E, *, *>
-    ): E =
-        select().where(predicate).singleResult
+        predicate: PredicateBuilder<E, *, *>,
+    ): E = select().where(predicate).singleResult
 
     /**
      * Retrieves a single entity of type [T] matching the specified predicate.
@@ -1898,9 +1860,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
     fun getRef(
-        predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>
-    ): Ref<E> =
-        selectRef().whereBuilder(predicate).singleResult
+        predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>,
+    ): Ref<E> = selectRef().whereBuilder(predicate).singleResult
 
     /**
      * Retrieves a single entity of type [T] matching the specified predicate.
@@ -1911,9 +1872,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
     fun getRef(
-        predicate: PredicateBuilder<E, *, *>
-    ): Ref<E> =
-        selectRef().where(predicate).singleResult
+        predicate: PredicateBuilder<E, *, *>,
+    ): Ref<E> = selectRef().where(predicate).singleResult
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -1929,9 +1889,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a sequence of matching entities.
      */
     fun select(
-        predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>
-    ): Flow<E> =
-        select().whereBuilder(predicate).resultFlow
+        predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>,
+    ): Flow<E> = select().whereBuilder(predicate).resultFlow
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -1947,9 +1906,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a sequence of matching entities.
      */
     fun select(
-        predicate: PredicateBuilder<E, *, *>
-    ): Flow<E> =
-        select().where(predicate).resultFlow
+        predicate: PredicateBuilder<E, *, *>,
+    ): Flow<E> = select().where(predicate).resultFlow
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -1965,9 +1923,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a sequence of matching entities.
      */
     fun selectRef(
-        predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>
-    ): Flow<Ref<E>> =
-        selectRef().whereBuilder(predicate).resultFlow
+        predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>,
+    ): Flow<Ref<E>> = selectRef().whereBuilder(predicate).resultFlow
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -1983,9 +1940,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a sequence of matching entities.
      */
     fun selectRef(
-        predicate: PredicateBuilder<E, *, *>
-    ): Flow<Ref<E>> =
-        selectRef().where(predicate).resultFlow
+        predicate: PredicateBuilder<E, *, *>,
+    ): Flow<Ref<E>> = selectRef().where(predicate).resultFlow
 
     /**
      * Counts entities of type [T] matching the specified field and value.
@@ -1996,9 +1952,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      */
     fun <V> countBy(
         field: Metamodel<E, V>,
-        value: V
-    ): Long =
-        selectCount().where(field, EQUALS, value).singleResult
+        value: V,
+    ): Long = selectCount().where(field, EQUALS, value).singleResult
 
     /**
      * Counts entities of type [T] matching the specified field and referenced value.
@@ -2009,9 +1964,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      */
     fun <V : Data> countBy(
         field: Metamodel<E, V>,
-        value: Ref<V>
-    ): Long =
-        selectCount().where(field, value).singleResult
+        value: Ref<V>,
+    ): Long = selectCount().where(field, value).singleResult
 
     /**
      * Counts entities of type [T] matching the specified predicate.
@@ -2020,9 +1974,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return the count of matching entities.
      */
     fun count(
-        predicate: WhereBuilder<E, *, ID>.() -> PredicateBuilder<E, *, *>
-    ): Long =
-        selectCount().whereBuilder(predicate).singleResult
+        predicate: WhereBuilder<E, *, ID>.() -> PredicateBuilder<E, *, *>,
+    ): Long = selectCount().whereBuilder(predicate).singleResult
 
     /**
      * Counts entities of type [T] matching the specified predicate.
@@ -2031,9 +1984,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return the count of matching entities.
      */
     fun count(
-        predicate: PredicateBuilder<E, *, *>
-    ): Long =
-        selectCount().where(predicate).singleResult
+        predicate: PredicateBuilder<E, *, *>,
+    ): Long = selectCount().where(predicate).singleResult
 
     /**
      * Checks if entities of type [T] matching the specified field and value exists.
@@ -2044,9 +1996,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      */
     fun <V> existsBy(
         field: Metamodel<E, V>,
-        value: V
-    ): Boolean =
-        selectCount().where(field, EQUALS, value).singleResult > 0
+        value: V,
+    ): Boolean = selectCount().where(field, EQUALS, value).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified field and referenced value exists.
@@ -2057,9 +2008,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      */
     fun <V : Data> existsBy(
         field: Metamodel<E, V>,
-        value: Ref<V>
-    ): Boolean =
-        selectCount().where(field, value).singleResult > 0
+        value: Ref<V>,
+    ): Boolean = selectCount().where(field, value).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified predicate exists.
@@ -2068,9 +2018,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return true if any matching entities exist, false otherwise.
      */
     fun exists(
-        predicate: WhereBuilder<E, *, ID>.() -> PredicateBuilder<E, *, *>
-    ): Boolean =
-        selectCount().whereBuilder(predicate).singleResult > 0
+        predicate: WhereBuilder<E, *, ID>.() -> PredicateBuilder<E, *, *>,
+    ): Boolean = selectCount().whereBuilder(predicate).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified predicate exists.
@@ -2079,9 +2028,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return true if any matching entities exist, false otherwise.
      */
     fun exists(
-        predicate: PredicateBuilder<E, *, *>
-    ): Boolean =
-        selectCount().where(predicate).singleResult > 0
+        predicate: PredicateBuilder<E, *, *>,
+    ): Boolean = selectCount().where(predicate).singleResult > 0
 
     /**
      * Deletes entities of type [T] matching the specified field and value.
@@ -2092,9 +2040,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      */
     fun <V> deleteAllBy(
         field: Metamodel<E, V>,
-        value: V
-    ): Int =
-        delete().where(field, EQUALS, value).executeUpdate()
+        value: V,
+    ): Int = delete().where(field, EQUALS, value).executeUpdate()
 
     /**
      * Deletes entities of type [T] matching the specified field and referenced value.
@@ -2105,9 +2052,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      */
     fun <V : Data> deleteAllBy(
         field: Metamodel<E, V>,
-        value: Ref<V>
-    ): Int =
-        delete().where(field, value).executeUpdate()
+        value: Ref<V>,
+    ): Int = delete().where(field, value).executeUpdate()
 
     /**
      * Deletes entities of type [T] matching the specified field against multiple values.
@@ -2118,9 +2064,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      */
     fun <V> deleteAllBy(
         field: Metamodel<E, V>,
-        values: Iterable<V>
-    ): Int =
-        delete().where(field, IN, values).executeUpdate()
+        values: Iterable<V>,
+    ): Int = delete().where(field, IN, values).executeUpdate()
 
     /**
      * Deletes entities of type [T] matching the specified field against multiple referenced values.
@@ -2131,9 +2076,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      */
     fun <V : Data> deleteAllByRef(
         field: Metamodel<E, V>,
-        values: Iterable<Ref<V>>
-    ): Int =
-        delete().whereRef(field, values).executeUpdate()
+        values: Iterable<Ref<V>>,
+    ): Int = delete().whereRef(field, values).executeUpdate()
 
     /**
      * Deletes entities of type [T] matching the specified predicate.
@@ -2142,9 +2086,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return the number of entities deleted.
      */
     fun delete(
-        predicate: WhereBuilder<E, *, ID>.() -> PredicateBuilder<E, *, *>
-    ): Int =
-        delete().whereBuilder(predicate).executeUpdate()
+        predicate: WhereBuilder<E, *, ID>.() -> PredicateBuilder<E, *, *>,
+    ): Int = delete().whereBuilder(predicate).executeUpdate()
 
     /**
      * Deletes entities of type [T] matching the specified predicate.
@@ -2152,6 +2095,5 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param predicate Lambda to build the WHERE clause.
      * @return the number of entities deleted.
      */
-    fun delete(predicate: PredicateBuilder<E, *, *>): Int =
-        delete().where(predicate).executeUpdate()
+    fun delete(predicate: PredicateBuilder<E, *, *>): Int = delete().where(predicate).executeUpdate()
 }

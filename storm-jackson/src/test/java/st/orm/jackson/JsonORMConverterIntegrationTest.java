@@ -1,8 +1,22 @@
 package st.orm.jackson;
 
+import static com.fasterxml.jackson.annotation.JsonTypeInfo.Id.NAME;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static st.orm.core.template.ORMTemplate.of;
+import static st.orm.core.template.SqlInterceptor.observe;
+import static st.orm.core.template.TemplateString.raw;
+import static st.orm.core.template.Templates.alias;
+
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import javax.sql.DataSource;
 import lombok.Builder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,21 +37,6 @@ import st.orm.jackson.model.Owner;
 import st.orm.jackson.model.Specialty;
 import st.orm.jackson.model.Vet;
 import st.orm.jackson.model.VetSpecialty;
-
-import javax.sql.DataSource;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
-import static com.fasterxml.jackson.annotation.JsonTypeInfo.Id.NAME;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static st.orm.core.template.Templates.alias;
-import static st.orm.core.template.ORMTemplate.of;
-import static st.orm.core.template.SqlInterceptor.observe;
-import static st.orm.core.template.TemplateString.raw;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)

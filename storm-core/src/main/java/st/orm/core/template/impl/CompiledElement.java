@@ -15,11 +15,11 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Objects.requireNonNull;
+
 import jakarta.annotation.Nonnull;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.BindHint.NoBindHint;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * Represents the SQL result of processing a template element. The result can be either a SQL string or, compilation

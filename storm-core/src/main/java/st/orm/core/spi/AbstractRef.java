@@ -15,10 +15,9 @@
  */
 package st.orm.core.spi;
 
+import java.util.Objects;
 import st.orm.Data;
 import st.orm.Ref;
-
-import java.util.Objects;
 
 /**
  * Abstract implementation of {@link Ref} to have consistent implementations of {@link #hashCode()}

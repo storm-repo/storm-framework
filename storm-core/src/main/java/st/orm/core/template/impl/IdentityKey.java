@@ -15,9 +15,9 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-
 import static java.util.Objects.requireNonNull;
+
+import jakarta.annotation.Nonnull;
 
 final class IdentityKey {
     private final Object ref;

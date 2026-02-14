@@ -15,23 +15,13 @@
  */
 package st.orm.core.template.impl;
 
+import static java.lang.System.identityHashCode;
+import static java.lang.reflect.Proxy.newProxyInstance;
+import static st.orm.core.spi.Providers.getEntityRepository;
+import static st.orm.core.spi.Providers.getProjectionRepository;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.EntityCallback;
-import st.orm.PersistenceException;
-import st.orm.StormConfig;
-import st.orm.Entity;
-import st.orm.Projection;
-import st.orm.core.repository.EntityRepository;
-import st.orm.core.repository.ProjectionRepository;
-import st.orm.core.repository.Repository;
-import st.orm.core.spi.ORMReflection;
-import st.orm.core.spi.Provider;
-import st.orm.core.spi.Providers;
-import st.orm.core.spi.QueryFactory;
-import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.SqlTemplateException;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -41,11 +31,20 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Predicate;
-
-import static java.lang.System.identityHashCode;
-import static java.lang.reflect.Proxy.newProxyInstance;
-import static st.orm.core.spi.Providers.getEntityRepository;
-import static st.orm.core.spi.Providers.getProjectionRepository;
+import st.orm.Entity;
+import st.orm.EntityCallback;
+import st.orm.PersistenceException;
+import st.orm.Projection;
+import st.orm.StormConfig;
+import st.orm.core.repository.EntityRepository;
+import st.orm.core.repository.ProjectionRepository;
+import st.orm.core.repository.Repository;
+import st.orm.core.spi.ORMReflection;
+import st.orm.core.spi.Provider;
+import st.orm.core.spi.Providers;
+import st.orm.core.spi.QueryFactory;
+import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.SqlTemplateException;
 
 public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTemplate {
 

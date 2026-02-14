@@ -1,7 +1,6 @@
 package st.orm;
 
 import jakarta.annotation.Nonnull;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 

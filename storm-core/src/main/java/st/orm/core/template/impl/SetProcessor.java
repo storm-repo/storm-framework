@@ -15,15 +15,9 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import st.orm.BindVars;
-import st.orm.Data;
-import st.orm.Metamodel;
-import st.orm.core.template.Column;
-import st.orm.core.template.Model;
-import st.orm.core.template.SqlTemplateException;
-import st.orm.core.template.impl.Elements.Set;
+import static java.util.stream.Collectors.joining;
 
+import jakarta.annotation.Nonnull;
 import java.math.BigInteger;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -33,8 +27,13 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static java.util.stream.Collectors.joining;
+import st.orm.BindVars;
+import st.orm.Data;
+import st.orm.Metamodel;
+import st.orm.core.template.Column;
+import st.orm.core.template.Model;
+import st.orm.core.template.SqlTemplateException;
+import st.orm.core.template.impl.Elements.Set;
 
 final class SetProcessor implements ElementProcessor<Set> {
     record SetBindHint(@Nonnull List<Column> columns) implements BindHint {}

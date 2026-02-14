@@ -17,13 +17,12 @@ package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.List;
+import java.util.function.BiConsumer;
 import st.orm.Data;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.template.Column;
 import st.orm.template.Model;
-
-import java.util.List;
-import java.util.function.BiConsumer;
 
 /**
  * Represents the model of an entity.
@@ -33,7 +32,7 @@ public class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     private final st.orm.core.template.impl.ModelImpl<E, ID> core;
     private final List<Column> columns;
     private final List<Column> declaredColumns;
-    
+
     public ModelImpl(st.orm.core.template.impl.ModelImpl<E, ID> core) {
         this.core = core;
         this.columns = core.columns().stream()

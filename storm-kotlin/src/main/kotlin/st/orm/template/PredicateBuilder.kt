@@ -79,9 +79,7 @@ interface PredicateBuilder<T : Data, R, ID> {
      * @param template the predicate builder to add.
      * @return the predicate builder.
      */
-    infix fun and(template: TemplateBuilder) : PredicateBuilder<T, R, ID> {
-        return and(template.build())
-    }
+    infix fun and(template: TemplateBuilder): PredicateBuilder<T, R, ID> = and(template.build())
 
     /**
      * Adds a predicate to the WHERE clause using an AND condition.
@@ -127,9 +125,7 @@ interface PredicateBuilder<T : Data, R, ID> {
      * @param template the predicate builder to add.
      * @return the predicate builder.
      */
-    infix fun or(template: TemplateBuilder) : PredicateBuilder<T, R, ID> {
-        return or(template.build())
-    }
+    infix fun or(template: TemplateBuilder): PredicateBuilder<T, R, ID> = or(template.build())
 
     /**
      * Adds a predicate to the WHERE clause using an OR condition.

@@ -18,9 +18,9 @@ package st.orm.jackson.model;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
-import st.orm.PK;
-import st.orm.Json;
 import st.orm.Entity;
+import st.orm.Json;
+import st.orm.PK;
 
 /**
  * Simple domain object representing an owner.

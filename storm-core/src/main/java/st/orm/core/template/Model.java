@@ -17,15 +17,14 @@ package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.Data;
-import st.orm.Metamodel;
-import st.orm.mapping.RecordType;
-
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.SequencedMap;
 import java.util.function.BiConsumer;
+import st.orm.Data;
+import st.orm.Metamodel;
+import st.orm.mapping.RecordType;
 
 /**
  * Represents the model of an entity or projection.

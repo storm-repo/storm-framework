@@ -1,5 +1,16 @@
 package st.orm.core;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static st.orm.Operator.EQUALS;
+import static st.orm.ResolveScope.INNER;
+import static st.orm.ResolveScope.OUTER;
+import static st.orm.core.template.TemplateString.raw;
+import static st.orm.core.template.Templates.alias;
+
+import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,29 +24,11 @@ import st.orm.core.model.City_;
 import st.orm.core.model.Owner;
 import st.orm.core.model.Owner_;
 import st.orm.core.model.Pet;
-import st.orm.core.model.Pet_;
 import st.orm.core.model.PetType;
+import st.orm.core.model.Pet_;
 import st.orm.core.model.Visit;
-import st.orm.core.model.Visit_;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.TemplateBuilder;
-
-import javax.sql.DataSource;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static st.orm.Operator.EQUALS;
-import static st.orm.Operator.GREATER_THAN;
-import static st.orm.ResolveScope.INNER;
-import static st.orm.ResolveScope.OUTER;
-import static st.orm.core.template.Templates.alias;
-import static st.orm.core.template.TemplateString.raw;
 
 /**
  * Extended integration tests for QueryBuilder edge cases and miscellaneous coverage gaps

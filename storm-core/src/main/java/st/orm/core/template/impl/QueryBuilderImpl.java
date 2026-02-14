@@ -15,7 +15,21 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Objects.requireNonNull;
+import static st.orm.JoinType.cross;
+import static st.orm.JoinType.inner;
+import static st.orm.JoinType.left;
+import static st.orm.JoinType.right;
+import static st.orm.Operator.EQUALS;
+import static st.orm.Operator.IN;
+import static st.orm.core.template.TemplateString.combine;
+import static st.orm.core.template.TemplateString.wrap;
+
 import jakarta.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import st.orm.Data;
 import st.orm.JoinType;
 import st.orm.Metamodel;
@@ -39,21 +53,6 @@ import st.orm.core.template.impl.Elements.TemplateExpression;
 import st.orm.core.template.impl.Elements.TemplateSource;
 import st.orm.core.template.impl.Elements.TemplateTarget;
 import st.orm.core.template.impl.Elements.Where;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Function;
-import java.util.function.Supplier;
-
-import static java.util.Objects.requireNonNull;
-import static st.orm.JoinType.cross;
-import static st.orm.JoinType.inner;
-import static st.orm.JoinType.left;
-import static st.orm.JoinType.right;
-import static st.orm.Operator.EQUALS;
-import static st.orm.Operator.IN;
-import static st.orm.core.template.TemplateString.combine;
-import static st.orm.core.template.TemplateString.wrap;
 
 /**
  * Abstract query builder implementation.

@@ -15,19 +15,19 @@
  */
 package st.orm.template.impl;
 
-import jakarta.annotation.Nonnull;
-import st.orm.Data;
-import st.orm.template.Query;
-import st.orm.core.template.SqlDialect;
-import st.orm.BindVars;
-import st.orm.PersistenceException;
-import st.orm.Ref;
-import st.orm.template.Model;
-import st.orm.template.QueryBuilder;
-import st.orm.template.QueryTemplate;
-
 import static java.util.Objects.requireNonNull;
 import static st.orm.template.impl.StringTemplates.convert;
+
+import jakarta.annotation.Nonnull;
+import st.orm.BindVars;
+import st.orm.Data;
+import st.orm.PersistenceException;
+import st.orm.Ref;
+import st.orm.core.template.SqlDialect;
+import st.orm.template.Model;
+import st.orm.template.Query;
+import st.orm.template.QueryBuilder;
+import st.orm.template.QueryTemplate;
 
 
 public class QueryTemplateImpl implements QueryTemplate {

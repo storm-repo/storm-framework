@@ -15,8 +15,14 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Objects.requireNonNull;
+import static st.orm.Operator.EQUALS;
+import static st.orm.SelectMode.NESTED;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.Collection;
+import java.util.function.Function;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Element;
@@ -25,13 +31,6 @@ import st.orm.Operator;
 import st.orm.ResolveScope;
 import st.orm.SelectMode;
 import st.orm.core.template.TemplateString;
-
-import java.util.Collection;
-import java.util.function.Function;
-
-import static java.util.Objects.requireNonNull;
-import static st.orm.Operator.EQUALS;
-import static st.orm.SelectMode.NESTED;
 
 public final class Elements {
 

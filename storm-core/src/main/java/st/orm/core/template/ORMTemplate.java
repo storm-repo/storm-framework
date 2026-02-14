@@ -17,20 +17,19 @@ package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.EntityManager;
+import java.sql.Connection;
+import java.util.List;
+import java.util.function.UnaryOperator;
+import javax.sql.DataSource;
 import st.orm.EntityCallback;
 import st.orm.PersistenceException;
 import st.orm.StormConfig;
-import st.orm.mapping.TemplateDecorator;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.repository.ProjectionRepository;
 import st.orm.core.repository.RepositoryLookup;
 import st.orm.core.template.impl.JpaTemplateImpl;
 import st.orm.core.template.impl.PreparedStatementTemplateImpl;
-
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.util.List;
-import java.util.function.UnaryOperator;
+import st.orm.mapping.TemplateDecorator;
 
 /**
  * <p>The {@code ORMTemplate} is the primary interface that extends the {@code QueryTemplate} and

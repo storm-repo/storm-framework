@@ -1,9 +1,15 @@
 package st.orm.jackson;
 
+import static java.util.Optional.ofNullable;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static st.orm.core.template.ORMTemplate.of;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.time.LocalDate;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,14 +29,6 @@ import st.orm.jackson.model.Address;
 import st.orm.jackson.model.Owner;
 import st.orm.jackson.model.Pet;
 import st.orm.jackson.model.PetType;
-
-import javax.sql.DataSource;
-
-import java.time.LocalDate;
-
-import static java.util.Optional.ofNullable;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static st.orm.core.template.ORMTemplate.of;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)

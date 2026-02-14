@@ -15,12 +15,11 @@
  */
 package st.orm.core.spi;
 
+import static java.util.Optional.ofNullable;
+
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.PersistenceException;
-
 import java.util.Optional;
-
-import static java.util.Optional.ofNullable;
 
 /**
  * The transaction template is a functional interface that allows callers to let logic be executed in the scope of a

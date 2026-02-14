@@ -15,8 +15,23 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Optional.empty;
+import static java.util.function.Predicate.not;
+import static st.orm.core.spi.Providers.getORMConverter;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.DbColumn;
 import st.orm.DbColumns;
@@ -29,28 +44,12 @@ import st.orm.Ref;
 import st.orm.Version;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
+import st.orm.core.template.SqlTemplateException;
 import st.orm.mapping.ColumnNameResolver;
 import st.orm.mapping.ForeignKeyResolver;
 import st.orm.mapping.RecordField;
 import st.orm.mapping.RecordType;
-import st.orm.core.template.SqlTemplateException;
 import st.orm.mapping.TableNameResolver;
-
-import java.lang.annotation.Annotation;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Stream;
-
-import static java.util.Optional.empty;
-import static java.util.function.Predicate.not;
-import static st.orm.core.spi.Providers.getORMConverter;
 
 /**
  * Helper class for record reflection.

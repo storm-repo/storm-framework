@@ -37,10 +37,8 @@ import st.orm.template.impl.QueryBuilderImpl.PredicateBuilderImpl
 fun <T : Data, R, V> create(
     path: Metamodel<*, V>,
     operator: Operator,
-    o: Iterable<V>
-): PredicateBuilder<T, R, *> {
-    return PredicateBuilderImpl(PredicateBuilderFactory.create(path, operator, o))
-}
+    o: Iterable<V>,
+): PredicateBuilder<T, R, *> = PredicateBuilderImpl(PredicateBuilderFactory.create(path, operator, o))
 
 /**
  * Creates a new instance of [PredicateBuilder] for the specified path, operator, and values.
@@ -56,10 +54,8 @@ fun <T : Data, R, V> create(
 fun <T : Data, R, V : Data> createRef(
     path: Metamodel<*, V>,
     operator: Operator,
-    o: Iterable<Ref<V>>
-): PredicateBuilder<T, R, *> {
-    return PredicateBuilderImpl(PredicateBuilderFactory.createRef(path, operator, o))
-}
+    o: Iterable<Ref<V>>,
+): PredicateBuilder<T, R, *> = PredicateBuilderImpl(PredicateBuilderFactory.createRef(path, operator, o))
 
 /**
  * Creates a new instance of [PredicateBuilder] for the specified path, operator, and values with an ID.
@@ -76,10 +72,8 @@ fun <T : Data, R, V : Data> createRef(
 fun <T : Data, R, ID, V> createWithId(
     path: Metamodel<*, V>,
     operator: Operator,
-    o: Iterable<V>
-): PredicateBuilder<T, R, ID> {
-    return PredicateBuilderImpl(PredicateBuilderFactory.createWithId(path, operator, o))
-}
+    o: Iterable<V>,
+): PredicateBuilder<T, R, ID> = PredicateBuilderImpl(PredicateBuilderFactory.createWithId(path, operator, o))
 
 /**
  * Creates a new instance of [PredicateBuilder] for the specified path, operator, and values with an ID.
@@ -96,7 +90,5 @@ fun <T : Data, R, ID, V> createWithId(
 fun <T : Data, R, ID, V : Data> createRefWithId(
     path: Metamodel<*, V>,
     operator: Operator,
-    o: Iterable<Ref<V>>
-): PredicateBuilder<T, R, ID> {
-    return PredicateBuilderImpl(PredicateBuilderFactory.createRefWithId(path, operator, o))
-}
+    o: Iterable<Ref<V>>,
+): PredicateBuilder<T, R, ID> = PredicateBuilderImpl(PredicateBuilderFactory.createRefWithId(path, operator, o))

@@ -15,8 +15,20 @@
  */
 package st.orm.core.template.impl;
 
+import static java.lang.invoke.MethodType.methodType;
+import static st.orm.core.template.impl.RecordReflection.findPkField;
+import static st.orm.core.template.impl.RecordReflection.getRecordField;
+import static st.orm.core.template.impl.RecordReflection.getRefDataType;
+import static st.orm.core.template.impl.RecordReflection.isRecord;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Method;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import st.orm.AbstractMetamodel;
 import st.orm.Data;
 import st.orm.Metamodel;
@@ -24,19 +36,6 @@ import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.mapping.RecordField;
-
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Method;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-
-import static java.lang.invoke.MethodType.methodType;
-import static st.orm.core.template.impl.RecordReflection.findPkField;
-import static st.orm.core.template.impl.RecordReflection.getRecordField;
-import static st.orm.core.template.impl.RecordReflection.getRefDataType;
-import static st.orm.core.template.impl.RecordReflection.isRecord;
 
 /**
  * Implementation that is used by the generated models.

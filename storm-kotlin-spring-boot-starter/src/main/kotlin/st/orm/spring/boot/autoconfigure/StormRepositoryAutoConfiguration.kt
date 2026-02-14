@@ -44,7 +44,6 @@ open class StormRepositoryAutoConfiguration {
         @JvmStatic
         @Bean
         @ConditionalOnMissingBean(RepositoryBeanFactoryPostProcessor::class)
-        fun repositoryBeanFactoryPostProcessor(): AutoConfiguredRepositoryBeanFactoryPostProcessor =
-            AutoConfiguredRepositoryBeanFactoryPostProcessor()
+        fun repositoryBeanFactoryPostProcessor(): AutoConfiguredRepositoryBeanFactoryPostProcessor = AutoConfiguredRepositoryBeanFactoryPostProcessor()
     }
 }

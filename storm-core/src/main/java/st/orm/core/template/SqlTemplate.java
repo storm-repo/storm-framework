@@ -17,16 +17,15 @@ package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.List;
 import st.orm.BindVars;
 import st.orm.StormConfig;
+import st.orm.core.template.impl.BindVarsHandle;
+import st.orm.core.template.impl.SqlTemplateImpl;
 import st.orm.mapping.ColumnNameResolver;
 import st.orm.mapping.ForeignKeyResolver;
 import st.orm.mapping.TableNameResolver;
 import st.orm.mapping.TemplateDecorator;
-import st.orm.core.template.impl.BindVarsHandle;
-import st.orm.core.template.impl.SqlTemplateImpl;
-
-import java.util.List;
 
 /**
  * A template processor for generating SQL queries. While this interface can be used directly, developers are encouraged

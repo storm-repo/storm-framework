@@ -15,5 +15,6 @@ data class Owner(
     override val lastName: String,
     val address: Address,
     val telephone: String?,
-    @Version val version: Int
-) : Entity<Int>, Person
+    @Version val version: Int,
+) : Entity<Int>,
+    Person

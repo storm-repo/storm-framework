@@ -15,40 +15,15 @@
  */
 package st.orm.template;
 
+import static java.util.Objects.requireNonNull;
+import static st.orm.Operator.IN;
+import static st.orm.ResolveScope.CASCADE;
+import static st.orm.SelectMode.NESTED;
+import static st.orm.template.impl.StringTemplates.convert;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
-import st.orm.BindVars;
-import st.orm.Data;
-import st.orm.Metamodel;
-import st.orm.Operator;
-import st.orm.ResolveScope;
-import st.orm.SelectMode;
-import st.orm.TemporalType;
-import st.orm.core.template.impl.Elements.Alias;
-import st.orm.core.template.impl.Elements.Param;
-import st.orm.core.template.impl.Elements.Subquery;
-import st.orm.core.template.impl.Elements.Unsafe;
-import st.orm.core.template.impl.Elements.BindVar;
-import st.orm.Element;
-import st.orm.core.template.impl.Elements;
-import st.orm.core.template.impl.Elements.Delete;
-import st.orm.core.template.impl.Elements.From;
-import st.orm.core.template.impl.Elements.Insert;
-import st.orm.core.template.impl.Elements.ObjectExpression;
-import st.orm.core.template.impl.Elements.Select;
-import st.orm.core.template.impl.Elements.Set;
-import st.orm.core.template.impl.Elements.Table;
-import st.orm.core.template.impl.Elements.TableSource;
-import st.orm.core.template.impl.Elements.TemplateSource;
-import st.orm.core.template.impl.Elements.Update;
-import st.orm.core.template.impl.Elements.Values;
-import st.orm.core.template.impl.Elements.Where;
-import st.orm.core.template.impl.Subqueryable;
-import st.orm.repository.EntityRepository;
-import st.orm.repository.ProjectionRepository;
-
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -56,12 +31,36 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.function.Function;
-
-import static java.util.Objects.requireNonNull;
-import static st.orm.Operator.IN;
-import static st.orm.ResolveScope.CASCADE;
-import static st.orm.SelectMode.NESTED;
-import static st.orm.template.impl.StringTemplates.convert;
+import javax.sql.DataSource;
+import st.orm.BindVars;
+import st.orm.Data;
+import st.orm.Element;
+import st.orm.Metamodel;
+import st.orm.Operator;
+import st.orm.ResolveScope;
+import st.orm.SelectMode;
+import st.orm.TemporalType;
+import st.orm.core.template.impl.Elements;
+import st.orm.core.template.impl.Elements.Alias;
+import st.orm.core.template.impl.Elements.BindVar;
+import st.orm.core.template.impl.Elements.Delete;
+import st.orm.core.template.impl.Elements.From;
+import st.orm.core.template.impl.Elements.Insert;
+import st.orm.core.template.impl.Elements.ObjectExpression;
+import st.orm.core.template.impl.Elements.Param;
+import st.orm.core.template.impl.Elements.Select;
+import st.orm.core.template.impl.Elements.Set;
+import st.orm.core.template.impl.Elements.Subquery;
+import st.orm.core.template.impl.Elements.Table;
+import st.orm.core.template.impl.Elements.TableSource;
+import st.orm.core.template.impl.Elements.TemplateSource;
+import st.orm.core.template.impl.Elements.Unsafe;
+import st.orm.core.template.impl.Elements.Update;
+import st.orm.core.template.impl.Elements.Values;
+import st.orm.core.template.impl.Elements.Where;
+import st.orm.core.template.impl.Subqueryable;
+import st.orm.repository.EntityRepository;
+import st.orm.repository.ProjectionRepository;
 
 /**
  * The {@code Templates} interface provides a collection of static methods for constructing SQL query elements
@@ -925,7 +924,7 @@ public interface Templates {
      * WHERE \{where(MyTable_.otherTable.id, Operator.BETWEEN, 1, 10)}
      * }</pre>
      *
-     * <p>In this example, the query selects all entries in {@code Table} where the associated {@code MyTable} 
+     * <p>In this example, the query selects all entries in {@code Table} where the associated {@code MyTable}
      * records have primary keys between {@code 1} and {@code 10}.
      *
      * @param path the path or column name to apply the condition on.

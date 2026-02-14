@@ -68,8 +68,7 @@ fun <T> Flow<T>.chunked(size: Int): Flow<List<T>> {
  * Note that even though this operator looks very familiar, we discourage its usage in a regular application-specific flows.
  * Most likely, suspending operation in [map] operator will be sufficient and linear transformations are much easier to reason about.
  */
-fun <T, R> Flow<T>.flatMapConcat(transform: suspend (value: T) -> Flow<R>): Flow<R> =
-    map(transform).flattenConcat()
+fun <T, R> Flow<T>.flatMapConcat(transform: suspend (value: T) -> Flow<R>): Flow<R> = map(transform).flattenConcat()
 
 /**
  * Flattens the given flow of flows into a single flow in a sequential manner, without interleaving nested flows.

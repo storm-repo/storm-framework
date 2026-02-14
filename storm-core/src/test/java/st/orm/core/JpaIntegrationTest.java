@@ -1,9 +1,16 @@
 package st.orm.core;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static st.orm.core.template.JpaTemplate.ORM;
+import static st.orm.core.template.TemplateString.raw;
+
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.PersistenceException;
+import java.time.LocalDate;
+import java.util.Objects;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -13,14 +20,6 @@ import st.orm.core.model.Owner;
 import st.orm.core.model.Pet;
 import st.orm.core.model.PetTypeEnum;
 import st.orm.core.model.Vet;
-
-import java.time.LocalDate;
-import java.util.Objects;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static st.orm.core.template.JpaTemplate.ORM;
-import static st.orm.core.template.TemplateString.raw;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)

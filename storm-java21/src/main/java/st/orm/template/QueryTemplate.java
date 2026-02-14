@@ -15,13 +15,13 @@
  */
 package st.orm.template;
 
-import jakarta.annotation.Nonnull;
-import st.orm.Data;
-import st.orm.core.template.SqlDialect;
-import st.orm.BindVars;
-import st.orm.Ref;
-
 import static java.lang.StringTemplate.RAW;
+
+import jakarta.annotation.Nonnull;
+import st.orm.BindVars;
+import st.orm.Data;
+import st.orm.Ref;
+import st.orm.core.template.SqlDialect;
 
 /**
  * Provides methods for constructing SQL queries and query builders using String Templates or the fluent API.

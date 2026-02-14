@@ -15,7 +15,16 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Optional.empty;
+import static st.orm.core.template.impl.RecordReflection.getTableName;
+import static st.orm.core.template.impl.RecordValidation.validateDataType;
+import static st.orm.core.template.impl.RecordValidation.validateWhere;
+
 import jakarta.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import st.orm.Element;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
@@ -26,16 +35,6 @@ import st.orm.core.template.impl.Elements.Select;
 import st.orm.core.template.impl.Elements.TableSource;
 import st.orm.core.template.impl.Elements.Update;
 import st.orm.core.template.impl.SqlTemplateImpl.Wrapped;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-
-import static java.util.Optional.empty;
-import static st.orm.core.template.impl.RecordReflection.getTableName;
-import static st.orm.core.template.impl.RecordValidation.validateDataType;
-import static st.orm.core.template.impl.RecordValidation.validateWhere;
 
 /**
  * Builds a {@link QueryModel} from a parsed template element stream.

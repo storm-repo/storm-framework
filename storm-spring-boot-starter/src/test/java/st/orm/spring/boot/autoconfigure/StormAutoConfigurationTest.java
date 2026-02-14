@@ -15,6 +15,9 @@
  */
 package st.orm.spring.boot.autoconfigure;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
@@ -24,10 +27,6 @@ import org.springframework.context.annotation.Configuration;
 import st.orm.EntityCallback;
 import st.orm.spring.RepositoryBeanFactoryPostProcessor;
 import st.orm.template.ORMTemplate;
-
-import javax.sql.DataSource;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class StormAutoConfigurationTest {
 

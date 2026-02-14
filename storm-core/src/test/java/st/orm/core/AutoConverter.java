@@ -1,10 +1,9 @@
 package st.orm.core;
 
 import jakarta.annotation.Nullable;
+import java.time.LocalDate;
 import st.orm.Converter;
 import st.orm.DefaultConverter;
-
-import java.time.LocalDate;
 
 @DefaultConverter
 public class AutoConverter implements Converter<LocalDate, RepositoryPreparedStatementIntegrationTest.AutoDate> {

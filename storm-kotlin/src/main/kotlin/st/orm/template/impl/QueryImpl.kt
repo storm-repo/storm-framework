@@ -35,9 +35,7 @@ open class QueryImpl(private val core: st.orm.core.template.Query) : Query {
      * @return the prepared query.
      * @throws st.orm.PersistenceException if the query preparation fails.
      */
-    override fun prepare(): PreparedQuery {
-        return PreparedQueryImpl(core.prepare())
-    }
+    override fun prepare(): PreparedQuery = PreparedQueryImpl(core.prepare())
 
     /**
      * Returns a new query that is marked as safe. This means that dangerous operations, such as DELETE and UPDATE
@@ -46,9 +44,7 @@ open class QueryImpl(private val core: st.orm.core.template.Query) : Query {
      * @return a new query that is marked as safe.
      * @since 1.2
      */
-    override fun safe(): Query {
-        return QueryImpl(core.safe())
-    }
+    override fun safe(): Query = QueryImpl(core.safe())
 
     override val resultStream: Stream<Array<Any>>
         /**
@@ -89,9 +85,7 @@ open class QueryImpl(private val core: st.orm.core.template.Query) : Query {
      * @throws st.orm.PersistenceException if the query operation fails due to underlying database issues, such as
      * connectivity.
      */
-    override fun <T : Any> getResultStream(type: KClass<T>): Stream<T> {
-        return core.getResultStream<T>(type.java)
-    }
+    override fun <T : Any> getResultStream(type: KClass<T>): Stream<T> = core.getResultStream<T>(type.java)
 
     /**
      * Execute a SELECT query and return the resulting rows as a stream of ref instances.
@@ -111,10 +105,8 @@ open class QueryImpl(private val core: st.orm.core.template.Query) : Query {
      */
     override fun <T : Data> getRefStream(
         type: KClass<T>,
-        pkType: KClass<*>
-    ): Stream<Ref<T>> {
-        return core.getRefStream<T>(type.java, pkType.java)
-    }
+        pkType: KClass<*>,
+    ): Stream<Ref<T>> = core.getRefStream<T>(type.java, pkType.java)
 
     override val versionAware: Boolean
         /**
@@ -130,9 +122,7 @@ open class QueryImpl(private val core: st.orm.core.template.Query) : Query {
      * @return the number of rows impacted as result of the statement.
      * @throws st.orm.PersistenceException if the statement fails.
      */
-    override fun executeUpdate(): Int {
-        return core.executeUpdate()
-    }
+    override fun executeUpdate(): Int = core.executeUpdate()
 
     /**
      * Execute a batch of commands.
@@ -142,7 +132,5 @@ open class QueryImpl(private val core: st.orm.core.template.Query) : Query {
      * array are ordered according to the order in which commands were added to the batch, following
      * `Statement.executeBatch` semantics.
      */
-    override fun executeBatch(): IntArray {
-        return core.executeBatch()
-    }
+    override fun executeBatch(): IntArray = core.executeBatch()
 }

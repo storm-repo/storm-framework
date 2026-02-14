@@ -16,11 +16,10 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nullable;
+import java.util.function.Function;
 import st.orm.PersistenceException;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlTemplateException;
-
-import java.util.function.Function;
 
 /**
  * Helper class for augmenting exceptions with SQL statements.

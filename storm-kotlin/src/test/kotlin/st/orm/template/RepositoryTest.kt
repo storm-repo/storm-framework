@@ -29,12 +29,11 @@ import st.orm.template.model.*
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
 open class RepositoryTest(
-    @Autowired val orm: ORMTemplate
+    @Autowired val orm: ORMTemplate,
 ) {
 
     @Suppress("UNCHECKED_CAST")
-    private fun <T : Data, V> metamodel(model: Model<*, *>, columnName: String): Metamodel<T, V> =
-        model.columns.first { it.name == columnName }.metamodel as Metamodel<T, V>
+    private fun <T : Data, V> metamodel(model: Model<*, *>, columnName: String): Metamodel<T, V> = model.columns.first { it.name == columnName }.metamodel as Metamodel<T, V>
 
     // --- EntityRepository CRUD: insert ---
 
@@ -837,7 +836,7 @@ open class RepositoryTest(
             lastName = "User",
             address = Address("123 Test St", City(1, "Sun Paririe")),
             telephone = "1234567890",
-            version = 0
+            version = 0,
         )
         val fetched = repo.insertAndFetch(owner)
         fetched.id shouldNotBe 0
@@ -1492,10 +1491,15 @@ open class RepositoryTest(
         val repo = orm.entity(City::class)
         val city = repo.insertAndFetch(City(name = "RefDeleteCity"))
         val ownerRepo = orm.entity(Owner::class)
-        val owner = ownerRepo.insertAndFetch(Owner(
-            firstName = "RefDel", lastName = "Test",
-            address = Address("123 St", city), telephone = "555", version = 0
-        ))
+        val owner = ownerRepo.insertAndFetch(
+            Owner(
+                firstName = "RefDel",
+                lastName = "Test",
+                address = Address("123 St", city),
+                telephone = "555",
+                version = 0,
+            ),
+        )
         val cityPath = metamodel<Owner, City>(ownerRepo.model, "city_id")
         val cityRef: Ref<City> = Ref.of(City::class.java, city.id)
         ownerRepo.deleteAllBy(cityPath, cityRef) shouldBe 1
@@ -1507,14 +1511,24 @@ open class RepositoryTest(
         val city1 = repo.insertAndFetch(City(name = "RefDelCity1"))
         val city2 = repo.insertAndFetch(City(name = "RefDelCity2"))
         val ownerRepo = orm.entity(Owner::class)
-        ownerRepo.insertAndFetch(Owner(
-            firstName = "RD1", lastName = "Test",
-            address = Address("1 St", city1), telephone = "555", version = 0
-        ))
-        ownerRepo.insertAndFetch(Owner(
-            firstName = "RD2", lastName = "Test",
-            address = Address("2 St", city2), telephone = "555", version = 0
-        ))
+        ownerRepo.insertAndFetch(
+            Owner(
+                firstName = "RD1",
+                lastName = "Test",
+                address = Address("1 St", city1),
+                telephone = "555",
+                version = 0,
+            ),
+        )
+        ownerRepo.insertAndFetch(
+            Owner(
+                firstName = "RD2",
+                lastName = "Test",
+                address = Address("2 St", city2),
+                telephone = "555",
+                version = 0,
+            ),
+        )
         val cityPath = metamodel<Owner, City>(ownerRepo.model, "city_id")
         val cityRefs = listOf(Ref.of(City::class.java, city1.id), Ref.of(City::class.java, city2.id))
         ownerRepo.deleteAllByRef(cityPath, cityRefs) shouldBe 2

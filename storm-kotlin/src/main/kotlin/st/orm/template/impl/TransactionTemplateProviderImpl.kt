@@ -51,9 +51,7 @@ class TransactionTemplateProviderImpl : TransactionTemplateProvider {
             override fun newContext(suspendMode: Boolean): TransactionContext = // Suspend mode is supported in this implementation.
                 JdbcTransactionContext()
 
-            override fun contextHolder(): ThreadLocal<TransactionContext> {
-                return CONTEXT_HOLDER
-            }
+            override fun contextHolder(): ThreadLocal<TransactionContext> = CONTEXT_HOLDER
 
             override fun <T> execute(callback: TransactionCallback<T>, context: TransactionContext): T {
                 if (context !is JdbcTransactionContext) {

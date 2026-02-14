@@ -1,6 +1,12 @@
 package st.orm.core;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import jakarta.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.List;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,13 +16,6 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.EntityCallback;
 import st.orm.core.model.City;
 import st.orm.core.template.ORMTemplate;
-
-import javax.sql.DataSource;
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SuppressWarnings("ALL")
 @ExtendWith(SpringExtension.class)

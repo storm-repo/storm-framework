@@ -1,17 +1,17 @@
 package st.orm.core.template;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import org.junit.jupiter.api.Test;
+import st.orm.Metamodel;
 import st.orm.core.model.Address;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
 import st.orm.core.model.Pet;
 import st.orm.core.model.Visit;
-import st.orm.Metamodel;
 import st.orm.core.model.Visit_;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class MetamodelTest {
 

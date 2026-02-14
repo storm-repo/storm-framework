@@ -72,5 +72,5 @@ enum class TransactionPropagation {
      * Execute within a nested transaction (JDBC savepoint) if an outer transaction exists;
      * otherwise, behave like [REQUIRED].
      */
-    NESTED
+    NESTED,
 }

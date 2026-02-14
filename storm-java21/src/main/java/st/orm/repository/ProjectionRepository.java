@@ -16,6 +16,9 @@
 package st.orm.repository;
 
 import jakarta.annotation.Nonnull;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
@@ -23,10 +26,6 @@ import st.orm.Projection;
 import st.orm.Ref;
 import st.orm.template.Model;
 import st.orm.template.QueryBuilder;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Stream;
 
 /**
  * Provides a generic interface with read operations for projections.
@@ -265,7 +264,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      */
     List<P> findAllById(@Nonnull Iterable<ID> ids);
 
-    /** 
+    /**
      * Retrieves a list of projections based on their primary keys.
      *
      * <p>This method retrieves projections matching the provided IDs in batches, consolidating them into a single list.

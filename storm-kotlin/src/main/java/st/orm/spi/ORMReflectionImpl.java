@@ -15,8 +15,32 @@
  */
 package st.orm.spi;
 
+import static java.lang.System.arraycopy;
+import static java.util.Arrays.asList;
+import static java.util.Arrays.stream;
+import static java.util.Optional.empty;
+import static java.util.Optional.ofNullable;
+import static java.util.stream.Collectors.toList;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.lang.annotation.Annotation;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
 import kotlin.Metadata;
 import kotlin.jvm.JvmClassMappingKt;
 import kotlin.reflect.KCallable;
@@ -36,31 +60,6 @@ import st.orm.core.repository.impl.DefaultORMReflectionImpl;
 import st.orm.core.spi.ORMReflection;
 import st.orm.mapping.RecordField;
 import st.orm.mapping.RecordType;
-
-import java.lang.annotation.Annotation;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.stream.Collectors;
-
-import static java.lang.System.arraycopy;
-import static java.util.Arrays.asList;
-import static java.util.Arrays.stream;
-import static java.util.Optional.empty;
-import static java.util.Optional.ofNullable;
-import static java.util.stream.Collectors.toList;
 
 @SuppressWarnings("unchecked")
 public class ORMReflectionImpl implements ORMReflection {

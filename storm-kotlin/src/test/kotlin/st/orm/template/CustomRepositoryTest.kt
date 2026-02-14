@@ -79,7 +79,7 @@ interface OwnerViewCustomRepo : ProjectionRepository<OwnerView, Int> {
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
 open class CustomRepositoryTest(
-    @Autowired val orm: ORMTemplate
+    @Autowired val orm: ORMTemplate,
 ) {
 
     // --- Custom EntityRepository with default methods ---

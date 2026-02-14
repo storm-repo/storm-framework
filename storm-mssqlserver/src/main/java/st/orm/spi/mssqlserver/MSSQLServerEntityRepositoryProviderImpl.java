@@ -16,11 +16,11 @@
 package st.orm.spi.mssqlserver;
 
 import jakarta.annotation.Nonnull;
+import st.orm.Entity;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.spi.EntityRepositoryProvider;
 import st.orm.core.template.Model;
 import st.orm.core.template.ORMTemplate;
-import st.orm.Entity;
 
 /**
  * Implementation of {@link EntityRepositoryProvider} for SQL Server.

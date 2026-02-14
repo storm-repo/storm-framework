@@ -18,15 +18,14 @@ package st.orm.core.template;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
+import java.util.function.Predicate;
 import st.orm.StormConfig;
+import st.orm.core.spi.Provider;
+import st.orm.core.template.impl.JpaTemplateImpl;
 import st.orm.mapping.ColumnNameResolver;
 import st.orm.mapping.ForeignKeyResolver;
 import st.orm.mapping.TableNameResolver;
 import st.orm.mapping.TemplateDecorator;
-import st.orm.core.spi.Provider;
-import st.orm.core.template.impl.JpaTemplateImpl;
-
-import java.util.function.Predicate;
 
 /**
  * A template backed by JPA.

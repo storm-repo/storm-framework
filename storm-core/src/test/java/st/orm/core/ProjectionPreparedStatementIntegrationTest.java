@@ -1,5 +1,12 @@
 package st.orm.core;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static st.orm.Operator.EQUALS;
+import static st.orm.Operator.GREATER_THAN;
+import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
+
+import java.time.LocalDate;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,14 +19,6 @@ import st.orm.core.model.VetView;
 import st.orm.core.model.VisitView;
 import st.orm.core.model.VisitView_;
 import st.orm.core.template.ORMTemplate;
-
-import javax.sql.DataSource;
-import java.time.LocalDate;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static st.orm.Operator.EQUALS;
-import static st.orm.Operator.GREATER_THAN;
-import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)

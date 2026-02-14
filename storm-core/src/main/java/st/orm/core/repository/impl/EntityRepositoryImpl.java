@@ -15,35 +15,15 @@
  */
 package st.orm.core.repository.impl;
 
+import static st.orm.GenerationStrategy.IDENTITY;
+import static st.orm.GenerationStrategy.NONE;
+import static st.orm.GenerationStrategy.SEQUENCE;
+import static st.orm.core.repository.impl.StreamSupport.partitioned;
+import static st.orm.core.spi.Providers.deleteFrom;
+import static st.orm.core.template.TemplateString.raw;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import st.orm.Entity;
-import st.orm.EntityCallback;
-import st.orm.GenerationStrategy;
-import st.orm.Metamodel;
-import st.orm.Ref;
-import st.orm.NoResultException;
-import st.orm.NonUniqueResultException;
-import st.orm.OptimisticLockException;
-import st.orm.PersistenceException;
-import st.orm.core.spi.EntityCache;
-import st.orm.core.spi.CacheRetention;
-import st.orm.core.spi.EntityCacheMetrics;
-import st.orm.core.spi.Providers;
-import st.orm.core.spi.TransactionContext;
-import st.orm.core.spi.TransactionTemplate;
-import st.orm.core.template.PreparedQuery;
-import st.orm.core.template.Templates;
-import st.orm.core.template.Column;
-import st.orm.core.repository.EntityRepository;
-import st.orm.core.template.Model;
-import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.QueryBuilder;
-import st.orm.core.template.TemplateString;
-import st.orm.core.template.impl.LazySupplier;
-
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -54,13 +34,32 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-
-import static st.orm.GenerationStrategy.IDENTITY;
-import static st.orm.GenerationStrategy.NONE;
-import static st.orm.GenerationStrategy.SEQUENCE;
-import static st.orm.core.repository.impl.StreamSupport.partitioned;
-import static st.orm.core.spi.Providers.deleteFrom;
-import static st.orm.core.template.TemplateString.raw;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import st.orm.Entity;
+import st.orm.EntityCallback;
+import st.orm.GenerationStrategy;
+import st.orm.Metamodel;
+import st.orm.NoResultException;
+import st.orm.NonUniqueResultException;
+import st.orm.OptimisticLockException;
+import st.orm.PersistenceException;
+import st.orm.Ref;
+import st.orm.core.repository.EntityRepository;
+import st.orm.core.spi.CacheRetention;
+import st.orm.core.spi.EntityCache;
+import st.orm.core.spi.EntityCacheMetrics;
+import st.orm.core.spi.Providers;
+import st.orm.core.spi.TransactionContext;
+import st.orm.core.spi.TransactionTemplate;
+import st.orm.core.template.Column;
+import st.orm.core.template.Model;
+import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.PreparedQuery;
+import st.orm.core.template.QueryBuilder;
+import st.orm.core.template.TemplateString;
+import st.orm.core.template.Templates;
+import st.orm.core.template.impl.LazySupplier;
 
 /**
  * Default implementation of {@link EntityRepository}.

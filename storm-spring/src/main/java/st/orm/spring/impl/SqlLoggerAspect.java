@@ -16,21 +16,19 @@
 package st.orm.spring.impl;
 
 import jakarta.annotation.Nonnull;
+import java.util.stream.Collectors;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-
-import org.slf4j.Logger;
 import st.orm.PersistenceException;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlInterceptor;
 import st.orm.core.template.SqlTemplate;
 import st.orm.spring.SqlLogger;
-
-import java.util.stream.Collectors;
 
 @Aspect
 @Component

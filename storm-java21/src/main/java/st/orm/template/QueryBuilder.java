@@ -15,25 +15,24 @@
  */
 package st.orm.template;
 
-import jakarta.annotation.Nonnull;
-import st.orm.Data;
-import st.orm.JoinType;
-import st.orm.Metamodel;
-import st.orm.Operator;
-import st.orm.Ref;
-import st.orm.core.template.impl.Elements.ObjectExpression;
-import st.orm.NoResultException;
-import st.orm.NonUniqueResultException;
-import st.orm.PersistenceException;
+import static java.lang.StringTemplate.RAW;
+import static st.orm.Operator.EQUALS;
+import static st.orm.Operator.IN;
 
+import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
-
-import static java.lang.StringTemplate.RAW;
-import static st.orm.Operator.EQUALS;
-import static st.orm.Operator.IN;
+import st.orm.Data;
+import st.orm.JoinType;
+import st.orm.Metamodel;
+import st.orm.NoResultException;
+import st.orm.NonUniqueResultException;
+import st.orm.Operator;
+import st.orm.PersistenceException;
+import st.orm.Ref;
+import st.orm.core.template.impl.Elements.ObjectExpression;
 
 /**
  * A fluent builder for constructing type-safe SELECT and DELETE queries using the entity graph and metamodel.

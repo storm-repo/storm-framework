@@ -15,24 +15,23 @@
  */
 package st.orm.core.template.impl;
 
+import static st.orm.core.template.TemplateString.wrap;
+import static st.orm.core.template.Templates.from;
+import static st.orm.core.template.Templates.subquery;
+
 import jakarta.annotation.Nonnull;
+import java.util.List;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.PersistenceException;
-import st.orm.core.template.Query;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
+import st.orm.core.template.Query;
 import st.orm.core.template.QueryBuilder;
 import st.orm.core.template.QueryTemplate;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.Elements.Where;
-
-import java.util.List;
-import java.util.function.Supplier;
-import java.util.stream.Stream;
-
-import static st.orm.core.template.Templates.from;
-import static st.orm.core.template.Templates.subquery;
-import static st.orm.core.template.TemplateString.wrap;
 
 /**
  * A query builder for DELETE queries.

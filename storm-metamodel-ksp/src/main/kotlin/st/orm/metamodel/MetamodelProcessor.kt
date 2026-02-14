@@ -39,7 +39,7 @@ import java.io.OutputStreamWriter
  */
 class MetamodelProcessor(
     private val codeGenerator: CodeGenerator,
-    private val logger: KSPLogger
+    private val logger: KSPLogger,
 ) : SymbolProcessor {
 
     /**
@@ -91,13 +91,20 @@ class MetamodelProcessor(
             "java.util.Optional",
             "java.util.OptionalInt",
             "java.util.OptionalLong",
-            "java.util.OptionalDouble"
+            "java.util.OptionalDouble",
         )
 
         private const val JDK_VALUE_BASED_ANNOTATION = "jdk.internal.ValueBased"
 
         private val KOTLIN_PRIMITIVE_QNS: Set<String> = setOf(
-            K_BOOLEAN, K_BYTE, K_SHORT, K_INT, K_LONG, K_CHAR, K_FLOAT, K_DOUBLE
+            K_BOOLEAN,
+            K_BYTE,
+            K_SHORT,
+            K_INT,
+            K_LONG,
+            K_CHAR,
+            K_FLOAT,
+            K_DOUBLE,
         )
     }
 
@@ -109,7 +116,7 @@ class MetamodelProcessor(
                 resolver.getAllFiles()
                     .flatMap { it.declarations }
                     .filterIsInstance<KSClassDeclaration>()
-                    .filter { it.implementsInterface(DATA) }
+                    .filter { it.implementsInterface(DATA) },
             )
             .filterIsInstance<KSClassDeclaration>()
             .filter { it.isDataClass() }
@@ -123,8 +130,8 @@ class MetamodelProcessor(
                 } catch (e: Exception) {
                     logger.error(
                         "Failed to process metamodel for ${clazz.qualifiedName?.asString()}: ${e.message}\n" +
-                                e.stackTraceToString(),
-                        clazz
+                            e.stackTraceToString(),
+                        clazz,
                     )
                     throw e
                 }
@@ -133,18 +140,15 @@ class MetamodelProcessor(
         return deferred
     }
 
-    private fun KSClassDeclaration.isDataClass(): Boolean =
-        modifiers.contains(Modifier.DATA)
+    private fun KSClassDeclaration.isDataClass(): Boolean = modifiers.contains(Modifier.DATA)
 
-    private fun KSClassDeclaration.implementsInterface(interfaceName: String): Boolean {
-        return try {
-            getAllSuperTypes().any { superType ->
-                superType.declaration.qualifiedName?.asString() == interfaceName
-            }
-        } catch (e: Exception) {
-            logger.warn("Error checking interface implementation for ${qualifiedName?.asString()}: ${e.message}")
-            false
+    private fun KSClassDeclaration.implementsInterface(interfaceName: String): Boolean = try {
+        getAllSuperTypes().any { superType ->
+            superType.declaration.qualifiedName?.asString() == interfaceName
         }
+    } catch (e: Exception) {
+        logger.warn("Error checking interface implementation for ${qualifiedName?.asString()}: ${e.message}")
+        false
     }
 
     private fun KSTypeReference.isNestedDataClass(): Boolean {
@@ -217,17 +221,21 @@ class MetamodelProcessor(
                     if (qualifiedName.startsWith(currentPackage) && currentPackage.isNotEmpty()) {
                         val simpleName = qualifiedName.substring(currentPackage.length + 1)
                         if (!simpleName.contains(".")) simpleName else qualifiedName
-                    } else qualifiedName
+                    } else {
+                        qualifiedName
+                    }
                 }
             }
             val typeArguments = resolvedType.arguments
             if (typeArguments.isNotEmpty() && typeArguments.all { it.variance != Variance.STAR }) {
                 val wildcards = typeArguments.joinToString(", ") { "*" }
                 "$baseName<$wildcards>"
-            } else baseName
+            } else {
+                baseName
+            }
         } catch (e: Exception) {
             logger.error(
-                "Error getting Kotlin type name for $typeReference: ${e.message}\n${e.stackTraceToString()}"
+                "Error getting Kotlin type name for $typeReference: ${e.message}\n${e.stackTraceToString()}",
             )
             "Any"
         }
@@ -259,7 +267,9 @@ class MetamodelProcessor(
                     if (qualifiedName.startsWith(currentPackage) && currentPackage.isNotEmpty()) {
                         val simpleName = qualifiedName.substring(currentPackage.length + 1)
                         if (!simpleName.contains(".")) simpleName else qualifiedName
-                    } else qualifiedName
+                    } else {
+                        qualifiedName
+                    }
                 }
             }
             val args = type.arguments
@@ -271,7 +281,9 @@ class MetamodelProcessor(
                         else -> render(t)
                     }
                 }
-            } else ""
+            } else {
+                ""
+            }
             val nullableSuffix = if (type.isMarkedNullable) "?" else ""
             return baseName + typeArgs + nullableSuffix
         }
@@ -301,12 +313,14 @@ class MetamodelProcessor(
                     if (qualifiedName.startsWith(currentPackage) && currentPackage.isNotEmpty()) {
                         val simpleName = qualifiedName.substring(currentPackage.length + 1)
                         if (!simpleName.contains(".")) "$simpleName::class.java" else "$qualifiedName::class.java"
-                    } else "$qualifiedName::class.java"
+                    } else {
+                        "$qualifiedName::class.java"
+                    }
                 }
             }
         } catch (e: Exception) {
             logger.error(
-                "Error getting Java type name for $typeReference: ${e.message}\n${e.stackTraceToString()}"
+                "Error getting Java type name for $typeReference: ${e.message}\n${e.stackTraceToString()}",
             )
             "java.lang.Object::class.java"
         }
@@ -354,7 +368,9 @@ class MetamodelProcessor(
             if (annDecl.annotations.any { meta ->
                     meta.annotationType.resolve().declaration.qualifiedName?.asString() == annotationQn
                 }
-            ) return true
+            ) {
+                return true
+            }
         }
         return false
     }
@@ -368,8 +384,7 @@ class MetamodelProcessor(
         return hasAnnotationOrMeta(param, PRIMARY_KEY)
     }
 
-    private fun findPrimaryKeyProperty(clazz: KSClassDeclaration): KSPropertyDeclaration? =
-        clazz.getAllProperties().firstOrNull { isPrimaryKey(it) }
+    private fun findPrimaryKeyProperty(clazz: KSClassDeclaration): KSPropertyDeclaration? = clazz.getAllProperties().firstOrNull { isPrimaryKey(it) }
 
     private enum class PrimitiveKind { BOOLEAN, BYTE, SHORT, INT, LONG, CHAR, FLOAT, DOUBLE }
 
@@ -408,8 +423,7 @@ class MetamodelProcessor(
         }
     }
 
-    private fun ensureNullable(typeName: String): String =
-        if (typeName.endsWith("?")) typeName else "$typeName?"
+    private fun ensureNullable(typeName: String): String = if (typeName.endsWith("?")) typeName else "$typeName?"
 
     private fun sameExpr(left: String, right: String, typeRef: KSTypeReference, forceNullableChain: Boolean): String {
         val pk = primitiveKind(typeRef)
@@ -422,7 +436,8 @@ class MetamodelProcessor(
                 PrimitiveKind.SHORT,
                 PrimitiveKind.INT,
                 PrimitiveKind.LONG,
-                PrimitiveKind.CHAR -> "$left == $right"
+                PrimitiveKind.CHAR,
+                -> "$left == $right"
             }
         } else {
             when (pk) {
@@ -433,7 +448,8 @@ class MetamodelProcessor(
                 PrimitiveKind.SHORT,
                 PrimitiveKind.INT,
                 PrimitiveKind.LONG,
-                PrimitiveKind.CHAR -> "$left == $right"
+                PrimitiveKind.CHAR,
+                -> "$left == $right"
                 null -> "$left == $right"
             }
         }
@@ -450,7 +466,8 @@ class MetamodelProcessor(
                 PrimitiveKind.SHORT,
                 PrimitiveKind.INT,
                 PrimitiveKind.LONG,
-                PrimitiveKind.CHAR -> "$left == $right"
+                PrimitiveKind.CHAR,
+                -> "$left == $right"
             }
         } else {
             when (pk) {
@@ -461,7 +478,8 @@ class MetamodelProcessor(
                 PrimitiveKind.SHORT,
                 PrimitiveKind.INT,
                 PrimitiveKind.LONG,
-                PrimitiveKind.CHAR -> "$left == $right"
+                PrimitiveKind.CHAR,
+                -> "$left == $right"
                 null -> {
                     if (isNullableKotlinPrimitive(typeRef)) return "$left == $right"
                     if (isValueBasedType(typeRef)) "$left == $right" else "$left === $right"
@@ -473,7 +491,7 @@ class MetamodelProcessor(
     private fun buildInterfaceFields(
         classDeclaration: KSClassDeclaration,
         packageName: String,
-        resolver: Resolver
+        resolver: Resolver,
     ): String {
         val builder = StringBuilder()
         val className = classDeclaration.simpleName.asString()
@@ -495,19 +513,19 @@ class MetamodelProcessor(
                 builder.append("        /** Represents the $className.$fieldName record. */\n")
                 builder.append(
                     "        val $fieldName: $childMetaType = " +
-                            "$childMetaClass(" +
-                            "\"\", \"$fieldName\", $inlineFlag, " +
-                            "Metamodel.root($className::class.java) as Metamodel<$className, *>) " +
-                            getterExpr +
-                            "\n"
+                        "$childMetaClass(" +
+                        "\"\", \"$fieldName\", $inlineFlag, " +
+                        "Metamodel.root($className::class.java) as Metamodel<$className, *>) " +
+                        getterExpr +
+                        "\n",
                 )
             } else {
-                val kotlinTypeName = getKotlinTypeName(typeRef, packageName)            // E (unwrap Ref)
+                val kotlinTypeName = getKotlinTypeName(typeRef, packageName) // E (unwrap Ref)
                 val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName) // V (keep Ref)
                 builder.append("        /** Represents the $className.$fieldName field. */\n")
                 builder.append(
                     "        val $fieldName: AbstractMetamodel<$className, $kotlinTypeName, $valueKotlinTypeName> = " +
-                            "${className}Metamodel<$className>().$fieldName\n"
+                        "${className}Metamodel<$className>().$fieldName\n",
                 )
             }
         }
@@ -519,7 +537,7 @@ class MetamodelProcessor(
     private fun buildClassFields(
         classDeclaration: KSClassDeclaration,
         packageName: String,
-        forceNullableChain: Boolean
+        forceNullableChain: Boolean,
     ): String {
         val builder = StringBuilder()
         classDeclaration.getAllProperties().forEach { prop ->
@@ -533,8 +551,8 @@ class MetamodelProcessor(
                 val childType = if (childForceNullable) "${simpleTypeName}NullableMetamodel" else "${simpleTypeName}Metamodel"
                 builder.append("    val $fieldName: $childType<T>\n")
             } else {
-                val kotlinTypeName = getKotlinTypeName(typeRef, packageName)            // E
-                val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName)  // V
+                val kotlinTypeName = getKotlinTypeName(typeRef, packageName) // E
+                val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName) // V
                 val v = if (forceNullableChain) ensureNullable(valueKotlinTypeName) else valueKotlinTypeName
                 builder.append("    val $fieldName: AbstractMetamodel<T, $kotlinTypeName, $v>\n")
             }
@@ -546,7 +564,7 @@ class MetamodelProcessor(
         classDeclaration: KSClassDeclaration,
         packageName: String,
         metaClassName: String,
-        forceNullableChain: Boolean
+        forceNullableChain: Boolean,
     ): String {
         val builder = StringBuilder()
 
@@ -571,17 +589,17 @@ class MetamodelProcessor(
                 }
                 builder.append(
                     "        $fieldName = $childMetaClassName(" +
-                            "subPath, fieldBase + \"$fieldName\", $inlineFlag, this) $effectiveGetterExpr\n"
+                        "subPath, fieldBase + \"$fieldName\", $inlineFlag, this) $effectiveGetterExpr\n",
                 )
             } else {
-                val javaTypeName = getJavaTypeName(typeRef, packageName)                // E (unwrap Ref)
-                val kotlinTypeName = getKotlinTypeName(typeRef, packageName)            // E (unwrap Ref)
-                val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName)  // V (keep Ref)
+                val javaTypeName = getJavaTypeName(typeRef, packageName) // E (unwrap Ref)
+                val kotlinTypeName = getKotlinTypeName(typeRef, packageName) // E (unwrap Ref)
+                val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName) // V (keep Ref)
                 val v = if (forceNullableChain) ensureNullable(valueKotlinTypeName) else valueKotlinTypeName
 
                 val readRecords =
                     "val ra = this@$metaClassName.getValue(a)\n" +
-                            "                val rb = this@$metaClassName.getValue(b)\n"
+                        "                val rb = this@$metaClassName.getValue(b)\n"
 
                 val leftValue = if (forceNullableChain) "ra?.$fieldName" else "ra.$fieldName"
                 val rightValue = if (forceNullableChain) "rb?.$fieldName" else "rb.$fieldName"
@@ -591,26 +609,26 @@ class MetamodelProcessor(
 
                 val getValueBody = if (forceNullableChain) {
                     "            override fun getValue(record: T): $v =\n" +
-                            "                this@$metaClassName.getValue(record)?.$fieldName\n"
+                        "                this@$metaClassName.getValue(record)?.$fieldName\n"
                 } else {
                     "            override fun getValue(record: T): $v =\n" +
-                            "                this@$metaClassName.getValue(record).$fieldName\n"
+                        "                this@$metaClassName.getValue(record).$fieldName\n"
                 }
                 builder.append(
                     "        $fieldName = object : AbstractMetamodel<T, $kotlinTypeName, $v>(" +
-                            "$javaTypeName, subPath, fieldBase + \"$fieldName\", false, this" +
-                            ") {\n" +
-                            getValueBody +
-                            "\n" +
-                            "            override fun isIdentical(a: T, b: T): Boolean {\n" +
-                            "                $readRecords" +
-                            "                return $isIdenticalExpr\n" +
-                            "            }\n\n" +
-                            "            override fun isSame(a: T, b: T): Boolean {\n" +
-                            "                $readRecords" +
-                            "                return $isSameExpr\n" +
-                            "            }\n" +
-                            "        }\n"
+                        "$javaTypeName, subPath, fieldBase + \"$fieldName\", false, this" +
+                        ") {\n" +
+                        getValueBody +
+                        "\n" +
+                        "            override fun isIdentical(a: T, b: T): Boolean {\n" +
+                        "                $readRecords" +
+                        "                return $isIdenticalExpr\n" +
+                        "            }\n\n" +
+                        "            override fun isSame(a: T, b: T): Boolean {\n" +
+                        "                $readRecords" +
+                        "                return $isSameExpr\n" +
+                        "            }\n" +
+                        "        }\n",
                 )
             }
         }
@@ -625,7 +643,7 @@ class MetamodelProcessor(
      */
     private fun generateReferencedDataClassMetamodels(
         classDeclaration: KSClassDeclaration,
-        resolver: Resolver
+        resolver: Resolver,
     ) {
         classDeclaration.getAllProperties().forEach { prop ->
             val typeRef = prop.type
@@ -667,7 +685,7 @@ class MetamodelProcessor(
         val file = codeGenerator.createNewFile(
             dependencies = deps,
             packageName = packageName,
-            fileName = metaInterfaceName
+            fileName = metaInterfaceName,
         )
         OutputStreamWriter(file).use { writer ->
             writer.write(
@@ -690,7 +708,7 @@ class MetamodelProcessor(
                 |${buildInterfaceFields(classDeclaration, packageName, resolver)}
                 |    }
                 |}
-                """.trimMargin()
+                """.trimMargin(),
             )
         }
     }
@@ -735,14 +753,14 @@ class MetamodelProcessor(
             |    override fun isIdentical(a: T, b: T): Boolean {
             |        return getter(a) === getter(b)
             |    }
-            """.trimMargin()
+        """.trimMargin()
 
         val containingFile = classDeclaration.containingFile
         val deps = if (containingFile != null) Dependencies(true, containingFile) else Dependencies(false)
         val file = codeGenerator.createNewFile(
             dependencies = deps,
             packageName = packageName,
-            fileName = metaClassName
+            fileName = metaClassName,
         )
         val convenienceCtors = if (isDataRoot) {
             val rootGetterForNoArgCtor = "{ it as $className }"
@@ -801,7 +819,7 @@ class MetamodelProcessor(
                 |    }
                 |$convenienceCtors
                 |}
-                """.trimMargin()
+                """.trimMargin(),
             )
         }
     }

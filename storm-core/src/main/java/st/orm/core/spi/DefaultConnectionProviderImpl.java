@@ -17,13 +17,12 @@ package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.PersistenceException;
-import st.orm.core.spi.Orderable.AfterAny;
-
-import javax.sql.DataSource;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.Connection;
+import javax.sql.DataSource;
+import st.orm.PersistenceException;
+import st.orm.core.spi.Orderable.AfterAny;
 
 @AfterAny
 public class DefaultConnectionProviderImpl implements ConnectionProvider {
@@ -80,4 +79,3 @@ public class DefaultConnectionProviderImpl implements ConnectionProvider {
         }
     }
 }
-

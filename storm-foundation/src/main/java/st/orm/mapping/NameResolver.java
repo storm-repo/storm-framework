@@ -15,9 +15,9 @@
  */
 package st.orm.mapping;
 
-import jakarta.annotation.Nonnull;
-
 import static java.lang.Character.toLowerCase;
+
+import jakarta.annotation.Nonnull;
 
 /**
  * Helper class to help with name resolution.

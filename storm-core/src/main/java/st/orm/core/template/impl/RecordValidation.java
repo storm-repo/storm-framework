@@ -15,32 +15,15 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import st.orm.Data;
-import st.orm.StormConfig;
-import st.orm.Element;
-import st.orm.Entity;
-import st.orm.FK;
-import st.orm.GenerationStrategy;
-import st.orm.Inline;
-import st.orm.PK;
-import st.orm.PersistenceException;
-import st.orm.Projection;
-import st.orm.ProjectionQuery;
-import st.orm.Ref;
-import st.orm.Version;
-import st.orm.core.spi.ORMReflection;
-import st.orm.core.spi.Providers;
-import st.orm.core.spi.TypeDiscovery;
-import st.orm.core.template.SqlTemplate;
-import st.orm.core.template.SqlTemplate.Parameter;
-import st.orm.core.template.SqlTemplate.PositionalParameter;
-import st.orm.core.template.SqlTemplateException;
-import st.orm.mapping.RecordField;
-import st.orm.mapping.RecordType;
+import static java.util.Optional.empty;
+import static st.orm.core.spi.Providers.getORMConverter;
+import static st.orm.core.template.impl.RecordReflection.findPkField;
+import static st.orm.core.template.impl.RecordReflection.getRecordType;
+import static st.orm.core.template.impl.RecordReflection.getRefDataType;
+import static st.orm.core.template.impl.RecordReflection.getRefPkType;
+import static st.orm.core.template.impl.RecordReflection.isRecord;
 
+import jakarta.annotation.Nonnull;
 import java.math.BigInteger;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -54,14 +37,30 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-
-import static java.util.Optional.empty;
-import static st.orm.core.spi.Providers.getORMConverter;
-import static st.orm.core.template.impl.RecordReflection.findPkField;
-import static st.orm.core.template.impl.RecordReflection.getRecordType;
-import static st.orm.core.template.impl.RecordReflection.getRefDataType;
-import static st.orm.core.template.impl.RecordReflection.getRefPkType;
-import static st.orm.core.template.impl.RecordReflection.isRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import st.orm.Data;
+import st.orm.Element;
+import st.orm.Entity;
+import st.orm.FK;
+import st.orm.GenerationStrategy;
+import st.orm.Inline;
+import st.orm.PK;
+import st.orm.PersistenceException;
+import st.orm.Projection;
+import st.orm.ProjectionQuery;
+import st.orm.Ref;
+import st.orm.StormConfig;
+import st.orm.Version;
+import st.orm.core.spi.ORMReflection;
+import st.orm.core.spi.Providers;
+import st.orm.core.spi.TypeDiscovery;
+import st.orm.core.template.SqlTemplate;
+import st.orm.core.template.SqlTemplate.Parameter;
+import st.orm.core.template.SqlTemplate.PositionalParameter;
+import st.orm.core.template.SqlTemplateException;
+import st.orm.mapping.RecordField;
+import st.orm.mapping.RecordType;
 
 /**
  * Helper class for validating record types and named parameters.

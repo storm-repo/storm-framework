@@ -39,9 +39,7 @@ interface SubqueryTemplate {
      * @param <T> the table type to select from.
      * @return the subquery builder.
      */
-    fun <T : Data> subquery(fromType: KClass<T>): QueryBuilder<T, *, *> {
-        return subquery(fromType, fromType)
-    }
+    fun <T : Data> subquery(fromType: KClass<T>): QueryBuilder<T, *, *> = subquery(fromType, fromType)
 
     /**
      * Create a subquery for the given table and select type.
@@ -52,9 +50,7 @@ interface SubqueryTemplate {
      * @param <T> the table type to select from.
      * @param <R> the result type.
      */
-    fun <T : Data, R : Data> subquery(fromType: KClass<T>, selectType: KClass<R>): QueryBuilder<T, *, *> {
-        return subquery(fromType) { t(select(selectType, DECLARED)) }
-    }
+    fun <T : Data, R : Data> subquery(fromType: KClass<T>, selectType: KClass<R>): QueryBuilder<T, *, *> = subquery(fromType) { t(select(selectType, DECLARED)) }
 
     /**
      * Create a subquery for the given table and select type using the given `template`.
@@ -64,9 +60,7 @@ interface SubqueryTemplate {
      * @return the subquery builder.
      * @param <T> the table type to select from.
      */
-    fun <T : Data> subquery(fromType: KClass<T>, template: TemplateBuilder): QueryBuilder<T, *, *> {
-        return subquery(fromType, template.build())
-    }
+    fun <T : Data> subquery(fromType: KClass<T>, template: TemplateBuilder): QueryBuilder<T, *, *> = subquery(fromType, template.build())
 
     /**
      * Create a subquery for the given table and select type using the given `template`.

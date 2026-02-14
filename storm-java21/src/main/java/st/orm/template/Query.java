@@ -16,15 +16,14 @@
 package st.orm.template;
 
 import jakarta.annotation.Nonnull;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
 import st.orm.PersistenceException;
 import st.orm.Ref;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Stream;
 
 /**
  * Represents a constructed SQL statement that is ready for execution.

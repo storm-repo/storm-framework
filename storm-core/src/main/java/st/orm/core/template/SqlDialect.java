@@ -16,7 +16,6 @@
 package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
-
 import java.util.List;
 import java.util.SequencedMap;
 import java.util.function.Function;

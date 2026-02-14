@@ -19,7 +19,7 @@ import st.orm.spring.repository.VisitRepository
 @Sql("/data.sql")
 class RepositoryTest(
     val visitRepository: VisitRepository,
-    val ownerRepositoryTest: OwnerRepository?
+    val ownerRepositoryTest: OwnerRepository?,
 ) {
 
     @Test

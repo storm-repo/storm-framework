@@ -15,29 +15,28 @@
  */
 package st.orm.spi.mariadb;
 
-import jakarta.annotation.Nonnull;
-import st.orm.Metamodel;
-import st.orm.core.repository.EntityRepository;
-import st.orm.core.template.Model;
-import st.orm.core.template.ORMTemplate;
-import st.orm.Entity;
-import st.orm.core.template.PreparedQuery;
-import st.orm.core.template.Query;
-import st.orm.core.template.TemplateString;
-import st.orm.spi.mysql.MySQLEntityRepositoryImpl;
+import static st.orm.GenerationStrategy.SEQUENCE;
+import static st.orm.core.repository.impl.StreamSupport.partitioned;
+import static st.orm.core.template.SqlInterceptor.intercept;
+import static st.orm.core.template.TemplateString.raw;
+import static st.orm.core.template.impl.StringTemplates.flatten;
 
+import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import static st.orm.GenerationStrategy.SEQUENCE;
-import static st.orm.core.repository.impl.StreamSupport.partitioned;
-import static st.orm.core.template.SqlInterceptor.intercept;
-import static st.orm.core.template.TemplateString.raw;
-import static st.orm.core.template.impl.StringTemplates.flatten;
+import st.orm.Entity;
+import st.orm.Metamodel;
+import st.orm.core.repository.EntityRepository;
+import st.orm.core.template.Model;
+import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.PreparedQuery;
+import st.orm.core.template.Query;
+import st.orm.core.template.TemplateString;
+import st.orm.spi.mysql.MySQLEntityRepositoryImpl;
 
 /**
  * Implementation of {@link EntityRepository} for MariaDB.

@@ -54,16 +54,12 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
     /**
      * A predicate that always evaluates to true.
      */
-    fun TRUE(): PredicateBuilder<T, R, ID> {
-        return where(raw("TRUE"))
-    }
+    fun TRUE(): PredicateBuilder<T, R, ID> = where(raw("TRUE"))
 
     /**
      * A predicate that always evaluates to false.
      */
-    fun FALSE(): PredicateBuilder<T, R, ID> {
-        return where(raw("FALSE"))
-    }
+    fun FALSE(): PredicateBuilder<T, R, ID> = where(raw("FALSE"))
 
     /**
      * Adds an `EXISTS` condition to the WHERE clause using the specified subquery.
@@ -91,9 +87,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @param subquery the subquery to check for existence.
      * @return the updated [PredicateBuilder] with the EXISTS condition applied.
      */
-    fun exists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): PredicateBuilder<T, R, ID> {
-        return exists(builder(this))
-    }
+    fun exists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): PredicateBuilder<T, R, ID> = exists(builder(this))
 
     /**
      * Adds an `NOT EXISTS` condition to the WHERE clause using the specified subquery.
@@ -121,9 +115,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @param subquery the subquery to check for existence.
      * @return the updated [PredicateBuilder] with the NOT EXISTS condition applied.
      */
-    fun notExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): PredicateBuilder<T, R, ID> {
-        return notExists(builder(this))
-    }
+    fun notExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): PredicateBuilder<T, R, ID> = notExists(builder(this))
 
     /**
      * Adds a condition to the WHERE clause that matches the specified primary key of the table.
@@ -223,9 +215,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    fun <V : Data> where(path: Metamodel<T, V>, record: V): PredicateBuilder<T, R, ID> {
-        return where(path, Operator.EQUALS, record)
-    }
+    fun <V : Data> where(path: Metamodel<T, V>, record: V): PredicateBuilder<T, R, ID> = where(path, Operator.EQUALS, record)
 
     /**
      * Adds a condition to the WHERE clause that matches the specified record. The record can represent any of
@@ -234,9 +224,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    fun <V : Data> whereAny(path: Metamodel<*, V>, record: V): PredicateBuilder<T, R, ID> {
-        return whereAny(path, Operator.EQUALS, record)
-    }
+    fun <V : Data> whereAny(path: Metamodel<*, V>, record: V): PredicateBuilder<T, R, ID> = whereAny(path, Operator.EQUALS, record)
 
     /**
      * Adds a condition to the WHERE clause that matches the specified ref. The record can represent any of
@@ -249,7 +237,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      */
     fun <V : Data> where(
         path: Metamodel<T, V>,
-        ref: Ref<V>
+        ref: Ref<V>,
     ): PredicateBuilder<T, R, ID>
 
     /**
@@ -263,7 +251,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      */
     fun <V : Data> whereAny(
         path: Metamodel<*, V>,
-        ref: Ref<V>
+        ref: Ref<V>,
     ): PredicateBuilder<T, R, ID>
 
     /**
@@ -277,7 +265,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      */
     fun <V : Data> whereRef(
         path: Metamodel<T, V>,
-        it: Iterable<Ref<V>>
+        it: Iterable<Ref<V>>,
     ): PredicateBuilder<T, R, ID>
 
     /**
@@ -291,7 +279,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      */
     fun <V : Data> whereAnyRef(
         path: Metamodel<*, V>,
-        it: Iterable<Ref<V>>
+        it: Iterable<Ref<V>>,
     ): PredicateBuilder<T, R, ID>
 
     /**
@@ -304,10 +292,8 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      */
     fun <V : Data> where(
         path: Metamodel<T, V>,
-        it: Iterable<V>
-    ): PredicateBuilder<T, R, ID> {
-        return where(path, Operator.IN, it)
-    }
+        it: Iterable<V>,
+    ): PredicateBuilder<T, R, ID> = where(path, Operator.IN, it)
 
     /**
      * Adds a condition to the WHERE clause that matches the specified records. The records can represent any of
@@ -319,10 +305,8 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      */
     fun <V : Data> whereAny(
         path: Metamodel<*, V>,
-        it: Iterable<V>
-    ): PredicateBuilder<T, R, ID> {
-        return whereAny(path, Operator.IN, it)
-    }
+        it: Iterable<V>,
+    ): PredicateBuilder<T, R, ID> = whereAny(path, Operator.IN, it)
 
     /**
      * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
@@ -339,7 +323,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
     fun <V> where(
         path: Metamodel<T, V>,
         operator: Operator,
-        it: Iterable<V>
+        it: Iterable<V>,
     ): PredicateBuilder<T, R, ID>
 
     /**
@@ -357,7 +341,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
     fun <V> whereAny(
         path: Metamodel<*, V>,
         operator: Operator,
-        it: Iterable<V>
+        it: Iterable<V>,
     ): PredicateBuilder<T, R, ID>
 
     /**
@@ -375,10 +359,8 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
     fun <V> where(
         path: Metamodel<T, V>,
         operator: Operator,
-        vararg o: V
-    ): PredicateBuilder<T, R, ID> {
-        return whereAny(path, operator, *o)
-    }
+        vararg o: V,
+    ): PredicateBuilder<T, R, ID> = whereAny(path, operator, *o)
 
     /**
      * Adds a condition to the WHERE clause that matches the specified objects at the specified path in the table
@@ -395,7 +377,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
     fun <V> whereAny(
         path: Metamodel<*, V>,
         operator: Operator,
-        vararg o: V
+        vararg o: V,
     ): PredicateBuilder<T, R, ID>
 
     /**
@@ -404,9 +386,7 @@ interface WhereBuilder<T : Data, R, ID> : SubqueryTemplate {
      * @param builder the expression to add.
      * @return the predicate builder.
      */
-    fun where(builder: TemplateBuilder): PredicateBuilder<T, R, ID> {
-        return where(builder.build())
-    }
+    fun where(builder: TemplateBuilder): PredicateBuilder<T, R, ID> = where(builder.build())
 
     /**
      * Appends a custom expression to the WHERE clause.

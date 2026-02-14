@@ -1,33 +1,30 @@
 package st.orm.core;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static st.orm.core.template.TemplateString.raw;
+
 import jakarta.annotation.Nonnull;
+import java.time.LocalDate;
+import java.util.Objects;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-
+import st.orm.FK;
+import st.orm.PK;
+import st.orm.Persist;
+import st.orm.PersistenceException;
 import st.orm.core.model.Owner;
 import st.orm.core.model.Pet;
 import st.orm.core.model.PetType;
 import st.orm.core.model.PetTypeEnum;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.SqlTemplateException;
-import st.orm.FK;
-import st.orm.PK;
-import st.orm.Persist;
-import st.orm.PersistenceException;
-
-import javax.sql.DataSource;
-import java.time.LocalDate;
-import java.util.Objects;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static st.orm.core.template.ORMTemplate.of;
-import static st.orm.core.template.TemplateString.raw;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)

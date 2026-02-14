@@ -16,14 +16,13 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
-import st.orm.Data;
-
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import st.orm.Data;
 
 /**
  * Utility class to keep track of the tables that are used in a query to optimize the auto join generation.

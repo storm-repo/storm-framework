@@ -15,11 +15,9 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import st.orm.PersistenceException;
-import st.orm.core.template.Sql;
-import st.orm.core.template.SqlTemplate;
+import static java.util.Collections.newSetFromMap;
 
+import jakarta.annotation.Nonnull;
 import java.util.ArrayDeque;
 import java.util.ConcurrentModificationException;
 import java.util.Deque;
@@ -31,8 +29,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
-
-import static java.util.Collections.newSetFromMap;
+import st.orm.PersistenceException;
+import st.orm.core.template.Sql;
+import st.orm.core.template.SqlTemplate;
 
 /**
  * Manages SQL interceptors.

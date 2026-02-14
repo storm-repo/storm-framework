@@ -15,14 +15,13 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
+import static java.util.Objects.requireNonNull;
+import static java.util.Optional.ofNullable;
 
+import jakarta.annotation.Nonnull;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
-
-import static java.util.Objects.requireNonNull;
-import static java.util.Optional.ofNullable;
 
 /**
  * Returns a lazily initialized value.

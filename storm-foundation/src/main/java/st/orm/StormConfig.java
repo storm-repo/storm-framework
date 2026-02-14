@@ -17,7 +17,6 @@ package st.orm;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-
 import java.util.Map;
 
 /**

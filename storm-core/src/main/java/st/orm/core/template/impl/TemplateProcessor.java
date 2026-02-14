@@ -15,8 +15,20 @@
  */
 package st.orm.core.template.impl;
 
+import static java.lang.String.join;
+import static java.util.Optional.empty;
+import static java.util.Optional.ofNullable;
+import static st.orm.core.template.impl.ElementRouter.getElementProcessor;
+import static st.orm.core.template.impl.RecordValidation.validateParameters;
+import static st.orm.core.template.impl.SqlParser.hasWhereClause;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.MissingFormatArgumentException;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Element;
@@ -38,19 +50,6 @@ import st.orm.core.template.impl.SqlTemplateImpl.Wrapped;
 import st.orm.core.template.impl.TemplatePreparation.BindingContext;
 import st.orm.core.template.impl.TemplatePreparation.CompilationContext;
 import st.orm.core.template.impl.TemplatePreparation.PreparedTemplate;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.MissingFormatArgumentException;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static java.lang.String.join;
-import static java.util.Optional.empty;
-import static java.util.Optional.ofNullable;
-import static st.orm.core.template.impl.ElementRouter.getElementProcessor;
-import static st.orm.core.template.impl.RecordValidation.validateParameters;
-import static st.orm.core.template.impl.SqlParser.hasWhereClause;
 
 /**
  * Compiles and binds a {@link SqlTemplate} in two phases.

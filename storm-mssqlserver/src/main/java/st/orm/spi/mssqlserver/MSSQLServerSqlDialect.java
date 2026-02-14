@@ -15,21 +15,19 @@
  */
 package st.orm.spi.mssqlserver;
 
-import jakarta.annotation.Nonnull;
-import st.orm.StormConfig;
-import st.orm.core.spi.DefaultSqlDialect;
-import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlTemplateException;
+import static java.util.stream.Collectors.toSet;
 
+import jakarta.annotation.Nonnull;
 import java.util.List;
-import java.util.Map;
 import java.util.SequencedMap;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-
-import static java.util.stream.Collectors.toSet;
+import st.orm.StormConfig;
+import st.orm.core.spi.DefaultSqlDialect;
+import st.orm.core.template.SqlDialect;
+import st.orm.core.template.SqlTemplateException;
 
 public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDialect {
 

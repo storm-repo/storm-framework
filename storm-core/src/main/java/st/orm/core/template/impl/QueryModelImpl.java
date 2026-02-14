@@ -15,8 +15,21 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Arrays.asList;
+import static st.orm.ResolveScope.CASCADE;
+import static st.orm.ResolveScope.INNER;
+import static st.orm.core.template.Templates.alias;
+import static st.orm.core.template.Templates.param;
+import static st.orm.core.template.impl.SqlParser.removeComments;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.SequencedMap;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Element;
@@ -36,20 +49,6 @@ import st.orm.core.template.impl.Elements.Expression;
 import st.orm.core.template.impl.Elements.ObjectExpression;
 import st.orm.core.template.impl.Elements.Subquery;
 import st.orm.core.template.impl.Elements.TemplateExpression;
-
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.SequencedMap;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
-
-import static java.util.Arrays.asList;
-import static st.orm.ResolveScope.CASCADE;
-import static st.orm.ResolveScope.INNER;
-import static st.orm.core.template.Templates.alias;
-import static st.orm.core.template.Templates.param;
-import static st.orm.core.template.impl.SqlParser.removeComments;
 
 /**
  * Query model implementation responsible for translating high-level query expressions into SQL fragments and bind

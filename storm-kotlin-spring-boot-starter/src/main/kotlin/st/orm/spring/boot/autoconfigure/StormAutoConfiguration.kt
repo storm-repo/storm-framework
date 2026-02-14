@@ -57,10 +57,8 @@ open class StormAutoConfiguration {
     open fun ormTemplate(
         dataSource: DataSource,
         properties: StormProperties,
-        entityCallbacks: List<EntityCallback<*>>
-    ): ORMTemplate {
-        return ORMTemplate.of(dataSource, toStormConfig(properties)).withEntityCallbacks(entityCallbacks)
-    }
+        entityCallbacks: List<EntityCallback<*>>,
+    ): ORMTemplate = ORMTemplate.of(dataSource, toStormConfig(properties)).withEntityCallbacks(entityCallbacks)
 
     private fun toStormConfig(properties: StormProperties): StormConfig {
         val map = mutableMapOf<String, String>()

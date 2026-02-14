@@ -15,7 +15,12 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.stream.Collectors.joining;
+import static st.orm.core.template.impl.ElementRouter.getElementProcessor;
+
 import jakarta.annotation.Nonnull;
+import java.util.List;
+import java.util.function.Function;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.core.template.Column;
@@ -23,12 +28,6 @@ import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.Elements.Where;
-
-import java.util.List;
-import java.util.function.Function;
-
-import static java.util.stream.Collectors.joining;
-import static st.orm.core.template.impl.ElementRouter.getElementProcessor;
 
 final class WhereProcessor implements ElementProcessor<Where> {
     record WhereBindHint(@Nonnull List<Column> columns) implements BindHint {}

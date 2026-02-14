@@ -64,7 +64,7 @@ class CoroutineAwareConnectionProviderImpl : ConnectionProvider {
                     if (IS_ACTUAL_TRANSACTION_ACTIVE.invoke(null) as Boolean) {
                         throw PersistenceException(
                             "Programmatic transactions and Spring managed transactions cannot be mixed when spring-managed transactions are disabled for storm. " +
-                                    "Use `@EnableTransactionIntegration` to enable spring-managed transactions for storm."
+                                "Use `@EnableTransactionIntegration` to enable spring-managed transactions for storm.",
                         )
                     }
                 } catch (e: InvocationTargetException) {
@@ -115,12 +115,10 @@ class CoroutineAwareConnectionProviderImpl : ConnectionProvider {
      * connection multiple times.
      */
     object ConcurrencyDetector {
-        private class ConnectionIdentity(connection: Connection, queue: ReferenceQueue<Connection>) :
-            WeakReference<Connection>(connection, queue) {
+        private class ConnectionIdentity(connection: Connection, queue: ReferenceQueue<Connection>) : WeakReference<Connection>(connection, queue) {
             private val id = identityHashCode(connection)
             override fun hashCode() = id
-            override fun equals(other: Any?) =
-                other is ConnectionIdentity && this.get() === other.get() && this.get() != null
+            override fun equals(other: Any?) = other is ConnectionIdentity && this.get() === other.get() && this.get() != null
         }
 
         private data class Owner(var thread: Thread? = null, var depth: Int = 0)
@@ -141,8 +139,11 @@ class CoroutineAwareConnectionProviderImpl : ConnectionProvider {
             val t = Thread.currentThread()
             synchronized(owner) {
                 when (owner.thread) {
-                    null -> { owner.thread = t; owner.depth = 1 }
-                    t    -> owner.depth++
+                    null -> {
+                        owner.thread = t
+                        owner.depth = 1
+                    }
+                    t -> owner.depth++
                     else -> throw PersistenceException("Concurrent access on $connection.")
                 }
             }
@@ -156,7 +157,10 @@ class CoroutineAwareConnectionProviderImpl : ConnectionProvider {
             var clear = false
             synchronized(owner) {
                 if (owner.thread !== t) return
-                if (--owner.depth == 0) { owner.thread = null; clear = true }
+                if (--owner.depth == 0) {
+                    owner.thread = null
+                    clear = true
+                }
             }
             if (clear) owners.remove(key, owner)
         }

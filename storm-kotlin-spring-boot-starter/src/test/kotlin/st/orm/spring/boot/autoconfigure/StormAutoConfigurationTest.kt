@@ -41,8 +41,8 @@ class StormAutoConfigurationTest {
                 DataSourceTransactionManagerAutoConfiguration::class.java,
                 StormAutoConfiguration::class.java,
                 StormRepositoryAutoConfiguration::class.java,
-                StormTransactionAutoConfiguration::class.java
-            )
+                StormTransactionAutoConfiguration::class.java,
+            ),
         )
 
     @Test
@@ -52,7 +52,7 @@ class StormAutoConfigurationTest {
         contextRunner
             .withPropertyValues(
                 "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
-                "spring.datasource.driver-class-name=org.h2.Driver"
+                "spring.datasource.driver-class-name=org.h2.Driver",
             )
             .run { context ->
                 context.getBean(ORMTemplate::class.java) shouldNotBe null
@@ -77,7 +77,7 @@ class StormAutoConfigurationTest {
         contextRunner
             .withPropertyValues(
                 "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
-                "spring.datasource.driver-class-name=org.h2.Driver"
+                "spring.datasource.driver-class-name=org.h2.Driver",
             )
             .withUserConfiguration(CustomOrmTemplateConfig::class.java)
             .run { context ->
@@ -93,7 +93,7 @@ class StormAutoConfigurationTest {
         contextRunner
             .withPropertyValues(
                 "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
-                "spring.datasource.driver-class-name=org.h2.Driver"
+                "spring.datasource.driver-class-name=org.h2.Driver",
             )
             .run { context ->
                 context.getBean(RepositoryBeanFactoryPostProcessor::class.java)
@@ -108,7 +108,7 @@ class StormAutoConfigurationTest {
         contextRunner
             .withPropertyValues(
                 "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
-                "spring.datasource.driver-class-name=org.h2.Driver"
+                "spring.datasource.driver-class-name=org.h2.Driver",
             )
             .withUserConfiguration(CustomRepositoryPostProcessorConfig::class.java)
             .run { context ->
@@ -124,7 +124,7 @@ class StormAutoConfigurationTest {
         contextRunner
             .withPropertyValues(
                 "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
-                "spring.datasource.driver-class-name=org.h2.Driver"
+                "spring.datasource.driver-class-name=org.h2.Driver",
             )
             .run { context ->
                 context.getBean(SpringTransactionConfiguration::class.java) shouldNotBe null
@@ -146,7 +146,7 @@ class StormAutoConfigurationTest {
                 "storm.template-cache.size=100",
                 "storm.ansi-escaping=false",
                 "storm.validation.skip=false",
-                "storm.validation.warnings-only=true"
+                "storm.validation.warnings-only=true",
             )
             .run { context ->
                 context.getBean(ORMTemplate::class.java) shouldNotBe null
@@ -206,7 +206,7 @@ class StormAutoConfigurationTest {
         contextRunner
             .withPropertyValues(
                 "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
-                "spring.datasource.driver-class-name=org.h2.Driver"
+                "spring.datasource.driver-class-name=org.h2.Driver",
             )
             .withUserConfiguration(EntityCallbackConfig::class.java)
             .run { context ->
@@ -232,10 +232,9 @@ class StormAutoConfigurationTest {
         companion object {
             @JvmStatic
             @Bean
-            fun repositoryBeanFactoryPostProcessor(): RepositoryBeanFactoryPostProcessor =
-                object : RepositoryBeanFactoryPostProcessor() {
-                    override val repositoryBasePackages: Array<String> get() = arrayOf("com.example")
-                }
+            fun repositoryBeanFactoryPostProcessor(): RepositoryBeanFactoryPostProcessor = object : RepositoryBeanFactoryPostProcessor() {
+                override val repositoryBasePackages: Array<String> get() = arrayOf("com.example")
+            }
         }
     }
 }

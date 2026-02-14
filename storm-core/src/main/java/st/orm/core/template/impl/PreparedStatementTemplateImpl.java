@@ -15,36 +15,15 @@
  */
 package st.orm.core.template.impl;
 
+import static st.orm.core.spi.Providers.getConnection;
+import static st.orm.core.spi.Providers.releaseConnection;
+import static st.orm.core.template.SqlTemplate.PS;
+import static st.orm.core.template.impl.ExceptionHelper.getExceptionTransformer;
+import static st.orm.core.template.impl.LazySupplier.lazy;
+import static st.orm.core.template.impl.RecordValidation.validate;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.BindVars;
-import st.orm.PersistenceException;
-import st.orm.StormConfig;
-import st.orm.core.spi.RefFactory;
-import st.orm.core.spi.RefFactoryImpl;
-import st.orm.core.spi.TransactionContext;
-import st.orm.core.spi.TransactionTemplate;
-import st.orm.core.template.Query;
-import st.orm.core.spi.Provider;
-import st.orm.core.spi.Providers;
-import st.orm.core.spi.QueryFactory;
-import st.orm.mapping.ColumnNameResolver;
-import st.orm.mapping.ForeignKeyResolver;
-import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.PreparedStatementTemplate;
-import st.orm.core.template.Sql;
-import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlTemplate;
-import st.orm.core.template.SqlTemplate.BatchListener;
-import st.orm.core.template.SqlTemplate.NamedParameter;
-import st.orm.core.template.SqlTemplate.Parameter;
-import st.orm.core.template.SqlTemplate.PositionalParameter;
-import st.orm.core.template.SqlTemplateException;
-import st.orm.core.template.TableAliasResolver;
-import st.orm.mapping.TableNameResolver;
-import st.orm.core.template.TemplateString;
-
-import javax.sql.DataSource;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.math.BigDecimal;
@@ -67,14 +46,32 @@ import java.util.TimeZone;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-
-import static st.orm.core.spi.Providers.getConnection;
-import static st.orm.core.spi.Providers.releaseConnection;
-import static st.orm.core.template.SqlTemplate.PS;
-import static st.orm.core.template.impl.ExceptionHelper.getExceptionTransformer;
-import static st.orm.core.template.impl.LazySupplier.lazy;
-import static st.orm.core.template.impl.RecordValidation.validate;
-import static java.util.Objects.requireNonNull;
+import javax.sql.DataSource;
+import st.orm.BindVars;
+import st.orm.PersistenceException;
+import st.orm.StormConfig;
+import st.orm.core.spi.Provider;
+import st.orm.core.spi.Providers;
+import st.orm.core.spi.QueryFactory;
+import st.orm.core.spi.RefFactory;
+import st.orm.core.spi.RefFactoryImpl;
+import st.orm.core.spi.TransactionContext;
+import st.orm.core.spi.TransactionTemplate;
+import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.PreparedStatementTemplate;
+import st.orm.core.template.Query;
+import st.orm.core.template.Sql;
+import st.orm.core.template.SqlTemplate;
+import st.orm.core.template.SqlTemplate.BatchListener;
+import st.orm.core.template.SqlTemplate.NamedParameter;
+import st.orm.core.template.SqlTemplate.Parameter;
+import st.orm.core.template.SqlTemplate.PositionalParameter;
+import st.orm.core.template.SqlTemplateException;
+import st.orm.core.template.TableAliasResolver;
+import st.orm.core.template.TemplateString;
+import st.orm.mapping.ColumnNameResolver;
+import st.orm.mapping.ForeignKeyResolver;
+import st.orm.mapping.TableNameResolver;
 
 public final class PreparedStatementTemplateImpl implements PreparedStatementTemplate, QueryFactory {
 

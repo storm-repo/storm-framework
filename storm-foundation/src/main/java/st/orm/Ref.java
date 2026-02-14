@@ -15,10 +15,10 @@
  */
 package st.orm;
 
+import static java.util.Objects.requireNonNull;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * Ref records are used to represent reference to records, allowing them to be fetched from the database. This can be
@@ -167,7 +167,7 @@ public interface Ref<T extends Data> {
 
     /**
      * Extracts the primary key from the given entity ref returning a type-safe id.
-     * 
+     *
      * @param ref ref to extract the primary key from.
      * @return the primary key of the specified ref.
      * @param <ID> the id type.

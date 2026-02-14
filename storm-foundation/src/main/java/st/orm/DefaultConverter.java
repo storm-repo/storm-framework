@@ -15,11 +15,11 @@
  */
 package st.orm;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
-
 import static java.lang.annotation.ElementType.TYPE;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
 
 /**
  * Marks a {@link st.orm.Converter Converter} as eligible for automatic application when its entity type matches a

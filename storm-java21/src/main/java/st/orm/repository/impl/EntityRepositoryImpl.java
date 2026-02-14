@@ -15,24 +15,23 @@
  */
 package st.orm.repository.impl;
 
+import static java.util.Objects.requireNonNull;
+import static st.orm.template.impl.StringTemplates.convert;
+
 import jakarta.annotation.Nonnull;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 import st.orm.Data;
-import st.orm.repository.EntityRepository;
 import st.orm.Entity;
 import st.orm.Ref;
+import st.orm.repository.EntityRepository;
 import st.orm.template.Model;
 import st.orm.template.ORMTemplate;
 import st.orm.template.QueryBuilder;
 import st.orm.template.impl.ModelImpl;
 import st.orm.template.impl.ORMTemplateImpl;
 import st.orm.template.impl.QueryBuilderImpl;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Stream;
-
-import static java.util.Objects.requireNonNull;
-import static st.orm.template.impl.StringTemplates.convert;
 
 /**
  */

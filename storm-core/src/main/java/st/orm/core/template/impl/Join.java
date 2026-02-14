@@ -15,6 +15,8 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Objects.requireNonNull;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Element;
@@ -23,8 +25,6 @@ import st.orm.core.template.impl.Elements.Source;
 import st.orm.core.template.impl.Elements.Target;
 import st.orm.core.template.impl.Elements.TemplateSource;
 import st.orm.core.template.impl.Elements.TemplateTarget;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * A join element of a template.

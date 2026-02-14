@@ -16,21 +16,20 @@
 package st.orm.core.repository;
 
 import jakarta.annotation.Nonnull;
-import st.orm.Data;
-import st.orm.FK;
-import st.orm.Inline;
-import st.orm.Ref;
-import st.orm.NoResultException;
-import st.orm.PK;
-import st.orm.PersistenceException;
-import st.orm.core.template.Model;
-import st.orm.core.template.QueryBuilder;
-import st.orm.core.template.TemplateString;
-import st.orm.Entity;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
+import st.orm.Data;
+import st.orm.Entity;
+import st.orm.FK;
+import st.orm.Inline;
+import st.orm.NoResultException;
+import st.orm.PK;
+import st.orm.PersistenceException;
+import st.orm.Ref;
+import st.orm.core.template.Model;
+import st.orm.core.template.QueryBuilder;
+import st.orm.core.template.TemplateString;
 
 /**
  * Provides a generic interface with CRUD operations for entities.
@@ -618,8 +617,8 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      *
      * <p>This method retrieves entities matching the provided IDs in batches, consolidating them into a single list.
      * The batch-based retrieval minimizes database overhead, allowing efficient handling of larger collections of IDs.
-     * 
-     * <p><strong>Note:</strong> The order of entities in the returned list is not guaranteed to match the order of IDs 
+     *
+     * <p><strong>Note:</strong> The order of entities in the returned list is not guaranteed to match the order of IDs
      * in the input collection, as the database may not preserve insertion order during retrieval.</p>
      *
      * @param ids the primary keys of the entities to retrieve, represented as an iterable collection.
@@ -808,7 +807,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * Deletes a collection of entities from the database in batches.
      *
      * <p>This method processes the provided entities in batches to optimize performance when handling larger collections,
-     * reducing database overhead. For each entity in the collection, the method removes the corresponding record from 
+     * reducing database overhead. For each entity in the collection, the method removes the corresponding record from
      * the database, if it exists. Batch processing ensures efficient handling of deletions, particularly for large data sets.</p>
      *
      * @param entities an iterable collection of entities to be deleted. Each entity in the collection must be non-null

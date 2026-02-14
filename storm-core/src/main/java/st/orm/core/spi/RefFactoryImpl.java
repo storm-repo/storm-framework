@@ -15,8 +15,12 @@
  */
 package st.orm.core.spi;
 
+import static java.util.Objects.requireNonNull;
+import static st.orm.core.spi.Providers.getTransactionTemplate;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.function.Predicate;
 import st.orm.Data;
 import st.orm.Entity;
 import st.orm.Ref;
@@ -25,11 +29,6 @@ import st.orm.core.template.QueryTemplate;
 import st.orm.core.template.impl.LazySupplier;
 import st.orm.core.template.impl.ModelBuilder;
 import st.orm.core.template.impl.ORMTemplateImpl;
-
-import java.util.function.Predicate;
-
-import static java.util.Objects.requireNonNull;
-import static st.orm.core.spi.Providers.getTransactionTemplate;
 
 /**
  * Implementation of {@link RefFactory}.

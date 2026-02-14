@@ -15,23 +15,22 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlOperation;
-import st.orm.core.template.TemplateString;
-import st.orm.core.template.impl.Elements.Unsafe;
-
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.regex.Pattern;
-
 import static java.util.regex.Pattern.DOTALL;
 import static st.orm.core.template.SqlOperation.DELETE;
 import static st.orm.core.template.SqlOperation.INSERT;
 import static st.orm.core.template.SqlOperation.SELECT;
 import static st.orm.core.template.SqlOperation.UNDEFINED;
 import static st.orm.core.template.SqlOperation.UPDATE;
+
+import jakarta.annotation.Nonnull;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.regex.Pattern;
+import st.orm.core.template.SqlDialect;
+import st.orm.core.template.SqlOperation;
+import st.orm.core.template.TemplateString;
+import st.orm.core.template.impl.Elements.Unsafe;
 
 /**
  * SQL parser for basic SQL processing.

@@ -16,16 +16,15 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import java.util.Collection;
+import java.util.List;
+import java.util.function.Function;
 import st.orm.Data;
 import st.orm.Ref;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.Elements.ObjectExpression;
 import st.orm.core.template.impl.Elements.TemplateExpression;
-
-import java.util.Collection;
-import java.util.List;
-import java.util.function.Function;
 
 final class CacheableProcessor implements ElementProcessor<Cacheable> {
 

@@ -1,5 +1,16 @@
 package st.orm.core;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static st.orm.DirtyCheck.VALUE;
+import static st.orm.UpdateMode.FIELD;
+import static st.orm.core.template.SqlInterceptor.observe;
+import static st.orm.core.template.TemplateString.raw;
+
+import java.util.concurrent.atomic.AtomicReference;
+import javax.sql.DataSource;
 import lombok.Builder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,18 +25,6 @@ import st.orm.Entity;
 import st.orm.PK;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.Sql;
-
-import javax.sql.DataSource;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static st.orm.DirtyCheck.VALUE;
-import static st.orm.UpdateMode.FIELD;
-import static st.orm.core.template.SqlInterceptor.observe;
-import static st.orm.core.template.TemplateString.raw;
 
 /**
  * Integration tests that exercise the primitive-type equality comparison branches in

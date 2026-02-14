@@ -16,10 +16,9 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
-import st.orm.core.template.TemplateString;
-
 import java.util.ArrayList;
 import java.util.List;
+import st.orm.core.template.TemplateString;
 
 /**
  * Utility class for processing string templates.

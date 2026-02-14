@@ -17,6 +17,8 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.List;
+import java.util.Optional;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Element;
@@ -24,9 +26,6 @@ import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplate.PositionalParameter;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
-
-import java.util.List;
-import java.util.Optional;
 
 /**
  * Binding-time API used by element processors to bind runtime values to parameters.

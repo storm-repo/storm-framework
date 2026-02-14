@@ -15,33 +15,32 @@
  */
 package st.orm.template.impl;
 
-import jakarta.annotation.Nonnull;
-import st.orm.Data;
-import st.orm.core.template.impl.Subqueryable;
-import st.orm.template.Query;
-import st.orm.core.spi.ORMReflection;
-import st.orm.core.spi.Providers;
-import st.orm.JoinType;
-import st.orm.core.template.TemplateString;
-import st.orm.template.JoinBuilder;
-import st.orm.template.QueryBuilder;
-import st.orm.template.TypedJoinBuilder;
-import st.orm.Metamodel;
-import st.orm.Operator;
-import st.orm.PersistenceException;
-import st.orm.Ref;
-import st.orm.template.PredicateBuilder;
-import st.orm.template.WhereBuilder;
-
-import java.util.function.Function;
-import java.util.stream.Stream;
-
 import static java.util.Objects.requireNonNull;
 import static st.orm.JoinType.cross;
 import static st.orm.JoinType.inner;
 import static st.orm.JoinType.left;
 import static st.orm.JoinType.right;
 import static st.orm.template.impl.StringTemplates.convert;
+
+import jakarta.annotation.Nonnull;
+import java.util.function.Function;
+import java.util.stream.Stream;
+import st.orm.Data;
+import st.orm.JoinType;
+import st.orm.Metamodel;
+import st.orm.Operator;
+import st.orm.PersistenceException;
+import st.orm.Ref;
+import st.orm.core.spi.ORMReflection;
+import st.orm.core.spi.Providers;
+import st.orm.core.template.TemplateString;
+import st.orm.core.template.impl.Subqueryable;
+import st.orm.template.JoinBuilder;
+import st.orm.template.PredicateBuilder;
+import st.orm.template.Query;
+import st.orm.template.QueryBuilder;
+import st.orm.template.TypedJoinBuilder;
+import st.orm.template.WhereBuilder;
 
 public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R, ID> implements Subqueryable {
     private final static ORMReflection REFLECTION = Providers.getORMReflection();

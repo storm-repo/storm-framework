@@ -15,13 +15,13 @@
  */
 package st.orm.core.spi;
 
+import static java.util.Objects.requireNonNull;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
 import st.orm.Ref;
 import st.orm.core.template.impl.LazySupplier;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * Default {@link Ref} implementation.

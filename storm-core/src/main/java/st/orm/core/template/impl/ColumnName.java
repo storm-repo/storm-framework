@@ -15,11 +15,11 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Objects.requireNonNull;
+
 import jakarta.annotation.Nonnull;
 import st.orm.core.spi.Name;
 import st.orm.core.template.SqlDialect;
-
-import static java.util.Objects.requireNonNull;
 
 public record ColumnName(@Nonnull String name, boolean escape) implements Name {
     public ColumnName(@Nonnull String name) {

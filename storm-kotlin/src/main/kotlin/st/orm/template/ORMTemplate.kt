@@ -52,7 +52,9 @@ import javax.sql.DataSource
  * @see st.orm.repository.EntityRepository
  * @see st.orm.repository.ProjectionRepository
  */
-interface ORMTemplate : QueryTemplate, RepositoryLookup {
+interface ORMTemplate :
+    QueryTemplate,
+    RepositoryLookup {
 
     /**
      * Returns a new [ORMTemplate] with the specified entity callback added.
@@ -102,9 +104,7 @@ interface ORMTemplate : QueryTemplate, RepositoryLookup {
          * @param entityManager the [EntityManager] to use for database operations; must not be `null`.
          * @return an [ORMTemplate] configured for use with JPA.
          */
-        fun of(entityManager: EntityManager): ORMTemplate {
-            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(entityManager))
-        }
+        fun of(entityManager: EntityManager): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(entityManager))
 
         /**
          * Returns an [ORMTemplate] for use with JDBC.
@@ -126,9 +126,7 @@ interface ORMTemplate : QueryTemplate, RepositoryLookup {
          * @param dataSource the [DataSource] to use for database operations; must not be `null`.
          * @return an [ORMTemplate] configured for use with JDBC.
          */
-        fun of(dataSource: DataSource): ORMTemplate {
-            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource))
-        }
+        fun of(dataSource: DataSource): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource))
 
         /**
          * Returns an [ORMTemplate] for use with JDBC.
@@ -153,9 +151,7 @@ interface ORMTemplate : QueryTemplate, RepositoryLookup {
          * @param connection the [Connection] to use for database operations; must not be `null`.
          * @return an [ORMTemplate] configured for use with JDBC.
          */
-        fun of(connection: Connection): ORMTemplate {
-            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection))
-        }
+        fun of(connection: Connection): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection))
 
         /**
          * Returns an [ORMTemplate] for use with JPA, with a custom template decorator.
@@ -169,10 +165,8 @@ interface ORMTemplate : QueryTemplate, RepositoryLookup {
          */
         fun of(
             entityManager: EntityManager,
-            decorator: (TemplateDecorator) -> TemplateDecorator
-        ): ORMTemplate {
-            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(entityManager, decorator))
-        }
+            decorator: (TemplateDecorator) -> TemplateDecorator,
+        ): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(entityManager, decorator))
 
         /**
          * Returns an [ORMTemplate] for use with JDBC, with a custom template decorator.
@@ -186,10 +180,8 @@ interface ORMTemplate : QueryTemplate, RepositoryLookup {
          */
         fun of(
             dataSource: DataSource,
-            decorator: (TemplateDecorator) -> TemplateDecorator
-        ): ORMTemplate {
-            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, decorator))
-        }
+            decorator: (TemplateDecorator) -> TemplateDecorator,
+        ): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, decorator))
 
         /**
          * Returns an [ORMTemplate] for use with JDBC, with a custom template decorator.
@@ -205,10 +197,8 @@ interface ORMTemplate : QueryTemplate, RepositoryLookup {
          */
         fun of(
             connection: Connection,
-            decorator: (TemplateDecorator) -> TemplateDecorator
-        ): ORMTemplate {
-            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, decorator))
-        }
+            decorator: (TemplateDecorator) -> TemplateDecorator,
+        ): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, decorator))
 
         /**
          * Returns an [ORMTemplate] for use with JPA, configured with the provided [StormConfig].
@@ -217,9 +207,7 @@ interface ORMTemplate : QueryTemplate, RepositoryLookup {
          * @param config the Storm configuration to apply.
          * @return an [ORMTemplate] configured for use with JPA.
          */
-        fun of(entityManager: EntityManager, config: StormConfig): ORMTemplate {
-            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(entityManager, config))
-        }
+        fun of(entityManager: EntityManager, config: StormConfig): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(entityManager, config))
 
         /**
          * Returns an [ORMTemplate] for use with JPA, configured with the provided [StormConfig] and a custom
@@ -233,10 +221,8 @@ interface ORMTemplate : QueryTemplate, RepositoryLookup {
         fun of(
             entityManager: EntityManager,
             config: StormConfig,
-            decorator: (TemplateDecorator) -> TemplateDecorator
-        ): ORMTemplate {
-            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(entityManager, config, decorator))
-        }
+            decorator: (TemplateDecorator) -> TemplateDecorator,
+        ): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(entityManager, config, decorator))
 
         /**
          * Returns an [ORMTemplate] for use with JDBC, configured with the provided [StormConfig].
@@ -245,9 +231,7 @@ interface ORMTemplate : QueryTemplate, RepositoryLookup {
          * @param config the Storm configuration to apply.
          * @return an [ORMTemplate] configured for use with JDBC.
          */
-        fun of(dataSource: DataSource, config: StormConfig): ORMTemplate {
-            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config))
-        }
+        fun of(dataSource: DataSource, config: StormConfig): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config))
 
         /**
          * Returns an [ORMTemplate] for use with JDBC, configured with the provided [StormConfig] and a custom
@@ -261,10 +245,8 @@ interface ORMTemplate : QueryTemplate, RepositoryLookup {
         fun of(
             dataSource: DataSource,
             config: StormConfig,
-            decorator: (TemplateDecorator) -> TemplateDecorator
-        ): ORMTemplate {
-            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config, decorator))
-        }
+            decorator: (TemplateDecorator) -> TemplateDecorator,
+        ): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config, decorator))
 
         /**
          * Returns an [ORMTemplate] for use with JDBC, configured with the provided [StormConfig].
@@ -275,9 +257,7 @@ interface ORMTemplate : QueryTemplate, RepositoryLookup {
          * @param config the Storm configuration to apply.
          * @return an [ORMTemplate] configured for use with JDBC.
          */
-        fun of(connection: Connection, config: StormConfig): ORMTemplate {
-            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config))
-        }
+        fun of(connection: Connection, config: StormConfig): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config))
 
         /**
          * Returns an [ORMTemplate] for use with JDBC, configured with the provided [StormConfig] and a custom
@@ -293,10 +273,8 @@ interface ORMTemplate : QueryTemplate, RepositoryLookup {
         fun of(
             connection: Connection,
             config: StormConfig,
-            decorator: (TemplateDecorator) -> TemplateDecorator
-        ): ORMTemplate {
-            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config, decorator))
-        }
+            decorator: (TemplateDecorator) -> TemplateDecorator,
+        ): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config, decorator))
     }
 }
 
@@ -309,14 +287,11 @@ val DataSource.orm: ORMTemplate
 val Connection.orm: ORMTemplate
     get() = ORMTemplate.of(this)
 
-fun EntityManager.orm(decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate =
-    ORMTemplate.of(this, decorator)
+fun EntityManager.orm(decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, decorator)
 
-fun DataSource.orm(decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate =
-    ORMTemplate.of(this, decorator)
+fun DataSource.orm(decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, decorator)
 
-fun Connection.orm(decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate =
-    ORMTemplate.of(this, decorator)
+fun Connection.orm(decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, decorator)
 
 fun EntityManager.orm(config: StormConfig): ORMTemplate = ORMTemplate.of(this, config)
 
@@ -324,12 +299,8 @@ fun DataSource.orm(config: StormConfig): ORMTemplate = ORMTemplate.of(this, conf
 
 fun Connection.orm(config: StormConfig): ORMTemplate = ORMTemplate.of(this, config)
 
-fun EntityManager.orm(config: StormConfig, decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate =
-    ORMTemplate.of(this, config, decorator)
+fun EntityManager.orm(config: StormConfig, decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, config, decorator)
 
-fun DataSource.orm(config: StormConfig, decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate =
-    ORMTemplate.of(this, config, decorator)
+fun DataSource.orm(config: StormConfig, decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, config, decorator)
 
-fun Connection.orm(config: StormConfig, decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate =
-    ORMTemplate.of(this, config, decorator)
-
+fun Connection.orm(config: StormConfig, decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, config, decorator)

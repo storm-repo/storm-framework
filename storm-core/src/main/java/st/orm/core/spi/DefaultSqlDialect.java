@@ -15,22 +15,21 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
-import st.orm.PersistenceException;
-import st.orm.StormConfig;
-import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlTemplateException;
+import static java.lang.Boolean.parseBoolean;
+import static java.util.stream.Collectors.joining;
+import static st.orm.Operator.EQUALS;
 
+import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.SequencedMap;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
-
-import static java.lang.Boolean.parseBoolean;
-import static java.util.stream.Collectors.joining;
-import static st.orm.Operator.EQUALS;
+import st.orm.PersistenceException;
+import st.orm.StormConfig;
+import st.orm.core.template.SqlDialect;
+import st.orm.core.template.SqlTemplateException;
 
 public class DefaultSqlDialect implements SqlDialect {
 

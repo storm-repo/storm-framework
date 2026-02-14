@@ -16,9 +16,8 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
-import st.orm.mapping.RecordField;
-
 import java.util.Optional;
+import st.orm.mapping.RecordField;
 
 /**
  * Provides pluggable ORM converter logic for record fields.

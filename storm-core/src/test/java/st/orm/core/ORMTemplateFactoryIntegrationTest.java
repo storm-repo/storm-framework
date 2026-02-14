@@ -1,6 +1,15 @@
 package st.orm.core;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import jakarta.annotation.Nonnull;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.Map;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,21 +21,10 @@ import st.orm.PersistenceException;
 import st.orm.StormConfig;
 import st.orm.core.model.City;
 import st.orm.core.template.ORMTemplate;
-import st.orm.mapping.TemplateDecorator;
 import st.orm.mapping.ColumnNameResolver;
 import st.orm.mapping.ForeignKeyResolver;
 import st.orm.mapping.TableNameResolver;
-
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.List;
-import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import st.orm.mapping.TemplateDecorator;
 
 @SuppressWarnings("ALL")
 @ExtendWith(SpringExtension.class)

@@ -15,25 +15,6 @@
  */
 package st.orm.core.repository.impl;
 
-import jakarta.annotation.Nonnull;
-import st.orm.Data;
-import st.orm.Metamodel;
-import st.orm.Ref;
-import st.orm.NoResultException;
-import st.orm.PersistenceException;
-import st.orm.core.template.Model;
-import st.orm.core.repository.Repository;
-import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.QueryBuilder;
-import st.orm.core.template.TemplateString;
-
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
-
 import static java.lang.Integer.MAX_VALUE;
 import static java.util.Objects.requireNonNull;
 import static java.util.Spliterator.ORDERED;
@@ -41,6 +22,24 @@ import static java.util.Spliterators.spliteratorUnknownSize;
 import static st.orm.core.spi.Providers.selectFrom;
 import static st.orm.core.spi.Providers.selectRefFrom;
 import static st.orm.core.template.TemplateString.wrap;
+
+import jakarta.annotation.Nonnull;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+import st.orm.Data;
+import st.orm.Metamodel;
+import st.orm.NoResultException;
+import st.orm.PersistenceException;
+import st.orm.Ref;
+import st.orm.core.repository.Repository;
+import st.orm.core.template.Model;
+import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.QueryBuilder;
+import st.orm.core.template.TemplateString;
 
 /**
  * Base implementation for all repositories.

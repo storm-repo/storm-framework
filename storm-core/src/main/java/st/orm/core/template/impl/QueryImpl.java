@@ -15,23 +15,15 @@
  */
 package st.orm.core.template.impl;
 
+import static java.lang.Integer.toHexString;
+import static java.lang.System.identityHashCode;
+import static java.util.stream.Stream.generate;
+import static st.orm.core.template.impl.LazySupplier.lazy;
+import static st.orm.core.template.impl.ObjectMapperFactory.getObjectMapper;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.Data;
-import st.orm.Entity;
-import st.orm.PersistenceException;
-import st.orm.Ref;
-import st.orm.core.spi.EntityCache;
-import st.orm.core.spi.Providers;
-import st.orm.core.spi.RefFactory;
-import st.orm.core.spi.TransactionTemplate;
-import st.orm.core.spi.WeakInterner;
-import st.orm.core.template.PreparedQuery;
-import st.orm.core.template.Query;
-import st.orm.core.template.SqlTemplateException;
-
 import java.math.BigDecimal;
-import java.util.Optional;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -50,12 +42,17 @@ import java.util.TimeZone;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
-
-import static java.lang.Integer.toHexString;
-import static java.lang.System.identityHashCode;
-import static java.util.stream.Stream.generate;
-import static st.orm.core.template.impl.LazySupplier.lazy;
-import static st.orm.core.template.impl.ObjectMapperFactory.getObjectMapper;
+import st.orm.Data;
+import st.orm.Entity;
+import st.orm.PersistenceException;
+import st.orm.Ref;
+import st.orm.core.spi.Providers;
+import st.orm.core.spi.RefFactory;
+import st.orm.core.spi.TransactionTemplate;
+import st.orm.core.spi.WeakInterner;
+import st.orm.core.template.PreparedQuery;
+import st.orm.core.template.Query;
+import st.orm.core.template.SqlTemplateException;
 
 @SuppressWarnings("ALL")
 class QueryImpl implements Query {

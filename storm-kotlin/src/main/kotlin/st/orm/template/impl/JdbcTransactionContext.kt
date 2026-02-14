@@ -104,20 +104,19 @@ internal class JdbcTransactionContext : TransactionContext {
         // NOTE:
         // - Joined REQUIRED/SUPPORTS/MANDATORY frames share the same map instance for identity stability.
         // - NESTED also shares the map (same connection), but on savepoint rollback we clear it to avoid stale state.
-        var entityCacheMap: MutableMap<KClass<*>, EntityCache<*, *>> = mutableMapOf()
+        var entityCacheMap: MutableMap<KClass<*>, EntityCache<*, *>> = mutableMapOf(),
     )
 
     private fun nowNanos(): Long = System.nanoTime()
 
-    private fun TransactionState.remainingSeconds(): Int? =
-        deadlineNanos?.let { deadline ->
-            val remaining = deadline - nowNanos()
-            when {
-                remaining <= 0L -> 0
-                remaining >= (Int.MAX_VALUE.toLong() * 1_000_000_000L) -> Int.MAX_VALUE
-                else -> (remaining / 1_000_000_000L).toInt()
-            }
+    private fun TransactionState.remainingSeconds(): Int? = deadlineNanos?.let { deadline ->
+        val remaining = deadline - nowNanos()
+        when {
+            remaining <= 0L -> 0
+            remaining >= (Int.MAX_VALUE.toLong() * 1_000_000_000L) -> Int.MAX_VALUE
+            else -> (remaining / 1_000_000_000L).toInt()
         }
+    }
 
     private val stack = mutableListOf<TransactionState>()
 
@@ -233,7 +232,7 @@ internal class JdbcTransactionContext : TransactionContext {
         isolation: Int?,
         timeoutSeconds: Int?,
         readOnly: Boolean?,
-        callback: TransactionCallback<T>
+        callback: TransactionCallback<T>,
     ): T {
         val state = TransactionState(propagation, isolation, timeoutSeconds, readOnly)
         logger.debug(
@@ -253,14 +252,13 @@ internal class JdbcTransactionContext : TransactionContext {
             }
                     timeout: ${if (timeoutSeconds == null) "<no timeout>" else "$timeoutSeconds second(s)"}
                     readOnly: $readOnly
-            """.trimIndent()
+            """.trimIndent(),
         )
         state.deadlineNanos = timeoutSeconds?.toDeadlineFromNowNanos()
         stack.add(state)
         val result = try {
             callback.doInTransaction(object : TransactionStatus {
-                override fun isRollbackOnly(): Boolean =
-                    this@JdbcTransactionContext.isRollbackOnly
+                override fun isRollbackOnly(): Boolean = this@JdbcTransactionContext.isRollbackOnly
 
                 override fun setRollbackOnly() {
                     this@JdbcTransactionContext.setRollbackOnly()
@@ -274,7 +272,7 @@ internal class JdbcTransactionContext : TransactionContext {
                     // TimeoutJob may not have registered timeout yet.
                     throw TransactionTimedOutException(
                         e.message ?: "Did not complete within timeout (${state.timeoutSeconds}s).",
-                        e
+                        e,
                     )
                 }
                 else -> throw e
@@ -361,7 +359,7 @@ internal class JdbcTransactionContext : TransactionContext {
                         if (outer?.connection != null) {
                             if (outer.dataSource != dataSource) {
                                 throw PersistenceException(
-                                    "Incompatible DataSource: expected ${outer.dataSource}, got $dataSource."
+                                    "Incompatible DataSource: expected ${outer.dataSource}, got $dataSource.",
                                 )
                             }
                             val savepoint = outer.connection!!.setSavepoint()
@@ -369,7 +367,7 @@ internal class JdbcTransactionContext : TransactionContext {
                                 "Creating nested transaction with savepoint {} on {} ({}).",
                                 savepoint,
                                 outer.connection!!,
-                                state.transactionId
+                                state.transactionId,
                             )
                             state.connection = outer.connection
                             state.dataSource = dataSource
@@ -396,7 +394,7 @@ internal class JdbcTransactionContext : TransactionContext {
                 // Already bound: sanity-check data source.
                 if (state.dataSource !== dataSource) {
                     throw PersistenceException(
-                        "Incompatible DataSource: $dataSource but already using ${state.dataSource}."
+                        "Incompatible DataSource: $dataSource but already using ${state.dataSource}.",
                     )
                 }
             }
@@ -422,7 +420,7 @@ internal class JdbcTransactionContext : TransactionContext {
             val expiredAfter = state.deadlineNanos?.let { nowNanos() >= it } == true
             if (expiredAfter) {
                 throw TransactionTimedOutException(
-                    "Did not complete within timeout (${state.timeoutSeconds}s)."
+                    "Did not complete within timeout (${state.timeoutSeconds}s).",
                 )
             }
             return
@@ -434,7 +432,7 @@ internal class JdbcTransactionContext : TransactionContext {
                         "Committing nested scope; releasing savepoint {} on {} ({}).",
                         state.savepoint,
                         connection,
-                        state.transactionId
+                        state.transactionId,
                     )
                     connection.releaseSavepoint(state.savepoint)
                 }
@@ -466,7 +464,7 @@ internal class JdbcTransactionContext : TransactionContext {
                         "Rolling back to savepoint {} on {} ({}).",
                         state.savepoint,
                         connection,
-                        state.transactionId
+                        state.transactionId,
                     )
                     connection.rollback(state.savepoint)
                     // We shared the cache map with the outer scope. After savepoint rollback, cached entities can be
@@ -497,7 +495,7 @@ internal class JdbcTransactionContext : TransactionContext {
         }
         if (!suppressException && expired) {
             throw TransactionTimedOutException(
-                "Did not complete within timeout (${state.timeoutSeconds}s)."
+                "Did not complete within timeout (${state.timeoutSeconds}s).",
             )
         }
         if (!suppressException && state.rollbackInherited) {

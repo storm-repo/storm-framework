@@ -17,15 +17,14 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.function.Supplier;
 import st.orm.Data;
 import st.orm.PersistenceException;
-import st.orm.mapping.ColumnNameResolver;
-import st.orm.mapping.ForeignKeyResolver;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplateException;
+import st.orm.mapping.ColumnNameResolver;
+import st.orm.mapping.ForeignKeyResolver;
 import st.orm.mapping.TableNameResolver;
-
-import java.util.function.Supplier;
 
 /**
  * Builder for creating a model.

@@ -16,14 +16,13 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
+import java.util.function.Supplier;
 import st.orm.Data;
 import st.orm.Ref;
 import st.orm.core.template.Model;
 import st.orm.core.template.QueryBuilder;
 import st.orm.core.template.QueryTemplate;
 import st.orm.core.template.TemplateString;
-
-import java.util.function.Supplier;
 
 /**
  * Provides pluggable query builder logic.

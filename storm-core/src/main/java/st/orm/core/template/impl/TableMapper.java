@@ -17,13 +17,12 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.Data;
-import st.orm.mapping.RecordField;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import st.orm.Data;
+import st.orm.mapping.RecordField;
 
 /**
  * The table mapper keeps track of all tables in the table graph and manually added joins.

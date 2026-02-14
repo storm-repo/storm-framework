@@ -15,20 +15,19 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import st.orm.Data;
-import st.orm.core.template.SqlTemplate.PositionalParameter;
-import st.orm.BindVars;
-import st.orm.PersistenceException;
-import st.orm.core.template.SqlTemplate.BatchListener;
-import st.orm.core.template.SqlTemplate.BindVariables;
+import static java.lang.Long.toHexString;
+import static java.lang.System.identityHashCode;
 
+import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
-
-import static java.lang.Long.toHexString;
-import static java.lang.System.identityHashCode;
+import st.orm.BindVars;
+import st.orm.Data;
+import st.orm.PersistenceException;
+import st.orm.core.template.SqlTemplate.BatchListener;
+import st.orm.core.template.SqlTemplate.BindVariables;
+import st.orm.core.template.SqlTemplate.PositionalParameter;
 
 /**
  * Manages the binding of variables in a SQL query.

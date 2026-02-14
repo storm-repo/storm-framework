@@ -1,7 +1,9 @@
 package st.orm.spring;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.springframework.test.context.TestConstructor.AutowireMode.ALL;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -11,10 +13,6 @@ import org.springframework.test.context.TestConstructor;
 import org.springframework.test.context.jdbc.Sql;
 import st.orm.spring.repository.OwnerRepository;
 import st.orm.spring.repository.VisitRepository;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.springframework.test.context.TestConstructor.AutowireMode.ALL;
 
 @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
 @ContextConfiguration(classes = IntegrationConfig.class)

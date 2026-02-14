@@ -15,16 +15,15 @@
  */
 package st.orm.template.impl;
 
+import static java.util.Objects.requireNonNull;
+
 import jakarta.annotation.Nonnull;
+import java.util.stream.Stream;
 import st.orm.Data;
-import st.orm.template.PreparedQuery;
-import st.orm.template.Query;
 import st.orm.PersistenceException;
 import st.orm.Ref;
-
-import java.util.stream.Stream;
-
-import static java.util.Objects.requireNonNull;
+import st.orm.template.PreparedQuery;
+import st.orm.template.Query;
 
 public class QueryImpl implements Query {
     private final st.orm.core.template.Query core;

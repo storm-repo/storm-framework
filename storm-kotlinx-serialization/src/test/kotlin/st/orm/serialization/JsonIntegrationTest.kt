@@ -23,7 +23,7 @@ import kotlinx.serialization.json.Json as JsonMapper
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @DataJpaTest(showSql = false)
 open class JsonIntegrationTest(
-    @Autowired val dataSource: DataSource
+    @Autowired val dataSource: DataSource,
 ) {
 
     @Serializable
@@ -33,8 +33,9 @@ open class JsonIntegrationTest(
         override val firstName: String,
         override val lastName: String,
         @Json val address: Address,
-        val telephone: String?
-    ) : Entity<Int>, Person
+        val telephone: String?,
+    ) : Entity<Int>,
+        Person
 
     @Test
     fun `serializable entity should round-trip through JSON with embedded Json fields`() {
@@ -59,14 +60,14 @@ open class JsonIntegrationTest(
     @Serializable
     @DbTable("owner")
     data class OwnerWithJsonPerson(
-            @PK val id: Int,
-            @Json val person: SerializablePerson,
-            @Json val address: Address,
-            val telephone: String?
+        @PK val id: Int,
+        @Json val person: SerializablePerson,
+        @Json val address: Address,
+        val telephone: String?,
     ) : Entity<Int>
 
     @Test
-    fun `entity with multiple Json fields should round-trip including computed JSON columns`()  {
+    fun `entity with multiple Json fields should round-trip including computed JSON columns`() {
         // Uses a raw query that constructs a JSON person object from first_name/last_name columns.
         // Both the @Json person field and @Json address field should serialize/deserialize correctly.
         // Owner id=1 is "Betty Davis" at "638 Cardinal Ave., Sun Prairie".
@@ -76,17 +77,17 @@ open class JsonIntegrationTest(
         val jsonMapper = JsonMapper {
             serializersModule = StormSerializers
         }
-        val json = jsonMapper.encodeToString(owner);
-        Assertions.assertEquals("""{"id":1,"person":{"firstName":"Betty","lastName":"Davis"},"address":{"address":"638 Cardinal Ave.","city":"Sun Prairie"},"telephone":"6085551749"}""", json);
+        val json = jsonMapper.encodeToString(owner)
+        Assertions.assertEquals("""{"id":1,"person":{"firstName":"Betty","lastName":"Davis"},"address":{"address":"638 Cardinal Ave.","city":"Sun Prairie"},"telephone":"6085551749"}""", json)
         val fromJson = jsonMapper.decodeFromString<OwnerWithJsonPerson>(json)
-        Assertions.assertEquals(owner, fromJson);
+        Assertions.assertEquals(owner, fromJson)
     }
 
     @Serializable
     @DbTable("pet_type")
     data class SerializablePetType(
         @PK val id: Int = 0,
-        val name: String
+        val name: String,
     ) : Entity<Int>
 
     @Suppress("OPT_IN_USAGE")
@@ -98,9 +99,7 @@ open class JsonIntegrationTest(
             encoder.encodeString(value.format(formatter))
         }
 
-        override fun deserialize(decoder: Decoder): LocalDate {
-            return LocalDate.parse(decoder.decodeString(), formatter)
-        }
+        override fun deserialize(decoder: Decoder): LocalDate = LocalDate.parse(decoder.decodeString(), formatter)
     }
 
     @DbTable("pet")
@@ -110,7 +109,7 @@ open class JsonIntegrationTest(
         val name: String,
         @Serializable(with = DateSerializer::class) @Persist(updatable = false) val birthDate: LocalDate,
         @FK("type_id") @Persist(updatable = false) val petType: SerializablePetType,
-        @FK val owner: SerializableOwner? = null
+        @FK val owner: SerializableOwner? = null,
     ) : Entity<Int>
 
     @Test
@@ -119,14 +118,14 @@ open class JsonIntegrationTest(
         // PetType and Owner entities. When serialized, all nested entities should appear inline
         // with their full field values, and the result should round-trip.
         val orm = ORMTemplate.of(dataSource)
-        val pet = orm.entity(SerializablePet::class).getById(1);
+        val pet = orm.entity(SerializablePet::class).getById(1)
         val jsonMapper = JsonMapper {
             serializersModule = StormSerializers
         }
-        val json = jsonMapper.encodeToString(pet);
-        Assertions.assertEquals("""{"id":1,"name":"Leo","birthDate":"2020-09-07","petType":{"id":1,"name":"cat"},"owner":{"id":1,"firstName":"Betty","lastName":"Davis","address":{"address":"638 Cardinal Ave.","city":"Sun Prairie"},"telephone":"6085551749"}}""", json);
-        val fromJson = jsonMapper.decodeFromString<SerializablePet>(json);
-        Assertions.assertEquals(pet, fromJson);
+        val json = jsonMapper.encodeToString(pet)
+        Assertions.assertEquals("""{"id":1,"name":"Leo","birthDate":"2020-09-07","petType":{"id":1,"name":"cat"},"owner":{"id":1,"firstName":"Betty","lastName":"Davis","address":{"address":"638 Cardinal Ave.","city":"Sun Prairie"},"telephone":"6085551749"}}""", json)
+        val fromJson = jsonMapper.decodeFromString<SerializablePet>(json)
+        Assertions.assertEquals(pet, fromJson)
     }
 
     @Serializable
@@ -136,7 +135,7 @@ open class JsonIntegrationTest(
         val name: String,
         @Serializable(with = DateSerializer::class) @Persist(updatable = false) val birthDate: LocalDate,
         @FK("type_id") @Persist(updatable = false) val petType: SerializablePetType,
-        @Contextual @FK val owner: Ref<SerializableOwner>?
+        @Contextual @FK val owner: Ref<SerializableOwner>?,
     ) : Entity<Int>
 
     @Test
@@ -144,14 +143,14 @@ open class JsonIntegrationTest(
         // Per API contract, an unloaded Ref (lazy reference) serializes to just the primary key value,
         // not the full entity. Pet id=1 has owner_id=1, so the unloaded owner Ref should serialize as 1.
         val orm = ORMTemplate.of(dataSource)
-        val pet = orm.entity(PetWithRefOwner::class).getById(1);
+        val pet = orm.entity(PetWithRefOwner::class).getById(1)
         val jsonMapper = JsonMapper {
             serializersModule = StormSerializers
         }
         val json = jsonMapper.encodeToString(pet)
-        Assertions.assertEquals("""{"id":1,"name":"Leo","birthDate":"2020-09-07","petType":{"id":1,"name":"cat"},"owner":1}""", json);
+        Assertions.assertEquals("""{"id":1,"name":"Leo","birthDate":"2020-09-07","petType":{"id":1,"name":"cat"},"owner":1}""", json)
         val fromJson = jsonMapper.decodeFromString<PetWithRefOwner>(json)
-        Assertions.assertEquals(pet, fromJson);
+        Assertions.assertEquals(pet, fromJson)
     }
 
     @Test
@@ -160,16 +159,16 @@ open class JsonIntegrationTest(
         // with an "@entity" wrapper containing the full entity data. This allows the deserializer to
         // reconstruct a loaded Ref with the entity available.
         val orm = ORMTemplate.of(dataSource)
-        val pet = orm.entity(PetWithRefOwner::class).getById(1);
+        val pet = orm.entity(PetWithRefOwner::class).getById(1)
         val owner = pet.owner!!.fetch()
         val jsonMapper = JsonMapper {
             serializersModule = StormSerializers
         }
         val json = jsonMapper.encodeToString(pet)
-        Assertions.assertEquals("""{"id":1,"name":"Leo","birthDate":"2020-09-07","petType":{"id":1,"name":"cat"},"owner":{"@entity":{"id":1,"firstName":"Betty","lastName":"Davis","address":{"address":"638 Cardinal Ave.","city":"Sun Prairie"},"telephone":"6085551749"}}}""", json);
+        Assertions.assertEquals("""{"id":1,"name":"Leo","birthDate":"2020-09-07","petType":{"id":1,"name":"cat"},"owner":{"@entity":{"id":1,"firstName":"Betty","lastName":"Davis","address":{"address":"638 Cardinal Ave.","city":"Sun Prairie"},"telephone":"6085551749"}}}""", json)
         val fromJson = jsonMapper.decodeFromString<PetWithRefOwner>(json)
-        Assertions.assertEquals(pet, fromJson);
-        Assertions.assertEquals(owner, fromJson.owner!!.fetch());
+        Assertions.assertEquals(pet, fromJson)
+        Assertions.assertEquals(owner, fromJson.owner!!.fetch())
     }
 
     @Serializable
@@ -179,7 +178,7 @@ open class JsonIntegrationTest(
         val firstName: String,
         val lastName: String,
         @Json val address: Address,
-        val telephone: String?
+        val telephone: String?,
     ) : Projection<Int>
 
     @Serializable
@@ -189,7 +188,7 @@ open class JsonIntegrationTest(
         val name: String,
         @Serializable(with = DateSerializer::class) @Persist(updatable = false) val birthDate: LocalDate,
         @FK("type_id") @Persist(updatable = false) val petType: SerializablePetType,
-        @Contextual @FK val owner: Ref<ProjectionOwner>?
+        @Contextual @FK val owner: Ref<ProjectionOwner>?,
     ) : Entity<Int>
 
     @Test

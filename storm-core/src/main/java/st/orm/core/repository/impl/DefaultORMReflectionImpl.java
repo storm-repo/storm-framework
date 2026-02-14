@@ -15,15 +15,13 @@
  */
 package st.orm.core.repository.impl;
 
+import static java.util.Arrays.asList;
+import static java.util.Arrays.stream;
+import static java.util.Objects.requireNonNull;
+import static java.util.Optional.empty;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.Data;
-import st.orm.PK;
-import st.orm.PersistenceException;
-import st.orm.core.spi.ORMReflection;
-import st.orm.mapping.RecordField;
-import st.orm.mapping.RecordType;
-
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -37,11 +35,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
-
-import static java.util.Arrays.asList;
-import static java.util.Arrays.stream;
-import static java.util.Objects.requireNonNull;
-import static java.util.Optional.empty;
+import st.orm.Data;
+import st.orm.PK;
+import st.orm.PersistenceException;
+import st.orm.core.spi.ORMReflection;
+import st.orm.mapping.RecordField;
+import st.orm.mapping.RecordType;
 
 public final class DefaultORMReflectionImpl implements ORMReflection {
     private static final Map<Class<?>, Optional<RecordType>> TYPE_CACHE = new ConcurrentHashMap<>();

@@ -36,9 +36,7 @@ interface JoinBuilder<T : Data, R, ID> {
      * @param template the condition to join on.
      * @return the query builder.
      */
-    fun on(template: TemplateBuilder): QueryBuilder<T, R, ID> {
-        return on(template.build())
-    }
+    fun on(template: TemplateBuilder): QueryBuilder<T, R, ID> = on(template.build())
 
     /**
      * Specifies the join condition using a custom expression.

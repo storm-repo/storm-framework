@@ -137,7 +137,7 @@ interface QueryBuilder<T : Data, R, ID> {
     fun join(
         type: JoinType,
         relation: KClass<out Data>,
-        alias: String
+        alias: String,
     ): TypedJoinBuilder<T, R, ID>
 
     /**
@@ -146,9 +146,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param template the condition to join.
      * @return the query builder.
      */
-    fun crossJoin(template: TemplateBuilder): QueryBuilder<T, R, ID> {
-        return crossJoin(template.build())
-    }
+    fun crossJoin(template: TemplateBuilder): QueryBuilder<T, R, ID> = crossJoin(template.build())
 
     /**
      * Adds a cross join to the query.
@@ -165,9 +163,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    fun innerJoin(template: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> {
-        return innerJoin(template.build(), alias)
-    }
+    fun innerJoin(template: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> = innerJoin(template.build(), alias)
 
     /**
      * Adds an inner join to the query.
@@ -185,9 +181,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    fun leftJoin(builder: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> {
-        return leftJoin(builder.build(), alias)
-    }
+    fun leftJoin(builder: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> = leftJoin(builder.build(), alias)
 
     /**
      * Adds a left join to the query.
@@ -205,9 +199,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    fun rightJoin(template: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> {
-        return rightJoin(template.build(), alias)
-    }
+    fun rightJoin(template: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> = rightJoin(template.build(), alias)
 
     /**
      * Adds a right join to the query.
@@ -229,10 +221,8 @@ interface QueryBuilder<T : Data, R, ID> {
     fun join(
         type: JoinType,
         template: TemplateBuilder,
-        alias: String
-    ): JoinBuilder<T, R, ID> {
-        return join(type, template.build(), alias)
-    }
+        alias: String,
+    ): JoinBuilder<T, R, ID> = join(type, template.build(), alias)
 
     /**
      * Adds a join of the specified type to the query using a template.
@@ -245,7 +235,7 @@ interface QueryBuilder<T : Data, R, ID> {
     fun join(
         type: JoinType,
         template: TemplateString,
-        alias: String
+        alias: String,
     ): JoinBuilder<T, R, ID>
 
     /**
@@ -259,7 +249,7 @@ interface QueryBuilder<T : Data, R, ID> {
     fun join(
         type: JoinType,
         subquery: QueryBuilder<*, *, *>,
-        alias: String
+        alias: String,
     ): JoinBuilder<T, R, ID>
 
     /**
@@ -268,9 +258,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param id the id to match.
      * @return the query builder.
      */
-    fun where(id: ID): QueryBuilder<T, R, ID> {
-        return whereBuilder { whereId(id) }
-    }
+    fun where(id: ID): QueryBuilder<T, R, ID> = whereBuilder { whereId(id) }
 
     /**
      * Adds a WHERE clause that matches the specified primary key of the table, expressed by a ref.
@@ -279,9 +267,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.3
      */
-    fun where(ref: Ref<T>): QueryBuilder<T, R, ID> {
-        return whereBuilder { whereRef(ref) }
-    }
+    fun where(ref: Ref<T>): QueryBuilder<T, R, ID> = whereBuilder { whereRef(ref) }
 
     /**
      * Adds a WHERE clause that matches the specified record.
@@ -289,9 +275,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param record the record to match.
      * @return the query builder.
      */
-    fun where(record: T): QueryBuilder<T, R, ID> {
-        return whereBuilder { where(record) }
-    }
+    fun where(record: T): QueryBuilder<T, R, ID> = whereBuilder { where(record) }
 
     /**
      * Adds a WHERE clause that matches the specified primary keys of the table.
@@ -300,9 +284,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun whereId(it: Iterable<ID>): QueryBuilder<T, R, ID> {
-        return whereBuilder { whereId(it) }
-    }
+    fun whereId(it: Iterable<ID>): QueryBuilder<T, R, ID> = whereBuilder { whereId(it) }
 
     /**
      * Adds a WHERE clause that matches the specified primary keys of the table, expressed by a ref.
@@ -311,9 +293,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.3
      */
-    fun whereRef(it: Iterable<Ref<T>>): QueryBuilder<T, R, ID> {
-        return whereBuilder { whereRef(it) }
-    }
+    fun whereRef(it: Iterable<Ref<T>>): QueryBuilder<T, R, ID> = whereBuilder { whereRef(it) }
 
     /**
      * Adds a WHERE clause that matches the specified record. The record can represent any of the related tables in the
@@ -323,9 +303,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    fun <V : Data> where(path: Metamodel<T, V>, record: V): QueryBuilder<T, R, ID> {
-        return where(path, EQUALS, record)
-    }
+    fun <V : Data> where(path: Metamodel<T, V>, record: V): QueryBuilder<T, R, ID> = where(path, EQUALS, record)
 
     /**
      * Adds a WHERE clause that matches the specified ref. The ref can represent any of the related tables in the
@@ -336,9 +314,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the predicate builder.
      * @since 1.3
      */
-    fun <V : Data> where(path: Metamodel<T, V>, ref: Ref<V>): QueryBuilder<T, R, ID> {
-        return whereBuilder { where(path, ref) }
-    }
+    fun <V : Data> where(path: Metamodel<T, V>, ref: Ref<V>): QueryBuilder<T, R, ID> = whereBuilder { where(path, ref) }
 
     /**
      * Adds a WHERE clause that matches the specified records. The records can represent any of the related tables in
@@ -348,9 +324,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    fun <V : Data> where(path: Metamodel<T, V>, it: Iterable<V>): QueryBuilder<T, R, ID> {
-        return where(path, IN, it)
-    }
+    fun <V : Data> where(path: Metamodel<T, V>, it: Iterable<V>): QueryBuilder<T, R, ID> = where(path, IN, it)
 
     /**
      * Adds a WHERE clause that matches the specified records. The records can represent any of the related tables in
@@ -363,10 +337,8 @@ interface QueryBuilder<T : Data, R, ID> {
      */
     fun <V : Data> whereRef(
         path: Metamodel<T, V>,
-        it: Iterable<Ref<V>>
-    ): QueryBuilder<T, R, ID> {
-        return whereBuilder { whereRef(path, it) }
-    }
+        it: Iterable<Ref<V>>,
+    ): QueryBuilder<T, R, ID> = whereBuilder { whereRef(path, it) }
 
     /**
      * Adds a WHERE clause that matches the specified records.
@@ -374,9 +346,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param it the records to match.
      * @return the query builder.
      */
-    fun where(it: Iterable<T>): QueryBuilder<T, R, ID> {
-        return whereBuilder { where(it) }
-    }
+    fun where(it: Iterable<T>): QueryBuilder<T, R, ID> = whereBuilder { where(it) }
 
     /**
      * Adds a WHERE clause that matches the specified objects at the specified path in the table graph.
@@ -392,10 +362,8 @@ interface QueryBuilder<T : Data, R, ID> {
     fun <V> where(
         path: Metamodel<T, V>,
         operator: Operator,
-        it: Iterable<V>
-    ): QueryBuilder<T, R, ID> {
-        return whereBuilder { where(path, operator, it) }
-    }
+        it: Iterable<V>,
+    ): QueryBuilder<T, R, ID> = whereBuilder { where(path, operator, it) }
 
     /**
      * Adds a WHERE clause that matches the specified objects at the specified path in the table graph.
@@ -411,10 +379,8 @@ interface QueryBuilder<T : Data, R, ID> {
     fun <V> where(
         path: Metamodel<T, V>,
         operator: Operator,
-        vararg o: V
-    ): QueryBuilder<T, R, ID> {
-        return whereBuilder { where(path, operator, *o) }
-    }
+        vararg o: V,
+    ): QueryBuilder<T, R, ID> = whereBuilder { where(path, operator, *o) }
 
     /**
      * Adds a WHERE clause to the query for the specified expression.
@@ -422,9 +388,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param builder the expression.
      * @return the query builder.
      */
-    fun where(builder: TemplateBuilder): QueryBuilder<T, R, ID> {
-        return where(builder.build())
-    }
+    fun where(builder: TemplateBuilder): QueryBuilder<T, R, ID> = where(builder.build())
 
     /**
      * Adds a WHERE clause to the query for the specified expression.
@@ -432,9 +396,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param template the expression.
      * @return the query builder.
      */
-    fun where(template: TemplateString): QueryBuilder<T, R, ID> {
-        return whereBuilder { where(template) }
-    }
+    fun where(template: TemplateString): QueryBuilder<T, R, ID> = whereBuilder { where(template) }
 
     /**
      * Adds a WHERE clause to the query using a [WhereBuilder].
@@ -442,9 +404,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param predicate the predicate to add.
      * @return the query builder.
      */
-    fun where(predicate: PredicateBuilder<T, *, *>): QueryBuilder<T, R, ID> {
-        return whereBuilder { predicate }
-    }
+    fun where(predicate: PredicateBuilder<T, *, *>): QueryBuilder<T, R, ID> = whereBuilder { predicate }
 
     /**
      * Adds a WHERE clause to the query using a [WhereBuilder].
@@ -452,9 +412,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param predicate the predicate to add.
      * @return the query builder.
      */
-    fun whereAny(predicate: PredicateBuilder<*, *, *>): QueryBuilder<T, R, ID> {
-        return whereAnyBuilder { predicate }
-    }
+    fun whereAny(predicate: PredicateBuilder<*, *, *>): QueryBuilder<T, R, ID> = whereAnyBuilder { predicate }
 
     /**
      * Adds an `EXISTS` WHERE clause using the specified subquery.
@@ -468,9 +426,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param subquery the subquery to check for existence.
      * @return the query builder.
      */
-    fun whereExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> {
-        return whereBuilder { exists(subquery) }
-    }
+    fun whereExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = whereBuilder { exists(subquery) }
 
     /**
      * Adds an `EXISTS` WHERE clause using the specified subquery.
@@ -483,9 +439,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param builder the subquery to check for existence.
      * @return the query builder.
      */
-    fun whereExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> {
-        return whereBuilder { exists(builder(this)) }
-    }
+    fun whereExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = whereBuilder { exists(builder(this)) }
 
     /**
      * Adds a `NOT EXISTS` WHERE clause using the specified subquery.
@@ -498,9 +452,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param subquery the subquery to check for existence.
      * @return the query builder.
      */
-    fun whereNotExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> {
-        return whereBuilder { notExists(subquery) }
-    }
+    fun whereNotExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = whereBuilder { notExists(subquery) }
 
     /**
      * Adds a `NOT EXISTS` WHERE clause using the specified subquery.
@@ -513,9 +465,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param builder the subquery to check for existence.
      * @return the query builder.
      */
-    fun whereNotExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> {
-        return whereBuilder { notExists(builder(this)) }
-    }
+    fun whereNotExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = whereBuilder { notExists(builder(this)) }
 
     /**
      * Adds a WHERE clause to the query using a [WhereBuilder].
@@ -579,9 +529,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun groupBy(builder: TemplateBuilder): QueryBuilder<T, R, ID> {
-        return groupBy(builder.build())
-    }
+    fun groupBy(builder: TemplateBuilder): QueryBuilder<T, R, ID> = groupBy(builder.build())
 
     /**
      * Adds a GROUP BY clause to the query using a string template.
@@ -590,9 +538,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun groupBy(template: TemplateString): QueryBuilder<T, R, ID> {
-        return append(combine(raw("GROUP BY "), template))
-    }
+    fun groupBy(template: TemplateString): QueryBuilder<T, R, ID> = append(combine(raw("GROUP BY "), template))
 
     /**
      * Adds a HAVING clause to the query using the specified expression.
@@ -607,10 +553,8 @@ interface QueryBuilder<T : Data, R, ID> {
     fun <V> having(
         path: Metamodel<T, V>,
         operator: Operator,
-        vararg o: V
-    ): QueryBuilder<T, R, ID> {
-        return havingAny(path, operator, *o)
-    }
+        vararg o: V,
+    ): QueryBuilder<T, R, ID> = havingAny(path, operator, *o)
 
     /**
      * Adds a HAVING clause to the query using the specified expression. The metamodel can refer to manually added joins.
@@ -625,10 +569,8 @@ interface QueryBuilder<T : Data, R, ID> {
     fun <V> havingAny(
         path: Metamodel<*, V>,
         operator: Operator,
-        vararg o: V
-    ): QueryBuilder<T, R, ID> {
-        return having(wrap(ObjectExpression(path, operator, o)))
-    }
+        vararg o: V,
+    ): QueryBuilder<T, R, ID> = having(wrap(ObjectExpression(path, operator, o)))
 
     /**
      * Adds a HAVING clause to the query using the specified expression.
@@ -637,9 +579,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun having(builder: TemplateBuilder): QueryBuilder<T, R, ID> {
-        return having(builder.build())
-    }
+    fun having(builder: TemplateBuilder): QueryBuilder<T, R, ID> = having(builder.build())
 
     /**
      * Adds a HAVING clause to the query using the specified expression.
@@ -648,9 +588,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun having(template: TemplateString): QueryBuilder<T, R, ID> {
-        return append(combine(raw("HAVING "), template))
-    }
+    fun having(template: TemplateString): QueryBuilder<T, R, ID> = append(combine(raw("HAVING "), template))
 
     /**
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
@@ -674,9 +612,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun orderByDescending(path: Metamodel<T, *>): QueryBuilder<T, R, ID> {
-        return orderBy(combine(wrap(path), raw(" DESC")))
-    }
+    fun orderByDescending(path: Metamodel<T, *>): QueryBuilder<T, R, ID> = orderBy(combine(wrap(path), raw(" DESC")))
 
     /**
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph or manually added
@@ -709,9 +645,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun orderBy(template: TemplateBuilder): QueryBuilder<T, R, ID> {
-        return orderBy(template.build())
-    }
+    fun orderBy(template: TemplateBuilder): QueryBuilder<T, R, ID> = orderBy(template.build())
 
     /**
      * Adds an ORDER BY clause to the query using a string template.
@@ -720,9 +654,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun orderBy(template: TemplateString): QueryBuilder<T, R, ID> {
-        return append(combine(raw("ORDER BY "), template))
-    }
+    fun orderBy(template: TemplateString): QueryBuilder<T, R, ID> = append(combine(raw("ORDER BY "), template))
 
     /**
      * Adds a LIMIT clause to the query.
@@ -748,9 +680,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param builder the string template to append.
      * @return the query builder.
      */
-    fun append(builder: TemplateBuilder): QueryBuilder<T, R, ID> {
-        return append(builder.build())
-    }
+    fun append(builder: TemplateBuilder): QueryBuilder<T, R, ID> = append(builder.build())
 
     /**
      * Append the query with a string template.
@@ -794,9 +724,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @throws PersistenceException if the lock mode is not supported for the current query.
      * @since 1.2
      */
-    fun forLock(builder: TemplateBuilder): QueryBuilder<T, R, ID> {
-        return forLock(builder.build())
-    }
+    fun forLock(builder: TemplateBuilder): QueryBuilder<T, R, ID> = forLock(builder.build())
 
     /**
      * Locks the selected rows using a custom lock mode.
@@ -832,9 +760,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the prepared query.
      * @throws PersistenceException if the query preparation fails.
      */
-    fun prepare(): PreparedQuery {
-        return build().prepare()
-    }
+    fun prepare(): PreparedQuery = build().prepare()
 
     //
     // Execution methods.
@@ -927,7 +853,6 @@ interface QueryBuilder<T : Data, R, ID> {
                 }
                     .orElse(null)
             }
-
         }
 
     /**
@@ -936,9 +861,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the number of rows impacted as result of the statement.
      * @throws PersistenceException if the statement fails.
      */
-    fun executeUpdate(): Int {
-        return build().executeUpdate()
-    }
+    fun executeUpdate(): Int = build().executeUpdate()
 }
 
 // Kotlin specific DSL
@@ -946,112 +869,94 @@ interface QueryBuilder<T : Data, R, ID> {
 /**
  * Infix function to create a predicate to check if a field is in a list of values.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.inList(value: Iterable<V>): PredicateBuilder<T, T, *> =
-    create(this, IN, value)
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.inList(value: Iterable<V>): PredicateBuilder<T, T, *> = create(this, IN, value)
 
 /**
  * Infix function to create a predicate to check if a field is in a list of references.
  */
-inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.inRefs(value: Iterable<Ref<V>>): PredicateBuilder<T, T, *> =
-    createRef(this, IN, value)
+inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.inRefs(value: Iterable<Ref<V>>): PredicateBuilder<T, T, *> = createRef(this, IN, value)
 
 /**
  * Infix function to create a predicate to check if a field is not in a list of values.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.notInList(value: Iterable<V>): PredicateBuilder<T, T, *> =
-    create(this, NOT_IN, value)
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.notInList(value: Iterable<V>): PredicateBuilder<T, T, *> = create(this, NOT_IN, value)
 
 /**
  * Infix function to create a predicate to check if a field is not in a list of references.
  */
-inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.notInRefs(value: Iterable<Ref<V>>): PredicateBuilder<T, T, *> =
-    createRef(this, NOT_IN, value)
+inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.notInRefs(value: Iterable<Ref<V>>): PredicateBuilder<T, T, *> = createRef(this, NOT_IN, value)
 
 /**
  * Infix functions to create a predicate to check if a field is equal to a value.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.eq(value: V): PredicateBuilder<T, T, *> =
-    create(this, EQUALS, listOf(value))
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.eq(value: V): PredicateBuilder<T, T, *> = create(this, EQUALS, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is equal to a reference.
  */
-inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.eq(value: Ref<V>): PredicateBuilder<T, T, *> =
-    createRef(this, EQUALS, listOf(value))
+inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.eq(value: Ref<V>): PredicateBuilder<T, T, *> = createRef(this, EQUALS, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is not equal to a value.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.neq(value: V): PredicateBuilder<T, T, *> =
-    create(this, NOT_EQUALS, listOf(value))
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.neq(value: V): PredicateBuilder<T, T, *> = create(this, NOT_EQUALS, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is not equal to a reference.
  */
-inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.neq(value: Ref<V>): PredicateBuilder<T, T, *> =
-    createRef(this, NOT_EQUALS, listOf(value))
+inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.neq(value: Ref<V>): PredicateBuilder<T, T, *> = createRef(this, NOT_EQUALS, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is like a value.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.like(value: V): PredicateBuilder<T, T, *> =
-    create(this, LIKE, listOf(value))
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.like(value: V): PredicateBuilder<T, T, *> = create(this, LIKE, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is not like a value.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.notLike(value: V): PredicateBuilder<T, T, *> =
-    create(this, NOT_LIKE, listOf(value))
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.notLike(value: V): PredicateBuilder<T, T, *> = create(this, NOT_LIKE, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is greater than a value.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.greater(value: V): PredicateBuilder<T, T, *> =
-    create(this, GREATER_THAN, listOf(value))
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.greater(value: V): PredicateBuilder<T, T, *> = create(this, GREATER_THAN, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is less than a value.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.less(value: V): PredicateBuilder<T, T, *> =
-    create(this, LESS_THAN, listOf(value))
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.less(value: V): PredicateBuilder<T, T, *> = create(this, LESS_THAN, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is greater than or equal to a value.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.greaterEq(value: V): PredicateBuilder<T, T, *> =
-    create(this, GREATER_THAN_OR_EQUAL, listOf(value))
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.greaterEq(value: V): PredicateBuilder<T, T, *> = create(this, GREATER_THAN_OR_EQUAL, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is less than or equal to a value.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.lessEq(value: V): PredicateBuilder<T, T, *> =
-    create(this, LESS_THAN_OR_EQUAL, listOf(value))
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.lessEq(value: V): PredicateBuilder<T, T, *> = create(this, LESS_THAN_OR_EQUAL, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is between two values.
  */
-fun <T : Data, V> Metamodel<T, V>.between(left: V, right: V): PredicateBuilder<T, T, *> =
-    create(this, BETWEEN, listOf(left, right))
+fun <T : Data, V> Metamodel<T, V>.between(left: V, right: V): PredicateBuilder<T, T, *> = create(this, BETWEEN, listOf(left, right))
+
 /**
  * Infix functions to create a predicate to check if a field is true.
  */
-fun <T : Data, V> Metamodel<T, V>.isTrue(): PredicateBuilder<T, T, *> =
-    create(this, IS_TRUE, emptyList())
+fun <T : Data, V> Metamodel<T, V>.isTrue(): PredicateBuilder<T, T, *> = create(this, IS_TRUE, emptyList())
 
 /**
  * Infix functions to create a predicate to check if a field is false.
  */
-fun <T : Data, V> Metamodel<T, V>.isFalse(): PredicateBuilder<T, T, *> =
-    create(this, IS_FALSE, emptyList())
+fun <T : Data, V> Metamodel<T, V>.isFalse(): PredicateBuilder<T, T, *> = create(this, IS_FALSE, emptyList())
 
 /**
  * Infix functions to create a predicate to check if a field is null.
  */
-fun <T : Data, V> Metamodel<T, V>.isNull(): PredicateBuilder<T, T, *> =
-    create(this, IS_NULL, emptyList())
+fun <T : Data, V> Metamodel<T, V>.isNull(): PredicateBuilder<T, T, *> = create(this, IS_NULL, emptyList())
 
 /**
  * Infix functions to create a predicate to check if a field is not null.
  */
-fun <T : Data, V> Metamodel<T, V>.isNotNull(): PredicateBuilder<T, T, *> =
-    create(this, IS_NOT_NULL, emptyList())
+fun <T : Data, V> Metamodel<T, V>.isNotNull(): PredicateBuilder<T, T, *> = create(this, IS_NOT_NULL, emptyList())

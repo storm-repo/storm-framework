@@ -1,14 +1,25 @@
 package st.orm.core;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static st.orm.Operator.EQUALS;
+import static st.orm.Operator.IN;
+import static st.orm.Operator.NOT_EQUALS;
+import static st.orm.Operator.NOT_IN;
+import static st.orm.core.template.TemplateString.raw;
+
+import java.time.LocalDate;
+import java.util.List;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-import st.orm.core.model.Pet;
 import st.orm.PersistenceException;
-import st.orm.Ref;
+import st.orm.core.model.Pet;
 import st.orm.core.model.Pet_;
 import st.orm.core.model.Specialty;
 import st.orm.core.model.Vet;
@@ -19,19 +30,6 @@ import st.orm.core.model.Visit_;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateBuilder;
-
-import javax.sql.DataSource;
-import java.time.LocalDate;
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static st.orm.core.template.TemplateString.raw;
-import static st.orm.Operator.EQUALS;
-import static st.orm.Operator.IN;
-import static st.orm.Operator.NOT_EQUALS;
-import static st.orm.Operator.NOT_IN;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)

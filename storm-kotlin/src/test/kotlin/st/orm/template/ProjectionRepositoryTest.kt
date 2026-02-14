@@ -5,7 +5,6 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.shouldNotBe
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
@@ -26,11 +25,10 @@ import st.orm.template.model.*
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
 open class ProjectionRepositoryTest(
-    @Autowired val orm: ORMTemplate
+    @Autowired val orm: ORMTemplate,
 ) {
     @Suppress("UNCHECKED_CAST")
-    private fun <T : Data, V> metamodel(model: Model<*, *>, columnName: String): Metamodel<T, V> =
-        model.columns.first { it.name == columnName }.metamodel as Metamodel<T, V>
+    private fun <T : Data, V> metamodel(model: Model<*, *>, columnName: String): Metamodel<T, V> = model.columns.first { it.name == columnName }.metamodel as Metamodel<T, V>
 
     // --- ProjectionRepository: findAll ---
 

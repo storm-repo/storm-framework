@@ -1,5 +1,12 @@
 package st.orm.spring;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Proxy;
+import java.sql.SQLException;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
@@ -14,14 +21,6 @@ import st.orm.spring.impl.RepositoryProxyingPostProcessor;
 import st.orm.spring.impl.ResolverRegistration;
 import st.orm.spring.impl.SqlLoggerAspect;
 import st.orm.spring.impl.TransactionAwareConnectionProviderImpl;
-
-import javax.sql.DataSource;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Proxy;
-import java.sql.SQLException;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for coverage of implementation classes in st.orm.spring.impl.

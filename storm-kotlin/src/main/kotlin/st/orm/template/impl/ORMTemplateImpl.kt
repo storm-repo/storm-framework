@@ -29,16 +29,16 @@ import st.orm.template.ORMTemplate
 import java.lang.reflect.*
 import kotlin.reflect.KClass
 
-class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) : QueryTemplateImpl(core), ORMTemplate {
+class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) :
+    QueryTemplateImpl(core),
+    ORMTemplate {
     companion object {
         val REFLECTION: ORMReflection = Providers.getORMReflection()
     }
 
-    override fun withEntityCallback(callback: EntityCallback<*>): ORMTemplate =
-        ORMTemplateImpl(core.withEntityCallback(callback))
+    override fun withEntityCallback(callback: EntityCallback<*>): ORMTemplate = ORMTemplateImpl(core.withEntityCallback(callback))
 
-    override fun withEntityCallbacks(callbacks: List<EntityCallback<*>>): ORMTemplate =
-        ORMTemplateImpl(core.withEntityCallbacks(callbacks))
+    override fun withEntityCallbacks(callbacks: List<EntityCallback<*>>): ORMTemplate = ORMTemplateImpl(core.withEntityCallbacks(callbacks))
 
     /**
      * Returns the repository for the given entity type.
@@ -48,9 +48,7 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) : Quer
      * @param <ID> the type of the entity's primary key.
      * @return the repository for the given entity type.
      */
-    override fun <T : Entity<ID>, ID : Any> entity(type: KClass<T>): EntityRepository<T, ID> {
-        return EntityRepositoryImpl(core.entity(type.java))
-    }
+    override fun <T : Entity<ID>, ID : Any> entity(type: KClass<T>): EntityRepository<T, ID> = EntityRepositoryImpl(core.entity(type.java))
 
     /**
      * Returns the repository for the given projection type.
@@ -60,9 +58,7 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) : Quer
      * @param <ID> the type of the projection's primary key, or Void if the projection specifies no primary key.
      * @return the repository for the given projection type.
      */
-    override fun <T : Projection<ID>, ID: Any> projection(type: KClass<T>): ProjectionRepository<T, ID> {
-        return ProjectionRepositoryImpl(core.projection(type.java))
-    }
+    override fun <T : Projection<ID>, ID : Any> projection(type: KClass<T>): ProjectionRepository<T, ID> = ProjectionRepositoryImpl(core.projection(type.java))
 
     @Suppress("UNCHECKED_CAST")
     override fun <R : Repository> repository(type: KClass<R>): R {
@@ -71,7 +67,7 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) : Quer
         val repository = createRepository()
         return Proxy.newProxyInstance(
             type.java.classLoader,
-            arrayOf(type.java)
+            arrayOf(type.java),
         ) { proxy, method, args ->
             val arguments = args ?: emptyArray()
             try {
@@ -151,10 +147,8 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) : Quer
         return method.invoke(this, projectionClass.kotlin) as ProjectionRepository<*, *>
     }
 
-    private fun createRepository(): Repository {
-        return object : Repository {
-            override val orm: ORMTemplate
-                get() = this@ORMTemplateImpl
-        }
+    private fun createRepository(): Repository = object : Repository {
+        override val orm: ORMTemplate
+            get() = this@ORMTemplateImpl
     }
 }

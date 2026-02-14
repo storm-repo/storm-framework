@@ -37,10 +37,13 @@ class VirtualThreadDispatcherTest {
             val latch = CountDownLatch(1)
             val executed = AtomicBoolean(false)
 
-            dispatcher.dispatch(EmptyCoroutineContext, Runnable {
-                executed.set(true)
-                latch.countDown()
-            })
+            dispatcher.dispatch(
+                EmptyCoroutineContext,
+                Runnable {
+                    executed.set(true)
+                    latch.countDown()
+                },
+            )
 
             latch.await(5, TimeUnit.SECONDS) shouldBe true
             executed.get() shouldBe true
@@ -53,10 +56,13 @@ class VirtualThreadDispatcherTest {
             val latch = CountDownLatch(1)
             val isVirtual = AtomicBoolean(false)
 
-            dispatcher.dispatch(EmptyCoroutineContext, Runnable {
-                isVirtual.set(Thread.currentThread().isVirtual)
-                latch.countDown()
-            })
+            dispatcher.dispatch(
+                EmptyCoroutineContext,
+                Runnable {
+                    isVirtual.set(Thread.currentThread().isVirtual)
+                    latch.countDown()
+                },
+            )
 
             latch.await(5, TimeUnit.SECONDS) shouldBe true
             isVirtual.get() shouldBe true
@@ -69,10 +75,13 @@ class VirtualThreadDispatcherTest {
             val latch = CountDownLatch(1)
             val threadName = AtomicReference<String>()
 
-            dispatcher.dispatch(EmptyCoroutineContext, Runnable {
-                threadName.set(Thread.currentThread().name)
-                latch.countDown()
-            })
+            dispatcher.dispatch(
+                EmptyCoroutineContext,
+                Runnable {
+                    threadName.set(Thread.currentThread().name)
+                    latch.countDown()
+                },
+            )
 
             latch.await(5, TimeUnit.SECONDS) shouldBe true
             threadName.get().startsWith("test-vt") shouldBe true
@@ -87,10 +96,13 @@ class VirtualThreadDispatcherTest {
             val results = java.util.concurrent.ConcurrentHashMap<Int, Boolean>()
 
             for (i in 0 until count) {
-                dispatcher.dispatch(EmptyCoroutineContext, Runnable {
-                    results[i] = true
-                    latch.countDown()
-                })
+                dispatcher.dispatch(
+                    EmptyCoroutineContext,
+                    Runnable {
+                        results[i] = true
+                        latch.countDown()
+                    },
+                )
             }
 
             latch.await(10, TimeUnit.SECONDS) shouldBe true

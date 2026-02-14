@@ -61,7 +61,7 @@ import kotlin.reflect.KClass
  *
  * @property stack Maintains the stack of transaction states for nested transaction support
  * @property currentState Provides access to the current transaction state or throws if no transaction is active
- * 
+ *
  * @see TransactionContext
  * @see PlatformTransactionManager
  * @since 1.5
@@ -95,7 +95,7 @@ internal class SpringTransactionContext : TransactionContext {
         // - Joined REQUIRED/SUPPORTS/MANDATORY frames share the same map instance for identity stability.
         // - NESTED shares the outer map too (same physical transaction). On nested rollback, we clear the outer map.
         // - REQUIRES_NEW/NOT_SUPPORTED/NEVER keep their own map (separate physical transaction / non-tx boundary).
-        var entityCacheMap: MutableMap<KClass<*>, EntityCache<*, *>> = mutableMapOf()
+        var entityCacheMap: MutableMap<KClass<*>, EntityCache<*, *>> = mutableMapOf(),
     )
 
     private val stack = mutableListOf<TransactionState>()
@@ -105,23 +105,21 @@ internal class SpringTransactionContext : TransactionContext {
 
     private fun nowNanos(): Long = System.nanoTime()
 
-    private fun Int.toDeadlineFromNowNanos(): Long =
-        nowNanos() + this.toLong() * 1_000_000_000L
+    private fun Int.toDeadlineFromNowNanos(): Long = nowNanos() + this.toLong() * 1_000_000_000L
 
-    private fun TransactionState.remainingSeconds(): Int? =
-        deadlineNanos?.let { dl ->
-            val rem = dl - nowNanos()
-            if (rem <= 0L) 0 else (rem / 1_000_000_000L).toInt()
-        }
+    private fun TransactionState.remainingSeconds(): Int? = deadlineNanos?.let { dl ->
+        val rem = dl - nowNanos()
+        if (rem <= 0L) 0 else (rem / 1_000_000_000L).toInt()
+    }
 
-    private fun isBoundary(propagation: Int?): Boolean =
-        when (propagation) {
-            PROPAGATION_REQUIRES_NEW,
-            PROPAGATION_NESTED,
-            PROPAGATION_NOT_SUPPORTED,
-            PROPAGATION_NEVER -> true
-            else -> false
-        }
+    private fun isBoundary(propagation: Int?): Boolean = when (propagation) {
+        PROPAGATION_REQUIRES_NEW,
+        PROPAGATION_NESTED,
+        PROPAGATION_NOT_SUPPORTED,
+        PROPAGATION_NEVER,
+        -> true
+        else -> false
+    }
 
     /**
      * Returns the index of the owner of the current physical transaction range for stack[index].
@@ -145,10 +143,11 @@ internal class SpringTransactionContext : TransactionContext {
         for (i in startIdx..endIdx) {
             val stackDataSource = stack[i].dataSource
             if (stackDataSource != null) {
-                if (dataSource == null) dataSource = stackDataSource
-                else if (dataSource !== stackDataSource) {
+                if (dataSource == null) {
+                    dataSource = stackDataSource
+                } else if (dataSource !== stackDataSource) {
                     throw IllegalStateException(
-                        "Incompatible DataSource detected within the same transaction range: $dataSource vs $stackDataSource"
+                        "Incompatible DataSource detected within the same transaction range: $dataSource vs $stackDataSource",
                     )
                 }
             }
@@ -247,11 +246,11 @@ internal class SpringTransactionContext : TransactionContext {
 
     fun <T> execute(
         definition: TransactionDefinition,
-        callback: TransactionCallback<T>
+        callback: TransactionCallback<T>,
     ): T {
         val state = TransactionState(
             transactionDefinition = definition,
-            timeoutSeconds = definition.timeout.takeIf { it > 0 }
+            timeoutSeconds = definition.timeout.takeIf { it > 0 },
         ).apply {
             deadlineNanos = timeoutSeconds?.toDeadlineFromNowNanos()
         }
@@ -283,7 +282,7 @@ internal class SpringTransactionContext : TransactionContext {
                 }
                         timeout: ${if (timeout == -1) "<no timeout>" else "$timeout second(s)"}
                         readOnly: ${state.transactionDefinition!!.isReadOnly}
-                """.trimIndent()
+                """.trimIndent(),
             )
         }
         stack.add(state)
@@ -317,7 +316,7 @@ internal class SpringTransactionContext : TransactionContext {
         val existingDataSource = findDataSourceInRange(startIndex, index)
         if (existingDataSource != null && existingDataSource !== dataSource) {
             throw IllegalStateException(
-                "Incompatible DataSource detected: $dataSource but already using $existingDataSource."
+                "Incompatible DataSource detected: $dataSource but already using $existingDataSource.",
             )
         }
         ensureStartedInRange(startIndex, index, dataSource)
@@ -332,18 +331,17 @@ internal class SpringTransactionContext : TransactionContext {
         val startIndex = ownerIndexFor(index)
         val dataSource = findDataSourceInRange(startIndex, index)
         if (dataSource != null) {
-            ensureStartedInRange(startIndex, index, dataSource)  // Starts statuses and calls setRollbackOnly() where needed.
+            ensureStartedInRange(startIndex, index, dataSource) // Starts statuses and calls setRollbackOnly() where needed.
         }
         val currentState = stack[index]
         currentState.rollbackOnly = true
         currentState.transactionStatus?.setRollbackOnly()
     }
 
-    private fun resolveTransactionManager(dataSource: DataSource): PlatformTransactionManager =
-        SpringTransactionConfiguration.transactionManagers
-            .mapNotNull { it as? DataSourceTransactionManager }
-            .firstOrNull { it.dataSource === dataSource }
-            ?: throw IllegalStateException("No TransactionManager found for DataSource $dataSource.")
+    private fun resolveTransactionManager(dataSource: DataSource): PlatformTransactionManager = SpringTransactionConfiguration.transactionManagers
+        .mapNotNull { it as? DataSourceTransactionManager }
+        .firstOrNull { it.dataSource === dataSource }
+        ?: throw IllegalStateException("No TransactionManager found for DataSource $dataSource.")
 
     /**
      * Starts Spring TransactionStatus for [state] if not already started.
@@ -361,7 +359,7 @@ internal class SpringTransactionContext : TransactionContext {
         if (state.dataSource != null && state.transactionManager != null && state.transactionStatus != null) {
             if (state.dataSource !== dataSource) {
                 throw IllegalStateException(
-                    "Incompatible DataSource detected: $dataSource but already using ${state.dataSource}."
+                    "Incompatible DataSource detected: $dataSource but already using ${state.dataSource}.",
                 )
             }
             return
@@ -376,7 +374,8 @@ internal class SpringTransactionContext : TransactionContext {
                 PROPAGATION_REQUIRED,
                 PROPAGATION_SUPPORTS,
                 PROPAGATION_MANDATORY,
-                PROPAGATION_NESTED -> {
+                PROPAGATION_NESTED,
+                -> {
                     state.entityCacheMap = outer.entityCacheMap
                 }
                 // REQUIRES_NEW / NOT_SUPPORTED / NEVER keep their own map.
@@ -414,7 +413,7 @@ internal class SpringTransactionContext : TransactionContext {
             val expiredAfter = state.deadlineNanos?.let { nowNanos() >= it } == true
             if (expiredAfter) {
                 throw TransactionTimedOutException(
-                    "Transaction did not complete within timeout (${state.timeoutSeconds}s)."
+                    "Transaction did not complete within timeout (${state.timeoutSeconds}s).",
                 )
             }
             return
@@ -427,7 +426,7 @@ internal class SpringTransactionContext : TransactionContext {
             // If Spring threw UR because some inner joined frame marked RO, surface a clean message
             throw UnexpectedRollbackException(
                 e.message ?: "Transaction was marked rollback-only by a joined scope.",
-                e
+                e,
             )
         } catch (e: Exception) {
             throw PersistenceException(e)
@@ -441,7 +440,7 @@ internal class SpringTransactionContext : TransactionContext {
             val expired = state.deadlineNanos?.let { nowNanos() >= it } == true
             if (expired) {
                 throw TransactionTimedOutException(
-                    "Did not complete within timeout (${state.timeoutSeconds}s)."
+                    "Did not complete within timeout (${state.timeoutSeconds}s).",
                 )
             }
             return
@@ -461,7 +460,7 @@ internal class SpringTransactionContext : TransactionContext {
         val expired = state.deadlineNanos?.let { nowNanos() >= it } == true
         if (expired) {
             throw TransactionTimedOutException(
-                "Did not complete within timeout (${state.timeoutSeconds}s)."
+                "Did not complete within timeout (${state.timeoutSeconds}s).",
             )
         }
     }

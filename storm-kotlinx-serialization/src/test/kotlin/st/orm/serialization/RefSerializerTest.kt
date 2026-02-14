@@ -7,7 +7,6 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.serialization.Contextual
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
@@ -28,25 +27,25 @@ class RefSerializerTest {
     @Serializable
     data class SimpleEntity(
         @PK val id: Int = 0,
-        val name: String
+        val name: String,
     ) : Entity<Int>
 
     @Serializable
     data class SimpleProjection(
         @PK val id: Int = 0,
-        val name: String
+        val name: String,
     ) : Projection<Int>
 
     @Serializable
     data class StringIdEntity(
         @PK val id: String,
-        val name: String
+        val name: String,
     ) : Entity<String>
 
     @Serializable
     data class LongIdEntity(
         @PK val id: Long,
-        val name: String
+        val name: String,
     ) : Entity<Long>
 
     // A Data type with no @PK field, causing PkTypeResolver to return null
@@ -54,7 +53,7 @@ class RefSerializerTest {
     @Serializable
     data class NoPkData(
         val code: String,
-        val label: String
+        val label: String,
     ) : Data
 
     private val jsonMapper = Json {
@@ -106,7 +105,7 @@ class RefSerializerTest {
     @Test
     fun `deserialize entity wrapper back to loaded ref`() {
         val holder = jsonMapper.decodeFromString<EntityRefHolder>(
-            """{"ref":{"@entity":{"id":7,"name":"test"}}}"""
+            """{"ref":{"@entity":{"id":7,"name":"test"}}}""",
         )
         holder.ref.shouldNotBeNull()
         val loaded = holder.ref!!.getOrNull()
@@ -133,7 +132,7 @@ class RefSerializerTest {
     @Test
     fun `deserialize projection wrapper back to loaded ref`() {
         val holder = jsonMapper.decodeFromString<ProjectionRefHolder>(
-            """{"ref":{"@id":3,"@projection":{"id":3,"name":"proj"}}}"""
+            """{"ref":{"@id":3,"@projection":{"id":3,"name":"proj"}}}""",
         )
         holder.ref.shouldNotBeNull()
         val loaded = holder.ref!!.getOrNull()
@@ -158,7 +157,7 @@ class RefSerializerTest {
         // SimpleProjection is not an Entity, so decoding as @entity should fail.
         val ex = shouldThrow<SerializationException> {
             jsonMapper.decodeFromString<ProjectionRefHolder>(
-                """{"ref":{"@entity":{"id":1,"name":"x"}}}"""
+                """{"ref":{"@entity":{"id":1,"name":"x"}}}""",
             )
         }
         ex.message shouldContain "@entity"
@@ -168,7 +167,7 @@ class RefSerializerTest {
     fun `deserialize projection without id field throws`() {
         val ex = shouldThrow<SerializationException> {
             jsonMapper.decodeFromString<ProjectionRefHolder>(
-                """{"ref":{"@projection":{"id":1,"name":"x"}}}"""
+                """{"ref":{"@projection":{"id":1,"name":"x"}}}""",
             )
         }
         ex.message shouldContain "@id"
@@ -178,7 +177,7 @@ class RefSerializerTest {
     fun `deserialize projection with null id throws`() {
         val ex = shouldThrow<SerializationException> {
             jsonMapper.decodeFromString<ProjectionRefHolder>(
-                """{"ref":{"@id":null,"@projection":{"id":1,"name":"x"}}}"""
+                """{"ref":{"@id":null,"@projection":{"id":1,"name":"x"}}}""",
             )
         }
         ex.message shouldContain "@id"
@@ -346,12 +345,8 @@ class RefSerializerTest {
             serializersModule = StormSerializersModule {
                 // Return a simple factory that creates detached refs
                 object : st.orm.core.spi.RefFactory {
-                    override fun <T : Data, ID : Any> create(type: Class<T>, pk: ID): Ref<T> {
-                        return Ref.of(type, pk)
-                    }
-                    override fun <T : Data, ID : Any> create(record: T, pk: ID): Ref<T> {
-                        return Ref.of(record.javaClass as Class<T>, pk)
-                    }
+                    override fun <T : Data, ID : Any> create(type: Class<T>, pk: ID): Ref<T> = Ref.of(type, pk)
+                    override fun <T : Data, ID : Any> create(record: T, pk: ID): Ref<T> = Ref.of(record.javaClass as Class<T>, pk)
                 }
             }
         }
@@ -373,7 +368,7 @@ class RefSerializerTest {
     fun `serialize list of unloaded refs`() {
         val refs = listOf(
             Ref.of(SimpleEntity::class.java, 1),
-            Ref.of(SimpleEntity::class.java, 2)
+            Ref.of(SimpleEntity::class.java, 2),
         )
         val holder = RefListHolder(refs = refs)
         val json = jsonMapper.encodeToString(holder)

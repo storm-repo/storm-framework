@@ -40,7 +40,7 @@ import kotlinx.serialization.json.Json as JsonMapper
 class JsonORMConverterImpl(
     private val field: RecordField,
     kType: KType,
-    json: Json
+    json: Json,
 ) : ORMConverter {
 
     companion object {
@@ -50,17 +50,15 @@ class JsonORMConverterImpl(
 
         private data class CacheKey(
             val sealedBase: Class<*>?,
-            val json: Json
+            val json: Json,
         )
 
-        private fun buildJson(json: Json): JsonMapper {
-            return JsonMapper {
-                serializersModule = StormSerializersModule { REF_FACTORY.get() }
-                ignoreUnknownKeys = !json.failOnUnknown
-                coerceInputValues = !json.failOnMissing
-                explicitNulls = true
-                encodeDefaults = true
-            }
+        private fun buildJson(json: Json): JsonMapper = JsonMapper {
+            serializersModule = StormSerializersModule { REF_FACTORY.get() }
+            ignoreUnknownKeys = !json.failOnUnknown
+            coerceInputValues = !json.failOnMissing
+            explicitNulls = true
+            encodeDefaults = true
         }
 
         /**
@@ -111,7 +109,7 @@ class JsonORMConverterImpl(
             if (classifier == List::class || classifier == Set::class || classifier == Collection::class) {
                 val elementType = kType.arguments.firstOrNull()?.type ?: return null
                 val elementSerializer = tryCreateRefAwareSerializer(json, elementType)
-                    ?: return null  // Element type doesn't need special handling.
+                    ?: return null // Element type doesn't need special handling.
                 @Suppress("UNCHECKED_CAST")
                 return when (classifier) {
                     List::class -> ListSerializer(elementSerializer as KSerializer<Any>) as KSerializer<Any?>
@@ -132,7 +130,7 @@ class JsonORMConverterImpl(
                 @Suppress("UNCHECKED_CAST")
                 return MapSerializer(
                     keySerializer as KSerializer<Any>,
-                    valueSerializer as KSerializer<Any>
+                    valueSerializer as KSerializer<Any>,
                 ) as KSerializer<Any?>
             }
             return null
@@ -149,7 +147,7 @@ class JsonORMConverterImpl(
                     // Lazy - only called when serializing/deserializing loaded refs.
                     json.serializersModule.serializer(targetType) as KSerializer<Data>
                 },
-                refFactoryProvider = { REF_FACTORY.get() }
+                refFactoryProvider = { REF_FACTORY.get() },
             ) as KSerializer<Any?>
         }
     }
@@ -167,8 +165,8 @@ class JsonORMConverterImpl(
         } catch (e: SerializationException) {
             throw IllegalArgumentException(
                 "No kotlinx serializer found for JSON field '${field.name()}' of Kotlin type '$kType'. " +
-                        "Ensure the type is @Serializable or registered in a SerializersModule.",
-                e
+                    "Ensure the type is @Serializable or registered in a SerializersModule.",
+                e,
             )
         }
     }
@@ -176,16 +174,13 @@ class JsonORMConverterImpl(
     override fun getParameterCount(): Int = 1
     override fun getParameterTypes(): List<Class<*>> = listOf(String::class.java)
 
-    override fun getColumns(nameResolver: ORMConverter.NameResolver): List<Name> =
-        listOf(nameResolver.getName(field))
+    override fun getColumns(nameResolver: ORMConverter.NameResolver): List<Name> = listOf(nameResolver.getName(field))
 
-    override fun toDatabase(record: Any?): List<Any?> {
-        return try {
-            val v = if (record == null) null else REFLECTION.invoke(field, record)
-            listOf(v?.let { this@JsonORMConverterImpl.json.encodeToString(serializer, it) })
-        } catch (t: Throwable) {
-            throw SqlTemplateException(t)
-        }
+    override fun toDatabase(record: Any?): List<Any?> = try {
+        val v = if (record == null) null else REFLECTION.invoke(field, record)
+        listOf(v?.let { this@JsonORMConverterImpl.json.encodeToString(serializer, it) })
+    } catch (t: Throwable) {
+        throw SqlTemplateException(t)
     }
 
     override fun fromDatabase(values: Array<Any?>, refFactory: RefFactory): Any? {

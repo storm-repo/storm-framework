@@ -16,12 +16,11 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import java.util.List;
 import st.orm.Data;
 import st.orm.SelectMode;
 import st.orm.core.template.Column;
 import st.orm.core.template.impl.Elements.Expression;
-
-import java.util.List;
 
 /**
  * Represents the resolved model of a SQL query.

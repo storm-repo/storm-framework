@@ -17,6 +17,10 @@ package st.orm.template;
 
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.EntityManager;
+import java.sql.Connection;
+import java.util.List;
+import java.util.function.UnaryOperator;
+import javax.sql.DataSource;
 import st.orm.EntityCallback;
 import st.orm.StormConfig;
 import st.orm.mapping.TemplateDecorator;
@@ -24,11 +28,6 @@ import st.orm.repository.EntityRepository;
 import st.orm.repository.ProjectionRepository;
 import st.orm.repository.RepositoryLookup;
 import st.orm.template.impl.ORMTemplateImpl;
-
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.util.List;
-import java.util.function.UnaryOperator;
 
 /**
  * The primary entry point for Storm's ORM functionality, combining SQL template query construction with

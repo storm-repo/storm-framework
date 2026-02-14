@@ -15,7 +15,15 @@
  */
 package st.orm.core.template;
 
+import static st.orm.Operator.EQUALS;
+import static st.orm.Operator.IN;
+import static st.orm.core.template.TemplateString.wrap;
+
 import jakarta.annotation.Nonnull;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.JoinType;
 import st.orm.Metamodel;
@@ -25,15 +33,6 @@ import st.orm.Operator;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.core.template.impl.Elements.ObjectExpression;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
-import java.util.stream.Stream;
-
-import static st.orm.Operator.EQUALS;
-import static st.orm.Operator.IN;
-import static st.orm.core.template.TemplateString.wrap;
 
 /**
  * A query builder that constructs a query from a template.

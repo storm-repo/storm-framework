@@ -1,11 +1,10 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import java.util.function.Function;
 import st.orm.Element;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
-
-import java.util.function.Function;
 
 /**
  * Processes a single {@link Element} type within a SQL template compilation pipeline.

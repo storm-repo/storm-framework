@@ -15,21 +15,20 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.List.copyOf;
+import static java.util.Objects.requireNonNull;
+import static java.util.Optional.ofNullable;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.List;
+import java.util.Optional;
 import st.orm.Data;
 import st.orm.core.template.Sql;
 import st.orm.core.template.SqlOperation;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplate.BindVariables;
 import st.orm.core.template.SqlTemplate.Parameter;
-
-import java.util.List;
-import java.util.Optional;
-
-import static java.util.List.copyOf;
-import static java.util.Objects.requireNonNull;
-import static java.util.Optional.ofNullable;
 
 /**
  * A result record that contains the generated SQL and the parameters that were used to generate it.

@@ -15,17 +15,16 @@
  */
 package st.orm.jackson.spi;
 
+import static java.util.Optional.empty;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import jakarta.annotation.Nonnull;
-import st.orm.core.spi.ORMConverter;
-import st.orm.core.spi.ORMConverterProvider;
-import st.orm.Json;
-import st.orm.mapping.RecordField;
-
 import java.lang.reflect.Type;
 import java.util.Optional;
-
-import static java.util.Optional.empty;
+import st.orm.Json;
+import st.orm.core.spi.ORMConverter;
+import st.orm.core.spi.ORMConverterProvider;
+import st.orm.mapping.RecordField;
 
 /**
  * Provides an ORM converter for JSON annotated record components.

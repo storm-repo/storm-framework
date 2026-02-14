@@ -50,13 +50,40 @@ storm-framework/
 └── storm-metamodel-processor/         # Annotation processor
 ```
 
+## Code Formatting
+
+Storm uses [Spotless](https://github.com/diffplug/spotless) to enforce consistent code formatting across the project. Formatting is checked automatically in CI and can be enforced locally with a git pre-push hook.
+
+- **Java** is formatted with [Palantir Java Format](https://github.com/palantir/palantir-java-format) (4-space indentation)
+- **Kotlin** is formatted with [ktlint](https://github.com/pinterest/ktlint) (Kotlin coding conventions)
+
+### Auto-fix formatting
+
+```bash
+mvn spotless:apply
+```
+
+### Check formatting without modifying files
+
+```bash
+mvn spotless:check
+```
+
+### Set up the pre-push hook
+
+To automatically check formatting before every push:
+
+```bash
+git config core.hooksPath .githooks
+```
+
 ## Code Guidelines
 
 ### General
 
 - Follow existing code style and conventions
 - Write clear, self-documenting code
-- Keep changes focused—one feature or fix per PR
+- Keep changes focused; one feature or fix per PR
 - Add tests for new functionality
 
 ### Kotlin

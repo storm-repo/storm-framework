@@ -1,6 +1,15 @@
 package st.orm.core;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import jakarta.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Stream;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,20 +20,9 @@ import st.orm.EntityCallback;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.Ref;
-import st.orm.core.model.Address;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
 import st.orm.core.template.ORMTemplate;
-
-import javax.sql.DataSource;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Stream;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Extended integration tests for {@code EntityRepositoryImpl} to cover methods that are currently

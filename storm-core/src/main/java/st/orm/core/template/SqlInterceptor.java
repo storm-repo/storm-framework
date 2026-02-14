@@ -16,12 +16,11 @@
 package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
-import st.orm.core.template.impl.SqlInterceptorManager;
-
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
+import st.orm.core.template.impl.SqlInterceptorManager;
 
 /**
  * Interceptor for SQL statement generation events.

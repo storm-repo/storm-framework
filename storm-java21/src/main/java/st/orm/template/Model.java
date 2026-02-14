@@ -17,13 +17,12 @@ package st.orm.template;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.Data;
-import st.orm.core.template.SqlTemplateException;
-
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.SequencedMap;
 import java.util.function.BiConsumer;
+import st.orm.Data;
+import st.orm.core.template.SqlTemplateException;
 
 /**
  * Provides metadata about an entity or projection type, including its table name, primary key type, and column

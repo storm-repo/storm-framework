@@ -109,9 +109,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a new query builder for the custom `selectType`.
      * @param <R> the result type of the query.
      */
-    fun <R : Any> select(selectType: KClass<R>, builder: TemplateBuilder): QueryBuilder<P, R, ID> {
-        return select(selectType, builder.build())
-    }
+    fun <R : Any> select(selectType: KClass<R>, builder: TemplateBuilder): QueryBuilder<P, R, ID> = select(selectType, builder.build())
 
     /**
      * Creates a new query builder for the custom `selectType` and custom `template` for the select clause.
@@ -533,8 +531,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      *
      * @return a list containing all entities.
      */
-    fun findAllRef(): List<Ref<P>> =
-        selectRef().resultList
+    fun findAllRef(): List<Ref<P>> = selectRef().resultList
 
     /**
      * Retrieves all entities of type [T] from the repository.
@@ -549,8 +546,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      *
      * @return a sequence containing all entities.
      */
-    fun selectAllRef(): Flow<Ref<P>> =
-        selectRef().resultFlow
+    fun selectAllRef(): Flow<Ref<P>> = selectRef().resultFlow
 
     /**
      * Retrieves an optional entity of type [T] based on a single field and its value.
@@ -560,8 +556,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V> findBy(field: Metamodel<P, V>, value: V): P? =
-        select().where(field, EQUALS, value).optionalResult
+    fun <V> findBy(field: Metamodel<P, V>, value: V): P? = select().where(field, EQUALS, value).optionalResult
 
     /**
      * Retrieves an optional entity of type [T] based on a single field and its value.
@@ -571,8 +566,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V : Data> findBy(field: Metamodel<P, V>, value: Ref<V>): P? =
-        select().where(field, value).optionalResult
+    fun <V : Data> findBy(field: Metamodel<P, V>, value: Ref<V>): P? = select().where(field, value).optionalResult
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -582,8 +576,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return list of matching entities.
      */
-    fun <V> findAllBy(field: Metamodel<P, V>, value: V): List<P> =
-        select().where(field, EQUALS, value).resultList
+    fun <V> findAllBy(field: Metamodel<P, V>, value: V): List<P> = select().where(field, EQUALS, value).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -601,8 +594,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V> selectBy(field: Metamodel<P, V>, value: V): Flow<P> =
-        select().where(field, EQUALS, value).resultFlow
+    fun <V> selectBy(field: Metamodel<P, V>, value: V): Flow<P> = select().where(field, EQUALS, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -612,8 +604,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllBy(field: Metamodel<P, V>, value: Ref<V>): List<P> =
-        select().where(field, value).resultList
+    fun <V : Data> findAllBy(field: Metamodel<P, V>, value: Ref<V>): List<P> = select().where(field, value).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -631,8 +622,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Data> selectBy(field: Metamodel<P, V>, value: Ref<V>): Flow<P> =
-        select().where(field, value).resultFlow
+    fun <V : Data> selectBy(field: Metamodel<P, V>, value: Ref<V>): Flow<P> = select().where(field, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -642,8 +632,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param values Iterable of values to match against.
      * @return list of matching entities.
      */
-    fun <V> findAllBy(field: Metamodel<P, V>, values: Iterable<V>): List<P> =
-        select().where(field, IN, values).resultList
+    fun <V> findAllBy(field: Metamodel<P, V>, values: Iterable<V>): List<P> = select().where(field, IN, values).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -661,8 +650,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param values Iterable of values to match against.
      * @return at sequence of matching entities.
      */
-    fun <V> selectBy(field: Metamodel<P, V>, values: Iterable<V>): Flow<P> =
-        select().where(field, IN, values).resultFlow
+    fun <V> selectBy(field: Metamodel<P, V>, values: Iterable<V>): Flow<P> = select().where(field, IN, values).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -672,8 +660,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): List<P> =
-        select().whereRef(field, values).resultList
+    fun <V : Data> findAllByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): List<P> = select().whereRef(field, values).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -683,8 +670,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param values Iterable of values to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Data> selectByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): Flow<P> =
-        select().whereRef(field, values).resultFlow
+    fun <V : Data> selectByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): Flow<P> = select().whereRef(field, values).resultFlow
 
     /**
      * Retrieves exactly one entity of type [T] based on a single field and its value.
@@ -696,8 +682,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V> getBy(field: Metamodel<P, V>, value: V): P =
-        select().where(field, EQUALS, value).singleResult
+    fun <V> getBy(field: Metamodel<P, V>, value: V): P = select().where(field, EQUALS, value).singleResult
 
     /**
      * Retrieves exactly one entity of type [T] based on a single field and its value.
@@ -709,8 +694,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V : Data> getBy(field: Metamodel<P, V>, value: Ref<V>): P =
-        select().where(field, value).singleResult
+    fun <V : Data> getBy(field: Metamodel<P, V>, value: Ref<V>): P = select().where(field, value).singleResult
 
     /**
      * Retrieves an optional entity of type [T] based on a single field and its value.
@@ -720,8 +704,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <T, ID, V> findRefBy(field: Metamodel<P, V>, value: V): Ref<P>? =
-        selectRef().where(field, EQUALS, value).optionalResult
+    fun <T, ID, V> findRefBy(field: Metamodel<P, V>, value: V): Ref<P>? = selectRef().where(field, EQUALS, value).optionalResult
 
     /**
      * Retrieves an optional entity of type [T] based on a single field and its value.
@@ -731,8 +714,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V : Data> findRefBy(field: Metamodel<P, V>, value: Ref<V>): Ref<P>? =
-        selectRef().where(field, value).optionalResult
+    fun <V : Data> findRefBy(field: Metamodel<P, V>, value: Ref<V>): Ref<P>? = selectRef().where(field, value).optionalResult
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -742,8 +724,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V> findAllRefBy(field: Metamodel<P, V>, value: V): List<Ref<P>> =
-        selectRef().where(field, EQUALS, value).resultList
+    fun <V> findAllRefBy(field: Metamodel<P, V>, value: V): List<Ref<P>> = selectRef().where(field, EQUALS, value).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -761,8 +742,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V> selectRefBy(field: Metamodel<P, V>, value: V): Flow<Ref<P>> =
-        selectRef().where(field, EQUALS, value).resultFlow
+    fun <V> selectRefBy(field: Metamodel<P, V>, value: V): Flow<Ref<P>> = selectRef().where(field, EQUALS, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -772,8 +752,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllRefBy(field: Metamodel<P, V>, value: Ref<V>): List<Ref<P>> =
-        selectRef().where(field, value).resultList
+    fun <V : Data> findAllRefBy(field: Metamodel<P, V>, value: Ref<V>): List<Ref<P>> = selectRef().where(field, value).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -791,8 +770,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Data> selectRefBy(field: Metamodel<P, V>, value: Ref<V>): Flow<Ref<P>> =
-        selectRef().where(field, value).resultFlow
+    fun <V : Data> selectRefBy(field: Metamodel<P, V>, value: Ref<V>): Flow<Ref<P>> = selectRef().where(field, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -802,8 +780,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllRefBy(field: Metamodel<P, V>, values: Iterable<V>): List<Ref<P>> =
-        selectRef().where(field, IN, values).resultList
+    fun <V : Data> findAllRefBy(field: Metamodel<P, V>, values: Iterable<V>): List<Ref<P>> = selectRef().where(field, IN, values).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -821,8 +798,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param values Iterable of values to match against.
      * @return a sequence of matching entities.
      */
-    fun <V> selectRefBy(field: Metamodel<P, V>, values: Iterable<V>): Flow<Ref<P>> =
-        selectRef().where(field, IN, values).resultFlow
+    fun <V> selectRefBy(field: Metamodel<P, V>, values: Iterable<V>): Flow<Ref<P>> = selectRef().where(field, IN, values).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -832,8 +808,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllRefByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): List<Ref<P>> =
-        selectRef().whereRef(field, values).resultList
+    fun <V : Data> findAllRefByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): List<Ref<P>> = selectRef().whereRef(field, values).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -851,8 +826,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @param values Iterable of values to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Data> selectRefByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): Flow<Ref<P>> =
-        selectRef().whereRef(field, values).resultFlow
+    fun <V : Data> selectRefByRef(field: Metamodel<P, V>, values: Iterable<Ref<V>>): Flow<Ref<P>> = selectRef().whereRef(field, values).resultFlow
 
     /**
      * Retrieves exactly one entity of type [T] based on a single field and its value.
@@ -864,8 +838,7 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V> getRefBy(field: Metamodel<P, V>, value: V): Ref<P> =
-        selectRef().where(field, EQUALS, value).singleResult
+    fun <V> getRefBy(field: Metamodel<P, V>, value: V): Ref<P> = selectRef().where(field, EQUALS, value).singleResult
 
     /**
      * Retrieves exactly one entity of type [T] based on a single field and its value.
@@ -877,24 +850,21 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V : Data> getRefBy(field: Metamodel<P, V>, value: Ref<V>): Ref<P> =
-        selectRef().where(field, value).singleResult
+    fun <V : Data> getRefBy(field: Metamodel<P, V>, value: Ref<V>): Ref<P> = selectRef().where(field, value).singleResult
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
-    fun findAll(predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>): List<P> =
-        select().whereBuilder(predicate).resultList
+    fun findAll(predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>): List<P> = select().whereBuilder(predicate).resultList
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
-    fun findAll(predicate: PredicateBuilder<P, *, *>): List<P> =
-        select().where(predicate).resultList
+    fun findAll(predicate: PredicateBuilder<P, *, *>): List<P> = select().where(predicate).resultList
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -902,17 +872,15 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a list of matching entities.
      */
     fun findAllRef(
-        predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>
-    ): List<Ref<P>> =
-        selectRef().whereBuilder(predicate).resultList
+        predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>,
+    ): List<Ref<P>> = selectRef().whereBuilder(predicate).resultList
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
-    fun findAllRef(predicate: PredicateBuilder<P, *, *>): List<Ref<P>> =
-        selectRef().where(predicate).resultList
+    fun findAllRef(predicate: PredicateBuilder<P, *, *>): List<Ref<P>> = selectRef().where(predicate).resultList
 
     /**
      * Retrieves an optional entity of type [T] matching the specified predicate.
@@ -921,9 +889,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return an optional entity, or null if none found.
      */
     fun find(
-        predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>
-    ): P? =
-        select().whereBuilder(predicate).optionalResult
+        predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>,
+    ): P? = select().whereBuilder(predicate).optionalResult
 
     /**
      * Retrieves an optional entity of type [T] matching the specified predicate.
@@ -932,9 +899,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return an optional entity, or null if none found.
      */
     fun find(
-        predicate: PredicateBuilder<P, *, *>
-    ): P? =
-        select().where(predicate).optionalResult
+        predicate: PredicateBuilder<P, *, *>,
+    ): P? = select().where(predicate).optionalResult
 
     /**
      * Retrieves an optional entity of type [T] matching the specified predicate.
@@ -943,9 +909,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return an optional entity, or null if none found.
      */
     fun findRef(
-        predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>
-    ): Ref<P>? =
-        selectRef().whereBuilder(predicate).optionalResult
+        predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>,
+    ): Ref<P>? = selectRef().whereBuilder(predicate).optionalResult
 
     /**
      * Retrieves an optional entity of type [T] matching the specified predicate.
@@ -954,9 +919,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return an optional entity, or null if none found.
      */
     fun findRef(
-        predicate: PredicateBuilder<P, *, *>
-    ): Ref<P>? =
-        selectRef().where(predicate).optionalResult
+        predicate: PredicateBuilder<P, *, *>,
+    ): Ref<P>? = selectRef().where(predicate).optionalResult
 
     /**
      * Retrieves a single entity of type [T] matching the specified predicate.
@@ -967,9 +931,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
     fun get(
-        predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>
-    ): P =
-        select().whereBuilder(predicate).singleResult
+        predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>,
+    ): P = select().whereBuilder(predicate).singleResult
 
     /**
      * Retrieves a single entity of type [T] matching the specified predicate.
@@ -980,9 +943,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
     fun get(
-        predicate: PredicateBuilder<P, *, *>
-    ): P =
-        select().where(predicate).singleResult
+        predicate: PredicateBuilder<P, *, *>,
+    ): P = select().where(predicate).singleResult
 
     /**
      * Retrieves a single entity of type [T] matching the specified predicate.
@@ -993,9 +955,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
     fun getRef(
-        predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>
-    ): Ref<P> =
-        selectRef().whereBuilder(predicate).singleResult
+        predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>,
+    ): Ref<P> = selectRef().whereBuilder(predicate).singleResult
 
     /**
      * Retrieves a single entity of type [T] matching the specified predicate.
@@ -1006,9 +967,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
     fun getRef(
-        predicate: PredicateBuilder<P, *, *>
-    ): Ref<P> =
-        selectRef().where(predicate).singleResult
+        predicate: PredicateBuilder<P, *, *>,
+    ): Ref<P> = selectRef().where(predicate).singleResult
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -1024,9 +984,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a sequence of matching entities.
      */
     fun select(
-        predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>
-    ): Flow<P> =
-        select().whereBuilder(predicate).resultFlow
+        predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>,
+    ): Flow<P> = select().whereBuilder(predicate).resultFlow
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -1042,9 +1001,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a sequence of matching entities.
      */
     fun select(
-        predicate: PredicateBuilder<P, *, *>
-    ): Flow<P> =
-        select().where(predicate).resultFlow
+        predicate: PredicateBuilder<P, *, *>,
+    ): Flow<P> = select().where(predicate).resultFlow
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -1060,9 +1018,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a sequence of matching entities.
      */
     fun selectRef(
-        predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>
-    ): Flow<Ref<P>> =
-        selectRef().whereBuilder(predicate).resultFlow
+        predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>,
+    ): Flow<Ref<P>> = selectRef().whereBuilder(predicate).resultFlow
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -1078,9 +1035,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return a sequence of matching entities.
      */
     fun selectRef(
-        predicate: PredicateBuilder<P, *, *>
-    ): Flow<Ref<P>> =
-        selectRef().where(predicate).resultFlow
+        predicate: PredicateBuilder<P, *, *>,
+    ): Flow<Ref<P>> = selectRef().where(predicate).resultFlow
 
     /**
      * Counts entities of type [T] matching the specified field and value.
@@ -1091,9 +1047,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      */
     fun <V> countBy(
         field: Metamodel<P, V>,
-        value: V
-    ): Long =
-        selectCount().where(field, EQUALS, value).singleResult
+        value: V,
+    ): Long = selectCount().where(field, EQUALS, value).singleResult
 
     /**
      * Counts entities of type [T] matching the specified field and referenced value.
@@ -1104,9 +1059,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      */
     fun <V : Data> countBy(
         field: Metamodel<P, V>,
-        value: Ref<V>
-    ): Long =
-        selectCount().where(field, value).singleResult
+        value: Ref<V>,
+    ): Long = selectCount().where(field, value).singleResult
 
     /**
      * Counts entities of type [T] matching the specified predicate.
@@ -1115,9 +1069,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return the count of matching entities.
      */
     fun count(
-        predicate: WhereBuilder<P, *, ID>.() -> PredicateBuilder<P, *, *>
-    ): Long =
-        selectCount().whereBuilder(predicate).singleResult
+        predicate: WhereBuilder<P, *, ID>.() -> PredicateBuilder<P, *, *>,
+    ): Long = selectCount().whereBuilder(predicate).singleResult
 
     /**
      * Counts entities of type [T] matching the specified predicate.
@@ -1126,9 +1079,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return the count of matching entities.
      */
     fun count(
-        predicate: PredicateBuilder<P, *, *>
-    ): Long =
-        selectCount().where(predicate).singleResult
+        predicate: PredicateBuilder<P, *, *>,
+    ): Long = selectCount().where(predicate).singleResult
 
     /**
      * Checks if entities of type [T] matching the specified field and value exists.
@@ -1139,9 +1091,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      */
     fun <V> existsBy(
         field: Metamodel<P, V>,
-        value: V
-    ): Boolean =
-        selectCount().where(field, EQUALS, value).singleResult > 0
+        value: V,
+    ): Boolean = selectCount().where(field, EQUALS, value).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified field and referenced value exists.
@@ -1152,9 +1103,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      */
     fun <V : Data> existsBy(
         field: Metamodel<P, V>,
-        value: Ref<V>
-    ): Boolean =
-        selectCount().where(field, value).singleResult > 0
+        value: Ref<V>,
+    ): Boolean = selectCount().where(field, value).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified predicate exists.
@@ -1163,9 +1113,8 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return true if any matching entities exist, false otherwise.
      */
     fun exists(
-        predicate: WhereBuilder<P, *, ID>.() -> PredicateBuilder<P, *, *>
-    ): Boolean =
-        selectCount().whereBuilder(predicate).singleResult > 0
+        predicate: WhereBuilder<P, *, ID>.() -> PredicateBuilder<P, *, *>,
+    ): Boolean = selectCount().whereBuilder(predicate).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified predicate exists.
@@ -1174,7 +1123,6 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @return true if any matching entities exist, false otherwise.
      */
     fun exists(
-        predicate: PredicateBuilder<P, *, *>
-    ): Boolean =
-        selectCount().where(predicate).singleResult > 0
+        predicate: PredicateBuilder<P, *, *>,
+    ): Boolean = selectCount().where(predicate).singleResult > 0
 }

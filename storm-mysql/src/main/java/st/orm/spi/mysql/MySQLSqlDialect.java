@@ -15,13 +15,10 @@
  */
 package st.orm.spi.mysql;
 
-import jakarta.annotation.Nonnull;
-import st.orm.PersistenceException;
-import st.orm.StormConfig;
-import st.orm.core.spi.DefaultSqlDialect;
-import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlTemplateException;
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toSet;
 
+import jakarta.annotation.Nonnull;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.SequencedMap;
@@ -29,9 +26,11 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-
-import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toSet;
+import st.orm.PersistenceException;
+import st.orm.StormConfig;
+import st.orm.core.spi.DefaultSqlDialect;
+import st.orm.core.template.SqlDialect;
+import st.orm.core.template.SqlTemplateException;
 
 public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
 

@@ -1,14 +1,13 @@
 package st.orm.spring;
 
 
+import javax.sql.DataSource;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import st.orm.template.ORMTemplate;
-
-import javax.sql.DataSource;
 
 @Configuration
 @EnableTransactionManagement

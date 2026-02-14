@@ -15,8 +15,45 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Comparator.comparing;
+import static java.util.List.copyOf;
+import static java.util.stream.Collectors.joining;
+import static st.orm.ResolveScope.CASCADE;
+import static st.orm.ResolveScope.INNER;
+import static st.orm.core.spi.Providers.getORMConverter;
+import static st.orm.core.template.SqlOperation.DELETE;
+import static st.orm.core.template.SqlOperation.INSERT;
+import static st.orm.core.template.SqlOperation.SELECT;
+import static st.orm.core.template.SqlOperation.UPDATE;
+import static st.orm.core.template.Templates.delete;
+import static st.orm.core.template.Templates.from;
+import static st.orm.core.template.Templates.insert;
+import static st.orm.core.template.Templates.param;
+import static st.orm.core.template.Templates.select;
+import static st.orm.core.template.Templates.set;
+import static st.orm.core.template.Templates.table;
+import static st.orm.core.template.Templates.update;
+import static st.orm.core.template.Templates.values;
+import static st.orm.core.template.Templates.where;
+import static st.orm.core.template.impl.RecordReflection.findPkField;
+import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
+import static st.orm.core.template.impl.RecordReflection.getPrimaryKeys;
+import static st.orm.core.template.impl.RecordReflection.getRecordType;
+import static st.orm.core.template.impl.RecordReflection.getRefDataType;
+import static st.orm.core.template.impl.RecordReflection.isRecord;
+import static st.orm.core.template.impl.RecordReflection.isTypePresent;
+import static st.orm.core.template.impl.RecordReflection.mapForeignKeys;
+import static st.orm.core.template.impl.RecordValidation.validateDataType;
+import static st.orm.core.template.impl.SqlParser.getSqlOperation;
+import static st.orm.core.template.impl.SqlParser.removeComments;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.DefaultJoinType;
@@ -49,44 +86,6 @@ import st.orm.core.template.impl.SqlTemplateImpl.ElementNode;
 import st.orm.core.template.impl.SqlTemplateImpl.Wrapped;
 import st.orm.mapping.RecordField;
 import st.orm.mapping.RecordType;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
-
-import static java.util.Comparator.comparing;
-import static java.util.List.copyOf;
-import static java.util.stream.Collectors.joining;
-import static st.orm.ResolveScope.CASCADE;
-import static st.orm.ResolveScope.INNER;
-import static st.orm.core.spi.Providers.getORMConverter;
-import static st.orm.core.template.SqlOperation.DELETE;
-import static st.orm.core.template.SqlOperation.INSERT;
-import static st.orm.core.template.SqlOperation.SELECT;
-import static st.orm.core.template.SqlOperation.UPDATE;
-import static st.orm.core.template.Templates.delete;
-import static st.orm.core.template.Templates.from;
-import static st.orm.core.template.Templates.insert;
-import static st.orm.core.template.Templates.param;
-import static st.orm.core.template.Templates.select;
-import static st.orm.core.template.Templates.set;
-import static st.orm.core.template.Templates.table;
-import static st.orm.core.template.Templates.update;
-import static st.orm.core.template.Templates.values;
-import static st.orm.core.template.Templates.where;
-import static st.orm.core.template.impl.RecordReflection.findPkField;
-import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
-import static st.orm.core.template.impl.RecordReflection.getPrimaryKeys;
-import static st.orm.core.template.impl.RecordReflection.getRecordType;
-import static st.orm.core.template.impl.RecordReflection.getRefDataType;
-import static st.orm.core.template.impl.RecordReflection.isRecord;
-import static st.orm.core.template.impl.RecordReflection.isTypePresent;
-import static st.orm.core.template.impl.RecordReflection.mapForeignKeys;
-import static st.orm.core.template.impl.RecordValidation.validateDataType;
-import static st.orm.core.template.impl.SqlParser.getSqlOperation;
-import static st.orm.core.template.impl.SqlParser.removeComments;
 
 /**
  * Prepares a {@link TemplateString} for compilation and binding.

@@ -1,13 +1,13 @@
 package st.orm.core.model;
 
+import static st.orm.GenerationStrategy.NONE;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.Builder;
 import st.orm.Entity;
 import st.orm.FK;
 import st.orm.PK;
-
-import static st.orm.GenerationStrategy.NONE;
 
 /**
  * Extension entity for a pet, where the primary key is itself a foreign key reference to {@link Pet}.

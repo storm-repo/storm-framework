@@ -15,6 +15,12 @@
  */
 package st.orm.jackson.spi;
 
+import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES;
+import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
+import static java.util.Collections.singletonList;
+import static java.util.Objects.requireNonNull;
+import static java.util.Optional.empty;
+
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -27,27 +33,20 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.core.spi.Name;
-import st.orm.core.spi.ORMConverter;
-import st.orm.core.spi.ORMReflection;
-import st.orm.core.spi.Providers;
-import st.orm.jackson.StormModule;
-import st.orm.mapping.RecordField;
-import st.orm.core.spi.RefFactory;
-import st.orm.core.template.SqlTemplateException;
-import st.orm.Json;
-
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Optional;
+import st.orm.Json;
+import st.orm.core.spi.Name;
+import st.orm.core.spi.ORMConverter;
+import st.orm.core.spi.ORMReflection;
+import st.orm.core.spi.Providers;
+import st.orm.core.spi.RefFactory;
+import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.SegmentedLruCache;
-
-import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES;
-import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
-import static java.util.Collections.singletonList;
-import static java.util.Objects.requireNonNull;
-import static java.util.Optional.empty;
+import st.orm.jackson.StormModule;
+import st.orm.mapping.RecordField;
 
 /**
  * Implementation of {@link ORMConverter} that converts JSON fields to and from the database. It uses Jackson for JSON
