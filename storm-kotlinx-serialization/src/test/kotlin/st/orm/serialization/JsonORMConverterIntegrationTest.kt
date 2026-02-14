@@ -26,7 +26,9 @@ import kotlin.test.assertEquals
 open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource) {
 
     @Test
-    fun testSelectOwner() {
+    fun `select owners should return all 10 distinct owners from test data`() {
+        // The test data contains 10 owner rows. Querying all columns and mapping to Owner (which has
+        // a @Json address field) should produce 10 distinct results, verifying JSON column deserialization.
         val orm = ORMTemplate.of(dataSource)
         val query = orm.query("SELECT id, first_name, last_name, address, telephone FROM owner")
         val owner = query.getResultList(Owner::class)
@@ -34,7 +36,9 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
     }
 
     @Test
-    fun testSelectRef() {
+    fun `JSON array of Ref ids should deserialize to list of unloaded Refs`() {
+        // JSON_ARRAYAGG(id) produces a JSON array of owner IDs. When mapped to a List<Ref<Owner>>,
+        // each element should be an unloaded Ref with the correct ID. There are 10 distinct owners.
         data class Result(@Json val owner: List<Ref<Owner>>)
         val orm = ORMTemplate.of(dataSource)
         val query = orm.query("SELECT JSON_ARRAYAGG(id) FROM owner")
@@ -44,7 +48,9 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
     }
 
     @Test
-    fun testSelectNullRef() {
+    fun `JSON array with null element should deserialize to nullable Ref list`() {
+        // A JSON array containing null and a valid ID should produce a list with one null Ref
+        // and one valid Ref. This verifies null handling in JSON Ref deserialization.
         data class Result(@Json val owner: List<Ref<Owner>?>)
 
         val orm = ORMTemplate.of(dataSource)
@@ -59,7 +65,9 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
     }
 
     @Test
-    fun testInsertOwner() {
+    fun `insert entity with Json address field should persist and return correct address`() {
+        // Inserting an owner with a JSON-serialized address should store the address as JSON in the
+        // database and return it correctly when fetched back via insertAndFetch.
         val orm = ORMTemplate.of(dataSource)
         val repository = orm.entity(Owner::class)
         val address = Address("271 University Ave", "Palo Alto")
@@ -74,7 +82,9 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
     }
 
     @Test
-    fun testUpdateOwner() {
+    fun `update entity with Json address field should persist the new address`() {
+        // Updating owner id=1's address to a new value should persist the JSON change.
+        // Re-fetching the owner should return the updated address.
         val orm = ORMTemplate.of(dataSource)
         val repository = orm.entity(Owner::class)
         val owner = repository.getById(1)
@@ -97,7 +107,9 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
 
 
     @Test
-    fun testOwnerWithJsonPerson() {
+    fun `computed JSON person column should deserialize correctly for all 10 owners`() {
+        // Uses JSON_OBJECT to create a person JSON column from first_name/last_name. The @Json-annotated
+        // Person field should be deserialized from the JSON column for all 10 owners in the test data.
         val orm = ORMTemplate.of(dataSource)
         val query =
             orm.query("SELECT id, JSON_OBJECT('firstName' VALUE first_name, 'lastName' VALUE last_name) AS person, address, telephone FROM owner")
@@ -115,7 +127,9 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
     ) : Entity<Int>
 
     @Test
-    fun testOwnerWithJsonMapAddress() {
+    fun `Json Map address field should deserialize JSON column into Map for all owners`() {
+        // The address column contains JSON objects. Using Map<String, String> as the field type
+        // with @Json should deserialize the JSON into a map. All 10 owners should be returned.
         val orm = ORMTemplate.of(dataSource)
         val repository = orm.entity(OwnerWithJsonMapAddress::class)
         val owner = repository.select().resultList
@@ -132,7 +146,10 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
     ) : Entity<Int>
 
     @Test
-    fun testOwnerWithInlineJsonMapAddress() {
+    fun `Inline and Json annotations combined on Map should throw SqlTemplateException`() {
+        // @Inline and @Json are mutually exclusive on Map fields. @Inline means "expand the fields
+        // inline into the SQL", but @Json means "treat as a single JSON column". The framework
+        // should reject this combination with a SqlTemplateException.
         val e = Assertions.assertThrows(PersistenceException::class.java) {
             val orm = ORMTemplate.of(dataSource)
             val repository = orm.entity(OwnerWithInlineJsonMapAddress::class)
@@ -147,7 +164,10 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
     )
 
     @Test
-    fun testSpecialtiesByVet() {
+    fun `JSON_ARRAYAGG of specialty objects should group by vet`() {
+        // Joins vet -> vet_specialty -> specialty and aggregates specialties as a JSON array per vet.
+        // Per test data: 4 vets have specialties (vets 2,3,4,5), with 5 total vet-specialty associations.
+        // Vet 3 (Linda Douglas) has 2 specialties (surgery, dentistry); the others have 1 each.
         val vets = ORMTemplate.of(dataSource)
             .selectFrom(Vet::class, SpecialtiesByVet::class) {
                 """
@@ -173,7 +193,9 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
     )
 
     @Test
-    fun testSpecialtyNamesByVet() {
+    fun `JSON_ARRAYAGG of specialty names should group by vet`() {
+        // Similar to the specialty objects test, but aggregates just the name strings.
+        // Per test data: 4 vets with specialties, 5 total specialty associations.
         val vets = ORMTemplate.of(dataSource).selectFrom(Vet::class, SpecialtyNamesByVet::class) {
             """
                 ${t(Vet::class)}, JSON_ARRAYAGG(${t(Specialty::class)}.name) AS specialties
@@ -188,7 +210,9 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
     }
 
     @Test
-    fun testSpecialtiesByVetDoubleClass() {
+    fun `JSON_OBJECTAGG with entity template should generate correct SQL`() {
+        // JSON_OBJECTAGG with a full entity template reference should expand to the entity's columns.
+        // H2 does not support JSON_OBJECTAGG, so we only verify the generated SQL matches expectations.
         val expectedSql = """
                 SELECT v.id, v.first_name, v.last_name, JSON_OBJECTAGG(s.id, s.name)
                 FROM vet v
@@ -237,7 +261,10 @@ open class JsonORMConverterIntegrationTest(@Autowired val dataSource: DataSource
     ) : Entity<Int>
 
     @Test
-    fun testPolymorphic() {
+    fun `polymorphic JSON deserialization should resolve correct subtype via discriminator`() {
+        // Uses a sealed interface with @JsonClassDiscriminator("@type") and two subtypes (PersonA, PersonB).
+        // The JSON constructed by the query includes '@type' VALUE 'PersonA', so all 10 owners should
+        // deserialize with their person field as a PersonA instance.
         val orm = ORMTemplate.of(dataSource)
         val query =
             orm.query("SELECT id, JSON_OBJECT('@type' VALUE 'PersonA', 'firstName' VALUE first_name, 'lastName' VALUE last_name) AS person, address, telephone FROM owner")

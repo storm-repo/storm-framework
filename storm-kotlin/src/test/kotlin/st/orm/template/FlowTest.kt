@@ -19,35 +19,44 @@ open class FlowTest(
     @Autowired val orm: ORMTemplate
 ) {
 
+    // --- Flow operations without explicit transaction ---
+
     @Test
-    fun `selectAll returns all visits`(): Unit = runBlocking {
+    fun `selectAll should return all visits as flow`(): Unit = runBlocking {
+        // data.sql inserts exactly 14 visits (ids 1-14).
         orm.selectAll<Visit>().count() shouldBe 14
     }
 
     @Test
-    fun `selectByRef returns all visits when given all refs`(): Unit = runBlocking {
+    fun `selectByRef should return all visits when given all refs`(): Unit = runBlocking {
+        // Selecting all refs and then fetching by those refs should return the same 14 visits.
         val repository = orm.entity(Visit::class)
         val refs = repository.selectAllRef()
         repository.selectByRef(refs).count() shouldBe 14
     }
 
     @Test
-    fun `delete removes all visits`(): Unit = runBlocking {
+    fun `delete flow should remove all visits`(): Unit = runBlocking {
+        // Deleting all entities via a flow should leave the table empty.
         val repository = orm.entity(Visit::class)
         val entities = repository.selectAll()
         repository.delete(entities)
         repository.count() shouldBe 0
     }
 
+    // --- Flow operations within a suspend transaction ---
+
     @Test
-    fun `selectAll with suspend transaction returns all visits`(): Unit = runBlocking {
+    fun `selectAll within suspend transaction should return all visits`(): Unit = runBlocking {
+        // Same as above but within a suspend transaction; data.sql inserts 14 visits.
         transaction {
             orm.selectAll<Visit>().count() shouldBe 14
         }
     }
 
     @Test
-    fun `selectByRef with suspend transaction returns all visits when given all refs`(): Unit = runBlocking {
+    fun `selectByRef within suspend transaction should return all visits when given all refs`(): Unit = runBlocking {
+        // Round-trip ref fetch within a suspend transaction should return the same 14 visits.
         transaction {
             val repository = orm.entity(Visit::class)
             val refs = repository.selectAllRef()
@@ -56,7 +65,8 @@ open class FlowTest(
     }
 
     @Test
-    fun `delete with suspend transaction removes all visits`(): Unit = runBlocking {
+    fun `delete flow within suspend transaction should remove all visits`(): Unit = runBlocking {
+        // Deleting all entities via flow within a suspend transaction should leave the table empty.
         transaction {
             val repository = orm.entity(Visit::class)
             val entities = repository.selectAll()

@@ -31,14 +31,14 @@ open class RecordValidationTest(
     ) : Entity<Int>
 
     @Test
-    fun `var field`(): Unit = runBlocking {
+    fun `entity with var field should throw PersistenceException`(): Unit = runBlocking {
         assertThrows<PersistenceException> {
             orm.entity<VarField>()
         }
     }
 
     @Test
-    fun `private field`(): Unit = runBlocking {
+    fun `entity with private field should throw PersistenceException`(): Unit = runBlocking {
         assertThrows<PersistenceException> {
             orm.entity<PrivateField>()
         }

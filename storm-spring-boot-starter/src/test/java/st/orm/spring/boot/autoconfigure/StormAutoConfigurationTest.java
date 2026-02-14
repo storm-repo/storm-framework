@@ -40,6 +40,8 @@ class StormAutoConfigurationTest {
 
     @Test
     void ormTemplateBeanCreatedWhenDataSourcePresent() {
+        // StormAutoConfiguration is conditional on a DataSource bean. When a DataSource is available,
+        // it should auto-configure exactly one ORMTemplate bean.
         contextRunner
                 .withPropertyValues(
                         "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
@@ -52,6 +54,8 @@ class StormAutoConfigurationTest {
 
     @Test
     void ormTemplateBeanNotCreatedWithoutDataSource() {
+        // Without a DataSource in the context, StormAutoConfiguration should not create
+        // an ORMTemplate bean (the @ConditionalOnBean(DataSource.class) condition should fail).
         new ApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(StormAutoConfiguration.class))
                 .run(context -> {
@@ -61,6 +65,8 @@ class StormAutoConfigurationTest {
 
     @Test
     void userDefinedOrmTemplateTakesPrecedence() {
+        // StormAutoConfiguration uses @ConditionalOnMissingBean(ORMTemplate.class), so a user-defined
+        // ORMTemplate bean should take precedence over the auto-configured one.
         contextRunner
                 .withPropertyValues(
                         "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
@@ -76,6 +82,8 @@ class StormAutoConfigurationTest {
 
     @Test
     void repositoryBeanFactoryPostProcessorAutoConfigured() {
+        // StormRepositoryAutoConfiguration should register an AutoConfiguredRepositoryBeanFactoryPostProcessor
+        // that scans for repository interfaces and registers them as Spring beans.
         contextRunner
                 .withPropertyValues(
                         "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
@@ -90,6 +98,8 @@ class StormAutoConfigurationTest {
 
     @Test
     void entityCallbackBeanAutoDetected() {
+        // When a user defines an EntityCallback bean, StormAutoConfiguration should detect it
+        // and wire it into the ORMTemplate for entity lifecycle callbacks.
         contextRunner
                 .withPropertyValues(
                         "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
@@ -104,6 +114,8 @@ class StormAutoConfigurationTest {
 
     @Test
     void noEntityCallbackByDefault() {
+        // Without user-defined EntityCallback beans, none should be present in the context.
+        // The auto-configuration does not register a default EntityCallback.
         contextRunner
                 .withPropertyValues(
                         "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
@@ -116,7 +128,41 @@ class StormAutoConfigurationTest {
     }
 
     @Test
+    void stormPropertiesAppliedToOrmTemplate() {
+        // Storm properties under the "storm.*" prefix should be bound to StormProperties and applied
+        // to the ORMTemplate. Each property value set here should be reflected in the bound bean.
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver",
+                        "storm.ansi-escaping=false",
+                        "storm.update.default-mode=ENTITY",
+                        "storm.update.dirty-check=INSTANCE",
+                        "storm.update.max-shapes=5",
+                        "storm.entity-cache.retention=light",
+                        "storm.template-cache.size=100",
+                        "storm.validation.skip=false",
+                        "storm.validation.warnings-only=true"
+                )
+                .run(context -> {
+                    assertThat(context).hasSingleBean(ORMTemplate.class);
+                    assertThat(context).hasSingleBean(StormProperties.class);
+                    StormProperties props = context.getBean(StormProperties.class);
+                    assertThat(props.getAnsiEscaping()).isFalse();
+                    assertThat(props.getUpdate().getDefaultMode()).isEqualTo("ENTITY");
+                    assertThat(props.getUpdate().getDirtyCheck()).isEqualTo("INSTANCE");
+                    assertThat(props.getUpdate().getMaxShapes()).isEqualTo(5);
+                    assertThat(props.getEntityCache().getRetention()).isEqualTo("light");
+                    assertThat(props.getTemplateCache().getSize()).isEqualTo(100);
+                    assertThat(props.getValidation().getSkip()).isFalse();
+                    assertThat(props.getValidation().getWarningsOnly()).isTrue();
+                });
+    }
+
+    @Test
     void userDefinedRepositoryBeanFactoryPostProcessorTakesPrecedence() {
+        // StormRepositoryAutoConfiguration uses @ConditionalOnMissingBean, so a user-defined
+        // RepositoryBeanFactoryPostProcessor should prevent the auto-configured one from being created.
         contextRunner
                 .withPropertyValues(
                         "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",

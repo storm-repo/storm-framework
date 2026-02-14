@@ -23,12 +23,16 @@ class RepositoryTest(
 ) {
 
     @Test
-    fun `visit repository wired`() {
+    fun `visit repository should be autowired and return count matching test data`() {
+        // VisitRepository is a standard EntityRepository registered via TestRepositoryBeanFactoryPostProcessor.
+        // The test data contains 14 visit rows, so count should return 14.
         visitRepository.count() shouldBe 14
     }
 
     @Test
-    fun `owner repository should not be wired`() {
+    fun `owner repository should not be autowired due to NoRepositoryBean annotation`() {
+        // OwnerRepository is annotated with @NoRepositoryBean, so the RepositoryBeanFactoryPostProcessor
+        // should skip it during scanning. It should not be registered as a Spring bean.
         ownerRepositoryTest shouldBe null
     }
 }

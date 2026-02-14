@@ -43,6 +43,7 @@ public class BuilderPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithJoin() {
+        // 3 visits on 2023-01-08: visit ids 7, 8, 9 for pets 4, 1, 2 respectively.
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class)
                 .innerJoin(Visit.class).on(raw("\0.id = \0.pet_id", Pet.class, Visit.class))
@@ -53,6 +54,8 @@ public class BuilderPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithJoinTemplateFunction() {
+        // Same join as testBuilderWithJoin but using TemplateBuilder.create for the ON clause.
+        // 3 visits on 2023-01-08.
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class)
                 .innerJoin(Visit.class).on(TemplateBuilder.create(it -> "%s.id = %s.pet_id".formatted(it.insert(Pet.class), it.insert(Visit.class))))
@@ -63,6 +66,8 @@ public class BuilderPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithJoinParameter() {
+        // ON clause matches pet id=1 (Leo) for all visits. WHERE filters to 3 visits on 2023-01-08.
+        // Since the join condition is "p.id = 1", all 3 visits produce the same pet (Leo).
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class)
                 .innerJoin(Visit.class).on(raw("\0.id = \0", Pet.class, 1))
@@ -93,6 +98,7 @@ public class BuilderPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithAutoJoin() {
+        // Visit id=1 references pet_id=7 (Samantha). Auto-join infers FK between Visit and Pet.
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class)
                 .innerJoin(Visit.class).on(Pet.class)
@@ -104,6 +110,7 @@ public class BuilderPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithAutoJoinInvalidType() {
+        // Vet has no FK relationship to Visit; whereAny(Vet) should throw SqlTemplateException.
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
             ORMTemplate.of(dataSource)
                     .selectFrom(Pet.class)
@@ -117,6 +124,7 @@ public class BuilderPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithCustomSelect() {
+        // 8 distinct pets have visits (pets 1-8). Total visits across all pets = 14.
         record Result(Pet pet, int visitCount) {}
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class, Result.class, raw("\0, COUNT(*)", Pet.class))
@@ -129,6 +137,7 @@ public class BuilderPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithCompoundPkJoin() {
+        // data.sql inserts 5 vet_specialty rows. Inner join returns one row per vet-specialty pair.
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
                 .innerJoin(VetSpecialty.class).on(Vet.class)
@@ -138,6 +147,7 @@ public class BuilderPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithDoubleCompoundPkJoin() {
+        // Same 5 vet_specialty rows, now also joined to Specialty. Still 5 rows.
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
                 .innerJoin(VetSpecialty.class).on(Vet.class)
@@ -148,6 +158,7 @@ public class BuilderPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithMultipleWhere() {
+        // Chaining multiple .where() calls is not supported; should throw SqlTemplateException.
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
             ORMTemplate.of(dataSource)
                     .selectFrom(Vet.class)
@@ -161,6 +172,7 @@ public class BuilderPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithWhere() {
+        // Vet ids 1 and 2 both exist in data.sql. OR predicate should match exactly 2 vets.
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
                 .typed(Integer.class)
@@ -171,6 +183,7 @@ public class BuilderPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithWhereEmpty() {
+        // Filtering by an empty entity list should return 0 results (no match criteria).
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
                 .where(List.of())
@@ -180,6 +193,7 @@ public class BuilderPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithWhereEmptyEquals() {
+        // EQUALS with an empty list is not supported; should throw SqlTemplateException.
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
             ORMTemplate.of(dataSource)
                     .selectFrom(Vet.class)
@@ -191,6 +205,7 @@ public class BuilderPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithWhereEmptyIn() {
+        // IN with an empty list is valid and matches nothing; 0 results expected.
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
                 .where(Vet_.id, IN, List.of())
@@ -200,6 +215,7 @@ public class BuilderPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithWhereEmptyNotEquals() {
+        // NOT_EQUALS with an empty list is not supported; should throw SqlTemplateException.
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
             ORMTemplate.of(dataSource)
                     .selectFrom(Vet.class)
@@ -211,6 +227,7 @@ public class BuilderPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithWhereEmptyNotIn() {
+        // NOT IN with an empty list matches all rows. data.sql has 6 vets.
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
                 .where(Vet_.id, NOT_IN, List.of())
@@ -230,6 +247,7 @@ public class BuilderPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithWhereTemplateFunction() {
+        // "1 = 1" matches all rows. data.sql has 6 vets.
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
                 .where(it -> it.where(TemplateBuilder.create(ignore -> "1 = 1")))

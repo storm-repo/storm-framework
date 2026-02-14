@@ -86,6 +86,8 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectPet() {
+        // Template expansion auto-joins owner and city. 12 owned pets span 10 distinct owners.
+        // Each owner has a unique first name, so 10 distinct first names expected.
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
                 FROM \0""", Pet.class, Pet.class)).prepare();
@@ -101,6 +103,9 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectPetWithFromAndJoins() {
+        // Filter '%y%' matches: Rosy, Iggy, Lucky(9), Lucky(12), Freddy (5 pets with owners).
+        // Sly also matches but has no owner; LEFT JOIN produces null owner, filtered out.
+        // 5 distinct owner first names: Eduardo, Harold, Jeff, Carlos, David.
         String nameFilter = "%y%";
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
@@ -118,6 +123,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectPetWithJoinsMetamodel() {
+        // Visit 1 references pet_id=7 (Samantha). Join via metamodel paths should resolve correctly.
         var visit = ORMTemplate.of(dataSource).entity(Visit.class).getById(1);
         Pet pet = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
@@ -130,6 +136,8 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectPetWithTableAndJoins() {
+        // Same '%y%' filter as testSelectPetWithFromAndJoins but using explicit table() references.
+        // 5 distinct owner first names expected (Sly excluded via LEFT OUTER JOIN null filter).
         String nameFilter = "%y%";
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
@@ -150,6 +158,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectPetWithRecord() {
+        // Custom local records for Owner/Pet. Same '%y%' filter; 5 distinct owner first names.
         record Owner(String firstName, String lastName, String telephone) implements Data {}
         record Pet(String name, LocalDate birthDate, Owner owner) implements Data {}
         String nameFilter = "%y%";
@@ -170,6 +179,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectPetWithAlias() {
+        // Same '%y%' filter using alias() in WHERE clause. 5 distinct owner first names.
         String nameFilter = "%y%";
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
@@ -190,6 +200,8 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectPetWithInParams() {
+        // IN ("Iggy", "Lucky", "Sly"): Iggy(owner=Harold), Lucky(9,owner=Jeff), Lucky(12,owner=David).
+        // Sly has no owner (LEFT JOIN null), so 3 distinct owner first names: Harold, Jeff, David.
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
                 FROM \0
@@ -209,6 +221,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectPetWithInParamsArray() {
+        // Same as testSelectPetWithInParams but passing Object[] instead of List. 3 distinct owners.
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
                 FROM \0
@@ -228,6 +241,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectPetImplicit() {
+        // Same IN filter with implicit joins (Pet.class used for both SELECT and FROM). 3 distinct owners.
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
                 FROM \0
@@ -253,6 +267,8 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectRefNullViolation() {
+        // Pet 13 (Sly) has NULL owner_id. PetWithRefNonNullViolation declares @Nonnull Ref<Owner>,
+        // so mapping Sly should throw SqlTemplateException for the null violation.
         var e = assertThrows(PersistenceException.class, () -> {
             try (var query = ORMTemplate.of(dataSource).query(raw("""
                     SELECT \0
@@ -267,6 +283,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testVisitWithAlias() {
+        // 5 visits have visit_date >= 2023-01-09 (visits 9-13 by date: Jan 9, 10, 11, 12, 13).
         @DbTable("visit")
         record Visit(
                 int id,
@@ -287,6 +304,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testVisitsByDate() {
+        // Same date filter as testVisitWithAlias but without alias(). 5 visits >= 2023-01-09.
         @DbTable("visit")
         record Visit(
                 int id,
@@ -307,6 +325,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testVisitsByCalendar() {
+        // Same date filter using Calendar/GregorianCalendar with TemporalType.DATE. 5 visits >= 2023-01-09.
         @DbTable("visit")
         record CustomVisit(
                 int id,
@@ -327,6 +346,8 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testMissingTable() {
+        // SELECT uses Visit.class template but FROM is a plain string "visit" without table() reference.
+        // The framework cannot resolve the Visit table alias, so it throws SqlTemplateException.
         var e = assertThrows(PersistenceException.class, () -> {
             try (var query = ORMTemplate.of(dataSource).query(raw("""
                     SELECT \0
@@ -340,6 +361,8 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testDuplicateTable() {
+        // Two table() references for Visit with different aliases ("a", "b") conflict.
+        // Framework does not allow the same entity type registered twice; throws SqlTemplateException.
         var e = assertThrows(PersistenceException.class, () -> {
             try (var query = ORMTemplate.of(dataSource).query(raw("""
                     SELECT \0
@@ -353,6 +376,8 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testDelete() {
+        // Verifies SQL generation for DELETE with alias and where clause.
+        // H2 does not support aliased DELETE, so the query will fail at execution.
         String expectedSql = """
                 DELETE x
                 FROM visit x
@@ -371,6 +396,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testDeleteWithAlias() {
+        // Standard DELETE FROM with WHERE clause. Deletes visit id=1.
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 DELETE FROM \0
                 WHERE \0.id = \0""", Visit.class, Visit.class, 1)).prepare()) {
@@ -398,6 +424,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testDeleteWithWrongType() {
+        // DELETE Visit but FROM Pet is a type mismatch; should throw SqlTemplateException.
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
             try (var query = ORMTemplate.of(dataSource).query(raw("""
                     DELETE \0
@@ -429,6 +456,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testDeleteWithAutoJoin() {
+        // Verifies SQL generation for DELETE with auto-join through pet to filter by owner.
         String expectedSql = """
             DELETE v
             FROM visit v
@@ -448,6 +476,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSingleInsert() {
+        // Insert a new visit for pet 1 (Leo) and verify it can be retrieved by description.
         Visit visit = new Visit(LocalDate.now(), "test", Pet.builder().id(1).build());
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 INSERT INTO \0
@@ -469,6 +498,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSingleInsertTypeMismatch() {
+        // INSERT INTO Visit but values() contains a Pet; type mismatch should throw SqlTemplateException.
         var e = assertThrows(PersistenceException.class, () ->{
             try (var query = ORMTemplate.of(dataSource).query(raw("""
                     INSERT INTO \0
@@ -481,6 +511,8 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSingleInsertMissingInsertType() {
+        // INSERT INTO plain "visit" string (no type reference) with values(); framework cannot
+        // resolve the table type for column mapping, so it throws SqlTemplateException.
         Visit visit = new Visit(LocalDate.now(), "test", Pet.builder().id(1).build());
         var e = assertThrows(PersistenceException.class, () ->{
             try (var query = ORMTemplate.of(dataSource).query(raw("""
@@ -494,6 +526,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testMultiInsert() {
+        // Insert 2 visits using separate values() placeholders; verify both are retrievable.
         Visit visit1 = new Visit(LocalDate.now(), "test1", Pet.builder().id(1).build());
         Visit visit2 = new Visit(LocalDate.now(), "test2", Pet.builder().id(1).build());
         try (var query = ORMTemplate.of(dataSource).query(raw("""
@@ -516,6 +549,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testListInsert() {
+        // Insert 2 visits using a single values() with varargs; verify both are retrievable.
         Visit visit1 = new Visit(LocalDate.now(), "test1", Pet.builder().id(1).build());
         Visit visit2 = new Visit(LocalDate.now(), "test2", Pet.builder().id(1).build());
         try (var query = ORMTemplate.of(dataSource).query(raw("""
@@ -538,6 +572,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testInsertInlined() {
+        // Insert an owner with an inlined Address component and verify retrieval by first_name.
         Owner owner = Owner.builder()
                 .firstName("John")
                 .lastName("Doe")
@@ -560,6 +595,8 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testWith() {
+        // CTE filters pets by '%y%', then LEFT JOIN to owner. 5 distinct owner first names
+        // (Sly matches but has null owner, filtered out).
         record FilteredPet(int id, @FK Owner owner) implements Data {}
         String nameFilter = "%y%";
         try (var query = ORMTemplate.of(dataSource).query(raw("""
@@ -577,6 +614,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testWithoutInline() {
+        // Same CTE as testWith but using a local Owner record without inlined Address. 5 distinct owners.
         record Owner(
                 @PK Integer id,
                 String firstName,
@@ -600,6 +638,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectCompoundPk() {
+        // data.sql inserts 5 vet_specialty rows (compound PK: vet_id + specialty_id).
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
                 FROM \0""", VetSpecialty.class, VetSpecialty.class)).prepare();
@@ -610,6 +649,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectCompoundPkWithTables() {
+        // Same 5 vet_specialty rows but with explicit table() references for all three tables.
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
                 FROM \0
@@ -622,6 +662,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWhereCompoundPk() {
+        // Vet 2, specialty 1 exists in data.sql (vet_specialty). Exactly 1 row should match.
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
                 FROM \0
@@ -633,6 +674,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWhereCompoundPks() {
+        // Filtering by 2 compound PKs: (vet=2,spec=1) and (vet=3,spec=2). Both exist in data.sql.
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
                 FROM \0
@@ -645,6 +687,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWherePkCompoundPks() {
+        // Same as testSelectWhereCompoundPks but using PK objects directly instead of entity wrappers.
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
                 FROM \0
@@ -667,6 +710,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWhereRefPk() {
+        // VetSpecialtyRefPk uses Ref<Vet> as PK. Vet 2 has 1 vet_specialty row in data.sql.
         var list = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
                 FROM \0
@@ -677,6 +721,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWherePathPk() {
+        // Owners 1-3 have 4 pets total: owner 1 has Leo, owner 2 has Basil, owner 3 has Rosy+Jewel.
         var pets = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
                 FROM \0
@@ -688,6 +733,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWherePathRecord() {
+        // Owner 3 (Eduardo Rodriquez) has 2 pets: Rosy (id=3) and Jewel (id=4).
         var owner = ORMTemplate.of(dataSource).entity(Owner.class).getById(3);
         var pets = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
@@ -700,6 +746,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWhereNoPathForeignRecord() {
+        // Same as testSelectWherePathRecord but without explicit path; framework infers FK from Owner type.
         var owner = ORMTemplate.of(dataSource).entity(Owner.class).getById(3);
         var pets = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
@@ -712,6 +759,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWhereSubPathPk() {
+        // Same as testSelectWherePathRecord but filtering by owner.id sub-path instead of full record.
         var owner = ORMTemplate.of(dataSource).entity(Owner.class).getById(3);
         var pets = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
@@ -724,6 +772,8 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testInsertCompoundPk() {
+        // Vet 1 (James) has no specialties in data.sql. Insert (vet=1, spec=1) and verify
+        // vet firstName="James" and specialty name="radiology" are resolved via joins.
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 SELECT \0
                 FROM \0
@@ -751,6 +801,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSingleUpdate() {
+        // Rename pet 1 (Leo) to "Leona" and verify the update took effect.
         var update = Pet.builder().id(1).build();
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 UPDATE \0
@@ -768,6 +819,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSingleUpdateMetamodel() {
+        // Same as testSingleUpdate but using Pet_.name metamodel path for the SET clause.
         var update = Pet.builder().id(1).build();
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 UPDATE \0
@@ -785,6 +837,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testUpdateSetWhere() {
+        // Full entity update using set() and where() template helpers. Renames pet 1 to "Leona".
         var update = new Pet(1, "Leona", LocalDate.now(), Ref.of(PetType.builder().id(1).build()), Owner.builder().id(1).build());
         try (var query = ORMTemplate.of(dataSource).query(raw("""
                 UPDATE \0
@@ -802,6 +855,8 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testUpdateSetWhereWithAlias() {
+        // Update pet 1 via repository-fetched entity (with version for optimistic locking).
+        // Pet type is set to id=0 (cat), and name changed to "Leona".
         var update = petRepository.findById(1).toBuilder()
                 .name("Leona")
                 .type(Ref.of(PetType.builder().id(1).build()))
@@ -837,6 +892,8 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testUpdateSetWhereWithAliasAndUpdatableType() {
+        // PetWithUpdatable has @Persist(updatable = false) on birthDate, so birth_date is not updated.
+        // Verify name changes to "Leona" but birthDate remains 2020-09-07 (Leo's original date).
         var update = PetWithUpdatable.builder()
                 .id(1)
                 .name("Leona")
@@ -865,6 +922,8 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testUpdateSetWhereWithAliasClash() {
+        // When user-specified aliases ("o", "c") clash with auto-generated ones for Pet's
+        // FK expansion (owner, city), the framework should suffix auto-aliases (o1, c1).
         String expectedSql = """
                 SELECT p.id, p.name, p.birth_date, p.type_id, p.owner_id, o1.first_name, o1.last_name, o1.address, o1.city_id, c1.name, o1.telephone, o1.version
                 FROM pet p
@@ -889,6 +948,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testUpdateSetWhereWithAliasAndTypeMismatch() {
+        // UPDATE Pet.class but set(PetWithUpdatable) is a different type; should throw SqlTemplateException.
         var e = assertThrows(PersistenceException.class, () -> {
             var update = PetWithUpdatable.builder()
                     .id(1)
@@ -918,6 +978,8 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testUpdateSetWhereWithAliasAndUpdatableTypeWithoutPersist() {
+        // PetWithoutPersist has @Persist(updatable = false) on birthDate but no @Persist on petType FK.
+        // Without @Persist, FK columns default to updatable; so type_id should be updated to 2.
         var update = PetWithoutPersist.builder()
                 .id(1)
                 .name("Leona")
@@ -946,12 +1008,14 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testSelect() {
+        // Append a raw WHERE clause to a builder query. Visit id=1 exists; exactly 1 result.
         var count = ORMTemplate.of(dataSource).selectFrom(Visit.class).append(raw("WHERE \0.id = \0", alias(Visit.class), 1)).getResultCount();
         assertEquals(1, count);
     }
 
     @Test
     public void testCustomFrom() {
+        // Using from() with a subquery string as the source. data.sql has 14 visits.
         var query = ORMTemplate.of(dataSource).query(raw("""
                 SELECT a.*
                 FROM \0
@@ -961,6 +1025,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testCustomTemplate() {
+        // TemplateBuilder.create with Pet expansion. data.sql has 13 pets total.
         var query = ORMTemplate.of(dataSource).query(TemplateBuilder.create(it -> """
                 SELECT %s
                 FROM %s
@@ -970,6 +1035,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testCustomTemplateExists() {
+        // WHERE EXISTS subquery matches every pet against itself (p.id = p.id). All 13 pets match.
         var orm = ORMTemplate.of(dataSource);
         var query = orm.query(TemplateBuilder.create(it -> """
                 SELECT %s
@@ -982,6 +1048,7 @@ public class TemplatePreparedStatementIntegrationTest {
 
     @Test
     public void testCustomTemplateNotExists() {
+        // WHERE NOT EXISTS with self-correlation (p.id = p.id) always has a match, so 0 pets returned.
         var orm = ORMTemplate.of(dataSource);
         var query = orm.query(TemplateBuilder.create(it -> """
                 SELECT %s

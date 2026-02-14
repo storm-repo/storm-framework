@@ -37,6 +37,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <argLine>
+                        @{argLine}
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens storm.mariadb/st.orm.spi.mariadb=ALL-UNNAMED
                         --add-opens storm.mariadb/st.orm.spi.mariadb=storm.core

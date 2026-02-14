@@ -78,6 +78,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <argLine>
+                        @{argLine}
                         --enable-preview
                         --add-opens java.base/java.lang=ALL-UNNAMED
                     </argLine>

@@ -48,7 +48,9 @@ public class JsonORMConverterIntegrationTest {
     private DataSource dataSource;
 
     @Test
-    public void testSelectOwner() {
+    public void selectOwnersShouldReturnAll10DistinctOwnersFromTestData() {
+        // The test data contains 10 owner rows. Querying all columns and mapping to Owner (which has
+        // a @Json address field) should produce 10 distinct results, verifying JSON column deserialization.
         var orm = of(dataSource);
         var query = orm.query("SELECT id, first_name, last_name, address, telephone FROM owner");
         var owner = query.getResultList(Owner.class);
@@ -56,7 +58,9 @@ public class JsonORMConverterIntegrationTest {
     }
 
     @Test
-    public void testSelectRef() {
+    public void jsonArrayOfRefIdsShouldDeserializeToListOfUnloadedRefs() {
+        // JSON_ARRAYAGG(id) produces a JSON array of owner IDs. When mapped to a List<Ref<Owner>>,
+        // each element should be an unloaded Ref with the correct ID. There are 10 distinct owners.
         record Result(@Json List<Ref<Owner>> owner) {}
         var orm = of(dataSource);
         var query = orm.query("SELECT JSON_ARRAYAGG(id) FROM owner");
@@ -65,7 +69,9 @@ public class JsonORMConverterIntegrationTest {
     }
 
     @Test
-    public void testSelectNullRef() {
+    public void jsonArrayWithNullElementShouldDeserializeToNullableRefList() {
+        // A JSON array containing null and a valid ID should produce a list with one null Ref
+        // and one valid Ref. This verifies null handling in JSON Ref deserialization.
         record Result(@Json List<Ref<Owner>> owner) {}
         var orm = of(dataSource);
         var query = orm.query("SELECT '[null, 1]'");
@@ -81,7 +87,9 @@ public class JsonORMConverterIntegrationTest {
     }
 
     @Test
-    public void testInsertOwner() {
+    public void insertEntityWithJsonAddressFieldShouldPersistAndReturnCorrectAddress() {
+        // Inserting an owner with a JSON-serialized address should store the address as JSON in the
+        // database and return it correctly when fetched back via insertAndFetch.
         var orm = of(dataSource);
         var repository = orm.entity(Owner.class);
         var address = new Address("271 University Ave", "Palo Alto");
@@ -91,7 +99,9 @@ public class JsonORMConverterIntegrationTest {
     }
 
     @Test
-    public void testUpdateOwner() {
+    public void updateEntityWithJsonAddressFieldShouldPersistTheNewAddress() {
+        // Updating owner id=1's address to a new value should persist the JSON change.
+        // Re-fetching the owner should return the updated address.
         var orm = of(dataSource);
         var repository = orm.entity(Owner.class);
         var owner = repository.getById(1);
@@ -114,7 +124,9 @@ public class JsonORMConverterIntegrationTest {
     }
 
     @Test
-    public void testOwnerWithJsonPerson() {
+    public void computedJsonPersonColumnShouldDeserializeCorrectlyForAllOwners() {
+        // Uses JSON_OBJECT to create a person JSON column from first_name/last_name. The @Json-annotated
+        // Person field should be deserialized from the JSON column for all 10 owners in the test data.
         var orm = of(dataSource);
         var query = orm.query("SELECT id, JSON_OBJECT('firstName' VALUE first_name, 'lastName' VALUE last_name) AS person, address, telephone FROM owner");
         var owner = query.getResultList(OwnerWithJsonPerson.class);
@@ -133,7 +145,9 @@ public class JsonORMConverterIntegrationTest {
     }
 
     @Test
-    public void testOwnerWithJsonMapAddress() {
+    public void jsonMapAddressFieldShouldDeserializeJsonColumnIntoMapForAllOwners() {
+        // The address column contains JSON objects. Using Map<String, String> as the field type
+        // with @Json should deserialize the JSON into a map. All 10 owners should be returned.
         var orm = of(dataSource);
         var repository = orm.entity(OwnerWithJsonMapAddress.class);
         var owner = repository.select().getResultList();
@@ -152,7 +166,10 @@ public class JsonORMConverterIntegrationTest {
     }
 
     @Test
-    public void testOwnerWithInlineJsonMapAddress() {
+    public void inlineAndJsonAnnotationsCombinedOnMapShouldThrowSqlTemplateException() {
+        // @Inline and @Json are mutually exclusive on Map fields. @Inline means "expand the fields
+        // inline into the SQL", but @Json means "treat as a single JSON column". The framework
+        // should reject this combination with a SqlTemplateException.
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
             var orm = of(dataSource);
             var repository = orm.entity(OwnerWithInlineJsonMapAddress.class);
@@ -164,7 +181,10 @@ public class JsonORMConverterIntegrationTest {
     public record SpecialtiesByVet(@Nonnull Vet vet, @Nonnull @Json List<Specialty> specialties) {}
 
     @Test
-    public void testSpecialtiesByVet() {
+    public void jsonArrayAggOfSpecialtyObjectsShouldGroupByVet() {
+        // Joins vet -> vet_specialty -> specialty and aggregates specialties as a JSON array per vet.
+        // Per test data: 4 vets have specialties (vets 2,3,4,5), with 5 total vet-specialty associations.
+        // Vet 3 (Linda Douglas) has 2 specialties (surgery, dentistry); the others have 1 each.
         var vets = of(dataSource)
                 .selectFrom(Vet.class, SpecialtiesByVet.class, raw("""
                         \0, JSON_ARRAYAGG(
@@ -184,7 +204,9 @@ public class JsonORMConverterIntegrationTest {
     record SpecialtyNamesByVet(@Nonnull Vet vet, @Nonnull @Json List<String> specialties) {}
 
     @Test
-    public void testSpecialtyNamesByVet() {
+    public void jsonArrayAggOfSpecialtyNamesShouldGroupByVet() {
+        // Similar to the specialty objects test, but aggregates just the name strings.
+        // Per test data: 4 vets with specialties, 5 total specialty associations.
         var vets = of(dataSource).selectFrom(Vet.class, SpecialtyNamesByVet.class, raw("""
                         \0, JSON_ARRAYAGG(\0.name) AS specialties""", Vet.class, Specialty.class))
                 .innerJoin(VetSpecialty.class).on(Vet.class)
@@ -196,7 +218,9 @@ public class JsonORMConverterIntegrationTest {
     }
 
     @Test
-    public void testSpecialtiesByVetDoubleClass() {
+    public void jsonObjectAggWithEntityTemplateShouldGenerateCorrectSql() {
+        // JSON_OBJECTAGG with a full entity template reference should expand to the entity's columns.
+        // H2 does not support JSON_OBJECTAGG, so we only verify the generated SQL matches expectations.
         String expectedSql = """
                 SELECT v.id, v.first_name, v.last_name, JSON_OBJECTAGG(s.id, s.name)
                 FROM vet v
@@ -246,7 +270,10 @@ public class JsonORMConverterIntegrationTest {
     }
 
     @Test
-    public void testPolymorphic() {
+    public void polymorphicJsonDeserializationShouldResolveCorrectSubtypeViaDiscriminator() {
+        // Uses a sealed interface with @JsonTypeInfo(use = NAME) and two permitted subtypes.
+        // The JSON constructed by the query includes '@type' VALUE 'PersonA', so all 10 owners should
+        // deserialize with their person field as a PersonA instance.
         var orm = of(dataSource);
         var query = orm.query("SELECT id, JSON_OBJECT('@type' VALUE 'PersonA', 'firstName' VALUE first_name, 'lastName' VALUE last_name) AS person, address, telephone FROM owner");
         var owner = query.getResultList(OwnerWithPolymorphicPerson.class);

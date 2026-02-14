@@ -1,0 +1,21 @@
+codecov:
+  require_ci_to_pass: true
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 5%
+    patch:
+      default:
+        target: auto
+        threshold: 10%
+        informational: true
+
+ignore:
+  - "**/src/test/**"
+  - "**/generated-sources/**"
+  - "storm-bom/**"
+  - "storm-metamodel-processor/**"
+  - "storm-metamodel-ksp/**"

@@ -40,6 +40,7 @@
                 <configuration>
                     <useModulePath>true</useModulePath>
                     <argLine>
+                        @{argLine}
                         -Dstorm.validation.skip=false
                         -Dstorm.ansi_escaping=true
                     </argLine>
@@ -56,6 +57,7 @@
                     <jvmTarget>21</jvmTarget>
                     <args>
                         <arg>-Xjdk-release=21</arg>
+                        <arg>-module-name=${project.artifactId}</arg>
                     </args>
                     <compilerPlugins>
                         <!-- For Kotlin 1.9+ the id is "serialization" -->
@@ -73,7 +75,6 @@
                             <sourceDirs>
                                 <sourceDir>${project.basedir}/src/main/kotlin</sourceDir>
                             </sourceDirs>
-                            <moduleName>${project.artifactId}</moduleName>
                         </configuration>
                     </execution>
                     <execution>
@@ -219,7 +220,7 @@
         <dependency>
             <groupId>io.kotest</groupId>
             <artifactId>kotest-assertions-core-jvm</artifactId>
-            <version>5.7.2</version>
+            <version>5.9.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>

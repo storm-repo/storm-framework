@@ -71,9 +71,11 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <argLine>
+                        @{argLine}
                         --enable-preview
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens storm.spring/st.orm.spring=ALL-UNNAMED
+                        --add-opens storm.spring/st.orm.spring.impl=ALL-UNNAMED
                         --add-opens storm.spring/st.orm.spring.model=ALL-UNNAMED
                         --add-opens storm.spring/st.orm.spring=spring.core
                         --add-opens storm.spring/st.orm.spring.model=storm.java

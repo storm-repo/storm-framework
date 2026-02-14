@@ -33,13 +33,17 @@ public class RepositoryTest {
     }
 
     @Test
-    public void testVisitRepository() {
+    public void visitRepositoryShouldBeAutowiredAndReturnAllVisits() {
+        // VisitRepository is a standard EntityRepository registered via TestRepositoryBeanFactoryPostProcessor.
+        // The test data contains 14 visit rows, so findAll should return all of them.
         var visits = visitRepository.findAll();
         assertEquals(14, visits.size());
     }
 
     @Test
-    public void testOwnerRepository() {
+    public void ownerRepositoryShouldNotBeAutowiredDueToNoRepositoryBeanAnnotation() {
+        // OwnerRepository is annotated with @NoRepositoryBean, so the RepositoryBeanFactoryPostProcessor
+        // should skip it during scanning. It should not be registered as a Spring bean.
         assertNull(ownerRepository);
     }
 }

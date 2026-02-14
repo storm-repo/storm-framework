@@ -37,7 +37,11 @@ open class JsonIntegrationTest(
     ) : Entity<Int>, Person
 
     @Test
-    fun testOwner() {
+    fun `serializable entity should round-trip through JSON with embedded Json fields`() {
+        // Owner id=1 is "Betty Davis" with a JSON-stored address. The @Json annotation on the address
+        // field causes Storm to deserialize the JSON column into an Address object. When serialized
+        // to JSON using kotlinx.serialization with StormSerializers, the entity should produce valid
+        // JSON and deserialize back to an equal object.
         val orm = ORMTemplate.of(dataSource)
         val owner = orm.entity(SerializableOwner::class).getById(1)
         val jsonMapper = JsonMapper {
@@ -62,7 +66,10 @@ open class JsonIntegrationTest(
     ) : Entity<Int>
 
     @Test
-    fun testOwnerWithJsonPerson()  {
+    fun `entity with multiple Json fields should round-trip including computed JSON columns`()  {
+        // Uses a raw query that constructs a JSON person object from first_name/last_name columns.
+        // Both the @Json person field and @Json address field should serialize/deserialize correctly.
+        // Owner id=1 is "Betty Davis" at "638 Cardinal Ave., Sun Prairie".
         val orm = ORMTemplate.of(dataSource)
         val query = orm.query("SELECT id, JSON_OBJECT('firstName' VALUE first_name, 'lastName' VALUE last_name) AS person, address, telephone FROM owner LIMIT 1")
         val owner = query.getSingleResult(OwnerWithJsonPerson::class)
@@ -107,7 +114,10 @@ open class JsonIntegrationTest(
     ) : Entity<Int>
 
     @Test
-    fun testPet() {
+    fun `entity with FK relationships should serialize nested entities inline`() {
+        // Pet id=1 is "Leo", a cat owned by Betty Davis. The entity graph includes FK-joined
+        // PetType and Owner entities. When serialized, all nested entities should appear inline
+        // with their full field values, and the result should round-trip.
         val orm = ORMTemplate.of(dataSource)
         val pet = orm.entity(SerializablePet::class).getById(1);
         val jsonMapper = JsonMapper {
@@ -130,7 +140,9 @@ open class JsonIntegrationTest(
     ) : Entity<Int>
 
     @Test
-    fun testPetWithRef() {
+    fun `unloaded entity Ref should serialize to raw primary key value`() {
+        // Per API contract, an unloaded Ref (lazy reference) serializes to just the primary key value,
+        // not the full entity. Pet id=1 has owner_id=1, so the unloaded owner Ref should serialize as 1.
         val orm = ORMTemplate.of(dataSource)
         val pet = orm.entity(PetWithRefOwner::class).getById(1);
         val jsonMapper = JsonMapper {
@@ -143,7 +155,10 @@ open class JsonIntegrationTest(
     }
 
     @Test
-    fun testPetWithRefLoaded() {
+    fun `loaded entity Ref should serialize with entity wrapper`() {
+        // Per API contract, a loaded Ref (where the entity has been fetched) serializes as an object
+        // with an "@entity" wrapper containing the full entity data. This allows the deserializer to
+        // reconstruct a loaded Ref with the entity available.
         val orm = ORMTemplate.of(dataSource)
         val pet = orm.entity(PetWithRefOwner::class).getById(1);
         val owner = pet.owner!!.fetch()
@@ -178,7 +193,9 @@ open class JsonIntegrationTest(
     ) : Entity<Int>
 
     @Test
-    fun testPetWithProjectionRef() {
+    fun `unloaded projection Ref should serialize to raw primary key value`() {
+        // When the Ref target is a Projection (not an Entity), unloaded Refs still serialize
+        // to just the primary key value, same as entity Refs.
         val orm = ORMTemplate.of(dataSource)
         val pet = orm.entity(PetWithProjectionRefOwner::class).getById(1)
         val jsonMapper = JsonMapper {
@@ -191,7 +208,10 @@ open class JsonIntegrationTest(
     }
 
     @Test
-    fun testPetWithProjectionRefLoaded() {
+    fun `loaded projection Ref should serialize with projection wrapper and id`() {
+        // Unlike entity Refs, loaded projection Refs serialize with both "@id" and "@projection" fields.
+        // The "@id" field is needed because projections may not have an id() accessor, so the id
+        // must be serialized separately to enable reconstruction.
         val orm = ORMTemplate.of(dataSource)
         val pet = orm.entity(PetWithProjectionRefOwner::class).getById(1)
         val owner = pet.owner!!.fetch()

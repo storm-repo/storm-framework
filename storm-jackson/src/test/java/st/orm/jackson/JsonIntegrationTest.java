@@ -41,7 +41,10 @@ public class JsonIntegrationTest {
     private DataSource dataSource;
 
     @Test
-    public void testOwner() throws Exception {
+    public void ownerEntityWithJsonAddressShouldRoundTripThroughJackson() throws Exception {
+        // Owner id=1 is "Betty Davis" with a JSON-stored address. The @Json annotation on the address
+        // field causes Storm to deserialize the JSON column into an Address record. When serialized
+        // to JSON using Jackson, the entity should produce valid JSON and deserialize back to an equal object.
         var orm = of(dataSource);
         var owner = orm.entity(Owner.class).getById(1);
         ObjectMapper objectMapper = new ObjectMapper();
@@ -63,7 +66,10 @@ public class JsonIntegrationTest {
     }
 
     @Test
-    public void testOwnerWithJsonPerson() throws Exception {
+    public void entityWithMultipleJsonFieldsShouldRoundTripIncludingComputedJsonColumns() throws Exception {
+        // Uses a raw query that constructs a JSON person object from first_name/last_name columns.
+        // Both the @Json person field and @Json address field should serialize/deserialize correctly.
+        // Owner id=1 is "Betty Davis" at "638 Cardinal Ave., Sun Prairie".
         var orm = of(dataSource);
         var query = orm.query("SELECT id, JSON_OBJECT('firstName' VALUE first_name, 'lastName' VALUE last_name) AS person, address, telephone FROM owner LIMIT 1");
         var owner = query.getSingleResult(OwnerWithJsonPerson.class);
@@ -76,7 +82,10 @@ public class JsonIntegrationTest {
     }
 
     @Test
-    public void testPet() throws Exception {
+    public void entityWithFkRelationshipsShouldSerializeNestedEntitiesInline() throws Exception {
+        // Pet id=1 is "Leo", a cat owned by Betty Davis. The entity graph includes FK-joined
+        // PetType and Owner entities. When serialized with Jackson + JavaTimeModule, all nested
+        // entities should appear inline with their full field values, and the result should round-trip.
         var orm = of(dataSource);
         var pet = orm.entity(Pet.class).getById(1);
         ObjectMapper objectMapper = new ObjectMapper();
@@ -98,7 +107,10 @@ public class JsonIntegrationTest {
     ) implements Entity<Integer> {}
 
     @Test
-    public void testPetWithRef() throws Exception {
+    public void unloadedEntityRefShouldSerializeToRawPrimaryKeyValue() throws Exception {
+        // Per API contract, an unloaded Ref (lazy reference) serializes to just the primary key value,
+        // not the full entity. Pet id=1 has owner_id=1, so the unloaded owner Ref should serialize as 1.
+        // StormModule must be registered to enable Ref serialization support.
         var orm = of(dataSource);
         var pet = orm.entity(PetWithRefOwner.class).getById(1);
         ObjectMapper objectMapper = new ObjectMapper();
@@ -112,7 +124,10 @@ public class JsonIntegrationTest {
     }
 
     @Test
-    public void testPetWithRefLoaded() throws Exception {
+    public void loadedEntityRefShouldSerializeWithEntityWrapper() throws Exception {
+        // Per API contract, a loaded Ref (where the entity has been fetched) serializes as an object
+        // with an "@entity" wrapper containing the full entity data. This allows the deserializer to
+        // reconstruct a loaded Ref with the entity available.
         var orm = of(dataSource);
         var pet = orm.entity(PetWithRefOwner.class).getById(1);
         var owner = ofNullable(pet.owner()).map(Ref::fetch).orElseThrow();
@@ -148,7 +163,9 @@ public class JsonIntegrationTest {
 
 
     @Test
-    public void testPetWithProjectionRef() throws Exception {
+    public void unloadedProjectionRefShouldSerializeToRawPrimaryKeyValue() throws Exception {
+        // When the Ref target is a Projection (not an Entity), unloaded Refs still serialize
+        // to just the primary key value, same as entity Refs.
         var orm = of(dataSource);
         var pet = orm.entity(PetWithProjectionRefOwner.class).getById(1);
         ObjectMapper objectMapper = new ObjectMapper();
@@ -162,7 +179,10 @@ public class JsonIntegrationTest {
     }
 
     @Test
-    public void testPetWithProjectionRefLoaded() throws Exception {
+    public void loadedProjectionRefShouldSerializeWithProjectionWrapperAndId() throws Exception {
+        // Unlike entity Refs, loaded projection Refs serialize with both "@id" and "@projection" fields.
+        // The "@id" field is needed because projections may not have an id() accessor, so the id
+        // must be serialized separately to enable reconstruction.
         var orm = of(dataSource);
         var pet = orm.entity(PetWithProjectionRefOwner.class).getById(1);
         var owner = ofNullable(pet.owner()).map(Ref::fetch).orElseThrow();

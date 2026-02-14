@@ -37,6 +37,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <argLine>
+                        @{argLine}
                         -Dstorm.validation.skip=true
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens storm.jackson/st.orm.jackson=storm.core

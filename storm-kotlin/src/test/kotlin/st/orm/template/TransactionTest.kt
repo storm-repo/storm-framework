@@ -45,6 +45,7 @@ open class TransactionTest(
 
     @Test
     fun `modification visible after required commit`(): Unit = runBlocking {
+        // data.sql inserts 14 visits. After a committed deleteAll, none should remain.
         transactionBlocking {
             orm.deleteAll<Visit>()
         }
@@ -53,6 +54,7 @@ open class TransactionTest(
 
     @Test
     fun `modification rolled back after required rollback`(): Unit = runBlocking {
+        // Marking rollback-only after deleteAll should restore the 14 visits.
         transactionBlocking {
             orm.deleteAll<Visit>()
             setRollbackOnly()
@@ -198,7 +200,9 @@ open class TransactionTest(
         orm.exists<Visit>().shouldBeTrue()
     }
 
-    // Single-layer tests with various isolation levels
+    /**
+     * Single-layer tests with various isolation levels.
+     */
 
     @Test
     fun `required commit with READ_UNCOMMITTED isolation`(): Unit = runBlocking {
@@ -321,7 +325,7 @@ open class TransactionTest(
     }
 
     @Test
-    fun `dirty read with READ_COMMITTED isolation`(): Unit = runBlocking {
+    fun `dirty read should be prevented with READ_COMMITTED isolation`(): Unit = runBlocking {
         val started = CompletableDeferred<Unit>()
         val sawDirty = CompletableDeferred<Boolean>()
         // Transaction 1: delete then mark rollback-only after a delay.
@@ -343,7 +347,7 @@ open class TransactionTest(
     }
 
     @Test
-    fun `dirty read deleteAll with READ_UNCOMMITTED`(): Unit = runBlocking {
+    fun `uncommitted deleteAll should be visible with READ_UNCOMMITTED`(): Unit = runBlocking {
         val started  = CompletableDeferred<Unit>()
         val sawEmpty = CompletableDeferred<Boolean>()
         // Transaction1: deleteAll but delay before commit.
@@ -365,7 +369,7 @@ open class TransactionTest(
     }
 
     @Test
-    fun `no dirty read deleteAll with READ_COMMITTED`(): Unit = runBlocking {
+    fun `uncommitted deleteAll should not be visible with READ_COMMITTED`(): Unit = runBlocking {
         val started = CompletableDeferred<Unit>()
         val sawFull = CompletableDeferred<Boolean>()
         // Transaction1: deleteAll but delay before commit.
@@ -387,7 +391,7 @@ open class TransactionTest(
     }
 
     @Test
-    fun `non-repeatable deleteAll with READ_COMMITTED`(): Unit = runBlocking {
+    fun `non-repeatable read of deleteAll should occur with READ_COMMITTED`(): Unit = runBlocking {
         val deleted      = CompletableDeferred<Unit>()
         val firstExists  = CompletableDeferred<Boolean>()
         val secondExists = CompletableDeferred<Boolean>()
@@ -412,7 +416,7 @@ open class TransactionTest(
     }
 
     @Test
-    fun `no non-repeatable deleteAll with REPEATABLE_READ`(): Unit = runBlocking {
+    fun `non-repeatable read of deleteAll should not occur with REPEATABLE_READ`(): Unit = runBlocking {
         val deleted      = CompletableDeferred<Unit>()
         val firstExists  = CompletableDeferred<Boolean>()
         val secondExists = CompletableDeferred<Boolean>()
@@ -609,7 +613,7 @@ open class TransactionTest(
     }
 
     @Test
-    fun `inner transaction fails with exception should result in unexpected rollback exception if inner exception is ignored`(): Unit = runBlocking {
+    fun `inner REQUIRED exception caught by outer should cause UnexpectedRollbackException`(): Unit = runBlocking {
         assertThrows<UnexpectedRollbackException> {
             transactionBlocking(propagation = REQUIRED) {
                 runCatching {
@@ -624,7 +628,7 @@ open class TransactionTest(
     }
 
     @Test
-    fun `inner transaction fails with exception should not result in unexpected rollback exception if inner exception falls through`(): Unit = runBlocking {
+    fun `inner REQUIRED exception propagated to outer should throw original exception`(): Unit = runBlocking {
         assertThrows<IllegalStateException> {
             transactionBlocking(propagation = REQUIRED) {
                 transactionBlocking(propagation = REQUIRED) {

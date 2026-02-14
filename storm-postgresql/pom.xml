@@ -37,6 +37,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <argLine>
+                        @{argLine}
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens storm.postgresql/st.orm.spi.postgresql=ALL-UNNAMED
                         --add-opens storm.postgresql/st.orm.spi.postgresql=storm.core
