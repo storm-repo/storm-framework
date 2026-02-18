@@ -106,7 +106,8 @@ public class StormModule extends SimpleModule {
     public StormModule(@Nullable Supplier<RefFactory> refFactorySupplier) {
         super("StormModule");
         addSerializer((Class<Ref<?>>) (Class<?>) Ref.class, new RefSerializer(null));
-        addDeserializer((Class<Ref<?>>) (Class<?>) Ref.class, new RefDeserializer(refFactorySupplier, null, null));
+        addDeserializer((Class<Ref<?>>) (Class<?>) Ref.class,
+                new RefDeserializer(refFactorySupplier, null, null));
     }
 
     /**
@@ -287,29 +288,29 @@ public class StormModule extends SimpleModule {
             };
         }
 
-        private Ref<?> deserializeObject(JsonParser parser, DeserializationContext ctxt, Class<Data> targetClass)
+        private Ref<?> deserializeObject(JsonParser parser, DeserializationContext ctx, Class<Data> targetClass)
                 throws IOException {
             ObjectNode node = parser.readValueAsTree();
             if (node.has(ENTITY_FIELD)) {
                 JsonNode entityNode = node.get(ENTITY_FIELD);
-                Data entity = ctxt.readTreeAsValue(entityNode, targetType);
+                Data entity = ctx.readTreeAsValue(entityNode, targetType);
                 return createLoadedRef(parser, entity);
             } else if (node.has(PROJECTION_FIELD)) {
                 if (!node.has(ID_FIELD)) {
                     throw JsonMappingException.from(parser, "@projection requires @id field");
                 }
-                Object id = deserializeIdFromNode(node.get(ID_FIELD), ctxt);
+                Object id = deserializeIdFromNode(node.get(ID_FIELD), ctx);
                 JsonNode projectionNode = node.get(PROJECTION_FIELD);
-                Data projection = ctxt.readTreeAsValue(projectionNode, targetType);
+                Data projection = ctx.readTreeAsValue(projectionNode, targetType);
                 return createLoadedRefWithId(parser, targetClass, projection, id);
             } else {
                 throw JsonMappingException.from(parser, "Ref object must contain @entity or @projection field");
             }
         }
 
-        private Object deserializeIdFromNode(JsonNode node, DeserializationContext ctxt) throws IOException {
+        private Object deserializeIdFromNode(JsonNode node, DeserializationContext ctx) throws IOException {
             if (pkType != null) {
-                return ctxt.readTreeAsValue(node, pkType);
+                return ctx.readTreeAsValue(node, pkType);
             }
             // Fallback for unknown PK type.
             if (node.isInt()) {
@@ -321,13 +322,13 @@ public class StormModule extends SimpleModule {
             } else if (node.isTextual()) {
                 return node.textValue();
             } else {
-                return ctxt.readTreeAsValue(node, Object.class);
+                return ctx.readTreeAsValue(node, Object.class);
             }
         }
 
-        private Object deserializeId(JsonParser parser, DeserializationContext ctxt) throws IOException {
+        private Object deserializeId(JsonParser parser, DeserializationContext ctx) throws IOException {
             if (pkType != null) {
-                return ctxt.readValue(parser, pkType);
+                return ctx.readValue(parser, pkType);
             }
             // Fallback for unknown PK type.
             return switch (parser.currentToken()) {
@@ -345,7 +346,8 @@ public class StormModule extends SimpleModule {
         }
 
         @SuppressWarnings({"rawtypes"})
-        private Ref<?> createLoadedRef(JsonParser parser, Data entity) throws JsonMappingException {
+        private Ref<?> createLoadedRef(JsonParser parser, Data entity)
+                throws JsonMappingException {
             if (entity == null) {
                 return null;
             }

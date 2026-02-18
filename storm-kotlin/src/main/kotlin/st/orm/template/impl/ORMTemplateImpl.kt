@@ -105,7 +105,8 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) :
         if (!EntityRepository::class.java.isAssignableFrom(type.java)) return null
         var entityClass: Class<*>? = null
         for (iface in type.java.genericInterfaces) {
-            if (iface is ParameterizedType && (iface.rawType as? Class<*>)?.let {
+            if (iface is ParameterizedType &&
+                (iface.rawType as? Class<*>)?.let {
                     EntityRepository::class.java.isAssignableFrom(it)
                 } == true
             ) {
@@ -128,7 +129,8 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) :
         if (!ProjectionRepository::class.java.isAssignableFrom(type.java)) return null
         var projectionClass: Class<*>? = null
         for (iface in type.java.genericInterfaces) {
-            if (iface is ParameterizedType && (iface.rawType as? Class<*>)?.let {
+            if (iface is ParameterizedType &&
+                (iface.rawType as? Class<*>)?.let {
                     ProjectionRepository::class.java.isAssignableFrom(it)
                 } == true
             ) {

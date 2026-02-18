@@ -50,27 +50,38 @@ val StormSerializers: SerializersModule = StormSerializersModule()
 /**
  * Creates a [SerializersModule] for Storm ORM types with optional [RefFactory] support.
  *
- * @param refFactoryProvider Optional provider for [RefFactory] to create attached refs.
- *   When null, refs are created as detached via [Ref.of].
- *   The provider is invoked on each deserialization, allowing for ThreadLocal or
- *   scoped value resolution.
+ * This module registers contextual serializers for [Ref] types. Because kotlinx.serialization only
+ * consults the [SerializersModule] for fields annotated with
+ * [@Contextual][kotlinx.serialization.Contextual], [Ref] fields must carry that annotation:
+ * ```
+ * @Serializable
+ * data class Order(
+ *     @PK val id: Int = 0,
+ *     @Contextual val customer: Ref<Customer>,
+ * ) : Entity<Int>
+ * ```
  *
  * Usage:
  * ```
  * val json = Json {
- *     serializersModule = StormSerializers()
+ *     serializersModule = StormSerializersModule()
  * }
  * ```
  *
  * Usage with RefFactory:
  * ```
  * val json = Json {
- *     serializersModule = StormSerializers {
+ *     serializersModule = StormSerializersModule {
  *         // Resolve from ThreadLocal, scope, or DI container
  *         MyRefFactoryHolder.current()
  *     }
  * }
  * ```
+ *
+ * @param refFactoryProvider optional provider for [RefFactory] to create attached refs.
+ *   When null, refs are created as detached via [Ref.of].
+ *   The provider is invoked on each deserialization, allowing for ThreadLocal or
+ *   scoped value resolution.
  */
 fun StormSerializersModule(
     refFactoryProvider: (() -> RefFactory?)? = null,
