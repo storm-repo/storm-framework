@@ -465,6 +465,7 @@ Now that you have the basics, explore the features that match your needs:
 
 **Integration:**
 - [Spring Integration](spring-integration.md) -- Spring Boot Starter, auto-configuration, and DI
+- [Testing](testing.md) -- JUnit 5 integration and statement capture
 - [JSON Support](json.md) -- JSON columns and aggregation
 - [Database Dialects](dialects.md) -- database-specific features
 

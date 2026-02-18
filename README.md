@@ -205,6 +205,7 @@ Everything you need to build applications with Storm. Start with Getting Started
 | [Transactions](docs/transactions.md) | Transaction management and propagation (22 min) |
 | [Spring Integration](docs/spring-integration.md) | Spring Boot Starter and auto-configuration (8 min) |
 | [Database Dialects](docs/dialects.md) | Database-specific support (5 min) |
+| [Testing](docs/testing.md) | JUnit 5 integration and statement capture (5 min) |
 
 ### Advanced Topics
 
