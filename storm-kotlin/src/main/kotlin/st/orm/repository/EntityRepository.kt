@@ -22,6 +22,7 @@ import st.orm.Metamodel
 import st.orm.Operator.EQUALS
 import st.orm.Operator.IN
 import st.orm.Ref
+import st.orm.Slice
 import st.orm.template.*
 import kotlin.reflect.KClass
 
@@ -2096,4 +2097,488 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return the number of entities deleted.
      */
     fun delete(predicate: PredicateBuilder<E, *, *>): Int = delete().where(predicate).executeUpdate()
+
+    // Slice methods.
+
+    /**
+     * Returns the first slice of entities ordered by the specified key.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the first page of results.
+     * @since 1.9
+     */
+    fun <V> slice(key: Metamodel<E, V>, size: Int): Slice<E> = select().slice(key, size)
+
+    /**
+     * Returns the first slice of entity refs ordered by the specified key.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the first page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceRef(key: Metamodel<E, V>, size: Int): Slice<Ref<E>> = selectRef().slice(key, size)
+
+    /**
+     * Returns the first slice of entities ordered by the specified key, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the first page of results.
+     * @since 1.9
+     */
+    fun <V> slice(key: Metamodel<E, V>, size: Int, predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>): Slice<E> = select().whereBuilder(predicate).slice(key, size)
+
+    /**
+     * Returns the first slice of entities ordered by the specified key, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the first page of results.
+     * @since 1.9
+     */
+    fun <V> slice(key: Metamodel<E, V>, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<E> = select().where(predicate).slice(key, size)
+
+    /**
+     * Returns the first slice of entity refs ordered by the specified key, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the first page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceRef(key: Metamodel<E, V>, size: Int, predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().whereBuilder(predicate).slice(key, size)
+
+    /**
+     * Returns the first slice of entity refs ordered by the specified key, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the first page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceRef(key: Metamodel<E, V>, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().where(predicate).slice(key, size)
+
+    /**
+     * Returns the next slice of entities after the specified cursor value.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the cursor value; only entities with a key value greater than this will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <V> sliceAfter(key: Metamodel<E, V>, after: V, size: Int): Slice<E> = select().sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entity refs after the specified cursor value.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the cursor value; only entities with a key value greater than this will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceAfterRef(key: Metamodel<E, V>, after: V, size: Int): Slice<Ref<E>> = selectRef().sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entities after the specified cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the cursor value; only entities with a key value greater than this will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <V> sliceAfter(key: Metamodel<E, V>, after: V, size: Int, predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>): Slice<E> = select().whereBuilder(predicate).sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entities after the specified cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the cursor value; only entities with a key value greater than this will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <V> sliceAfter(key: Metamodel<E, V>, after: V, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<E> = select().where(predicate).sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entity refs after the specified cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the cursor value; only entities with a key value greater than this will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceAfterRef(key: Metamodel<E, V>, after: V, size: Int, predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().whereBuilder(predicate).sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entity refs after the specified cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the cursor value; only entities with a key value greater than this will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceAfterRef(key: Metamodel<E, V>, after: V, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().where(predicate).sliceAfter(key, after, size)
+
+    /**
+     * Returns the previous slice of entities before the specified cursor value.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the cursor value; only entities with a key value less than this will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <V> sliceBefore(key: Metamodel<E, V>, before: V, size: Int): Slice<E> = select().sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entity refs before the specified cursor value.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the cursor value; only entities with a key value less than this will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceBeforeRef(key: Metamodel<E, V>, before: V, size: Int): Slice<Ref<E>> = selectRef().sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entities before the specified cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the cursor value; only entities with a key value less than this will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <V> sliceBefore(key: Metamodel<E, V>, before: V, size: Int, predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>): Slice<E> = select().whereBuilder(predicate).sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entities before the specified cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the cursor value; only entities with a key value less than this will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <V> sliceBefore(key: Metamodel<E, V>, before: V, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<E> = select().where(predicate).sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entity refs before the specified cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the cursor value; only entities with a key value less than this will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceBeforeRef(key: Metamodel<E, V>, before: V, size: Int, predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().whereBuilder(predicate).sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entity refs before the specified cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the cursor value; only entities with a key value less than this will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceBeforeRef(key: Metamodel<E, V>, before: V, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().where(predicate).sliceBefore(key, before, size)
+
+    /**
+     * Returns the next slice of entities after the specified ref cursor value.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the ref cursor value; only entities with a key value greater than this ref will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceAfter(key: Metamodel<E, V>, after: Ref<V>, size: Int): Slice<E> = select().sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entity refs after the specified ref cursor value.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the ref cursor value; only entities with a key value greater than this ref will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceAfterRef(key: Metamodel<E, V>, after: Ref<V>, size: Int): Slice<Ref<E>> = selectRef().sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entities after the specified ref cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the ref cursor value; only entities with a key value greater than this ref will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceAfter(key: Metamodel<E, V>, after: Ref<V>, size: Int, predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>): Slice<E> = select().whereBuilder(predicate).sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entities after the specified ref cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the ref cursor value; only entities with a key value greater than this ref will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceAfter(key: Metamodel<E, V>, after: Ref<V>, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<E> = select().where(predicate).sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entity refs after the specified ref cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the ref cursor value; only entities with a key value greater than this ref will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceAfterRef(key: Metamodel<E, V>, after: Ref<V>, size: Int, predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().whereBuilder(predicate).sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entity refs after the specified ref cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the ref cursor value; only entities with a key value greater than this ref will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceAfterRef(key: Metamodel<E, V>, after: Ref<V>, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().where(predicate).sliceAfter(key, after, size)
+
+    /**
+     * Returns the previous slice of entities before the specified ref cursor value.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the ref cursor value; only entities with a key value less than this ref will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceBefore(key: Metamodel<E, V>, before: Ref<V>, size: Int): Slice<E> = select().sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entity refs before the specified ref cursor value.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the ref cursor value; only entities with a key value less than this ref will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceBeforeRef(key: Metamodel<E, V>, before: Ref<V>, size: Int): Slice<Ref<E>> = selectRef().sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entities before the specified ref cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the ref cursor value; only entities with a key value less than this ref will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceBefore(key: Metamodel<E, V>, before: Ref<V>, size: Int, predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>): Slice<E> = select().whereBuilder(predicate).sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entities before the specified ref cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the ref cursor value; only entities with a key value less than this ref will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceBefore(key: Metamodel<E, V>, before: Ref<V>, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<E> = select().where(predicate).sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entity refs before the specified ref cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the ref cursor value; only entities with a key value less than this ref will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceBeforeRef(key: Metamodel<E, V>, before: Ref<V>, size: Int, predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().whereBuilder(predicate).sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entity refs before the specified ref cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the ref cursor value; only entities with a key value less than this ref will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceBeforeRef(key: Metamodel<E, V>, before: Ref<V>, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().where(predicate).sliceBefore(key, before, size)
+
+    // Composite keyset slice methods.
+
+    /**
+     * Returns the first slice of entities ordered by a non-unique sort column with a unique tiebreaker for stable
+     * pagination.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param key the metamodel field used as the unique tiebreaker for stable ordering.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the first page of results.
+     * @since 1.9
+     */
+    fun <S, V> slice(sort: Metamodel<E, S>, key: Metamodel<E, V>, size: Int): Slice<E> = select().slice(sort, key, size)
+
+    /**
+     * Returns the next slice of entities after the specified composite cursor, using a non-unique sort column with a
+     * unique tiebreaker for stable pagination.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param sortAfter the cursor value for the sort column.
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyAfter the cursor value for the unique key column.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <S, V> sliceAfter(sort: Metamodel<E, S>, sortAfter: S, key: Metamodel<E, V>, keyAfter: V, size: Int): Slice<E> = select().sliceAfter(sort, sortAfter, key, keyAfter, size)
+
+    /**
+     * Returns the previous slice of entities before the specified composite cursor, using a non-unique sort column
+     * with a unique tiebreaker for stable pagination.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param sortBefore the cursor value for the sort column.
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyBefore the cursor value for the unique key column.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <S, V> sliceBefore(sort: Metamodel<E, S>, sortBefore: S, key: Metamodel<E, V>, keyBefore: V, size: Int): Slice<E> = select().sliceBefore(sort, sortBefore, key, keyBefore, size)
+
+    /**
+     * Returns the next slice of entities after the specified composite cursor with a ref-based unique key, using a
+     * non-unique sort column with a unique tiebreaker for stable pagination.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param sortAfter the cursor value for the sort column.
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyAfter the ref cursor value for the unique key column.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <S, V : Data> sliceAfter(sort: Metamodel<E, S>, sortAfter: S, key: Metamodel<E, V>, keyAfter: Ref<V>, size: Int): Slice<E> = select().sliceAfter(sort, sortAfter, key, keyAfter, size)
+
+    /**
+     * Returns the previous slice of entities before the specified composite cursor with a ref-based unique key, using
+     * a non-unique sort column with a unique tiebreaker for stable pagination.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param sortBefore the cursor value for the sort column.
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyBefore the ref cursor value for the unique key column.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <S, V : Data> sliceBefore(sort: Metamodel<E, S>, sortBefore: S, key: Metamodel<E, V>, keyBefore: Ref<V>, size: Int): Slice<E> = select().sliceBefore(sort, sortBefore, key, keyBefore, size)
+
+    /**
+     * Returns the first slice of entity refs ordered by a non-unique sort column with a unique tiebreaker for stable
+     * pagination.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param key the metamodel field used as the unique tiebreaker for stable ordering.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the first page of ref results.
+     * @since 1.9
+     */
+    fun <S, V> sliceRef(sort: Metamodel<E, S>, key: Metamodel<E, V>, size: Int): Slice<Ref<E>> = selectRef().slice(sort, key, size)
+
+    /**
+     * Returns the next slice of entity refs after the specified composite cursor, using a non-unique sort column with
+     * a unique tiebreaker for stable pagination.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param sortAfter the cursor value for the sort column.
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyAfter the cursor value for the unique key column.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    fun <S, V> sliceAfterRef(sort: Metamodel<E, S>, sortAfter: S, key: Metamodel<E, V>, keyAfter: V, size: Int): Slice<Ref<E>> = selectRef().sliceAfter(sort, sortAfter, key, keyAfter, size)
+
+    /**
+     * Returns the previous slice of entity refs before the specified composite cursor, using a non-unique sort column
+     * with a unique tiebreaker for stable pagination.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param sortBefore the cursor value for the sort column.
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyBefore the cursor value for the unique key column.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    fun <S, V> sliceBeforeRef(sort: Metamodel<E, S>, sortBefore: S, key: Metamodel<E, V>, keyBefore: V, size: Int): Slice<Ref<E>> = selectRef().sliceBefore(sort, sortBefore, key, keyBefore, size)
+
+    /**
+     * Returns the next slice of entity refs after the specified composite cursor with a ref-based unique key, using a
+     * non-unique sort column with a unique tiebreaker for stable pagination.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param sortAfter the cursor value for the sort column.
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyAfter the ref cursor value for the unique key column.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    fun <S, V : Data> sliceAfterRef(sort: Metamodel<E, S>, sortAfter: S, key: Metamodel<E, V>, keyAfter: Ref<V>, size: Int): Slice<Ref<E>> = selectRef().sliceAfter(sort, sortAfter, key, keyAfter, size)
+
+    /**
+     * Returns the previous slice of entity refs before the specified composite cursor with a ref-based unique key,
+     * using a non-unique sort column with a unique tiebreaker for stable pagination.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param sortBefore the cursor value for the sort column.
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyBefore the ref cursor value for the unique key column.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    fun <S, V : Data> sliceBeforeRef(sort: Metamodel<E, S>, sortBefore: S, key: Metamodel<E, V>, keyBefore: Ref<V>, size: Int): Slice<Ref<E>> = selectRef().sliceBefore(sort, sortBefore, key, keyBefore, size)
 }

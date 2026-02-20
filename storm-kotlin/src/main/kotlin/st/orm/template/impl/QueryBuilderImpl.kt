@@ -46,7 +46,7 @@ class QueryBuilderImpl<T : Data, R, ID>(
      *
      * @since 1.2
      */
-    override fun safe(): QueryBuilder<T, R, ID> = QueryBuilderImpl<T, R, ID>(core.safe())
+    override fun unsafe(): QueryBuilder<T, R, ID> = QueryBuilderImpl<T, R, ID>(core.unsafe())
 
     /**
      * Marks the current query as a distinct query.
@@ -62,6 +62,44 @@ class QueryBuilderImpl<T : Data, R, ID>(
      * @return a processor that can be used to append the query with a string template.
      */
     override fun append(template: TemplateString): QueryBuilder<T, R, ID> = QueryBuilderImpl<T, R, ID>(core.append(template.unwrap))
+
+    /**
+     * Adds an ORDER BY clause to the query using a string template. Multiple calls to this method append additional
+     * columns to the ORDER BY clause.
+     *
+     * @param template the template to order by.
+     * @return the query builder.
+     * @since 1.2
+     */
+    override fun orderBy(template: TemplateString): QueryBuilder<T, R, ID> = QueryBuilderImpl<T, R, ID>(core.orderBy(template.unwrap))
+
+    /**
+     * Adds a GROUP BY clause to the query using a string template. Multiple calls to this method append additional
+     * columns to the GROUP BY clause.
+     *
+     * @param template the template to group by.
+     * @return the query builder.
+     * @since 1.2
+     */
+    override fun groupBy(template: TemplateString): QueryBuilder<T, R, ID> = QueryBuilderImpl<T, R, ID>(core.groupBy(template.unwrap))
+
+    /**
+     * Adds a HAVING clause to the query using the specified expression. Multiple calls to this method are combined
+     * using AND.
+     *
+     * @param template the expression to add.
+     * @return the query builder.
+     * @since 1.2
+     */
+    override fun having(template: TemplateString): QueryBuilder<T, R, ID> = QueryBuilderImpl<T, R, ID>(core.having(template.unwrap))
+
+    /**
+     * Returns `true` if any ORDER BY columns have been added to this query builder.
+     *
+     * @return `true` if ORDER BY columns are present, `false` otherwise.
+     * @since 1.9
+     */
+    override fun hasOrderBy(): Boolean = core.hasOrderBy()
 
     /**
      * Locks the selected rows for reading.

@@ -57,7 +57,7 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
 
     @FunctionalInterface
     private interface TemplateProcessor {
-        jakarta.persistence.Query process(@Nonnull Sql sql, @Nullable Class<?> resultClass, boolean safe);
+        jakarta.persistence.Query process(@Nonnull Sql sql, @Nullable Class<?> resultClass, boolean unsafe);
     }
 
     private final TemplateProcessor templateProcessor;
@@ -74,10 +74,10 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
 
     public JpaTemplateImpl(@Nonnull EntityManager entityManager, @Nonnull StormConfig config) {
         validate(config);
-        templateProcessor = (sql, resultClass, safe) -> {
-            if (!safe) {
+        templateProcessor = (sql, resultClass, unsafe) -> {
+            if (!unsafe) {
                 sql.unsafeWarning().ifPresent(warning -> {
-                    throw new PersistenceException("%s Use Query.safe() to mark query as safe.".formatted(warning));
+                    throw new PersistenceException("%s Use Query.unsafe() to allow this operation.".formatted(warning));
                 });
             }
             //noinspection SqlSourceToSinkFlow
@@ -288,11 +288,11 @@ public final class JpaTemplateImpl implements JpaTemplate, QueryFactory {
         }
 
         /**
-         * Returns this query unchanged. The safe flag has no effect for JPA queries since unsafe query checks are not
+         * Returns this query unchanged. The unsafe flag has no effect for JPA queries since unsafe query checks are not
          * enforced in direct JPA mode.
          */
         @Override
-        public Query safe() {
+        public Query unsafe() {
             return this;
         }
 

@@ -90,7 +90,7 @@ orm.query(RAW."SELECT * FROM user WHERE email = \{email}")
 
 ### How do I handle pagination?
 
-Storm supports offset-based pagination through `offset()` and `limit()` methods on the query builder. These translate directly to the SQL `OFFSET` and `LIMIT` clauses (or equivalent for your database dialect). For large datasets, consider keyset pagination (filtering by a cursor value) for better performance, as offset-based pagination becomes slower with increasing page numbers.
+Storm supports two strategies. **Offset-based pagination** uses `offset()` and `limit()` on the query builder, which translates directly to SQL `OFFSET` and `LIMIT`. This works well for small tables or when users need to jump to arbitrary page numbers.
 
 ```kotlin
 val page = orm.entity(User::class)
@@ -100,6 +100,58 @@ val page = orm.entity(User::class)
     .limit(10)
     .resultList
 ```
+
+For large tables where users scroll through results sequentially, prefer **keyset pagination** via `slice()`, `sliceAfter()`, and `sliceBefore()`. These are available directly on repositories and on the query builder, and remain performant regardless of how deep into the result set you are. `Slice` intentionally does not include a total element count, since a separate `COUNT(*)` must execute the same joins and filters as the main query, which can be expensive on large or complex result sets. Total counts are also inherently unstable, as rows may be inserted or deleted while a user navigates through pages. If you need a total count separately, use the `count` (Kotlin) or `getCount()` (Java) method on the query builder. See [Queries](queries.md#keyset-pagination-with-slice) for a full explanation.
+
+```kotlin
+val page = userRepository.slice(User_.id, 20)
+val next = userRepository.sliceAfter(User_.id, page.content.last().id, 20)
+```
+
+### Why does my DELETE without a WHERE clause throw an exception?
+
+By default, Storm rejects DELETE and UPDATE queries that have no WHERE clause with a `PersistenceException`. This is a safety mechanism that prevents accidental deletion or modification of every row in a table.
+
+This protection is particularly valuable because `QueryBuilder` is immutable. If you accidentally ignore the return value of `where()` on a delete builder, the WHERE clause is silently lost and the query would affect all rows. The safety check catches this at runtime:
+
+```kotlin
+// This throws PersistenceException: the where() return value is discarded,
+// so the delete has no WHERE clause and Storm blocks it.
+val builder = userRepository.delete()
+builder.where(User_.city eq city)
+builder.executeUpdate()
+
+// Correct: chain the calls so the WHERE clause is included.
+userRepository.delete()
+    .where(User_.city eq city)
+    .executeUpdate()
+```
+
+If you genuinely need to delete all rows from a table, use the `deleteAll()` convenience method:
+
+```kotlin
+// Kotlin
+userRepository.deleteAll()
+```
+
+```java
+// Java
+userRepository.deleteAll();
+```
+
+Alternatively, you can use the builder approach and call `unsafe()` to opt out of the safety check:
+
+```kotlin
+// Kotlin
+userRepository.delete().unsafe().executeUpdate()
+```
+
+```java
+// Java
+userRepository.delete().unsafe().executeUpdate();
+```
+
+The `unsafe()` method signals that the absence of a WHERE clause is intentional. Without it, Storm assumes the missing WHERE clause is a mistake. The `deleteAll()` convenience method calls `unsafe()` internally.
 
 ### Can I use database-specific functions?
 
@@ -198,6 +250,38 @@ When you read an entity within a transaction, Storm stores the original field va
 ---
 
 ## Troubleshooting
+
+### My where/orderBy/limit clause has no effect
+
+`QueryBuilder` is immutable. Every builder method returns a *new* instance with the modification applied, leaving the original unchanged. If you call a method like `where()`, `orderBy()`, or `limit()` and ignore the return value, the change is silently lost.
+
+```kotlin
+// Wrong: the where clause is discarded
+val builder = userRepository.select()
+builder.where(User_.active, EQUALS, true)   // returns a new builder, but it's ignored
+builder.resultList                           // executes without the WHERE clause
+
+// Correct: chain the calls
+val results = userRepository.select()
+    .where(User_.active, EQUALS, true)
+    .resultList
+```
+
+```java
+// Wrong: the where clause is discarded
+var builder = userRepository.select();
+builder.where(User_.active, EQUALS, true);   // returns a new builder, but it's ignored
+builder.getResultList();                      // executes without the WHERE clause
+
+// Correct: chain the calls
+var results = userRepository.select()
+        .where(User_.active, EQUALS, true)
+        .getResultList();
+```
+
+This applies to all builder methods: `where()`, `orderBy()`, `limit()`, `offset()`, `distinct()`, `groupBy()`, `having()`, joins, and locking methods like `forUpdate()`. Always use the returned builder.
+
+For DELETE and UPDATE queries, this mistake is especially dangerous because a lost WHERE clause means the operation applies to every row in the table. Storm guards against this by default: executing a DELETE or UPDATE without a WHERE clause throws a `PersistenceException`. See [Why does my DELETE without a WHERE clause throw an exception?](#why-does-my-delete-without-a-where-clause-throw-an-exception) below for details.
 
 ### My entity isn't mapping correctly
 

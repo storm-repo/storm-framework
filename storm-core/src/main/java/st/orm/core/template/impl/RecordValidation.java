@@ -40,7 +40,6 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.Data;
-import st.orm.Element;
 import st.orm.Entity;
 import st.orm.FK;
 import st.orm.GenerationStrategy;
@@ -463,15 +462,4 @@ final class RecordValidation {
         }
     }
 
-    /**
-     * Validates that there is only one WHERE clause in the SQL template.
-     *
-     * @param elements the list of SQL template elements to validate.
-     * @throws SqlTemplateException if multiple WHERE clauses are found.
-     */
-    static void validateWhere(@Nonnull List<Element> elements) throws SqlTemplateException {
-        if (elements.stream().filter(Elements.Where.class::isInstance).count() > 1) {
-            throw new SqlTemplateException("Multiple Where elements found.");
-        }
-    }
 }

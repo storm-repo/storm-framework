@@ -44,7 +44,15 @@ orm delete user
 
 // Delete by condition
 orm.delete<User> { User_.city eq city }
+
+// Delete all
+orm.deleteAll<User>()
+
+// Delete all (builder approach, requires unsafe() to confirm intent)
+orm.entity(User::class).delete().unsafe().executeUpdate()
 ```
+
+> **Safety check:** Storm rejects DELETE and UPDATE queries that have no WHERE clause, throwing a `PersistenceException`. This prevents accidental bulk deletions, which is especially important because `QueryBuilder` is immutable and a lost `where()` return value would silently drop the filter. Call `unsafe()` to opt out of this check when you intentionally want to affect all rows. The `deleteAll()` convenience method calls `unsafe()` internally.
 
 ### Streaming with Flow
 
@@ -57,6 +65,70 @@ val count = users.count()
 // Collect to list
 val userList: List<User> = users.toList()
 ```
+
+### Keyset Pagination
+
+Repositories provide convenience methods for keyset-based pagination, where a column value (typically the primary key) acts as a cursor. This approach avoids the performance issues of `OFFSET` on large tables, because the database can seek directly to the cursor position using an index rather than scanning and discarding skipped rows.
+
+The three methods map to the three paging operations you need:
+
+- `slice(key, size)` fetches the **first page**, ordered by the key in ascending order.
+- `sliceAfter(key, cursor, size)` fetches the **next page** after a cursor value.
+- `sliceBefore(key, cursor, size)` fetches the **previous page** before a cursor value.
+
+Each returns a `Slice<E>` containing the page content and a `hasNext` flag that tells you whether more results exist beyond the current page.
+
+```kotlin
+// First page of 20 users ordered by ID
+val page1: Slice<User> = userRepository.slice(User_.id, 20)
+
+// Next page, using the last ID as cursor
+val page2: Slice<User> = userRepository.sliceAfter(User_.id, page1.content.last().id, 20)
+
+// Previous page before a known cursor
+val prev: Slice<User> = userRepository.sliceBefore(User_.id, someId, 20)
+```
+
+All three methods accept an optional trailing-lambda predicate for filtering, following the same pattern as `findAll`. The filter is combined with the keyset condition using AND, so you can paginate over a subset of rows without dropping down to the query builder.
+
+```kotlin
+val activePage = userRepository.slice(User_.id, 20) { User_.active eq true }
+val nextActive = userRepository.sliceAfter(User_.id, lastId, 20) { User_.active eq true }
+```
+
+Ref variants (`sliceRef`, `sliceAfterRef`, `sliceBeforeRef`) load only primary keys, returning a `Slice<Ref<E>>`. This is useful when you need identifiers for a subsequent batch operation without the overhead of fetching full entities.
+
+```kotlin
+val refPage: Slice<Ref<User>> = userRepository.sliceRef(User_.id, 20)
+```
+
+Note that the slice methods handle ordering internally based on the key you provide, so you should not combine them with an explicit `orderBy()` call on the query builder. Also note that `sliceBefore` returns results in descending key order; reverse the list if you need ascending order for display.
+
+#### Composite Keyset Pagination
+
+When you need to sort by a non-unique column (for example, a date or status), use the composite keyset overloads. These accept a `sort` column for the primary sort order and a `key` column (typically the primary key) as a unique tiebreaker to guarantee deterministic paging even when `sort` values repeat.
+
+```kotlin
+// First page sorted by creation date, with ID as tiebreaker
+val page1: Slice<Post> = postRepository.slice(Post_.createdAt, Post_.id, 20)
+
+// Next page: pass both cursor values from the last item
+val last = page1.content.last()
+val page2: Slice<Post> = postRepository.sliceAfter(
+    Post_.createdAt, last.createdAt,
+    Post_.id, last.id,
+    20
+)
+
+// With filter
+val activePage: Slice<Post> = postRepository.slice(Post_.createdAt, Post_.id, 20) {
+    Post_.active eq true
+}
+```
+
+The client is responsible for extracting both cursor values from the last (or first) item of the current page and passing them to the next request.
+
+For queries that need joins, projections, or more complex filtering, use the query builder and call `slice` as a terminal operation. See [Queries](queries.md#keyset-pagination-with-slice) for the full details on how keyset pagination composes with WHERE and ORDER BY clauses, including indexing recommendations.
 
 ### Refs
 
@@ -150,7 +222,15 @@ userRepository.update(new User(
 
 // Delete
 userRepository.delete(user);
+
+// Delete all
+userRepository.deleteAll();
+
+// Delete all (builder approach, requires unsafe() to confirm intent)
+userRepository.delete().unsafe().executeUpdate();
 ```
+
+> **Safety check:** Storm rejects DELETE and UPDATE queries that have no WHERE clause, throwing a `PersistenceException`. This prevents accidental bulk deletions, which is especially important because `QueryBuilder` is immutable and a lost `where()` return value would silently drop the filter. Call `unsafe()` to opt out of this check when you intentionally want to affect all rows. The `deleteAll()` convenience method calls `unsafe()` internally.
 
 ### Streaming
 
@@ -161,6 +241,50 @@ try (Stream<User> users = userRepository.selectAll()) {
     List<Integer> userIds = users.map(User::id).toList();
 }
 ```
+
+### Keyset Pagination
+
+The same keyset pagination methods described in the Kotlin section are available on Java repositories. The `slice`, `sliceAfter`, and `sliceBefore` default methods each return a `Slice<E>` containing the page `content()` and a `hasNext()` flag.
+
+```java
+// First page of 20 users ordered by ID
+Slice<User> page1 = userRepository.slice(User_.id, 20);
+
+// Next page, using the last ID as cursor
+User last = page1.content().getLast();
+Slice<User> page2 = userRepository.sliceAfter(User_.id, last.id(), 20);
+
+// Previous page before a known cursor
+Slice<User> prev = userRepository.sliceBefore(User_.id, someId, 20);
+```
+
+For filtered results, use the query builder and call `slice` as a terminal operation. The filter and keyset conditions are combined with AND.
+
+```java
+Slice<User> activePage = userRepository.select()
+    .where(User_.active, EQUALS, true)
+    .slice(User_.id, 20);
+```
+
+As with Kotlin, do not add an explicit `orderBy()` call when using the slice methods; they handle ordering internally via the key. `sliceBefore` returns results in descending key order; reverse the list if you need ascending order for display.
+
+#### Composite Keyset Pagination
+
+When sorting by a non-unique column, use the composite keyset overloads with a `sort` column and a unique `key` tiebreaker.
+
+```java
+// First page sorted by creation date, with ID as tiebreaker
+Slice<Post> page1 = postRepository.slice(Post_.createdAt, Post_.id, 20);
+
+// Next page: pass both cursor values from the last item
+Post last = page1.content().getLast();
+Slice<Post> page2 = postRepository.sliceAfter(
+    Post_.createdAt, last.createdAt(),
+    Post_.id, last.id(),
+    20);
+```
+
+See [Queries](queries.md#composite-keyset-pagination) for more details on the generated SQL and indexing recommendations.
 
 ### Refs
 

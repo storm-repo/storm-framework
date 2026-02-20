@@ -23,10 +23,12 @@ import st.orm.Data;
 import st.orm.Entity;
 import st.orm.FK;
 import st.orm.Inline;
+import st.orm.Metamodel;
 import st.orm.NoResultException;
 import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.Ref;
+import st.orm.Slice;
 import st.orm.template.Model;
 import st.orm.template.QueryBuilder;
 
@@ -575,6 +577,382 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      *                              connectivity problems or query execution errors.
      */
     E getByRef(@Nonnull Ref<E> ref);
+
+    // Slice methods.
+
+    /**
+     * Returns the first slice of entities ordered by the specified key.
+     *
+     * <p>This method performs keyset pagination, returning at most {@code size} entities ordered by the given key
+     * in ascending order. The returned slice indicates whether more results are available beyond the current page.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param size the maximum number of entities to include in the slice.
+     * @param <V> the type of the key field.
+     * @return a slice containing the first page of results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V> Slice<E> slice(@Nonnull Metamodel<E, V> key, int size) {
+        return select().slice(key, size);
+    }
+
+    /**
+     * Returns the next slice of entities after the specified cursor value.
+     *
+     * <p>This method performs forward keyset pagination, returning entities where the key is greater than
+     * {@code after}, ordered ascending by the key. The returned slice indicates whether more results are available.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param after the cursor value; only entities with a key value greater than this will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param <V> the type of the key field.
+     * @return a slice containing the next page of results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V> Slice<E> sliceAfter(@Nonnull Metamodel<E, V> key, @Nonnull V after, int size) {
+        return select().sliceAfter(key, after, size);
+    }
+
+    /**
+     * Returns the previous slice of entities before the specified cursor value.
+     *
+     * <p>This method performs backward keyset pagination, returning entities where the key is less than
+     * {@code before}, ordered descending by the key. The returned slice indicates whether more results are
+     * available.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param before the cursor value; only entities with a key value less than this will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param <V> the type of the key field.
+     * @return a slice containing the previous page of results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V> Slice<E> sliceBefore(@Nonnull Metamodel<E, V> key, @Nonnull V before, int size) {
+        return select().sliceBefore(key, before, size);
+    }
+
+    /**
+     * Returns the first slice of entity refs ordered by the specified key.
+     *
+     * <p>This method performs keyset pagination, returning at most {@code size} refs ordered by the given key in
+     * ascending order. Only the primary key is loaded for each entity; the full entity can be fetched on demand via
+     * {@link Ref#fetch()}. The returned slice indicates whether more results are available beyond the current
+     * page.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <V> the type of the key field.
+     * @return a slice containing the first page of ref results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V> Slice<Ref<E>> sliceRef(@Nonnull Metamodel<E, V> key, int size) {
+        return selectRef().slice(key, size);
+    }
+
+    /**
+     * Returns the next slice of entity refs after the specified cursor value.
+     *
+     * <p>This method performs forward keyset pagination, returning refs where the key is greater than {@code after},
+     * ordered ascending by the key. Only the primary key is loaded for each entity; the full entity can be fetched on
+     * demand via {@link Ref#fetch()}. The returned slice indicates whether more results are available.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param after the cursor value; only entities with a key value greater than this will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <V> the type of the key field.
+     * @return a slice containing the next page of ref results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V> Slice<Ref<E>> sliceAfterRef(@Nonnull Metamodel<E, V> key, @Nonnull V after, int size) {
+        return selectRef().sliceAfter(key, after, size);
+    }
+
+    /**
+     * Returns the previous slice of entity refs before the specified cursor value.
+     *
+     * <p>This method performs backward keyset pagination, returning refs where the key is less than {@code before},
+     * ordered descending by the key. Only the primary key is loaded for each entity; the full entity can be fetched on
+     * demand via {@link Ref#fetch()}. The returned slice indicates whether more results are available.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param before the cursor value; only entities with a key value less than this will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <V> the type of the key field.
+     * @return a slice containing the previous page of ref results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V> Slice<Ref<E>> sliceBeforeRef(@Nonnull Metamodel<E, V> key, @Nonnull V before, int size) {
+        return selectRef().sliceBefore(key, before, size);
+    }
+
+    /**
+     * Returns the next slice of entities after the specified ref cursor value.
+     *
+     * <p>This method performs forward keyset pagination using a ref cursor, returning entities where the key is
+     * greater than {@code after}, ordered ascending by the key.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param after the ref cursor value; only entities with a key value greater than this ref will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param <V> the type of the key field, which must extend {@link Data}.
+     * @return a slice containing the next page of results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V extends Data> Slice<E> sliceAfter(@Nonnull Metamodel<E, V> key, @Nonnull Ref<V> after, int size) {
+        return select().sliceAfter(key, after, size);
+    }
+
+    /**
+     * Returns the previous slice of entities before the specified ref cursor value.
+     *
+     * <p>This method performs backward keyset pagination using a ref cursor, returning entities where the key is
+     * less than {@code before}, ordered descending by the key.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param before the ref cursor value; only entities with a key value less than this ref will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param <V> the type of the key field, which must extend {@link Data}.
+     * @return a slice containing the previous page of results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V extends Data> Slice<E> sliceBefore(@Nonnull Metamodel<E, V> key, @Nonnull Ref<V> before, int size) {
+        return select().sliceBefore(key, before, size);
+    }
+
+    /**
+     * Returns the next slice of entity refs after the specified ref cursor value.
+     *
+     * <p>This method performs forward keyset pagination using a ref cursor, returning refs where the key is
+     * greater than {@code after}, ordered ascending by the key.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param after the ref cursor value; only entities with a key value greater than this ref will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <V> the type of the key field, which must extend {@link Data}.
+     * @return a slice containing the next page of ref results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V extends Data> Slice<Ref<E>> sliceAfterRef(@Nonnull Metamodel<E, V> key, @Nonnull Ref<V> after, int size) {
+        return selectRef().sliceAfter(key, after, size);
+    }
+
+    /**
+     * Returns the previous slice of entity refs before the specified ref cursor value.
+     *
+     * <p>This method performs backward keyset pagination using a ref cursor, returning refs where the key is
+     * less than {@code before}, ordered descending by the key.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param before the ref cursor value; only entities with a key value less than this ref will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <V> the type of the key field, which must extend {@link Data}.
+     * @return a slice containing the previous page of ref results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V extends Data> Slice<Ref<E>> sliceBeforeRef(@Nonnull Metamodel<E, V> key, @Nonnull Ref<V> before, int size) {
+        return selectRef().sliceBefore(key, before, size);
+    }
+
+    // Composite keyset slice methods.
+
+    /**
+     * Returns the first slice of entities ordered by a non-unique sort column with a unique tiebreaker.
+     *
+     * <p>This method performs composite keyset pagination, returning at most {@code size} entities ordered by
+     * the given sort field and unique key in ascending order.</p>
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param key the metamodel field used as the unique tiebreaker for stable ordering.
+     * @param size the maximum number of entities to include in the slice.
+     * @param <S> the type of the sort field.
+     * @param <V> the type of the unique key field.
+     * @return a slice containing the first page of results.
+     * @since 1.9
+     */
+    default <S, V> Slice<E> slice(@Nonnull Metamodel<E, S> sort, @Nonnull Metamodel<E, V> key, int size) {
+        return select().slice(sort, key, size);
+    }
+
+    /**
+     * Returns the next slice of entities after the specified composite cursor, using a non-unique sort column
+     * with a unique tiebreaker.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param sortAfter the cursor value for the sort column.
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyAfter the cursor value for the unique key column.
+     * @param size the maximum number of entities to include in the slice.
+     * @param <S> the type of the sort field.
+     * @param <V> the type of the unique key field.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    default <S, V> Slice<E> sliceAfter(@Nonnull Metamodel<E, S> sort, @Nonnull S sortAfter,
+                                       @Nonnull Metamodel<E, V> key, @Nonnull V keyAfter, int size) {
+        return select().sliceAfter(sort, sortAfter, key, keyAfter, size);
+    }
+
+    /**
+     * Returns the previous slice of entities before the specified composite cursor, using a non-unique sort column
+     * with a unique tiebreaker.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param sortBefore the cursor value for the sort column.
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyBefore the cursor value for the unique key column.
+     * @param size the maximum number of entities to include in the slice.
+     * @param <S> the type of the sort field.
+     * @param <V> the type of the unique key field.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    default <S, V> Slice<E> sliceBefore(@Nonnull Metamodel<E, S> sort, @Nonnull S sortBefore,
+                                        @Nonnull Metamodel<E, V> key, @Nonnull V keyBefore, int size) {
+        return select().sliceBefore(sort, sortBefore, key, keyBefore, size);
+    }
+
+    /**
+     * Returns the next slice of entities after the specified composite cursor with a ref unique key, using a
+     * non-unique sort column with a unique tiebreaker.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param sortAfter the cursor value for the sort column.
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyAfter the ref cursor value for the unique key column.
+     * @param size the maximum number of entities to include in the slice.
+     * @param <S> the type of the sort field.
+     * @param <V> the type of the unique key, which must extend {@link Data}.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    default <S, V extends Data> Slice<E> sliceAfter(@Nonnull Metamodel<E, S> sort, @Nonnull S sortAfter,
+                                                    @Nonnull Metamodel<E, V> key, @Nonnull Ref<V> keyAfter,
+                                                    int size) {
+        return select().sliceAfter(sort, sortAfter, key, keyAfter, size);
+    }
+
+    /**
+     * Returns the previous slice of entities before the specified composite cursor with a ref unique key, using a
+     * non-unique sort column with a unique tiebreaker.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param sortBefore the cursor value for the sort column.
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyBefore the ref cursor value for the unique key column.
+     * @param size the maximum number of entities to include in the slice.
+     * @param <S> the type of the sort field.
+     * @param <V> the type of the unique key, which must extend {@link Data}.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    default <S, V extends Data> Slice<E> sliceBefore(@Nonnull Metamodel<E, S> sort, @Nonnull S sortBefore,
+                                                     @Nonnull Metamodel<E, V> key, @Nonnull Ref<V> keyBefore,
+                                                     int size) {
+        return select().sliceBefore(sort, sortBefore, key, keyBefore, size);
+    }
+
+    /**
+     * Returns the first slice of entity refs ordered by a non-unique sort column with a unique tiebreaker.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param key the metamodel field used as the unique tiebreaker for stable ordering.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <S> the type of the sort field.
+     * @param <V> the type of the unique key field.
+     * @return a slice containing the first page of ref results.
+     * @since 1.9
+     */
+    default <S, V> Slice<Ref<E>> sliceRef(@Nonnull Metamodel<E, S> sort, @Nonnull Metamodel<E, V> key, int size) {
+        return selectRef().slice(sort, key, size);
+    }
+
+    /**
+     * Returns the next slice of entity refs after the specified composite cursor, using a non-unique sort column
+     * with a unique tiebreaker.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param sortAfter the cursor value for the sort column.
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyAfter the cursor value for the unique key column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <S> the type of the sort field.
+     * @param <V> the type of the unique key field.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    default <S, V> Slice<Ref<E>> sliceAfterRef(@Nonnull Metamodel<E, S> sort, @Nonnull S sortAfter,
+                                               @Nonnull Metamodel<E, V> key, @Nonnull V keyAfter, int size) {
+        return selectRef().sliceAfter(sort, sortAfter, key, keyAfter, size);
+    }
+
+    /**
+     * Returns the previous slice of entity refs before the specified composite cursor, using a non-unique sort column
+     * with a unique tiebreaker.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param sortBefore the cursor value for the sort column.
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyBefore the cursor value for the unique key column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <S> the type of the sort field.
+     * @param <V> the type of the unique key field.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    default <S, V> Slice<Ref<E>> sliceBeforeRef(@Nonnull Metamodel<E, S> sort, @Nonnull S sortBefore,
+                                                @Nonnull Metamodel<E, V> key, @Nonnull V keyBefore, int size) {
+        return selectRef().sliceBefore(sort, sortBefore, key, keyBefore, size);
+    }
+
+    /**
+     * Returns the next slice of entity refs after the specified composite cursor with a ref unique key, using a
+     * non-unique sort column with a unique tiebreaker.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param sortAfter the cursor value for the sort column.
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyAfter the ref cursor value for the unique key column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <S> the type of the sort field.
+     * @param <V> the type of the unique key, which must extend {@link Data}.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    default <S, V extends Data> Slice<Ref<E>> sliceAfterRef(@Nonnull Metamodel<E, S> sort, @Nonnull S sortAfter,
+                                                            @Nonnull Metamodel<E, V> key, @Nonnull Ref<V> keyAfter,
+                                                            int size) {
+        return selectRef().sliceAfter(sort, sortAfter, key, keyAfter, size);
+    }
+
+    /**
+     * Returns the previous slice of entity refs before the specified composite cursor with a ref unique key, using a
+     * non-unique sort column with a unique tiebreaker.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param sortBefore the cursor value for the sort column.
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyBefore the ref cursor value for the unique key column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <S> the type of the sort field.
+     * @param <V> the type of the unique key, which must extend {@link Data}.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    default <S, V extends Data> Slice<Ref<E>> sliceBeforeRef(@Nonnull Metamodel<E, S> sort, @Nonnull S sortBefore,
+                                                             @Nonnull Metamodel<E, V> key, @Nonnull Ref<V> keyBefore,
+                                                             int size) {
+        return selectRef().sliceBefore(sort, sortBefore, key, keyBefore, size);
+    }
 
     // List based methods.
 

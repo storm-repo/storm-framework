@@ -106,7 +106,7 @@ val users = orm.findAll { User_.role inList listOf(adminRole, userRole) }
 
 ### Ordering
 
-Use `orderBy` to control result ordering. Pass multiple fields as arguments to sort by more than one column. Use `orderByDescending` for descending order on a single field. For mixed sort directions, use the template overload.
+Use `orderBy` to control result ordering. Pass multiple fields as arguments to sort by more than one column. Use `orderByDescending` for descending order on a single field.
 
 ```kotlin
 val users = orm.entity(User::class)
@@ -120,12 +120,27 @@ val users = orm.entity(User::class)
     .orderByDescending(User_.createdAt)
     .resultList
 
-// Multiple fields
+// Multiple fields (all ascending)
 val users = orm.entity(User::class)
     .select()
     .orderBy(User_.lastName, User_.firstName)
     .resultList
+```
 
+Multiple `orderBy` and `orderByDescending` calls can be chained to build multi-column sort clauses with mixed directions. Each call appends to the existing ORDER BY clause rather than replacing it, so you can mix ascending and descending columns freely.
+
+```kotlin
+// Mixed sort directions: last name ascending, first name descending
+val users = orm.entity(User::class)
+    .select()
+    .orderBy(User_.lastName)
+    .orderByDescending(User_.firstName)
+    .resultList
+```
+
+For full control over the ORDER BY clause (for example, to use SQL expressions or database-specific syntax), use the template overload. The `t()` function resolves a metamodel field to its column name.
+
+```kotlin
 // Mixed sort directions (template)
 val users = orm.entity(User::class)
     .select()
@@ -160,7 +175,11 @@ val roles = orm.entity(Role::class)
 
 ### Pagination
 
-Use `offset` and `limit` for cursor-based or offset-based pagination. Always combine pagination with `orderBy` to ensure deterministic ordering across pages.
+Storm supports two pagination strategies: offset-based and keyset-based. Offset-based pagination is simple but degrades on large tables because the database must scan and discard all skipped rows. Keyset pagination uses a column value as a cursor, so every page is fetched with the same cost regardless of how deep into the result set you are.
+
+#### Offset-based Pagination
+
+Use `offset` and `limit` on the query builder for traditional page-number style pagination. Always combine these with `orderBy` to ensure deterministic ordering across pages.
 
 ```kotlin
 val page = orm.entity(User::class)
@@ -168,6 +187,137 @@ val page = orm.entity(User::class)
     .orderBy(User_.createdAt)
     .offset(20)
     .limit(10)
+    .resultList
+```
+
+Offset-based pagination works well for small to medium tables or when users need to jump to arbitrary page numbers. For large tables where users scroll through results sequentially, prefer keyset pagination.
+
+#### Keyset Pagination with Slice
+
+Keyset pagination works by remembering the last value seen on the current page and asking the database for rows after (or before) that value. This avoids the performance cliff of `OFFSET` on large tables, because the database can seek directly to the cursor position using an index.
+
+The `slice`, `sliceAfter`, and `sliceBefore` methods are available directly on repositories and on the query builder. Each returns a `Slice<R>`, which is a simple record containing:
+
+| Field | Description |
+|-------|-------------|
+| `content` | The list of results for this page. |
+| `hasNext` | `true` if more results exist beyond this slice. |
+
+The three methods correspond to three paging operations:
+
+| Method | Purpose | SQL effect |
+|--------|---------|------------|
+| `slice(key, size)` | Fetch the first page. | `ORDER BY key ASC LIMIT size+1` |
+| `sliceAfter(key, cursor, size)` | Fetch the next page after a cursor value. | `WHERE key > cursor ORDER BY key ASC LIMIT size+1` |
+| `sliceBefore(key, cursor, size)` | Fetch the previous page before a cursor value. | `WHERE key < cursor ORDER BY key DESC LIMIT size+1` |
+
+The extra row (`size+1`) is used internally to determine the value of `hasNext`, then discarded from the returned content.
+
+**Result ordering.** `slice` and `sliceAfter` return results in ascending key order. `sliceBefore` returns results in **descending** key order, because it uses `ORDER BY key DESC` to find the nearest rows before the cursor. If you need ascending order for display after navigating backward, reverse the list.
+
+**No total count.** Unlike offset-based pagination, keyset pagination does not include a total element count. A separate `COUNT(*)` query must execute the same joins, filters, and conditions as the main query, which can be expensive on large or complex result sets. Total counts are also inherently unstable: rows may be inserted or deleted while a user navigates through pages, so the count can become stale between requests. Keyset pagination is designed for sequential "load more" or infinite-scroll patterns where a total is rarely needed. If you do need a total count (for example, for a UI label like "showing 10 of 4,827 results"), call the `count` (Kotlin) or `getCount()` (Java) method on the query builder separately, keeping in mind that the value is a snapshot that may drift as the underlying data changes.
+
+**Basic usage.** Pass a metamodel key that identifies a unique, indexed column (typically the primary key) and the desired page size. The key determines both ordering and the cursor column.
+
+```kotlin
+// First page of 10 users ordered by ID
+val firstPage: Slice<User> = userRepository.slice(User_.id, 10)
+
+// Next page, using the last seen ID as cursor
+val nextPage: Slice<User> = userRepository.sliceAfter(User_.id, firstPage.content.last().id, 10)
+
+// Previous page before a known ID
+val prevPage: Slice<User> = userRepository.sliceBefore(User_.id, someId, 10)
+```
+
+**Filtered slices.** The repository convenience methods accept a trailing-lambda predicate, following the same pattern as `findAll`. The filter is combined with the keyset condition using AND.
+
+```kotlin
+val activePage = userRepository.slice(User_.id, 10) { User_.active eq true }
+val nextActive = userRepository.sliceAfter(User_.id, lastId, 10) { User_.active eq true }
+```
+
+**Query builder.** For more complex filtering, joins, or projections, build the query explicitly and call `slice` as a terminal operation. This gives you full control over the query while still getting keyset pagination.
+
+```kotlin
+val page = userRepository.select()
+    .where(User_.active, EQUALS, true)
+    .slice(User_.id, 10)
+```
+
+**Ordering is built in.** A common mistake is to add an `orderBy()` call before `slice(key, size)`, `sliceAfter`, or `sliceBefore`. These methods already generate the correct ORDER BY clause from the key you provide: ascending for `slice` and `sliceAfter`, descending for `sliceBefore`. Adding your own `orderBy()` would conflict with the ordering that keyset pagination depends on, so Storm rejects the combination at runtime with a `PersistenceException`.
+
+```kotlin
+// Wrong: orderBy conflicts with slice(key, size)
+userRepository.select()
+    .orderBy(User_.name)          // PersistenceException at runtime
+    .slice(User_.id, 10)
+
+// Correct: slice handles ordering via the key
+userRepository.select()
+    .slice(User_.id, 10)
+```
+
+#### Composite Keyset Pagination
+
+The single-key `slice` methods require the cursor column to also be the sort column, which means the column must contain unique values. When you want to sort by a non-unique column (for example, a timestamp or status), use the composite keyset overloads. These accept two metamodel fields: a `sort` column for the primary sort order and a `key` column (typically the primary key) as a unique tiebreaker for deterministic paging.
+
+```kotlin
+// First page sorted by creation date, with ID as tiebreaker
+val page1: Slice<Post> = postRepository.select()
+    .slice(Post_.createdAt, Post_.id, 20)
+
+// Next page: pass both cursor values from the last item
+val last = page1.content.last()
+val page2: Slice<Post> = postRepository.select()
+    .sliceAfter(Post_.createdAt, last.createdAt, Post_.id, last.id, 20)
+
+// Previous page
+val prev: Slice<Post> = postRepository.select()
+    .sliceBefore(Post_.createdAt, last.createdAt, Post_.id, last.id, 20)
+```
+
+The generated SQL uses a composite WHERE condition that maintains correct ordering even when `sort` values repeat:
+
+```sql
+WHERE (created_at > ? OR (created_at = ? AND id > ?))
+ORDER BY created_at ASC, id ASC
+LIMIT 21
+```
+
+As with the single-key variants, these methods manage ORDER BY internally and reject any explicit `orderBy()` call. The client is responsible for extracting both cursor values from the last (or first) item of the current page and passing them to the next request.
+
+**Indexing.** For composite keyset pagination to perform well, create a composite index that covers both columns in the correct order:
+
+```sql
+CREATE INDEX idx_post_created_id ON post (created_at, id);
+```
+
+This allows the database to seek directly to the cursor position and scan forward, giving consistent performance regardless of page depth.
+
+#### Composable WHERE and ORDER BY
+
+Multiple `where()` calls are combined with AND, and multiple `orderBy()` calls append columns to a single ORDER BY clause:
+
+```kotlin
+val results = orm.entity(User::class)
+    .select()
+    .where(User_.active, EQUALS, true)
+    .where(User_.city eq city)           // AND-combined with previous where
+    .orderBy(User_.lastName)
+    .orderBy(User_.firstName)            // appended: ORDER BY last_name, first_name
+    .resultList
+```
+
+Builder-style `where()` calls (with `and`/`or` predicates) compose with other `where()` calls in the same way:
+
+```kotlin
+val results = orm.entity(User::class)
+    .select()
+    .where(User_.active, EQUALS, true)
+    .where(                              // AND-combined with the active filter above
+        (User_.role eq adminRole) or (User_.role eq superUserRole)
+    )
     .resultList
 ```
 
@@ -298,7 +448,7 @@ List<User> users = orm.entity(User.class)
 
 ### Ordering
 
-Use `orderBy` to sort results by one or more columns. Pass multiple fields as arguments for multi-column sorting. Use `orderByDescending` for descending order on a single field, or the template overload for mixed sort directions.
+Use `orderBy` to sort results by one or more columns. Pass multiple fields as arguments for multi-column sorting. Use `orderByDescending` for descending order on a single field.
 
 ```java
 // Ascending (default)
@@ -313,12 +463,27 @@ List<User> users = orm.entity(User.class)
     .orderByDescending(User_.createdAt)
     .getResultList();
 
-// Multiple fields
+// Multiple fields (all ascending)
 List<User> users = orm.entity(User.class)
     .select()
     .orderBy(User_.lastName, User_.firstName)
     .getResultList();
+```
 
+Chain `orderBy` and `orderByDescending` calls to mix ascending and descending columns. Each call appends to the ORDER BY clause.
+
+```java
+// Mixed sort directions: last name ascending, first name descending
+List<User> users = orm.entity(User.class)
+    .select()
+    .orderBy(User_.lastName)
+    .orderByDescending(User_.firstName)
+    .getResultList();
+```
+
+For full control over the ORDER BY clause, use the template overload:
+
+```java
 // Mixed sort directions (template)
 List<User> users = orm.entity(User.class)
     .select()
@@ -378,7 +543,11 @@ List<Role> roles = orm.query(RAW."""
 
 ### Pagination
 
-Use `offset` and `limit` to paginate results. Always combine pagination with `orderBy` to ensure deterministic ordering across pages.
+Storm supports two pagination strategies: offset-based and keyset-based. See the Kotlin section above for a detailed comparison; the concepts and trade-offs are identical.
+
+#### Offset-based Pagination
+
+Use `offset` and `limit` on the query builder. Always combine these with `orderBy` to ensure deterministic ordering across pages.
 
 ```java
 List<User> page = orm.entity(User.class)
@@ -386,6 +555,80 @@ List<User> page = orm.entity(User.class)
     .orderBy(User_.createdAt)
     .offset(20)
     .limit(10)
+    .getResultList();
+```
+
+#### Keyset Pagination with Slice
+
+The `slice`, `sliceAfter`, and `sliceBefore` methods are available directly on repositories and on the query builder. Each returns a `Slice<R>` containing a `content()` list and a `hasNext()` flag. The method semantics are the same as described in the Kotlin section: `slice` fetches the first page, `sliceAfter` fetches the next page after a cursor, and `sliceBefore` fetches the previous page before a cursor.
+
+**Basic usage.** Pass a metamodel key (typically the primary key) and the desired page size.
+
+```java
+// First page of 10 users ordered by ID
+Slice<User> firstPage = userRepository.slice(User_.id, 10);
+
+// Next page, using the last seen ID as cursor
+var last = firstPage.content().getLast();
+Slice<User> nextPage = userRepository.sliceAfter(User_.id, last.id(), 10);
+
+// Previous page before a known ID
+Slice<User> prevPage = userRepository.sliceBefore(User_.id, someId, 10);
+```
+
+**Filtered slices.** In Java, filtered pagination uses the query builder. Add `where` clauses before calling the `slice` terminal operation. The filter and keyset conditions are combined with AND.
+
+```java
+Slice<User> activePage = userRepository.select()
+    .where(User_.active, EQUALS, true)
+    .slice(User_.id, 10);
+```
+
+**Ordering is built in.** The `slice(key, size)`, `sliceAfter`, and `sliceBefore` methods generate the ORDER BY clause from the key you provide, so you must not add your own `orderBy()` call. Doing so throws a `PersistenceException` at runtime. See the Kotlin section above for a detailed explanation and examples.
+
+#### Composite Keyset Pagination
+
+When sorting by a non-unique column, use the composite keyset overloads that accept a `sort` column and a unique `key` tiebreaker. The concepts and generated SQL are the same as described in the Kotlin section above.
+
+```java
+// First page sorted by creation date, with ID as tiebreaker
+Slice<Post> page1 = postRepository.select()
+    .slice(Post_.createdAt, Post_.id, 20);
+
+// Next page: pass both cursor values from the last item
+Post last = page1.content().getLast();
+Slice<Post> page2 = postRepository.select()
+    .sliceAfter(Post_.createdAt, last.createdAt(), Post_.id, last.id(), 20);
+
+// Previous page
+Slice<Post> prev = postRepository.select()
+    .sliceBefore(Post_.createdAt, last.createdAt(), Post_.id, last.id(), 20);
+```
+
+As with the single-key variants, these methods manage ORDER BY internally and reject any explicit `orderBy()` call. See the Kotlin section for details on the generated SQL and indexing recommendations.
+
+#### Composable WHERE and ORDER BY
+
+Multiple `where()` calls are combined with AND, and multiple `orderBy()` calls append columns to a single ORDER BY clause:
+
+```java
+List<User> results = orm.entity(User.class)
+    .select()
+    .where(User_.active, EQUALS, true)
+    .where(User_.city, EQUALS, city)     // AND-combined with previous where
+    .orderBy(User_.lastName)
+    .orderBy(User_.firstName)            // appended: ORDER BY last_name, first_name
+    .getResultList();
+```
+
+Builder-style `where()` calls (with `and`/`or` predicates) compose with other `where()` calls in the same way:
+
+```java
+List<User> results = orm.entity(User.class)
+    .select()
+    .where(User_.active, EQUALS, true)
+    .where(it -> it.where(User_.role, EQUALS, adminRole)  // AND-combined with active filter
+            .or(it.where(User_.role, EQUALS, superUserRole)))
     .getResultList();
 ```
 
@@ -489,3 +732,4 @@ Optional<User> user = orm.entity(User.class)
 4. **Entity graphs load in one query** -- related entities marked with `@FK` are JOINed automatically, no N+1 problems
 5. **Close Java streams** -- always use try-with-resources with `Stream` results
 6. **Combine conditions freely** -- use `and` / `or` in Kotlin, `it.where().and()` / `.or()` in Java to build complex predicates
+7. **Always use the returned builder** -- `QueryBuilder` is immutable; methods like `where()`, `orderBy()`, and `limit()` return a new instance. Ignoring the return value silently loses the change. Chain calls or reassign the variable.

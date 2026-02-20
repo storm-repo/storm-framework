@@ -18,7 +18,6 @@ package st.orm.core.template.impl;
 import static java.util.Optional.empty;
 import static st.orm.core.template.impl.RecordReflection.getTableName;
 import static st.orm.core.template.impl.RecordValidation.validateDataType;
-import static st.orm.core.template.impl.RecordValidation.validateWhere;
 
 import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
@@ -94,7 +93,6 @@ final class QueryModelFactory {
                 getTableName(primaryTable.table(), template.tableNameResolver()).qualified(template.dialect()),
                 primaryTable.alias().isEmpty() ? "" : primaryTable.alias());
         validateDataType(aliasedTable.type());
-        validateWhere(elements);
         return Optional.of(new QueryModelImpl(template, modelBuilder, aliasedTable, tableMapper, aliasMapper));
     }
 

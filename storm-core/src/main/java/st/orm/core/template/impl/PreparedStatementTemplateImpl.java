@@ -78,7 +78,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     @FunctionalInterface
     private interface TemplateProcessor {
         PreparedStatement process(@Nonnull Sql sql,
-                                  boolean safe) throws SQLException;
+                                  boolean unsafe) throws SQLException;
     }
 
     private final TemplateProcessor templateProcessor;
@@ -141,10 +141,10 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
 
     private static TemplateProcessor createDataSourceProcessor(@Nonnull DataSource dataSource,
                                                                 @Nonnull TransactionTemplate transactionTemplate) {
-        return (sql, safe) -> {
-            if (!safe) {
+        return (sql, unsafe) -> {
+            if (!unsafe) {
                 sql.unsafeWarning().ifPresent(warning -> {
-                    throw new PersistenceException("%s Use Query.safe() to mark query as safe.".formatted(warning));
+                    throw new PersistenceException("%s Use Query.unsafe() to allow this operation.".formatted(warning));
                 });
             }
             var statement = sql.statement();
@@ -192,10 +192,10 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
 
     private static TemplateProcessor createConnectionProcessor(@Nonnull Connection connection,
                                                                 @Nonnull TransactionTemplate transactionTemplate) {
-        return (sql, safe) -> {
-            if (!safe) {
+        return (sql, unsafe) -> {
+            if (!unsafe) {
                 sql.unsafeWarning().ifPresent(warning -> {
-                    throw new PersistenceException("%s Use Query.safe() to mark query as safe.".formatted(warning));
+                    throw new PersistenceException("%s Use Query.unsafe() to allow this operation.".formatted(warning));
                 });
             }
             var statement = sql.statement();
@@ -470,9 +470,9 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
         try {
             var sql = sqlTemplate().process(template);
             var bindVariables = sql.bindVariables().orElse(null);
-            return new QueryImpl(refFactory, safe -> {
+            return new QueryImpl(refFactory, unsafe -> {
                 try {
-                    return templateProcessor.process(sql, safe);
+                    return templateProcessor.process(sql, unsafe);
                 } catch (SQLException e) {
                     throw new PersistenceException(e);
                 }

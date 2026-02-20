@@ -1091,7 +1091,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         entityCache().ifPresent(EntityCache::clear);
         // Don't use query builder to prevent WHERE IN clause.
         ormTemplate.query(TemplateString.raw("DELETE FROM \0", model.type()))
-                .safe() // Omission of WHERE clause is intentional.
+                .unsafe() // Omission of WHERE clause is intentional.
                 .managed()
                 .executeUpdate();
     }

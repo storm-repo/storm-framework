@@ -44,7 +44,7 @@ open class QueryImpl(private val core: st.orm.core.template.Query) : Query {
      * @return a new query that is marked as safe.
      * @since 1.2
      */
-    override fun safe(): Query = QueryImpl(core.safe())
+    override fun unsafe(): Query = QueryImpl(core.unsafe())
 
     override val resultStream: Stream<Array<Any>>
         /**

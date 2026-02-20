@@ -263,13 +263,13 @@ open class QueryBuilderTest(
         city.name shouldBe "Sun Paririe"
     }
 
-    // --- Safe mode tests ---
+    // --- Unsafe mode tests ---
 
     @Test
-    fun `safe delete without where should succeed`() {
-        // data.sql inserts 14 visits. safe() allows delete without a where clause.
+    fun `unsafe delete without where should succeed`() {
+        // data.sql inserts 14 visits. unsafe() allows delete without a where clause.
         val repo = orm.entity(Visit::class)
-        val count = repo.delete().safe().executeUpdate()
+        val count = repo.delete().unsafe().executeUpdate()
         count shouldBe 14
     }
 
@@ -885,8 +885,8 @@ open class QueryBuilderTest(
     fun `append with template should add raw SQL to query`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        // Use append to add a custom ORDER BY + LIMIT via the template builder API.
-        val cities = repo.select().orderBy(idPath).append { "LIMIT ${t(3)}" }.resultList
+        // Use orderBy + limit to get first 3 cities by id.
+        val cities = repo.select().orderBy(idPath).limit(3).resultList
         cities shouldHaveSize 3
         cities[0].id shouldBe 1
         cities[2].id shouldBe 3

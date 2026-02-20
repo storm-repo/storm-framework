@@ -68,6 +68,9 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
     protected final List<Join> join;
     protected final List<Where> where;
     protected final List<TemplateString> templates;
+    protected final List<TemplateString> groupBy;
+    protected final List<TemplateString> having;
+    protected final List<TemplateString> orderBy;
     protected final Supplier<Model<T, ID>> modelSupplier;
 
     protected QueryBuilderImpl(@Nonnull QueryTemplate queryTemplate,
@@ -75,12 +78,18 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
                                @Nonnull List<Join> join,
                                @Nonnull List<Where> where,
                                @Nonnull List<TemplateString> templates,
+                               @Nonnull List<TemplateString> groupBy,
+                               @Nonnull List<TemplateString> having,
+                               @Nonnull List<TemplateString> orderBy,
                                @Nonnull Supplier<Model<T, ID>> modelSupplier) {
         this.queryTemplate = queryTemplate;
         this.fromType = fromType;
         this.join = List.copyOf(join);
         this.where = List.copyOf(where);
         this.templates = List.copyOf(templates);
+        this.groupBy = List.copyOf(groupBy);
+        this.having = List.copyOf(having);
+        this.orderBy = List.copyOf(orderBy);
         this.modelSupplier = requireNonNull(modelSupplier, "modelSupplier");
     }
 
@@ -117,7 +126,10 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
                                              @Nonnull Class<T> fromType,
                                              @Nonnull List<Join> join,
                                              @Nonnull List<Where> where,
-                                             @Nonnull List<TemplateString> templates);
+                                             @Nonnull List<TemplateString> templates,
+                                             @Nonnull List<TemplateString> groupBy,
+                                             @Nonnull List<TemplateString> having,
+                                             @Nonnull List<TemplateString> orderBy);
 
     /**
      * Returns true to indicate that the query supports joins, false otherwise.
@@ -135,7 +147,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
     private QueryBuilder<T, R, ID> addJoin(@Nonnull Join join) {
         List<Join> copy = new ArrayList<>(this.join);
         copy.add(join);
-        return copyWith(queryTemplate, fromType, copy, where, templates);
+        return copyWith(queryTemplate, fromType, copy, where, templates, groupBy, having, orderBy);
     }
 
     /**
@@ -147,7 +159,7 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
     private QueryBuilder<T, R, ID> addWhere(@Nonnull Where where) {
         List<Where> copy = new ArrayList<>(this.where);
         copy.add(where);
-        return copyWith(queryTemplate, fromType, join, copy, templates);
+        return copyWith(queryTemplate, fromType, join, copy, templates, groupBy, having, orderBy);
     }
 
     /**
@@ -163,7 +175,59 @@ abstract class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R
             template = combine(TemplateString.of("\n"), template);
         }
         copy.add(template);
-        return copyWith(queryTemplate, fromType, join, where, copy);
+        return copyWith(queryTemplate, fromType, join, where, copy, groupBy, having, orderBy);
+    }
+
+    /**
+     * Adds an ORDER BY clause to the query using a string template. Multiple calls to this method append additional
+     * columns to the ORDER BY clause.
+     *
+     * @param template the template to order by.
+     * @return the query builder.
+     * @since 1.2
+     */
+    public QueryBuilder<T, R, ID> orderBy(@Nonnull TemplateString template) {
+        List<TemplateString> copy = new ArrayList<>(orderBy);
+        copy.add(template);
+        return copyWith(queryTemplate, fromType, join, where, templates, groupBy, having, copy);
+    }
+
+    /**
+     * Adds a GROUP BY clause to the query using a string template. Multiple calls to this method append additional
+     * columns to the GROUP BY clause.
+     *
+     * @param template the template to group by.
+     * @return the query builder.
+     * @since 1.2
+     */
+    public QueryBuilder<T, R, ID> groupBy(@Nonnull TemplateString template) {
+        List<TemplateString> copy = new ArrayList<>(groupBy);
+        copy.add(template);
+        return copyWith(queryTemplate, fromType, join, where, templates, copy, having, orderBy);
+    }
+
+    /**
+     * Adds a HAVING clause to the query using the specified expression. Multiple calls to this method are combined
+     * using AND.
+     *
+     * @param template the expression to add.
+     * @return the query builder.
+     * @since 1.2
+     */
+    public QueryBuilder<T, R, ID> having(@Nonnull TemplateString template) {
+        List<TemplateString> copy = new ArrayList<>(having);
+        copy.add(template);
+        return copyWith(queryTemplate, fromType, join, where, templates, groupBy, copy, orderBy);
+    }
+
+    /**
+     * Returns {@code true} if any ORDER BY columns have been added to this query builder.
+     *
+     * @return {@code true} if ORDER BY columns are present, {@code false} otherwise.
+     * @since 1.9
+     */
+    public boolean hasOrderBy() {
+        return !orderBy.isEmpty();
     }
 
     /**

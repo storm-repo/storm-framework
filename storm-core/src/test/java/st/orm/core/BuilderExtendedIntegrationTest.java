@@ -605,17 +605,17 @@ public class BuilderExtendedIntegrationTest {
     }
 
     // -----------------------------------------------------------------------
-    // Additional: Query.safe() and Query.managed()
+    // Additional: Query.unsafe() and Query.managed()
     // -----------------------------------------------------------------------
 
     @Test
-    public void testQuerySafe() {
+    public void testQueryUnsafe() {
         var orm = ORMTemplate.of(dataSource);
         var query = orm.selectFrom(City.class).build();
-        var safeQuery = query.safe();
-        assertNotNull(safeQuery);
-        // Safe query should still work for select.
-        assertEquals(6, safeQuery.getResultCount());
+        var unsafeQuery = query.unsafe();
+        assertNotNull(unsafeQuery);
+        // Unsafe query should still work for select.
+        assertEquals(6, unsafeQuery.getResultCount());
     }
 
     @Test

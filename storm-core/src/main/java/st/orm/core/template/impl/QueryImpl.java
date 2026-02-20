@@ -63,7 +63,7 @@ class QueryImpl implements Query {
     private final BindVarsHandle bindVarsHandle;
     private final boolean versionAware;
     private final Class<? extends Data> affectedType;
-    private final boolean safe;
+    private final boolean unsafe;
     private final boolean managed;
     private final Function<Throwable, PersistenceException> exceptionTransformer;
 
@@ -79,9 +79,9 @@ class QueryImpl implements Query {
               @Nonnull Function<Boolean, PreparedStatement> statement,
               @Nullable BindVarsHandle bindVarsHandle,
               boolean versionAware,
-              boolean safe,
+              boolean unsafe,
               @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        this(refFactory, statement, bindVarsHandle, null, versionAware, false, safe, exceptionTransformer);
+        this(refFactory, statement, bindVarsHandle, null, versionAware, false, unsafe, exceptionTransformer);
     }
 
     QueryImpl(@Nonnull RefFactory refFactory,
@@ -89,9 +89,9 @@ class QueryImpl implements Query {
               @Nullable BindVarsHandle bindVarsHandle,
               @Nullable Class<? extends Data> affectedType,
               boolean versionAware,
-              boolean safe,
+              boolean unsafe,
               @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        this(refFactory, statement, bindVarsHandle, affectedType, versionAware, false, safe, exceptionTransformer);
+        this(refFactory, statement, bindVarsHandle, affectedType, versionAware, false, unsafe, exceptionTransformer);
     }
 
     QueryImpl(@Nonnull RefFactory refFactory,
@@ -100,7 +100,7 @@ class QueryImpl implements Query {
               @Nullable Class<? extends Data> affectedType,
               boolean versionAware,
               boolean managed,
-              boolean safe,
+              boolean unsafe,
               @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
         this.refFactory = refFactory;
         this.statement = statement;
@@ -108,7 +108,7 @@ class QueryImpl implements Query {
         this.versionAware = versionAware;
         this.affectedType = affectedType;
         this.managed = managed;
-        this.safe = safe;
+        this.unsafe = unsafe;
         this.exceptionTransformer = exceptionTransformer;
     }
 
@@ -126,7 +126,7 @@ class QueryImpl implements Query {
      */
     @Override
     public PreparedQuery prepare() {
-        return MonitoredResource.wrap(new PreparedQueryImpl(refFactory, statement.apply(safe), bindVarsHandle, affectedType, versionAware, managed, exceptionTransformer));
+        return MonitoredResource.wrap(new PreparedQueryImpl(refFactory, statement.apply(unsafe), bindVarsHandle, affectedType, versionAware, managed, exceptionTransformer));
     }
 
     /**
@@ -137,23 +137,22 @@ class QueryImpl implements Query {
      */
     @Override
     public Query managed() {
-        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, true, safe, exceptionTransformer);
+        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, true, unsafe, exceptionTransformer);
     }
 
     /**
-     * Returns a new query that is marked as safe. This means that dangerous operations, such as DELETE and UPDATE
-     * without a WHERE clause, will be allowed.
+     * Returns a new query that allows dangerous operations, such as DELETE and UPDATE without a WHERE clause.
      *
-     * @return a new query that is marked as safe.
+     * @return a new query that allows dangerous operations.
      * @since 1.2
      */
     @Override
-    public Query safe() {
+    public Query unsafe() {
         return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, managed, true, exceptionTransformer);
     }
 
     private PreparedStatement getStatement() {
-        return statement.apply(safe);
+        return statement.apply(unsafe);
     }
 
     protected boolean closeStatement() {

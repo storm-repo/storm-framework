@@ -278,14 +278,14 @@ public class JpaExtendedIntegrationTest {
     }
 
     // ----------------------------------------------------------------
-    // JPA prepared query: safe() and managed() are no-ops for JPA
+    // JPA prepared query: unsafe() and managed() are no-ops for JPA
     // ----------------------------------------------------------------
 
     @Test
-    void jpaOrm_safeAndManaged_noOps() {
+    void jpaOrm_unsafeAndManaged_noOps() {
         var orm = ORM(entityManager);
-        // safe() and managed() return Query, so call them before prepare().
-        try (var q = orm.query(raw("SELECT COUNT(*) FROM vet")).safe().managed().prepare()) {
+        // unsafe() and managed() return Query, so call them before prepare().
+        try (var q = orm.query(raw("SELECT COUNT(*) FROM vet")).unsafe().managed().prepare()) {
             assertEquals(6, (long) q.getResultStream(long.class).findFirst().orElse(0L));
         }
     }
