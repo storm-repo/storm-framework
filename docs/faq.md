@@ -333,15 +333,21 @@ List<User> getUsers() {
 
 ### How do I see the SQL Storm generates?
 
-Use SQL interceptors to log all generated SQL:
+Annotate your repository with `@SqlLog` to log all generated SQL:
 
 ```java
-SqlInterceptor.registerGlobalObserver(sql ->
-    log.debug("SQL: {}", sql.statement())
-);
+@SqlLog
+public interface UserRepository extends EntityRepository<User, Integer> { ... }
 ```
 
-See [SQL Interceptors](interceptors.md) for scoped and targeted logging.
+To see executable SQL with actual parameter values instead of `?` placeholders, use `inlineParameters`:
+
+```java
+@SqlLog(inlineParameters = true)
+public interface UserRepository extends EntityRepository<User, Integer> { ... }
+```
+
+See [SQL Logging](sql-logging.md) for the full guide.
 
 ### Can I use Storm without Spring?
 

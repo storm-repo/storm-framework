@@ -21,6 +21,7 @@ import static java.util.Optional.empty;
 
 import jakarta.annotation.Nonnull;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.List;
@@ -30,6 +31,7 @@ import st.orm.EntityCallback;
 import st.orm.Projection;
 import st.orm.core.spi.ORMReflection;
 import st.orm.core.spi.Providers;
+import st.orm.core.template.impl.SqlLogInterceptor;
 import st.orm.repository.EntityRepository;
 import st.orm.repository.ProjectionRepository;
 import st.orm.repository.Repository;
@@ -110,31 +112,62 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
                 if (method.getName().equals("toString") && method.getParameterCount() == 0) {
                     return STR."RepositoryProxy(\{type.getSimpleName()})";
                 }
-                if (method.getDeclaringClass().isAssignableFrom(Object.class)) {
-                    return method.invoke(proxy, args);
-                }
-                if (method.getDeclaringClass().isAssignableFrom(Repository.class)) {
-                    // Handle Repository interface methods by delegating to the 'repository' instance.
-                    return method.invoke(repository, args);
-                }
-                if (method.getDeclaringClass().isAssignableFrom(EntityRepository.class)) {
-                    assert entityRepository != null;
-                    // Handle EntityRepository interface methods by delegating to the 'entityRepository' instance.
-                    return method.invoke(entityRepository, args);
-                }
-                if (method.getDeclaringClass().isAssignableFrom(ProjectionRepository.class)) {
-                    assert projectionRepository != null;
-                    // Handle ProjectionRepository interface methods by delegating to the 'projectionRepository' instance.
-                    return method.invoke(projectionRepository, args);
-                }
-                if (REFLECTION.isDefaultMethod(method)) {
-                    return REFLECTION.execute(proxy, method, args);
-                }
-                throw new UnsupportedOperationException(STR."Unsupported method: \{method.getName()} for \{type.getName()}.");
+                return SqlLogInterceptor.wrapIfNeeded(
+                        SqlLogInterceptor.resolve(type, method),
+                        type,
+                        toShortSignature(method),
+                        () -> dispatch(proxy, method, args, repository, entityRepository, projectionRepository, type)
+                );
             } catch (InvocationTargetException e) {
                 throw e.getTargetException();
             }
         });
+    }
+
+    private static Object dispatch(Object proxy,
+                                    Method method,
+                                    Object[] args,
+                                    Repository repository,
+                                    EntityRepository<?, ?> entityRepository,
+                                    ProjectionRepository<?, ?> projectionRepository,
+                                    Class<?> type) throws Exception {
+        try {
+            if (method.getDeclaringClass().isAssignableFrom(Repository.class)) {
+                return method.invoke(repository, args);
+            }
+            if (method.getDeclaringClass().isAssignableFrom(EntityRepository.class)) {
+                assert entityRepository != null;
+                return method.invoke(entityRepository, args);
+            }
+            if (method.getDeclaringClass().isAssignableFrom(ProjectionRepository.class)) {
+                assert projectionRepository != null;
+                return method.invoke(projectionRepository, args);
+            }
+            if (REFLECTION.isDefaultMethod(method)) {
+                return REFLECTION.execute(proxy, method, args);
+            }
+            throw new UnsupportedOperationException(STR."Unsupported method: \{method.getName()} for \{type.getName()}.");
+        } catch (InvocationTargetException e) {
+            var target = e.getTargetException();
+            if (target instanceof Exception ex) {
+                throw ex;
+            }
+            throw new st.orm.PersistenceException(target);
+        } catch (Exception e) {
+            throw e;
+        } catch (Throwable t) {
+            throw new st.orm.PersistenceException(t);
+        }
+    }
+
+    private static String toShortSignature(@Nonnull Method method) {
+        var sb = new StringBuilder(method.getName()).append('(');
+        var params = method.getParameterTypes();
+        for (int i = 0; i < params.length; i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(params[i].getSimpleName());
+        }
+        return sb.append(')').toString();
     }
 
     @SuppressWarnings("unchecked")

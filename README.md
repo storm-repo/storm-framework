@@ -217,7 +217,7 @@ Deep dives into Storm's internals. You don't need these to be productive, but th
 | [Hydration](docs/hydration.md) | Result mapping to records (16 min) |
 | [Dirty Checking](docs/dirty-checking.md) | Update modes and change detection (19 min) |
 | [Entity Cache](docs/entity-cache.md) | Transaction-scoped caching and identity (10 min) |
-| [SQL Interceptors](docs/interceptors.md) | Query logging and modification (6 min) |
+| [SQL Logging](docs/sql-logging.md) | Declarative query logging with `@SqlLog` (6 min) |
 | [Configuration](docs/configuration.md) | System properties reference (7 min) |
 
 ### Resources

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package st.orm.spring;
+package st.orm;
 
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.TYPE;
@@ -21,15 +21,28 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
-import org.slf4j.event.Level;
 
+/**
+ * Annotation for capturing and logging SQL statements.
+ *
+ * <p>Applying this annotation at either the method or type level will intercept execution via the repository proxy,
+ * capturing and logging SQL statements.</p>
+ *
+ * <p>When applied at the type level, the annotation affects all methods within the repository. Method-level annotations
+ * override type-level annotations.</p>
+ *
+ * @param inlineParameters if true, SQL parameters are inlined into the logged SQL statements for better readability.
+ * @param level defines the logging level used when outputting captured SQL. Defaults to {@code INFO}.
+ * @param name optional logger name. If empty, the repository interface name is used.
+ * @since 1.9
+ */
 @Retention(RUNTIME)
 @Target({METHOD, TYPE})
-public @interface SqlLogger {
+public @interface SqlLog {
 
     boolean inlineParameters() default false;
 
-    String name() default "";
+    System.Logger.Level level() default System.Logger.Level.INFO;
 
-    Level level() default Level.INFO;
+    String name() default "";
 }

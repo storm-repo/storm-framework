@@ -19,7 +19,6 @@ import st.orm.repository.Repository;
 import st.orm.spring.impl.RepositoryAopAutoConfiguration;
 import st.orm.spring.impl.RepositoryProxyingPostProcessor;
 import st.orm.spring.impl.ResolverRegistration;
-import st.orm.spring.impl.SqlLoggerAspect;
 import st.orm.spring.impl.TransactionAwareConnectionProviderImpl;
 
 /**
@@ -38,23 +37,18 @@ public class ImplCoverageTest {
         assertNotNull(registration);
     }
 
-    // --- RepositoryAopAutoConfiguration (3 lines) ---
+    // --- RepositoryAopAutoConfiguration (2 lines) ---
 
     @Test
-    public void aopAutoConfigurationShouldProvideProxyPostProcessorAndSqlLoggerAspect() {
-        // RepositoryAopAutoConfiguration provides two beans for the Spring AOP integration:
-        // 1. A RepositoryProxyingPostProcessor that wraps repository beans in logging proxies.
-        // 2. A SqlLoggerAspect that intercepts SQL template calls for logging.
+    public void aopAutoConfigurationShouldProvideProxyPostProcessor() {
+        // RepositoryAopAutoConfiguration provides a RepositoryProxyingPostProcessor bean
+        // that wraps repository beans in Spring AOP proxies.
         var config = new RepositoryAopAutoConfiguration();
         assertNotNull(config);
 
         var postProcessor = RepositoryAopAutoConfiguration.javaRepositoryProxyingPostProcessor();
         assertNotNull(postProcessor);
         assertInstanceOf(RepositoryProxyingPostProcessor.class, postProcessor);
-
-        var aspect = config.javaSqlLoggerAspect();
-        assertNotNull(aspect);
-        assertInstanceOf(SqlLoggerAspect.class, aspect);
     }
 
     // --- RepositoryProxyingPostProcessor (6 lines) ---

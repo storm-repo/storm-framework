@@ -29,7 +29,4 @@ open class RepositoryAopAutoConfiguration {
         @Bean
         fun repositoryProxyingPostProcessor(): RepositoryProxyingPostProcessor = RepositoryProxyingPostProcessor()
     }
-
-    @Bean
-    open fun sqlLoggerAspect(): SqlLoggerAspect = SqlLoggerAspect()
 }

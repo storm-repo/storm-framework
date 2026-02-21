@@ -23,6 +23,7 @@ import static st.orm.core.spi.Providers.getProjectionRepository;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -166,33 +167,67 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
                     if (method.getName().equals("toString") && method.getParameterCount() == 0) {
                         return "%s@proxy".formatted(type.getName());
                     }
-                    if (REFLECTION.isDefaultMethod(method)) {
-                        return REFLECTION.execute(proxy, method, args);
-                    }
-                    if (method.getDeclaringClass().isAssignableFrom(Repository.class)) {
-                        // Handle Repository interface methods by delegating to the 'repository' instance.
-                        return method.invoke(repository, args);
-                    }
-                    if (EntityRepository.class.isAssignableFrom(method.getDeclaringClass())) {   // Also support sub-interfaces of EntityRepository.
-                        if (entityRepository == null) {
-                            throw new UnsupportedOperationException("EntityRepository not available for %s.".formatted(type.getName()));
-                        }
-                        // Handle EntityRepository interface methods by delegating to the 'entityRepository' instance.
-                        return method.invoke(entityRepository, args);
-                    }
-                    if (ProjectionRepository.class.isAssignableFrom(method.getDeclaringClass())) {   // Also support sub-interfaces of ProjectionRepository.
-                        if (projectionRepository == null) {
-                            throw new UnsupportedOperationException("ProjectionRepository not available for %s.".formatted(type.getName()));
-                        }
-                        // Handle ProjectionRepository interface methods by delegating to the 'projectionRepository' instance.
-                        return method.invoke(projectionRepository, args);
-                    }
-                    throw new UnsupportedOperationException("Unsupported method: %s for %s.".formatted(method.getName(), type.getName()));
+                    return SqlLogInterceptor.wrapIfNeeded(
+                            SqlLogInterceptor.resolve(type, method),
+                            type,
+                            toShortSignature(method),
+                            () -> dispatch(proxy, method, args, repository, entityRepository, projectionRepository, type)
+                    );
                 } catch (InvocationTargetException e) {
                     throw e.getTargetException();
                 }
             });
         });
+    }
+
+    private static Object dispatch(Object proxy,
+                                    Method method,
+                                    Object[] args,
+                                    Repository repository,
+                                    EntityRepository<?, ?> entityRepository,
+                                    ProjectionRepository<?, ?> projectionRepository,
+                                    Class<?> type) throws Exception {
+        try {
+            if (REFLECTION.isDefaultMethod(method)) {
+                return REFLECTION.execute(proxy, method, args);
+            }
+            if (method.getDeclaringClass().isAssignableFrom(Repository.class)) {
+                return method.invoke(repository, args);
+            }
+            if (EntityRepository.class.isAssignableFrom(method.getDeclaringClass())) {
+                if (entityRepository == null) {
+                    throw new UnsupportedOperationException("EntityRepository not available for %s.".formatted(type.getName()));
+                }
+                return method.invoke(entityRepository, args);
+            }
+            if (ProjectionRepository.class.isAssignableFrom(method.getDeclaringClass())) {
+                if (projectionRepository == null) {
+                    throw new UnsupportedOperationException("ProjectionRepository not available for %s.".formatted(type.getName()));
+                }
+                return method.invoke(projectionRepository, args);
+            }
+            throw new UnsupportedOperationException("Unsupported method: %s for %s.".formatted(method.getName(), type.getName()));
+        } catch (InvocationTargetException e) {
+            var target = e.getTargetException();
+            if (target instanceof Exception ex) {
+                throw ex;
+            }
+            throw new PersistenceException(target);
+        } catch (Exception e) {
+            throw e;
+        } catch (Throwable t) {
+            throw new PersistenceException(t);
+        }
+    }
+
+    private static String toShortSignature(@Nonnull Method method) {
+        var sb = new StringBuilder(method.getName()).append('(');
+        var params = method.getParameterTypes();
+        for (int i = 0; i < params.length; i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(params[i].getSimpleName());
+        }
+        return sb.append(')').toString();
     }
 
     private <T extends Entity<ID>, ID> Optional<EntityRepository<T, ID>> createEntityRepository(@Nonnull Class<?> type) {

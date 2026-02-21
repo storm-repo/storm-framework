@@ -20,13 +20,17 @@ import st.orm.EntityCallback
 import st.orm.Projection
 import st.orm.core.spi.ORMReflection
 import st.orm.core.spi.Providers
+import st.orm.core.template.impl.SqlLogInterceptor
 import st.orm.repository.EntityRepository
 import st.orm.repository.ProjectionRepository
 import st.orm.repository.Repository
 import st.orm.repository.impl.EntityRepositoryImpl
 import st.orm.repository.impl.ProjectionRepositoryImpl
 import st.orm.template.ORMTemplate
-import java.lang.reflect.*
+import java.lang.reflect.InvocationTargetException
+import java.lang.reflect.Method
+import java.lang.reflect.ParameterizedType
+import java.lang.reflect.Proxy
 import kotlin.reflect.KClass
 
 class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) :
@@ -34,6 +38,47 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) :
     ORMTemplate {
     companion object {
         val REFLECTION: ORMReflection = Providers.getORMReflection()
+
+        private fun dispatch(
+            proxy: Any,
+            method: Method,
+            args: Array<Any>,
+            repository: Repository,
+            entityRepository: EntityRepository<*, *>?,
+            projectionRepository: ProjectionRepository<*, *>?,
+            type: KClass<*>,
+        ): Any? {
+            try {
+                return when {
+                    method.declaringClass.isAssignableFrom(Repository::class.java) ->
+                        method.invoke(repository, *args)
+                    method.declaringClass.isAssignableFrom(EntityRepository::class.java) -> {
+                        requireNotNull(entityRepository)
+                        method.invoke(entityRepository, *args)
+                    }
+                    method.declaringClass.isAssignableFrom(ProjectionRepository::class.java) -> {
+                        requireNotNull(projectionRepository)
+                        method.invoke(projectionRepository, *args)
+                    }
+                    REFLECTION.isDefaultMethod(method) ->
+                        REFLECTION.execute(proxy, method, *args)
+                    else ->
+                        throw UnsupportedOperationException("Unsupported method: ${method.name} for ${type.java.name}.")
+                }
+            } catch (e: InvocationTargetException) {
+                throw e.targetException
+            }
+        }
+
+        private fun toShortSignature(method: Method): String = buildString {
+            append(method.name)
+            append('(')
+            method.parameterTypes.forEachIndexed { i, p ->
+                if (i > 0) append(", ")
+                append(p.simpleName)
+            }
+            append(')')
+        }
     }
 
     override fun withEntityCallback(callback: EntityCallback<*>): ORMTemplate = ORMTemplateImpl(core.withEntityCallback(callback))
@@ -78,22 +123,14 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) :
                         proxy === arguments[0]
                     method.name == "toString" && method.parameterCount == 0 ->
                         "RepositoryProxy(${type.simpleName})"
-                    method.declaringClass.isAssignableFrom(Object::class.java) ->
-                        method.invoke(proxy, *arguments)
-                    method.declaringClass.isAssignableFrom(Repository::class.java) ->
-                        method.invoke(repository, *arguments)
-                    method.declaringClass.isAssignableFrom(EntityRepository::class.java) -> {
-                        requireNotNull(entityRepository)
-                        method.invoke(entityRepository, *arguments)
-                    }
-                    method.declaringClass.isAssignableFrom(ProjectionRepository::class.java) -> {
-                        requireNotNull(projectionRepository)
-                        method.invoke(projectionRepository, *arguments)
-                    }
-                    REFLECTION.isDefaultMethod(method) ->
-                        REFLECTION.execute(proxy, method, *arguments)
                     else ->
-                        throw UnsupportedOperationException("Unsupported method: ${method.name} for ${type.java.name}.")
+                        SqlLogInterceptor.wrapIfNeeded(
+                            SqlLogInterceptor.resolve(type.java, method),
+                            type.java,
+                            toShortSignature(method),
+                        ) {
+                            dispatch(proxy, method, arguments, repository, entityRepository, projectionRepository, type)
+                        }
                 }
             } catch (e: InvocationTargetException) {
                 throw e.targetException
