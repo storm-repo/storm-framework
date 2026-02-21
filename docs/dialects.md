@@ -123,7 +123,7 @@ See [Upserts](upserts.md) for usage examples.
 
 ### JSON Support
 
-PostgreSQL's JSONB and MySQL/MariaDB's JSON types are fully supported when using the corresponding dialect with a JSON serialization library (`storm-jackson` or `storm-kotlinx-serialization`). See [JSON Support](json.md) for details.
+PostgreSQL's JSONB and MySQL/MariaDB's JSON types are fully supported when using the corresponding dialect with a JSON serialization library (`storm-jackson2`/`storm-jackson3` or `storm-kotlinx-serialization`). See [JSON Support](json.md) for details.
 
 ### Database-Specific Data Types
 

@@ -113,7 +113,12 @@
             </dependency>
             <dependency>
                 <groupId>st.orm</groupId>
-                <artifactId>storm-jackson</artifactId>
+                <artifactId>storm-jackson2</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>st.orm</groupId>
+                <artifactId>storm-jackson3</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

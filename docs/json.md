@@ -8,19 +8,37 @@ Storm supports two JSON serialization libraries. Choose the one that fits your p
 
 ### Jackson (Kotlin & Java)
 
-The most common choice for Java projects, and also works with Kotlin.
+The most common choice for Java projects, and also works with Kotlin. Two variants are available, matching the two major Jackson versions. Both modules require Jackson to be present on the classpath; they do not bring Jackson as a transitive dependency. If you are using Spring Boot, Jackson is already included and the version is managed for you: Spring Boot 3.x ships with Jackson 2, while Spring Boot 4+ ships with Jackson 3. Choose the Storm module that matches your Jackson version. If you are not using Spring Boot, add Jackson to your project directly alongside the corresponding Storm module.
+
+**Jackson 2** (requires Jackson 2.17+):
 
 ```xml
 <dependency>
     <groupId>st.orm</groupId>
-    <artifactId>storm-jackson</artifactId>
+    <artifactId>storm-jackson2</artifactId>
     <version>1.9.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation 'st.orm:storm-jackson:1.9.0'
+implementation 'st.orm:storm-jackson2:1.9.0'
 ```
+
+**Jackson 3** (requires Jackson 3.0+):
+
+```xml
+<dependency>
+    <groupId>st.orm</groupId>
+    <artifactId>storm-jackson3</artifactId>
+    <version>1.9.0</version>
+</dependency>
+```
+
+```groovy
+implementation 'st.orm:storm-jackson3:1.9.0'
+```
+
+The two modules are mutually exclusive on the classpath. Both provide the same public API (`st.orm.jackson` package), so switching between them requires only changing the Maven dependency.
 
 ### Kotlinx Serialization (Kotlin)
 

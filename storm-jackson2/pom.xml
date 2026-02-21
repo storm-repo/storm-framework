@@ -9,9 +9,9 @@
         <version>1.9.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
-    <artifactId>storm-jackson</artifactId>
-    <name>Storm Jackson</name>
-    <description>Jackson Json extensions for Storm.</description>
+    <artifactId>storm-jackson2</artifactId>
+    <name>Storm Jackson 2</name>
+    <description>Jackson 2 JSON extensions for Storm.</description>
     <url>https://github.com/storm-repo/storm-framework</url>
     <licenses>
         <license>
@@ -40,11 +40,11 @@
                         @{argLine}
                         -Dstorm.validation.skip=true
                         --add-opens java.base/java.lang=ALL-UNNAMED
-                        --add-opens storm.jackson/st.orm.jackson=storm.core
-                        --add-opens storm.jackson/st.orm.jackson.model=storm.core
-                        --add-opens storm.jackson/st.orm.jackson=com.fasterxml.jackson.databind
-                        --add-opens storm.jackson/st.orm.jackson.model=com.fasterxml.jackson.databind
-                        --add-reads storm.jackson=com.fasterxml.jackson.datatype.jsr310
+                        --add-opens storm.jackson2/st.orm.jackson=storm.core
+                        --add-opens storm.jackson2/st.orm.jackson.model=storm.core
+                        --add-opens storm.jackson2/st.orm.jackson=com.fasterxml.jackson.databind
+                        --add-opens storm.jackson2/st.orm.jackson.model=com.fasterxml.jackson.databind
+                        --add-reads storm.jackson2=com.fasterxml.jackson.datatype.jsr310
                     </argLine>
                 </configuration>
             </plugin>
@@ -65,18 +65,25 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
+            <version>2.17.0</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
+            <version>2.17.0</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
+            <version>2.17.0</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>2.17.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
