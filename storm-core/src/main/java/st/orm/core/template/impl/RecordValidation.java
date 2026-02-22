@@ -237,6 +237,9 @@ final class RecordValidation {
                 }
                 versionFound = true;
             }
+            if (Ref.class.isAssignableFrom(field.type()) && !field.isAnnotationPresent(FK.class) && !field.isAnnotationPresent(PK.class)) {
+                return "Ref fields must be marked as @FK: %s.%s.".formatted(dataType.getSimpleName(), field.name());
+            }
             if (isRecord(field.type())) {
                 if (!field.isAnnotationPresent(FK.class)) {
                     // Data classes are allowed to wrap entities and projections (without @FK), but Entities and Projections must refer to them as @FK or @Inline.

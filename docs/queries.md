@@ -203,25 +203,29 @@ The `slice`, `sliceAfter`, and `sliceBefore` methods are available directly on r
 | `content` | The list of results for this page. |
 | `hasNext` | `true` if more results exist beyond this slice. |
 
-The three methods correspond to three paging operations:
+The four methods correspond to four paging operations:
 
 | Method | Purpose | SQL effect |
 |--------|---------|------------|
-| `slice(key, size)` | Fetch the first page. | `ORDER BY key ASC LIMIT size+1` |
+| `slice(key, size)` | Fetch the first page (ascending). | `ORDER BY key ASC LIMIT size+1` |
+| `sliceBefore(key, size)` | Fetch the first page (descending). | `ORDER BY key DESC LIMIT size+1` |
 | `sliceAfter(key, cursor, size)` | Fetch the next page after a cursor value. | `WHERE key > cursor ORDER BY key ASC LIMIT size+1` |
 | `sliceBefore(key, cursor, size)` | Fetch the previous page before a cursor value. | `WHERE key < cursor ORDER BY key DESC LIMIT size+1` |
 
 The extra row (`size+1`) is used internally to determine the value of `hasNext`, then discarded from the returned content.
 
-**Result ordering.** `slice` and `sliceAfter` return results in ascending key order. `sliceBefore` returns results in **descending** key order, because it uses `ORDER BY key DESC` to find the nearest rows before the cursor. If you need ascending order for display after navigating backward, reverse the list.
+**Result ordering.** `slice` and `sliceAfter` return results in ascending key order. `sliceBefore` returns results in **descending** key order, both when used with a cursor (to find the nearest rows before it) and without a cursor (to start from the most recent entries). If you need ascending order for display after navigating backward, reverse the list.
 
 **No total count.** Unlike offset-based pagination, keyset pagination does not include a total element count. A separate `COUNT(*)` query must execute the same joins, filters, and conditions as the main query, which can be expensive on large or complex result sets. Total counts are also inherently unstable: rows may be inserted or deleted while a user navigates through pages, so the count can become stale between requests. Keyset pagination is designed for sequential "load more" or infinite-scroll patterns where a total is rarely needed. If you do need a total count (for example, for a UI label like "showing 10 of 4,827 results"), call the `count` (Kotlin) or `getCount()` (Java) method on the query builder separately, keeping in mind that the value is a snapshot that may drift as the underlying data changes.
 
 **Basic usage.** Pass a metamodel key that identifies a unique, indexed column (typically the primary key) and the desired page size. The key determines both ordering and the cursor column.
 
 ```kotlin
-// First page of 10 users ordered by ID
+// First page of 10 users ordered by ID ascending
 val firstPage: Slice<User> = userRepository.slice(User_.id, 10)
+
+// First page of 10 users ordered by ID descending (most recent first)
+val latestPage: Slice<User> = userRepository.sliceBefore(User_.id, 10)
 
 // Next page, using the last seen ID as cursor
 val nextPage: Slice<User> = userRepository.sliceAfter(User_.id, firstPage.content.last().id, 10)
@@ -263,9 +267,13 @@ userRepository.select()
 The single-key `slice` methods require the cursor column to also be the sort column, which means the column must contain unique values. When you want to sort by a non-unique column (for example, a timestamp or status), use the composite keyset overloads. These accept two metamodel fields: a `sort` column for the primary sort order and a `key` column (typically the primary key) as a unique tiebreaker for deterministic paging.
 
 ```kotlin
-// First page sorted by creation date, with ID as tiebreaker
+// First page sorted by creation date ascending, with ID as tiebreaker
 val page1: Slice<Post> = postRepository.select()
     .slice(Post_.createdAt, Post_.id, 20)
+
+// First page sorted by creation date descending (most recent first)
+val latest: Slice<Post> = postRepository.select()
+    .sliceBefore(Post_.createdAt, Post_.id, 20)
 
 // Next page: pass both cursor values from the last item
 val last = page1.content.last()

@@ -2111,6 +2111,19 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <V> slice(key: Metamodel<E, V>, size: Int): Slice<E> = select().slice(key, size)
 
     /**
+     * Returns the first slice of entities ordered by the specified key in descending order.
+     *
+     * This is the cursorless variant of descending keyset pagination, useful for starting at the most recent
+     * entries. Subsequent pages can be obtained with [sliceBefore].
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the first page of results in descending key order.
+     * @since 1.9
+     */
+    fun <V> sliceBefore(key: Metamodel<E, V>, size: Int): Slice<E> = select().sliceBefore(key, size)
+
+    /**
      * Returns the first slice of entity refs ordered by the specified key.
      *
      * @param key the metamodel field to use as the pagination key; must refer to a unique column.
@@ -2119,6 +2132,19 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @since 1.9
      */
     fun <V> sliceRef(key: Metamodel<E, V>, size: Int): Slice<Ref<E>> = selectRef().slice(key, size)
+
+    /**
+     * Returns the first slice of entity refs ordered by the specified key in descending order.
+     *
+     * This is the cursorless variant of descending keyset pagination for refs, useful for starting at the most
+     * recent entries.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the first page of ref results in descending key order.
+     * @since 1.9
+     */
+    fun <V> sliceBeforeRef(key: Metamodel<E, V>, size: Int): Slice<Ref<E>> = selectRef().sliceBefore(key, size)
 
     /**
      * Returns the first slice of entities ordered by the specified key, filtered by the given predicate.
@@ -2163,6 +2189,54 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @since 1.9
      */
     fun <V> sliceRef(key: Metamodel<E, V>, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().where(predicate).slice(key, size)
+
+    /**
+     * Returns the first slice of entities ordered by the specified key in descending order, filtered by the given
+     * predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the first page of results in descending key order.
+     * @since 1.9
+     */
+    fun <V> sliceBefore(key: Metamodel<E, V>, size: Int, predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>): Slice<E> = select().whereBuilder(predicate).sliceBefore(key, size)
+
+    /**
+     * Returns the first slice of entities ordered by the specified key in descending order, filtered by the given
+     * predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the first page of results in descending key order.
+     * @since 1.9
+     */
+    fun <V> sliceBefore(key: Metamodel<E, V>, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<E> = select().where(predicate).sliceBefore(key, size)
+
+    /**
+     * Returns the first slice of entity refs ordered by the specified key in descending order, filtered by the
+     * given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the first page of ref results in descending key order.
+     * @since 1.9
+     */
+    fun <V> sliceBeforeRef(key: Metamodel<E, V>, size: Int, predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().whereBuilder(predicate).sliceBefore(key, size)
+
+    /**
+     * Returns the first slice of entity refs ordered by the specified key in descending order, filtered by the
+     * given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the first page of ref results in descending key order.
+     * @since 1.9
+     */
+    fun <V> sliceBeforeRef(key: Metamodel<E, V>, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().where(predicate).sliceBefore(key, size)
 
     /**
      * Returns the next slice of entities after the specified cursor value.
@@ -2459,6 +2533,21 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
     fun <S, V> slice(sort: Metamodel<E, S>, key: Metamodel<E, V>, size: Int): Slice<E> = select().slice(sort, key, size)
 
     /**
+     * Returns the first slice of entities ordered by a non-unique sort column with a unique tiebreaker, both in
+     * descending order.
+     *
+     * This is the cursorless variant of descending composite keyset pagination, useful for starting at the most
+     * recent entries. Subsequent pages can be obtained with [sliceBefore].
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param key the metamodel field used as the unique tiebreaker for stable ordering.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the first page of results in descending order.
+     * @since 1.9
+     */
+    fun <S, V> sliceBefore(sort: Metamodel<E, S>, key: Metamodel<E, V>, size: Int): Slice<E> = select().sliceBefore(sort, key, size)
+
+    /**
      * Returns the next slice of entities after the specified composite cursor, using a non-unique sort column with a
      * unique tiebreaker for stable pagination.
      *
@@ -2525,6 +2614,21 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @since 1.9
      */
     fun <S, V> sliceRef(sort: Metamodel<E, S>, key: Metamodel<E, V>, size: Int): Slice<Ref<E>> = selectRef().slice(sort, key, size)
+
+    /**
+     * Returns the first slice of entity refs ordered by a non-unique sort column with a unique tiebreaker, both in
+     * descending order.
+     *
+     * This is the cursorless variant of descending composite keyset pagination for refs, useful for starting at
+     * the most recent entries.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param key the metamodel field used as the unique tiebreaker for stable ordering.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the first page of ref results in descending order.
+     * @since 1.9
+     */
+    fun <S, V> sliceBeforeRef(sort: Metamodel<E, S>, key: Metamodel<E, V>, size: Int): Slice<Ref<E>> = selectRef().sliceBefore(sort, key, size)
 
     /**
      * Returns the next slice of entity refs after the specified composite cursor, using a non-unique sort column with

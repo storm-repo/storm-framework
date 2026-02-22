@@ -1140,6 +1140,19 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <V> slice(key: Metamodel<P, V>, size: Int): Slice<P> = select().slice(key, size)
 
     /**
+     * Returns the first slice of projections ordered by the specified key in descending order.
+     *
+     * This is the cursorless variant of descending keyset pagination, useful for starting at the most recent
+     * entries. Subsequent pages can be obtained with [sliceBefore].
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of projections to include in the slice.
+     * @return a slice containing the first page of results in descending key order.
+     * @since 1.9
+     */
+    fun <V> sliceBefore(key: Metamodel<P, V>, size: Int): Slice<P> = select().sliceBefore(key, size)
+
+    /**
      * Returns the first slice of projection refs ordered by the specified key.
      *
      * @param key the metamodel field to use as the pagination key; must refer to a unique column.
@@ -1148,6 +1161,19 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @since 1.9
      */
     fun <V> sliceRef(key: Metamodel<P, V>, size: Int): Slice<Ref<P>> = selectRef().slice(key, size)
+
+    /**
+     * Returns the first slice of projection refs ordered by the specified key in descending order.
+     *
+     * This is the cursorless variant of descending keyset pagination for refs, useful for starting at the most
+     * recent entries.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the first page of ref results in descending key order.
+     * @since 1.9
+     */
+    fun <V> sliceBeforeRef(key: Metamodel<P, V>, size: Int): Slice<Ref<P>> = selectRef().sliceBefore(key, size)
 
     /**
      * Returns the first slice of projections ordered by the specified key, filtered by the given predicate.
@@ -1192,6 +1218,54 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @since 1.9
      */
     fun <V> sliceRef(key: Metamodel<P, V>, size: Int, predicate: PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().where(predicate).slice(key, size)
+
+    /**
+     * Returns the first slice of projections ordered by the specified key in descending order, filtered by the given
+     * predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of projections to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the first page of results in descending key order.
+     * @since 1.9
+     */
+    fun <V> sliceBefore(key: Metamodel<P, V>, size: Int, predicate: WhereBuilder<P, P, ID>.() -> PredicateBuilder<P, *, *>): Slice<P> = select().whereBuilder(predicate).sliceBefore(key, size)
+
+    /**
+     * Returns the first slice of projections ordered by the specified key in descending order, filtered by the given
+     * predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of projections to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the first page of results in descending key order.
+     * @since 1.9
+     */
+    fun <V> sliceBefore(key: Metamodel<P, V>, size: Int, predicate: PredicateBuilder<P, *, *>): Slice<P> = select().where(predicate).sliceBefore(key, size)
+
+    /**
+     * Returns the first slice of projection refs ordered by the specified key in descending order, filtered by the
+     * given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the first page of ref results in descending key order.
+     * @since 1.9
+     */
+    fun <V> sliceBeforeRef(key: Metamodel<P, V>, size: Int, predicate: WhereBuilder<P, Ref<P>, ID>.() -> PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().whereBuilder(predicate).sliceBefore(key, size)
+
+    /**
+     * Returns the first slice of projection refs ordered by the specified key in descending order, filtered by the
+     * given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the first page of ref results in descending key order.
+     * @since 1.9
+     */
+    fun <V> sliceBeforeRef(key: Metamodel<P, V>, size: Int, predicate: PredicateBuilder<P, *, *>): Slice<Ref<P>> = selectRef().where(predicate).sliceBefore(key, size)
 
     /**
      * Returns the next slice of projections after the specified cursor value.
@@ -1488,6 +1562,21 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
     fun <S, V> slice(sort: Metamodel<P, S>, key: Metamodel<P, V>, size: Int): Slice<P> = select().slice(sort, key, size)
 
     /**
+     * Returns the first slice of projections ordered by a non-unique sort column with a unique tiebreaker, both in
+     * descending order.
+     *
+     * This is the cursorless variant of descending composite keyset pagination, useful for starting at the most
+     * recent entries. Subsequent pages can be obtained with [sliceBefore].
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param key the metamodel field used as the unique tiebreaker for stable ordering.
+     * @param size the maximum number of projections to include in the slice.
+     * @return a slice containing the first page of results in descending order.
+     * @since 1.9
+     */
+    fun <S, V> sliceBefore(sort: Metamodel<P, S>, key: Metamodel<P, V>, size: Int): Slice<P> = select().sliceBefore(sort, key, size)
+
+    /**
      * Returns the next slice of projections after the specified composite cursor, using a non-unique sort column with
      * a unique tiebreaker for stable pagination.
      *
@@ -1554,6 +1643,21 @@ interface ProjectionRepository<P, ID : Any> : Repository where P : Projection<ID
      * @since 1.9
      */
     fun <S, V> sliceRef(sort: Metamodel<P, S>, key: Metamodel<P, V>, size: Int): Slice<Ref<P>> = selectRef().slice(sort, key, size)
+
+    /**
+     * Returns the first slice of projection refs ordered by a non-unique sort column with a unique tiebreaker, both
+     * in descending order.
+     *
+     * This is the cursorless variant of descending composite keyset pagination for refs, useful for starting at
+     * the most recent entries.
+     *
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param key the metamodel field used as the unique tiebreaker for stable ordering.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the first page of ref results in descending order.
+     * @since 1.9
+     */
+    fun <S, V> sliceBeforeRef(sort: Metamodel<P, S>, key: Metamodel<P, V>, size: Int): Slice<Ref<P>> = selectRef().sliceBefore(sort, key, size)
 
     /**
      * Returns the next slice of projection refs after the specified composite cursor, using a non-unique sort column

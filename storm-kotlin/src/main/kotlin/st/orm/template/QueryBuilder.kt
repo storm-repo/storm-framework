@@ -635,6 +635,16 @@ interface QueryBuilder<T : Data, R, ID> {
     fun orderByDescending(path: Metamodel<T, *>): QueryBuilder<T, R, ID> = orderBy(combine(wrap(path), raw(" DESC")))
 
     /**
+     * Adds an ORDER BY clause to the query for the fields at the specified paths in the table graph. The results
+     * are sorted in descending order for each column.
+     *
+     * @param path the paths to order by.
+     * @return the query builder.
+     * @since 1.9
+     */
+    fun orderByDescending(vararg path: Metamodel<T, *>): QueryBuilder<T, R, ID> = orderByDescendingAny(*path)
+
+    /**
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph or manually added
      * joins. The results are sorted in descending order.
      *
@@ -643,6 +653,30 @@ interface QueryBuilder<T : Data, R, ID> {
      * @since 1.9
      */
     fun orderByDescendingAny(path: Metamodel<*, *>): QueryBuilder<T, R, ID> = orderBy(combine(wrap(path), raw(" DESC")))
+
+    /**
+     * Adds an ORDER BY clause to the query for the fields at the specified paths in the table graph or manually
+     * added joins. The results are sorted in descending order for each column.
+     *
+     * @param path the paths to order by.
+     * @return the query builder.
+     * @since 1.9
+     */
+    fun orderByDescendingAny(vararg path: Metamodel<*, *>): QueryBuilder<T, R, ID> {
+        if (path.isEmpty()) {
+            throw PersistenceException("At least one path must be provided for ORDER BY clause.")
+        }
+        val templates = buildList {
+            path.forEachIndexed { index, metamodel ->
+                add(wrap(metamodel))
+                add(raw(" DESC"))
+                if (index < path.size - 1) {
+                    add(raw(", "))
+                }
+            }
+        }
+        return orderBy(combine(*templates.toTypedArray()))
+    }
 
     /**
      * Adds an ORDER BY clause to the query using a string template. The results are sorted in descending order.
@@ -865,6 +899,27 @@ interface QueryBuilder<T : Data, R, ID> {
     }
 
     /**
+     * Executes the query and returns the first [Slice] of results, ordered by the specified key in descending order.
+     *
+     * This is the cursorless variant of descending keyset pagination, useful for starting at the most recent
+     * entries. Subsequent pages can be obtained with [sliceBefore].
+     *
+     * This method manages the ORDER BY clause internally. An explicit `orderBy()` call must not be present
+     * on this builder; a [PersistenceException] is thrown if one is detected.
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the first page of results in descending key order.
+     * @since 1.9
+     */
+    fun <E> sliceBefore(key: Metamodel<T, E>, size: Int): Slice<R> {
+        if (hasOrderBy()) {
+            throw PersistenceException("sliceBefore with key manages ORDER BY internally; remove explicit orderBy calls.")
+        }
+        return this.orderByDescending(key).slice(size)
+    }
+
+    /**
      * Executes the query and returns the next [Slice] of results after the specified cursor value, ordered by
      * the specified key in ascending order.
      *
@@ -982,6 +1037,29 @@ interface QueryBuilder<T : Data, R, ID> {
             throw PersistenceException("slice with sort and key manages ORDER BY internally; remove explicit orderBy calls.")
         }
         return this.orderBy(sort, key).slice(size)
+    }
+
+    /**
+     * Executes the query and returns the first [Slice] of results for composite keyset pagination, sorting by
+     * a non-unique column ([sort]) with a unique tiebreaker ([key]) in descending order.
+     *
+     * This is the cursorless variant of descending composite keyset pagination, useful for starting at the most
+     * recent entries. Subsequent pages can be obtained with [sliceBefore].
+     *
+     * This method manages the ORDER BY clause internally. An explicit `orderBy()` call must not be present
+     * on this builder; a [PersistenceException] is thrown if one is detected.
+     *
+     * @param sort the metamodel path for the (potentially non-unique) primary sort column.
+     * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the first page of results in descending order.
+     * @since 1.9
+     */
+    fun <S, E> sliceBefore(sort: Metamodel<T, S>, key: Metamodel<T, E>, size: Int): Slice<R> {
+        if (hasOrderBy()) {
+            throw PersistenceException("sliceBefore with sort and key manages ORDER BY internally; remove explicit orderBy calls.")
+        }
+        return this.orderByDescending(sort, key).slice(size)
     }
 
     /**

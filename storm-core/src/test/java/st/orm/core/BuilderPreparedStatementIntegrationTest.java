@@ -391,6 +391,80 @@ public class BuilderPreparedStatementIntegrationTest {
         });
     }
 
+    // Cursorless descending keyset pagination tests.
+
+    @Test
+    public void testSliceBeforeCursorless() {
+        // First page of 3 vets ordered by id DESC (cursorless sliceBefore).
+        // There are 6 vets, so hasNext=true. Expected ids: 6, 5, 4.
+        Slice<Vet> slice = ORMTemplate.of(dataSource)
+                .selectFrom(Vet.class)
+                .sliceBefore(Vet_.id, 3);
+        assertEquals(3, slice.content().size());
+        assertTrue(slice.hasNext());
+        assertEquals(6, slice.content().get(0).id());
+        assertEquals(5, slice.content().get(1).id());
+        assertEquals(4, slice.content().get(2).id());
+    }
+
+    @Test
+    public void testSliceBeforeCursorlessAllResults() {
+        // Request more than available: all 6 vets in descending order.
+        Slice<Vet> slice = ORMTemplate.of(dataSource)
+                .selectFrom(Vet.class)
+                .sliceBefore(Vet_.id, 10);
+        assertEquals(6, slice.content().size());
+        assertFalse(slice.hasNext());
+        assertEquals(6, slice.content().get(0).id());
+        assertEquals(1, slice.content().get(5).id());
+    }
+
+    @Test
+    public void testSliceBeforeCursorlessThrowsWithExplicitOrderBy() {
+        assertThrows(PersistenceException.class, () -> {
+            ORMTemplate.of(dataSource)
+                    .selectFrom(Vet.class)
+                    .orderBy(Vet_.lastName)
+                    .sliceBefore(Vet_.id, 10);
+        });
+    }
+
+    @Test
+    public void testSliceBeforeCursorlessComposite() {
+        // First page of 3 vets ordered by lastName DESC, id DESC.
+        // Expected order: Stevens(5), Ortega(4), Leary(2), Jenkins(6), Douglas(3), Carter(1).
+        Slice<Vet> slice = ORMTemplate.of(dataSource)
+                .selectFrom(Vet.class)
+                .sliceBefore(Vet_.lastName, Vet_.id, 3);
+        assertEquals(3, slice.content().size());
+        assertTrue(slice.hasNext());
+        assertEquals("Stevens", slice.content().get(0).lastName());
+        assertEquals("Ortega", slice.content().get(1).lastName());
+        assertEquals("Leary", slice.content().get(2).lastName());
+    }
+
+    @Test
+    public void testSliceBeforeCursorlessCompositeAllResults() {
+        // Request more than available: all 6 vets in descending composite order.
+        Slice<Vet> slice = ORMTemplate.of(dataSource)
+                .selectFrom(Vet.class)
+                .sliceBefore(Vet_.lastName, Vet_.id, 10);
+        assertEquals(6, slice.content().size());
+        assertFalse(slice.hasNext());
+        assertEquals("Stevens", slice.content().get(0).lastName());
+        assertEquals("Carter", slice.content().get(5).lastName());
+    }
+
+    @Test
+    public void testSliceBeforeCursorlessCompositeThrowsWithExplicitOrderBy() {
+        assertThrows(PersistenceException.class, () -> {
+            ORMTemplate.of(dataSource)
+                    .selectFrom(Vet.class)
+                    .orderBy(Vet_.lastName)
+                    .sliceBefore(Vet_.lastName, Vet_.id, 10);
+        });
+    }
+
     // Composite keyset pagination tests.
 
     @Test
