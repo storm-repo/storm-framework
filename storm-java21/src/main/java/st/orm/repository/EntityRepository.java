@@ -470,8 +470,9 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
     /**
      * Deletes an entity from the database.
      *
-     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database and is correctly identified by its primary key.</p>
+     * <p>This method removes an existing entity from the database. The entity must exist in the database; if it does
+     * not, a {@link PersistenceException} is thrown. Unlike {@link #deleteById} and {@link #deleteByRef}, this method
+     * is strict rather than idempotent, because possessing the full entity implies the caller expects it to exist.</p>
      *
      * @param entity the entity to delete. The entity must exist in the database and should be correctly identified by
      *               its primary key.
@@ -484,27 +485,24 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
     /**
      * Deletes an entity from the database based on its primary key.
      *
-     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database.</p>
+     * <p>This method ensures the entity with the given primary key is removed from the database. If the entity does
+     * not exist, the operation completes successfully without error (idempotent behavior).</p>
      *
      * @param id the primary key of the entity to delete.
-     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
-     *                              being found in the database, violations of database constraints, connectivity
-     *                              issues, or if the entity parameter is null.
+     * @throws PersistenceException if the deletion operation fails due to violations of database constraints,
+     *                              connectivity issues, or if the id parameter is null.
      */
     void deleteById(@Nonnull ID id);
 
     /**
-     * Deletes an entity from the database.
+     * Deletes an entity from the database by its reference.
      *
-     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database and is correctly identified by its primary key.</p>
+     * <p>This method ensures the entity identified by the given reference is removed from the database. If the entity
+     * does not exist, the operation completes successfully without error (idempotent behavior).</p>
      *
-     * @param ref the entity to delete. The entity must exist in the database and should be correctly identified by
-     *            its ref.
-     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
-     *                              being found in the database, violations of database constraints, connectivity
-     *                              issues, or if the entity parameter is null.
+     * @param ref the reference to the entity to delete.
+     * @throws PersistenceException if the deletion operation fails due to violations of database constraints,
+     *                              connectivity issues, or if the ref parameter is null.
      */
     void deleteByRef(@Nonnull Ref<E> ref);
 

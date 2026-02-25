@@ -18,6 +18,7 @@ package st.orm.core.template.impl;
 import static java.util.Optional.empty;
 import static st.orm.core.template.impl.RecordReflection.getRecordType;
 import static st.orm.core.template.impl.RecordReflection.isRecord;
+import static st.orm.core.template.impl.RecordReflection.isSealedEntity;
 import static st.orm.core.template.impl.RecordValidation.validateDataType;
 
 import jakarta.annotation.Nonnull;
@@ -68,6 +69,10 @@ public final class ObjectMapperFactory {
         if (Data.class.isAssignableFrom(type)) {
             //noinspection unchecked
             validateDataType((Class<? extends Data>) type, false);
+        }
+        if (isSealedEntity(type)) {
+            return RecordMapper.getSealedFactory(columnCount, type, refFactory,
+                    TRANSACTION_TEMPLATE.currentContext().orElse(null));
         }
         if (isRecord(type)) {
             return RecordMapper.getFactory(columnCount, getRecordType(type), refFactory,

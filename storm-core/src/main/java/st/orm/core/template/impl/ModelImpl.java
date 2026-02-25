@@ -23,7 +23,12 @@ import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toSet;
 import static st.orm.EnumType.NAME;
 import static st.orm.core.spi.Providers.getORMConverter;
+import static st.orm.core.template.impl.RecordReflection.getDiscriminatorValue;
+import static st.orm.core.template.impl.RecordReflection.getRefDataType;
+import static st.orm.core.template.impl.RecordReflection.isJoinedEntity;
+import static st.orm.core.template.impl.RecordReflection.isPolymorphicData;
 import static st.orm.core.template.impl.RecordReflection.isRecord;
+import static st.orm.core.template.impl.RecordReflection.isSealedEntity;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
@@ -41,6 +46,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.function.BiConsumer;
 import st.orm.Data;
 import st.orm.DbEnum;
@@ -79,7 +86,14 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
 
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
 
+    /**
+     * Caches field-name to component-index maps per concrete sealed subtype. Since the set of permitted subtypes is
+     * small and fixed, this avoids rebuilding a HashMap on every row during sealed entity value extraction.
+     */
+    private static final ConcurrentMap<Class<?>, Map<String, Integer>> FIELD_INDEX_CACHE = new ConcurrentHashMap<>();
+
     private final RecordType recordType;
+    private final Class<E> typeOverride;
     private final TableName tableName;
     private final List<RecordField> fields;
     private final List<Column> columns;
@@ -88,6 +102,22 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     private final Map<Class<? extends Data>, List<Metamodel<E, ?>>> mappedMetamodels;
     private final Metamodel<E, ID> primaryKeyMetamodel;
     private final Map<Metamodel<?, ?>, List<Column>> columnMap;
+
+    /**
+     * For sealed entity models, the 1-based column index of the discriminator column; -1 for non-sealed models.
+     */
+    private final int discriminatorColumnIndex;
+
+    /**
+     * Maps 1-based column indices to the sealed Data type for polymorphic FK discriminator columns.
+     *
+     * <p>A polymorphic FK (e.g., {@code Ref<Commentable>}) expands to two physical columns:
+     * a discriminator column (e.g., {@code target_type}) and an FK id column (e.g., {@code target_id}).
+     * This map identifies the discriminator columns so that
+     * {@link #forEachValueOrdered(List, Data, BiConsumer)} can extract the discriminator value from the
+     * {@link Ref#type()} instead of the {@link Ref#id()}.</p>
+     */
+    private final Map<Integer, Class<?>> polymorphicFkDiscriminatorColumns;
 
     /**
      * Converter aligned to {@link #columns()} by column index (1-based in {@link Column#index()}).
@@ -101,12 +131,36 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
                      @Nonnull TableName tableName,
                      @Nonnull List<RecordField> fields,
                      @Nonnull List<Column> columns) throws SqlTemplateException {
+        this(recordType, null, tableName, fields, columns);
+    }
+
+    /**
+     * Creates a model with an optional type override for sealed entity hierarchies.
+     *
+     * <p>When a sealed entity interface (e.g., {@code Vehicle}) uses single-table or joined inheritance,
+     * the {@code recordType} is derived from the first permitted subclass (e.g., {@code Car}), but
+     * {@link #type()} must return the sealed interface. The {@code typeOverride} provides this.</p>
+     *
+     * @param recordType the record type from which column metadata is derived.
+     * @param typeOverride the type to return from {@link #type()}, or null to use the record type.
+     * @param tableName the table name.
+     * @param fields the record fields aligned with columns.
+     * @param columns the column metadata.
+     */
+    public ModelImpl(@Nonnull RecordType recordType,
+                     @Nullable Class<E> typeOverride,
+                     @Nonnull TableName tableName,
+                     @Nonnull List<RecordField> fields,
+                     @Nonnull List<Column> columns) throws SqlTemplateException {
         assert fields.size() == columns.size() : "Columns and fields must have the same size";
         this.recordType = requireNonNull(recordType, "recordType");
+        this.typeOverride = typeOverride;
         this.tableName = requireNonNull(tableName, "tableName");
         this.fields = copyOf(fields);
         this.columns = copyOf(columns);
         this.columnMap = initColumnMap(this.columns);
+        this.discriminatorColumnIndex = initDiscriminatorColumnIndex(typeOverride);
+        this.polymorphicFkDiscriminatorColumns = initPolymorphicFkDiscriminatorColumns(this.fields, this.columns);
         this.converters = initConverters(this.fields, this.columns);
         this.primaryKeyField = initPrimaryKeyField(this.recordType);
         this.declaredColumns = initDeclaredColumns(this.columns);
@@ -124,6 +178,47 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
         }
         map.replaceAll((k, v) -> List.copyOf(v));
         return Map.copyOf(map);
+    }
+
+    /**
+     * For sealed entity models, returns the 1-based index of the discriminator column. The discriminator is always
+     * the first column in a sealed entity model (index 1).
+     */
+    private static int initDiscriminatorColumnIndex(@Nullable Class<?> typeOverride) {
+        return typeOverride != null && typeOverride.isSealed() && isSealedEntity(typeOverride) ? 1 : -1;
+    }
+
+    /**
+     * Identifies polymorphic FK discriminator columns. For each polymorphic FK field (a {@code Ref} to a sealed
+     * {@link Data} interface), the first of its two columns is the discriminator. This method maps those column
+     * indices to the sealed type so that value extraction can produce the discriminator value instead of the FK id.
+     */
+    private static Map<Integer, Class<?>> initPolymorphicFkDiscriminatorColumns(
+            List<RecordField> fields, List<Column> columns) {
+        Map<Integer, Class<?>> map = new HashMap<>();
+        RecordField previousField = null;
+        for (int i = 0; i < fields.size(); i++) {
+            RecordField field = fields.get(i);
+            if (field.equals(previousField)) {
+                // Second (or later) column for the same field; skip.
+                previousField = field;
+                continue;
+            }
+            previousField = field;
+            if (!columns.get(i).foreignKey() || !Ref.class.isAssignableFrom(field.type())) {
+                continue;
+            }
+            try {
+                Class<? extends Data> refDataType = getRefDataType(field);
+                if (isPolymorphicData(refDataType)) {
+                    // First column of a polymorphic FK pair is the discriminator.
+                    map.put(columns.get(i).index(), refDataType);
+                }
+            } catch (SqlTemplateException e) {
+                // Should not happen for a valid model; skip gracefully.
+            }
+        }
+        return map.isEmpty() ? Map.of() : Map.copyOf(map);
     }
 
     private static List<ORMConverter> initConverters(List<RecordField> fields, List<Column> columns) {
@@ -222,7 +317,12 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     @SuppressWarnings("unchecked")
     @Override
     public Class<E> type() {
-        return (Class<E>) recordType.type();
+        return typeOverride != null ? typeOverride : (Class<E>) recordType.type();
+    }
+
+    @Override
+    public boolean isJoinedInheritance() {
+        return typeOverride != null && typeOverride.isSealed() && isJoinedEntity(typeOverride);
     }
 
     @Override
@@ -276,7 +376,12 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     public void forEachValue(@Nonnull Metamodel<E, ?> metamodel,
                              @Nonnull Object object,
                              @Nonnull BiConsumer<Column, Object> consumer) throws SqlTemplateException {
-        var columns = getColumns(metamodel);
+        // For sealed entity models, all columns share the same metamodel, so getColumns() cannot
+        // distinguish between PK and non-PK columns. In WHERE clauses, the PK metamodel is always
+        // used, so resolve PK columns directly.
+        var columns = discriminatorColumnIndex > 0
+                ? declaredColumns.stream().filter(Column::primaryKey).toList()
+                : getColumns(metamodel);
         Object value;
         if (object instanceof Data data) {
             value = REFLECTION.getId(data);
@@ -317,10 +422,15 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
                                      @Nonnull E record,
                                      @Nonnull BiConsumer<Column, Object> consumer)
             throws SqlTemplateException {
+        if (discriminatorColumnIndex > 0) {
+            forEachSealedEntityValue(view, record, consumer);
+            return;
+        }
         int lastIndex = -1;
         int cachedGroupStart = -1;
         int cachedParamCount = -1;
         List<?> cachedValues = null;
+        //noinspection ForLoopReplaceableByForEach
         for (int i = 0, size = view.size(); i < size; i++) {
             var column = view.get(i);
             int index = column.index();
@@ -364,11 +474,70 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
             }
             if (column.foreignKey()) {
                 if (value instanceof Ref<?> ref) {
-                    value = ref.id();
+                    Class<?> polymorphicSealedType = polymorphicFkDiscriminatorColumns.get(column.index());
+                    // Polymorphic FK discriminator column: extract the discriminator value from the Ref's
+                    // concrete type instead of the FK id.
+                    value = polymorphicSealedType != null
+                            ? getDiscriminatorValue(ref.type(), polymorphicSealedType)
+                            : ref.id();
                 } else if (value instanceof Data data) {
                     value = REFLECTION.getId(data);
                 } else if (value != null) {
                     throw new SqlTemplateException("Invalid foreign key type for column: %s.".formatted(column.name()));
+                }
+            }
+            if (value != null && (column.primaryKey() || column.foreignKey()) && isRecord(value.getClass())) {
+                value = REFLECTION.getRecordValue(value, column.keyIndex() - 1);
+            }
+            consumer.accept(column, map(column, value));
+        }
+    }
+
+    /**
+     * Sealed entity value extraction. For each column in the view:
+     * <ul>
+     *   <li>Discriminator column: emits the discriminator value derived from the record's concrete type.</li>
+     *   <li>Data columns present in the concrete type: extracts the value via reflection.</li>
+     *   <li>Data columns absent from the concrete type (subtype-specific): emits NULL.</li>
+     * </ul>
+     */
+    private void forEachSealedEntityValue(@Nonnull List<Column> view,
+                                           @Nonnull E record,
+                                           @Nonnull BiConsumer<Column, Object> consumer)
+            throws SqlTemplateException {
+        assert typeOverride != null && typeOverride.isSealed();
+        Class<?> concreteType = record.getClass();
+        // Look up (or compute once) the field-name -> component-index map for the concrete type.
+        Map<String, Integer> fieldIndexMap = FIELD_INDEX_CACHE.computeIfAbsent(concreteType, type -> {
+            RecordType concreteRecordType = REFLECTION.getRecordType(type);
+            var concreteFields = concreteRecordType.fields();
+            Map<String, Integer> map = HashMap.newHashMap(concreteFields.size());
+            for (int i = 0; i < concreteFields.size(); i++) {
+                map.put(concreteFields.get(i).name(), i);
+            }
+            return Map.copyOf(map);
+        });
+        for (var column : view) {
+            int index = column.index();
+            if (index == discriminatorColumnIndex) {
+                // Auto-populate discriminator value from the concrete type.
+                consumer.accept(column, getDiscriminatorValue(concreteType, typeOverride));
+                continue;
+            }
+            // Look up the field in the sealed model's field list (aligned with columns).
+            RecordField modelField = fields.get(index - 1);
+            Integer componentIndex = fieldIndexMap.get(modelField.name());
+            if (componentIndex == null) {
+                // Column belongs to a different subtype -> NULL.
+                consumer.accept(column, null);
+                continue;
+            }
+            Object value = REFLECTION.getRecordValue(record, componentIndex);
+            if (column.foreignKey()) {
+                if (value instanceof Ref<?> ref) {
+                    value = ref.id();
+                } else if (value instanceof Data data) {
+                    value = REFLECTION.getId(data);
                 }
             }
             if (value != null && (column.primaryKey() || column.foreignKey()) && isRecord(value.getClass())) {

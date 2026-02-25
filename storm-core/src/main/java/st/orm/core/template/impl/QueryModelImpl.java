@@ -20,6 +20,10 @@ import static st.orm.ResolveScope.CASCADE;
 import static st.orm.ResolveScope.INNER;
 import static st.orm.core.template.Templates.alias;
 import static st.orm.core.template.Templates.param;
+import static st.orm.core.template.impl.RecordReflection.getDiscriminatorType;
+import static st.orm.core.template.impl.RecordReflection.hasDiscriminator;
+import static st.orm.core.template.impl.RecordReflection.isJoinedEntity;
+import static st.orm.core.template.impl.RecordReflection.isSealedEntity;
 import static st.orm.core.template.impl.SqlParser.removeComments;
 
 import jakarta.annotation.Nonnull;
@@ -32,6 +36,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import st.orm.BindVars;
 import st.orm.Data;
+import st.orm.Discriminator.DiscriminatorType;
 import st.orm.Element;
 import st.orm.Metamodel;
 import st.orm.Operator;
@@ -49,7 +54,6 @@ import st.orm.core.template.impl.Elements.Expression;
 import st.orm.core.template.impl.Elements.ObjectExpression;
 import st.orm.core.template.impl.Elements.Subquery;
 import st.orm.core.template.impl.Elements.TemplateExpression;
-
 /**
  * Query model implementation responsible for translating high-level query expressions into SQL fragments and bind
  * values.
@@ -118,10 +122,10 @@ final class QueryModelImpl implements QueryModel {
      * are included.</p>
      *
      * @param mode the selection mode that controls which columns are returned.
-     * @return the list of aliased columns for the root table.
+     * @return the list of column expressions for the root table.
      */
     @Override
-    public List<AliasedColumn> getColumns(@Nonnull SelectMode mode) {
+    public List<ColumnExpression> getColumns(@Nonnull SelectMode mode) {
         return getColumns(table.type(), mode);
     }
 
@@ -133,16 +137,16 @@ final class QueryModelImpl implements QueryModel {
      *
      * @param table the table type for which columns should be returned.
      * @param mode  the selection mode that controls which columns are included.
-     * @return the list of aliased columns for the specified table type.
+     * @return the list of column expressions for the specified table type.
      */
     @Override
-    public List<AliasedColumn> getColumns(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode) {
+    public List<ColumnExpression> getColumns(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode) {
         try {
             var m = model.type() == table ? model : modelBuilder.build(table, false);
             return switch (mode) {
-                case PK -> m.declaredColumns().stream().filter(Column::primaryKey).map(this::toAliasedColumn).toList();
-                case DECLARED -> m.declaredColumns().stream().map(this::toAliasedColumn).toList();
-                case NESTED -> m.columns().stream().map(this::toAliasedColumn).toList();
+                case PK -> m.declaredColumns().stream().filter(Column::primaryKey).map(this::toColumnExpression).toList();
+                case DECLARED -> m.declaredColumns().stream().map(this::toColumnExpression).toList();
+                case NESTED -> m.columns().stream().map(this::toColumnExpression).toList();
             };
         } catch (SqlTemplateException e) {
             throw new UncheckedSqlTemplateException(e);
@@ -172,6 +176,12 @@ final class QueryModelImpl implements QueryModel {
                 default -> null;
             };
             if (type != null) {
+                if (model.type().isAssignableFrom(type)
+                        || (isJoinedEntity(type) && type.isAssignableFrom(model.type()))) {
+                    // Also works for sealed entities and for Ref<SealedParent> used against a concrete
+                    // subtype table in joined table inheritance.
+                    return model.getPrimaryKeyMetamodel().orElseThrow();
+                }
                 if (tableMapper.isUnique(type)) {
                     var m = model.findMetamodel(type);
                     if (m.isPresent()) {
@@ -553,6 +563,12 @@ final class QueryModelImpl implements QueryModel {
             //noinspection unchecked
             return (Model<T, ?>) model;
         }
+        // For sealed entity models, the metamodel root may be the first permitted subclass (e.g., Car)
+        // while model.type() is the sealed interface (e.g., Vehicle).
+        if (model.type().isSealed() && isSealedEntity(model.type()) && model.type().isAssignableFrom(metamodel.root())) {
+            //noinspection unchecked
+            return (Model<T, ?>) model;
+        }
         try {
             //noinspection unchecked
             return (Model<T, ?>) modelBuilder.build(metamodel.tableType(), false);
@@ -562,20 +578,37 @@ final class QueryModelImpl implements QueryModel {
     }
 
     /**
-     * Converts the specified column into an {@link AliasedColumn} using the current alias resolution rules.
+     * Converts the specified column into a {@link ColumnExpression} using the current alias resolution rules.
      *
      * <p>The resolved alias depends on the column's metamodel path and the joins that were introduced while building
      * the query model. An exception is thrown if no suitable alias can be found.</p>
      *
      * @param column the column to convert.
-     * @return the aliased representation of the column.
+     * @return the column expression with alias and optional SQL expression override.
      */
     @Override
-    public AliasedColumn toAliasedColumn(@Nonnull Column column) {
+    public ColumnExpression toColumnExpression(@Nonnull Column column) {
         try {
             var metamodel = column.metamodel();
             String alias;
-            if (metamodel.root() == model.type() && metamodel.path().isEmpty()) {
+            boolean isRootTable = metamodel.root() == model.type();
+            if (!isRootTable && model.type().isSealed() && isSealedEntity(model.type())
+                    && metamodel.fieldPath().isEmpty()) {
+                // For sealed entity models, the metamodel root is the first permitted subclass (e.g., Car.class)
+                // while model.type() is the sealed interface (e.g., Vehicle.class). Base table columns use the
+                // root metamodel (empty fieldPath) and should resolve to the root table alias. Extension columns
+                // in JOINED inheritance have non-empty fieldPath and are resolved via the alias mapper instead.
+                Class<?>[] permitted = model.type().getPermittedSubclasses();
+                if (permitted != null) {
+                    for (Class<?> sub : permitted) {
+                        if (sub == metamodel.root()) {
+                            isRootTable = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (isRootTable && metamodel.path().isEmpty()) {
                 alias = table.alias();
             } else {
                 alias = aliasMapper.findAlias(metamodel.tableType(), metamodel.path(), INNER).orElse(null);
@@ -586,10 +619,58 @@ final class QueryModelImpl implements QueryModel {
             if (alias == null) {
                 throw new SqlTemplateException("Cannot find alias for column: %s.".formatted(column.qualifiedName(template.dialect())));
             }
-            return new AliasedColumn(column.type(), column.qualifiedName(template.dialect()), alias, column.index());
+            // For JOINED sealed entities without a discriminator, the discriminator column (index 1)
+            // is replaced by a CASE expression that resolves the concrete type from extension table PKs.
+            if (column.index() == 1 && !column.insertable() && model.type().isSealed()
+                    && isJoinedEntity(model.type()) && !hasDiscriminator(model.type())) {
+                String caseExpression = buildDiscriminatorCaseExpression(model.type());
+                return new ColumnExpression(column.type(), column.qualifiedName(template.dialect()), alias, column.index(), caseExpression);
+            }
+            return new ColumnExpression(column.type(), column.qualifiedName(template.dialect()), alias, column.index());
         } catch (SqlTemplateException e) {
             throw new UncheckedSqlTemplateException(e);
         }
+    }
+
+    /**
+     * Builds a CASE expression that resolves the concrete type for a JOINED sealed entity without a
+     * discriminator column. The expression checks which extension table has a matching row via LEFT JOIN.
+     *
+     * <p>Example output: {@code CASE WHEN jc.id IS NOT NULL THEN 'JoinedCat' WHEN jd.id IS NOT NULL THEN 'JoinedDog' END}</p>
+     */
+    private String buildDiscriminatorCaseExpression(@Nonnull Class<?> sealedType) throws SqlTemplateException {
+        Class<?>[] permitted = sealedType.getPermittedSubclasses();
+        if (permitted == null || permitted.length == 0) {
+            throw new SqlTemplateException("Sealed type %s has no permitted subclasses.".formatted(sealedType.getSimpleName()));
+        }
+        DiscriminatorType discriminatorType = getDiscriminatorType(sealedType);
+        StringBuilder sb = new StringBuilder("CASE");
+        for (Class<?> subtype : permitted) {
+            // Find the alias for this subtype's extension table.
+            @SuppressWarnings("unchecked")
+            Class<? extends Data> subtypeData = (Class<? extends Data>) subtype;
+            // In JOINED inheritance, extension columns use a metamodel path like "subtypeFieldName" where
+            // the root is the subtype. Try to find the alias for the extension table.
+            String extAlias = aliasMapper.findAlias(subtypeData, null, INNER).orElse(null);
+            if (extAlias == null) {
+                throw new SqlTemplateException("Cannot find alias for extension table of subtype: %s.".formatted(subtype.getSimpleName()));
+            }
+            // Get the PK column name from the subtype's model.
+            var subtypeModel = modelBuilder.build(subtypeData, false);
+            String pkColumnName = subtypeModel.declaredColumns().stream()
+                    .filter(Column::primaryKey)
+                    .findFirst()
+                    .map(c -> c.qualifiedName(template.dialect()))
+                    .orElseThrow(() -> new SqlTemplateException("No PK column in %s model.".formatted(subtype.getSimpleName())));
+            Object discriminatorValue = RecordReflection.getDiscriminatorValue(subtype, sealedType);
+            String thenClause = switch (discriminatorType) {
+                case INTEGER -> " WHEN %s.%s IS NOT NULL THEN %s".formatted(extAlias, pkColumnName, discriminatorValue);
+                case STRING, CHAR -> " WHEN %s.%s IS NOT NULL THEN '%s'".formatted(extAlias, pkColumnName, discriminatorValue);
+            };
+            sb.append(thenClause);
+        }
+        sb.append(" END");
+        return sb.toString();
     }
 
     /**
@@ -599,7 +680,6 @@ final class QueryModelImpl implements QueryModel {
      * @return the fully qualified column name.
      */
     private String toFullyQualifiedColumn(@Nonnull Column column) {
-        var aliasedColumn = toAliasedColumn(column);
-        return "%s%s".formatted(aliasedColumn.alias().isEmpty() ? "" : aliasedColumn.alias() + ".", aliasedColumn.name());
+        return toColumnExpression(column).toSql();
     }
 }

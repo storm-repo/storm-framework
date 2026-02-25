@@ -68,6 +68,15 @@ public interface Model<E extends Data, ID> {
     Class<E> type();
 
     /**
+     * Returns {@code true} if this model represents a joined inheritance entity (Joined Table inheritance),
+     * where the base table has common fields and each permitted subclass has its own extension table.
+     *
+     * @return {@code true} if this model uses joined table inheritance.
+     * @since 1.9
+     */
+    boolean isJoinedInheritance();
+
+    /**
      * Returns the type of the primary key.
      *
      * @return the primary key type, or {@code Void.class} if no primary key exists.
@@ -249,4 +258,5 @@ public interface Model<E extends Data, ID> {
                       @Nonnull Object object,
                       @Nonnull BiConsumer<Column, Object> consumer)
             throws SqlTemplateException;
+
 }

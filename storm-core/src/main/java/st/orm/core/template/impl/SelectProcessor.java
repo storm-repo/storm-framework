@@ -53,7 +53,7 @@ final class SelectProcessor implements ElementProcessor<Select> {
     @Override
     public CompiledElement compile(@Nonnull Select select, @Nonnull TemplateCompiler compiler) {
         return new CompiledElement(compiler.getQueryModel().getColumns(select.table(), select.mode()).stream()
-                .map(column -> "%s%s".formatted(column.alias().isEmpty() ? "" : column.alias() + ".", column.name()))
+                .map(ColumnExpression::toSql)
                 .collect(joining(", ")));
     }
 

@@ -24,22 +24,33 @@ import static st.orm.UpdateMode.OFF;
 import static st.orm.core.repository.impl.DirtySupport.getUpdateMode;
 import static st.orm.core.spi.Providers.getORMConverter;
 import static st.orm.core.template.impl.RecordReflection.findPkField;
+import static st.orm.core.template.impl.RecordReflection.getDiscriminatorColumnJavaType;
+import static st.orm.core.template.impl.RecordReflection.getDiscriminatorType;
 import static st.orm.core.template.impl.RecordReflection.getRecordType;
 import static st.orm.core.template.impl.RecordReflection.getRefDataType;
 import static st.orm.core.template.impl.RecordReflection.getRefPkType;
+import static st.orm.core.template.impl.RecordReflection.isJoinedEntity;
+import static st.orm.core.template.impl.RecordReflection.isPolymorphicData;
 import static st.orm.core.template.impl.RecordReflection.isRecord;
+import static st.orm.core.template.impl.RecordReflection.normalizeDiscriminatorValue;
+import static st.orm.core.template.impl.RecordReflection.resolveConcreteType;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
 import st.orm.Data;
 import st.orm.DbEnum;
+import st.orm.Discriminator;
 import st.orm.Entity;
 import st.orm.EnumType;
 import st.orm.Ref;
@@ -132,6 +143,222 @@ final class RecordMapper {
     }
 
     /**
+     * Returns a factory for creating instances from a sealed entity type (single-table or joined).
+     * The factory reads a discriminator column to determine which concrete subtype to instantiate.
+     *
+     * @param columnCount the number of columns (including discriminator).
+     * @param sealedType the sealed entity interface class.
+     * @param refFactory the factory for creating ref instances.
+     * @param transactionContext the current transaction context.
+     * @return a factory for creating instances of the concrete subtypes.
+     * @param <T> the sealed entity interface type.
+     * @throws SqlTemplateException if compilation fails.
+     */
+    @SuppressWarnings("unchecked")
+    static <T> Optional<ObjectMapper<T>> getSealedFactory(int columnCount,
+                                                          @Nonnull Class<T> sealedType,
+                                                          @Nonnull RefFactory refFactory,
+                                                          @Nullable TransactionContext transactionContext) throws SqlTemplateException {
+        SealedCompiled sealedCompiled = sealedCompiledFor(sealedType, refFactory);
+        if (sealedCompiled.totalColumnCount() != columnCount) {
+            return empty();
+        }
+        // Create per-subtype ObjectMappers with a shared interner so that nested records
+        // (e.g., a City referenced by both Car and Truck) are deduplicated across subtypes.
+        var interner = new WeakInterner();
+        Map<Object, ObjectMapper<?>> subtypeMappers = new HashMap<>();
+        for (var entry : sealedCompiled.subtypeInfo().entrySet()) {
+            Object discriminatorValue = entry.getKey();
+            SubtypeInfo info = entry.getValue();
+            subtypeMappers.put(discriminatorValue, wrapConstructor(info.recordType(), refFactory, transactionContext, interner));
+        }
+        var discriminatorType = getDiscriminatorType(sealedType);
+        return Optional.of(new ObjectMapper<>() {
+            @Override
+            public Class<?>[] getParameterTypes() {
+                return sealedCompiled.parameterTypes();
+            }
+
+            @Override
+            public T newInstance(@Nonnull Object[] args) throws SqlTemplateException {
+                // First column is always the discriminator.
+                Object discriminatorRaw = args[sealedCompiled.discriminatorOffset()];
+                if (discriminatorRaw == null) {
+                    throw new SqlTemplateException("Discriminator column is null for sealed type %s."
+                            .formatted(sealedType.getSimpleName()));
+                }
+                Object discriminatorValue = normalizeDiscriminatorValue(discriminatorRaw, discriminatorType);
+                SubtypeInfo info = sealedCompiled.subtypeInfo().get(discriminatorValue);
+                if (info == null) {
+                    throw new SqlTemplateException("Unknown discriminator value '%s' for sealed type %s."
+                            .formatted(discriminatorValue, sealedType.getSimpleName()));
+                }
+                ObjectMapper<?> mapper = subtypeMappers.get(discriminatorValue);
+                // Extract subtype-specific args from the union args.
+                Object[] subtypeArgs = new Object[info.columnCount()];
+                for (int i = 0; i < info.columnOffsets().length; i++) {
+                    subtypeArgs[i] = args[info.columnOffsets()[i]];
+                }
+                // For joined-table inheritance, verify that extension-specific columns are not all
+                // null. If they are, the extension table row is likely missing (data corruption).
+                if (sealedCompiled.joined() && info.extensionColumnIndices().length > 0) {
+                    boolean allExtensionColumnsNull = true;
+                    for (int idx : info.extensionColumnIndices()) {
+                        if (subtypeArgs[idx] != null) {
+                            allExtensionColumnsNull = false;
+                            break;
+                        }
+                    }
+                    if (allExtensionColumnsNull) {
+                        throw new SqlTemplateException(
+                                ("Discriminator indicates type '%s' for sealed type %s, but no matching extension row" +
+                                    " was found. This may indicate data corruption (missing extension table row).")
+                                        .formatted(discriminatorValue, sealedType.getSimpleName()));
+                    }
+                }
+                return (T) mapper.newInstance(subtypeArgs);
+            }
+        });
+    }
+
+    /**
+     * Holds compiled information for a sealed entity hierarchy.
+     */
+    private record SealedCompiled(
+            @Nonnull Class<?>[] parameterTypes,
+            int totalColumnCount,
+            int discriminatorOffset,
+            boolean joined,
+            @Nonnull Map<Object, SubtypeInfo> subtypeInfo
+    ) {}
+
+    /**
+     * Information about a single concrete subtype in a sealed hierarchy.
+     */
+    private record SubtypeInfo(
+            @Nonnull RecordType recordType,
+            @Nonnull Object discriminatorValue,
+            int columnCount,
+            int[] columnOffsets,  // Maps subtype column index -> union column index
+            int[] extensionColumnIndices  // Subtype column indices that are extension-specific (not common)
+    ) {}
+
+    /** Cache of sealed entity compiled plans, keyed by sealed interface class. */
+    private static final ConcurrentMap<Class<?>, SealedCompiled> SEALED_COMPILED = new ConcurrentHashMap<>();
+
+    /**
+     * Returns the compiled sealed entity information, creating and caching it if necessary.
+     */
+    private static SealedCompiled sealedCompiledFor(@Nonnull Class<?> sealedType,
+                                                     @Nonnull RefFactory refFactory) throws SqlTemplateException {
+        try {
+            return SEALED_COMPILED.computeIfAbsent(sealedType, t -> {
+                try {
+                    return compileSealedPlan(t, refFactory);
+                } catch (SqlTemplateException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        } catch (RuntimeException e) {
+            if (e.getCause() instanceof SqlTemplateException ste) throw ste;
+            throw e;
+        }
+    }
+
+    /**
+     * Compiles a plan for a sealed entity hierarchy. Determines the union of columns across all subtypes,
+     * including the discriminator column.
+     */
+    private static SealedCompiled compileSealedPlan(@Nonnull Class<?> sealedType,
+                                                     @Nonnull RefFactory refFactory) throws SqlTemplateException {
+        Class<?>[] permittedArray = sealedType.getPermittedSubclasses();
+        if (permittedArray == null) {
+            throw new SqlTemplateException("Sealed type %s has no permitted subclasses.".formatted(sealedType.getSimpleName()));
+        }
+        List<Class<?>> subtypes = List.of(permittedArray);
+        if (subtypes.isEmpty()) {
+            throw new SqlTemplateException("Sealed type %s has no permitted subclasses.".formatted(sealedType.getSimpleName()));
+        }
+        // Build the union column list. For single-table, the union is:
+        // [discriminator] + [union of all subtype fields]
+        // For each subtype, compute its columns and their offsets in the union.
+        // First, build a map of fieldName -> union offset. Fields shared by multiple subtypes occupy the same offset.
+        List<String> unionFieldNames = new ArrayList<>();
+        List<Class<?>> unionFieldTypes = new ArrayList<>();
+        // Add discriminator column first.
+        unionFieldNames.add(RecordReflection.getDiscriminatorColumn(sealedType));
+        unionFieldTypes.add(getDiscriminatorColumnJavaType(sealedType));
+        int discriminatorOffset = 0;
+        // Track field name to union index mapping.
+        Map<String, Integer> fieldToUnionIndex = new HashMap<>();
+        for (Class<?> subtype : subtypes) {
+            RecordType subRecordType = getRecordType(subtype);
+            Class<?>[] subtypeParamTypes = expandParameterTypes(subRecordType, refFactory);
+            List<RecordField> fields = subRecordType.fields();
+            int flatIndex = 0;
+            for (RecordField field : fields) {
+                int fieldColumnCount = getFieldColumnCount(field);
+                for (int col = 0; col < fieldColumnCount; col++) {
+                    String key = field.name() + (fieldColumnCount > 1 ? "." + col : "");
+                    if (!fieldToUnionIndex.containsKey(key)) {
+                        fieldToUnionIndex.put(key, unionFieldNames.size());
+                        unionFieldNames.add(key);
+                        unionFieldTypes.add(subtypeParamTypes[flatIndex]);
+                    }
+                    flatIndex++;
+                }
+            }
+        }
+        // Compute common field names (fields present in ALL subtypes) for extension row validation.
+        boolean joined = isJoinedEntity(sealedType);
+        Map<String, Integer> fieldOccurrenceCount = new HashMap<>();
+        for (Class<?> subtype : subtypes) {
+            RecordType subRecordType = getRecordType(subtype);
+            for (var field : subRecordType.fields()) {
+                fieldOccurrenceCount.merge(field.name(), 1, Integer::sum);
+            }
+        }
+        Set<String> commonFieldNames = new HashSet<>();
+        for (var entry : fieldOccurrenceCount.entrySet()) {
+            if (entry.getValue() == subtypes.size()) {
+                commonFieldNames.add(entry.getKey());
+            }
+        }
+        // Now build SubtypeInfo for each subtype.
+        Map<Object, SubtypeInfo> subtypeInfoMap = new HashMap<>();
+        for (Class<?> subtype : subtypes) {
+            RecordType subRecordType = getRecordType(subtype);
+            Object discriminatorValue = RecordReflection.getDiscriminatorValue(subtype, sealedType);
+            Class<?>[] subtypeParamTypes = expandParameterTypes(subRecordType, refFactory);
+            List<RecordField> fields = subRecordType.fields();
+            int[] offsets = new int[subtypeParamTypes.length];
+            List<Integer> extensionIndices = new ArrayList<>();
+            int flatIndex = 0;
+            for (RecordField field : fields) {
+                int fieldColumnCount = getFieldColumnCount(field);
+                boolean isExtension = !commonFieldNames.contains(field.name());
+                for (int col = 0; col < fieldColumnCount; col++) {
+                    String key = field.name() + (fieldColumnCount > 1 ? "." + col : "");
+                    offsets[flatIndex] = fieldToUnionIndex.get(key);
+                    if (isExtension) {
+                        extensionIndices.add(flatIndex);
+                    }
+                    flatIndex++;
+                }
+            }
+            subtypeInfoMap.put(discriminatorValue, new SubtypeInfo(
+                    subRecordType, discriminatorValue, subtypeParamTypes.length, offsets,
+                    extensionIndices.stream().mapToInt(Integer::intValue).toArray()));
+        }
+        return new SealedCompiled(
+                unionFieldTypes.toArray(new Class<?>[0]),
+                unionFieldNames.size(),
+                discriminatorOffset,
+                joined,
+                Map.copyOf(subtypeInfoMap));
+    }
+
+    /**
      * Holds the compiled mapping plan and expanded parameter types for a record type.
      *
      * @param plan the compiled argument plan for adapting flat JDBC args to constructor args.
@@ -186,6 +413,9 @@ final class RecordMapper {
                 if (isRecord(field.type())) {
                     // Recursion for nested records.
                     count += getParameterCount(getRecordType(field.type()));
+                } else if (Ref.class.isAssignableFrom(field.type()) && isPolymorphicData(getRefDataType(field))) {
+                    // Polymorphic FK: discriminator + PK columns.
+                    count += 2;
                 } else {
                     count += 1; // Component of the record, count as one.
                 }
@@ -205,6 +435,13 @@ final class RecordMapper {
     private static <T> ObjectMapper<T> wrapConstructor(@Nonnull RecordType type,
                                                        @Nonnull RefFactory refFactory,
                                                        @Nullable TransactionContext transactionContext) throws SqlTemplateException {
+        return wrapConstructor(type, refFactory, transactionContext, new WeakInterner());
+    }
+
+    private static <T> ObjectMapper<T> wrapConstructor(@Nonnull RecordType type,
+                                                       @Nonnull RefFactory refFactory,
+                                                       @Nullable TransactionContext transactionContext,
+                                                       @Nonnull WeakInterner interner) throws SqlTemplateException {
         Compiled compiled = compiledFor(type, refFactory);
         boolean isEntity = Entity.class.isAssignableFrom(type.type());
         // Determine cache read/write policy.
@@ -222,7 +459,6 @@ final class RecordMapper {
             entityCache = null;
         }
         PkInfo pkInfo = compiled.pkInfo();
-        var interner = new WeakInterner();
         return new ObjectMapper<>() {
             @Override
             public Class<?>[] getParameterTypes() {
@@ -317,8 +553,15 @@ final class RecordMapper {
                 // Recursively expand record components.
                 addAll(expandedTypes, expandParameterTypes(getRecordType(parameterTypes[i]), refFactory));
             } else if (Ref.class.isAssignableFrom(parameterTypes[i])) {
-                // Ref type, add the parameterized type.
-                expandedTypes.add(getRefPkType(fields.get(i)));
+                Class<? extends Data> refDataType = getRefDataType(fields.get(i));
+                if (isPolymorphicData(refDataType)) {
+                    // Polymorphic FK: discriminator (String) + PK type.
+                    expandedTypes.add(String.class);
+                    expandedTypes.add(getRefPkType(fields.get(i)));
+                } else {
+                    // Regular Ref: just the PK type.
+                    expandedTypes.add(getRefPkType(fields.get(i)));
+                }
             } else {
                 // Non-record type, add directly.
                 expandedTypes.add(parameterTypes[i]);
@@ -592,6 +835,41 @@ final class RecordMapper {
     }
 
     /**
+     * Step that creates a {@link Ref} instance for a polymorphic foreign key.
+     *
+     * <p>Consumes two columns: a discriminator value and a primary key value.
+     * Uses the discriminator to determine the concrete entity type, then creates a Ref
+     * pointing to that type.</p>
+     */
+    private static final class PolymorphicRefStep implements Step {
+        private final Class<?> sealedType;
+        private final Discriminator.DiscriminatorType discriminatorType;
+
+        private PolymorphicRefStep(@Nonnull Class<?> sealedType) {
+            this.sealedType = sealedType;
+            this.discriminatorType = getDiscriminatorType(sealedType);
+        }
+
+        @Override
+        public Object apply(@Nonnull Object[] flatArgs,
+                            @Nonnull Offset offset,
+                            boolean parentNullable,
+                            @Nonnull RefFactory refFactory,
+                            @Nonnull WeakInterner interner,
+                            @Nullable TransactionContext context) throws SqlTemplateException {
+            Object discriminatorRaw = flatArgs[offset.i++];
+            Object pk = flatArgs[offset.i++];
+            if (discriminatorRaw == null || pk == null) {
+                return null;
+            }
+            Object discriminatorValue = normalizeDiscriminatorValue(discriminatorRaw, discriminatorType);
+            @SuppressWarnings("unchecked")
+            Class<? extends Data> concreteType = (Class<? extends Data>) resolveConcreteType(sealedType, discriminatorValue);
+            return interner.intern(refFactory.create(concreteType, pk));
+        }
+    }
+
+    /**
      * Step that recursively constructs a nested record or entity from multiple columns.
      *
      * <p>This step handles the most complex case: nested record types that may themselves contain
@@ -816,7 +1094,13 @@ final class RecordMapper {
                 EnumType enumType = ofNullable(field.getAnnotation(DbEnum.class)).map(DbEnum::value).orElse(NAME);
                 steps[i] = new EnumStep(p, enumType, type.type().getSimpleName(), field.name());
             } else if (Ref.class.isAssignableFrom(p)) {
-                steps[i] = new RefStep(getRefDataType(field));
+                Class<? extends Data> refDataType = getRefDataType(field);
+                if (isPolymorphicData(refDataType)) {
+                    // Polymorphic FK: two columns (discriminator + PK).
+                    steps[i] = new PolymorphicRefStep(refDataType);
+                } else {
+                    steps[i] = new RefStep(refDataType);
+                }
             } else {
                 steps[i] = new PlainStep();
             }
@@ -897,6 +1181,10 @@ final class RecordMapper {
         }
         if (isRecord(field.type())) {
             return getParameterCount(getRecordType(field.type()));
+        }
+        if (Ref.class.isAssignableFrom(field.type()) && isPolymorphicData(getRefDataType(field))) {
+            // Polymorphic FK: discriminator + PK columns.
+            return 2;
         }
         return 1;
     }

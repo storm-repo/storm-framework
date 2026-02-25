@@ -492,8 +492,9 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * Deletes an entity from the database.
      *
      *
-     * This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database and is correctly identified by its primary key.
+     * This method removes an existing entity from the database. The entity must exist in the database; if it does
+     * not, a [st.orm.PersistenceException] is thrown. Unlike [deleteById] and [deleteByRef], this method is strict
+     * rather than idempotent, because possessing the full entity implies the caller expects it to exist.
      *
      * @param entity the entity to delete. The entity must exist in the database and should be correctly identified by
      * its primary key.
@@ -507,28 +508,25 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * Deletes an entity from the database based on its primary key.
      *
      *
-     * This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database.
+     * This method ensures the entity with the given primary key is removed from the database. If the entity does
+     * not exist, the operation completes successfully without error (idempotent behavior).
      *
      * @param id the primary key of the entity to delete.
-     * @throws st.orm.PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
-     * being found in the database, violations of database constraints, connectivity
-     * issues, or if the entity parameter is null.
+     * @throws st.orm.PersistenceException if the deletion operation fails due to violations of database constraints,
+     * connectivity issues, or if the id parameter is null.
      */
     fun deleteById(id: ID)
 
     /**
-     * Deletes an entity from the database.
+     * Deletes an entity from the database by its reference.
      *
      *
-     * This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database and is correctly identified by its primary key.
+     * This method ensures the entity identified by the given reference is removed from the database. If the entity
+     * does not exist, the operation completes successfully without error (idempotent behavior).
      *
-     * @param ref the entity to delete. The entity must exist in the database and should be correctly identified by
-     * its ref.
-     * @throws st.orm.PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
-     * being found in the database, violations of database constraints, connectivity
-     * issues, or if the entity parameter is null.
+     * @param ref the reference to the entity to delete.
+     * @throws st.orm.PersistenceException if the deletion operation fails due to violations of database constraints,
+     * connectivity issues, or if the ref parameter is null.
      */
     fun deleteByRef(ref: Ref<E>)
 

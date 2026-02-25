@@ -1,5 +1,6 @@
 package st.orm.core;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -54,10 +55,10 @@ public class EntityRepositoryExtendedIntegrationTest {
     }
 
     @Test
-    public void testDeleteByIdNonExistentThrows() {
+    public void testDeleteByIdNonExistent() {
         var orm = ORMTemplate.of(dataSource);
         var cities = orm.entity(City.class);
-        assertThrows(PersistenceException.class, () -> cities.deleteById(99999));
+        assertDoesNotThrow(() -> cities.deleteById(99999));
     }
 
     // ---- deleteByRef ----
@@ -74,11 +75,11 @@ public class EntityRepositoryExtendedIntegrationTest {
     }
 
     @Test
-    public void testDeleteByRefNonExistentThrows() {
+    public void testDeleteByRefNonExistent() {
         var orm = ORMTemplate.of(dataSource);
         var cities = orm.entity(City.class);
         Ref<City> ref = Ref.of(City.class, 99999);
-        assertThrows(PersistenceException.class, () -> cities.deleteByRef(ref));
+        assertDoesNotThrow(() -> cities.deleteByRef(ref));
     }
 
     // ---- deleteAll ----

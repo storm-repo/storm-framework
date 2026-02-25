@@ -59,6 +59,7 @@ import st.orm.core.template.PreparedQuery;
 import st.orm.core.template.QueryBuilder;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.Templates;
+import st.orm.core.template.impl.JoinedEntityHelper;
 import st.orm.core.template.impl.LazySupplier;
 
 /**
@@ -545,6 +546,11 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     public void insert(@Nonnull E entity) {
         entity = fireBeforeInsert(entity);
         validateInsert(entity);
+        if (model.isJoinedInheritance()) {
+            JoinedEntityHelper.insert(ormTemplate, model, entity);
+            fireAfterInsert(entity);
+            return;
+        }
         var query = ormTemplate.query(TemplateString.raw("""
                 INSERT INTO \0
                 VALUES \0""", model.type(), entity))
@@ -599,6 +605,11 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     public ID insertAndFetchId(@Nonnull E entity) {
         entity = fireBeforeInsert(entity);
         validateInsert(entity);
+        if (model.isJoinedInheritance()) {
+            ID id = JoinedEntityHelper.insertAndFetchId(ormTemplate, model, entity);
+            fireAfterInsert(entity);
+            return id;
+        }
         try (var query = ormTemplate.query(TemplateString.raw("""
                 INSERT INTO \0
                 VALUES \0""", model.type(), entity)).managed().prepare()) {
@@ -829,6 +840,17 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     @Override
     public void update(@Nonnull E entity) {
         E e = fireBeforeUpdate(entity);
+        if (model.isJoinedInheritance()) {
+            validateUpdate(e);
+            entityCache().ifPresent(cache -> {
+                if (!model.isDefaultPrimaryKey(e.id())) {
+                    cache.remove(e.id());
+                }
+            });
+            JoinedEntityHelper.update(ormTemplate, model, e);
+            fireAfterUpdate(e);
+            return;
+        }
         var entityCache = entityCache();
         var dirty = getDirty(e, entityCache.orElse(null));
         if (dirty.isEmpty()) {
@@ -879,6 +901,12 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         return new PersistenceException("Upsert is not available for the default implementation.");
     }
 
+    private void requireNonJoinedSealedEntity() {
+        if (model.isJoinedInheritance()) {
+            throw new PersistenceException("Upsert is not supported for joined sealed entities.");
+        }
+    }
+
     /**
      * Inserts or updates a single entity in the database.
      *
@@ -907,6 +935,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
             insert(entity);
             return;
         }
+        requireNonJoinedSealedEntity();
         entity = fireBeforeUpsert(entity);
         doUpsert(entity);
         fireAfterUpsert(entity);
@@ -950,6 +979,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         if (isUpsertInsert(entity)) {
             return insertAndFetchId(entity);
         }
+        requireNonJoinedSealedEntity();
         entity = fireBeforeUpsert(entity);
         ID id = doUpsertAndFetchId(entity);
         fireAfterUpsert(entity);
@@ -994,8 +1024,9 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     /**
      * Deletes an entity from the database.
      *
-     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database and is correctly identified by its primary key.</p>
+     * <p>This method removes an existing entity from the database. The entity must exist in the database; if it does
+     * not, a {@link PersistenceException} is thrown. Unlike {@link #deleteById} and {@link #deleteByRef}, this method
+     * is strict rather than idempotent, because possessing the full entity implies the caller expects it to exist.</p>
      *
      * @param entity the entity to delete. The entity must exist in the database and should be correctly identified by
      *               its primary key.
@@ -1012,6 +1043,11 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                 cache.remove(entity.id());
             }
         });
+        if (model.isJoinedInheritance()) {
+            JoinedEntityHelper.delete(ormTemplate, model, entity);
+            fireAfterDelete(entity);
+            return;
+        }
         // Don't use query builder to prevent WHERE IN clause.
         int result = ormTemplate.query(TemplateString.raw("""
                 DELETE FROM \0
@@ -1027,53 +1063,48 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     /**
      * Deletes an entity from the database based on its primary key.
      *
-     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database.</p>
+     * <p>This method ensures the entity with the given primary key is removed from the database. If the entity does
+     * not exist, the operation completes successfully without error (idempotent behavior).</p>
      *
      * @param id the primary key of the entity to delete.
-     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
-     *                              being found in the database, violations of database constraints, connectivity
-     *                              issues, or if the entity parameter is null.
+     * @throws PersistenceException if the deletion operation fails due to violations of database constraints,
+     *                              connectivity issues, or if the id parameter is null.
      */
     @Override
     public void deleteById(@Nonnull ID id) {
         entityCache().ifPresent(cache -> cache.remove(id));
+        if (model.isJoinedInheritance()) {
+            JoinedEntityHelper.deleteById(ormTemplate, model, id);
+            return;
+        }
         // Don't use query builder to prevent WHERE IN clause.
-        int result = ormTemplate.query(TemplateString.raw("""
+        ormTemplate.query(TemplateString.raw("""
                 DELETE FROM \0
                 WHERE \0""", model.type(), id))
                 .managed()
                 .executeUpdate();
-        if (result != 1) {
-            throw new PersistenceException("Delete failed.");
-        }
     }
 
     /**
-     * Deletes an entity from the database.
+     * Deletes an entity from the database by its reference.
      *
-     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database and is correctly identified by its primary key.</p>
+     * <p>This method ensures the entity identified by the given reference is removed from the database. If the entity
+     * does not exist, the operation completes successfully without error (idempotent behavior).</p>
      *
-     * @param ref the entity to delete. The entity must exist in the database and should be correctly identified by
-     *            its ref.
-     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
-     *                              being found in the database, violations of database constraints, connectivity
-     *                              issues, or if the entity parameter is null.
+     * @param ref the reference to the entity to delete.
+     * @throws PersistenceException if the deletion operation fails due to violations of database constraints,
+     *                              connectivity issues, or if the ref parameter is null.
      */
     @Override
     public void deleteByRef(@Nonnull Ref<E> ref) {
         //noinspection unchecked
         entityCache().ifPresent(cache -> cache.remove((ID) ref.id()));
         // Don't use query builder to prevent WHERE IN clause.
-        int result = ormTemplate.query(TemplateString.raw("""
+        ormTemplate.query(TemplateString.raw("""
                 DELETE FROM \0
                 WHERE \0""", model.type(), ref))
                 .managed()
                 .executeUpdate();
-        if (result != 1) {
-            throw new PersistenceException("Delete failed.");
-        }
     }
 
     /**
@@ -1097,6 +1128,22 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     }
 
     // List based methods.
+
+    /**
+     * Inserts a batch of joined (sealed/polymorphic) entities into both base and extension tables.
+     *
+     * <p>This method delegates to {@link JoinedEntityHelper#insertBatch} by default. Dialect-specific
+     * implementations may override this method to handle database-specific limitations, such as SQL Server's
+     * lack of support for {@code getGeneratedKeys()} after {@code executeBatch()}.</p>
+     *
+     * @param entities the entities to insert (already validated and transformed by callbacks).
+     * @return the list of generated (or provided) primary keys, one per entity.
+     * @throws PersistenceException if the insert fails.
+     * @since 1.9
+     */
+    protected List<ID> insertJoinedBatch(@Nonnull List<E> entities) {
+        return JoinedEntityHelper.insertBatch(ormTemplate, model, entities);
+    }
 
     /**
      * Inserts a collection of entities into the database in batches.
@@ -1154,6 +1201,15 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public List<ID> insertAndFetchIds(@Nonnull Iterable<E> entities) {
+        if (model.isJoinedInheritance()) {
+            return chunked(toStream(entities), defaultBatchSize, batch -> {
+                List<E> transformed = batch.stream().map(this::fireBeforeInsert).toList();
+                transformed.forEach(this::validateInsert);
+                List<ID> ids = insertJoinedBatch(transformed);
+                transformed.forEach(this::fireAfterInsert);
+                return ids.stream();
+            }).toList();
+        }
         try (var query = prepareInsertQuery()) {
             return chunked(toStream(entities), defaultBatchSize,
                     batch -> insertAndFetchIds(batch, query).stream()
@@ -1258,6 +1314,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public List<ID> upsertAndFetchIds(@Nonnull Iterable<E> entities) {
+        requireNonJoinedSealedEntity();
         Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         LazySupplier<PreparedQuery> insertQuery = isAutoGeneratedPrimaryKey()
                 ? new LazySupplier<>(this::prepareInsertQuery) : null;
@@ -1421,6 +1478,15 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void insert(@Nonnull Stream<E> entities, int batchSize) {
+        if (model.isJoinedInheritance()) {
+            chunked(entities, batchSize).forEach(batch -> {
+                List<E> transformed = batch.stream().map(this::fireBeforeInsert).toList();
+                transformed.forEach(this::validateInsert);
+                insertJoinedBatch(transformed);
+                transformed.forEach(this::fireAfterInsert);
+            });
+            return;
+        }
         try (var query = prepareInsertQuery()) {
             chunked(entities, batchSize)
                     .forEach(batch -> insert(batch, query));
@@ -1444,6 +1510,15 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void insert(@Nonnull Stream<E> entities, int batchSize, boolean ignoreAutoGenerate) {
+        if (model.isJoinedInheritance()) {
+            chunked(entities, batchSize).forEach(batch -> {
+                List<E> transformed = batch.stream().map(this::fireBeforeInsert).toList();
+                transformed.forEach(e -> validateInsert(e, ignoreAutoGenerate));
+                insertJoinedBatch(transformed);
+                transformed.forEach(this::fireAfterInsert);
+            });
+            return;
+        }
         try (var query = prepareInsertQuery(ignoreAutoGenerate)) {
             chunked(entities, batchSize)
                     .forEach(batch -> insert(batch, query, ignoreAutoGenerate));
@@ -1556,6 +1631,21 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void update(@Nonnull Stream<E> entities, int batchSize) {
+        if (model.isJoinedInheritance()) {
+            Stream<E> mapped = entityCallbacks.isEmpty()
+                    ? entities
+                    : entities.map(this::fireBeforeUpdate);
+            var entityCache = entityCache();
+            chunked(mapped, batchSize).forEach(batch -> {
+                batch.forEach(this::validateUpdate);
+                entityCache.ifPresent(cache -> batch.stream()
+                        .filter(e -> !model.isDefaultPrimaryKey(e.id()))
+                        .forEach(e -> cache.remove(e.id())));
+                JoinedEntityHelper.updateBatch(ormTemplate, model, batch);
+                batch.forEach(this::fireAfterUpdate);
+            });
+            return;
+        }
         Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         try {
             var entityCache = entityCache();
@@ -1708,6 +1798,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void upsert(@Nonnull Stream<E> entities, int batchSize) {
+        requireNonJoinedSealedEntity();
         Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         LazySupplier<PreparedQuery> insertQuery = isAutoGeneratedPrimaryKey()
                 ? new LazySupplier<>(this::prepareInsertQuery) : null;
@@ -1836,6 +1927,21 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void delete(@Nonnull Stream<E> entities, int batchSize) {
+        if (model.isJoinedInheritance()) {
+            var entityCache = entityCache();
+            chunked(entities, batchSize).forEach(batch -> {
+                batch.forEach(e -> {
+                    validateDelete(e);
+                    fireBeforeDelete(e);
+                });
+                entityCache.ifPresent(cache -> batch.stream()
+                        .filter(e -> !model.isDefaultPrimaryKey(e.id()))
+                        .forEach(e -> cache.remove(e.id())));
+                JoinedEntityHelper.deleteBatch(ormTemplate, model, batch);
+                batch.forEach(this::fireAfterDelete);
+            });
+            return;
+        }
         var bindVars = ormTemplate.createBindVars();
         var entityCache = entityCache();
         try (var query = ormTemplate.query(TemplateString.raw("""
@@ -1894,6 +2000,17 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void deleteByRef(@Nonnull Stream<Ref<E>> refs, int batchSize) {
+        if (model.isJoinedInheritance()) {
+            var entityCache = entityCache();
+            chunked(refs, batchSize).forEach(chunk -> {
+                //noinspection unchecked
+                entityCache.ifPresent(cache -> chunk.stream()
+                        .filter(r -> !model.isDefaultPrimaryKey((ID) r.id()))
+                        .forEach(r -> cache.remove((ID) r.id())));
+                JoinedEntityHelper.deleteBatchByRef(ormTemplate, model, chunk);
+            });
+            return;
+        }
         var entityCache = entityCache();
         chunked(refs, batchSize).forEach(chunk -> {
             //noinspection unchecked
@@ -1901,14 +2018,11 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                     .filter(r -> !model.isDefaultPrimaryKey((ID) r.id()))
                     .forEach(r -> cache.remove((ID) r.id())));
             // Don't use query builder to prevent WHERE IN clause.
-            int result = ormTemplate.query(TemplateString.raw("""
+            ormTemplate.query(TemplateString.raw("""
                     DELETE FROM \0
                     WHERE \0""", model.type(), chunk))
                     .managed()
                     .executeUpdate();
-            if (result < chunk.stream().distinct().count()) {
-                throw new PersistenceException("Delete failed.");
-            }
         });
     }
 

@@ -141,6 +141,7 @@ Storm does not implement upsert logic in application code. Instead, it delegates
 1. **Database dialect** -- include the appropriate dialect dependency for your database (see [Dialects](dialects.md))
 2. **Unique constraints** -- the table must have a primary key or unique constraint for conflict detection
 3. **Null ID for new inserts** -- pass `null` (Java) or default `0` (Kotlin) for the primary key field to allow the database to generate a value
+4. **Not a joined sealed entity** -- upsert is not supported for [Joined Table](polymorphism.md#joined-table-inheritance) polymorphic entities, because SQL-level upsert constructs (`ON CONFLICT`, `MERGE`, etc.) are fundamentally single-table operations. Use `insert()` and `update()` separately instead
 
 ## Common Use Cases
 

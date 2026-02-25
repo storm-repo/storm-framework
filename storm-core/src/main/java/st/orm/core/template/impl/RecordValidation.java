@@ -221,9 +221,17 @@ final class RecordValidation {
                 } else {
                     return "Foreign key must either be a Data type or a Ref: %s.%s.".formatted(dataType.getSimpleName(), field.name());
                 }
-                String message = validate(fkType, true, duplicates);
-                if (!message.isEmpty()) {
-                    return message + " Should %s.%s be marked as @FK?".formatted(field.type().getSimpleName(), field.name());
+                // Sealed types (polymorphic FK, single-table, joined) are validated separately.
+                if (fkType.isSealed() && RecordReflection.detectSealedPattern(fkType).isPresent()) {
+                    String fkMessage = doValidateDataType(fkType, RecordReflection.isSealedEntity(fkType));
+                    if (!fkMessage.isEmpty()) {
+                        return fkMessage;
+                    }
+                } else {
+                    String message = validate(fkType, true, duplicates);
+                    if (!message.isEmpty()) {
+                        return message + " Should %s.%s be marked as @FK?".formatted(field.type().getSimpleName(), field.name());
+                    }
                 }
             }
             if (inline != null) {
@@ -310,13 +318,45 @@ final class RecordValidation {
         if (!Data.class.isAssignableFrom(dataType)) {
             throw new IllegalArgumentException("Not a data type: %s".formatted(dataType.getSimpleName()));
         }
-        String message = VALIDATE_RECORD_TYPE_CACHE.computeIfAbsent(new TypeValidationKey(dataType, requirePrimaryKey), ignore -> {
-            // Note that this result can be cached as we're inspecting types.
-            return validate(dataType, requirePrimaryKey, new HashSet<>());
-        });
+        String message = VALIDATE_RECORD_TYPE_CACHE.computeIfAbsent(
+                new TypeValidationKey(dataType, requirePrimaryKey),
+                ignore -> doValidateDataType(dataType, requirePrimaryKey));
         if (!message.isEmpty()) {
             throw new SqlTemplateException(message);
         }
+    }
+
+    /**
+     * Performs the actual validation without caching. All internal recursive calls go through this method
+     * to avoid {@link java.util.concurrent.ConcurrentHashMap#computeIfAbsent} recursive update issues.
+     */
+    @SuppressWarnings("unchecked")
+    private static String doValidateDataType(@Nonnull Class<? extends Data> dataType, boolean requirePrimaryKey) {
+        // Sealed entity interfaces (Single-Table/Joined) are valid even though they are not records.
+        // Their subtypes are validated individually.
+        if (dataType.isSealed() && RecordReflection.isSealedEntity(dataType)) {
+            String hierarchyMessage = RecordReflection.validateSealedHierarchy(dataType);
+            if (!hierarchyMessage.isEmpty()) {
+                return hierarchyMessage;
+            }
+            Class<?>[] permitted = dataType.getPermittedSubclasses();
+            if (permitted != null) {
+                for (Class<?> sub : permitted) {
+                    if (Data.class.isAssignableFrom(sub)) {
+                        String subMessage = doValidateDataType((Class<? extends Data>) sub, requirePrimaryKey);
+                        if (!subMessage.isEmpty()) {
+                            return subMessage;
+                        }
+                    }
+                }
+            }
+            return "";
+        }
+        // Polymorphic Data interfaces (Polymorphic FK) are valid even though they are not records.
+        if (dataType.isSealed() && RecordReflection.isPolymorphicData(dataType)) {
+            return RecordReflection.validateSealedHierarchy(dataType);
+        }
+        return validate(dataType, requirePrimaryKey, new HashSet<>());
     }
 
     record GraphValidationKey(@Nonnull Class<? extends Data> dataType) {}

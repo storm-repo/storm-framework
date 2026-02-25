@@ -249,3 +249,91 @@ VALUES ('2023-01-13', 'rabies shot', 6);
 
 INSERT INTO visit (visit_date, description, pet_id)
 VALUES ('2023-01-13', 'spayed', 7);
+
+-- Polymorphic tables for sealed type hierarchy tests.
+
+-- Pattern A: Single-Table Inheritance
+IF OBJECT_ID('animal', 'U') IS NOT NULL
+DROP TABLE animal;
+
+CREATE TABLE animal (
+    id int IDENTITY(1,1) PRIMARY KEY,
+    dtype varchar(50) NOT NULL,
+    name varchar(255),
+    indoor bit,
+    weight int
+);
+
+INSERT INTO animal (dtype, name, indoor) VALUES ('Cat', 'Whiskers', 1);
+INSERT INTO animal (dtype, name, indoor) VALUES ('Cat', 'Luna', 0);
+INSERT INTO animal (dtype, name, weight) VALUES ('Dog', 'Rex', 30);
+INSERT INTO animal (dtype, name, weight) VALUES ('Dog', 'Max', 15);
+
+-- Pattern C: Joined Table Inheritance
+IF OBJECT_ID('joined_cat', 'U') IS NOT NULL
+DROP TABLE joined_cat;
+IF OBJECT_ID('joined_dog', 'U') IS NOT NULL
+DROP TABLE joined_dog;
+IF OBJECT_ID('joined_animal', 'U') IS NOT NULL
+DROP TABLE joined_animal;
+
+CREATE TABLE joined_animal (
+    id int IDENTITY(1,1) PRIMARY KEY,
+    dtype varchar(50) NOT NULL,
+    name varchar(255)
+);
+CREATE TABLE joined_cat (
+    id int NOT NULL PRIMARY KEY,
+    indoor bit
+);
+CREATE TABLE joined_dog (
+    id int NOT NULL PRIMARY KEY,
+    weight int
+);
+ALTER TABLE joined_cat ADD CONSTRAINT joined_cat_animal_fk FOREIGN KEY (id) REFERENCES joined_animal(id);
+ALTER TABLE joined_dog ADD CONSTRAINT joined_dog_animal_fk FOREIGN KEY (id) REFERENCES joined_animal(id);
+
+INSERT INTO joined_animal (dtype, name) VALUES ('JoinedCat', 'Whiskers');
+INSERT INTO joined_cat (id, indoor) VALUES (1, 1);
+INSERT INTO joined_animal (dtype, name) VALUES ('JoinedCat', 'Luna');
+INSERT INTO joined_cat (id, indoor) VALUES (2, 0);
+INSERT INTO joined_animal (dtype, name) VALUES ('JoinedDog', 'Rex');
+INSERT INTO joined_dog (id, weight) VALUES (3, 30);
+
+-- Pattern D: Joined Table Inheritance without @Discriminator
+IF OBJECT_ID('nodsc_cat', 'U') IS NOT NULL
+DROP TABLE nodsc_cat;
+IF OBJECT_ID('nodsc_dog', 'U') IS NOT NULL
+DROP TABLE nodsc_dog;
+IF OBJECT_ID('nodsc_bird', 'U') IS NOT NULL
+DROP TABLE nodsc_bird;
+IF OBJECT_ID('nodsc_animal', 'U') IS NOT NULL
+DROP TABLE nodsc_animal;
+
+CREATE TABLE nodsc_animal (
+    id int IDENTITY(1,1) PRIMARY KEY,
+    name varchar(255)
+);
+CREATE TABLE nodsc_cat (
+    id int NOT NULL PRIMARY KEY,
+    indoor bit
+);
+CREATE TABLE nodsc_dog (
+    id int NOT NULL PRIMARY KEY,
+    weight int
+);
+CREATE TABLE nodsc_bird (
+    id int NOT NULL PRIMARY KEY
+);
+ALTER TABLE nodsc_cat ADD CONSTRAINT nodsc_cat_animal_fk FOREIGN KEY (id) REFERENCES nodsc_animal(id);
+ALTER TABLE nodsc_dog ADD CONSTRAINT nodsc_dog_animal_fk FOREIGN KEY (id) REFERENCES nodsc_animal(id);
+ALTER TABLE nodsc_bird ADD CONSTRAINT nodsc_bird_animal_fk FOREIGN KEY (id) REFERENCES nodsc_animal(id);
+
+INSERT INTO nodsc_animal (name) VALUES ('Whiskers');
+INSERT INTO nodsc_cat (id, indoor) VALUES (1, 1);
+INSERT INTO nodsc_animal (name) VALUES ('Luna');
+INSERT INTO nodsc_cat (id, indoor) VALUES (2, 0);
+INSERT INTO nodsc_animal (name) VALUES ('Rex');
+INSERT INTO nodsc_dog (id, weight) VALUES (3, 30);
+INSERT INTO nodsc_animal (name) VALUES ('Tweety');
+INSERT INTO nodsc_bird (id) VALUES (4);

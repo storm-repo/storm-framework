@@ -52,9 +52,9 @@ interface QueryModel {
      * are included.</p>
      *
      * @param mode the selection mode that controls which columns are returned.
-     * @return the list of aliased columns for the root table.
+     * @return the list of column expressions for the root table.
      */
-    List<AliasedColumn> getColumns(@Nonnull SelectMode mode);
+    List<ColumnExpression> getColumns(@Nonnull SelectMode mode);
 
     /**
      * Returns the columns to be selected for the specified table type, according to the given selection mode.
@@ -64,9 +64,9 @@ interface QueryModel {
      *
      * @param table the table type for which columns should be returned.
      * @param mode  the selection mode that controls which columns are included.
-     * @return the list of aliased columns for the specified table type.
+     * @return the list of column expressions for the specified table type.
      */
-    List<AliasedColumn> getColumns(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode);
+    List<ColumnExpression> getColumns(@Nonnull Class<? extends Data> table, @Nonnull SelectMode mode);
 
     /**
      * Compiles the given expression into its SQL representation.
@@ -92,13 +92,13 @@ interface QueryModel {
     void bindExpression(@Nonnull Expression expression, @Nonnull TemplateBinder binder);
 
     /**
-     * Converts the specified column into an {@link AliasedColumn} using the current alias resolution rules.
+     * Converts the specified column into a {@link ColumnExpression} using the current alias resolution rules.
      *
      * <p>The resolved alias depends on the column's metamodel path and the joins that were introduced while building
      * the query model. An exception is thrown if no suitable alias can be found.</p>
      *
      * @param column the column to convert.
-     * @return the aliased representation of the column.
+     * @return the column expression with alias and optional SQL expression override.
      */
-    AliasedColumn toAliasedColumn(@Nonnull Column column);
+    ColumnExpression toColumnExpression(@Nonnull Column column);
 }

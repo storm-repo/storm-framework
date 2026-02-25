@@ -40,7 +40,9 @@ import static st.orm.core.template.impl.RecordReflection.getForeignKeys;
 import static st.orm.core.template.impl.RecordReflection.getPrimaryKeys;
 import static st.orm.core.template.impl.RecordReflection.getRecordType;
 import static st.orm.core.template.impl.RecordReflection.getRefDataType;
+import static st.orm.core.template.impl.RecordReflection.isJoinedEntity;
 import static st.orm.core.template.impl.RecordReflection.isRecord;
+import static st.orm.core.template.impl.RecordReflection.isSealedEntity;
 import static st.orm.core.template.impl.RecordReflection.isTypePresent;
 import static st.orm.core.template.impl.RecordReflection.mapForeignKeys;
 import static st.orm.core.template.impl.RecordValidation.validateDataType;
@@ -640,7 +642,9 @@ class TemplatePreparation {
                 alias = from.alias();
                 aliasMapper.setAlias(table, alias, path);
             }
-            var projectionQuery = getRecordType(table).getAnnotation(ProjectionQuery.class);
+            var projectionQuery = isRecord(table)
+                    ? getRecordType(table).getAnnotation(ProjectionQuery.class)
+                    : null;  // Sealed entity interfaces don't have ProjectionQuery.
             Source source = projectionQuery != null
                     ? new Elements.TemplateSource(TemplateString.of(projectionQuery.value()))
                     : new TableSource(table);
@@ -766,9 +770,76 @@ class TemplatePreparation {
             @Nonnull TableMapper tableMapper,
             @Nonnull List<Join> joins
     ) throws SqlTemplateException {
-        addAutoJoins(getRecordType(table), table, rootTable, List.of(), aliasMapper, tableMapper, joins, null, false);
+        // Sealed entity interfaces are not records and don't have FK fields that need auto-joining.
+        // Their columns are synthetic (union of subtype fields). Skip auto-join for sealed entities.
+        if (!isSealedEntity(table)) {
+            addAutoJoins(getRecordType(table), table, rootTable, List.of(), aliasMapper, tableMapper, joins, null, false);
+        } else if (isJoinedEntity(table)) {
+            // For JOINED inheritance, add LEFT JOIN for each extension table (permitted subclass with
+            // @DbTable) using PK=PK ON conditions.
+            addJoinedExtensionJoins(table, aliasMapper, joins);
+        }
         joins.addAll(customJoins);
         joins.sort(comparing(join -> join.type().isOuter()));
+    }
+
+    /**
+     * Adds LEFT JOIN elements for extension tables in a JOINED sealed entity hierarchy.
+     *
+     * <p>Each permitted subclass with its own {@code @DbTable} gets a LEFT JOIN on the shared primary key, so that
+     * extension columns are available in the result set. For example, for a sealed Vehicle with JoinedCar and
+     * JoinedTruck subtypes, this produces:</p>
+     *
+     * <pre>
+     * LEFT JOIN joined_car jc ON jv.id = jc.id
+     * LEFT JOIN joined_truck jt ON jv.id = jt.id
+     * </pre>
+     *
+     * @param sealedType  the sealed entity interface (the base/FROM table).
+     * @param aliasMapper alias mapper used for alias generation and registration.
+     * @param joins       output list that receives the extension table joins.
+     * @throws SqlTemplateException if extension join generation fails.
+     */
+    @SuppressWarnings("unchecked")
+    private void addJoinedExtensionJoins(
+            @Nonnull Class<? extends Data> sealedType,
+            @Nonnull AliasMapper aliasMapper,
+            @Nonnull List<Join> joins
+    ) throws SqlTemplateException {
+        Class<?>[] permitted = sealedType.getPermittedSubclasses();
+        if (permitted == null || permitted.length == 0) {
+            return;
+        }
+        // Get the base table alias (registered by postProcessSelect for the FROM table).
+        String baseAlias = aliasMapper.findAlias(sealedType, "", INNER)
+                .orElseThrow(() -> new SqlTemplateException(
+                        "No alias found for base table %s.".formatted(sealedType.getSimpleName())));
+        // Get PK column name(s) from the sealed hierarchy.
+        RecordField pkField = findPkField(sealedType).orElseThrow(
+                () -> new SqlTemplateException(
+                        "No PK field found for sealed entity %s.".formatted(sealedType.getSimpleName())));
+        var pkColumnNames = getPrimaryKeys(pkField, template.foreignKeyResolver(), template.columnNameResolver());
+        for (Class<?> subtype : permitted) {
+            Class<? extends Data> extensionType = (Class<? extends Data>) subtype;
+            String extensionAlias = aliasMapper.generateAlias(extensionType, null, template.dialect());
+            // Build ON clause: baseAlias.pk = extensionAlias.pk (supports compound PKs).
+            StringBuilder onClause = new StringBuilder();
+            for (int i = 0; i < pkColumnNames.size(); i++) {
+                if (i > 0) {
+                    onClause.append(" AND ");
+                }
+                String pkCol = pkColumnNames.get(i).qualified(template.dialect());
+                onClause.append(dialectTemplate.process("\0.\0 = \0.\0",
+                        baseAlias, pkCol, extensionAlias, pkCol));
+            }
+            joins.add(new Join(
+                    new TableSource(extensionType),
+                    extensionAlias,
+                    new TemplateTarget(TemplateString.of(onClause.toString())),
+                    DefaultJoinType.LEFT,
+                    true
+            ));
+        }
     }
 
     /**

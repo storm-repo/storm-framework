@@ -140,8 +140,8 @@ final class WhereProcessor implements ElementProcessor<Where> {
             var columns = getIdentifyingColumns(compiler);
             compiler.mapBindVars(columns.size());
             return new CompiledElement(columns.stream()
-                    .map(queryModel::toAliasedColumn)
-                    .map(column -> "%s%s = ?".formatted(column.alias().isEmpty() ? "" : column.alias() + ".", column.name()))
+                    .map(queryModel::toColumnExpression)
+                    .map(column -> column.toSql() + " = ?")
                     .collect(joining(" AND ")), new WhereBindHint(columns));
         }
         throw new SqlTemplateException("Unsupported BindVars type.");

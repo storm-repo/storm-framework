@@ -34,7 +34,45 @@ Storm entities are pure data carriers. They never need to intercept method calls
 
 ### Can I use inheritance with Storm entities?
 
-Storm focuses on composition over inheritance. Java records and Kotlin data classes cannot extend other classes (they can implement interfaces, but they cannot inherit fields). This is a language constraint, not a Storm limitation. To share fields across entities, extract them into an embedded record or data class and include it as a field.
+Java records and Kotlin data classes cannot extend other classes, but Storm supports polymorphic entity hierarchies using sealed interfaces. A sealed interface defines the type hierarchy, and each permitted subtype is a record or data class. Storm provides three inheritance strategies: **Single-Table** (all subtypes in one table), **Joined Table** (base table plus extension tables), and **Polymorphic FK** (independent tables referenced via a two-column foreign key). See the [Polymorphism](polymorphism.md) guide for details.
+
+To share fields across unrelated entities (without a polymorphic hierarchy), extract them into an embedded record or data class and include it as a field.
+
+### Which discriminator type should I use (STRING, INTEGER, CHAR)?
+
+Storm supports three discriminator column types via the `type()` attribute on `@Discriminator`:
+
+- **STRING** (default): Uses a `VARCHAR` column. Values are human-readable strings like the class name (`"Cat"`, `"Dog"`) or custom labels. This is the best choice for most new schemas because the discriminator values are self-documenting in the database.
+- **INTEGER**: Uses an `INTEGER` column. Each subtype must declare an explicit numeric value (e.g., `@Discriminator("1")`). Use this when your schema already has a numeric type code column, or when you need compact discriminator storage on high-volume tables.
+- **CHAR**: Uses a `CHAR(1)` column. Each subtype must declare a single-character value (e.g., `@Discriminator("C")`). This provides a compact, fixed-width discriminator that is still somewhat readable.
+
+If you are designing a new schema, `STRING` is the simplest choice. If you are integrating with an existing schema that uses integer or character type codes, use `INTEGER` or `CHAR` to match. See [Polymorphism: Discriminator Types](polymorphism.md#discriminator-types) for code examples.
+
+### Why does the Polymorphic FK sealed interface extend `Data` instead of `Entity`?
+
+In Storm, `Entity<ID>` represents a type backed by a specific database table. For Polymorphic FK, the sealed interface does not correspond to any table. It groups unrelated entities under a common type so they can be referenced by a two-column foreign key (discriminator + ID). Because the interface has no table, it extends `Data` (a marker for types that participate in SQL generation without owning a table). Each subtype independently implements `Entity<ID>` because each one maps to its own independent table.
+
+This design ensures that Storm treats the sealed interface as a type constraint rather than a table reference. The discriminator column in the referencing entity identifies which subtype (and therefore which table) the foreign key points to, while the ID column identifies the specific row.
+
+```kotlin
+// Data: no table, just a type grouping
+sealed interface Commentable : Data {
+    // Entity: has its own table
+    data class Post(@PK val id: Int = 0, val title: String) : Commentable, Entity<Int>
+    data class Photo(@PK val id: Int = 0, val url: String) : Commentable, Entity<Int>
+}
+```
+
+```java
+// Data: no table, just a type grouping
+sealed interface Commentable extends Data permits Post, Photo {}
+
+// Entity: has its own table
+record Post(@PK Integer id, String title) implements Commentable, Entity<Integer> {}
+record Photo(@PK Integer id, String url) implements Commentable, Entity<Integer> {}
+```
+
+See [Polymorphism: Polymorphic Foreign Keys](polymorphism.md#polymorphic-foreign-keys) for the full explanation.
 
 ### How do I handle auto-generated IDs?
 

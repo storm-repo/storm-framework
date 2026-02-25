@@ -190,7 +190,7 @@ Sometimes a table's primary key is also a foreign key to another entity. This is
 
 - **Dependent one-to-one relationships** where a child entity cannot exist without its parent
 - **Extension tables** that add optional data to an existing entity
-- **Specialized subtypes** in a table-per-subtype inheritance strategy
+- **Specialized subtypes** in a table-per-subtype inheritance strategy (see [Polymorphism](polymorphism.md))
 
 Use both `@PK` and `@FK` annotations on the same field, with `generation = NONE` since the key value comes from the related entity rather than being auto-generated:
 
@@ -382,7 +382,7 @@ Sometimes a table's primary key is also a foreign key to another entity. This is
 
 - **Dependent one-to-one relationships** where a child entity cannot exist without its parent
 - **Extension tables** that add optional data to an existing entity
-- **Specialized subtypes** in a table-per-subtype inheritance strategy
+- **Specialized subtypes** in a table-per-subtype inheritance strategy (see [Polymorphism](polymorphism.md))
 
 Use both `@PK` and `@FK` annotations on the same field, with `generation = NONE` since the key value comes from the related entity rather than being auto-generated:
 

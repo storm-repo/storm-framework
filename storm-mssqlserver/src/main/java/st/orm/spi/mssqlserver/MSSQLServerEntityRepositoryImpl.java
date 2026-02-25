@@ -59,6 +59,7 @@ import st.orm.core.template.PreparedQuery;
 import st.orm.core.template.Query;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
+import st.orm.core.template.impl.JoinedEntityHelper;
 
 /**
  * Implementation of {@link EntityRepository} for SQL Server.
@@ -503,6 +504,37 @@ public class MSSQLServerEntityRepositoryImpl<E extends Entity<ID>, ID>
             }
         }
         return batch.stream().map(Entity::id).toList();
+    }
+
+    /**
+     * Overrides joined entity batch insert to use SQL Server's {@code OUTPUT INSERTED} clause instead of
+     * {@code executeBatch()} followed by {@code getGeneratedKeys()}, which SQL Server does not support.
+     *
+     * <p>Phase 1 (base table insert) uses a multi-value INSERT with {@code OUTPUT INSERTED} to retrieve
+     * generated keys. Phase 2 (extension table inserts) delegates to the standard
+     * {@link JoinedEntityHelper#insertExtensionTables} logic, which uses batch execution without generated
+     * keys and works correctly on SQL Server.</p>
+     */
+    @Override
+    protected List<ID> insertJoinedBatch(@Nonnull List<E> entities) {
+        if (generationStrategy == NONE) {
+            return super.insertJoinedBatch(entities);
+        }
+        // SQL Server does not support getGeneratedKeys() after executeBatch().
+        // Use OUTPUT INSERTED clause for the base table insert instead.
+        assert primaryKeyColumns.size() == 1;
+        var primaryKeyColumn = primaryKeyColumns.getFirst();
+        String primaryKeyName = primaryKeyColumn.qualifiedName(ormTemplate.dialect());
+        // Phase 1: Base table INSERT with OUTPUT INSERTED.
+        var query = ormTemplate.query(raw("""
+            INSERT INTO \0
+            OUTPUT INSERTED.%s
+            VALUES \0""".formatted(primaryKeyName), model.type(), entities))
+                .managed();
+        List<ID> ids = query.getResultList(model.primaryKeyType());
+        // Phase 2: Extension table INSERTs.
+        JoinedEntityHelper.insertExtensionTables(ormTemplate, model, entities, ids);
+        return ids;
     }
 
     @Override
