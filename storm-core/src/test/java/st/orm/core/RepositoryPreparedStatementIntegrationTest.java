@@ -4,6 +4,7 @@ import static java.util.Collections.newSetFromMap;
 import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toSet;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -23,6 +24,9 @@ import static st.orm.Operator.GREATER_THAN;
 import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
 import static st.orm.Operator.IN;
 import static st.orm.Operator.IS_NULL;
+import static st.orm.Operator.LESS_THAN;
+import static st.orm.Operator.LIKE;
+import static st.orm.Operator.NOT_EQUALS;
 import static st.orm.ResolveScope.INNER;
 import static st.orm.ResolveScope.OUTER;
 import static st.orm.core.template.SqlInterceptor.observe;
@@ -69,6 +73,7 @@ import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.SelectMode;
 import st.orm.Version;
+import st.orm.core.model.Address;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
 import st.orm.core.model.Owner_;
@@ -1606,6 +1611,130 @@ public class RepositoryPreparedStatementIntegrationTest {
         var visit = repository.select().where(VisitWithCompoundFK_.vetSpecialty, VetSpecialty.builder().id(new VetSpecialtyPK(3, 2)).build()).getSingleResult();
         assertEquals(3, visit.vetSpecialty().vet().id());
         assertEquals(2, visit.vetSpecialty().specialty().id());
+    }
+
+    @Test
+    public void testSelectWhereInlineRecord() {
+        var repository = ORMTemplate.of(dataSource).entity(Owner.class);
+        var address = new Address("638 Cardinal Ave.", City.builder().id(1).build());
+        var owner = repository.select()
+                .where(Owner_.address, EQUALS, address)
+                .getSingleResult();
+        assertEquals(1, owner.id());
+        assertEquals("Betty", owner.firstName());
+        assertEquals("Davis", owner.lastName());
+    }
+
+    @Test
+    public void testSelectWhereInlineRecordSql() {
+        String expectedSql = """
+                SELECT o.id, o.first_name, o.last_name, o.address, o.city_id, c.name, o.telephone, o.version
+                FROM owner o
+                LEFT JOIN city c ON o.city_id = c.id
+                WHERE o.address = ? AND o.city_id = ?""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            var repository = ORMTemplate.of(dataSource).entity(Owner.class);
+            var address = new Address("638 Cardinal Ave.", City.builder().id(1).build());
+            repository.select()
+                    .where(Owner_.address, EQUALS, address)
+                    .getSingleResult();
+        });
+    }
+
+    @Test
+    public void testSelectWhereInlineRecordSubField() {
+        var repository = ORMTemplate.of(dataSource).entity(Owner.class);
+        var owners = repository.select()
+                .where(Owner_.address.address, EQUALS, "638 Cardinal Ave.")
+                .getResultList();
+        assertEquals(1, owners.size());
+        assertEquals("Betty", owners.getFirst().firstName());
+    }
+
+    @Test
+    public void testSelectWhereInlineRecordGreaterThanSql() {
+        String expectedSql = """
+                SELECT o.id, o.first_name, o.last_name, o.address, o.city_id, c.name, o.telephone, o.version
+                FROM owner o
+                LEFT JOIN city c ON o.city_id = c.id
+                WHERE (o.address > ? OR (o.address = ? AND o.city_id > ?))""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            var repository = ORMTemplate.of(dataSource).entity(Owner.class);
+            var address = new Address("638 Cardinal Ave.", City.builder().id(1).build());
+            repository.select()
+                    .where(Owner_.address, GREATER_THAN, address)
+                    .getResultList();
+        });
+    }
+
+    @Test
+    public void testSelectWhereInlineRecordGreaterThanOrEqualSql() {
+        String expectedSql = """
+                SELECT o.id, o.first_name, o.last_name, o.address, o.city_id, c.name, o.telephone, o.version
+                FROM owner o
+                LEFT JOIN city c ON o.city_id = c.id
+                WHERE (o.address > ? OR (o.address = ? AND o.city_id >= ?))""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            var repository = ORMTemplate.of(dataSource).entity(Owner.class);
+            var address = new Address("638 Cardinal Ave.", City.builder().id(1).build());
+            repository.select()
+                    .where(Owner_.address, GREATER_THAN_OR_EQUAL, address)
+                    .getResultList();
+        });
+    }
+
+    @Test
+    public void testSelectWhereInlineRecordLessThanSql() {
+        String expectedSql = """
+                SELECT o.id, o.first_name, o.last_name, o.address, o.city_id, c.name, o.telephone, o.version
+                FROM owner o
+                LEFT JOIN city c ON o.city_id = c.id
+                WHERE (o.address < ? OR (o.address = ? AND o.city_id < ?))""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            var repository = ORMTemplate.of(dataSource).entity(Owner.class);
+            var address = new Address("638 Cardinal Ave.", City.builder().id(1).build());
+            repository.select()
+                    .where(Owner_.address, LESS_THAN, address)
+                    .getResultList();
+        });
+    }
+
+    @Test
+    public void testSelectWhereInlineRecordNotEqualsSql() {
+        String expectedSql = """
+                SELECT o.id, o.first_name, o.last_name, o.address, o.city_id, c.name, o.telephone, o.version
+                FROM owner o
+                LEFT JOIN city c ON o.city_id = c.id
+                WHERE NOT (o.address = ? AND o.city_id = ?)""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            var repository = ORMTemplate.of(dataSource).entity(Owner.class);
+            var address = new Address("638 Cardinal Ave.", City.builder().id(1).build());
+            repository.select()
+                    .where(Owner_.address, NOT_EQUALS, address)
+                    .getResultList();
+        });
+    }
+
+    @Test
+    public void testSelectWhereInlineRecordGreaterThan() {
+        var repository = ORMTemplate.of(dataSource).entity(Owner.class);
+        // Use a low-value address so that results with lexicographically greater addresses exist.
+        var address = new Address("0", City.builder().id(0).build());
+        var owners = repository.select()
+                .where(Owner_.address, GREATER_THAN, address)
+                .getResultList();
+        assertFalse(owners.isEmpty());
+    }
+
+    @Test
+    public void testSelectWhereInlineRecordLikeThrows() {
+        var repository = ORMTemplate.of(dataSource).entity(Owner.class);
+        var address = new Address("638%", City.builder().id(1).build());
+        assertThrows(Exception.class, () -> {
+            repository.select()
+                    .where(Owner_.address, LIKE, address)
+                    .getResultList();
+        });
     }
 
     @DbTable("visit")

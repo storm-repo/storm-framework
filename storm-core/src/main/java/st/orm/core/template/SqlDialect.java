@@ -15,11 +15,24 @@
  */
 package st.orm.core.template;
 
+import static java.util.stream.Collectors.joining;
+import static st.orm.Operator.BETWEEN;
+import static st.orm.Operator.EQUALS;
+import static st.orm.Operator.GREATER_THAN;
+import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
+import static st.orm.Operator.IS_NOT_NULL;
+import static st.orm.Operator.IS_NULL;
+import static st.orm.Operator.LESS_THAN;
+import static st.orm.Operator.LESS_THAN_OR_EQUAL;
+
 import jakarta.annotation.Nonnull;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.SequencedMap;
 import java.util.function.Function;
 import java.util.regex.Pattern;
+import st.orm.Operator;
 
 /**
  * Represents a specific SQL dialect with methods to determine feature support and handle identifier escaping.
@@ -143,6 +156,132 @@ public interface SqlDialect {
     String multiValueIn(@Nonnull List<SequencedMap<String, Object>> values,
                         @Nonnull Function<Object, String> parameterFunction)
             throws SqlTemplateException;
+
+    /**
+     * Builds a multi-column expression for the given operator.
+     *
+     * <p>This method generalizes {@link #multiValueIn} to support all comparison operators when multiple columns are
+     * involved (e.g., inline records or compound keys). The default implementation produces universally supported SQL.
+     * Dialects that support tuple comparison syntax (e.g., PostgreSQL, MySQL) can override this method to produce more
+     * compact SQL like {@code (a, b) > (?, ?)}.</p>
+     *
+     * <p>For comparison operators ({@code >}, {@code >=}, {@code <}, {@code <=}), the default implementation uses
+     * lexicographic expansion. For example, {@code (a, b) > (v1, v2)} expands to:</p>
+     * <pre>{@code (a > v1) OR (a = v1 AND b > v2)}</pre>
+     *
+     * <p>The provided values are processed in a deterministic order. The {@code parameterFunction} is called for each
+     * value in the order they appear in the generated SQL, which may differ from the input order when values are
+     * repeated (e.g., in lexicographic expansion). This same method must be used for both compilation and binding to
+     * ensure the parameter order is consistent.</p>
+     *
+     * @param operator the comparison operator to apply.
+     * @param values the multi-row values. Each map represents a single row of column-name-to-value mappings.
+     * @param parameterFunction the function responsible for binding the parameters to the SQL template and returning
+     *                          the string representation of each parameter, either a '?' placeholder or a literal value.
+     * @return the SQL fragment representing the multi-column expression.
+     * @throws SqlTemplateException if the operator is not supported for multi-column expressions.
+     * @since 1.9
+     */
+    default String multiColumnExpression(@Nonnull Operator operator,
+                                         @Nonnull List<SequencedMap<String, Object>> values,
+                                         @Nonnull Function<Object, String> parameterFunction)
+            throws SqlTemplateException {
+        if (operator == EQUALS || operator == Operator.IN) {
+            return multiValueIn(values, parameterFunction);
+        }
+        if (operator == Operator.NOT_EQUALS || operator == Operator.NOT_IN) {
+            // NOT has higher precedence than AND in SQL, so we always need parentheses to ensure NOT
+            // applies to the entire expression: NOT (a = ? AND b = ?).
+            return "NOT (%s)".formatted(multiValueIn(values, parameterFunction));
+        }
+        if (operator == IS_NULL) {
+            if (values.size() != 1) {
+                throw new SqlTemplateException("IS_NULL operator requires exactly one value set.");
+            }
+            return values.getFirst().keySet().stream()
+                    .map(IS_NULL::format)
+                    .collect(joining(" AND "));
+        }
+        if (operator == IS_NOT_NULL) {
+            if (values.size() != 1) {
+                throw new SqlTemplateException("IS_NOT_NULL operator requires exactly one value set.");
+            }
+            return values.getFirst().keySet().stream()
+                    .map(IS_NOT_NULL::format)
+                    .collect(joining(" AND "));
+        }
+        // Lexicographic comparison operators.
+        if (operator == GREATER_THAN || operator == GREATER_THAN_OR_EQUAL
+                || operator == LESS_THAN || operator == LESS_THAN_OR_EQUAL) {
+            if (values.size() != 1) {
+                throw new SqlTemplateException("Comparison operator requires exactly one value set for multi-column expression.");
+            }
+            return lexicographicComparison(operator, values.getFirst(), parameterFunction);
+        }
+        if (operator == BETWEEN) {
+            if (values.size() != 2) {
+                throw new SqlTemplateException("BETWEEN operator requires exactly two value sets for multi-column expression.");
+            }
+            String lower = lexicographicComparison(GREATER_THAN_OR_EQUAL, values.getFirst(), parameterFunction);
+            String upper = lexicographicComparison(LESS_THAN_OR_EQUAL, values.getLast(), parameterFunction);
+            return "(%s AND %s)".formatted(lower, upper);
+        }
+        throw new SqlTemplateException("Operator %s is not supported for multi-column expressions.".formatted(operator));
+    }
+
+    /**
+     * Builds a lexicographic comparison for multiple columns.
+     *
+     * <p>For columns {@code (a, b, c)} with values {@code (v1, v2, v3)} and operator {@code >}, this produces:</p>
+     * <pre>{@code (a > v1) OR (a = v1 AND b > v2) OR (a = v1 AND b = v2 AND c > v3)}</pre>
+     *
+     * <p>For {@code >=}, the last column uses {@code >=} while all others use {@code >}:</p>
+     * <pre>{@code (a > v1) OR (a = v1 AND b > v2) OR (a = v1 AND b = v2 AND c >= v3)}</pre>
+     *
+     * @param operator the comparison operator ({@code >}, {@code >=}, {@code <}, or {@code <=}).
+     * @param valueMap the column-name-to-value mappings in column order.
+     * @param parameterFunction the function for binding parameters.
+     * @return the lexicographic comparison SQL fragment.
+     */
+    private static String lexicographicComparison(@Nonnull Operator operator,
+                                                  @Nonnull SequencedMap<String, Object> valueMap,
+                                                  @Nonnull Function<Object, String> parameterFunction) {
+        // Determine the strict and non-strict variants of the operator.
+        Operator strictOperator;
+        boolean includeEqual;
+        if (operator == GREATER_THAN) {
+            strictOperator = GREATER_THAN;
+            includeEqual = false;
+        } else if (operator == GREATER_THAN_OR_EQUAL) {
+            strictOperator = GREATER_THAN;
+            includeEqual = true;
+        } else if (operator == LESS_THAN) {
+            strictOperator = LESS_THAN;
+            includeEqual = false;
+        } else {
+            // LESS_THAN_OR_EQUAL
+            strictOperator = LESS_THAN;
+            includeEqual = true;
+        }
+        List<Map.Entry<String, Object>> entries = new ArrayList<>(valueMap.entrySet());
+        int columnCount = entries.size();
+        List<String> disjuncts = new ArrayList<>();
+        for (int i = 0; i < columnCount; i++) {
+            List<String> conjuncts = new ArrayList<>();
+            // Add equality conditions for all preceding columns.
+            for (int j = 0; j < i; j++) {
+                var entry = entries.get(j);
+                conjuncts.add(EQUALS.format(entry.getKey(), parameterFunction.apply(entry.getValue())));
+            }
+            // Add the comparison condition for the current column.
+            var entry = entries.get(i);
+            boolean isLastColumn = (i == columnCount - 1);
+            Operator columnOperator = (isLastColumn && includeEqual) ? operator : strictOperator;
+            conjuncts.add(columnOperator.format(entry.getKey(), parameterFunction.apply(entry.getValue())));
+            disjuncts.add(conjuncts.size() == 1 ? conjuncts.getFirst() : "(%s)".formatted(String.join(" AND ", conjuncts)));
+        }
+        return disjuncts.size() == 1 ? disjuncts.getFirst() : "(%s)".formatted(String.join(" OR ", disjuncts));
+    }
 
     /**
      * Returns {@code true} if the limit should be applied after the SELECT clause, {@code false} to apply the limit at

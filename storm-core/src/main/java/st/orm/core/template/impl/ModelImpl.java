@@ -345,6 +345,9 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     public List<Column> getColumns(@Nonnull Metamodel<?, ?> metamodel) throws SqlTemplateException {
         var columns = columnMap.get(metamodel.canonical());
         if (columns == null) {
+            if (metamodel.isInline()) {
+                return getInlineColumns(metamodel);
+            }
             throw new SqlTemplateException("Column not found for metamodel: %s.".formatted(metamodel));
         }
         if (columns.size() > 1) {
@@ -360,6 +363,24 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
             }
         }
         return columns;
+    }
+
+    /**
+     * Resolves all declared columns that belong to the given inline record metamodel.
+     *
+     * <p>Inline records are not stored directly in the column map because they expand into their constituent
+     * fields. This method collects all declared columns whose metamodel field path starts with the inline
+     * record's field path prefix.</p>
+     */
+    private List<Column> getInlineColumns(@Nonnull Metamodel<?, ?> metamodel) throws SqlTemplateException {
+        String prefix = metamodel.fieldPath() + ".";
+        var inlineColumns = declaredColumns.stream()
+                .filter(column -> column.metamodel().fieldPath().startsWith(prefix))
+                .toList();
+        if (inlineColumns.isEmpty()) {
+            throw new SqlTemplateException("Column not found for inline metamodel: %s.".formatted(metamodel));
+        }
+        return inlineColumns;
     }
 
     @Override
@@ -379,9 +400,21 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
         // For sealed entity models, all columns share the same metamodel, so getColumns() cannot
         // distinguish between PK and non-PK columns. In WHERE clauses, the PK metamodel is always
         // used, so resolve PK columns directly.
-        var columns = discriminatorColumnIndex > 0
-                ? declaredColumns.stream().filter(Column::primaryKey).toList()
-                : getColumns(metamodel);
+        boolean resolvedViaInline = false;
+        List<Column> columns;
+        if (discriminatorColumnIndex > 0) {
+            columns = declaredColumns.stream().filter(Column::primaryKey).toList();
+        } else if (metamodel.isInline() && columnMap.get(metamodel.canonical()) == null) {
+            // Inline record not directly in column map (e.g., Address). Fall back to inline resolution.
+            columns = getInlineColumns(metamodel);
+            resolvedViaInline = true;
+        } else {
+            columns = getColumns(metamodel);
+        }
+        if (resolvedViaInline) {
+            forEachInlineValue(metamodel, columns, object, consumer);
+            return;
+        }
         Object value;
         if (object instanceof Data data) {
             value = REFLECTION.getId(data);
@@ -405,6 +438,56 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
                 throw new SqlTemplateException("Metamodel does not resolve to a single column: %s.".formatted(metamodel));
             }
             var column = columns.getFirst();
+            consumer.accept(column, map(column, value));
+        }
+    }
+
+    /**
+     * Extracts values for an inline record metamodel.
+     *
+     * <p>Inline records expand into their constituent fields in the column model. This method maps each column
+     * back to its corresponding record component using the column's field path relative to the inline record,
+     * handling both plain fields and foreign key fields.</p>
+     */
+    private void forEachInlineValue(@Nonnull Metamodel<E, ?> metamodel,
+                                    @Nonnull List<Column> columns,
+                                    @Nonnull Object object,
+                                    @Nonnull BiConsumer<Column, Object> consumer) throws SqlTemplateException {
+        if (object == null) {
+            for (var column : columns) {
+                consumer.accept(column, null);
+            }
+            return;
+        }
+        RecordType inlineRecordType = REFLECTION.getRecordType(object.getClass());
+        List<? extends RecordField> inlineFields = inlineRecordType.fields();
+        // Build a field-name to component-index map for the inline record.
+        Map<String, Integer> fieldIndexMap = HashMap.newHashMap(inlineFields.size());
+        for (int i = 0; i < inlineFields.size(); i++) {
+            fieldIndexMap.put(inlineFields.get(i).name(), i);
+        }
+        String prefix = metamodel.fieldPath();
+        for (var column : columns) {
+            String columnFieldPath = column.metamodel().fieldPath();
+            // Strip the inline prefix to get the relative field path within the inline record.
+            String relativeField = columnFieldPath.substring(prefix.length() + 1);
+            // The first segment of the relative field path is the component name.
+            int dotIndex = relativeField.indexOf('.');
+            String componentName = dotIndex >= 0 ? relativeField.substring(0, dotIndex) : relativeField;
+            Integer componentIndex = fieldIndexMap.get(componentName);
+            if (componentIndex == null) {
+                throw new SqlTemplateException("No component '%s' found in inline record %s."
+                        .formatted(componentName, object.getClass().getSimpleName()));
+            }
+            Object value = REFLECTION.getRecordValue(object, componentIndex);
+            // Handle FK components: extract the primary key ID from the Data object.
+            if (column.foreignKey() && value instanceof Data data) {
+                value = REFLECTION.getId(data);
+            }
+            // Handle compound keys (e.g., compound FK or compound PK within the inline record).
+            if (value != null && (column.primaryKey() || column.foreignKey()) && isRecord(value.getClass())) {
+                value = REFLECTION.getRecordValue(value, column.keyIndex() - 1);
+            }
             consumer.accept(column, map(column, value));
         }
     }

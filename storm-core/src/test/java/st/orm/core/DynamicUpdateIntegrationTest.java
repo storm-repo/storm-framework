@@ -114,12 +114,12 @@ public class DynamicUpdateIntegrationTest {
     private static final String FULL_UPDATE_SQL = """
             UPDATE visit
             SET visit_date = ?, description = ?, pet_id = ?, "timestamp" = CURRENT_TIMESTAMP
-            WHERE (id = ? AND "timestamp" = ?)""";
+            WHERE id = ? AND "timestamp" = ?""";
 
     private static final String FIELD_UPDATE_PET_SQL = """
             UPDATE visit
             SET pet_id = ?, "timestamp" = CURRENT_TIMESTAMP
-            WHERE (id = ? AND "timestamp" = ?)""";
+            WHERE id = ? AND "timestamp" = ?""";
 
     // ------------------------------------------------------------
     // OFF: always updates all columns, dirtyCheck irrelevant

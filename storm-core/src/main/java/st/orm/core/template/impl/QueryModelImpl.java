@@ -239,7 +239,7 @@ final class QueryModelImpl implements QueryModel {
         try {
             switch (expression) {
                 case TemplateExpression it -> bindTemplateExpression(it.template(), binder);
-                case ObjectExpression it -> bindObjectExpression(getMetamodel(it), it.object(), binder);
+                case ObjectExpression it -> bindObjectExpression(getMetamodel(it), it.operator(), it.object(), binder);
             }
         } catch (SqlTemplateException e) {
             throw new UncheckedSqlTemplateException(e);
@@ -393,7 +393,7 @@ final class QueryModelImpl implements QueryModel {
             }
         }
         if (!multiValues.isEmpty()) {
-            return compileMultiValues(multiValues, compiler);
+            return compileMultiValues(operator, multiValues, compiler);
         }
         if (column == null) {
             column = toFullyQualifiedColumn(model.getSingleColumn(metamodel));
@@ -416,13 +416,14 @@ final class QueryModelImpl implements QueryModel {
      * @throws SqlTemplateException if binding fails or versioning rules are violated.
      */
     private void bindObjectExpression(@Nonnull Metamodel<?, ?> metamodel,
+                                      @Nonnull Operator operator,
                                       @Nonnull Object object,
                                       @Nonnull TemplateBinder binder) throws SqlTemplateException {
         var model = getModel(metamodel);
-        List<List<Object>> multiValues = new ArrayList<>();
+        List<SequencedMap<String, Object>> multiValues = new ArrayList<>();
         for (var o : getObjectIterable(object)) {
             //noinspection DuplicatedCode
-            var valueList = new ArrayList<>();
+            SequencedMap<String, Object> valueMap = new LinkedHashMap<>();
             var derivedObject = switch (o) {
                 case Ref<?> ref -> ref.id();
                 case Data data -> data;
@@ -430,51 +431,66 @@ final class QueryModelImpl implements QueryModel {
             };
             //noinspection unchecked
             model.forEachValue((Metamodel<Data, ?>) metamodel, derivedObject,
-                    (k, v) -> valueList.add(v));
+                    (k, v) -> valueMap.put(k.name(), v));
             if (binder.isVersionAware()) {
                 if (o instanceof Data data) {
                     var versionColumn = model.declaredColumns().stream()
                             .filter(Column::version)
                             .findFirst()
                             .orElseThrow();
-                    model.forEachValue(List.of(versionColumn), data, (k, v) -> valueList.add(v));
+                    model.forEachValue(List.of(versionColumn), data,
+                            (k, v) -> valueMap.put(k.name(), v));
                 } else {
                     throw new SqlTemplateException("Data object expected for version-aware statement.");
                 }
             }
-            if (multiValues.isEmpty() && valueList.size() == 1) {
-                binder.bindParameter(valueList.getFirst());
+            if (multiValues.isEmpty() && valueMap.size() == 1) {
+                binder.bindParameter(valueMap.values().iterator().next());
             } else {
-                multiValues.add(valueList);
+                multiValues.add(valueMap);
             }
         }
         if (!multiValues.isEmpty()) {
-            bindMultiValues(multiValues, binder);
+            bindMultiValues(operator, multiValues, binder);
         }
     }
 
     /**
      * Compiles a multi-column, multi-row value set into a dialect-specific SQL fragment.
      *
+     * @param operator    the operator to apply.
      * @param multiValues the list of column-to-value mappings.
-     * @param compiler   the compiler used to map parameters.
+     * @param compiler    the compiler used to map parameters.
      * @return the compiled SQL fragment.
      * @throws SqlTemplateException if the dialect cannot handle the value set.
      */
-    private String compileMultiValues(@Nonnull List<SequencedMap<String, Object>> multiValues,
+    private String compileMultiValues(@Nonnull Operator operator,
+                                      @Nonnull List<SequencedMap<String, Object>> multiValues,
                                       @Nonnull TemplateCompiler compiler) throws SqlTemplateException {
-        return compiler.dialect().multiValueIn(multiValues, compiler::mapParameter);
+        return compiler.dialect().multiColumnExpression(operator, multiValues, compiler::mapParameter);
     }
 
     /**
-     * Binds all values of a multi-row expression in the correct order.
+     * Binds all values of a multi-column expression in the correct order.
      *
-     * @param multiValues the values to bind.
-     * @param binder     the binder collecting parameter values.
+     * <p>The binding order is determined by the dialect's multi-column expression method, ensuring it matches the
+     * placeholder order produced during compilation.</p>
+     *
+     * @param operator    the operator that was used during compilation.
+     * @param multiValues the column-to-value mappings to bind.
+     * @param binder      the binder collecting parameter values.
      */
-    private void bindMultiValues(@Nonnull List<List<Object>> multiValues,
+    private void bindMultiValues(@Nonnull Operator operator,
+                                 @Nonnull List<SequencedMap<String, Object>> multiValues,
                                  @Nonnull TemplateBinder binder) {
-        multiValues.forEach(list -> list.forEach(binder::bindParameter));
+        try {
+            template.dialect().multiColumnExpression(operator, multiValues, value -> {
+                binder.bindParameter(value);
+                return "?";
+            });
+        } catch (SqlTemplateException e) {
+            throw new UncheckedSqlTemplateException(e);
+        }
     }
 
     /**

@@ -297,7 +297,7 @@ public class OracleEntityRepositoryTest {
         String expectedSql = """
                 UPDATE owner
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE (id, version) IN ((?, ?))""";
+                WHERE (id, version) = (?, ?)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entity = repo.getById(1);
         var first = new AtomicBoolean(false);
@@ -440,7 +440,7 @@ public class OracleEntityRepositoryTest {
         String expectedSql = """
                 UPDATE owner
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE (id, version) IN ((?, ?))""";
+                WHERE (id, version) = (?, ?)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entity = repo.getById(1);
         var first = new AtomicBoolean(false);
@@ -474,7 +474,7 @@ public class OracleEntityRepositoryTest {
         String expectedSql = """
                 UPDATE owner
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE (id, version) IN ((?, ?))""";
+                WHERE (id, version) = (?, ?)""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entity = repo.getById(1);
         var first = new AtomicBoolean(false);

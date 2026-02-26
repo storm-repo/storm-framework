@@ -282,7 +282,7 @@ public class MSSQLServerEntityRepositoryTest {
         String expectedSql = """
                 UPDATE owner
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE (id = ? AND version = ?)""";
+                WHERE id = ? AND version = ?""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entity = repo.getById(1);
         var first = new AtomicBoolean(false);
@@ -425,7 +425,7 @@ public class MSSQLServerEntityRepositoryTest {
         String expectedSql = """
                 UPDATE owner
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE (id = ? AND version = ?)""";
+                WHERE id = ? AND version = ?""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entity = repo.getById(1);
         var first = new AtomicBoolean(false);
@@ -459,7 +459,7 @@ public class MSSQLServerEntityRepositoryTest {
         String expectedSql = """
                 UPDATE owner
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE (id = ? AND version = ?)""";
+                WHERE id = ? AND version = ?""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entity = repo.getById(1);
         var first = new AtomicBoolean(false);

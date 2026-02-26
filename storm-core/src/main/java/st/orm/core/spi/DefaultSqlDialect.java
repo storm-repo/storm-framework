@@ -21,11 +21,13 @@ import static st.orm.Operator.EQUALS;
 
 import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.SequencedMap;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
+import st.orm.Operator;
 import st.orm.PersistenceException;
 import st.orm.StormConfig;
 import st.orm.core.template.SqlDialect;
@@ -240,17 +242,50 @@ public class DefaultSqlDialect implements SqlDialect {
     @Override
     public String multiValueIn(@Nonnull List<SequencedMap<String, Object>> values,
                                @Nonnull Function<Object, String> parameterFunction) throws SqlTemplateException {
+        boolean wrapRows = values.size() > 1;
         List<String> args = new ArrayList<>();
         for (var valueMap : values) {
-            args.add("(%s)".formatted(valueMap.entrySet().stream()
+            String row = valueMap.entrySet().stream()
                     .map(entry -> EQUALS.format(entry.getKey(), parameterFunction.apply(entry.getValue())))  // We can safely use EQUALS here.
-                    .collect(joining(" AND "))));
+                    .collect(joining(" AND "));
+            args.add(wrapRows ? "(%s)".formatted(row) : row);
             args.add(" OR ");
         }
         if (!args.isEmpty()) {
             args.removeLast();
         }
         return String.join("", args);
+    }
+
+    /**
+     * Builds a tuple expression by composing column names and values into row value constructor syntax.
+     *
+     * <p>The {@link Operator#format} method is used to produce the final SQL, which allows all operators to work
+     * naturally with tuple syntax. For example, {@code GREATER_THAN.format("(a, b)", "(?, ?)")} produces
+     * {@code (a, b) > (?, ?)}.</p>
+     *
+     * <p>Subclasses that support multi-value tuples (e.g., PostgreSQL, MySQL, Oracle) can call this method from their
+     * {@link #multiColumnExpression} override to produce compact row value comparison SQL.</p>
+     *
+     * @param operator the comparison operator.
+     * @param values the column-to-value mappings for each row.
+     * @param parameterFunction the function for binding parameters.
+     * @return the tuple expression SQL fragment.
+     * @since 1.9
+     */
+    protected String tupleExpression(@Nonnull Operator operator,
+                                      @Nonnull List<SequencedMap<String, Object>> values,
+                                      @Nonnull Function<Object, String> parameterFunction) {
+        Set<String> columns = new LinkedHashSet<>(values.getFirst().keySet());
+        String columnTuple = "(%s)".formatted(String.join(", ", columns));
+        String[] valueTuples = values.stream()
+                .map(row -> "(%s)".formatted(
+                        columns.stream()
+                                .map(row::get)
+                                .map(parameterFunction)
+                                .collect(joining(", "))))
+                .toArray(String[]::new);
+        return operator.format(columnTuple, valueTuples);
     }
 
     /**
