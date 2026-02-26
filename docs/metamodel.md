@@ -340,6 +340,114 @@ public interface User_ extends Metamodel<User, User> {
 
 Foreign key fields like `city` generate their own metamodel classes, enabling navigation through relationships with full type safety.
 
+## Unique Keys (`@UK`) and `Metamodel.Key`
+
+Use `@UK` on fields that have a unique constraint in the database. Fields annotated with `@UK` indicate that the corresponding column contains unique values. The metamodel processor generates `Metamodel.Key` instances for these fields, enabling type-safe single-result lookups and keyset pagination.
+
+The `@PK` annotation is meta-annotated with `@UK`, so primary key fields are automatically recognized as unique keys without needing an explicit `@UK` annotation.
+
+### Defining Unique Keys
+
+```kotlin
+data class User(
+    @PK val id: Int = 0,
+    @UK val email: String,
+    val name: String
+) : Entity<Int>
+```
+
+```java
+record User(@PK Integer id,
+            @UK String email,
+            String name
+) implements Entity<Integer> {}
+```
+
+The metamodel processor generates `Metamodel.Key` fields for `id` (via `@PK`) and `email` (via `@UK`):
+
+```
+User_
+ ├── id      → Metamodel.Key<User, Integer>   (via @PK, which implies @UK)
+ ├── email   → Metamodel.Key<User, String>    (via @UK)
+ └── name    → Metamodel<User, String>
+```
+
+### Compound Unique Keys
+
+For compound unique constraints spanning multiple columns, use an inline record annotated with `@UK`. When the compound key columns overlap with other fields on the entity, combine `@UK` with `@Persist(insertable = false, updatable = false)` to prevent duplicate persistence:
+
+```kotlin
+data class UserEmailUK(val userId: Int, val email: String)
+
+data class SomeEntity(
+    @PK val id: Int = 0,
+    @FK val user: User,
+    val email: String,
+    @UK @Persist(insertable = false, updatable = false) val uniqueKey: UserEmailUK
+) : Entity<Int>
+```
+
+```java
+record UserEmailUK(int userId, String email) {}
+
+record SomeEntity(@PK Integer id,
+                  @Nonnull @FK User user,
+                  @Nonnull String email,
+                  @UK @Persist(insertable = false, updatable = false) UserEmailUK uniqueKey
+) implements Entity<Integer> {}
+```
+
+The metamodel processor generates a `Metamodel.Key` for the compound field, which can be used for lookups and keyset pagination just like a single-column key.
+
+### Using Keys for Lookups
+
+`Metamodel.Key` enables type-safe single-result lookups through the repository:
+
+```kotlin
+// Kotlin
+val user: User? = userRepository.findBy(User_.email, "alice@example.com")
+val user: User = userRepository.getBy(User_.email, "alice@example.com")  // throws if not found
+```
+
+```java
+// Java
+Optional<User> user = userRepository.findBy(User_.email, "alice@example.com");
+User user = userRepository.getBy(User_.email, "alice@example.com");  // throws if not found
+```
+
+### Using Keys for Keyset Pagination
+
+`Metamodel.Key` is also required for keyset pagination, where the cursor column must be unique:
+
+```kotlin
+val page: Slice<User> = userRepository.slice(User_.id, 20)
+val nextPage: Slice<User> = userRepository.sliceAfter(User_.id, lastId, 20)
+```
+
+Compound unique keys work the same way. The inline record is used as the cursor value:
+
+```kotlin
+val page: Slice<SomeEntity> = repository.slice(SomeEntity_.uniqueKey, 20)
+val last = page.content.last()
+val nextPage: Slice<SomeEntity> = repository.sliceAfter(SomeEntity_.uniqueKey, last.uniqueKey, 20)
+```
+
+See [Queries](queries.md#keyset-pagination-with-slice) for full details on keyset pagination.
+
+### Manual Key Wrapping
+
+For dynamically constructed metamodels or composite keys where the processor does not generate a `Key` instance, use `Metamodel.key()` to wrap an existing metamodel:
+
+```kotlin
+val key: Metamodel.Key<User, String> = Metamodel.key(Metamodel.of(User::class.java, "email"))
+```
+
+```java
+Metamodel.Key<User, String> key = Metamodel.key(Metamodel.of(User.class, "email"));
+```
+
+Callers are responsible for ensuring that the underlying column has a uniqueness constraint in the database.
+
 ## Benefits
 
 1. **Compile-time safety.** Typos caught at compile time, not runtime.

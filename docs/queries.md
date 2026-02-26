@@ -138,6 +138,8 @@ val users = orm.entity(User::class)
     .resultList
 ```
 
+When an inline record (embedded component) is passed to `orderBy` or `orderByDescending`, Storm automatically expands it into its individual leaf columns using `flatten()`. For example, if `User_.fullName` is an inline record with `lastName` and `firstName` fields, `orderBy(User_.fullName)` produces `ORDER BY last_name, first_name`. The same expansion applies to `groupBy`.
+
 For full control over the ORDER BY clause (for example, to use SQL expressions or database-specific syntax), use the template overload. The `t()` function resolves a metamodel field to its column name.
 
 ```kotlin
@@ -218,7 +220,7 @@ The extra row (`size+1`) is used internally to determine the value of `hasNext`,
 
 **No total count.** Unlike offset-based pagination, keyset pagination does not include a total element count. A separate `COUNT(*)` query must execute the same joins, filters, and conditions as the main query, which can be expensive on large or complex result sets. Total counts are also inherently unstable: rows may be inserted or deleted while a user navigates through pages, so the count can become stale between requests. Keyset pagination is designed for sequential "load more" or infinite-scroll patterns where a total is rarely needed. If you do need a total count (for example, for a UI label like "showing 10 of 4,827 results"), call the `count` (Kotlin) or `getCount()` (Java) method on the query builder separately, keeping in mind that the value is a snapshot that may drift as the underlying data changes.
 
-**Basic usage.** Pass a metamodel key that identifies a unique, indexed column (typically the primary key) and the desired page size. The key determines both ordering and the cursor column.
+**Basic usage.** Pass a `Metamodel.Key` that identifies a unique, indexed column (typically the primary key) and the desired page size. The key determines both ordering and the cursor column. Fields annotated with `@UK` or `@PK` automatically generate `Metamodel.Key` instances in the metamodel. See [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey) for details.
 
 ```kotlin
 // First page of 10 users ordered by ID ascending
@@ -489,6 +491,8 @@ List<User> users = orm.entity(User.class)
     .getResultList();
 ```
 
+When an inline record (embedded component) is passed to `orderBy` or `orderByDescending`, Storm automatically expands it into its individual leaf columns using `flatten()`. The same expansion applies to `groupBy`.
+
 For full control over the ORDER BY clause, use the template overload:
 
 ```java
@@ -570,7 +574,7 @@ List<User> page = orm.entity(User.class)
 
 The `slice`, `sliceAfter`, and `sliceBefore` methods are available directly on repositories and on the query builder. Each returns a `Slice<R>` containing a `content()` list and a `hasNext()` flag. The method semantics are the same as described in the Kotlin section: `slice` fetches the first page, `sliceAfter` fetches the next page after a cursor, and `sliceBefore` fetches the previous page before a cursor.
 
-**Basic usage.** Pass a metamodel key (typically the primary key) and the desired page size.
+**Basic usage.** Pass a `Metamodel.Key` (typically the primary key, annotated with `@PK` or `@UK`) and the desired page size.
 
 ```java
 // First page of 10 users ordered by ID

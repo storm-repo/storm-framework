@@ -115,6 +115,31 @@ data class Pet(
 ) : Entity<Int>
 ```
 
+### Unique Keys
+
+Use `@UK` on fields that have a unique constraint in the database. Fields annotated with `@UK` indicate that the corresponding column contains unique values, enabling type-safe single-result lookups and keyset pagination. The `@PK` annotation implies `@UK`, so primary key fields are automatically unique. See [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey) for details on how the metamodel processor generates `Metamodel.Key` instances for unique fields.
+
+```kotlin
+data class User(
+    @PK val id: Int = 0,
+    @UK val email: String,
+    val name: String
+) : Entity<Int>
+```
+
+For compound unique constraints spanning multiple columns, use an inline record annotated with `@UK`. When the compound key columns overlap with other fields on the entity, use `@Persist(insertable = false, updatable = false)` to prevent duplicate persistence:
+
+```kotlin
+data class UserEmailUK(val userId: Int, val email: String)
+
+data class SomeEntity(
+    @PK val id: Int = 0,
+    @FK val user: User,
+    val email: String,
+    @UK @Persist(insertable = false, updatable = false) val uniqueKey: UserEmailUK
+) : Entity<Int>
+```
+
 ### Embedded Components
 
 Embedded components group related fields into a reusable data class without creating a separate database table. The component's fields are stored as columns in the parent entity's table. This is useful for value objects like addresses, coordinates, or monetary amounts that appear in multiple entities.
@@ -135,6 +160,24 @@ data class Owner(
     val telephone: String?
 ) : Entity<Int>
 ```
+
+#### `@Persist` Propagation on Embedded Components
+
+When `@Persist` is placed on an embedded component field, it propagates to all child fields within that component. This is useful when the embedded component's columns overlap with other fields on the entity and should not be persisted separately. Child fields can override the inherited `@Persist` with their own annotation.
+
+```kotlin
+data class OwnerCityKey(val ownerId: Int, val cityId: Int)
+
+data class Pet(
+    @PK val id: Int = 0,
+    val name: String,
+    @FK val owner: Owner,
+    @FK val city: City,
+    @Persist(insertable = false, updatable = false) val ownerCityKey: OwnerCityKey
+) : Entity<Int>
+```
+
+In this example, the `owner` and `city` foreign keys define the actual persisted columns. The `ownerCityKey` inline record maps to the same underlying columns but is excluded from INSERT and UPDATE statements because its child fields inherit `@Persist(insertable = false, updatable = false)` from the parent field.
 
 ### Custom Table and Column Names
 
@@ -312,6 +355,29 @@ record Pet(@PK Integer id,
 ) implements Entity<Integer> {}
 ```
 
+### Unique Keys
+
+Use `@UK` on fields that have a unique constraint in the database. Fields annotated with `@UK` indicate that the corresponding column contains unique values, enabling type-safe single-result lookups and keyset pagination. The `@PK` annotation implies `@UK`, so primary key fields are automatically unique. See [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey) for details.
+
+```java
+record User(@PK Integer id,
+            @UK String email,
+            String name
+) implements Entity<Integer> {}
+```
+
+For compound unique constraints spanning multiple columns, use an inline record annotated with `@UK`. When the compound key columns overlap with other fields on the entity, use `@Persist(insertable = false, updatable = false)` to prevent duplicate persistence:
+
+```java
+record UserEmailUK(int userId, String email) {}
+
+record SomeEntity(@PK Integer id,
+                  @Nonnull @FK User user,
+                  @Nonnull String email,
+                  @UK @Persist(insertable = false, updatable = false) UserEmailUK uniqueKey
+) implements Entity<Integer> {}
+```
+
 ### Embedded Components
 
 Use records for embedded components:
@@ -327,6 +393,23 @@ record Owner(@PK Integer id,
              @Nullable String telephone
 ) implements Entity<Integer> {}
 ```
+
+#### `@Persist` Propagation on Embedded Components
+
+When `@Persist` is placed on an embedded component field, it propagates to all child fields within that component. Child fields can override the inherited `@Persist` with their own annotation.
+
+```java
+record OwnerCityKey(int ownerId, int cityId) {}
+
+record Pet(@PK Integer id,
+           @Nonnull String name,
+           @Nonnull @FK Owner owner,
+           @Nonnull @FK City city,
+           @Persist(insertable = false, updatable = false) OwnerCityKey ownerCityKey
+) implements Entity<Integer> {}
+```
+
+In this example, the `owner` and `city` foreign keys define the actual persisted columns. The `ownerCityKey` inline record maps to the same underlying columns but is excluded from INSERT and UPDATE statements because its child fields inherit `@Persist(insertable = false, updatable = false)` from the parent field.
 
 ### Custom Table and Column Names
 

@@ -24,8 +24,9 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
 /**
- * Marks a field as a unique key. Fields annotated with {@code @UK} are guaranteed to contain unique values in the
- * database, making them suitable for single-result lookups and for use as keyset pagination cursors.
+ * Marks a field as a unique key. Use this annotation on fields that have a unique constraint in the database.
+ * Fields annotated with {@code @UK} indicate that the corresponding column contains unique values, making them
+ * suitable for single-result lookups and for use as keyset pagination cursors.
  *
  * <p>The {@link PK @PK} annotation is meta-annotated with {@code @UK}, so primary key fields are automatically
  * recognized as unique without needing an explicit {@code @UK} annotation.</p>
@@ -45,6 +46,33 @@ import java.lang.annotation.Target;
  *                 val name: String
  * ) : Entity<Int>
  * }</pre>
+ *
+ * <p>For compound unique constraints spanning multiple columns, use an inline record annotated with {@code @UK}:
+ *
+ * <p>Java:
+ * <pre>{@code
+ * record UserEmailUK(int userId, String email) {}
+ *
+ * record SomeEntity(@PK Integer id,
+ *                   @FK User user,
+ *                   String email,
+ *                   @UK @Persist(insertable = false, updatable = false) UserEmailUK uniqueKey
+ * ) implements Entity<Integer> {}
+ * }</pre>
+ *
+ * <p>Kotlin:
+ * <pre>{@code
+ * data class UserEmailUK(val userId: Int, val email: String)
+ *
+ * data class SomeEntity(@PK val id: Int?,
+ *                       @FK val user: User,
+ *                       val email: String,
+ *                       @UK @Persist(insertable = false, updatable = false) val uniqueKey: UserEmailUK
+ * ) : Entity<Int>
+ * }</pre>
+ *
+ * <p>The {@code @Persist(insertable = false, updatable = false)} annotation prevents the inline record's columns
+ * from being persisted separately when they overlap with other fields on the entity.
  *
  * <p>The metamodel processor generates {@link Metamodel.Key} instances for fields annotated with {@code @UK},
  * enabling type-safe keyset pagination and unique field lookups via repository methods like

@@ -66,9 +66,22 @@ val count = users.count()
 val userList: List<User> = users.toList()
 ```
 
+### Unique Key Lookups
+
+When a field is annotated with `@UK`, the metamodel generates a `Metamodel.Key` instance that enables type-safe single-result lookups:
+
+```kotlin
+val user: User? = userRepository.findBy(User_.email, "alice@example.com")
+val user: User = userRepository.getBy(User_.email, "alice@example.com")  // throws if not found
+```
+
+Since `@PK` implies `@UK`, primary key fields also work with `findBy` and `getBy`.
+
 ### Keyset Pagination
 
-Repositories provide convenience methods for keyset-based pagination, where a column value (typically the primary key) acts as a cursor. This approach avoids the performance issues of `OFFSET` on large tables, because the database can seek directly to the cursor position using an index rather than scanning and discarding skipped rows.
+Repositories provide convenience methods for keyset-based pagination, where a unique column value (typically the primary key) acts as a cursor. This approach avoids the performance issues of `OFFSET` on large tables, because the database can seek directly to the cursor position using an index rather than scanning and discarding skipped rows.
+
+The key parameter must be a `Metamodel.Key`, which is generated for fields annotated with `@UK` or `@PK`. See [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey) for details.
 
 The three methods map to the three paging operations you need:
 
@@ -242,9 +255,18 @@ try (Stream<User> users = userRepository.selectAll()) {
 }
 ```
 
+### Unique Key Lookups
+
+When a field is annotated with `@UK`, the metamodel generates a `Metamodel.Key` instance that enables type-safe single-result lookups:
+
+```java
+Optional<User> user = userRepository.findBy(User_.email, "alice@example.com");
+User user = userRepository.getBy(User_.email, "alice@example.com");  // throws if not found
+```
+
 ### Keyset Pagination
 
-The same keyset pagination methods described in the Kotlin section are available on Java repositories. The `slice`, `sliceAfter`, and `sliceBefore` default methods each return a `Slice<E>` containing the page `content()` and a `hasNext()` flag.
+The same keyset pagination methods described in the Kotlin section are available on Java repositories. The `slice`, `sliceAfter`, and `sliceBefore` default methods each return a `Slice<E>` containing the page `content()` and a `hasNext()` flag. The key parameter must be a `Metamodel.Key` (generated for `@UK` and `@PK` fields).
 
 ```java
 // First page of 20 users ordered by ID
