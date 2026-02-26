@@ -79,6 +79,7 @@ import java.lang.annotation.Target;
  */
 @Target({RECORD_COMPONENT, PARAMETER})
 @Retention(RUNTIME)
+@UK
 public @interface PK {
 
     /**

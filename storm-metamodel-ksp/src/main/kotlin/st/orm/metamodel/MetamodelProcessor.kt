@@ -63,6 +63,7 @@ class MetamodelProcessor(
         private const val DATA = "st.orm.Data"
         private const val REF = "st.orm.Ref"
         private const val PRIMARY_KEY = "st.orm.PK"
+        private const val UNIQUE = "st.orm.UK"
 
         private const val K_BOOLEAN = "kotlin.Boolean"
         private const val K_BYTE = "kotlin.Byte"
@@ -384,6 +385,15 @@ class MetamodelProcessor(
         return hasAnnotationOrMeta(param, PRIMARY_KEY)
     }
 
+    private fun isUniqueField(prop: KSPropertyDeclaration): Boolean {
+        if (hasAnnotationOrMeta(prop, UNIQUE)) return true
+
+        val parent = prop.parentDeclaration as? KSClassDeclaration ?: return false
+        val ctor = parent.primaryConstructor ?: return false
+        val param = ctor.parameters.firstOrNull { it.name?.asString() == prop.simpleName.asString() } ?: return false
+        return hasAnnotationOrMeta(param, UNIQUE)
+    }
+
     private fun findPrimaryKeyProperty(clazz: KSClassDeclaration): KSPropertyDeclaration? = clazz.getAllProperties().firstOrNull { isPrimaryKey(it) }
 
     private enum class PrimitiveKind { BOOLEAN, BYTE, SHORT, INT, LONG, CHAR, FLOAT, DOUBLE }
@@ -522,9 +532,11 @@ class MetamodelProcessor(
             } else {
                 val kotlinTypeName = getKotlinTypeName(typeRef, packageName) // E (unwrap Ref)
                 val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName) // V (keep Ref)
+                val unique = isUniqueField(prop)
+                val baseClass = if (unique) "AbstractKeyMetamodel" else "AbstractMetamodel"
                 builder.append("        /** Represents the $className.$fieldName field. */\n")
                 builder.append(
-                    "        val $fieldName: AbstractMetamodel<$className, $kotlinTypeName, $valueKotlinTypeName> = " +
+                    "        val $fieldName: $baseClass<$className, $kotlinTypeName, $valueKotlinTypeName> = " +
                         "${className}Metamodel<$className>().$fieldName\n",
                 )
             }
@@ -554,7 +566,9 @@ class MetamodelProcessor(
                 val kotlinTypeName = getKotlinTypeName(typeRef, packageName) // E
                 val valueKotlinTypeName = getKotlinValueTypeName(typeRef, packageName) // V
                 val v = if (forceNullableChain) ensureNullable(valueKotlinTypeName) else valueKotlinTypeName
-                builder.append("    val $fieldName: AbstractMetamodel<T, $kotlinTypeName, $v>\n")
+                val unique = isUniqueField(prop)
+                val baseClass = if (unique) "AbstractKeyMetamodel" else "AbstractMetamodel"
+                builder.append("    val $fieldName: $baseClass<T, $kotlinTypeName, $v>\n")
             }
         }
         return builder.toString()
@@ -614,8 +628,10 @@ class MetamodelProcessor(
                     "            override fun getValue(record: T): $v =\n" +
                         "                this@$metaClassName.getValue(record).$fieldName\n"
                 }
+                val unique = isUniqueField(prop)
+                val baseClass = if (unique) "AbstractKeyMetamodel" else "AbstractMetamodel"
                 builder.append(
-                    "        $fieldName = object : AbstractMetamodel<T, $kotlinTypeName, $v>(" +
+                    "        $fieldName = object : $baseClass<T, $kotlinTypeName, $v>(" +
                         "$javaTypeName, subPath, fieldBase + \"$fieldName\", false, this" +
                         ") {\n" +
                         getValueBody +
@@ -694,6 +710,7 @@ class MetamodelProcessor(
                 |
                 |import st.orm.Metamodel
                 |import st.orm.AbstractMetamodel
+                |import st.orm.AbstractKeyMetamodel
                 |import javax.annotation.processing.Generated
                 |
                 |/**
@@ -841,6 +858,7 @@ class MetamodelProcessor(
                 |
                 |import st.orm.Metamodel
                 |import st.orm.AbstractMetamodel
+                |import st.orm.AbstractKeyMetamodel
                 |import javax.annotation.processing.Generated
                 |
                 |@Generated("${this::class.java.name}")

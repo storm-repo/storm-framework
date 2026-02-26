@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import st.orm.Data;
+import st.orm.Metamodel;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.Projection;
@@ -238,6 +239,58 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      *                              connectivity problems or query execution errors.
      */
     P getByRef(@Nonnull Ref<P> ref);
+
+    // Singular findBy / getBy methods for unique keys.
+
+    /**
+     * Retrieves a projection by the value of a unique key field.
+     *
+     * @param key the metamodel key identifying a unique column.
+     * @param value the value to match.
+     * @return the projection matching the given key value, or empty if none exists.
+     * @param <V> the type of the key field.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.9
+     */
+    <V> Optional<P> findBy(@Nonnull Metamodel.Key<P, V> key, @Nonnull V value);
+
+    /**
+     * Retrieves a projection by the value of a unique key field.
+     *
+     * @param key the metamodel key identifying a unique column.
+     * @param value the value to match.
+     * @return the projection matching the given key value.
+     * @param <V> the type of the key field.
+     * @throws NoResultException if no projection is found matching the given key value.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.9
+     */
+    <V> P getBy(@Nonnull Metamodel.Key<P, V> key, @Nonnull V value);
+
+    /**
+     * Retrieves a projection by the ref value of a unique key field that references another entity.
+     *
+     * @param key the metamodel key identifying a unique foreign key column.
+     * @param value the ref value to match.
+     * @return the projection matching the given ref value, or empty if none exists.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.9
+     */
+    <V extends Data> Optional<P> findByRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> value);
+
+    /**
+     * Retrieves a projection by the ref value of a unique key field that references another entity.
+     *
+     * @param key the metamodel key identifying a unique foreign key column.
+     * @param value the ref value to match.
+     * @return the projection matching the given ref value.
+     * @param <V> the type of the referenced entity.
+     * @throws NoResultException if no projection is found matching the given ref value.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.9
+     */
+    <V extends Data> P getByRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> value);
 
     // List based methods.
 

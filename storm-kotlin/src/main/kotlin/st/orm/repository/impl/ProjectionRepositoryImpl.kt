@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.fold
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.stream.consumeAsFlow
 import st.orm.Data
+import st.orm.Metamodel
 import st.orm.Projection
 import st.orm.Ref
 import st.orm.repository.ProjectionRepository
@@ -78,6 +79,14 @@ class ProjectionRepositoryImpl<P, ID : Any>(
     override fun getById(id: ID): P = core.getById(id)
 
     override fun getByRef(ref: Ref<P>): P = core.getByRef(ref)
+
+    override fun <V : Any> findBy(key: Metamodel.Key<P, V>, value: V): P? = core.findBy(key, value).orElse(null)
+
+    override fun <V : Any> getBy(key: Metamodel.Key<P, V>, value: V): P = core.getBy(key, value)
+
+    override fun <V : Data> findByRef(key: Metamodel.Key<P, V>, value: Ref<V>): P? = core.findByRef(key, value).orElse(null)
+
+    override fun <V : Data> getByRef(key: Metamodel.Key<P, V>, value: Ref<V>): P = core.getByRef(key, value)
 
     override fun findAll(): List<P> = core.findAll()
 

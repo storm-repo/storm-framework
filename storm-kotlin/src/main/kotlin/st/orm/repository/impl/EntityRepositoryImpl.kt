@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.stream.consumeAsFlow
 import st.orm.Data
 import st.orm.Entity
+import st.orm.Metamodel
 import st.orm.Ref
 import st.orm.repository.EntityRepository
 import st.orm.template.*
@@ -106,6 +107,14 @@ class EntityRepositoryImpl<E, ID : Any>(
     override fun getById(id: ID): E = core.getById(id)
 
     override fun getByRef(ref: Ref<E>): E = core.getByRef(ref)
+
+    override fun <V : Any> findBy(key: Metamodel.Key<E, V>, value: V): E? = core.findBy(key, value).orElse(null)
+
+    override fun <V : Any> getBy(key: Metamodel.Key<E, V>, value: V): E = core.getBy(key, value)
+
+    override fun <V : Data> findByRef(key: Metamodel.Key<E, V>, value: Ref<V>): E? = core.findByRef(key, value).orElse(null)
+
+    override fun <V : Data> getByRef(key: Metamodel.Key<E, V>, value: Ref<V>): E = core.getByRef(key, value)
 
     override fun findAll(): List<E> = core.findAll()
 

@@ -97,7 +97,7 @@ final class ModelFactory {
         try {
             BuildContext ctx = new BuildContext(builder, columns, fields, Metamodel.root(type), new AtomicInteger(1));
             for (var field : recordType.fields()) {
-                createColumns(ctx, ctx.rootMetamodel(), field, false, KeyScope.none(), PkContext.none(), null, false);
+                createColumns(ctx, ctx.rootMetamodel(), field, false, null, KeyScope.none(), PkContext.none(), null, false);
             }
             var tableName = getTableName(type, builder.tableNameResolver());
             // For permitted subclasses of a JOINED sealed entity, adjust columns so that
@@ -333,6 +333,7 @@ final class ModelFactory {
                                       @Nonnull Metamodel<?, ?> parentMetamodel,
                                       @Nonnull RecordField field,
                                       boolean parentNullable,
+                                      @Nullable Persist inheritedPersist,
                                       @Nonnull KeyScope inheritedKeyScope,
                                       @Nonnull PkContext inheritedPkContext,
                                       @Nullable Metamodel<Data, ?> keyMetamodel,
@@ -382,7 +383,7 @@ final class ModelFactory {
                 if (columnTypes.size() != columnNames.size()) {
                     throw new SqlTemplateException("Column count does not match value count.");
                 }
-                ColumnSpec spec = buildSpec(field, effectivePrimaryKey, fkAnnotation, parentNullable, pkContext);
+                ColumnSpec spec = buildSpec(field, effectivePrimaryKey, fkAnnotation, parentNullable, inheritedPersist, pkContext);
                 emitColumns(ctx, field, columnMetamodel, null, spec, keyScope, columnNames, columnTypes);
                 return;
             }
@@ -391,12 +392,15 @@ final class ModelFactory {
                     throw new SqlTemplateException("DbColumn annotation is not allowed for @Inline records: %s.%s.".formatted(field.type().getSimpleName(), field.name()));
                 }
                 boolean nullable = parentNullable || field.nullable();
+                Persist persist = field.getAnnotation(Persist.class);
+                Persist effectivePersist = persist != null ? persist : inheritedPersist;
                 var nested = getRecordType(field.type());
                 for (var child : nested.fields()) {
                     createColumns(ctx,
                             ownMetamodel,
                             child,
                             nullable,
+                            effectivePersist,
                             effectivePrimaryKey ? keyScope : inheritedKeyScope,
                             pkContext,
                             nextKeyMetamodel,
@@ -404,7 +408,7 @@ final class ModelFactory {
                 }
                 return;
             }
-            ColumnSpec spec = buildSpec(field, effectivePrimaryKey, fkAnnotation, parentNullable, pkContext);
+            ColumnSpec spec = buildSpec(field, effectivePrimaryKey, fkAnnotation, parentNullable, inheritedPersist, pkContext);
             if (fkAnnotation) {
                 var fkNames = getForeignKeys(field, ctx.builder().foreignKeyResolver(), ctx.builder().columnNameResolver());
                 Metamodel<Data, ?> secondaryMetamodel = null;
@@ -441,7 +445,7 @@ final class ModelFactory {
         Class<? extends Data> targetType = (Class<? extends Data>) t;
         RecordType targetRecordType = getRecordType(targetType);
         for (var child : targetRecordType.fields()) {
-            createColumns(ctx, foreignMetamodel, child, nullableDueToJoin, KeyScope.none(), PkContext.none(), null, true);
+            createColumns(ctx, foreignMetamodel, child, nullableDueToJoin, null, KeyScope.none(), PkContext.none(), null, true);
         }
     }
 
@@ -449,12 +453,14 @@ final class ModelFactory {
                                         boolean effectivePrimaryKey,
                                         boolean foreignKey,
                                         boolean parentNullable,
+                                        @Nullable Persist inheritedPersist,
                                         @Nonnull PkContext pkContext) throws SqlTemplateException {
         boolean nullable = parentNullable || field.nullable();
         Persist persist = field.getAnnotation(Persist.class);
+        Persist effectivePersist = persist != null ? persist : inheritedPersist;
         boolean version = field.isAnnotationPresent(Version.class);
-        boolean insertable = effectivePrimaryKey || persist == null || persist.insertable();
-        boolean updatable = !effectivePrimaryKey && (persist == null || persist.updatable());
+        boolean insertable = effectivePrimaryKey || effectivePersist == null || effectivePersist.insertable();
+        boolean updatable = !effectivePrimaryKey && (effectivePersist == null || effectivePersist.updatable());
         boolean ref = Ref.class.isAssignableFrom(field.type());
         Class<?> dataType = field.type();
         if (ref) {

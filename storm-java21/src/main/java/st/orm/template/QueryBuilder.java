@@ -738,7 +738,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param <E> the type of the key.
      * @since 1.9
      */
-    public final <E> Slice<R> slice(@Nonnull Metamodel<T, E> key, int size) {
+    public final <E> Slice<R> slice(@Nonnull Metamodel.Key<T, E> key, int size) {
         if (hasOrderBy()) {
             throw new PersistenceException("slice with key manages ORDER BY internally; remove explicit orderBy calls.");
         }
@@ -751,7 +751,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      *
      * <p>This is the cursorless variant of descending keyset pagination, useful for starting at the most recent
      * entries. Subsequent pages can be obtained with
-     * {@link #sliceBefore(Metamodel, Object, int)}.</p>
+     * {@link #sliceBefore(Metamodel.Key, Object, int)}.</p>
      *
      * <p>This method manages the ORDER BY clause internally. An explicit {@code orderBy()} call must not be present
      * on this builder; a {@link PersistenceException} is thrown if one is detected.</p>
@@ -762,7 +762,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param <E> the type of the key.
      * @since 1.9
      */
-    public final <E> Slice<R> sliceBefore(@Nonnull Metamodel<T, E> key, int size) {
+    public final <E> Slice<R> sliceBefore(@Nonnull Metamodel.Key<T, E> key, int size) {
         if (hasOrderBy()) {
             throw new PersistenceException("sliceBefore with key manages ORDER BY internally; remove explicit orderBy calls.");
         }
@@ -786,7 +786,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.9
      */
     @SuppressWarnings("unchecked")
-    public final <E> Slice<R> sliceAfter(@Nonnull Metamodel<T, E> key, @Nonnull E after, int size) {
+    public final <E> Slice<R> sliceAfter(@Nonnull Metamodel.Key<T, E> key, @Nonnull E after, int size) {
         if (hasOrderBy()) {
             throw new PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.");
         }
@@ -812,7 +812,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.9
      */
     @SuppressWarnings("unchecked")
-    public final <E> Slice<R> sliceBefore(@Nonnull Metamodel<T, E> key, @Nonnull E before, int size) {
+    public final <E> Slice<R> sliceBefore(@Nonnull Metamodel.Key<T, E> key, @Nonnull E before, int size) {
         if (hasOrderBy()) {
             throw new PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.");
         }
@@ -837,7 +837,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param <V> the type of the key, which must extend {@link Data}.
      * @since 1.9
      */
-    public final <V extends Data> Slice<R> sliceAfter(@Nonnull Metamodel<T, V> key, @Nonnull Ref<V> after, int size) {
+    public final <V extends Data> Slice<R> sliceAfter(@Nonnull Metamodel.Key<T, V> key, @Nonnull Ref<V> after, int size) {
         if (hasOrderBy()) {
             throw new PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.");
         }
@@ -862,7 +862,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @param <V> the type of the key, which must extend {@link Data}.
      * @since 1.9
      */
-    public final <V extends Data> Slice<R> sliceBefore(@Nonnull Metamodel<T, V> key, @Nonnull Ref<V> before, int size) {
+    public final <V extends Data> Slice<R> sliceBefore(@Nonnull Metamodel.Key<T, V> key, @Nonnull Ref<V> before, int size) {
         if (hasOrderBy()) {
             throw new PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.");
         }
@@ -872,7 +872,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     }
 
     //
-    // Composite keyset pagination (sort + key).
+    // Composite keyset pagination (key + sort).
     //
 
     /**
@@ -885,15 +885,15 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * <p>This method manages the ORDER BY clause internally. An explicit {@code orderBy()} call must not be present
      * on this builder; a {@link PersistenceException} is thrown if one is detected.</p>
      *
-     * @param sort the metamodel path for the (possibly non-unique) primary sort column.
      * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
+     * @param sort the metamodel path for the (possibly non-unique) primary sort column.
      * @param size the maximum number of results to include in the slice.
      * @return a slice containing the first page of results.
-     * @param <S> the type of the sort field.
      * @param <E> the type of the unique key field.
+     * @param <S> the type of the sort field.
      * @since 1.9
      */
-    public final <S, E> Slice<R> slice(@Nonnull Metamodel<T, S> sort, @Nonnull Metamodel<T, E> key, int size) {
+    public final <E, S> Slice<R> slice(@Nonnull Metamodel.Key<T, E> key, @Nonnull Metamodel<T, S> sort, int size) {
         if (hasOrderBy()) {
             throw new PersistenceException("slice with sort and key manages ORDER BY internally; remove explicit orderBy calls.");
         }
@@ -906,20 +906,20 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      *
      * <p>This is the cursorless variant of descending composite keyset pagination, useful for starting at the most
      * recent entries. Subsequent pages can be obtained with
-     * {@link #sliceBefore(Metamodel, Object, Metamodel, Object, int)}.</p>
+     * {@link #sliceBefore(Metamodel.Key, Object, Metamodel, Object, int)}.</p>
      *
      * <p>This method manages the ORDER BY clause internally. An explicit {@code orderBy()} call must not be present
      * on this builder; a {@link PersistenceException} is thrown if one is detected.</p>
      *
-     * @param sort the metamodel path for the (possibly non-unique) primary sort column.
      * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
+     * @param sort the metamodel path for the (possibly non-unique) primary sort column.
      * @param size the maximum number of results to include in the slice.
      * @return a slice containing the first page of results in descending order.
-     * @param <S> the type of the sort field.
      * @param <E> the type of the unique key field.
+     * @param <S> the type of the sort field.
      * @since 1.9
      */
-    public final <S, E> Slice<R> sliceBefore(@Nonnull Metamodel<T, S> sort, @Nonnull Metamodel<T, E> key, int size) {
+    public final <E, S> Slice<R> sliceBefore(@Nonnull Metamodel.Key<T, E> key, @Nonnull Metamodel<T, S> sort, int size) {
         if (hasOrderBy()) {
             throw new PersistenceException("sliceBefore with sort and key manages ORDER BY internally; remove explicit orderBy calls.");
         }
@@ -939,19 +939,19 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * clauses internally. An explicit {@code orderBy()} call must not be present on this builder; a
      * {@link PersistenceException} is thrown if one is detected.</p>
      *
-     * @param sort the metamodel path for the (possibly non-unique) primary sort column.
-     * @param sortAfter the cursor value for the sort column, taken from the last item of the current page.
      * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
      * @param keyAfter the cursor value for the unique key column, taken from the last item of the current page.
+     * @param sort the metamodel path for the (possibly non-unique) primary sort column.
+     * @param sortAfter the cursor value for the sort column, taken from the last item of the current page.
      * @param size the maximum number of results to include in the slice.
      * @return a slice containing the next page of results.
-     * @param <S> the type of the sort field.
      * @param <E> the type of the unique key field.
+     * @param <S> the type of the sort field.
      * @since 1.9
      */
     @SuppressWarnings("unchecked")
-    public final <S, E> Slice<R> sliceAfter(@Nonnull Metamodel<T, S> sort, @Nonnull S sortAfter,
-                                             @Nonnull Metamodel<T, E> key, @Nonnull E keyAfter, int size) {
+    public final <E, S> Slice<R> sliceAfter(@Nonnull Metamodel.Key<T, E> key, @Nonnull E keyAfter,
+                                             @Nonnull Metamodel<T, S> sort, @Nonnull S sortAfter, int size) {
         if (hasOrderBy()) {
             throw new PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.");
         }
@@ -976,19 +976,19 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * ORDER BY clauses internally. An explicit {@code orderBy()} call must not be present on this builder; a
      * {@link PersistenceException} is thrown if one is detected.</p>
      *
-     * @param sort the metamodel path for the (possibly non-unique) primary sort column.
-     * @param sortBefore the cursor value for the sort column, taken from the first item of the current page.
      * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
      * @param keyBefore the cursor value for the unique key column, taken from the first item of the current page.
+     * @param sort the metamodel path for the (possibly non-unique) primary sort column.
+     * @param sortBefore the cursor value for the sort column, taken from the first item of the current page.
      * @param size the maximum number of results to include in the slice.
      * @return a slice containing the previous page of results.
-     * @param <S> the type of the sort field.
      * @param <E> the type of the unique key field.
+     * @param <S> the type of the sort field.
      * @since 1.9
      */
     @SuppressWarnings("unchecked")
-    public final <S, E> Slice<R> sliceBefore(@Nonnull Metamodel<T, S> sort, @Nonnull S sortBefore,
-                                              @Nonnull Metamodel<T, E> key, @Nonnull E keyBefore, int size) {
+    public final <E, S> Slice<R> sliceBefore(@Nonnull Metamodel.Key<T, E> key, @Nonnull E keyBefore,
+                                              @Nonnull Metamodel<T, S> sort, @Nonnull S sortBefore, int size) {
         if (hasOrderBy()) {
             throw new PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.");
         }
@@ -1015,19 +1015,19 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * clauses internally. An explicit {@code orderBy()} call must not be present on this builder; a
      * {@link PersistenceException} is thrown if one is detected.</p>
      *
-     * @param sort the metamodel path for the (possibly non-unique) primary sort column.
-     * @param sortAfter the cursor value for the sort column, taken from the last item of the current page.
      * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
      * @param keyAfter the ref cursor value for the unique key column, taken from the last item of the current page.
+     * @param sort the metamodel path for the (possibly non-unique) primary sort column.
+     * @param sortAfter the cursor value for the sort column, taken from the last item of the current page.
      * @param size the maximum number of results to include in the slice.
      * @return a slice containing the next page of results.
-     * @param <S> the type of the sort field.
      * @param <V> the type of the unique key, which must extend {@link Data}.
+     * @param <S> the type of the sort field.
      * @since 1.9
      */
     @SuppressWarnings("unchecked")
-    public final <S, V extends Data> Slice<R> sliceAfter(@Nonnull Metamodel<T, S> sort, @Nonnull S sortAfter,
-                                                          @Nonnull Metamodel<T, V> key, @Nonnull Ref<V> keyAfter,
+    public final <V extends Data, S> Slice<R> sliceAfter(@Nonnull Metamodel.Key<T, V> key, @Nonnull Ref<V> keyAfter,
+                                                          @Nonnull Metamodel<T, S> sort, @Nonnull S sortAfter,
                                                           int size) {
         if (hasOrderBy()) {
             throw new PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.");
@@ -1054,19 +1054,19 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * ORDER BY clauses internally. An explicit {@code orderBy()} call must not be present on this builder; a
      * {@link PersistenceException} is thrown if one is detected.</p>
      *
-     * @param sort the metamodel path for the (possibly non-unique) primary sort column.
-     * @param sortBefore the cursor value for the sort column, taken from the first item of the current page.
      * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
      * @param keyBefore the ref cursor value for the unique key column, taken from the first item of the current page.
+     * @param sort the metamodel path for the (possibly non-unique) primary sort column.
+     * @param sortBefore the cursor value for the sort column, taken from the first item of the current page.
      * @param size the maximum number of results to include in the slice.
      * @return a slice containing the previous page of results.
-     * @param <S> the type of the sort field.
      * @param <V> the type of the unique key, which must extend {@link Data}.
+     * @param <S> the type of the sort field.
      * @since 1.9
      */
     @SuppressWarnings("unchecked")
-    public final <S, V extends Data> Slice<R> sliceBefore(@Nonnull Metamodel<T, S> sort, @Nonnull S sortBefore,
-                                                           @Nonnull Metamodel<T, V> key, @Nonnull Ref<V> keyBefore,
+    public final <V extends Data, S> Slice<R> sliceBefore(@Nonnull Metamodel.Key<T, V> key, @Nonnull Ref<V> keyBefore,
+                                                           @Nonnull Metamodel<T, S> sort, @Nonnull S sortBefore,
                                                            int size) {
         if (hasOrderBy()) {
             throw new PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.");

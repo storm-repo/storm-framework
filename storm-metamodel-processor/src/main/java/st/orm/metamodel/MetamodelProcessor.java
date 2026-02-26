@@ -65,6 +65,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
     private static final String DATA = "st.orm.Data";
     private static final String FOREIGN_KEY = "st.orm.FK";
     private static final String PRIMARY_KEY = "st.orm.PK";
+    private static final String UNIQUE = "st.orm.UK";
 
     private static final Pattern REF_PATTERN = Pattern.compile("^st\\.orm\\.Ref<([^>]+)>$");
 
@@ -473,6 +474,31 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return false;
     }
 
+    /**
+     * Returns {@code true} if the field with the given name on the record element has a {@code @Unique}
+     * annotation (directly or as a meta-annotation, e.g. via {@code @PK}).
+     */
+    private static boolean isUniqueField(@Nonnull Element recordElement, @Nonnull String fieldName) {
+        // Check record components (Java records).
+        if (recordElement.getKind() == RECORD && recordElement instanceof TypeElement te) {
+            for (RecordComponentElement rc : te.getRecordComponents()) {
+                if (rc.getSimpleName().toString().equals(fieldName)) {
+                    return hasAnnotationOrMeta(rc, UNIQUE);
+                }
+            }
+        }
+        // Check constructor parameters (works for both Java and Kotlin).
+        for (Element enclosed : recordElement.getEnclosedElements()) {
+            if (enclosed.getKind() != CONSTRUCTOR) continue;
+            for (VariableElement param : ((ExecutableElement) enclosed).getParameters()) {
+                if (param.getSimpleName().toString().equals(fieldName)) {
+                    return hasAnnotationOrMeta(param, UNIQUE);
+                }
+            }
+        }
+        return false;
+    }
+
     private Optional<String> findPrimaryKeyFieldName(@Nonnull Element recordElement) {
         // Java record components.
         if (recordElement.getKind() == RECORD && recordElement instanceof TypeElement te) {
@@ -607,10 +633,12 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         .append(");\n");
             } else {
                 String valueTypeName = getValueTypeName(fieldType, packageName);
+                boolean unique = isUniqueField(recordElement, fieldName);
+                String baseClass = unique ? "AbstractKeyMetamodel" : "AbstractMetamodel";
 
                 builder.append("    /** Represents the {@link ").append(recordName).append("#").append(fieldName)
                         .append("} field. */\n");
-                builder.append("    AbstractMetamodel<").append(recordName).append(", ").append(fieldTypeName)
+                builder.append("    ").append(baseClass).append("<").append(recordName).append(", ").append(fieldTypeName)
                         .append(", ").append(valueTypeName).append("> ")
                         .append(fieldName).append(" = new ").append(recordName).append("Metamodel<")
                         .append(recordName).append(">().").append(fieldName).append(";\n");
@@ -636,6 +664,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 writer.write(String.format("""
                     %simport st.orm.Metamodel;
                     import st.orm.AbstractMetamodel;
+                    import st.orm.AbstractKeyMetamodel;
                     import javax.annotation.processing.Generated;
 
                     /**
@@ -686,10 +715,12 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         .append(";\n");
             } else {
                 String valueTypeName = getValueTypeName(fieldType, packageName);
+                boolean unique = isUniqueField(recordElement, fieldName);
+                String baseClass = unique ? "AbstractKeyMetamodel" : "AbstractMetamodel";
 
                 builder.append("    /** Represents the {@link ").append(recordName).append("#").append(fieldName)
                         .append("} field. */\n");
-                builder.append("    public final AbstractMetamodel<T, ").append(fieldTypeName).append(", ")
+                builder.append("    public final ").append(baseClass).append("<T, ").append(fieldTypeName).append(", ")
                         .append(valueTypeName).append("> ").append(fieldName)
                         .append(";\n");
             }
@@ -731,6 +762,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         .append(");\n");
             } else {
                 String valueTypeName = getValueTypeName(fieldType, packageName);
+                boolean unique = isUniqueField(recordElement, fieldName);
+                String baseClass = unique ? "AbstractKeyMetamodel" : "AbstractMetamodel";
                 String ownerA = metaClassName + ".this.getValue(a)";
                 String ownerB = metaClassName + ".this.getValue(b)";
                 String leftValue = accessorExpr(recordElement, "ra", fieldName, fieldType);
@@ -738,7 +771,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 String sameExpr = sameComparisonExpr(leftValue, rightValue, fieldType);
                 String identicalExpr = identicalComparisonExpr(leftValue, rightValue, fieldType);
                 String accOnOwner = accessorExpr(recordElement, "r", fieldName, fieldType);
-                builder.append("        this.").append(fieldName).append(" = new AbstractMetamodel<T, ")
+                builder.append("        this.").append(fieldName).append(" = new ").append(baseClass).append("<T, ")
                         .append(fieldTypeName).append(", ").append(valueTypeName).append(">(")
                         .append(fieldTypeName).append(".class, subPath, fieldBase + \"").append(fieldName)
                         .append("\", false, this) {\n")
@@ -871,6 +904,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n") +
                             "import st.orm.Metamodel;\n" +
                             "import st.orm.AbstractMetamodel;\n" +
+                            "import st.orm.AbstractKeyMetamodel;\n" +
                             "import jakarta.annotation.Nonnull;\n" +
                             "import javax.annotation.processing.Generated;\n" +
                             "import java.util.Objects;\n\n" +

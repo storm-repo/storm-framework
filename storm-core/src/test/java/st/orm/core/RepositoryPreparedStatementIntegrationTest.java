@@ -2245,4 +2245,180 @@ public class RepositoryPreparedStatementIntegrationTest {
                 .getResultList();
         assertEquals(10, list.size());
     }
+
+    @Test
+    public void testSliceWithInlineRecordKey() {
+        // slice with inline record key should expand inline record for ORDER BY.
+        var slice = ORMTemplate.of(dataSource)
+                .selectFrom(Owner.class)
+                .slice(Metamodel.key(Owner_.address), 5);
+        assertEquals(5, slice.content().size());
+        assertTrue(slice.hasNext());
+    }
+
+    @Test
+    public void testSliceAfterWithInlineRecordKey() {
+        // sliceAfter should expand inline record for both WHERE and ORDER BY.
+        var allOwners = ORMTemplate.of(dataSource)
+                .selectFrom(Owner.class)
+                .orderBy(Owner_.address)
+                .getResultList();
+        // Get the address of the 5th owner (index 4) as cursor.
+        var cursor = allOwners.get(4).address();
+        var slice = ORMTemplate.of(dataSource)
+                .selectFrom(Owner.class)
+                .sliceAfter(Metamodel.key(Owner_.address), cursor, 10);
+        // Should return remaining owners after the cursor.
+        assertFalse(slice.content().isEmpty());
+    }
+
+    @Test
+    public void testSliceBeforeWithInlineRecordKey() {
+        // sliceBefore (cursorless, descending) should expand inline record for ORDER BY.
+        var slice = ORMTemplate.of(dataSource)
+                .selectFrom(Owner.class)
+                .sliceBefore(Metamodel.key(Owner_.address), 5);
+        assertEquals(5, slice.content().size());
+        assertTrue(slice.hasNext());
+    }
+
+    // Metamodel.Key and findBy/getBy tests.
+
+    @Test
+    public void testMetamodelKeyFactory() {
+        // Owner_.id is already a Key (via @PK -> @UK), so key() should return the same instance.
+        assertSame(Owner_.id, Metamodel.key(Owner_.id));
+        // Owner_.address is not unique, so key() should wrap it in a KeyDelegate.
+        var addressKey = Metamodel.key(Owner_.address);
+        assertNotNull(addressKey);
+        assertInstanceOf(Metamodel.Key.class, addressKey);
+        // The delegate should be equal to the original metamodel.
+        assertEquals(Owner_.address, addressKey);
+        assertEquals(addressKey, Owner_.address);
+    }
+
+    @Test
+    public void testOwnerIdIsKey() {
+        // Owner_.id should be a Metamodel.Key since @PK is meta-annotated with @UK.
+        assertInstanceOf(Metamodel.Key.class, Owner_.id);
+    }
+
+    @Test
+    public void testSliceWithPrimaryKey() {
+        // slice using Owner_.id directly (a Key via @PK).
+        var slice = ORMTemplate.of(dataSource)
+                .selectFrom(Owner.class)
+                .slice(Owner_.id, 5);
+        assertEquals(5, slice.content().size());
+        assertTrue(slice.hasNext());
+    }
+
+    @Test
+    public void testFindByKey() {
+        var repo = ORMTemplate.of(dataSource).entity(Owner.class);
+        var result = repo.findBy(Owner_.id, 1);
+        assertTrue(result.isPresent());
+        assertEquals(1, result.get().id());
+    }
+
+    @Test
+    public void testFindByKeyNotFound() {
+        var repo = ORMTemplate.of(dataSource).entity(Owner.class);
+        var result = repo.findBy(Owner_.id, 999);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    public void testGetByKey() {
+        var repo = ORMTemplate.of(dataSource).entity(Owner.class);
+        var owner = repo.getBy(Owner_.id, 1);
+        assertEquals(1, owner.id());
+    }
+
+    @Test
+    public void testGetByKeyNotFound() {
+        var repo = ORMTemplate.of(dataSource).entity(Owner.class);
+        assertThrows(st.orm.NoResultException.class, () -> repo.getBy(Owner_.id, 999));
+    }
+
+    // -- @Persist propagation on inline records --
+
+    record OwnerCityInline(int ownerId, int cityId) {}
+
+    @DbTable("pet")
+    record PetWithPersistInline(
+            @PK Integer id,
+            @Nonnull String name,
+            @Nonnull LocalDate birthDate,
+            int typeId,
+            int ownerId,
+            int cityId,
+            @Persist(insertable = false, updatable = false) OwnerCityInline ownerCity
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void testInsertWithPersistOnInlineRecord() {
+        // The inline record's child columns (owner_id, city_id) should be excluded from INSERT
+        // because @Persist(insertable=false, updatable=false) is on the inline field.
+        var repository = ORMTemplate.of(dataSource).entity(PetWithPersistInline.class);
+        observe(sql -> {
+            String statement = sql.statement();
+            // The INSERT should include columns for id, name, birth_date, type_id, owner_id, city_id
+            // but NOT the inline record's owner_id and city_id duplicates.
+            // Insertable columns: id (PK), name, birth_date, type_id, owner_id, city_id (direct fields).
+            // Non-insertable: ownerCity.ownerId, ownerCity.cityId (from inline with @Persist(false,false)).
+            assertFalse(statement.contains("owner_city_owner_id"), "Inline field ownerId should not appear in INSERT");
+            assertFalse(statement.contains("owner_city_city_id"), "Inline field cityId should not appear in INSERT");
+        }, () -> {
+            var e = assertThrows(PersistenceException.class, () ->
+                    repository.insert(new PetWithPersistInline(null, "Test", LocalDate.now(), 1, 1, 1, new OwnerCityInline(1, 1))));
+            // Exception is expected because the table schema doesn't match, but the SQL is still generated.
+        });
+    }
+
+    @Test
+    public void testUpdateWithPersistOnInlineRecord() {
+        // The inline record's child columns should be excluded from UPDATE
+        // because @Persist(insertable=false, updatable=false) is on the inline field.
+        var repository = ORMTemplate.of(dataSource).entity(PetWithPersistInline.class);
+        observe(sql -> {
+            String statement = sql.statement();
+            assertFalse(statement.contains("owner_city_owner_id"), "Inline field ownerId should not appear in UPDATE");
+            assertFalse(statement.contains("owner_city_city_id"), "Inline field cityId should not appear in UPDATE");
+        }, () -> {
+            var e = assertThrows(PersistenceException.class, () ->
+                    repository.update(new PetWithPersistInline(1, "Test", LocalDate.now(), 1, 1, 1, new OwnerCityInline(1, 1))));
+        });
+    }
+
+    record InnerInline(String value) {}
+    record OuterInline(@Persist(insertable = true, updatable = true) InnerInline override, String other) {}
+
+    @DbTable("pet")
+    record PetWithNestedPersistOverride(
+            @PK Integer id,
+            @Nonnull String name,
+            @Nonnull LocalDate birthDate,
+            int typeId,
+            int ownerId,
+            @Persist(insertable = false, updatable = false) OuterInline nested
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void testChildPersistOverridesParent() {
+        // OuterInline has @Persist(false, false) on the parent, but InnerInline has its own
+        // @Persist(true, true) which should override. The 'other' field should still inherit false.
+        var repository = ORMTemplate.of(dataSource).entity(PetWithNestedPersistOverride.class);
+        observe(sql -> {
+            String statement = sql.statement();
+            // InnerInline.value has @Persist(insertable=true) via child override, so it should be insertable.
+            assertTrue(statement.contains("value"), "InnerInline.value should be insertable due to child override");
+            // OuterInline.other inherits @Persist(false,false) from parent, so it should not appear.
+            assertFalse(statement.contains("other"), "OuterInline.other should not be insertable (inherits parent @Persist)");
+        }, () -> {
+            var e = assertThrows(PersistenceException.class, () ->
+                    repository.insert(new PetWithNestedPersistOverride(null, "Test", LocalDate.now(), 1, 1,
+                            new OuterInline(new InnerInline("test"), "excluded"))));
+        });
+    }
 }

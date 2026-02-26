@@ -435,7 +435,7 @@ public class BuilderPreparedStatementIntegrationTest {
         // Expected order: Stevens(5), Ortega(4), Leary(2), Jenkins(6), Douglas(3), Carter(1).
         Slice<Vet> slice = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .sliceBefore(Vet_.lastName, Vet_.id, 3);
+                .sliceBefore(Vet_.id, Vet_.lastName, 3);
         assertEquals(3, slice.content().size());
         assertTrue(slice.hasNext());
         assertEquals("Stevens", slice.content().get(0).lastName());
@@ -448,7 +448,7 @@ public class BuilderPreparedStatementIntegrationTest {
         // Request more than available: all 6 vets in descending composite order.
         Slice<Vet> slice = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .sliceBefore(Vet_.lastName, Vet_.id, 10);
+                .sliceBefore(Vet_.id, Vet_.lastName, 10);
         assertEquals(6, slice.content().size());
         assertFalse(slice.hasNext());
         assertEquals("Stevens", slice.content().get(0).lastName());
@@ -461,7 +461,7 @@ public class BuilderPreparedStatementIntegrationTest {
             ORMTemplate.of(dataSource)
                     .selectFrom(Vet.class)
                     .orderBy(Vet_.lastName)
-                    .sliceBefore(Vet_.lastName, Vet_.id, 10);
+                    .sliceBefore(Vet_.id, Vet_.lastName, 10);
         });
     }
 
@@ -473,7 +473,7 @@ public class BuilderPreparedStatementIntegrationTest {
         // Expected order: Carter(1), Douglas(3), Jenkins(6), Leary(2), Ortega(4), Stevens(5).
         Slice<Vet> slice = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .slice(Vet_.lastName, Vet_.id, 3);
+                .slice(Vet_.id, Vet_.lastName, 3);
         assertEquals(3, slice.content().size());
         assertTrue(slice.hasNext());
         assertEquals("Carter", slice.content().get(0).lastName());
@@ -487,7 +487,7 @@ public class BuilderPreparedStatementIntegrationTest {
         // Should get: Jenkins(6), Leary(2), Ortega(4), Stevens(5).
         Slice<Vet> slice = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .sliceAfter(Vet_.lastName, "Douglas", Vet_.id, 3, 10);
+                .sliceAfter(Vet_.id, 3, Vet_.lastName, "Douglas", 10);
         assertEquals(4, slice.content().size());
         assertFalse(slice.hasNext());
         assertEquals("Jenkins", slice.content().get(0).lastName());
@@ -502,7 +502,7 @@ public class BuilderPreparedStatementIntegrationTest {
         // Should get: Jenkins(6), Douglas(3), Carter(1).
         Slice<Vet> slice = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .sliceBefore(Vet_.lastName, "Leary", Vet_.id, 2, 10);
+                .sliceBefore(Vet_.id, 2, Vet_.lastName, "Leary", 10);
         assertEquals(3, slice.content().size());
         assertFalse(slice.hasNext());
         // Results are in descending order.
@@ -518,7 +518,7 @@ public class BuilderPreparedStatementIntegrationTest {
         Slice<Vet> slice = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
                 .where(Vet_.lastName, GREATER_THAN, "D")
-                .sliceAfter(Vet_.lastName, "Jenkins", Vet_.id, 6, 10);
+                .sliceAfter(Vet_.id, 6, Vet_.lastName, "Jenkins", 10);
         // Remaining after "Jenkins": Leary(2), Ortega(4), Stevens(5).
         assertEquals(3, slice.content().size());
         assertFalse(slice.hasNext());
@@ -531,7 +531,7 @@ public class BuilderPreparedStatementIntegrationTest {
             ORMTemplate.of(dataSource)
                     .selectFrom(Vet.class)
                     .orderBy(Vet_.firstName)
-                    .sliceAfter(Vet_.lastName, "Carter", Vet_.id, 1, 10);
+                    .sliceAfter(Vet_.id, 1, Vet_.lastName, "Carter", 10);
         });
     }
 
@@ -541,7 +541,7 @@ public class BuilderPreparedStatementIntegrationTest {
             ORMTemplate.of(dataSource)
                     .selectFrom(Vet.class)
                     .orderBy(Vet_.firstName)
-                    .sliceBefore(Vet_.lastName, "Stevens", Vet_.id, 5, 10);
+                    .sliceBefore(Vet_.id, 5, Vet_.lastName, "Stevens", 10);
         });
     }
 
@@ -551,7 +551,7 @@ public class BuilderPreparedStatementIntegrationTest {
         // Page 1: Carter(1), Douglas(3).
         Slice<Vet> page1 = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .slice(Vet_.lastName, Vet_.id, 2);
+                .slice(Vet_.id, Vet_.lastName, 2);
         assertEquals(2, page1.content().size());
         assertTrue(page1.hasNext());
         assertEquals("Carter", page1.content().get(0).lastName());
@@ -561,7 +561,7 @@ public class BuilderPreparedStatementIntegrationTest {
         Vet lastPage1 = page1.content().get(page1.content().size() - 1);
         Slice<Vet> page2 = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .sliceAfter(Vet_.lastName, lastPage1.lastName(), Vet_.id, lastPage1.id(), 2);
+                .sliceAfter(Vet_.id, lastPage1.id(), Vet_.lastName, lastPage1.lastName(), 2);
         assertEquals(2, page2.content().size());
         assertTrue(page2.hasNext());
         assertEquals("Jenkins", page2.content().get(0).lastName());
@@ -571,7 +571,7 @@ public class BuilderPreparedStatementIntegrationTest {
         Vet lastPage2 = page2.content().get(page2.content().size() - 1);
         Slice<Vet> page3 = ORMTemplate.of(dataSource)
                 .selectFrom(Vet.class)
-                .sliceAfter(Vet_.lastName, lastPage2.lastName(), Vet_.id, lastPage2.id(), 2);
+                .sliceAfter(Vet_.id, lastPage2.id(), Vet_.lastName, lastPage2.lastName(), 2);
         assertEquals(2, page3.content().size());
         assertFalse(page3.hasNext());
         assertEquals("Ortega", page3.content().get(0).lastName());

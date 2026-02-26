@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.Entity;
+import st.orm.Metamodel;
 import st.orm.Ref;
 import st.orm.repository.EntityRepository;
 import st.orm.template.Model;
@@ -200,6 +201,26 @@ public final class EntityRepositoryImpl<E extends Entity<ID>, ID> implements Ent
     @Override
     public E getByRef(@Nonnull Ref<E> ref) {
         return core.getByRef(ref);
+    }
+
+    @Override
+    public <V> Optional<E> findBy(@Nonnull Metamodel.Key<E, V> key, @Nonnull V value) {
+        return core.findBy(key, value);
+    }
+
+    @Override
+    public <V> E getBy(@Nonnull Metamodel.Key<E, V> key, @Nonnull V value) {
+        return core.getBy(key, value);
+    }
+
+    @Override
+    public <V extends Data> Optional<E> findByRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> value) {
+        return core.findByRef(key, value);
+    }
+
+    @Override
+    public <V extends Data> E getByRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> value) {
+        return core.getByRef(key, value);
     }
 
     @Override

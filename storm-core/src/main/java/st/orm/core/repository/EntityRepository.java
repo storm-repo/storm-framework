@@ -23,6 +23,7 @@ import st.orm.Data;
 import st.orm.Entity;
 import st.orm.FK;
 import st.orm.Inline;
+import st.orm.Metamodel;
 import st.orm.NoResultException;
 import st.orm.PK;
 import st.orm.PersistenceException;
@@ -594,6 +595,58 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      *                              connectivity problems or query execution errors.
      */
     E getByRef(@Nonnull Ref<E> ref);
+
+    // Singular findBy / getBy methods for unique keys.
+
+    /**
+     * Retrieves an entity by the value of a unique key field.
+     *
+     * @param key the metamodel key identifying a unique column.
+     * @param value the value to match.
+     * @return the entity matching the given key value, or empty if none exists.
+     * @param <V> the type of the key field.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.9
+     */
+    <V> Optional<E> findBy(@Nonnull Metamodel.Key<E, V> key, @Nonnull V value);
+
+    /**
+     * Retrieves an entity by the value of a unique key field.
+     *
+     * @param key the metamodel key identifying a unique column.
+     * @param value the value to match.
+     * @return the entity matching the given key value.
+     * @param <V> the type of the key field.
+     * @throws NoResultException if no entity is found matching the given key value.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.9
+     */
+    <V> E getBy(@Nonnull Metamodel.Key<E, V> key, @Nonnull V value);
+
+    /**
+     * Retrieves an entity by the ref value of a unique key field that references another entity.
+     *
+     * @param key the metamodel key identifying a unique foreign key column.
+     * @param value the ref value to match.
+     * @return the entity matching the given ref value, or empty if none exists.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.9
+     */
+    <V extends Data> Optional<E> findByRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> value);
+
+    /**
+     * Retrieves an entity by the ref value of a unique key field that references another entity.
+     *
+     * @param key the metamodel key identifying a unique foreign key column.
+     * @param value the ref value to match.
+     * @return the entity matching the given ref value.
+     * @param <V> the type of the referenced entity.
+     * @throws NoResultException if no entity is found matching the given ref value.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.9
+     */
+    <V extends Data> E getByRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> value);
 
     // List based methods.
 
