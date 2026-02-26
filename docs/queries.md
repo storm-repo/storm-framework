@@ -266,25 +266,25 @@ userRepository.select()
 
 #### Composite Keyset Pagination
 
-The single-key `slice` methods require the cursor column to also be the sort column, which means the column must contain unique values. When you want to sort by a non-unique column (for example, a timestamp or status), use the composite keyset overloads. These accept two metamodel fields: a `sort` column for the primary sort order and a `key` column (typically the primary key) as a unique tiebreaker for deterministic paging.
+The single-key `slice` methods require the cursor column to also be the sort column, which means the column must contain unique values. When you want to sort by a non-unique column (for example, a timestamp or status), use the composite keyset overloads. These accept two metamodel fields: a unique `key` column (typically the primary key) as a tiebreaker for deterministic paging, and a `sort` column for the primary sort order.
 
 ```kotlin
 // First page sorted by creation date ascending, with ID as tiebreaker
 val page1: Slice<Post> = postRepository.select()
-    .slice(Post_.createdAt, Post_.id, 20)
+    .slice(Post_.id, Post_.createdAt, 20)
 
 // First page sorted by creation date descending (most recent first)
 val latest: Slice<Post> = postRepository.select()
-    .sliceBefore(Post_.createdAt, Post_.id, 20)
+    .sliceBefore(Post_.id, Post_.createdAt, 20)
 
 // Next page: pass both cursor values from the last item
 val last = page1.content.last()
 val page2: Slice<Post> = postRepository.select()
-    .sliceAfter(Post_.createdAt, last.createdAt, Post_.id, last.id, 20)
+    .sliceAfter(Post_.id, last.id, Post_.createdAt, last.createdAt, 20)
 
 // Previous page
 val prev: Slice<Post> = postRepository.select()
-    .sliceBefore(Post_.createdAt, last.createdAt, Post_.id, last.id, 20)
+    .sliceBefore(Post_.id, last.id, Post_.createdAt, last.createdAt, 20)
 ```
 
 The generated SQL uses a composite WHERE condition that maintains correct ordering even when `sort` values repeat:
@@ -620,21 +620,21 @@ Slice<User> activePage = userRepository.select()
 
 #### Composite Keyset Pagination
 
-When sorting by a non-unique column, use the composite keyset overloads that accept a `sort` column and a unique `key` tiebreaker. The concepts and generated SQL are the same as described in the Kotlin section above.
+When sorting by a non-unique column, use the composite keyset overloads that accept a unique `key` tiebreaker and a `sort` column. The concepts and generated SQL are the same as described in the Kotlin section above.
 
 ```java
 // First page sorted by creation date, with ID as tiebreaker
 Slice<Post> page1 = postRepository.select()
-    .slice(Post_.createdAt, Post_.id, 20);
+    .slice(Post_.id, Post_.createdAt, 20);
 
 // Next page: pass both cursor values from the last item
 Post last = page1.content().getLast();
 Slice<Post> page2 = postRepository.select()
-    .sliceAfter(Post_.createdAt, last.createdAt(), Post_.id, last.id(), 20);
+    .sliceAfter(Post_.id, last.id(), Post_.createdAt, last.createdAt(), 20);
 
 // Previous page
 Slice<Post> prev = postRepository.select()
-    .sliceBefore(Post_.createdAt, last.createdAt(), Post_.id, last.id(), 20);
+    .sliceBefore(Post_.id, last.id(), Post_.createdAt, last.createdAt(), 20);
 ```
 
 As with the single-key variants, these methods manage ORDER BY internally and reject any explicit `orderBy()` call. See the Kotlin section for details on the generated SQL and indexing recommendations.
