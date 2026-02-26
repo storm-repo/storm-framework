@@ -436,7 +436,7 @@ See [Queries](queries.md#keyset-pagination-with-slice) for full details on keyse
 
 ### Manual Key Wrapping
 
-For dynamically constructed metamodels or composite keys where the processor does not generate a `Key` instance, use `Metamodel.key()` to wrap an existing metamodel:
+For dynamically constructed metamodels or composite keys where the processor does not generate a `Key` instance, use `Metamodel.key()` (or the `.key()` extension in Kotlin) to wrap an existing metamodel:
 
 ```kotlin
 val key: Metamodel.Key<User, String> = Metamodel.key(Metamodel.of(User::class.java, "email"))
@@ -446,7 +446,23 @@ val key: Metamodel.Key<User, String> = Metamodel.key(Metamodel.of(User::class.ja
 Metamodel.Key<User, String> key = Metamodel.key(Metamodel.of(User.class, "email"));
 ```
 
-Callers are responsible for ensuring that the underlying column has a uniqueness constraint in the database.
+This is also useful when a column that is not annotated with `@UK` becomes unique in the context of a query, for example because of a GROUP BY clause. In that case, the column can serve as a keyset pagination cursor even though the metamodel processor did not generate a `Key` for it:
+
+```kotlin
+val ordersByCity = orm.query(Order::class)
+    .groupBy(Order_.city)
+    .select(Order_.city, "COUNT(*)")
+    .slice(Order_.city.key(), 20)
+```
+
+```java
+var ordersByCity = orm.query(Order.class)
+    .groupBy(Order_.city)
+    .select(Order_.city, "COUNT(*)")
+    .slice(Metamodel.key(Order_.city), 20);
+```
+
+Callers are responsible for ensuring that the column contains unique values in the result set.
 
 ## Benefits
 

@@ -730,7 +730,7 @@ class MetamodelProcessor(
         }
     }
 
-    private fun buildFlattenMethod(classDeclaration: KSClassDeclaration): String {
+    private fun buildFlattenMethod(classDeclaration: KSClassDeclaration, metaClassName: String): String {
         var hasInlineSubRecords = false
         val fieldNames = mutableListOf<String>()
         val fieldIsInline = mutableListOf<Boolean>()
@@ -752,25 +752,25 @@ class MetamodelProcessor(
         }
 
         val builder = StringBuilder()
-        builder.append("    override fun flatten(): java.util.List<st.orm.Metamodel<T, *>> {\n")
+        builder.append("    override fun flatten(): List<Metamodel<T, *>> {\n")
 
         if (!hasInlineSubRecords) {
-            builder.append("        return java.util.List.of(")
+            builder.append("        return listOf(")
             fieldNames.forEachIndexed { index, name ->
                 if (index > 0) builder.append(", ")
                 builder.append("this.$name")
             }
             builder.append(")\n")
         } else {
-            builder.append("        val result = java.util.ArrayList<st.orm.Metamodel<T, *>>()\n")
+            builder.append("        return buildList {\n")
             fieldNames.forEachIndexed { index, name ->
                 if (fieldIsInline[index]) {
-                    builder.append("        result.addAll(this.$name.flatten())\n")
+                    builder.append("            addAll(this@$metaClassName.$name.flatten())\n")
                 } else {
-                    builder.append("        result.add(this.$name)\n")
+                    builder.append("            add(this@$metaClassName.$name)\n")
                 }
             }
-            builder.append("        return java.util.Collections.unmodifiableList(result)\n")
+            builder.append("        }\n")
         }
 
         builder.append("    }\n")
@@ -850,7 +850,7 @@ class MetamodelProcessor(
             |        : this(path, field, false, parent, getter)
             """.trimMargin()
         }
-        val flattenMethod = buildFlattenMethod(classDeclaration)
+        val flattenMethod = buildFlattenMethod(classDeclaration, metaClassName)
         OutputStreamWriter(file).use { writer ->
             writer.write(
                 """

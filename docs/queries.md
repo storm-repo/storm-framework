@@ -305,6 +305,26 @@ CREATE INDEX idx_post_created_id ON post (created_at, id);
 
 This allows the database to seek directly to the cursor position and scan forward, giving consistent performance regardless of page depth.
 
+#### Keyset Pagination with GROUP BY
+
+When a query uses GROUP BY, the grouped column produces unique values in the result set even if the column itself is not annotated with `@UK`. In this case, wrap the metamodel with `.key()` (Kotlin) or `Metamodel.key()` (Java) to indicate it can serve as a keyset pagination cursor:
+
+```kotlin
+val page = orm.query(Order::class)
+    .groupBy(Order_.city)
+    .select(Order_.city, "COUNT(*)")
+    .slice(Order_.city.key(), 20)
+```
+
+```java
+var page = orm.query(Order.class)
+    .groupBy(Order_.city)
+    .select(Order_.city, "COUNT(*)")
+    .slice(Metamodel.key(Order_.city), 20);
+```
+
+See [Manual Key Wrapping](metamodel.md#manual-key-wrapping) for more details.
+
 #### Composable WHERE and ORDER BY
 
 Multiple `where()` calls are combined with AND, and multiple `orderBy()` calls append columns to a single ORDER BY clause:
