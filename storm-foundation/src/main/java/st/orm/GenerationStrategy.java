@@ -18,11 +18,20 @@ package st.orm;
 /**
  * Defines the strategy to use when generating values for primary keys.
  *
- * <p>The generation strategy is specified via the {@link PK#generation()} attribute:
+ * <p>The generation strategy is specified via the {@link PK#generation()} attribute.
+ *
+ * <p>Java:
  * <pre>{@code
  * record User(@PK(generation = IDENTITY) Integer id,
  *             String name
  * ) implements Entity<Integer> {}
+ * }</pre>
+ *
+ * <p>Kotlin:
+ * <pre>{@code
+ * data class User(@PK(generation = IDENTITY) val id: Int?,
+ *                 val name: String
+ * ) : Entity<Int>
  * }</pre>
  *
  * @see PK#generation()
@@ -40,18 +49,32 @@ public enum GenerationStrategy {
      *   <li>The primary key is also a foreign key (dependent one-to-one relationship)</li>
      * </ul>
      *
-     * <p>Example with natural key:
+     * <p>Example with natural key (Java):
      * <pre>{@code
      * record Country(@PK(generation = NONE) String code,
      *                String name
      * ) implements Entity<String> {}
      * }</pre>
      *
-     * <p>Example with primary key as foreign key:
+     * <p>Example with natural key (Kotlin):
+     * <pre>{@code
+     * data class Country(@PK(generation = NONE) val code: String,
+     *                    val name: String
+     * ) : Entity<String>
+     * }</pre>
+     *
+     * <p>Example with primary key as foreign key (Java):
      * <pre>{@code
      * record UserProfile(@PK(generation = NONE) @FK User user,
      *                    String bio
      * ) implements Entity<User> {}
+     * }</pre>
+     *
+     * <p>Example with primary key as foreign key (Kotlin):
+     * <pre>{@code
+     * data class UserProfile(@PK(generation = NONE) @FK val user: User,
+     *                        val bio: String
+     * ) : Entity<User>
      * }</pre>
      */
     NONE,
@@ -62,11 +85,18 @@ public enum GenerationStrategy {
      * <p>This is the default strategy. When inserting, Storm omits the primary key column from the INSERT
      * statement and retrieves the generated value after the insert completes.
      *
-     * <p>Example:
+     * <p>Java:
      * <pre>{@code
      * record User(@PK Integer id,  // generation = IDENTITY is the default
      *             String name
      * ) implements Entity<Integer> {}
+     * }</pre>
+     *
+     * <p>Kotlin:
+     * <pre>{@code
+     * data class User(@PK val id: Int?,  // generation = IDENTITY is the default
+     *                 val name: String
+     * ) : Entity<Int>
      * }</pre>
      */
     IDENTITY,
@@ -77,11 +107,18 @@ public enum GenerationStrategy {
      * <p>When inserting, Storm fetches the next value from the sequence before executing the INSERT statement.
      * The sequence name must be specified via {@link PK#sequence()}.
      *
-     * <p>Example:
+     * <p>Java:
      * <pre>{@code
      * record Order(@PK(generation = SEQUENCE, sequence = "order_seq") Long id,
      *              BigDecimal total
      * ) implements Entity<Long> {}
+     * }</pre>
+     *
+     * <p>Kotlin:
+     * <pre>{@code
+     * data class Order(@PK(generation = SEQUENCE, sequence = "order_seq") val id: Long?,
+     *                  val total: BigDecimal
+     * ) : Entity<Long>
      * }</pre>
      */
     SEQUENCE

@@ -42,7 +42,9 @@ import java.lang.annotation.Target;
  * <h2>Composite Primary Keys</h2>
  *
  * <p>For composite primary keys, define a separate record containing the key components and use it as the
- * primary key field:
+ * primary key field.
+ *
+ * <p>Java:
  * <pre>{@code
  * record UserRolePk(int userId, int roleId) {}
  *
@@ -50,6 +52,16 @@ import java.lang.annotation.Target;
  *                 @FK @Persist(insertable = false, updatable = false) User user,
  *                 @FK @Persist(insertable = false, updatable = false) Role role
  * ) implements Entity<UserRolePk> {}
+ * }</pre>
+ *
+ * <p>Kotlin:
+ * <pre>{@code
+ * data class UserRolePk(val userId: Int, val roleId: Int)
+ *
+ * data class UserRole(@PK val pk: UserRolePk,
+ *                     @FK @Persist(insertable = false, updatable = false) val user: User,
+ *                     @FK @Persist(insertable = false, updatable = false) val role: Role
+ * ) : Entity<UserRolePk>
  * }</pre>
  *
  * <p>The {@link Persist @Persist} annotation indicates that the FK columns overlap with the composite PK columns.
@@ -60,11 +72,20 @@ import java.lang.annotation.Target;
  *
  * <p>A primary key can also be a foreign key, which is useful for dependent one-to-one relationships,
  * extension tables, or table-per-subtype inheritance. Use both {@code @PK} and {@link FK @FK} on the same
- * field with {@code generation = NONE}:
+ * field with {@code generation = NONE}.
+ *
+ * <p>Java:
  * <pre>{@code
  * record UserProfile(@PK(generation = NONE) @FK User user,
  *                    String bio
  * ) implements Entity<User> {}
+ * }</pre>
+ *
+ * <p>Kotlin:
+ * <pre>{@code
+ * data class UserProfile(@PK(generation = NONE) @FK val user: User,
+ *                        val bio: String
+ * ) : Entity<User>
  * }</pre>
  *
  * <p>Column name resolution when both {@code @PK} and {@code @FK} are present:

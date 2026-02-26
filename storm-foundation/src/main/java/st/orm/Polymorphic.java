@@ -27,12 +27,22 @@ import java.lang.annotation.Target;
  * <p>Place this annotation on a sealed interface that extends {@link Entity} to indicate that the hierarchy uses
  * Joined Table inheritance. Without this annotation, sealed entity hierarchies default to Single-Table inheritance.</p>
  *
+ * <p>Java:
  * <pre>{@code
  * @Polymorphic(JOINED)
  * sealed interface Pet extends Entity<Integer> permits Cat, Dog {}
  *
  * record Cat(@PK Integer id, String name, boolean indoor) implements Pet {}
  * record Dog(@PK Integer id, String name, int weight) implements Pet {}
+ * }</pre>
+ *
+ * <p>Kotlin:
+ * <pre>{@code
+ * @Polymorphic(JOINED)
+ * sealed interface Pet : Entity<Int>
+ *
+ * data class Cat(@PK val id: Int?, val name: String, val indoor: Boolean) : Pet
+ * data class Dog(@PK val id: Int?, val name: String, val weight: Int) : Pet
  * }</pre>
  *
  * @see Discriminator

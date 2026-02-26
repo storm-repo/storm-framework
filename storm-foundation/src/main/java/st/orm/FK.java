@@ -45,7 +45,9 @@ import java.lang.annotation.Target;
  *
  * <p>When referencing an entity with a composite primary key, Storm automatically generates multi-column
  * join conditions. Use {@link DbColumn @DbColumn} annotations to specify custom column names for each
- * component:
+ * component.
+ *
+ * <p>Java:
  * <pre>{@code
  * record AuditLog(@PK Integer id,
  *                 String action,
@@ -53,11 +55,21 @@ import java.lang.annotation.Target;
  * ) implements Entity<Integer> {}
  * }</pre>
  *
+ * <p>Kotlin:
+ * <pre>{@code
+ * data class AuditLog(@PK val id: Int?,
+ *                     val action: String,
+ *                     @FK @DbColumn("audit_user_id") @DbColumn("audit_role_id") val userRole: UserRole
+ * ) : Entity<Int>
+ * }</pre>
+ *
  * <h2>Foreign Keys Overlapping with Composite Primary Key</h2>
  *
  * <p>In join tables for many-to-many relationships, the FK columns often overlap with the composite PK columns.
  * Use {@link Persist @Persist} to indicate that the FK fields are only used for loading related entities, not
- * for insert/update operations:
+ * for insert/update operations.
+ *
+ * <p>Java:
  * <pre>{@code
  * record UserRolePk(int userId, int roleId) {}
  *
@@ -67,15 +79,34 @@ import java.lang.annotation.Target;
  * ) implements Entity<UserRolePk> {}
  * }</pre>
  *
+ * <p>Kotlin:
+ * <pre>{@code
+ * data class UserRolePk(val userId: Int, val roleId: Int)
+ *
+ * data class UserRole(@PK val pk: UserRolePk,
+ *                     @FK @Persist(insertable = false, updatable = false) val user: User,
+ *                     @FK @Persist(insertable = false, updatable = false) val role: Role
+ * ) : Entity<UserRolePk>
+ * }</pre>
+ *
  * <h2>Primary Key as Foreign Key</h2>
  *
  * <p>A foreign key can also serve as the primary key, which is useful for dependent one-to-one relationships,
  * extension tables, or table-per-subtype inheritance. Use both {@link PK @PK} and {@code @FK} on the same
- * field:
+ * field.
+ *
+ * <p>Java:
  * <pre>{@code
  * record UserProfile(@PK(generation = NONE) @FK User user,
  *                    String bio
  * ) implements Entity<User> {}
+ * }</pre>
+ *
+ * <p>Kotlin:
+ * <pre>{@code
+ * data class UserProfile(@PK(generation = NONE) @FK val user: User,
+ *                        val bio: String
+ * ) : Entity<User>
  * }</pre>
  *
  * <p>Column name resolution when both {@code @PK} and {@code @FK} are present:

@@ -30,12 +30,20 @@ import java.lang.annotation.Target;
  * <p>The {@link PK @PK} annotation is meta-annotated with {@code @UK}, so primary key fields are automatically
  * recognized as unique without needing an explicit {@code @UK} annotation.</p>
  *
- * <p>Usage example:
+ * <p>Usage example (Java):
  * <pre>{@code
  * record User(@PK Integer id,
  *             @UK String email,
  *             String name
  * ) implements Entity<Integer> {}
+ * }</pre>
+ *
+ * <p>Usage example (Kotlin):
+ * <pre>{@code
+ * data class User(@PK val id: Int?,
+ *                 @UK val email: String,
+ *                 val name: String
+ * ) : Entity<Int>
  * }</pre>
  *
  * <p>The metamodel processor generates {@link Metamodel.Key} instances for fields annotated with {@code @UK},

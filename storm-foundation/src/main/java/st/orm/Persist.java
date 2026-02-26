@@ -27,6 +27,25 @@ import java.lang.annotation.Target;
  *
  * <p>This annotation is only relevant in case the record is going to be persisted using an INSERT or UPDATE
  * statement.</p>
+ *
+ * <p>When placed on an inline record field, the annotation is propagated to all child fields of the inline record.
+ * Child fields can override the inherited annotation with their own {@code @Persist}.</p>
+ *
+ * <p>Java:
+ * <pre>{@code
+ * record UserRole(@PK UserRolePk pk,
+ *                 @FK @Persist(insertable = false, updatable = false) User user,
+ *                 @FK @Persist(insertable = false, updatable = false) Role role
+ * ) implements Entity<UserRolePk> {}
+ * }</pre>
+ *
+ * <p>Kotlin:
+ * <pre>{@code
+ * data class UserRole(@PK val pk: UserRolePk,
+ *                     @FK @Persist(insertable = false, updatable = false) val user: User,
+ *                     @FK @Persist(insertable = false, updatable = false) val role: Role
+ * ) : Entity<UserRolePk>
+ * }</pre>
  */
 @Target({RECORD_COMPONENT, PARAMETER})
 @Retention(RUNTIME)

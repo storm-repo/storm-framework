@@ -32,6 +32,7 @@ import java.lang.annotation.Target;
  *       Table. Specifies the discriminator column name in the database table. If no column name is provided, defaults
  *       to {@code "dtype"} (consistent with the JPA convention). When omitted for Joined Table, Storm resolves the
  *       concrete type at query time via a CASE expression that checks which extension table has a matching row.
+ *       <p>Java:
  *       <pre>{@code
  *       @Discriminator                   // uses default column name "dtype"
  *       sealed interface Pet extends Entity<Integer> permits Cat, Dog {}
@@ -39,21 +40,42 @@ import java.lang.annotation.Target;
  *       @Discriminator(column = "pet_type")   // uses custom column name
  *       sealed interface Pet extends Entity<Integer> permits Cat, Dog {}
  *       }</pre>
+ *       <p>Kotlin:
+ *       <pre>{@code
+ *       @Discriminator                   // uses default column name "dtype"
+ *       sealed interface Pet : Entity<Int>
+ *
+ *       @Discriminator(column = "pet_type")   // uses custom column name
+ *       sealed interface Pet : Entity<Int>
+ *       }</pre>
  *   </li>
  *   <li><strong>On a concrete subtype</strong>: <em>Optional.</em> Specifies the discriminator value for this subtype.
  *       Defaults to the simple class name for Single-Table/Joined patterns, or the resolved table name for
  *       Polymorphic FK.
+ *       <p>Java:
  *       <pre>{@code
  *       @Discriminator("LARGE_DOG")
  *       record Dog(@PK Integer id, String name, int weight) implements Pet {}
  *       }</pre>
+ *       <p>Kotlin:
+ *       <pre>{@code
+ *       @Discriminator("LARGE_DOG")
+ *       data class Dog(@PK val id: Int?, val name: String, val weight: Int) : Pet
+ *       }</pre>
  *   </li>
  *   <li><strong>On a foreign key field</strong> (Polymorphic FK): <em>Optional.</em> Customizes the discriminator
  *       column name in the referencing entity's table. Defaults to {@code "{fieldName}_type"}.
+ *       <p>Java:
  *       <pre>{@code
  *       record Comment(@PK Integer id, String text,
  *                      @FK @Discriminator(column = "content_type") Ref<Commentable> target
  *       ) implements Entity<Integer> {}
+ *       }</pre>
+ *       <p>Kotlin:
+ *       <pre>{@code
+ *       data class Comment(@PK val id: Int?, val text: String,
+ *                          @FK @Discriminator(column = "content_type") val target: Ref<Commentable>
+ *       ) : Entity<Int>
  *       }</pre>
  *   </li>
  * </ol>
