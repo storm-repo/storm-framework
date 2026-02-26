@@ -2147,4 +2147,102 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertNotNull(ext.pet().owner());
         assertEquals("Betty", ext.pet().owner().firstName());
     }
+
+    // Inline record flatten / ORDER BY / GROUP BY tests.
+
+    @Test
+    public void testFlattenSingleColumn() {
+        // A non-inline metamodel should return a singleton list.
+        var result = Owner_.id.flatten();
+        assertEquals(1, result.size());
+        assertSame(Owner_.id, result.getFirst());
+    }
+
+    @Test
+    public void testFlattenInlineRecord() {
+        // An inline record metamodel should expand to its leaf columns.
+        var result = Owner_.address.flatten();
+        assertEquals(2, result.size());
+        // Field names include the inline record prefix.
+        assertEquals("address.address", result.get(0).field());
+        assertEquals("address.city", result.get(1).field());
+    }
+
+    @Test
+    public void testOrderByInlineRecord() {
+        // orderBy(Owner_.address) should expand the inline record and produce a valid query.
+        var list = ORMTemplate.of(dataSource)
+                .selectFrom(Owner.class)
+                .orderBy(Owner_.address)
+                .getResultList();
+        assertEquals(10, list.size());
+    }
+
+    @Test
+    public void testOrderByInlineRecordSql() {
+        // Verify the SQL shape includes both expanded columns.
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        observe(sql::setPlain, () -> {
+            ORMTemplate.of(dataSource)
+                    .selectFrom(Owner.class)
+                    .orderBy(Owner_.address)
+                    .getResultList();
+        });
+        String statement = sql.getPlain().statement();
+        assertTrue(statement.contains("ORDER BY"), "Expected ORDER BY clause in SQL: " + statement);
+        // Should contain the two columns from the inline Address record (address, city_id).
+        String orderByClause = statement.substring(statement.indexOf("ORDER BY"));
+        assertTrue(orderByClause.contains("address"), "Expected 'address' column in ORDER BY: " + orderByClause);
+        assertTrue(orderByClause.contains("city_id"), "Expected 'city_id' column in ORDER BY: " + orderByClause);
+    }
+
+    @Test
+    public void testOrderByDescendingInlineRecord() {
+        // orderByDescending(Owner_.address) should expand and add DESC to each column.
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        observe(sql::setPlain, () -> {
+            ORMTemplate.of(dataSource)
+                    .selectFrom(Owner.class)
+                    .orderByDescending(Owner_.address)
+                    .getResultList();
+        });
+        String statement = sql.getPlain().statement();
+        String orderByClause = statement.substring(statement.indexOf("ORDER BY"));
+        // Count occurrences of DESC (should be 2, one for each expanded column).
+        int count = 0;
+        int index = 0;
+        while ((index = orderByClause.indexOf("DESC", index)) != -1) {
+            count++;
+            index += 4;
+        }
+        assertEquals(2, count, "Expected 2 DESC keywords in ORDER BY: " + orderByClause);
+    }
+
+    @Test
+    public void testGroupByInlineRecord() {
+        // groupBy(Owner_.address) should expand the inline record.
+        record Result(String address, int cityId, long count) {}
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        observe(sql::setPlain, () -> {
+            ORMTemplate.of(dataSource)
+                    .selectFrom(Owner.class, Result.class, raw("\0, \0, COUNT(*)", Owner_.address.address, Owner_.address.city))
+                    .groupBy(Owner_.address)
+                    .getResultList();
+        });
+        String statement = sql.getPlain().statement();
+        assertTrue(statement.contains("GROUP BY"), "Expected GROUP BY clause in SQL: " + statement);
+        String groupByClause = statement.substring(statement.indexOf("GROUP BY"));
+        assertTrue(groupByClause.contains("address"), "Expected 'address' column in GROUP BY: " + groupByClause);
+        assertTrue(groupByClause.contains("city_id"), "Expected 'city_id' column in GROUP BY: " + groupByClause);
+    }
+
+    @Test
+    public void testOrderByInlineRecordWithNonInlineColumn() {
+        // orderBy with both inline record and regular column.
+        var list = ORMTemplate.of(dataSource)
+                .selectFrom(Owner.class)
+                .orderBy(Owner_.id, Owner_.address)
+                .getResultList();
+        assertEquals(10, list.size());
+    }
 }

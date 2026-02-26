@@ -768,6 +768,61 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return builder.toString();
     }
 
+    private String buildFlattenMethod(@Nonnull Element recordElement) {
+        boolean hasInlineSubRecords = false;
+        // Collect field entries: each is either "inline" (needs .flatten()) or "column" (add directly).
+        List<String> fieldNames = new java.util.ArrayList<>();
+        List<Boolean> fieldIsInline = new java.util.ArrayList<>();
+
+        for (Element enclosed : recordElement.getEnclosedElements()) {
+            TypeMirror recordComponent = getRecordComponentType(enclosed).orElse(null);
+            if (recordComponent == null) continue;
+
+            String fieldName = enclosed.getSimpleName().toString();
+            TypeMirror fieldType = getTypeElement(recordElement, fieldName);
+            if (fieldType == null) continue;
+
+            if (isRecord(fieldType) && !isRefType(fieldType)) {
+                if (isNestedRecord(fieldType)) continue;
+                boolean inline = !isDataType(recordElement, fieldName);
+                fieldNames.add(fieldName);
+                fieldIsInline.add(inline);
+                if (inline) hasInlineSubRecords = true;
+            } else {
+                fieldNames.add(fieldName);
+                fieldIsInline.add(false);
+            }
+        }
+
+        StringBuilder builder = new StringBuilder();
+        builder.append("    @Override\n");
+        builder.append("    public java.util.List<Metamodel<T, ?>> flatten() {\n");
+
+        if (!hasInlineSubRecords) {
+            // Simple case: all fields are direct columns.
+            builder.append("        return java.util.List.of(");
+            for (int i = 0; i < fieldNames.size(); i++) {
+                if (i > 0) builder.append(", ");
+                builder.append("this.").append(fieldNames.get(i));
+            }
+            builder.append(");\n");
+        } else {
+            // Complex case: some fields are nested inline records.
+            builder.append("        java.util.List<Metamodel<T, ?>> result = new java.util.ArrayList<>();\n");
+            for (int i = 0; i < fieldNames.size(); i++) {
+                if (fieldIsInline.get(i)) {
+                    builder.append("        result.addAll(this.").append(fieldNames.get(i)).append(".flatten());\n");
+                } else {
+                    builder.append("        result.add(this.").append(fieldNames.get(i)).append(");\n");
+                }
+            }
+            builder.append("        return java.util.Collections.unmodifiableList(result);\n");
+        }
+
+        builder.append("    }\n\n");
+        return builder.toString();
+    }
+
     private void generateMetamodelClass(@Nonnull Element recordElement) {
         String packageName = elementUtils.getPackageOf(recordElement).getQualifiedName().toString();
         String recordName = recordElement.getSimpleName().toString();
@@ -827,6 +882,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
                             "@Generated(\"" + getClass().getName() + "\")\n" +
                             "public final class " + metaClassName + "<T extends st.orm.Data> extends AbstractMetamodel<T, " + recordName + ", " + recordName + "> {\n\n";
 
+            String flattenMethod = buildFlattenMethod(recordElement);
+
             String body =
                     classFields + "\n" +
                             "    private final java.util.function.Function<T, " + recordName + "> getter;\n\n" +
@@ -843,7 +900,8 @@ public final class MetamodelProcessor extends AbstractProcessor {
                             "    @Override\n" +
                             "    public boolean isSame(@Nonnull T a, @Nonnull T b) {\n" +
                             "        " + rootIsSameBody + "\n" +
-                            "    }\n\n";
+                            "    }\n\n" +
+                            flattenMethod;
             String constructors;
             if (isData) {
                 constructors =

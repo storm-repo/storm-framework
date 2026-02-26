@@ -16,6 +16,7 @@
 package st.orm;
 
 import jakarta.annotation.Nonnull;
+import java.util.List;
 
 /**
  * The metamodel provides type-safe references to entity fields for use in queries. Generated metamodel classes
@@ -197,6 +198,21 @@ public interface Metamodel<T extends Data, E> {
      * @since 1.7
      */
     Object getValue(@Nonnull T record);
+
+    /**
+     * Returns a flat list of leaf metamodels for this metamodel. If this metamodel is not an inline record, it returns
+     * a singleton list containing {@code this}. If it is an inline record, it recursively expands all nested inline
+     * records and returns the individual column metamodels.
+     *
+     * <p>This method is useful for operations like ORDER BY and GROUP BY, where inline records need to be expanded
+     * into their individual columns.</p>
+     *
+     * @return a list of leaf metamodels.
+     * @since 1.9
+     */
+    default List<Metamodel<T, ?>> flatten() {
+        return MetamodelHelper.flatten(this);
+    }
 
     /**
      * Checks whether the value extracted from {@code a} is identical to the value extracted from {@code b}.

@@ -713,6 +713,53 @@ class MetamodelProcessor(
         }
     }
 
+    private fun buildFlattenMethod(classDeclaration: KSClassDeclaration): String {
+        var hasInlineSubRecords = false
+        val fieldNames = mutableListOf<String>()
+        val fieldIsInline = mutableListOf<Boolean>()
+
+        classDeclaration.getAllProperties().forEach { prop ->
+            val fieldName = prop.simpleName.asString()
+            val typeRef = prop.type
+
+            if (typeRef.isDataClass()) {
+                if (typeRef.isNestedDataClass()) return@forEach
+                val inline = !isDataType(prop)
+                fieldNames.add(fieldName)
+                fieldIsInline.add(inline)
+                if (inline) hasInlineSubRecords = true
+            } else {
+                fieldNames.add(fieldName)
+                fieldIsInline.add(false)
+            }
+        }
+
+        val builder = StringBuilder()
+        builder.append("    override fun flatten(): java.util.List<st.orm.Metamodel<T, *>> {\n")
+
+        if (!hasInlineSubRecords) {
+            builder.append("        return java.util.List.of(")
+            fieldNames.forEachIndexed { index, name ->
+                if (index > 0) builder.append(", ")
+                builder.append("this.$name")
+            }
+            builder.append(")\n")
+        } else {
+            builder.append("        val result = java.util.ArrayList<st.orm.Metamodel<T, *>>()\n")
+            fieldNames.forEachIndexed { index, name ->
+                if (fieldIsInline[index]) {
+                    builder.append("        result.addAll(this.$name.flatten())\n")
+                } else {
+                    builder.append("        result.add(this.$name)\n")
+                }
+            }
+            builder.append("        return java.util.Collections.unmodifiableList(result)\n")
+        }
+
+        builder.append("    }\n")
+        return builder.toString()
+    }
+
     private fun generateMetamodelClass(classDeclaration: KSClassDeclaration, forceNullableChain: Boolean) {
         val packageName = classDeclaration.packageName.asString()
         val className = classDeclaration.simpleName.asString()
@@ -786,6 +833,7 @@ class MetamodelProcessor(
             |        : this(path, field, false, parent, getter)
             """.trimMargin()
         }
+        val flattenMethod = buildFlattenMethod(classDeclaration)
         OutputStreamWriter(file).use { writer ->
             writer.write(
                 """
@@ -809,6 +857,8 @@ class MetamodelProcessor(
                 |$isIdenticalMethod
                 |
                 |$isSameMethod
+                |
+                |$flattenMethod
                 |
                 |${buildClassFields(classDeclaration, packageName, forceNullableChain)}
                 |    init {

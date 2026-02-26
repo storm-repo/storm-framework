@@ -18,6 +18,7 @@ package st.orm.core.template.impl;
 import static java.lang.invoke.MethodType.methodType;
 import static st.orm.core.template.impl.RecordReflection.findPkField;
 import static st.orm.core.template.impl.RecordReflection.getRecordField;
+import static st.orm.core.template.impl.RecordReflection.getRecordFields;
 import static st.orm.core.template.impl.RecordReflection.getRefDataType;
 import static st.orm.core.template.impl.RecordReflection.isRecord;
 
@@ -26,6 +27,8 @@ import jakarta.annotation.Nullable;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -105,6 +108,25 @@ public final class MetamodelFactory {
         //noinspection unchecked
         return (Metamodel<T, E>) METAMODEL_CACHE.computeIfAbsent(
                 new CacheKey(rootTable, path), ignore -> getModel(rootTable, path));
+    }
+
+    /**
+     * Returns a flat list of leaf metamodels for the given metamodel. If the metamodel is not an inline record, it
+     * returns a singleton list containing the metamodel. If it is an inline record, it recursively expands all nested
+     * inline records and returns the individual column metamodels.
+     */
+    public static <T extends Data> List<Metamodel<T, ?>> flatten(@Nonnull Metamodel<T, ?> metamodel) {
+        if (!metamodel.isInline()) {
+            return List.of(metamodel);
+        }
+        List<RecordField> fields = getRecordFields(metamodel.fieldType());
+        List<Metamodel<T, ?>> result = new ArrayList<>();
+        for (RecordField field : fields) {
+            String childPath = metamodel.fieldPath() + "." + field.name();
+            Metamodel<T, ?> child = of(metamodel.root(), childPath);
+            result.addAll(child.flatten());
+        }
+        return List.copyOf(result);
     }
 
     /**

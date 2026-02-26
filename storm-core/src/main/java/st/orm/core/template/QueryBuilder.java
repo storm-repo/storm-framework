@@ -380,6 +380,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
             throw new PersistenceException("At least one path must be provided for GROUP BY clause.");
         }
         List<TemplateString> templates = Stream.of(path)
+                .flatMap(metamodel -> metamodel.flatten().stream())
                 .flatMap(metamodel -> Stream.of(wrap(metamodel), TemplateString.of(", ")))
                 .toList();
         return groupBy(TemplateString.combine(templates.subList(0, templates.size() - 1).toArray(new TemplateString[0])));
@@ -463,7 +464,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.2
      */
     public final QueryBuilder<T, R, ID> orderByDescending(@Nonnull Metamodel<T, ?> path) {
-        return orderBy(TemplateString.raw("\0 DESC", path));
+        return orderByDescendingAny(path);
     }
 
     /**
@@ -488,7 +489,10 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      * @since 1.9
      */
     public final QueryBuilder<T, R, ID> orderByDescendingAny(@Nonnull Metamodel<?, ?> path) {
-        return orderBy(TemplateString.combine(wrap(path), TemplateString.of(" DESC")));
+        List<TemplateString> templates = path.flatten().stream()
+                .flatMap(metamodel -> Stream.of(wrap(metamodel), TemplateString.of(" DESC"), TemplateString.of(", ")))
+                .toList();
+        return orderBy(TemplateString.combine(templates.subList(0, templates.size() - 1).toArray(new TemplateString[0])));
     }
 
     /**
@@ -504,6 +508,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
             throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
         }
         List<TemplateString> templates = Stream.of(path)
+                .flatMap(metamodel -> metamodel.flatten().stream())
                 .flatMap(metamodel -> Stream.of(wrap(metamodel), TemplateString.of(" DESC"), TemplateString.of(", ")))
                 .toList();
         return orderBy(TemplateString.combine(templates.subList(0, templates.size() - 1).toArray(new TemplateString[0])));
@@ -534,6 +539,7 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
             throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
         }
         List<TemplateString> templates = Stream.of(path)
+                .flatMap(metamodel -> metamodel.flatten().stream())
                 .flatMap(metamodel -> Stream.of(wrap(metamodel), TemplateString.of(", ")))
                 .toList();
         return orderBy(TemplateString.combine(templates.subList(0, templates.size() - 1).toArray(new TemplateString[0])));
