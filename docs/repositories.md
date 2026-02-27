@@ -117,9 +117,9 @@ val refPage: Slice<Ref<User>> = userRepository.sliceRef(User_.id, 20)
 
 Note that the slice methods handle ordering internally based on the key you provide, so you should not combine them with an explicit `orderBy()` call on the query builder. Also note that `sliceBefore` returns results in descending key order; reverse the list if you need ascending order for display.
 
-#### Composite Keyset Pagination
+#### Keyset Pagination with Sort
 
-When you need to sort by a non-unique column (for example, a date or status), use the composite keyset overloads. These accept a `sort` column for the primary sort order and a `key` column (typically the primary key) as a unique tiebreaker to guarantee deterministic paging even when `sort` values repeat.
+When you need to sort by a non-unique column (for example, a date or status), use the overloads that accept a separate sort column. These accept a `sort` column for the primary sort order and a `key` column (typically the primary key) as a unique tiebreaker to guarantee deterministic paging even when `sort` values repeat.
 
 ```kotlin
 // First page sorted by creation date, with ID as tiebreaker
@@ -290,9 +290,9 @@ Slice<User> activePage = userRepository.select()
 
 As with Kotlin, do not add an explicit `orderBy()` call when using the slice methods; they handle ordering internally via the key. `sliceBefore` returns results in descending key order; reverse the list if you need ascending order for display.
 
-#### Composite Keyset Pagination
+#### Keyset Pagination with Sort
 
-When sorting by a non-unique column, use the composite keyset overloads with a `sort` column and a unique `key` tiebreaker.
+When sorting by a non-unique column, use the overloads that accept a separate sort column alongside the unique `key` tiebreaker.
 
 ```java
 // First page sorted by creation date, with ID as tiebreaker
@@ -306,7 +306,7 @@ Slice<Post> page2 = postRepository.sliceAfter(
     20);
 ```
 
-See [Queries](queries.md#composite-keyset-pagination) for more details on the generated SQL and indexing recommendations.
+See [Queries](queries.md#keyset-pagination-with-sort) for more details on the generated SQL and indexing recommendations.
 
 ### Refs
 

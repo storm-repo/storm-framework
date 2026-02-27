@@ -450,15 +450,15 @@ This is also useful when a column that is not annotated with `@UK` becomes uniqu
 
 ```kotlin
 val ordersByCity = orm.query(Order::class)
-    .groupBy(Order_.city)
     .select(Order_.city, "COUNT(*)")
+    .groupBy(Order_.city)
     .slice(Order_.city.key(), 20)
 ```
 
 ```java
 var ordersByCity = orm.query(Order.class)
-    .groupBy(Order_.city)
     .select(Order_.city, "COUNT(*)")
+    .groupBy(Order_.city)
     .slice(Metamodel.key(Order_.city), 20);
 ```
 

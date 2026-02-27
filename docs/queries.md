@@ -210,8 +210,8 @@ The four methods correspond to four paging operations:
 | Method | Purpose | SQL effect |
 |--------|---------|------------|
 | `slice(key, size)` | Fetch the first page (ascending). | `ORDER BY key ASC LIMIT size+1` |
-| `sliceBefore(key, size)` | Fetch the first page (descending). | `ORDER BY key DESC LIMIT size+1` |
 | `sliceAfter(key, cursor, size)` | Fetch the next page after a cursor value. | `WHERE key > cursor ORDER BY key ASC LIMIT size+1` |
+| `sliceBefore(key, size)` | Fetch the first page (descending). | `ORDER BY key DESC LIMIT size+1` |
 | `sliceBefore(key, cursor, size)` | Fetch the previous page before a cursor value. | `WHERE key < cursor ORDER BY key DESC LIMIT size+1` |
 
 The extra row (`size+1`) is used internally to determine the value of `hasNext`, then discarded from the returned content.
@@ -226,11 +226,11 @@ The extra row (`size+1`) is used internally to determine the value of `hasNext`,
 // First page of 10 users ordered by ID ascending
 val firstPage: Slice<User> = userRepository.slice(User_.id, 10)
 
-// First page of 10 users ordered by ID descending (most recent first)
-val latestPage: Slice<User> = userRepository.sliceBefore(User_.id, 10)
-
 // Next page, using the last seen ID as cursor
 val nextPage: Slice<User> = userRepository.sliceAfter(User_.id, firstPage.content.last().id, 10)
+
+// First page of 10 users ordered by ID descending (most recent first)
+val latestPage: Slice<User> = userRepository.sliceBefore(User_.id, 10)
 
 // Previous page before a known ID
 val prevPage: Slice<User> = userRepository.sliceBefore(User_.id, someId, 10)
@@ -264,23 +264,23 @@ userRepository.select()
     .slice(User_.id, 10)
 ```
 
-#### Composite Keyset Pagination
+#### Keyset Pagination with Sort
 
-The single-key `slice` methods require the cursor column to also be the sort column, which means the column must contain unique values. When you want to sort by a non-unique column (for example, a timestamp or status), use the composite keyset overloads. These accept two metamodel fields: a unique `key` column (typically the primary key) as a tiebreaker for deterministic paging, and a `sort` column for the primary sort order.
+The single-key `slice` methods require the cursor column to also be the sort column, which means the column must contain unique values. When you want to sort by a non-unique column (for example, a timestamp or status), use the overloads that accept a separate sort column. These accept two metamodel fields: a unique `key` column (typically the primary key) as a tiebreaker for deterministic paging, and a `sort` column for the primary sort order.
 
 ```kotlin
 // First page sorted by creation date ascending, with ID as tiebreaker
 val page1: Slice<Post> = postRepository.select()
     .slice(Post_.id, Post_.createdAt, 20)
 
-// First page sorted by creation date descending (most recent first)
-val latest: Slice<Post> = postRepository.select()
-    .sliceBefore(Post_.id, Post_.createdAt, 20)
-
 // Next page: pass both cursor values from the last item
 val last = page1.content.last()
 val page2: Slice<Post> = postRepository.select()
     .sliceAfter(Post_.id, last.id, Post_.createdAt, last.createdAt, 20)
+
+// First page sorted by creation date descending (most recent first)
+val latest: Slice<Post> = postRepository.select()
+    .sliceBefore(Post_.id, Post_.createdAt, 20)
 
 // Previous page
 val prev: Slice<Post> = postRepository.select()
@@ -297,7 +297,7 @@ LIMIT 21
 
 As with the single-key variants, these methods manage ORDER BY internally and reject any explicit `orderBy()` call. The client is responsible for extracting both cursor values from the last (or first) item of the current page and passing them to the next request.
 
-**Indexing.** For composite keyset pagination to perform well, create a composite index that covers both columns in the correct order:
+**Indexing.** For keyset pagination with sort to perform well, create a composite index that covers both columns in the correct order:
 
 ```sql
 CREATE INDEX idx_post_created_id ON post (created_at, id);
@@ -311,15 +311,15 @@ When a query uses GROUP BY, the grouped column produces unique values in the res
 
 ```kotlin
 val page = orm.query(Order::class)
-    .groupBy(Order_.city)
     .select(Order_.city, "COUNT(*)")
+    .groupBy(Order_.city)
     .slice(Order_.city.key(), 20)
 ```
 
 ```java
 var page = orm.query(Order.class)
-    .groupBy(Order_.city)
     .select(Order_.city, "COUNT(*)")
+    .groupBy(Order_.city)
     .slice(Metamodel.key(Order_.city), 20);
 ```
 
@@ -618,9 +618,9 @@ Slice<User> activePage = userRepository.select()
 
 **Ordering is built in.** The `slice(key, size)`, `sliceAfter`, and `sliceBefore` methods generate the ORDER BY clause from the key you provide, so you must not add your own `orderBy()` call. Doing so throws a `PersistenceException` at runtime. See the Kotlin section above for a detailed explanation and examples.
 
-#### Composite Keyset Pagination
+#### Keyset Pagination with Sort
 
-When sorting by a non-unique column, use the composite keyset overloads that accept a unique `key` tiebreaker and a `sort` column. The concepts and generated SQL are the same as described in the Kotlin section above.
+When sorting by a non-unique column, use the overloads that accept a separate sort column alongside the unique `key` tiebreaker. The concepts and generated SQL are the same as described in the Kotlin section above.
 
 ```java
 // First page sorted by creation date, with ID as tiebreaker
