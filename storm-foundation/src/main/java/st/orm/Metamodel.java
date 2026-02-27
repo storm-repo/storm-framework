@@ -281,6 +281,21 @@ public interface Metamodel<T extends Data, E> {
      * @since 1.9
      */
     interface Key<T extends Data, E> extends Metamodel<T, E> {
+
+        /**
+         * Returns {@code true} if this key field allows NULL values with standard SQL distinct-NULL semantics,
+         * meaning the UNIQUE constraint does not prevent multiple NULLs.
+         *
+         * <p>A nullable key is unsafe for keyset pagination because {@code WHERE key > cursor} silently excludes
+         * NULL rows. The {@code slice} methods check this flag and throw a {@link PersistenceException} if the key
+         * is nullable.</p>
+         *
+         * @return {@code true} if this key allows duplicate NULLs (nullable with {@code nullsDistinct = true}),
+         *         {@code false} otherwise.
+         * @since 1.9
+         * @see UK#nullsDistinct()
+         */
+        boolean isNullable();
     }
 
     /**
@@ -332,6 +347,7 @@ public interface Metamodel<T extends Data, E> {
         @Override public boolean isIdentical(@Nonnull T a, @Nonnull T b) { return delegate.isIdentical(a, b); }
         @Override public boolean isSame(@Nonnull T a, @Nonnull T b)  { return delegate.isSame(a, b); }
         @Override public List<Metamodel<T, ?>> flatten()             { return delegate.flatten(); }
+        @Override public boolean isNullable()                        { return delegate instanceof Key<?, ?> key && key.isNullable(); }
 
         @Override
         public boolean equals(Object o) {

@@ -222,6 +222,8 @@ The extra row (`size+1`) is used internally to determine the value of `hasNext`,
 
 **Basic usage.** Pass a `Metamodel.Key` that identifies a unique, indexed column (typically the primary key) and the desired page size. The key determines both ordering and the cursor column. Fields annotated with `@UK` or `@PK` automatically generate `Metamodel.Key` instances in the metamodel. See [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey) for details.
 
+> **Nullable keys.** If a `@UK` field is nullable and the default `nullsDistinct = true` applies, `slice` methods throw a `PersistenceException` at runtime. Either use a non-nullable type, or set `@UK(nullsDistinct = false)` if the database constraint prevents duplicate NULLs. See [Nullable Unique Keys](metamodel.md#nullable-unique-keys) for details.
+
 ```kotlin
 // First page of 10 users ordered by ID ascending
 val firstPage: Slice<User> = userRepository.slice(User_.id, 10)
@@ -595,6 +597,8 @@ List<User> page = orm.entity(User.class)
 The `slice`, `sliceAfter`, and `sliceBefore` methods are available directly on repositories and on the query builder. Each returns a `Slice<R>` containing a `content()` list and a `hasNext()` flag. The method semantics are the same as described in the Kotlin section: `slice` fetches the first page, `sliceAfter` fetches the next page after a cursor, and `sliceBefore` fetches the previous page before a cursor.
 
 **Basic usage.** Pass a `Metamodel.Key` (typically the primary key, annotated with `@PK` or `@UK`) and the desired page size.
+
+> **Nullable keys.** If a `@UK` field is nullable and the default `nullsDistinct = true` applies, `slice` methods throw a `PersistenceException` at runtime. Either annotate the field with `@Nonnull`, use a primitive type, or set `@UK(nullsDistinct = false)` if the database constraint prevents duplicate NULLs. See [Nullable Unique Keys](metamodel.md#nullable-unique-keys) for details.
 
 ```java
 // First page of 10 users ordered by ID

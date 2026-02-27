@@ -33,13 +33,17 @@ import jakarta.annotation.Nullable;
 public abstract class AbstractKeyMetamodel<T extends Data, E, V> extends AbstractMetamodel<T, E, V>
         implements Metamodel.Key<T, E> {
 
+    private final boolean nullable;
+
     public AbstractKeyMetamodel(@Nonnull Class<E> fieldType) {
         super(fieldType);
+        this.nullable = false;
     }
 
     public AbstractKeyMetamodel(@Nonnull Class<E> fieldType,
                                 @Nonnull String path) {
         super(fieldType, path);
+        this.nullable = false;
     }
 
     public AbstractKeyMetamodel(@Nonnull Class<E> fieldType,
@@ -48,6 +52,7 @@ public abstract class AbstractKeyMetamodel<T extends Data, E, V> extends Abstrac
                                 boolean inline,
                                 @Nullable Metamodel<T, ?> parent) {
         super(fieldType, path, field, inline, parent);
+        this.nullable = false;
     }
 
     protected AbstractKeyMetamodel(@Nonnull Class<E> fieldType,
@@ -57,5 +62,35 @@ public abstract class AbstractKeyMetamodel<T extends Data, E, V> extends Abstrac
                                    @Nullable Metamodel<T, ?> parent,
                                    boolean isColumn) {
         super(fieldType, path, field, inline, parent, isColumn);
+        this.nullable = false;
+    }
+
+    /**
+     * Constructs a key metamodel with explicit column and nullable flags. This constructor is used by the metamodel
+     * processor to propagate the nullable status of unique key fields to the runtime.
+     *
+     * @param fieldType the field type.
+     * @param path the path to the table.
+     * @param field the field name.
+     * @param inline whether this is an inline record field.
+     * @param parent the parent metamodel.
+     * @param isColumn whether this metamodel corresponds to a database column.
+     * @param nullable whether this key allows duplicate NULLs (nullable with {@code nullsDistinct = true}).
+     * @since 1.9
+     */
+    public AbstractKeyMetamodel(@Nonnull Class<E> fieldType,
+                                @Nonnull String path,
+                                @Nonnull String field,
+                                boolean inline,
+                                @Nullable Metamodel<T, ?> parent,
+                                boolean isColumn,
+                                boolean nullable) {
+        super(fieldType, path, field, inline, parent, isColumn);
+        this.nullable = nullable;
+    }
+
+    @Override
+    public boolean isNullable() {
+        return nullable;
     }
 }

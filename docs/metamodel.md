@@ -302,7 +302,7 @@ Understanding the generated code helps when debugging or reading compiler errors
 Entity                              Metamodel
 ──────                              ─────────
 User                                User_
- ├── id: Int                         ├── id      → Metamodel<User, Int>
+ ├── id: Int (PK)                    ├── id      → Metamodel.Key<User, Int>
  ├── email: String                   ├── email   → Metamodel<User, String>
  ├── name: String                    ├── name    → Metamodel<User, String>
  └── city: City (FK)                 └── city    → CityMetamodel<User>
@@ -328,7 +328,7 @@ The metamodel generates an interface with typed field accessors:
 @Generated("st.orm.metamodel.MetamodelProcessor")
 public interface User_ extends Metamodel<User, User> {
     /** Represents the {@link User#id} field. */
-    AbstractMetamodel<User, Integer, Integer> id = ...;
+    AbstractKeyMetamodel<User, Integer, Integer> id = ...;
     /** Represents the {@link User#email} field. */
     AbstractMetamodel<User, String, String> email = ...;
     /** Represents the {@link User#name} field. */
@@ -463,6 +463,70 @@ var ordersByCity = orm.query(Order.class)
 ```
 
 Callers are responsible for ensuring that the column contains unique values in the result set.
+
+### Nullable Unique Keys
+
+In standard SQL, `NULL != NULL`. This means a `UNIQUE` constraint typically allows multiple rows with `NULL` in the unique column, because each `NULL` is considered distinct from every other `NULL`. While this behavior is well-defined in the SQL standard, it has practical implications for two Storm features: single-result lookups and keyset pagination.
+
+**Single-result lookups (`findBy`, `getBy`) are safe.** These methods throw if the query returns more than one row. Even if multiple `NULL` rows exist, the lookup either finds zero or one match (when searching for a non-null value) or throws an exception (when multiple rows match). There is no risk of silently returning the wrong result.
+
+**Keyset pagination (`slice`, `sliceAfter`, `sliceBefore`) is not safe with nullable keys.** Keyset pagination works by adding a `WHERE key > cursor` (or `WHERE key < cursor`) condition. In SQL, any comparison with `NULL` evaluates to `UNKNOWN`, which means rows with `NULL` in the key column are silently excluded from the result set. This can cause missing data without any error or indication that rows were skipped.
+
+Because of this, Storm validates nullable unique keys at two levels:
+
+1. **Compile-time warning.** The metamodel processor emits a warning when a `@UK` field is nullable (a reference type without `@Nonnull` in Java, or a nullable type in Kotlin) and the default `nullsDistinct = true` applies.
+2. **Runtime check.** The `slice`, `sliceAfter`, and `sliceBefore` methods throw a `PersistenceException` if the key's metamodel indicates that nulls are distinct for a nullable field, preventing silent data loss.
+
+Database behavior varies. Some databases offer stricter NULL handling for unique constraints:
+
+- **PostgreSQL 15+** supports `NULLS NOT DISTINCT` on unique indexes, which rejects duplicate `NULL` values.
+- **SQL Server** allows only one `NULL` by default in a unique index (unless a filtered index is used).
+- **Most other databases** (MySQL, MariaDB, Oracle, H2) follow the SQL standard and allow multiple `NULL` values.
+
+The `@UK` annotation provides a `nullsDistinct` attribute to control this behavior:
+
+| Field | `nullsDistinct` | Effect |
+|-------|-----------------|--------|
+| `@UK @Nonnull String email` | (irrelevant) | Safe. No warning, no runtime check. |
+| `@UK int count` | (irrelevant) | Safe. Primitive is never null. |
+| `@UK String email` | `true` (default) | Compile-time warning. `slice` throws `PersistenceException`. |
+| `@UK(nullsDistinct = false) String email` | `false` | No warning. `slice` works (user asserts DB prevents duplicate NULLs). |
+
+When `nullsDistinct` is set to `false`, you are telling Storm that your database constraint prevents duplicate `NULL` values in the column. Storm trusts this assertion and skips both the compile-time warning and the runtime check. Use this only when your database actually enforces this guarantee (for example, with a `NULLS NOT DISTINCT` unique index in PostgreSQL 15+, or on SQL Server where unique indexes allow at most one `NULL` by default).
+
+The following examples show how to define unique keys that are safe for keyset pagination.
+
+```kotlin
+// Kotlin: safe (non-nullable)
+data class User(
+    @PK val id: Int = 0,
+    @UK val email: String,     // Non-nullable, safe for keyset pagination
+    val name: String
+) : Entity<Int>
+
+// Kotlin: opt-in for nullable keys
+data class User(
+    @PK val id: Int = 0,
+    @UK(nullsDistinct = false) val email: String?,  // DB prevents duplicate NULLs
+    val name: String
+) : Entity<Int>
+```
+
+```java
+// Java: safe (non-nullable)
+record User(@PK Integer id,
+            @UK @Nonnull String email,  // Non-nullable, safe for keyset pagination
+            String name
+) implements Entity<Integer> {}
+
+// Java: opt-in for nullable keys
+record User(@PK Integer id,
+            @UK(nullsDistinct = false) String email,  // DB prevents duplicate NULLs
+            String name
+) implements Entity<Integer> {}
+```
+
+In most cases, the simplest approach is to ensure your unique key fields are non-nullable. If nullability is required, verify that your database constraint actually prevents duplicate `NULL` values before setting `nullsDistinct = false`.
 
 ## Benefits
 

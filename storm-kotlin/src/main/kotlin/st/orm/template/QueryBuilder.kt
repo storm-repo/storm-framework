@@ -881,6 +881,22 @@ interface QueryBuilder<T : Data, R, ID> {
     }
 
     /**
+     * Validates that the given key is not nullable. Nullable keys are unsafe for keyset pagination because
+     * `WHERE key > cursor` silently excludes NULL rows.
+     *
+     */
+    private fun <E> validateKeyNotNullable(key: Metamodel.Key<T, E>) {
+        if (key.isNullable) {
+            throw PersistenceException(
+                "Keyset pagination requires a non-nullable unique key, but '${key.fieldPath()}' allows NULL values. " +
+                    "In SQL, NULL values are not comparable and will be silently excluded from paginated results. " +
+                    "Either use a non-nullable type, or set @UK(nullsDistinct = false) if the database constraint " +
+                    "prevents duplicate NULLs.",
+            )
+        }
+    }
+
+    /**
      * Executes the query and returns the first [Slice] of results, ordered by the specified key in ascending order.
      *
      * This method manages the ORDER BY clause internally. An explicit `orderBy()` call must not be present
@@ -892,6 +908,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @since 1.9
      */
     fun <E> slice(key: Metamodel.Key<T, E>, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
         if (hasOrderBy()) {
             throw PersistenceException("slice with key manages ORDER BY internally; remove explicit orderBy calls.")
         }
@@ -913,6 +930,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @since 1.9
      */
     fun <E> sliceBefore(key: Metamodel.Key<T, E>, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
         if (hasOrderBy()) {
             throw PersistenceException("sliceBefore with key manages ORDER BY internally; remove explicit orderBy calls.")
         }
@@ -934,6 +952,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @since 1.9
      */
     fun <E> sliceAfter(key: Metamodel.Key<T, E>, after: E, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
         if (hasOrderBy()) {
             throw PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.")
         }
@@ -957,6 +976,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @since 1.9
      */
     fun <E> sliceBefore(key: Metamodel.Key<T, E>, before: E, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
         if (hasOrderBy()) {
             throw PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.")
         }
@@ -980,6 +1000,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @since 1.9
      */
     fun <V : Data> sliceAfter(key: Metamodel.Key<T, V>, after: Ref<V>, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
         if (hasOrderBy()) {
             throw PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.")
         }
@@ -1003,6 +1024,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @since 1.9
      */
     fun <V : Data> sliceBefore(key: Metamodel.Key<T, V>, before: Ref<V>, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
         if (hasOrderBy()) {
             throw PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.")
         }
@@ -1033,6 +1055,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @since 1.9
      */
     fun <E, S> slice(key: Metamodel.Key<T, E>, sort: Metamodel<T, S>, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
         if (hasOrderBy()) {
             throw PersistenceException("slice with sort and key manages ORDER BY internally; remove explicit orderBy calls.")
         }
@@ -1056,6 +1079,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @since 1.9
      */
     fun <E, S> sliceBefore(key: Metamodel.Key<T, E>, sort: Metamodel<T, S>, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
         if (hasOrderBy()) {
             throw PersistenceException("sliceBefore with sort and key manages ORDER BY internally; remove explicit orderBy calls.")
         }
@@ -1086,6 +1110,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @since 1.9
      */
     fun <E, S> sliceAfter(key: Metamodel.Key<T, E>, keyAfter: E, sort: Metamodel<T, S>, sortAfter: S, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
         if (hasOrderBy()) {
             throw PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.")
         }
@@ -1125,6 +1150,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @since 1.9
      */
     fun <E, S> sliceBefore(key: Metamodel.Key<T, E>, keyBefore: E, sort: Metamodel<T, S>, sortBefore: S, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
         if (hasOrderBy()) {
             throw PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.")
         }
@@ -1166,6 +1192,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @since 1.9
      */
     fun <V : Data, S> sliceAfter(key: Metamodel.Key<T, V>, keyAfter: Ref<V>, sort: Metamodel<T, S>, sortAfter: S, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
         if (hasOrderBy()) {
             throw PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.")
         }
@@ -1207,6 +1234,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @since 1.9
      */
     fun <V : Data, S> sliceBefore(key: Metamodel.Key<T, V>, keyBefore: Ref<V>, sort: Metamodel<T, S>, sortBefore: S, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
         if (hasOrderBy()) {
             throw PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.")
         }

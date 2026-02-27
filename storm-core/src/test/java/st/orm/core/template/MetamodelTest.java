@@ -2,14 +2,23 @@ package st.orm.core.template;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import st.orm.Metamodel;
 import st.orm.core.model.Address;
 import st.orm.core.model.City;
+import st.orm.core.model.EntityWithNullableUK;
+import st.orm.core.model.EntityWithNullableUK_;
+import st.orm.core.model.EntityWithNullsNotDistinctUK_;
+import st.orm.core.model.NullableCompoundUK;
 import st.orm.core.model.Owner;
+import st.orm.core.model.Owner_;
 import st.orm.core.model.Pet;
+import st.orm.core.model.VetSpecialty;
+import st.orm.core.model.VetSpecialtyPK;
+import st.orm.core.model.VetSpecialty_;
 import st.orm.core.model.Visit;
 import st.orm.core.model.Visit_;
 
@@ -220,5 +229,88 @@ public class MetamodelTest {
         Visit visitA = Visit.builder().id(1).pet(a).build();
         Visit visitB = Visit.builder().id(1).pet(b).build();
         assertFalse(Visit_.pet.owner.isIdentical(visitA, visitB));
+    }
+
+    // Compound key (inline record) metamodel tests.
+
+    @Test
+    public void testInlineRecordMetamodelImplementsKey() {
+        // Non-Data inline record metamodels should implement Metamodel.Key.
+        // VetSpecialty_.id is a compound PK (VetSpecialtyPK with int vetId, int specialtyId).
+        assertInstanceOf(Metamodel.Key.class, VetSpecialty_.id);
+        // Owner_.address is an inline Address record (not @UK, but still implements Key).
+        assertInstanceOf(Metamodel.Key.class, Owner_.address);
+    }
+
+    @Test
+    public void testCompoundKeyWithPrimitiveFieldsIsNotNullable() {
+        // VetSpecialtyPK has only primitive int fields, so isNullable() should be false.
+        Metamodel.Key<?, ?> key = VetSpecialty_.id;
+        assertFalse(key.isNullable());
+    }
+
+    @Test
+    public void testCompoundKeyWithNullableFieldsIsNullable() {
+        // EntityWithNullableUK has @UK NullableCompoundUK(String userId, String email).
+        // Both String fields are nullable (not primitive, not @Nonnull), so isNullable() should be true.
+        assertInstanceOf(Metamodel.Key.class, EntityWithNullableUK_.uniqueKey);
+        Metamodel.Key<?, ?> key = EntityWithNullableUK_.uniqueKey;
+        assertTrue(key.isNullable());
+    }
+
+    @Test
+    public void testCompoundKeyWithNullsNotDistinctIsNotNullable() {
+        // EntityWithNullsNotDistinctUK has @UK(nullsDistinct = false) NullableCompoundUK.
+        // Even though the constituent fields are nullable, nullsDistinct = false means
+        // the database constraint prevents duplicate NULLs, so isNullable() should be false.
+        assertInstanceOf(Metamodel.Key.class, EntityWithNullsNotDistinctUK_.uniqueKey);
+        Metamodel.Key<?, ?> key = EntityWithNullsNotDistinctUK_.uniqueKey;
+        assertFalse(key.isNullable());
+    }
+
+    @Test
+    public void testNonUniqueInlineRecordIsNotNullable() {
+        // Owner_.address is an inline record without @UK, so isNullable() defaults to false.
+        Metamodel.Key<?, ?> key = Owner_.address;
+        assertFalse(key.isNullable());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testNullableCompoundKeyLeafReturnsNull() {
+        // When the compound key is marked as effectively nullable, at least one flattened
+        // leaf column must actually produce a null value from a record with a null constituent.
+        Metamodel.Key<EntityWithNullableUK, ?> key = EntityWithNullableUK_.uniqueKey;
+        assertTrue(key.isNullable());
+
+        // Create an entity where one constituent field of the compound key is null.
+        var entity = EntityWithNullableUK.builder().id(1)
+                .uniqueKey(new NullableCompoundUK(null, "test@example.com")).build();
+
+        var leaves = key.flatten();
+        assertFalse(leaves.isEmpty());
+        boolean anyLeafNull = leaves.stream()
+                .anyMatch(leaf -> leaf.getValue(entity) == null);
+        assertTrue(anyLeafNull,
+                "At least one leaf column of a nullable compound key must produce a null value");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testNonNullableCompoundKeyLeavesNeverNull() {
+        // VetSpecialtyPK has only primitive int fields. All leaf columns should produce non-null values.
+        Metamodel.Key<VetSpecialty, ?> key = VetSpecialty_.id;
+        assertFalse(key.isNullable());
+
+        var entity = VetSpecialty.builder()
+                .id(new VetSpecialtyPK(1, 2))
+                .build();
+
+        var leaves = key.flatten();
+        assertFalse(leaves.isEmpty());
+        boolean allLeavesNonNull = leaves.stream()
+                .allMatch(leaf -> leaf.getValue(entity) != null);
+        assertTrue(allLeavesNonNull,
+                "All leaf columns of a non-nullable compound key must produce non-null values");
     }
 }
