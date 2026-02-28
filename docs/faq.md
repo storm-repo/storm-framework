@@ -19,6 +19,26 @@ Yes. Storm integrates seamlessly with Spring Boot. See [Spring Integration](spri
 
 Yes. Storm is used in production environments and follows semantic versioning for stable releases.
 
+### Does Storm support schema validation?
+
+Yes. Storm can validate your entity definitions against the actual database schema, catching mismatches like missing tables, missing columns, type incompatibilities, nullability differences, primary key mismatches, and missing sequences. This works similarly to Hibernate's `ddl-auto=validate`, but Storm never modifies the schema.
+
+Enable it in Spring Boot:
+
+```yaml
+storm:
+  validation:
+    schema-mode: fail   # or "warn" or "none"
+```
+
+Or call it programmatically:
+
+```kotlin
+orm.validateSchemaOrThrow()
+```
+
+See [Configuration: Schema Validation](configuration.md#schema-validation) for full details.
+
 ---
 
 ## Entities
@@ -386,6 +406,30 @@ public interface UserRepository extends EntityRepository<User, Integer> { ... }
 ```
 
 See [SQL Logging](sql-logging.md) for the full guide.
+
+### Schema validation reports type narrowing warnings for my Integer columns
+
+Some databases (notably Oracle) use a single numeric type for all integer columns. For example, Oracle's `NUMBER` maps to `java.sql.Types.NUMERIC`, which Storm considers a "narrowing" conversion for `Integer` fields. These are logged as warnings because the mapping works at runtime but may involve precision differences.
+
+If the warnings are expected, you can suppress them per field with `@DbIgnore`:
+
+```kotlin
+data class User(
+    @PK val id: Int = 0,
+    @DbIgnore("Oracle NUMBER maps to NUMERIC")
+    val score: Int
+) : Entity<Int>
+```
+
+Alternatively, enable strict mode to treat these warnings as errors if you want zero tolerance:
+
+```yaml
+storm:
+  validation:
+    strict: true
+```
+
+See [Configuration: Schema Validation](configuration.md#schema-validation) for details.
 
 ### Can I use Storm without Spring?
 

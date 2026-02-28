@@ -356,4 +356,46 @@ public interface SqlDialect {
      */
     String sequenceNextVal(String sequenceName);
 
+    /**
+     * Strategy for discovering sequences in the database schema.
+     *
+     * @since 1.9
+     */
+    enum SequenceDiscoveryStrategy {
+        /** Use {@code INFORMATION_SCHEMA.SEQUENCES} (H2, PostgreSQL, SQL Server). */
+        INFORMATION_SCHEMA,
+        /** Use Oracle's {@code ALL_SEQUENCES} dictionary view. */
+        ALL_SEQUENCES,
+        /** Sequences are not discoverable; skip sequence validation. */
+        NONE
+    }
+
+    /**
+     * Returns the strategy for discovering sequences in the database schema.
+     *
+     * <p>The default strategy queries {@code INFORMATION_SCHEMA.SEQUENCES}, which works for H2, PostgreSQL, and
+     * SQL Server. Database dialects that use a different mechanism (e.g., Oracle's {@code ALL_SEQUENCES}) or do not
+     * support sequences at all (e.g., MySQL) should override this method.</p>
+     *
+     * @return the sequence discovery strategy.
+     * @since 1.9
+     */
+    default SequenceDiscoveryStrategy sequenceDiscoveryStrategy() {
+        return SequenceDiscoveryStrategy.INFORMATION_SCHEMA;
+    }
+
+    /**
+     * Returns whether the database uses JDBC catalogs in place of schemas.
+     *
+     * <p>Some databases (e.g., MySQL, MariaDB) do not support JDBC schemas. Instead, the database name is exposed as
+     * the JDBC catalog. When this method returns {@code true}, schema validation will pass the entity's schema value as
+     * the JDBC catalog parameter instead of the schema pattern.</p>
+     *
+     * @return {@code true} if the database uses catalogs as schemas, {@code false} otherwise.
+     * @since 1.9
+     */
+    default boolean useCatalogAsSchema() {
+        return false;
+    }
+
 }

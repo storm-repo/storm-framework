@@ -24,6 +24,7 @@ import static st.orm.core.template.impl.ObjectMapperFactory.getObjectMapper;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -450,7 +451,10 @@ class QueryImpl implements Query {
             case Class<?> c when c == Boolean.TYPE || c == Boolean.class -> rs.getBoolean(columnIndex);
             case Class<?> c when c == String.class                       -> rs.getString(columnIndex);
             case Class<?> c when c == BigDecimal.class                   -> rs.getBigDecimal(columnIndex);
-            case Class<?> c when c == byte[].class                       -> rs.getBytes(columnIndex);
+            case Class<?> c when c == ByteBuffer.class -> {
+                byte[] bytes = rs.getBytes(columnIndex);
+                yield bytes != null ? ByteBuffer.wrap(bytes).asReadOnlyBuffer() : null;
+            }
             case Class<?> c when c.isEnum()                              -> rs.getString(columnIndex); // Enum handled by mapper.
             case Class<?> c when c == java.util.Date.class -> {
                 Timestamp ts = rs.getTimestamp(columnIndex, calendarSupplier.get());

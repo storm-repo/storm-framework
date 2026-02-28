@@ -97,7 +97,7 @@ final class RecordValidation {
                 validationCompleted = true;
                 return;
             }
-            LOGGER.info("Validating Data types.");
+            LOGGER.info("Validating Data types for correctness.");
             var dataTypes = TypeDiscovery.getDataTypes();
             var validationErrors = new AtomicReference<>(0);
             var firstError = new AtomicReference<String>();
@@ -122,7 +122,7 @@ final class RecordValidation {
                 LOGGER.warn("Entity validation found %d issues. Set -Dstorm.validation.warnings_only=false to fail on startup."
                         .formatted(validationErrors.getPlain()));
             } else {
-                LOGGER.info("Successfully validated %s Data types.".formatted(dataTypes.size()));
+                LOGGER.info("Successfully validated %s Data types for correctness.".formatted(dataTypes.size()));
             }
             validationCompleted = true;
         }

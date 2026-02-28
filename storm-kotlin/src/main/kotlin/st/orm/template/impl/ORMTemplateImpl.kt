@@ -15,6 +15,7 @@
  */
 package st.orm.template.impl
 
+import st.orm.Data
 import st.orm.Entity
 import st.orm.EntityCallback
 import st.orm.Projection
@@ -84,6 +85,14 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) :
     override fun withEntityCallback(callback: EntityCallback<*>): ORMTemplate = ORMTemplateImpl(core.withEntityCallback(callback))
 
     override fun withEntityCallbacks(callbacks: List<EntityCallback<*>>): ORMTemplate = ORMTemplateImpl(core.withEntityCallbacks(callbacks))
+
+    override fun validateSchema(): List<String> = core.validateSchema()
+
+    override fun validateSchema(types: Iterable<Class<out Data>>): List<String> = core.validateSchema(types)
+
+    override fun validateSchemaOrThrow() = core.validateSchemaOrThrow()
+
+    override fun validateSchemaOrThrow(types: Iterable<Class<out Data>>) = core.validateSchemaOrThrow(types)
 
     /**
      * Returns the repository for the given entity type.

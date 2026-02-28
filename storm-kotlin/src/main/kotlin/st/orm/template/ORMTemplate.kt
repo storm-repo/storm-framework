@@ -16,6 +16,7 @@
 package st.orm.template
 
 import jakarta.persistence.EntityManager
+import st.orm.Data
 import st.orm.EntityCallback
 import st.orm.StormConfig
 import st.orm.mapping.TemplateDecorator
@@ -82,6 +83,60 @@ interface ORMTemplate :
      * @since 1.9
      */
     fun withEntityCallbacks(callbacks: List<EntityCallback<*>>): ORMTemplate
+
+    /**
+     * Validates all discovered entity and projection types against the database schema.
+     *
+     * Logs each validation error and returns the list of error messages. On success, logs a
+     * confirmation message and returns an empty list.
+     *
+     * This method requires a DataSource-backed template. Templates created from a raw
+     * [java.sql.Connection] or [EntityManager] do not support schema validation.
+     *
+     * @return the list of validation error messages (empty on success).
+     * @throws st.orm.PersistenceException if the template does not support schema validation.
+     * @since 1.9
+     */
+    fun validateSchema(): List<String>
+
+    /**
+     * Validates the specified types against the database schema.
+     *
+     * Logs each validation error and returns the list of error messages. On success, logs a
+     * confirmation message and returns an empty list.
+     *
+     * This method requires a DataSource-backed template. Templates created from a raw
+     * [java.sql.Connection] or [EntityManager] do not support schema validation.
+     *
+     * @param types the entity and projection types to validate.
+     * @return the list of validation error messages (empty on success).
+     * @throws st.orm.PersistenceException if the template does not support schema validation.
+     * @since 1.9
+     */
+    fun validateSchema(types: Iterable<Class<out Data>>): List<String>
+
+    /**
+     * Validates all discovered types and throws if any errors are found.
+     *
+     * This method requires a DataSource-backed template. Templates created from a raw
+     * [java.sql.Connection] or [EntityManager] do not support schema validation.
+     *
+     * @throws st.orm.PersistenceException if validation fails or the template does not support schema validation.
+     * @since 1.9
+     */
+    fun validateSchemaOrThrow()
+
+    /**
+     * Validates the specified types and throws if any errors are found.
+     *
+     * This method requires a DataSource-backed template. Templates created from a raw
+     * [java.sql.Connection] or [EntityManager] do not support schema validation.
+     *
+     * @param types the entity and projection types to validate.
+     * @throws st.orm.PersistenceException if validation fails or the template does not support schema validation.
+     * @since 1.9
+     */
+    fun validateSchemaOrThrow(types: Iterable<Class<out Data>>)
 
     companion object {
         /**

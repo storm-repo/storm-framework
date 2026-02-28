@@ -21,6 +21,7 @@ import java.sql.Connection;
 import java.util.List;
 import java.util.function.UnaryOperator;
 import javax.sql.DataSource;
+import st.orm.Data;
 import st.orm.EntityCallback;
 import st.orm.PersistenceException;
 import st.orm.StormConfig;
@@ -87,6 +88,68 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
      * @since 1.9
      */
     ORMTemplate withEntityCallbacks(@Nonnull List<EntityCallback<?>> callbacks);
+
+    /**
+     * Validates all discovered entity and projection types against the database schema.
+     *
+     * <p>Logs each validation error and returns the list of error messages. On success, logs a
+     * confirmation message and returns an empty list.</p>
+     *
+     * <p>This method requires a DataSource-backed template. Templates created from a raw
+     * {@link Connection} or {@link jakarta.persistence.EntityManager} do not support schema validation.</p>
+     *
+     * @return the list of validation error messages (empty on success).
+     * @throws PersistenceException if the template does not support schema validation.
+     * @since 1.9
+     */
+    default List<String> validateSchema() {
+        throw new PersistenceException("Schema validation is not supported by this template.");
+    }
+
+    /**
+     * Validates the specified types against the database schema.
+     *
+     * <p>Logs each validation error and returns the list of error messages. On success, logs a
+     * confirmation message and returns an empty list.</p>
+     *
+     * <p>This method requires a DataSource-backed template. Templates created from a raw
+     * {@link Connection} or {@link jakarta.persistence.EntityManager} do not support schema validation.</p>
+     *
+     * @param types the entity and projection types to validate.
+     * @return the list of validation error messages (empty on success).
+     * @throws PersistenceException if the template does not support schema validation.
+     * @since 1.9
+     */
+    default List<String> validateSchema(@Nonnull Iterable<Class<? extends Data>> types) {
+        throw new PersistenceException("Schema validation is not supported by this template.");
+    }
+
+    /**
+     * Validates all discovered types and throws if any errors are found.
+     *
+     * <p>This method requires a DataSource-backed template. Templates created from a raw
+     * {@link Connection} or {@link jakarta.persistence.EntityManager} do not support schema validation.</p>
+     *
+     * @throws PersistenceException if validation fails or the template does not support schema validation.
+     * @since 1.9
+     */
+    default void validateSchemaOrThrow() {
+        throw new PersistenceException("Schema validation is not supported by this template.");
+    }
+
+    /**
+     * Validates the specified types and throws if any errors are found.
+     *
+     * <p>This method requires a DataSource-backed template. Templates created from a raw
+     * {@link Connection} or {@link jakarta.persistence.EntityManager} do not support schema validation.</p>
+     *
+     * @param types the entity and projection types to validate.
+     * @throws PersistenceException if validation fails or the template does not support schema validation.
+     * @since 1.9
+     */
+    default void validateSchemaOrThrow(@Nonnull Iterable<Class<? extends Data>> types) {
+        throw new PersistenceException("Schema validation is not supported by this template.");
+    }
 
     /**
      * Returns an {@link ORMTemplate} for use with JPA.

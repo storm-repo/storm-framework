@@ -32,6 +32,8 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Predicate;
+import javax.sql.DataSource;
+import st.orm.Data;
 import st.orm.Entity;
 import st.orm.EntityCallback;
 import st.orm.PersistenceException;
@@ -100,6 +102,46 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
         var newCallbacks = new ArrayList<>(entityCallbacks);
         newCallbacks.addAll(callbacks);
         return new ORMTemplateImpl(queryFactory, modelBuilder, providerFilter, config, newCallbacks);
+    }
+
+    @Override
+    public List<String> validateSchema() {
+        return createSchemaValidator().validateAndReport(isStrictSchemaValidation());
+    }
+
+    @Override
+    public List<String> validateSchema(@Nonnull Iterable<Class<? extends Data>> types) {
+        return createSchemaValidator().validateAndReport(types, isStrictSchemaValidation());
+    }
+
+    @Override
+    public void validateSchemaOrThrow() {
+        createSchemaValidator().validateReportAndThrow(isStrictSchemaValidation());
+    }
+
+    @Override
+    public void validateSchemaOrThrow(@Nonnull Iterable<Class<? extends Data>> types) {
+        List<String> errors = createSchemaValidator().validateAndReport(types, isStrictSchemaValidation());
+        if (!errors.isEmpty()) {
+            throw new PersistenceException(SchemaValidator.formatErrors(errors));
+        }
+    }
+
+    private boolean isStrictSchemaValidation() {
+        return Boolean.parseBoolean(config.getProperty("storm.validation.strict", "false"));
+    }
+
+    private SchemaValidator createSchemaValidator() {
+        DataSource dataSource = queryFactory.dataSource();
+        if (dataSource == null) {
+            throw new PersistenceException(
+                    "Schema validation requires a DataSource-backed template. "
+                    + "Templates created from a Connection or EntityManager do not support schema validation.");
+        }
+        var sqlDialect = providerFilter != null
+                ? Providers.getSqlDialect(providerFilter, config)
+                : Providers.getSqlDialect(config);
+        return SchemaValidator.of(dataSource, modelBuilder, sqlDialect);
     }
 
     /**

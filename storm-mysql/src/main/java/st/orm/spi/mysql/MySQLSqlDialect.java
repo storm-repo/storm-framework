@@ -243,6 +243,32 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
     }
 
     /**
+     * Returns the strategy for discovering sequences in the database schema.
+     *
+     * <p>MySQL does not support sequences.</p>
+     *
+     * @return {@link SequenceDiscoveryStrategy#NONE}.
+     * @since 1.9
+     */
+    @Override
+    public SequenceDiscoveryStrategy sequenceDiscoveryStrategy() {
+        return SequenceDiscoveryStrategy.NONE;
+    }
+
+    /**
+     * Returns whether the database uses JDBC catalogs in place of schemas.
+     *
+     * <p>MySQL does not support JDBC schemas. The database name is exposed as the JDBC catalog.</p>
+     *
+     * @return {@code true}.
+     * @since 1.9
+     */
+    @Override
+    public boolean useCatalogAsSchema() {
+        return true;
+    }
+
+    /**
      * Returns the SQL statement for getting the next value of the given sequence.
      *
      * @param sequenceName the name of the sequence.

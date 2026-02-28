@@ -13,6 +13,8 @@ Storm can be configured through `StormConfig`, system properties, or Spring Boot
 | `storm.update.max_shapes` | `5` | Maximum UPDATE shapes before fallback to full-row |
 | `storm.entity_cache.retention` | `default` | Cache retention mode: `default` or `light` |
 | `storm.template_cache.size` | `2048` | Maximum number of compiled templates to cache |
+| `storm.validation.strict` | `false` | When `true`, schema validation warnings are treated as errors |
+| `storm.validation.schema_mode` | `none` | Schema validation mode: `none`, `warn`, or `fail` (Spring Boot only) |
 
 ### Setting Properties
 
@@ -72,6 +74,8 @@ storm:
   validation:
     skip: false
     warnings-only: false
+    schema-mode: none
+    strict: false
 ```
 
 The Spring Boot Starter binds these properties and builds a `StormConfig` that is passed to the `ORMTemplate` factory. Values not set in YAML fall back to system properties and then to built-in defaults. See [Spring Integration](spring-integration.md#configuration-via-applicationyml) for details.
@@ -164,6 +168,173 @@ Storm exposes template cache metrics through JMX under the MBean name `st.orm:ty
 ### Viewing Metrics
 
 Connect to the JVM with any JMX client (JConsole, VisualVM, or your monitoring platform) and navigate to the `st.orm` domain. The `TemplateMetrics` MBean is registered automatically when Storm initializes.
+
+---
+
+## Schema Validation
+
+Storm can validate your entity and projection definitions against the actual database schema at startup or on demand. This catches mismatches before they surface as runtime errors, similar to Hibernate's `ddl-auto=validate`, but Storm never modifies the schema; it only reports mismatches.
+
+### What Gets Checked
+
+Schema validation performs the following checks for each entity and projection:
+
+| Check | Error Kind | Severity |
+|-------|-----------|----------|
+| Table exists in the database | `TABLE_NOT_FOUND` | Error |
+| Each mapped column exists in the table | `COLUMN_NOT_FOUND` | Error |
+| Java type is compatible with the SQL column type | `TYPE_INCOMPATIBLE` | Error |
+| Numeric type cross-category conversions (e.g., `Integer` mapped to `DECIMAL`) | `TYPE_NARROWING` | Warning |
+| Non-nullable entity field mapped to a nullable database column | `NULLABILITY_MISMATCH` | Warning |
+| Entity primary key columns match the database primary key | `PRIMARY_KEY_MISMATCH` | Error |
+| Sequences referenced by `@PK(generation = SEQUENCE)` exist | `SEQUENCE_NOT_FOUND` | Error |
+
+**Warnings** (type narrowing, nullability mismatches) are logged but do not cause `validateSchemaOrThrow()` to fail. They indicate situations where the mapping works at runtime but may involve subtle differences, such as precision loss when mapping a Java `Integer` to an Oracle `NUMBER` column.
+
+**Errors** indicate definitive mismatches that will cause runtime failures, such as missing tables or columns.
+
+### Programmatic API
+
+Any `ORMTemplate` created from a `DataSource` supports schema validation through two method pairs:
+
+```kotlin
+val orm = dataSource.orm
+
+// Inspect errors programmatically
+val errors: List<String> = orm.validateSchema()
+
+// Or validate and throw on failure
+orm.validateSchemaOrThrow()
+```
+
+```java
+var orm = ORMTemplate.of(dataSource);
+
+// Inspect errors programmatically
+List<String> errors = orm.validateSchema();
+
+// Or validate and throw on failure
+orm.validateSchemaOrThrow();
+```
+
+Both methods have overloads that accept specific types to validate:
+
+```kotlin
+orm.validateSchema(listOf(User::class.java, Order::class.java))
+```
+
+```java
+orm.validateSchema(List.of(User.class, Order.class));
+```
+
+The no-argument variants discover all entity and projection types on the classpath automatically.
+
+On success, a confirmation message is logged at INFO level. On failure, each error is logged at ERROR level, and `validateSchemaOrThrow()` throws a `PersistenceException` with a summary of all errors. Warnings are always logged at WARN level regardless of the outcome.
+
+Templates created from a raw `Connection` or JPA `EntityManager` do not support schema validation, since they lack the `DataSource` needed to query database metadata.
+
+### Strict Mode
+
+By default, warnings (type narrowing and nullability mismatches) do not cause validation to fail. In strict mode, all findings are treated as errors:
+
+```yaml
+storm:
+  validation:
+    schema-mode: fail
+    strict: true
+```
+
+Or programmatically via `StormConfig`:
+
+```kotlin
+val config = StormConfig.of(mapOf("storm.validation.strict" to "true"))
+val orm = ORMTemplate.of(dataSource, config)
+orm.validateSchemaOrThrow()  // Warnings now cause failure
+```
+
+```java
+var config = StormConfig.of(Map.of("storm.validation.strict", "true"));
+var orm = ORMTemplate.of(dataSource, config);
+orm.validateSchemaOrThrow();  // Warnings now cause failure
+```
+
+### Suppressing Validation with @DbIgnore
+
+Use `@DbIgnore` to suppress schema validation for specific entities or fields. This is useful for legacy tables, columns handled by custom converters, or known mismatches that are safe to ignore.
+
+**Suppress validation for an entire entity:**
+
+```kotlin
+@DbIgnore
+data class LegacyUser(
+    @PK val id: Int = 0,
+    val name: String
+) : Entity<Int>
+```
+
+```java
+@DbIgnore
+record LegacyUser(@PK Integer id,
+                  @Nonnull String name
+) implements Entity<Integer> {}
+```
+
+**Suppress validation for a specific field:**
+
+```kotlin
+data class User(
+    @PK val id: Int = 0,
+    val name: String,
+    @DbIgnore("DB uses FLOAT, but column only stores whole numbers")
+    val age: Int
+) : Entity<Int>
+```
+
+```java
+record User(@PK Integer id,
+            @Nonnull String name,
+            @DbIgnore("DB uses FLOAT, but column only stores whole numbers")
+            @Nonnull Integer age
+) implements Entity<Integer> {}
+```
+
+The optional `value` parameter documents why the mismatch is acceptable. When `@DbIgnore` is placed on an embedded component field, validation is suppressed for all columns within that component.
+
+### Custom Schemas
+
+Schema validation respects `@DbTable(schema = "...")`. Each entity is validated against the schema specified in its annotation, or the connection's default schema if none is specified. This means entities mapped to different database schemas are validated independently against the correct schema.
+
+```kotlin
+@DbTable(schema = "reporting")
+data class Report(
+    @PK val id: Int = 0,
+    val name: String
+) : Entity<Int>
+```
+
+```java
+@DbTable(schema = "reporting")
+record Report(@PK Integer id,
+              @Nonnull String name
+) implements Entity<Integer> {}
+```
+
+### Spring Boot Configuration
+
+When using the Spring Boot Starter, schema validation can be enabled through `application.yml` without writing any code:
+
+```yaml
+storm:
+  validation:
+    schema-mode: warn   # or "fail" or "none" (default)
+    strict: false       # treat warnings as errors (default: false)
+```
+
+| Value | Behavior |
+|-------|----------|
+| `none` | Schema validation is skipped (default). |
+| `warn` | Mismatches are logged at WARN level; startup continues. |
+| `fail` | Mismatches cause startup to fail with a `PersistenceException`. |
 
 ---
 

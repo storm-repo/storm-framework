@@ -7,7 +7,7 @@
 [![Kotlin 2.0+](https://img.shields.io/badge/Kotlin-2.0%2B-purple)](https://kotlinlang.org/)
 [![Java 21+](https://img.shields.io/badge/Java-21%2B-blue)](https://openjdk.org/projects/jdk/21/)
 
-**Storm** is a SQL Template and ORM framework designed for Kotlin 2.0+ and Java 21+, focusing on modernizing and simplifying database programming. By leveraging the latest features of Kotlin and Java, it enables developers to define entities and queries in a concise and readable manner, enhancing both productivity and code clarity.
+**Storm** is a modern, high-performance ORM for Kotlin 2.0+ and Java 21+, built around a powerful SQL template engine. It focuses on simplicity, type safety, and predictable performance through immutable models and compile-time metadata.
 
 **Key benefits:**
 

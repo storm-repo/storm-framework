@@ -229,6 +229,19 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
     }
 
     /**
+     * Returns the strategy for discovering sequences in the database schema.
+     *
+     * <p>Oracle uses the {@code ALL_SEQUENCES} dictionary view instead of {@code INFORMATION_SCHEMA.SEQUENCES}.</p>
+     *
+     * @return {@link SequenceDiscoveryStrategy#ALL_SEQUENCES}.
+     * @since 1.9
+     */
+    @Override
+    public SequenceDiscoveryStrategy sequenceDiscoveryStrategy() {
+        return SequenceDiscoveryStrategy.ALL_SEQUENCES;
+    }
+
+    /**
      * Returns the SQL statement for getting the next value of the given sequence.
      *
      * @param sequenceName the name of the sequence.

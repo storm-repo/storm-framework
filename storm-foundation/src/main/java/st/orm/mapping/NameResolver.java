@@ -20,7 +20,7 @@ import static java.lang.Character.toLowerCase;
 import jakarta.annotation.Nonnull;
 
 /**
- * Helper class to help with name resolution.
+ * Helper class for name resolution.
  */
 final class NameResolver {
 
@@ -28,7 +28,10 @@ final class NameResolver {
     }
 
     /**
-     * Converts a camel case name to a snake case name.
+     * Converts a camelCase name to a snake_case name.
+     *
+     * <p>Underscores are inserted before uppercase letters and at letter-to-digit transitions. For example,
+     * {@code "surveyTerminates4w"} becomes {@code "survey_terminates_4w"}.</p>
      *
      * @param name the name to convert.
      * @return the converted name.
@@ -40,10 +43,15 @@ final class NameResolver {
             char c = name.charAt(i);
             if (Character.isUpperCase(c)) {
                 columnName.append("_").append(toLowerCase(c));
+            } else if (Character.isDigit(c)
+                    && i >= 2
+                    && Character.isLowerCase(name.charAt(i - 1))
+                    && Character.isLowerCase(name.charAt(i - 2))) {
+                columnName.append("_").append(c);
             } else {
                 columnName.append(c);
             }
         }
         return columnName.toString();
-    };
+    }
 }

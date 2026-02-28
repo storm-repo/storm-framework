@@ -23,6 +23,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import st.orm.EntityCallback
 import st.orm.StormConfig
+import st.orm.core.template.impl.SchemaValidator
 import st.orm.template.ORMTemplate
 import javax.sql.DataSource
 
@@ -58,7 +59,23 @@ open class StormAutoConfiguration {
         dataSource: DataSource,
         properties: StormProperties,
         entityCallbacks: List<EntityCallback<*>>,
-    ): ORMTemplate = ORMTemplate.of(dataSource, toStormConfig(properties)).withEntityCallbacks(entityCallbacks)
+    ): ORMTemplate {
+        val template = ORMTemplate.of(dataSource, toStormConfig(properties)).withEntityCallbacks(entityCallbacks)
+        runSchemaValidation(dataSource, properties)
+        return template
+    }
+
+    private fun runSchemaValidation(dataSource: DataSource, properties: StormProperties) {
+        val schemaMode = properties.validation.schemaMode?.trim() ?: return
+        if (schemaMode.isBlank() || schemaMode.equals("none", ignoreCase = true)) {
+            return
+        }
+        val validator = SchemaValidator.of(dataSource)
+        when {
+            schemaMode.equals("fail", ignoreCase = true) -> validator.validateOrThrow()
+            schemaMode.equals("warn", ignoreCase = true) -> validator.validateOrWarn()
+        }
+    }
 
     private fun toStormConfig(properties: StormProperties): StormConfig {
         val map = mutableMapOf<String, String>()
@@ -85,6 +102,9 @@ open class StormAutoConfiguration {
         }
         properties.validation.warningsOnly?.let {
             map["storm.validation.warnings_only"] = it.toString()
+        }
+        properties.validation.strict?.let {
+            map["storm.validation.strict"] = it.toString()
         }
         return StormConfig.of(map)
     }

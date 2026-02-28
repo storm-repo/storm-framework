@@ -27,6 +27,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import st.orm.EntityCallback;
 import st.orm.StormConfig;
+import st.orm.core.template.impl.SchemaValidator;
 import st.orm.template.ORMTemplate;
 
 /**
@@ -60,7 +61,23 @@ public class StormAutoConfiguration {
     @ConditionalOnMissingBean(ORMTemplate.class)
     public ORMTemplate ormTemplate(DataSource dataSource, StormProperties properties,
                                    List<EntityCallback<?>> entityCallbacks) {
-        return ORMTemplate.of(dataSource, toStormConfig(properties)).withEntityCallbacks(entityCallbacks);
+        ORMTemplate template = ORMTemplate.of(dataSource, toStormConfig(properties))
+                .withEntityCallbacks(entityCallbacks);
+        runSchemaValidation(dataSource, properties);
+        return template;
+    }
+
+    private void runSchemaValidation(DataSource dataSource, StormProperties properties) {
+        String schemaMode = properties.getValidation().getSchemaMode();
+        if (schemaMode == null || schemaMode.isBlank() || "none".equalsIgnoreCase(schemaMode.trim())) {
+            return;
+        }
+        SchemaValidator validator = SchemaValidator.of(dataSource);
+        if ("fail".equalsIgnoreCase(schemaMode.trim())) {
+            validator.validateOrThrow();
+        } else if ("warn".equalsIgnoreCase(schemaMode.trim())) {
+            validator.validateOrWarn();
+        }
     }
 
     private static StormConfig toStormConfig(StormProperties properties) {
@@ -92,6 +109,9 @@ public class StormAutoConfiguration {
         }
         if (validation.getWarningsOnly() != null) {
             map.put("storm.validation.warnings_only", validation.getWarningsOnly().toString());
+        }
+        if (validation.getStrict() != null) {
+            map.put("storm.validation.strict", validation.getStrict().toString());
         }
         return StormConfig.of(map);
     }

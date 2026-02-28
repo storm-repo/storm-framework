@@ -2,6 +2,60 @@
 
 There is no universally “best” database framework. Each has strengths suited to different situations, team preferences, and project requirements. Teams approach data access differently, including using frameworks at various abstraction levels or even plain SQL. This page provides an honest comparison to help you evaluate whether Storm fits your needs, particularly if you value explicit and predictable behavior and fast development. We encourage you to explore the linked documentation for each framework and form your own conclusions.
 
+## Feature Comparison
+
+The following tables provide a side-by-side comparison of concrete features across all frameworks discussed on this page. “Yes” and “No” indicate built-in support; “Manual” means the feature is achievable but requires explicit effort from the developer.
+
+### Entity & Data Modeling
+
+| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm |
+|---------|-------|-----|-------------|---------|------|------|---------|-------|
+| Lines per entity | ~5 | ~30<sup>1</sup> | ~30<sup>1</sup> | ~20+ | Generated | ~15 | ~12 | ~15 |
+| Immutable entities | Yes | No | No | Yes | Yes | Yes | DSL only | No |
+| Polymorphism | Yes<sup>2</sup> | Yes | Via JPA | No | No | No | No | No |
+| Automatic relationships | Yes | Yes<sup>3</sup> | Via JPA | No | No | No | DAO only | No |
+| Cascade persist | No | Yes | Yes | No | No | No | No | No |
+| Lifecycle callbacks | Yes | Yes | Via JPA | No | Yes | No | DAO only | No |
+
+<sup>1</sup> JPA/Spring Data lines without Lombok; ~10 lines with Lombok.
+
+<sup>2</sup> Storm supports Single-Table, Joined Table, and Polymorphic FK strategies using sealed types. JPA additionally supports Table-per-Class and multi-level inheritance hierarchies.
+
+<sup>3</sup> JPA relationships are runtime-managed via proxies.
+
+### Querying & Data Access
+
+| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm |
+|---------|-------|-----|-------------|---------|------|------|---------|-------|
+| Type-safe queries | Yes | Criteria | No | No | Yes | No | Yes | Yes |
+| SQL Templates | Yes | No | No | XML/Ann | Yes | Yes | No | No |
+| N+1 prevention | Yes | No | No | No | Manual | Manual | No | No |
+| Lazy loading | Refs | Yes | Yes | No | No | No | Yes | Yes |
+| Keyset pagination | Yes | No | Yes | No | Yes | No | No | No |
+| JSON columns | Yes | Yes<sup>4</sup> | Via JPA | Manual | Yes | Module | Yes | Module |
+| JSON aggregation | Yes | No | No | No | Yes | No | No | No |
+
+<sup>4</sup> JPA requires Hibernate 6.2+ for built-in JSON support; older versions need a third-party library or custom `AttributeConverter`.
+
+### Runtime & Ecosystem
+
+| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm |
+|---------|-------|-----|-------------|---------|------|------|---------|-------|
+| Transactions | Both | Both | Declarative | Both | Programmatic | Both | Required | Required |
+| Schema validation | Yes | Yes | Via JPA | No | N/A<sup>5</sup> | No | Yes | No |
+| Java support | Yes | Yes | Yes | Yes | Yes | Yes | No | No |
+| Kotlin support | First-class | Good | Good | Good | Good | Good | Native | Native |
+| Coroutines | Yes | No | No | No | No | No | Yes | Limited |
+| Spring integration | Yes | Yes | Native | Yes | Yes | Yes | Yes | Yes |
+| Runtime mechanism | Codegen<sup>6</sup> | Bytecode | Bytecode | Reflection | Codegen | Reflection | Reflection | Reflection |
+| Community | New | Huge | Huge | Large | Medium | Medium | Medium | Small |
+
+<sup>5</sup> jOOQ generates code from the database schema, so schema validation is inherent in its code generation step.
+
+<sup>6</sup> Storm uses codegen with reflection fallback.
+
+---
+
 ## Storm vs JPA/Hibernate
 
 JPA (typically implemented by Hibernate) is the most widely used persistence framework in the Java ecosystem. It provides a full object-relational mapping layer with managed entities and second-level caching. Storm takes a fundamentally different approach: entities are plain values with no managed state, and database interactions are explicit rather than implicit. This makes Storm simpler to reason about at the cost of JPA's more automated (but less predictable) features.
@@ -16,6 +70,7 @@ JPA (typically implemented by Hibernate) is the most widely used persistence fra
 | **Queries** | Type-safe DSL, SQL Templates | JPQL, Criteria API                       |
 | **Caching** | Transaction-scoped observation | First/second level cache                 |
 | **Transactions** | Programmatic + `@Transactional` (Spring) | `@Transactional`, JTA, container-managed |
+| **Schema Validation** | Programmatic + Spring Boot | `ddl-auto=validate` |
 | **Learning Curve** | Gentle; SQL-like | Steep; many concepts                     |
 | **Magic** | What you see is what you get | Proxies, bytecode enhancement            |
 
@@ -224,58 +279,6 @@ Ktorm is a lightweight Kotlin ORM that uses entity interfaces and DSL-based tabl
 - You like the Sequence API style
 - You want a lightweight, minimal dependency footprint
 - You prefer DSL-based table definitions
-
----
-
-## Feature Comparison
-
-The following tables provide a side-by-side comparison of concrete features across all frameworks discussed above. "Yes" and "No" indicate built-in support; "Manual" means the feature is achievable but requires explicit effort from the developer.
-
-### Entity & Data Modeling
-
-| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm |
-|---------|-------|-----|-------------|---------|------|------|---------|-------|
-| Lines per entity | ~5 | ~30<sup>1</sup> | ~30<sup>1</sup> | ~20+ | Generated | ~15 | ~12 | ~15 |
-| Immutable entities | Yes | No | No | Yes | Yes | Yes | DSL only | No |
-| Polymorphism | Yes<sup>2</sup> | Yes | Via JPA | No | No | No | No | No |
-| Automatic relationships | Yes | Yes<sup>3</sup> | Via JPA | No | No | No | DAO only | No |
-| Cascade persist | No | Yes | Yes | No | No | No | No | No |
-| Lifecycle callbacks | Yes | Yes | Via JPA | No | Yes | No | DAO only | No |
-
-<sup>1</sup> JPA/Spring Data lines without Lombok; ~10 lines with Lombok.
-
-<sup>2</sup> Storm supports Single-Table, Joined Table, and Polymorphic FK strategies using sealed types. JPA additionally supports Table-per-Class and multi-level inheritance hierarchies.
-
-<sup>3</sup> JPA relationships are runtime-managed via proxies.
-
-### Querying & Data Access
-
-| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm |
-|---------|-------|-----|-------------|---------|------|------|---------|-------|
-| Type-safe queries | Yes | Criteria | No | No | Yes | No | Yes | Yes |
-| SQL Templates | Yes | No | No | XML/Ann | Yes | Yes | No | No |
-| N+1 prevention | Yes | No | No | No | Manual | Manual | No | No |
-| Lazy loading | Refs | Yes | Yes | No | No | No | Yes | Yes |
-| Keyset pagination | Yes | No | Yes | No | Yes | No | No | No |
-| JSON columns | Yes | Yes<sup>4</sup> | Via JPA | Manual | Yes | Module | Yes | Module |
-| JSON aggregation | Yes | No | No | No | Yes | No | No | No |
-
-<sup>4</sup> JPA requires Hibernate 6.2+ for built-in JSON support; older versions need a third-party library or custom `AttributeConverter`.
-
-### Runtime & Ecosystem
-
-| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm |
-|---------|-------|-----|-------------|---------|------|------|---------|-------|
-| Transactions | Both | Both | Declarative | Both | Programmatic | Both | Required | Required |
-| Java support | Yes | Yes | Yes | Yes | Yes | Yes | No | No |
-| Kotlin support | First-class | Good | Good | Good | Good | Good | Native | Native |
-| Coroutines | Yes | No | No | No | No | No | Yes | Limited |
-| Spring integration | Yes | Yes | Native | Yes | Yes | Yes | Yes | Yes |
-| Runtime mechanism | Codegen<sup>5</sup> | Bytecode | Bytecode | Reflection | Codegen | Reflection | Reflection | Reflection |
-| Community | New | Huge | Huge | Large | Medium | Medium | Medium | Small |
-
-<sup>5</sup> Storm uses codegen with reflection fallback.
-
 
 ## Summary
 

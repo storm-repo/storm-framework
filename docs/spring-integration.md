@@ -333,7 +333,11 @@ storm:
   validation:
     skip: false
     warnings-only: false
+    schema-mode: none
+    strict: false
 ```
+
+The `schema-mode` property controls startup schema validation: `none` (default) skips validation, `warn` logs mismatches without blocking startup, and `fail` blocks startup if any entity definitions do not match the database schema. The `strict` property controls whether warnings (type narrowing, nullability mismatches) are treated as errors. See the [Configuration](configuration.md#schema-validation) guide for details.
 
 See the [Configuration](configuration.md) guide for a description of each property and the full precedence rules.
 

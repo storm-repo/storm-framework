@@ -34,6 +34,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
+import st.orm.core.template.impl.SchemaValidator;
 
 /**
  * JUnit 5 extension that provides automatic {@link DataSource} creation and parameter injection for Storm tests.
@@ -79,7 +80,7 @@ public class StormExtension implements BeforeAllCallback, ParameterResolver {
     public boolean supportsParameter(ParameterContext paramCtx, ExtensionContext extCtx)
             throws ParameterResolutionException {
         Class<?> type = paramCtx.getParameter().getType();
-        if (type == DataSource.class || type == StatementCapture.class) {
+        if (type == DataSource.class || type == StatementCapture.class || type == SchemaValidator.class) {
             return true;
         }
         return hasFactoryMethod(type);
@@ -95,6 +96,9 @@ public class StormExtension implements BeforeAllCallback, ParameterResolver {
         DataSource dataSource = getDataSource(extCtx);
         if (type == DataSource.class) {
             return dataSource;
+        }
+        if (type == SchemaValidator.class) {
+            return SchemaValidator.of(dataSource);
         }
         try {
             return invokeFactoryMethod(type, dataSource);

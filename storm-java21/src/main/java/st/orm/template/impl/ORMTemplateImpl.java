@@ -26,6 +26,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Optional;
+import st.orm.Data;
 import st.orm.Entity;
 import st.orm.EntityCallback;
 import st.orm.Projection;
@@ -56,6 +57,26 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     @Override
     public ORMTemplate withEntityCallbacks(@Nonnull List<EntityCallback<?>> callbacks) {
         return new ORMTemplateImpl(core.withEntityCallbacks(callbacks));
+    }
+
+    @Override
+    public List<String> validateSchema() {
+        return core.validateSchema();
+    }
+
+    @Override
+    public List<String> validateSchema(@Nonnull Iterable<Class<? extends Data>> types) {
+        return core.validateSchema(types);
+    }
+
+    @Override
+    public void validateSchemaOrThrow() {
+        core.validateSchemaOrThrow();
+    }
+
+    @Override
+    public void validateSchemaOrThrow(@Nonnull Iterable<Class<? extends Data>> types) {
+        core.validateSchemaOrThrow(types);
     }
 
     /**

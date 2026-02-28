@@ -27,6 +27,7 @@ import jakarta.annotation.Nullable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -82,6 +83,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     }
 
     private final TemplateProcessor templateProcessor;
+    private final @Nullable DataSource dataSource;
     private final ModelBuilder modelBuilder;
     private final TableAliasResolver tableAliasResolver;
     private final Predicate<Provider> providerFilter;
@@ -103,7 +105,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     private PreparedStatementTemplateImpl(@Nonnull TransactionTemplate transactionTemplate,
                                           @Nonnull DataSource dataSource,
                                           @Nonnull StormConfig config) {
-        this(createDataSourceProcessor(dataSource, transactionTemplate),
+        this(createDataSourceProcessor(dataSource, transactionTemplate), dataSource,
                 ModelBuilder.newInstance(), TableAliasResolver.DEFAULT, null, transactionTemplate, config);
     }
 
@@ -118,11 +120,12 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     private PreparedStatementTemplateImpl(@Nonnull TransactionTemplate transactionTemplate,
                                           @Nonnull Connection connection,
                                           @Nonnull StormConfig config) {
-        this(createConnectionProcessor(connection, transactionTemplate),
+        this(createConnectionProcessor(connection, transactionTemplate), null,
                 ModelBuilder.newInstance(), TableAliasResolver.DEFAULT, null, transactionTemplate, config);
     }
 
     private PreparedStatementTemplateImpl(@Nonnull TemplateProcessor templateProcessor,
+                                          @Nullable DataSource dataSource,
                                           @Nonnull ModelBuilder modelBuilder,
                                           @Nonnull TableAliasResolver tableAliasResolver,
                                           @Nullable Predicate<Provider> providerFilter,
@@ -130,6 +133,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                                           @Nonnull StormConfig config) {
         validate(config);
         this.templateProcessor = templateProcessor;
+        this.dataSource = dataSource;
         this.modelBuilder = modelBuilder;
         this.tableAliasResolver = tableAliasResolver;
         this.providerFilter = providerFilter;
@@ -257,7 +261,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public PreparedStatementTemplateImpl withTableNameResolver(@Nullable TableNameResolver tableNameResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, providerFilter, transactionTemplate, config);
+        return new PreparedStatementTemplateImpl(templateProcessor, dataSource, modelBuilder.tableNameResolver(tableNameResolver), tableAliasResolver, providerFilter, transactionTemplate, config);
     }
 
     /**
@@ -268,7 +272,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public PreparedStatementTemplateImpl withColumnNameResolver(@Nullable ColumnNameResolver columnNameResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, providerFilter, transactionTemplate, config);
+        return new PreparedStatementTemplateImpl(templateProcessor, dataSource, modelBuilder.columnNameResolver(columnNameResolver), tableAliasResolver, providerFilter, transactionTemplate, config);
     }
 
     /**
@@ -279,7 +283,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public PreparedStatementTemplateImpl withForeignKeyResolver(@Nullable ForeignKeyResolver foreignKeyResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, providerFilter, transactionTemplate, config);
+        return new PreparedStatementTemplateImpl(templateProcessor, dataSource, modelBuilder.foreignKeyResolver(foreignKeyResolver), tableAliasResolver, providerFilter, transactionTemplate, config);
     }
 
     /**
@@ -290,7 +294,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public PreparedStatementTemplate withTableAliasResolver(@Nonnull TableAliasResolver tableAliasResolver) {
-        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter, transactionTemplate, config);
+        return new PreparedStatementTemplateImpl(templateProcessor, dataSource, modelBuilder, tableAliasResolver, providerFilter, transactionTemplate, config);
     }
 
     /**
@@ -301,7 +305,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
      */
     @Override
     public PreparedStatementTemplateImpl withProviderFilter(@Nullable Predicate<Provider> providerFilter) {
-        return new PreparedStatementTemplateImpl(templateProcessor, modelBuilder, tableAliasResolver, providerFilter, transactionTemplate, config);
+        return new PreparedStatementTemplateImpl(templateProcessor, dataSource, modelBuilder, tableAliasResolver, providerFilter, transactionTemplate, config);
     }
 
     /**
@@ -353,7 +357,11 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                         case Boolean b         -> preparedStatement.setBoolean(idx, b);
                         case String s          -> preparedStatement.setString(idx, s);
                         case BigDecimal bd     -> preparedStatement.setBigDecimal(idx, bd);
-                        case byte[] bytes      -> preparedStatement.setBytes(idx, bytes);
+                        case ByteBuffer buf -> {
+                            byte[] bytes = new byte[buf.remaining()];
+                            buf.duplicate().get(bytes);
+                            preparedStatement.setBytes(idx, bytes);
+                        }
                         case java.sql.Date d   -> preparedStatement.setDate(idx, d);
                         case Time t            -> preparedStatement.setTime(idx, t);
                         case Timestamp ts      -> preparedStatement.setTimestamp(idx, ts, calendarSupplier.get());
@@ -390,6 +398,11 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
             }
         }
         legacyFallback.run();
+    }
+
+    @Override
+    public @Nullable DataSource dataSource() {
+        return dataSource;
     }
 
     /**

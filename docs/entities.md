@@ -140,6 +140,29 @@ data class SomeEntity(
 ) : Entity<Int>
 ```
 
+### Suppressing Schema Validation
+
+Use `@DbIgnore` to suppress [schema validation](configuration.md#schema-validation) for an entity or a specific field. This is useful for legacy tables, columns handled by custom converters, or known type mismatches that are safe at runtime.
+
+```kotlin
+// Suppress all schema validation for a legacy entity.
+@DbIgnore
+data class LegacyUser(
+    @PK val id: Int = 0,
+    val name: String
+) : Entity<Int>
+
+// Suppress schema validation for a specific field.
+data class User(
+    @PK val id: Int = 0,
+    val name: String,
+    @DbIgnore("DB uses FLOAT, but column only stores whole numbers")
+    val age: Int
+) : Entity<Int>
+```
+
+The optional `value` parameter documents why the mismatch is acceptable. When placed on an embedded component field, `@DbIgnore` suppresses validation for all columns within that component.
+
 ### Embedded Components
 
 Embedded components group related fields into a reusable data class without creating a separate database table. The component's fields are stored as columns in the parent entity's table. This is useful for value objects like addresses, coordinates, or monetary amounts that appear in multiple entities.
@@ -377,6 +400,27 @@ record SomeEntity(@PK Integer id,
                   @UK @Persist(insertable = false, updatable = false) UserEmailUK uniqueKey
 ) implements Entity<Integer> {}
 ```
+
+### Suppressing Schema Validation
+
+Use `@DbIgnore` to suppress [schema validation](configuration.md#schema-validation) for an entity or a specific field. This is useful for legacy tables, columns handled by custom converters, or known type mismatches that are safe at runtime.
+
+```java
+// Suppress all schema validation for a legacy entity.
+@DbIgnore
+record LegacyUser(@PK Integer id,
+                  @Nonnull String name
+) implements Entity<Integer> {}
+
+// Suppress schema validation for a specific field.
+record User(@PK Integer id,
+            @Nonnull String name,
+            @DbIgnore("DB uses FLOAT, but column only stores whole numbers")
+            @Nonnull Integer age
+) implements Entity<Integer> {}
+```
+
+The optional `value` parameter documents why the mismatch is acceptable. When placed on an embedded component field, `@DbIgnore` suppresses validation for all columns within that component.
 
 ### Embedded Components
 

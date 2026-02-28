@@ -799,7 +799,7 @@ final class RecordReflection {
     }
 
     /**
-     * Converts a camelCase name to snake_case. Matches the default table name resolver behavior.
+     * Converts a camelCase name to snake_case. Matches the default name resolver behavior.
      */
     private static String camelCaseToSnakeCase(@Nonnull String name) {
         StringBuilder sb = new StringBuilder();
@@ -808,6 +808,11 @@ final class RecordReflection {
             char c = name.charAt(i);
             if (Character.isUpperCase(c)) {
                 sb.append('_').append(Character.toLowerCase(c));
+            } else if (Character.isDigit(c)
+                    && i >= 2
+                    && Character.isLowerCase(name.charAt(i - 1))
+                    && Character.isLowerCase(name.charAt(i - 2))) {
+                sb.append('_').append(c);
             } else {
                 sb.append(c);
             }

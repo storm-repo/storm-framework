@@ -320,6 +320,18 @@ val orders = user.orders  // Not supported
 val orders = orm.findAll { Order_.user eq user }
 ```
 
+## Schema Validation
+
+If you relied on Hibernate's `ddl-auto=validate` to catch entity/schema mismatches, Storm offers the same capability through its schema validation feature. Enable it in `application.yml`:
+
+```yaml
+storm:
+  validation:
+    schema-mode: fail
+```
+
+This validates all entity definitions against the database schema at startup and blocks if any mismatches are found. See [Configuration: Schema Validation](configuration.md#schema-validation) for details on the checks performed, warning vs. error severity, strict mode, and `@DbIgnore` for suppressing known mismatches.
+
 ## What You Gain
 
 After migrating from JPA to Storm, you can expect:

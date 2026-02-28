@@ -166,6 +166,18 @@ public class StormProperties {
         /** Whether to treat validation errors as warnings instead of failures. */
         private Boolean warningsOnly;
 
+        /**
+         * Schema validation mode: {@code "none"} (default), {@code "warn"}, or {@code "fail"}.
+         *
+         * <p>When set to {@code "fail"}, schema validation runs at startup and blocks if mismatches are found.
+         * When set to {@code "warn"}, mismatches are logged at WARN level but startup continues.
+         * When set to {@code "none"}, schema validation is skipped entirely.</p>
+         */
+        private String schemaMode;
+
+        /** Whether to treat warnings (type narrowing, nullability mismatches) as errors. */
+        private Boolean strict;
+
         /** Returns whether validation is skipped. */
         public Boolean getSkip() { return skip; }
 
@@ -177,5 +189,17 @@ public class StormProperties {
 
         /** Sets whether validation errors are treated as warnings. */
         public void setWarningsOnly(Boolean warningsOnly) { this.warningsOnly = warningsOnly; }
+
+        /** Returns the schema validation mode. */
+        public String getSchemaMode() { return schemaMode; }
+
+        /** Sets the schema validation mode. */
+        public void setSchemaMode(String schemaMode) { this.schemaMode = schemaMode; }
+
+        /** Returns whether strict validation is enabled. */
+        public Boolean getStrict() { return strict; }
+
+        /** Sets whether strict validation is enabled. */
+        public void setStrict(Boolean strict) { this.strict = strict; }
     }
 }
