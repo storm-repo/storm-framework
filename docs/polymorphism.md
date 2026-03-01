@@ -1,8 +1,23 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Polymorphism
 
 Storm supports polymorphic entity hierarchies using sealed types. Instead of the proxy-based inheritance strategies found in traditional ORMs, Storm leverages sealed interfaces and data classes (Kotlin) or records (Java) to provide compile-time type safety with exhaustive pattern matching. The sealed type hierarchy tells the compiler exactly which subtypes exist, so a `when` (Kotlin) or `switch` (Java) expression over a polymorphic result is guaranteed to cover all cases.
 
 Storm provides three inheritance strategies: **Single-Table**, **Joined Table**, and **Polymorphic FK**. The strategy is detected automatically from how you structure the sealed type hierarchy. Single-Table stores a discriminator value in the entity's table and requires `@Discriminator` on the sealed interface. Joined Table supports an optional `@Discriminator`: when present, a physical discriminator column is stored in the base table; when absent, Storm resolves the concrete type at query time by checking which extension table has a matching row. Polymorphic FK stores discriminator values in the *referencing* entity instead, so the sealed interface itself needs no discriminator annotation.
+
+## Decision Guide
+
+Before diving into the details, use this summary to choose the right strategy for your use case:
+
+| Strategy | Best For | Trade-offs |
+|----------|----------|------------|
+| [Single-Table](#single-table-inheritance) | Simple hierarchies, few fields per subtype | Fast queries, sparse columns |
+| [Joined Table](#joined-table-inheritance) | Complex hierarchies, many fields per subtype | Normalized storage, JOIN cost |
+| [Polymorphic FK](#polymorphic-foreign-keys) | References to different entity types | Flexible, requires type column |
+
+**When to use which:** Start with Single-Table when your subtypes share most of their fields and you want the simplest, fastest queries. Switch to Joined Table when subtypes carry many distinct fields and you prefer a clean, normalized schema without NULL columns. Choose Polymorphic FK when the subtypes are independent entities (like posts and photos) that share a common trait (like being commentable), and you need a foreign key that can point to any of them.
 
 ---
 
@@ -118,7 +133,8 @@ The table below summarizes where `@Discriminator` can be placed, whether it is r
 
 The following examples show how to apply the annotation in each context.
 
-### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // On the sealed interface: required for Single-Table, optional for Joined Table
@@ -142,7 +158,8 @@ data class Dog(
 ) : Pet
 ```
 
-### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 // On the sealed interface: required for Single-Table, optional for Joined Table
@@ -161,6 +178,9 @@ sealed interface Pet extends Entity<Integer> permits Cat, Dog {}
 @Discriminator("LARGE_DOG")
 record Dog(@PK Integer id, String name, int weight) implements Pet {}
 ```
+
+</TabItem>
+</Tabs>
 
 Discriminator values default to the simple class name (e.g., `"Cat"`, `"Dog"`) for Single-Table and Joined Table, or the resolved table name for Polymorphic FK.
 
@@ -184,8 +204,10 @@ When using `INTEGER` or `CHAR`, every subtype must declare an explicit `@Discrim
 
 The default type. The discriminator column is `VARCHAR`, and values are either the simple class name or a custom string.
 
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
 ```kotlin
-// Kotlin
 @Discriminator
 sealed interface Pet : Entity<Int>
 
@@ -195,8 +217,10 @@ data class Dog(@PK val id: Int = 0, val name: String) : Pet
 // Discriminator values: "Cat", "Dog"
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
-// Java
 @Discriminator
 sealed interface Pet extends Entity<Integer> permits Cat, Dog {}
 
@@ -206,12 +230,17 @@ record Dog(@PK Integer id, String name) implements Pet {}
 // Discriminator values: "Cat", "Dog"
 ```
 
+</TabItem>
+</Tabs>
+
 #### INTEGER
 
 The discriminator column is `INTEGER`. Each subtype must specify a numeric value via `@Discriminator("...")`.
 
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
 ```kotlin
-// Kotlin
 @Discriminator(type = DiscriminatorType.INTEGER)
 @DbTable("vehicle")
 sealed interface Vehicle : Entity<Int>
@@ -223,8 +252,10 @@ data class Car(@PK val id: Int = 0, val model: String) : Vehicle
 data class Truck(@PK val id: Int = 0, val payload: Int) : Vehicle
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
-// Java
 @Discriminator(type = DiscriminatorType.INTEGER)
 @DbTable("vehicle")
 sealed interface Vehicle extends Entity<Integer> permits Car, Truck {}
@@ -236,12 +267,17 @@ record Car(@PK Integer id, String model) implements Vehicle {}
 record Truck(@PK Integer id, int payload) implements Vehicle {}
 ```
 
+</TabItem>
+</Tabs>
+
 #### CHAR
 
 The discriminator column is `CHAR(1)`. Each subtype must specify a single-character value via `@Discriminator("...")`.
 
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
 ```kotlin
-// Kotlin
 @Discriminator(type = DiscriminatorType.CHAR)
 sealed interface Status : Entity<Int>
 
@@ -252,8 +288,10 @@ data class Active(@PK val id: Int = 0, val since: LocalDate) : Status
 data class Inactive(@PK val id: Int = 0, val reason: String) : Status
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
-// Java
 @Discriminator(type = DiscriminatorType.CHAR)
 sealed interface Status extends Entity<Integer> permits Active, Inactive {}
 
@@ -263,6 +301,9 @@ record Active(@PK Integer id, LocalDate since) implements Status {}
 @Discriminator("I")
 record Inactive(@PK Integer id, String reason) implements Status {}
 ```
+
+</TabItem>
+</Tabs>
 
 The `type()` attribute works with all three inheritance strategies that use a discriminator: Single-Table, Joined Table (with `@Discriminator`), and Polymorphic FK.
 
@@ -302,7 +343,8 @@ The discriminator column (`dtype`) stores the subtype name and is automatically 
 
 The sealed interface is the entity. Any sealed interface extending `Entity` without `@Polymorphic(JOINED)` is detected as Single-Table. The sealed interface must be annotated with `@Discriminator` to declare the discriminator column. Subtypes are data classes (Kotlin) or records (Java) that implement the sealed interface. Each subtype defines its own fields; fields shared across all subtypes (like `id` and `name` above) go into the shared table alongside subtype-specific fields.
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 @Discriminator
@@ -321,7 +363,8 @@ data class Dog(
 ) : Pet
 ```
 
-#### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 @Discriminator
@@ -332,13 +375,17 @@ record Cat(@PK Integer id, String name, boolean indoor) implements Pet {}
 record Dog(@PK Integer id, String name, int weight) implements Pet {}
 ```
 
+</TabItem>
+</Tabs>
+
 The table name (`pet`) is derived automatically from the class name. Use `@DbTable` only if the table name differs from the default (e.g., `@DbTable("animals")`).
 
 ### CRUD Operations
 
 All CRUD operations go through the sealed interface type. Storm determines the concrete subtype at runtime: on SELECT, it reads the discriminator value from the result set; on INSERT and UPDATE, it inspects the record's runtime class.
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 val pets = orm.entity(Pet::class)
@@ -362,7 +409,8 @@ pets.update(Cat(id = 1, name = "Sir Whiskers", indoor = true))
 pets.delete(somePet)
 ```
 
-#### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 var pets = orm.entity(Pet.class);
@@ -385,6 +433,9 @@ pets.update(new Cat(1, "Sir Whiskers", true));
 // Delete
 pets.delete(somePet);
 ```
+
+</TabItem>
+</Tabs>
 
 ### Generated SQL
 
@@ -419,7 +470,8 @@ Notice that INSERT only includes the columns relevant to the concrete subtype. C
 
 Other entities reference the shared table with a regular single-column foreign key. Since all subtypes live in the same table, the FK column always points to one table regardless of which concrete subtype the row represents. This is one of the advantages of Single-Table: foreign key relationships are simple and standard.
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 data class Visit(
@@ -428,13 +480,17 @@ data class Visit(
 ) : Entity<Int>
 ```
 
-#### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 record Visit(@PK Integer id,
              @FK Ref<Pet> pet   // FK to pet.id
 ) implements Entity<Integer> {}
 ```
+
+</TabItem>
+</Tabs>
 
 ```
   visit table                       pet table
@@ -581,7 +637,8 @@ This partitioning is computed once per sealed type and cached. You do not need t
 
 Add `@Polymorphic(JOINED)` to the sealed interface to opt into this strategy. `@Discriminator` is optional: include it for a discriminator column in the base table, or omit it for implicit type resolution via extension table PKs. Table names for the base table and extension tables are derived automatically from the class names (`Pet` resolves to `pet`, `Cat` to `cat`, `Dog` to `dog`). Use `@DbTable` on the sealed interface or subtypes to override these names.
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 With `@Discriminator`:
 
@@ -628,7 +685,8 @@ data class Bird(
 ) : Pet
 ```
 
-#### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 With `@Discriminator`:
 
@@ -656,13 +714,17 @@ record Dog(@PK Integer id, String name, int weight) implements Pet {}
 record Bird(@PK Integer id, String name) implements Pet {}
 ```
 
+</TabItem>
+</Tabs>
+
 ### CRUD Operations
 
 CRUD operations work through the sealed interface type, just like Single-Table. The API is identical. However, under the hood Storm generates multi-table SQL: inserts and updates touch both the base and extension tables, and deletes remove from extension tables first (to satisfy foreign key constraints) before removing the base row.
 
 > **Transactional context required.** All multi-table DML operations (insert, update, delete) for Joined Table entities execute within the current transaction. Because these operations touch multiple tables, they require a transactional context to guarantee atomicity. If any step fails, the entire operation rolls back. Make sure your code runs inside a `transaction {}` block (Kotlin), a Spring `@Transactional` method, or equivalent transactional scope.
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 val pets = orm.entity(Pet::class)
@@ -680,7 +742,8 @@ pets.update(Cat(id = 1, name = "Sir Whiskers", indoor = true))
 pets.delete(somePet)
 ```
 
-#### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 var pets = orm.entity(Pet.class);
@@ -697,6 +760,9 @@ pets.update(new Cat(1, "Sir Whiskers", true));
 // Delete - deletes from extension table first, then base table
 pets.delete(somePet);
 ```
+
+</TabItem>
+</Tabs>
 
 ### Generated SQL
 
@@ -774,7 +840,8 @@ Note that SQL-level upsert operations (`INSERT ... ON CONFLICT`, `MERGE`, etc.) 
 
 Foreign keys reference the base table, just like Single-Table. From the referencing entity's perspective, there is no difference between pointing to a Single-Table or Joined Table entity. When Storm joins to a Joined Table entity (e.g., loading a `Visit` with its `Pet`), it automatically chains the extension table LEFT JOINs.
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 data class Visit(
@@ -783,13 +850,17 @@ data class Visit(
 ) : Entity<Int>
 ```
 
-#### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 record Visit(@PK Integer id,
              @FK Ref<Pet> pet   // FK to pet.id
 ) implements Entity<Integer> {}
 ```
+
+</TabItem>
+</Tabs>
 
 When querying Visit with a join to Pet, Storm generates:
 
@@ -830,19 +901,24 @@ Adding a new subtype means creating a new extension table and a new record class
 
 Storm supports changing an entity's subtype via update. For example, if a `Cat` needs to become a `Dog`, you can update it by passing a `Dog` instance with the same primary key:
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // Convert a Cat to a Dog (same ID, different subtype)
 pets.update(Dog(id = existingCatId, name = "Rex", weight = 30))
 ```
 
-#### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 // Convert a Cat to a Dog (same ID, different subtype)
 pets.update(new Dog(existingCatId, "Rex", 30));
 ```
+
+</TabItem>
+</Tabs>
 
 Under the hood, Storm executes three operations:
 
@@ -858,7 +934,8 @@ Type changes require a transactional context for atomicity, since the operation 
 
 Storm supports batch operations with mixed subtypes. You can pass a list containing different concrete subtypes to `insert()`, `update()`, or `delete()`, and Storm handles them correctly.
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // Insert a mix of Cats and Dogs in one call
@@ -875,7 +952,8 @@ pets.update(listOf(updatedCat, updatedDog))
 pets.delete(listOf(someCat, someDog))
 ```
 
-#### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 // Insert a mix of Cats and Dogs in one call
@@ -891,6 +969,9 @@ pets.update(List.of(updatedCat, updatedDog));
 // Delete mixed subtypes
 pets.delete(List.of(someCat, someDog));
 ```
+
+</TabItem>
+</Tabs>
 
 For the base table, Storm issues a single batch statement covering all entities regardless of subtype. For extension tables, Storm partitions the entities by subtype and issues a separate batch statement per extension table. This means a batch insert of 2 Cats and 1 Dog results in one batch INSERT into the `pet` base table (3 rows), one batch INSERT into the `cat` extension table (2 rows), and one batch INSERT into the `dog` extension table (1 row).
 
@@ -951,7 +1032,8 @@ The sealed interface extends `Data` (not `Entity`) and does NOT have `@DbTable`.
 
 The referencing entity uses `@FK Ref<Commentable>` to declare the polymorphic foreign key. `Ref` is required here because the target spans multiple independent tables, so it cannot be eagerly loaded via a JOIN. The `Ref` acts as a lightweight handle that stores the concrete type and ID, and can be fetched on demand. When Storm encounters an `@FK Ref` targeting a sealed `Data` type, it automatically generates two columns (discriminator + ID) instead of the usual single FK column.
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // Sealed Data interface - NOT an entity, just a type constraint
@@ -975,7 +1057,8 @@ data class Comment(
 ) : Entity<Int>
 ```
 
-#### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 // Sealed Data interface - NOT an entity, just a type constraint
@@ -993,6 +1076,9 @@ record Comment(@PK Integer id, String text,
 ) implements Entity<Integer> {}
 ```
 
+</TabItem>
+</Tabs>
+
 ### Column Generation
 
 A regular `@FK` field produces a single column (e.g., `pet_id`). A polymorphic `@FK` targeting a sealed `Data` interface is different: Storm needs two pieces of information to resolve the reference (which table and which row), so it generates two columns instead of one.
@@ -1007,7 +1093,8 @@ The discriminator column name defaults to `{fieldName}_type`, and the FK column 
 
 Use `@Discriminator` on the FK field to customize the discriminator column name. Unlike sealed entity interfaces where `@Discriminator` is required, on FK fields it is purely optional, because the default naming convention (`{fieldName}_type`) derives from the field name and is predictable.
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 data class Comment(
@@ -1017,7 +1104,8 @@ data class Comment(
 ) : Entity<Int>
 ```
 
-#### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 record Comment(@PK Integer id,
@@ -1026,13 +1114,17 @@ record Comment(@PK Integer id,
 ) implements Entity<Integer> {}
 ```
 
+</TabItem>
+</Tabs>
+
 This produces `content_type` and `target_id` columns instead of `target_type` and `target_id`.
 
 ### CRUD Operations
 
 Each subtype is an independent entity with its own repository. You insert, update, and delete subtypes using their own entity type, not through the sealed interface. The polymorphic FK only appears in the referencing entity (e.g., `Comment`). When creating a `Comment`, you obtain a `Ref` from an existing entity to establish the relationship.
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // CRUD on subtypes - standard entity operations
@@ -1047,7 +1139,8 @@ comments.insert(Comment(
 ))
 ```
 
-#### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 // CRUD on subtypes - standard entity operations
@@ -1058,6 +1151,9 @@ var post = posts.insertAndFetch(new Post(null, "New Post"));
 var comments = orm.entity(Comment.class);
 comments.insert(new Comment("Great post!", Ref.of(post)));
 ```
+
+</TabItem>
+</Tabs>
 
 ### Generated SQL
 
@@ -1081,7 +1177,8 @@ FROM comment c
 
 Polymorphic FK targets cannot be auto-joined. With Single-Table and Joined Table, Storm can always generate a JOIN because there is one known base table. With Polymorphic FK, the target could be in any of several independent tables, and a single JOIN cannot span multiple unrelated tables conditionally. Instead, use `Ref.fetch()` to load the referenced entity on demand. The `Ref` already knows the concrete target type (from the discriminator value), so `fetch()` queries the correct table automatically.
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 val comments = orm.entity(Comment::class).select().resultList
@@ -1094,7 +1191,8 @@ for (comment in comments) {
 }
 ```
 
-#### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 var comments = orm.entity(Comment.class).select().getResultList();
@@ -1106,6 +1204,9 @@ for (var comment : comments) {
     }
 }
 ```
+
+</TabItem>
+</Tabs>
 
 ### Hydration
 
@@ -1174,7 +1275,8 @@ One of the key benefits of using sealed types for polymorphism is exhaustive pat
 
 This is a significant advantage over string-based discriminators or open class hierarchies. With a string discriminator, forgetting to handle a new type silently falls through to a default branch (or worse, throws an unexpected exception at runtime). With sealed types, the compiler catches the omission before the code even compiles.
 
-### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 fun describe(pet: Pet): String = when (pet) {
@@ -1184,7 +1286,8 @@ fun describe(pet: Pet): String = when (pet) {
 }
 ```
 
-### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 String describe(Pet pet) {
@@ -1195,6 +1298,9 @@ String describe(Pet pet) {
     };
 }
 ```
+
+</TabItem>
+</Tabs>
 
 If you later add a `Bird` subtype to the `Pet` hierarchy, the compiler flags every incomplete `when`/`switch` as an error, guiding you to handle the new case everywhere. This applies to all three inheritance strategies equally, since they all use sealed types as the basis for the polymorphic hierarchy.
 

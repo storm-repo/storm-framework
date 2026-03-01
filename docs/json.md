@@ -1,3 +1,6 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # JSON Support
 
 Storm provides first-class support for JSON columns, allowing you to store and query JSON data directly in your entities. Annotate a field with `@Json` and Storm handles serialization/deserialization automatically.
@@ -8,7 +11,7 @@ Storm supports two JSON serialization libraries. Choose the one that fits your p
 
 ### Jackson (Kotlin & Java)
 
-The most common choice for Java projects, and also works with Kotlin. Two variants are available, matching the two major Jackson versions. Both modules require Jackson to be present on the classpath; they do not bring Jackson as a transitive dependency. If you are using Spring Boot, Jackson is already included and the version is managed for you: Spring Boot 3.x ships with Jackson 2, while Spring Boot 4+ ships with Jackson 3. Choose the Storm module that matches your Jackson version. If you are not using Spring Boot, add Jackson to your project directly alongside the corresponding Storm module.
+Works with both Kotlin and Java projects. Two variants are available, matching the two major Jackson versions. Both modules require Jackson to be present on the classpath; they do not bring Jackson as a transitive dependency. If you are using Spring Boot, Jackson is already included and the version is managed for you: Spring Boot 3.x ships with Jackson 2, while Spring Boot 4+ ships with Jackson 3. Choose the Storm module that matches your Jackson version. If you are not using Spring Boot, add Jackson to your project directly alongside the corresponding Storm module.
 
 **Jackson 2** (requires Jackson 2.17+):
 
@@ -58,11 +61,12 @@ Storm auto-detects the serialization library at runtime. Just add the dependency
 
 ---
 
-## Kotlin
+## JSON Columns
 
-### JSON Columns
+Use `@Json` to map a field to a JSON column.
 
-Use `@Json` to map a field to a JSON column:
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 data class User(
@@ -74,9 +78,27 @@ data class User(
 
 The `preferences` field is automatically serialized to JSON when writing and deserialized when reading.
 
-### Complex Types
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+record User(@PK Integer id,
+            String email,
+            @Json Map<String, String> preferences
+) implements Entity<Integer> {}
+```
+
+The `preferences` field is automatically serialized to JSON when writing and deserialized when reading.
+
+</TabItem>
+</Tabs>
+
+## Complex Types
 
 JSON columns are not limited to maps and primitive collections. You can store structured domain objects directly, preserving their full type hierarchy during serialization and deserialization. This is useful when the nested object has a well-defined shape but does not need its own database table.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 When using kotlinx.serialization, annotate the nested type with `@Serializable`. Jackson discovers types automatically through reflection, so no additional annotation is needed.
 
@@ -95,11 +117,33 @@ data class User(
 ) : Entity<Int>
 ```
 
-### JSON Aggregation
+</TabItem>
+<TabItem value="java" label="Java">
+
+Structured domain objects work the same way in Java. Jackson handles serialization automatically for Java records without additional annotations.
+
+```java
+record Address(String street,
+               String city,
+               String postalCode) {}
+
+record User(@PK Integer id,
+            String email,
+            @Json Address address
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+## JSON Aggregation
 
 JSON aggregation solves the problem of loading one-to-many or many-to-many relationships in a single query. Instead of issuing separate queries or relying on lazy loading, you can use SQL aggregation functions like `JSON_OBJECTAGG` to collect related rows into a JSON array within the main query result. Storm then deserializes that array back into a typed collection on the result object.
 
 This approach eliminates N+1 query problems for relationship loading at the cost of shifting serialization work to both the database and the application layer. It works best when the aggregated collection is moderate in size (see the performance section below).
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 data class RolesByUser(
@@ -117,39 +161,8 @@ interface UserRepository : EntityRepository<User, Int> {
 }
 ```
 
----
-
-## Java
-
-### JSON Columns
-
-Use `@Json` to map a field to a JSON column:
-
-```java
-record User(@PK Integer id,
-            String email,
-            @Json Map<String, String> preferences
-) implements Entity<Integer> {}
-```
-
-The `preferences` field is automatically serialized to JSON when writing and deserialized when reading.
-
-### Complex Types
-
-Structured domain objects work the same way in Java. Jackson handles serialization automatically for Java records without additional annotations.
-
-```java
-record Address(String street,
-               String city,
-               String postalCode) {}
-
-record User(@PK Integer id,
-            String email,
-            @Json Address address
-) implements Entity<Integer> {}
-```
-
-### JSON Aggregation
+</TabItem>
+<TabItem value="java" label="Java">
 
 The same aggregation pattern applies in Java using string templates. The `JSON_OBJECTAGG` function collects related entities into a JSON object that Storm deserializes into the annotated `@Json` field.
 
@@ -166,6 +179,9 @@ interface UserRepository extends EntityRepository<User, Integer> {
     }
 }
 ```
+
+</TabItem>
+</Tabs>
 
 ---
 
@@ -261,3 +277,11 @@ val rolesByUser = orm.findAll { UserRole_.user inList users }
 ```
 
 This approach gives you control over pagination, caching, and memory usage.
+
+---
+
+## See Also
+
+- [Queries](queries.md) - aggregation with JSON
+- [Dialects](dialects.md) - database-specific JSON support
+- [Entities](entities.md) - `@Json` annotation

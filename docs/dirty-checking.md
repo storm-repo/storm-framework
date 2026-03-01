@@ -1,3 +1,6 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Dirty Checking
 
 ## What Is Dirty Checking?
@@ -47,6 +50,8 @@ Observed state is stored in the transaction context, not on the entity itself. T
 ```
 
 **Key insight:** Dirty checking in Storm is scoped to a single transaction. Once the transaction commits, all observed state is discarded. This keeps memory usage predictable and avoids the complexity of managing detached entities.
+
+Entity cache misses can affect dirty checking behavior. When an entity is not found in the cache, Storm falls back to a full-row update. See [Entity Cache](entity-cache.md) for cache retention configuration.
 
 ---
 
@@ -285,7 +290,8 @@ Storm mitigates this with a [max shapes limit](#max-shapes-limit) that automatic
 
 Use the `@DynamicUpdate` annotation to specify the update mode for individual entity classes. This allows you to use different strategies for different entities based on their characteristics.
 
-### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 @DynamicUpdate(FIELD)
@@ -297,7 +303,8 @@ data class User(
 ) : Entity<Int>
 ```
 
-### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 @DynamicUpdate(FIELD)
@@ -307,6 +314,9 @@ record User(@PK Integer id,
             @FK City city
 ) implements Entity<Integer> {}
 ```
+
+</TabItem>
+</Tabs>
 
 ### How It Works
 

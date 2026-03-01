@@ -1,12 +1,16 @@
 # Entities
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 Storm entities are simple data classes that map to database tables. By default, Storm applies sensible naming conventions to map entity fields to database columns automatically.
 
 ---
 
-## Kotlin
+## Defining Entities
 
-### Defining Entities
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 Use Kotlin data classes with the `Entity` interface:
 
@@ -27,7 +31,35 @@ data class User(
 ) : Entity<Int>
 ```
 
-### Nullability
+</TabItem>
+<TabItem value="java" label="Java">
+
+Use Java records with the `Entity` interface:
+
+```java
+record City(@PK Integer id,
+            String name,
+            long population
+) implements Entity<Integer> {}
+
+record User(@PK Integer id,
+            String email,
+            LocalDate birthDate,
+            String street,
+            String postalCode,
+            @FK City city
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+---
+
+## Nullability
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 Kotlin's type system maps directly to Storm's null handling. A non-nullable field produces an `INNER JOIN` for foreign keys and a `NOT NULL` expectation for columns. A nullable field produces a `LEFT JOIN` for foreign keys and allows `NULL` values from the database. This means your entity definition fully describes the expected schema constraints.
 
@@ -43,9 +75,31 @@ data class User(
 ) : Entity<Int>
 ```
 
-### Enumerations
+</TabItem>
+<TabItem value="java" label="Java">
+
+In Java, record components are nullable by default. Use `@Nonnull` to mark fields that must always have a value. Primitive types (`int`, `long`, etc.) are inherently non-nullable. As with Kotlin, nullability determines JOIN behavior: a non-nullable `@FK` field produces an `INNER JOIN`, while a `@Nullable` one produces a `LEFT JOIN`.
+
+```java
+record User(@PK Integer id,
+            @Nonnull String email,        // Non-nullable
+            @Nonnull LocalDate birthDate, // Non-nullable
+            String postalCode,            // Nullable (default)
+            @Nullable @FK City city       // Nullable (results in LEFT JOIN)
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+---
+
+## Enumerations
 
 Storm persists enum values as their `name()` string by default, which is readable and resilient to reordering. If storage efficiency is a priority or your schema uses integer columns for enums, you can switch to ordinal storage with `@DbEnum(ORDINAL)`. Be aware that ordinal storage is sensitive to the order of enum constants: adding or reordering values will break existing data.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 Enums are stored by their name by default:
 
@@ -72,9 +126,43 @@ data class Role(
 ) : Entity<Int>
 ```
 
-### Versioning (Optimistic Locking)
+</TabItem>
+<TabItem value="java" label="Java">
+
+Enums are stored by their name by default:
+
+```java
+enum RoleType {
+    USER,
+    ADMIN
+}
+
+record Role(@PK Integer id,
+            @Nonnull String name,
+            @Nonnull RoleType type  // Stored as "USER" or "ADMIN"
+) implements Entity<Integer> {}
+```
+
+To store by ordinal:
+
+```java
+record Role(@PK Integer id,
+            @Nonnull String name,
+            @Nonnull @DbEnum(ORDINAL) RoleType type  // Stored as 0 or 1
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+---
+
+## Versioning (Optimistic Locking)
 
 Optimistic locking prevents lost updates when multiple users or threads modify the same record concurrently. Storm checks the version value during updates: if another transaction has already changed the row, the update fails with an exception rather than silently overwriting the other change. You can use either an integer counter or a timestamp.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 Use `@Version` for optimistic locking:
 
@@ -99,9 +187,41 @@ data class Visit(
 ) : Entity<Int>
 ```
 
-### Non-Updatable Fields
+</TabItem>
+<TabItem value="java" label="Java">
+
+Use `@Version` for optimistic locking:
+
+```java
+record Owner(@PK Integer id,
+             @Nonnull String firstName,
+             @Nonnull String lastName,
+             @Version int version
+) implements Entity<Integer> {}
+```
+
+Timestamps are also supported:
+
+```java
+record Visit(@PK Integer id,
+             @Nonnull LocalDate visitDate,
+             @Nullable String description,
+             @Nonnull @FK Pet pet,
+             @Version Instant timestamp
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+---
+
+## Non-Updatable Fields
 
 Some fields should be set once at creation and never changed by the application, such as creation timestamps, entity types, or references that define an object's identity. Marking a field with `@Persist(updatable = false)` tells Storm to include it in INSERT statements but exclude it from UPDATE statements.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 Use `@Persist(updatable = false)` for fields that should only be set on insert:
 
@@ -115,13 +235,35 @@ data class Pet(
 ) : Entity<Int>
 ```
 
-### Unique Keys
+</TabItem>
+<TabItem value="java" label="Java">
+
+Use `@Persist(updatable = false)` for fields that should only be set on insert:
+
+```java
+record Pet(@PK Integer id,
+           @Nonnull String name,
+           @Nonnull @Persist(updatable = false) LocalDate birthDate,
+           @Nonnull @FK @Persist(updatable = false) PetType type,
+           @Nullable @FK Owner owner
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+---
+
+## Unique Keys
 
 Use `@UK` on fields that have a unique constraint in the database. The `@PK` annotation implies `@UK`, so primary key fields are automatically unique. Annotating a field with `@UK` tells Storm that the column contains unique values, which enables several framework features:
 
 1. **Type-safe lookups.** `findBy(Key, value)` and `getBy(Key, value)` return a single result without requiring a predicate. The metamodel processor generates `Metamodel.Key` instances for `@UK` fields. See [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey) for details.
 2. **Keyset pagination.** `@UK` fields can serve as cursor columns for `slice`, `sliceAfter`, and `sliceBefore`. Because the values are unique, the cursor position is always unambiguous. See [Keyset Pagination](queries.md#keyset-pagination-with-slice).
 3. **Schema validation.** When [schema validation](validation.md) is enabled, Storm checks that the database actually has a matching unique constraint for each `@UK` field and reports a warning if it is missing.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 data class User(
@@ -144,11 +286,41 @@ data class SomeEntity(
 ) : Entity<Int>
 ```
 
-When a column is not annotated with `@UK` but becomes unique in a specific query context (for example, a GROUP BY column produces unique values in the result set), wrap the metamodel with `.key()` to indicate it can serve as a keyset pagination cursor. See [Manual Key Wrapping](metamodel.md#manual-key-wrapping) for details.
+</TabItem>
+<TabItem value="java" label="Java">
 
-### Suppressing Schema Validation
+```java
+record User(@PK Integer id,
+            @UK String email,
+            String name
+) implements Entity<Integer> {}
+```
+
+For compound unique constraints spanning multiple columns, use an inline record annotated with `@UK`. When the compound key columns overlap with other fields on the entity, use `@Persist(insertable = false, updatable = false)` to prevent duplicate persistence:
+
+```java
+record UserEmailUK(int userId, String email) {}
+
+record SomeEntity(@PK Integer id,
+                  @Nonnull @FK User user,
+                  @Nonnull String email,
+                  @UK @Persist(insertable = false, updatable = false) UserEmailUK uniqueKey
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+When a column is not annotated with `@UK` but becomes unique in a specific query context (for example, a GROUP BY column produces unique values in the result set), wrap the metamodel with `.key()` (Kotlin) or `Metamodel.key()` (Java) to indicate it can serve as a keyset pagination cursor. See [Manual Key Wrapping](metamodel.md#manual-key-wrapping) for details.
+
+---
+
+## Suppressing Schema Validation
 
 Use `@DbIgnore` to suppress [schema validation](configuration.md#schema-validation) for an entity or a specific field. This is useful for legacy tables, columns handled by custom converters, or known type mismatches that are safe at runtime.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // Suppress all schema validation for a legacy entity.
@@ -167,11 +339,37 @@ data class User(
 ) : Entity<Int>
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// Suppress all schema validation for a legacy entity.
+@DbIgnore
+record LegacyUser(@PK Integer id,
+                  @Nonnull String name
+) implements Entity<Integer> {}
+
+// Suppress schema validation for a specific field.
+record User(@PK Integer id,
+            @Nonnull String name,
+            @DbIgnore("DB uses FLOAT, but column only stores whole numbers")
+            @Nonnull Integer age
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
 The optional `value` parameter documents why the mismatch is acceptable. When placed on an embedded component field, `@DbIgnore` suppresses validation for all columns within that component.
 
-### Embedded Components
+---
+
+## Embedded Components
 
 Embedded components group related fields into a reusable data class without creating a separate database table. The component's fields are stored as columns in the parent entity's table. This is useful for value objects like addresses, coordinates, or monetary amounts that appear in multiple entities.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 Use data classes for embedded components:
 
@@ -190,9 +388,32 @@ data class Owner(
 ) : Entity<Int>
 ```
 
-#### `@Persist` Propagation on Embedded Components
+</TabItem>
+<TabItem value="java" label="Java">
+
+Use records for embedded components:
+
+```java
+record Address(String street,
+               @FK City city) {}
+
+record Owner(@PK Integer id,
+             @Nonnull String firstName,
+             @Nonnull String lastName,
+             @Nonnull Address address,
+             @Nullable String telephone
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+### `@Persist` Propagation on Embedded Components
 
 When `@Persist` is placed on an embedded component field, it propagates to all child fields within that component. This is useful when the embedded component's columns overlap with other fields on the entity and should not be persisted separately. Child fields can override the inherited `@Persist` with their own annotation.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 data class OwnerCityKey(val ownerId: Int, val cityId: Int)
@@ -208,7 +429,67 @@ data class Pet(
 
 In this example, the `owner` and `city` foreign keys define the actual persisted columns. The `ownerCityKey` inline record maps to the same underlying columns but is excluded from INSERT and UPDATE statements because its child fields inherit `@Persist(insertable = false, updatable = false)` from the parent field.
 
-### Custom Table and Column Names
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+record OwnerCityKey(int ownerId, int cityId) {}
+
+record Pet(@PK Integer id,
+           @Nonnull String name,
+           @Nonnull @FK Owner owner,
+           @Nonnull @FK City city,
+           @Persist(insertable = false, updatable = false) OwnerCityKey ownerCityKey
+) implements Entity<Integer> {}
+```
+
+In this example, the `owner` and `city` foreign keys define the actual persisted columns. The `ownerCityKey` inline record maps to the same underlying columns but is excluded from INSERT and UPDATE statements because its child fields inherit `@Persist(insertable = false, updatable = false)` from the parent field.
+
+</TabItem>
+</Tabs>
+
+---
+
+## Foreign Keys
+
+The `@FK` annotation marks a field as a foreign key reference to another entity. Storm uses these annotations to automatically generate JOINs when querying and to derive column names (by default, appending `_id` to the field name).
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+data class User(
+    @PK val id: Int = 0,
+    val email: String,
+    @FK val city: City        // Always loaded via INNER JOIN
+) : Entity<Int>
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+record User(@PK Integer id,
+            String email,
+            @FK City city        // Always loaded via INNER JOIN
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+:::tip When to use `Ref<T>` vs the full entity type
+Use the full entity type (e.g., `@FK val city: City`) when you always want the related entity loaded. Use `Ref<T>` (e.g., `@FK val city: Ref<City>`) when you only sometimes need the related entity, when the relationship is optional, or to prevent circular dependencies. See [Refs](refs.md) for details.
+:::
+
+---
+
+## Custom Table and Column Names
+
+When the database schema does not follow Storm's default camelCase-to-snake_case convention, use annotations to specify the exact names. `@DbTable` overrides the table name, `@DbColumn` overrides a column name, and the string parameter on `@PK` or `@FK` overrides their respective column names. These annotations take precedence over any configured name resolver.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 @DbTable("app_users")
@@ -219,9 +500,28 @@ data class User(
 ) : Entity<Int>
 ```
 
-### Composite Primary Keys
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+@DbTable("app_users")
+record User(@PK("user_id") Integer id,
+            @DbColumn("email_address") String email,
+            @FK("home_city_id") City city
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+---
+
+## Composite Primary Keys
 
 For join tables or entities whose identity is defined by a combination of columns, wrap the key fields in a separate data class and annotate it with `@PK`. Storm treats all fields in the composite key class as part of the primary key.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 data class UserRolePk(
@@ -236,7 +536,24 @@ data class UserRole(
 ) : Entity<UserRolePk>
 ```
 
-### Primary Key Generation
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+record UserRolePk(int userId, int roleId) {}
+
+record UserRole(@PK UserRolePk userRolePk,
+                @Nonnull @FK User user,
+                @Nonnull @FK Role role
+) implements Entity<UserRolePk> {}
+```
+
+</TabItem>
+</Tabs>
+
+---
+
+## Primary Key Generation
 
 The `@PK` annotation supports a `generation` parameter that controls how primary key values are generated:
 
@@ -245,6 +562,9 @@ The `@PK` annotation supports a `generation` parameter that controls how primary
 | `IDENTITY` | Database generates the key using an identity/auto-increment column (default) |
 | `SEQUENCE` | Database generates the key using a named sequence |
 | `NONE` | No generation; the caller must provide the key value |
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 **IDENTITY (default):**
 
@@ -287,220 +607,8 @@ Use `NONE` when:
 - The key comes from an external source
 - The primary key is also a foreign key (see [Primary Key as Foreign Key](relationships.md#primary-key-as-foreign-key))
 
----
-
-## Java
-
-### Defining Entities
-
-Use Java records with the `Entity` interface:
-
-```java
-record City(@PK Integer id,
-            String name,
-            long population
-) implements Entity<Integer> {}
-
-record User(@PK Integer id,
-            String email,
-            LocalDate birthDate,
-            String street,
-            String postalCode,
-            @FK City city
-) implements Entity<Integer> {}
-```
-
-### Nullability
-
-In Java, record components are nullable by default. Use `@Nonnull` to mark fields that must always have a value. Primitive types (`int`, `long`, etc.) are inherently non-nullable. As with Kotlin, nullability determines JOIN behavior: a non-nullable `@FK` field produces an `INNER JOIN`, while a `@Nullable` one produces a `LEFT JOIN`.
-
-```java
-record User(@PK Integer id,
-            @Nonnull String email,        // Non-nullable
-            @Nonnull LocalDate birthDate, // Non-nullable
-            String postalCode,            // Nullable (default)
-            @Nullable @FK City city       // Nullable (results in LEFT JOIN)
-) implements Entity<Integer> {}
-```
-
-### Enumerations
-
-Enums are stored by their name by default:
-
-```java
-enum RoleType {
-    USER,
-    ADMIN
-}
-
-record Role(@PK Integer id,
-            @Nonnull String name,
-            @Nonnull RoleType type  // Stored as "USER" or "ADMIN"
-) implements Entity<Integer> {}
-```
-
-To store by ordinal:
-
-```java
-record Role(@PK Integer id,
-            @Nonnull String name,
-            @Nonnull @DbEnum(ORDINAL) RoleType type  // Stored as 0 or 1
-) implements Entity<Integer> {}
-```
-
-### Versioning (Optimistic Locking)
-
-Use `@Version` for optimistic locking:
-
-```java
-record Owner(@PK Integer id,
-             @Nonnull String firstName,
-             @Nonnull String lastName,
-             @Version int version
-) implements Entity<Integer> {}
-```
-
-Timestamps are also supported:
-
-```java
-record Visit(@PK Integer id,
-             @Nonnull LocalDate visitDate,
-             @Nullable String description,
-             @Nonnull @FK Pet pet,
-             @Version Instant timestamp
-) implements Entity<Integer> {}
-```
-
-### Non-Updatable Fields
-
-Use `@Persist(updatable = false)` for fields that should only be set on insert:
-
-```java
-record Pet(@PK Integer id,
-           @Nonnull String name,
-           @Nonnull @Persist(updatable = false) LocalDate birthDate,
-           @Nonnull @FK @Persist(updatable = false) PetType type,
-           @Nullable @FK Owner owner
-) implements Entity<Integer> {}
-```
-
-### Unique Keys
-
-Use `@UK` on fields that have a unique constraint in the database. The `@PK` annotation implies `@UK`, so primary key fields are automatically unique. Annotating a field with `@UK` tells Storm that the column contains unique values, which enables several framework features:
-
-1. **Type-safe lookups.** `findBy(Key, value)` and `getBy(Key, value)` return a single result without requiring a predicate. The metamodel processor generates `Metamodel.Key` instances for `@UK` fields. See [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey) for details.
-2. **Keyset pagination.** `@UK` fields can serve as cursor columns for `slice`, `sliceAfter`, and `sliceBefore`. Because the values are unique, the cursor position is always unambiguous. See [Keyset Pagination](queries.md#keyset-pagination-with-slice).
-3. **Schema validation.** When [schema validation](validation.md) is enabled, Storm checks that the database actually has a matching unique constraint for each `@UK` field and reports a warning if it is missing.
-
-```java
-record User(@PK Integer id,
-            @UK String email,
-            String name
-) implements Entity<Integer> {}
-```
-
-For compound unique constraints spanning multiple columns, use an inline record annotated with `@UK`. When the compound key columns overlap with other fields on the entity, use `@Persist(insertable = false, updatable = false)` to prevent duplicate persistence:
-
-```java
-record UserEmailUK(int userId, String email) {}
-
-record SomeEntity(@PK Integer id,
-                  @Nonnull @FK User user,
-                  @Nonnull String email,
-                  @UK @Persist(insertable = false, updatable = false) UserEmailUK uniqueKey
-) implements Entity<Integer> {}
-```
-
-When a column is not annotated with `@UK` but becomes unique in a specific query context (for example, a GROUP BY column produces unique values in the result set), wrap the metamodel with `Metamodel.key()` to indicate it can serve as a keyset pagination cursor. See [Manual Key Wrapping](metamodel.md#manual-key-wrapping) for details.
-
-### Suppressing Schema Validation
-
-Use `@DbIgnore` to suppress [schema validation](configuration.md#schema-validation) for an entity or a specific field. This is useful for legacy tables, columns handled by custom converters, or known type mismatches that are safe at runtime.
-
-```java
-// Suppress all schema validation for a legacy entity.
-@DbIgnore
-record LegacyUser(@PK Integer id,
-                  @Nonnull String name
-) implements Entity<Integer> {}
-
-// Suppress schema validation for a specific field.
-record User(@PK Integer id,
-            @Nonnull String name,
-            @DbIgnore("DB uses FLOAT, but column only stores whole numbers")
-            @Nonnull Integer age
-) implements Entity<Integer> {}
-```
-
-The optional `value` parameter documents why the mismatch is acceptable. When placed on an embedded component field, `@DbIgnore` suppresses validation for all columns within that component.
-
-### Embedded Components
-
-Use records for embedded components:
-
-```java
-record Address(String street,
-               @FK City city) {}
-
-record Owner(@PK Integer id,
-             @Nonnull String firstName,
-             @Nonnull String lastName,
-             @Nonnull Address address,
-             @Nullable String telephone
-) implements Entity<Integer> {}
-```
-
-#### `@Persist` Propagation on Embedded Components
-
-When `@Persist` is placed on an embedded component field, it propagates to all child fields within that component. Child fields can override the inherited `@Persist` with their own annotation.
-
-```java
-record OwnerCityKey(int ownerId, int cityId) {}
-
-record Pet(@PK Integer id,
-           @Nonnull String name,
-           @Nonnull @FK Owner owner,
-           @Nonnull @FK City city,
-           @Persist(insertable = false, updatable = false) OwnerCityKey ownerCityKey
-) implements Entity<Integer> {}
-```
-
-In this example, the `owner` and `city` foreign keys define the actual persisted columns. The `ownerCityKey` inline record maps to the same underlying columns but is excluded from INSERT and UPDATE statements because its child fields inherit `@Persist(insertable = false, updatable = false)` from the parent field.
-
-### Custom Table and Column Names
-
-When the database schema does not follow Storm's default camelCase-to-snake_case convention, use annotations to specify the exact names. `@DbTable` overrides the table name, `@DbColumn` overrides a column name, and the string parameter on `@PK` or `@FK` overrides their respective column names. These annotations take precedence over any configured name resolver.
-
-```java
-@DbTable("app_users")
-record User(@PK("user_id") Integer id,
-            @DbColumn("email_address") String email,
-            @FK("home_city_id") City city
-) implements Entity<Integer> {}
-```
-
-### Composite Primary Keys
-
-Composite keys work the same as in Kotlin. Define a plain record with the key fields and use it as the `@PK` type.
-
-```java
-record UserRolePk(int userId, int roleId) {}
-
-record UserRole(@PK UserRolePk userRolePk,
-                @Nonnull @FK User user,
-                @Nonnull @FK Role role
-) implements Entity<UserRolePk> {}
-```
-
-### Primary Key Generation
-
-The `@PK` annotation supports a `generation` parameter that controls how primary key values are generated:
-
-| Strategy | Description |
-|----------|-------------|
-| `IDENTITY` | Database generates the key using an identity/auto-increment column (default) |
-| `SEQUENCE` | Database generates the key using a named sequence |
-| `NONE` | No generation; the caller must provide the key value |
+</TabItem>
+<TabItem value="java" label="Java">
 
 **IDENTITY (default):**
 
@@ -552,6 +660,9 @@ record Pet(@PK Integer id,
 ) implements Entity<Integer> {}
 ```
 
+</TabItem>
+</Tabs>
+
 ---
 
 ## Column Mapping
@@ -580,9 +691,9 @@ Storm provides three resolver types:
 
 | Resolver | Purpose | Default Behavior |
 |----------|---------|------------------|
-| `TableNameResolver` | Entity/projection class → table name | `User` → `user`, `OrderItem` → `order_item` |
-| `ColumnNameResolver` | Field name → column name | `birthDate` → `birth_date` |
-| `ForeignKeyResolver` | FK field → column name | `city` → `city_id` |
+| `TableNameResolver` | Entity/projection class -> table name | `User` -> `user`, `OrderItem` -> `order_item` |
+| `ColumnNameResolver` | Field name -> column name | `birthDate` -> `birth_date` |
+| `ForeignKeyResolver` | FK field -> column name | `city` -> `city_id` |
 
 ### Default Conversion: CamelCase to Snake_Case
 

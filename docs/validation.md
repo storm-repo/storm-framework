@@ -1,3 +1,6 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Validation
 
 Storm validates your entity and projection definitions at two levels: structural validation ensures your records follow the ORM's rules (valid primary key types, correct use of annotations, no circular dependencies), while schema validation compares your definitions against the actual database to catch mismatches before they surface as runtime errors.
@@ -67,7 +70,7 @@ Schema validation compares your entity and projection definitions against the ac
 |-------|-----------|----------|
 | Table exists in the database | `TABLE_NOT_FOUND` | Error |
 | Each mapped column exists in the table | `COLUMN_NOT_FOUND` | Error |
-| Java/Kotlin type is compatible with the SQL column type | `TYPE_INCOMPATIBLE` | Error |
+| Kotlin/Java type is compatible with the SQL column type | `TYPE_INCOMPATIBLE` | Error |
 | Entity primary key columns match the database primary key | `PRIMARY_KEY_MISMATCH` | Error |
 | Sequences referenced by `@PK(generation = SEQUENCE)` exist | `SEQUENCE_NOT_FOUND` | Error |
 | | | |
@@ -91,9 +94,14 @@ However, database constraints serve as a safety net that the application layer c
 
 In [strict mode](#strict-mode), these warnings are promoted to errors, causing validation to fail if the constraints are missing. Use `@DbIgnore` to suppress these warnings for fields where the missing constraint is intentional (for example, when using application-level deduplication or soft deletes that make database constraints impractical).
 
+Use `@DbIgnore` to exclude entity fields from schema validation. See [Entities](entities.md) for annotation details.
+
 ### Programmatic API
 
 Any `ORMTemplate` created from a `DataSource` supports schema validation:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 val orm = dataSource.orm
@@ -105,6 +113,9 @@ val errors: List<String> = orm.validateSchema()
 orm.validateSchemaOrThrow()
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
 var orm = ORMTemplate.of(dataSource);
 
@@ -115,15 +126,27 @@ List<String> errors = orm.validateSchema();
 orm.validateSchemaOrThrow();
 ```
 
+</TabItem>
+</Tabs>
+
 Both methods have overloads that accept specific types to validate:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 orm.validateSchema(listOf(User::class.java, Order::class.java))
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
 orm.validateSchema(List.of(User.class, Order.class));
 ```
+
+</TabItem>
+</Tabs>
 
 The no-argument variants discover all entity and projection types on the classpath automatically.
 
@@ -135,11 +158,17 @@ Templates created from a raw `Connection` or JPA `EntityManager` do not support 
 
 By default, warnings (type narrowing and nullability mismatches) do not cause validation to fail. In strict mode, all findings are treated as errors:
 
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
 ```kotlin
 val config = StormConfig.of(mapOf("storm.validation.strict" to "true"))
 val orm = ORMTemplate.of(dataSource, config)
 orm.validateSchemaOrThrow()  // Warnings now cause failure
 ```
+
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 var config = StormConfig.of(Map.of("storm.validation.strict", "true"));
@@ -147,11 +176,17 @@ var orm = ORMTemplate.of(dataSource, config);
 orm.validateSchemaOrThrow();  // Warnings now cause failure
 ```
 
+</TabItem>
+</Tabs>
+
 ### Suppressing Validation with @DbIgnore
 
 Use `@DbIgnore` to suppress schema validation for specific entities or fields. This is useful for legacy tables, columns handled by custom converters, or known mismatches that are safe to ignore.
 
 **Suppress validation for an entire entity:**
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 @DbIgnore
@@ -161,6 +196,9 @@ data class LegacyUser(
 ) : Entity<Int>
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
 @DbIgnore
 record LegacyUser(@PK Integer id,
@@ -168,7 +206,13 @@ record LegacyUser(@PK Integer id,
 ) implements Entity<Integer> {}
 ```
 
+</TabItem>
+</Tabs>
+
 **Suppress validation for a specific field:**
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 data class User(
@@ -179,6 +223,9 @@ data class User(
 ) : Entity<Int>
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
 record User(@PK Integer id,
             @Nonnull String name,
@@ -187,11 +234,17 @@ record User(@PK Integer id,
 ) implements Entity<Integer> {}
 ```
 
+</TabItem>
+</Tabs>
+
 The optional `value` parameter documents why the mismatch is acceptable. When `@DbIgnore` is placed on an inline component field, validation is suppressed for all columns within that component.
 
 ### Custom Schemas
 
 Schema validation respects `@DbTable(schema = "...")`. Each entity is validated against the schema specified in its annotation, or the connection's default schema if none is specified.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 @DbTable(schema = "reporting")
@@ -201,12 +254,18 @@ data class Report(
 ) : Entity<Int>
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
 @DbTable(schema = "reporting")
 record Report(@PK Integer id,
               @Nonnull String name
 ) implements Entity<Integer> {}
 ```
+
+</TabItem>
+</Tabs>
 
 ### Spring Boot Configuration
 

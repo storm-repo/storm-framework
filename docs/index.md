@@ -179,20 +179,71 @@ dependencies {
 
 Ready to get started? Head to the [Getting Started](getting-started.md) guide.
 
+## Learning Paths
+
+Not sure where to begin? Pick the path that fits your situation.
+
+### New to Storm
+
+If you are new to Storm, follow these guides in order to build a solid foundation:
+
+1. [Installation](installation.md) -- add Storm to your project
+2. [First Entity](first-entity.md) -- define entities, insert and fetch records
+3. [First Query](first-query.md) -- filtering, repositories, and streaming
+4. [Entities](entities.md) -- annotations, nullability, naming conventions
+5. [Queries](queries.md) -- the full query DSL and builder reference
+6. [Repositories](repositories.md) -- the repository pattern and custom query methods
+7. [Relationships](relationships.md) -- foreign keys, entity graphs, and many-to-many
+
+### Migrating from JPA
+
+If you are coming from JPA or Hibernate, these pages explain the key differences and how to transition:
+
+1. [Migration from JPA](migration-from-jpa.md) -- annotation mapping, concept translation, coexistence strategy
+2. [Storm vs Other Frameworks](comparison.md) -- honest feature comparison with JPA, jOOQ, MyBatis, and others
+3. [Entities](entities.md) -- how Storm entities differ from JPA entities
+4. [Dirty Checking](dirty-checking.md) -- how Storm handles change detection without a persistence context
+5. [Repositories](repositories.md) -- Storm repositories vs. Spring Data repositories
+6. [Transactions](transactions.md) -- transaction management without an EntityManager
+7. [Spring Integration](spring-integration.md) -- Spring Boot Starter and auto-configuration
+
+### Evaluating for Production
+
+If you are a tech lead or architect evaluating Storm for a production system, these pages cover the areas that matter most:
+
+1. [Storm vs Other Frameworks](comparison.md) -- feature-level comparison across frameworks
+2. [Spring Integration](spring-integration.md) -- Spring Boot auto-configuration, repository scanning, DI
+3. [Batch Processing and Streaming](batch-streaming.md) -- bulk operations and large dataset handling
+4. [Testing](testing.md) -- JUnit 5 integration, statement capture, and test isolation
+5. [Configuration](configuration.md) -- runtime tuning, dirty checking modes, cache retention
+6. [Database Dialects](dialects.md) -- database-specific optimizations
+7. [Entity Cache](entity-cache.md) -- transaction-scoped caching and identity preservation
+
+## What Storm Does Not Do
+
+Storm is focused on being a great ORM and SQL template engine. It intentionally does not include:
+
+- **Schema migration or DDL generation.** Storm does not create, alter, or drop tables. Use [Flyway](https://flywaydb.org/) or [Liquibase](https://www.liquibase.com/) for schema versioning and migrations.
+- **Distributed transactions.** Storm works with single-datasource JDBC transactions. For distributed transactions, you can use Spring's transaction support. See the [FAQ](faq.md) for details.
+- **Second-level cache.** Storm's entity cache is transaction-scoped and cleared on commit. For cross-transaction caching, use Spring's `@Cacheable` or a dedicated cache layer like Caffeine or Redis.
+- **Lazy loading proxies.** Entities are plain records with no proxies. Related entities are loaded eagerly in a single query via JOINs. For deferred loading, use [Refs](refs.md) to explicitly control when related data is fetched.
+
 ## Database Support
 
 Storm works with any JDBC-compatible database. Dialect packages provide optimized support for:
 
-- PostgreSQL
-- MySQL
-- MariaDB
-- Oracle
-- SQL Server
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white) ![MySQL](https://img.shields.io/badge/MySQL-4479A1?logo=mysql&logoColor=white) ![MariaDB](https://img.shields.io/badge/MariaDB-003545?logo=mariadb&logoColor=white) ![Oracle](https://img.shields.io/badge/Oracle-F80000?logo=oracle&logoColor=white) ![SQL Server](https://img.shields.io/badge/SQL_Server-CC2927?logo=microsoftsqlserver&logoColor=white) ![H2](https://img.shields.io/badge/H2-0000bb?logoColor=white)
+
+See [Database Dialects](dialects.md) for installation and configuration details.
 
 ## Requirements
 
 - Kotlin 2.0+ or Java 21+
 - Maven 3.9+ or Gradle 8+
+
+## Glossary
+
+New to Storm's terminology? See the [Glossary](glossary.md) for definitions of key terms like Entity, Projection, Metamodel, Ref, Hydration, and more.
 
 ## License
 

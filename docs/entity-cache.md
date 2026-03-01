@@ -1,3 +1,6 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Entity Cache
 
 Storm maintains a transaction-scoped entity cache that optimizes database interactions. The cache is a pure performance optimization: it never changes the semantics of your transactions. What you read from the database is exactly what you would read without caching; the cache simply avoids redundant work.

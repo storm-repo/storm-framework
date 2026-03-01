@@ -1,3 +1,6 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Testing
 
 Writing tests for database code can involve repetitive setup: creating a `DataSource`, running schema scripts, obtaining an `ORMTemplate`, and wiring everything together before the first assertion. Storm's test support module reduces this to a single annotation, letting you focus on the behavior you are testing rather than infrastructure.
@@ -55,17 +58,8 @@ The `@StormTest` annotation activates the Storm JUnit 5 extension on a test clas
 
 A minimal example:
 
-```java
-@StormTest(scripts = {"/schema.sql", "/data.sql"})
-class UserRepositoryTest {
-
-    @Test
-    void shouldFindAllUsers(ORMTemplate orm) {
-        var users = orm.entity(User.class).findAll();
-        assertEquals(3, users.size());
-    }
-}
-```
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 @StormTest(scripts = ["/schema.sql", "/data.sql"])
@@ -78,6 +72,24 @@ class UserRepositoryTest {
     }
 }
 ```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+@StormTest(scripts = {"/schema.sql", "/data.sql"})
+class UserRepositoryTest {
+
+    @Test
+    void shouldFindAllUsers(ORMTemplate orm) {
+        var users = orm.entity(User.class).findAll();
+        assertEquals(3, users.size());
+    }
+}
+```
+
+</TabItem>
+</Tabs>
 
 The annotation accepts the following attributes:
 
@@ -98,9 +110,41 @@ Test methods can declare parameters of the following types, and Storm will resol
 | `StatementCapture` | A fresh capture instance for recording SQL statements (see below).              |
 | Any type with a static `of(DataSource)` factory method | An instance created via that factory method. This covers `ORMTemplate` and custom types that follow the same pattern. |
 
-The factory method resolution also supports Kotlin companion objects. If a class has a `Companion` field with an `of(DataSource)` method, Storm will use it. This means `ORMTemplate` works seamlessly in both Java and Kotlin tests without any additional configuration.
+The factory method resolution also supports Kotlin companion objects. If a class has a `Companion` field with an `of(DataSource)` method, Storm will use it. This means `ORMTemplate` works seamlessly in both Kotlin and Java tests without any additional configuration.
 
 ### Example: Full Test Class
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+@StormTest(scripts = ["/schema.sql", "/data.sql"])
+class ItemRepositoryTest {
+
+    @Test
+    fun `should insert and retrieve`(orm: ORMTemplate) {
+        orm.entity(Item::class).insert(Item(name = "NewItem"))
+
+        val items = orm.entity(Item::class).findAll()
+        items.size shouldBe 4
+    }
+
+    @Test
+    fun `should inject data source`(dataSource: DataSource) {
+        dataSource.connection.use { conn ->
+            conn.createStatement().use { stmt ->
+                stmt.executeQuery("SELECT COUNT(*) FROM item").use { rs ->
+                    rs.next() shouldBe true
+                    rs.getInt(1) shouldBe 3
+                }
+            }
+        }
+    }
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 record Item(@PK Integer id, String name) implements Entity<Integer> {}
@@ -128,31 +172,8 @@ class ItemRepositoryTest {
 }
 ```
 
-```kotlin
-@StormTest(scripts = ["/schema.sql", "/data.sql"])
-class ItemRepositoryTest {
-
-    @Test
-    fun `should insert and retrieve`(orm: ORMTemplate) {
-        orm.entity(Item::class).insert(Item(name = "NewItem"))
-
-        val items = orm.entity(Item::class).findAll()
-        items.size shouldBe 4
-    }
-
-    @Test
-    fun `should inject data source`(dataSource: DataSource) {
-        dataSource.connection.use { conn ->
-            conn.createStatement().use { stmt ->
-                stmt.executeQuery("SELECT COUNT(*) FROM item").use { rs ->
-                    rs.next() shouldBe true
-                    rs.getInt(1) shouldBe 3
-                }
-            }
-        }
-    }
-}
-```
+</TabItem>
+</Tabs>
 
 ### Using a Custom Database
 
@@ -194,13 +215,8 @@ When testing database code, knowing _what_ SQL is executed is often as important
 
 Wrap any Storm operation in a `run`, `execute`, or `executeThrowing` call to capture the SQL statements it generates:
 
-```java
-var capture = new StatementCapture();
-
-capture.run(() -> orm.entity(User.class).findAll());
-
-assertEquals(1, capture.count(Operation.SELECT));
-```
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 val capture = StatementCapture()
@@ -210,7 +226,36 @@ capture.run { orm.entity(User::class).findAll() }
 capture.count(Operation.SELECT) shouldBe 1
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+var capture = new StatementCapture();
+
+capture.run(() -> orm.entity(User.class).findAll());
+
+assertEquals(1, capture.count(Operation.SELECT));
+```
+
+</TabItem>
+</Tabs>
+
 The `execute` variant returns the result of the captured operation, so you can combine capture with normal test assertions in a single step:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val capture = StatementCapture()
+
+val users = capture.execute { orm.entity(User::class).findAll() }
+
+users.size shouldBe 3
+capture.count(Operation.SELECT) shouldBe 1
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 var capture = new StatementCapture();
@@ -221,14 +266,8 @@ assertEquals(3, users.size());
 assertEquals(1, capture.count(Operation.SELECT));
 ```
 
-```kotlin
-val capture = StatementCapture()
-
-val users = capture.execute { orm.entity(User::class).findAll() }
-
-users.size shouldBe 3
-capture.count(Operation.SELECT) shouldBe 1
-```
+</TabItem>
+</Tabs>
 
 ### Capture Methods
 
@@ -290,15 +329,8 @@ assertEquals(0, capture.count());
 
 A count assertion is the simplest and most common use of `StatementCapture`. It protects against regressions where a code change inadvertently introduces extra queries:
 
-```java
-@Test
-void bulkInsertShouldUseSingleStatement(ORMTemplate orm, StatementCapture capture) {
-    var items = List.of(new Item(0, "A"), new Item(0, "B"), new Item(0, "C"));
-    capture.run(() -> orm.entity(Item.class).insertAll(items));
-
-    assertEquals(1, capture.count(Operation.INSERT));
-}
-```
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 @Test
@@ -309,6 +341,22 @@ fun `bulk insert should use single statement`(orm: ORMTemplate, capture: Stateme
     capture.count(Operation.INSERT) shouldBe 1
 }
 ```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+@Test
+void bulkInsertShouldUseSingleStatement(ORMTemplate orm, StatementCapture capture) {
+    var items = List.of(new Item(0, "A"), new Item(0, "B"), new Item(0, "C"));
+    capture.run(() -> orm.entity(Item.class).insertAll(items));
+
+    assertEquals(1, capture.count(Operation.INSERT));
+}
+```
+
+</TabItem>
+</Tabs>
 
 ### Verifying Statement Content
 

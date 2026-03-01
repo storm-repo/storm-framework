@@ -1,10 +1,13 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Storm vs Other Frameworks
 
-There is no universally “best” database framework. Each has strengths suited to different situations, team preferences, and project requirements. Teams approach data access differently, including using frameworks at various abstraction levels or even plain SQL. This page provides an honest comparison to help you evaluate whether Storm fits your needs, particularly if you value explicit and predictable behavior and fast development. We encourage you to explore the linked documentation for each framework and form your own conclusions.
+There is no universally "best" database framework. Each has strengths suited to different situations, team preferences, and project requirements. Teams approach data access differently, including using frameworks at various abstraction levels or even plain SQL. This page provides an honest comparison to help you evaluate whether Storm fits your needs, particularly if you value explicit and predictable behavior and fast development. We encourage you to explore the linked documentation for each framework and form your own conclusions.
 
 ## Feature Comparison
 
-The following tables provide a side-by-side comparison of concrete features across all frameworks discussed on this page. “Yes” and “No” indicate built-in support; “Manual” means the feature is achievable but requires explicit effort from the developer.
+The following tables provide a side-by-side comparison of concrete features across all frameworks discussed on this page. "Yes" and "No" indicate built-in support; "Manual" means the feature is achievable but requires explicit effort from the developer.
 
 ### Entity & Data Modeling
 
@@ -158,7 +161,7 @@ jOOQ generates Java code from your database schema, providing a type-safe SQL DS
 | **Approach** | Entity-first, convention | SQL-first, code generation |
 | **Polymorphism** | Sealed types (Single-Table, Joined, Polymorphic FK) | Manual (via SQL DSL) |
 | **Type Safety** | Metamodel from entities | Generated from schema |
-| **Setup** | Define entities → code generation | Schema → code generation |
+| **Setup** | Define entities, code generation | Schema, code generation |
 | **Entities** | Records/data classes with `Entity` | Records or POJOs |
 | **Query Style** | Repository + ORM DSL + SQL Templates | SQL-like DSL |
 | **Relationships** | Automatic from `@FK` | Manual joins |
@@ -219,7 +222,7 @@ Exposed is JetBrains' official Kotlin database framework. It offers two APIs: a 
 | **Polymorphism** | No | Sealed types (Single-Table, Joined, Polymorphic FK) |
 | **APIs** | DSL (SQL) + DAO (ORM) | Unified ORM + SQL Templates          |
 | **Table Definition** | DSL objects (`object Users : Table()`) | Annotations on data classes          |
-| **Entities (DAO)** | Mutable, extend `Entity` class | Immutable data classes/records       |
+| **Entities (DAO)** | Mutable, extend `Entity` class | Immutable data classes (Kotlin) / records (Java) |
 | **Relationships** | Lazy references, manual loading | Loading in single query              |
 | **N+1 Problem** | Possible with DAO | Prevented by design; requires explicit opt-in                 |
 | **Coroutines** | Supported (added later) | First-class from the start           |
@@ -228,7 +231,7 @@ Exposed is JetBrains' official Kotlin database framework. It offers two APIs: a 
 
 ### When to Choose Storm
 
-- You need Java support alongside Kotlin
+- You need Kotlin and Java support
 - You want immutable entities without base class inheritance
 - You prefer annotation-based entity definitions
 - N+1 queries are a concern
@@ -266,7 +269,7 @@ Ktorm is a lightweight Kotlin ORM that uses entity interfaces and DSL-based tabl
 
 ### When to Choose Storm
 
-- You need Java support alongside Kotlin
+- You need Kotlin and Java support
 - You want immutable data classes, not interfaces
 - You prefer annotation-based definitions
 - N+1 prevention is important

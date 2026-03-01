@@ -1,3 +1,6 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Configuration
 
 Storm can be configured through `StormConfig`, system properties, or Spring Boot's `application.yml`. These properties control runtime behavior for features like dirty checking and entity caching. All properties have sensible defaults, so **configuration is optional**. Storm works out of the box without any configuration.
@@ -34,6 +37,9 @@ java -Dstorm.update.default_mode=FIELD \
 
 `StormConfig` holds an immutable set of `String` key-value properties. Pass a `StormConfig` to `ORMTemplate.of()` to apply the configuration. Any property not explicitly set falls back to the system property, then to the built-in default.
 
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
 ```kotlin
 val config = StormConfig.of(mapOf(
     "storm.update.default_mode" to "FIELD",
@@ -47,6 +53,9 @@ val orm = ORMTemplate.of(dataSource, config)
 val orm = dataSource.orm(config)
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
 var config = StormConfig.of(Map.of(
     "storm.update.default_mode", "FIELD",
@@ -56,6 +65,9 @@ var config = StormConfig.of(Map.of(
 
 var orm = ORMTemplate.of(dataSource, config);
 ```
+
+</TabItem>
+</Tabs>
 
 When `StormConfig` is omitted, `ORMTemplate.of(dataSource)` reads system properties and built-in defaults automatically.
 
@@ -79,6 +91,57 @@ storm:
 ```
 
 The Spring Boot Starter binds these properties and builds a `StormConfig` that is passed to the `ORMTemplate` factory. Values not set in YAML fall back to system properties and then to built-in defaults. See [Spring Integration](spring-integration.md#configuration-via-applicationyml) for details.
+
+---
+
+## ORMTemplate Factory Overloads
+
+The `ORMTemplate.of()` factory method accepts optional parameters for configuration and template decoration. These overloads let you combine `StormConfig` (for runtime properties) with a `TemplateDecorator` (for name resolution customization) at creation time.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+// Minimal: defaults only
+val orm = dataSource.orm
+
+// With configuration
+val orm = dataSource.orm(config)
+
+// With decorator (custom name resolution)
+val orm = dataSource.orm { decorator ->
+    decorator.withTableNameResolver(TableNameResolver.toUpperCase(TableNameResolver.DEFAULT))
+}
+
+// With both configuration and decorator
+val orm = dataSource.orm(config) { decorator ->
+    decorator.withColumnNameResolver(ColumnNameResolver.toUpperCase(ColumnNameResolver.DEFAULT))
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// Minimal: defaults only
+var orm = ORMTemplate.of(dataSource);
+
+// With configuration
+var orm = ORMTemplate.of(dataSource, config);
+
+// With decorator (custom name resolution)
+var orm = ORMTemplate.of(dataSource, decorator -> decorator
+    .withTableNameResolver(TableNameResolver.toUpperCase(TableNameResolver.DEFAULT)));
+
+// With both configuration and decorator
+var orm = ORMTemplate.of(dataSource, config, decorator -> decorator
+    .withColumnNameResolver(ColumnNameResolver.toUpperCase(ColumnNameResolver.DEFAULT)));
+```
+
+</TabItem>
+</Tabs>
+
+The decorator parameter is a `UnaryOperator<TemplateDecorator>` that receives the default decorator and returns a modified version. See [Spring Integration: Template Decorator](spring-integration.md#template-decorator) for details on the available resolvers.
 
 ---
 
@@ -197,9 +260,124 @@ Storm exposes template cache metrics through JMX under the MBean name `st.orm:ty
 |-----------|-------------|
 | `reset()` | Resets all counters to zero |
 
+---
+
+## Dirty Check Metrics (JMX)
+
+Storm exposes dirty checking metrics through JMX under the MBean name `st.orm:type=DirtyCheckMetrics`. These metrics aggregate across all dirty checks performed by entity repositories, giving you visibility into how often updates are skipped, which resolution paths are taken, and how your `max_shapes` budget is being used.
+
+### Entity-Level Counters
+
+| Attribute | Description |
+|-----------|-------------|
+| `Checks` | Total number of dirty checks performed |
+| `Clean` | Number of checks that found the entity unchanged (update skipped) |
+| `Dirty` | Number of checks that found the entity changed (update triggered) |
+| `CleanRatioPercent` | Percentage of checks where the update was skipped (0-100) |
+
+A high `CleanRatioPercent` indicates that many updates are avoided because the entity has not changed since it was read. If this ratio is low and your application frequently calls `update()` on unmodified entities, consider reviewing your update logic.
+
+### Resolution Path Counters
+
+| Attribute | Description |
+|-----------|-------------|
+| `IdentityMatches` | Checks resolved by identity comparison (`cached == entity`), the cheapest path |
+| `CacheMisses` | Checks where no cached baseline was available, causing a fallback to full-entity update |
+
+High `CacheMisses` may indicate that the entity cache is being cleared prematurely. Consider switching from `light` to `default` cache retention if cache misses are frequent. See [Entity Cache](entity-cache.md) for details.
+
+### Mode and Strategy Breakdown
+
+| Attribute | Description |
+|-----------|-------------|
+| `EntityModeChecks` | Checks that used `ENTITY` update mode (full-row UPDATE on any change) |
+| `FieldModeChecks` | Checks that used `FIELD` update mode (column-level UPDATE) |
+| `InstanceStrategyChecks` | Checks that used `INSTANCE` strategy (identity-based field comparison) |
+| `ValueStrategyChecks` | Checks that used `VALUE` strategy (equality-based field comparison) |
+
+### Field-Level Counters
+
+| Attribute | Description |
+|-----------|-------------|
+| `FieldComparisons` | Total number of individual field comparisons across all dirty checks |
+| `FieldClean` | Number of field comparisons where the field was unchanged |
+| `FieldDirty` | Number of field comparisons where the field was different |
+
+### Shape Counters
+
+| Attribute | Description |
+|-----------|-------------|
+| `EntityTypes` | Number of distinct entity types that have generated UPDATE shapes |
+| `Shapes` | Total number of distinct UPDATE statement shapes across all entity types |
+| `ShapesPerEntity` | Map of entity type name to the number of shapes for that type |
+
+Compare `ShapesPerEntity` values against the configured `storm.update.max_shapes` to determine if any entity type is exhausting its shape budget. When the limit is reached, Storm falls back to full-row updates for that entity type.
+
+### Per-Entity Configuration
+
+| Attribute | Description |
+|-----------|-------------|
+| `UpdateModePerEntity` | Map of entity type name to effective update mode (`FIELD`, `ENTITY`, `OFF`) |
+| `DirtyCheckPerEntity` | Map of entity type name to effective dirty check strategy (`INSTANCE`, `VALUE`) |
+| `MaxShapesPerEntity` | Map of entity type name to configured max shapes limit |
+
+### Operations
+
+| Operation | Description |
+|-----------|-------------|
+| `reset()` | Resets all counters to zero |
+
+---
+
+## Entity Cache Metrics (JMX)
+
+Storm exposes entity cache metrics through JMX under the MBean name `st.orm:type=EntityCacheMetrics`. These metrics aggregate across all transaction-scoped entity caches, providing visibility into cache hit rates, eviction patterns, and retention behavior.
+
+### Lookup Counters
+
+| Attribute | Description |
+|-----------|-------------|
+| `Gets` | Total number of `get()` calls (cache lookups) |
+| `GetHits` | Number of lookups that returned a cached entity |
+| `GetMisses` | Number of lookups where no cached entity was available |
+| `GetHitRatioPercent` | Get hit ratio as a percentage (0-100) |
+
+A low `GetHitRatioPercent` in combination with frequent `update()` calls suggests that entities are being evicted before they can serve as dirty-check baselines. Consider switching to `default` cache retention.
+
+### Intern Counters
+
+| Attribute | Description |
+|-----------|-------------|
+| `Interns` | Total number of `intern()` calls (cache insertions) |
+| `InternHits` | Number of intern calls that reused an existing canonical instance |
+| `InternMisses` | Number of intern calls that stored a new or updated instance |
+| `InternHitRatioPercent` | Intern hit ratio as a percentage (0-100) |
+
+### Lifecycle Counters
+
+| Attribute | Description |
+|-----------|-------------|
+| `Removals` | Number of cache entries removed due to entity mutations (insert, update, delete) |
+| `Clears` | Number of full cache clears |
+| `Evictions` | Number of cache entries cleaned up after garbage collection |
+
+High `Evictions` values indicate that entities are being garbage collected while still in the cache. This is expected with `light` retention but unusual with `default` retention unless the JVM is under memory pressure.
+
+### Per-Entity Configuration
+
+| Attribute | Description |
+|-----------|-------------|
+| `RetentionPerEntity` | Map of entity type name to effective retention mode (`DEFAULT`, `LIGHT`) |
+
+### Operations
+
+| Operation | Description |
+|-----------|-------------|
+| `reset()` | Resets all counters to zero |
+
 ### Viewing Metrics
 
-Connect to the JVM with any JMX client (JConsole, VisualVM, or your monitoring platform) and navigate to the `st.orm` domain. The `TemplateMetrics` MBean is registered automatically when Storm initializes.
+Connect to the JVM with any JMX client (JConsole, VisualVM, or your monitoring platform) and navigate to the `st.orm` domain. All three MBeans (`TemplateMetrics`, `DirtyCheckMetrics`, `EntityCacheMetrics`) are registered automatically when Storm initializes. You can also expose them via Spring Boot Actuator's JMX endpoint if your application uses Actuator.
 
 ---
 
@@ -211,6 +389,9 @@ System properties set global defaults, but individual entities often have differ
 
 Override the update mode for a specific entity. This is most valuable for entities with large or variable-size columns where sending unchanged data wastes bandwidth.
 
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
 ```kotlin
 @DynamicUpdate(FIELD)
 data class Article(
@@ -220,6 +401,9 @@ data class Article(
 ) : Entity<Int>
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
 @DynamicUpdate(FIELD)
 record Article(
@@ -228,6 +412,9 @@ record Article(
     @Nonnull String content
 ) implements Entity<Integer> {}
 ```
+
+</TabItem>
+</Tabs>
 
 ### Dirty Check Strategy Per Entity
 

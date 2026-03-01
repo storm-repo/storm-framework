@@ -1,5 +1,8 @@
 # Entity Lifecycle
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 Storm provides a typed `EntityCallback<E>` interface that lets you hook into entity lifecycle events. Callbacks are a general-purpose building block for cross-cutting concerns like auditing, validation, and logging, while keeping Storm unopinionated about how those concerns are implemented.
 
 Rather than baking opinionated annotations like `@CreatedAt` or `@UpdatedBy` into the framework, Storm gives you the hooks and lets you decide how to use them. This keeps the framework lean and avoids hidden "magic" that can be difficult to debug or customize.
@@ -20,6 +23,10 @@ Rather than baking opinionated annotations like `@CreatedAt` or `@UpdatedBy` int
 | `afterUpsert(entity)` | Called after a successful SQL-level upsert. Delegates to `afterInsert` by default. |
 | `beforeDelete(entity)` | Called before deleting. |
 | `afterDelete(entity)` | Called after a successful delete. |
+
+:::warning After-Callback Entity State
+**Important:** The entity passed to `afterInsert`, `afterUpdate`, and `afterUpsert` is the **pre-persist entity**. It does not include database-generated values such as auto-incremented IDs, server defaults, or trigger-applied changes. To access the generated ID, use the return value of `insertAndFetch` instead.
+:::
 
 Every mutation operation follows the same three-phase lifecycle: the "before" callback runs first and can transform the entity, then the SQL executes, and finally the "after" callback fires to observe the result. The following diagram illustrates this flow for an insert operation. Update, upsert, and delete follow the same pattern with their respective callback methods:
 
@@ -74,7 +81,8 @@ There are two ways to register callbacks: programmatically via `withEntityCallba
 
 Call `withEntityCallback` on any `ORMTemplate` to create a new template instance with the callback applied. The original template is unchanged; this follows Storm's immutable configuration pattern. Multiple callbacks can be registered by chaining calls, and they fire in registration order.
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 val callback = object : EntityCallback<Article> {
@@ -86,7 +94,8 @@ val callback = object : EntityCallback<Article> {
 val orm = dataSource.orm.withEntityCallback(callback)
 ```
 
-#### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 EntityCallback<Article> callback = new EntityCallback<>() {
@@ -99,11 +108,15 @@ EntityCallback<Article> callback = new EntityCallback<>() {
 ORMTemplate orm = ORMTemplate.of(dataSource).withEntityCallback(callback);
 ```
 
+</TabItem>
+</Tabs>
+
 ### Spring Boot Auto-Configuration
 
 When using the Storm Spring Boot Starter, any `EntityCallback` beans in your application context are automatically detected and wired to the `ORMTemplate`. No additional configuration is needed. Each callback is registered individually and only fires for entities matching its type parameter.
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 @Configuration
@@ -117,7 +130,8 @@ class AuditConfig {
 }
 ```
 
-#### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 @Configuration
@@ -133,6 +147,9 @@ public class AuditConfig {
     }
 }
 ```
+
+</TabItem>
+</Tabs>
 
 ---
 
@@ -238,7 +255,8 @@ Callbacks work with both single and batch operations. For batch operations, the 
 
 A common use case is automatically populating audit fields. A practical approach is to define a shared interface for auditable entities, then use a single callback to fill in the timestamps. The `beforeInsert` callback sets both `createdAt` and `updatedAt`, while `beforeUpdate` only refreshes `updatedAt`.
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 interface Auditable {
@@ -267,7 +285,8 @@ class AuditCallback : EntityCallback<Article> {
 }
 ```
 
-#### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 public class AuditCallback implements EntityCallback<Article> {
@@ -283,6 +302,9 @@ public class AuditCallback implements EntityCallback<Article> {
     }
 }
 ```
+
+</TabItem>
+</Tabs>
 
 To apply auditing across multiple entity types without writing a separate callback for each, use a global callback with a runtime type check. Any entity that implements the `Auditable` interface gets its timestamps set; other entities pass through unchanged:
 

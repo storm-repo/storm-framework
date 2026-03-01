@@ -1,6 +1,9 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Spring Integration
 
-Storm integrates seamlessly with Spring Framework and Spring Boot for dependency injection, transaction management, and repository auto-wiring. This guide covers setup for both Kotlin and Java.
+Storm integrates seamlessly with Spring Framework and Spring Boot for dependency injection, transaction management, and repository auto-wiring. This guide covers setup for both languages.
 
 ## Installation
 
@@ -10,7 +13,8 @@ Storm provides Spring Boot Starter modules that auto-configure everything you ne
 
 The starter modules provide zero-configuration setup: an `ORMTemplate` bean is created automatically from the `DataSource`, repositories are discovered from the application's base package, and (for Kotlin) transaction integration is enabled. See [Spring Boot Starter](#spring-boot-starter) for full details.
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // Gradle (Kotlin DSL)
@@ -26,12 +30,8 @@ implementation("st.orm:storm-kotlin-spring-boot-starter:1.9.0")
 </dependency>
 ```
 
-#### Java
-
-```kotlin
-// Gradle (Kotlin DSL)
-implementation("st.orm:storm-spring-boot-starter:1.9.0")
-```
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```xml
 <!-- Maven -->
@@ -42,11 +42,20 @@ implementation("st.orm:storm-spring-boot-starter:1.9.0")
 </dependency>
 ```
 
+```kotlin
+// Gradle (Kotlin DSL)
+implementation("st.orm:storm-spring-boot-starter:1.9.0")
+```
+
+</TabItem>
+</Tabs>
+
 ### Spring Integration Without Auto-Configuration
 
 If you prefer manual configuration, or need to customize the setup beyond what the starter provides, use the integration modules directly:
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // Gradle (Kotlin DSL)
@@ -62,12 +71,8 @@ implementation("st.orm:storm-kotlin-spring:1.9.0")
 </dependency>
 ```
 
-#### Java
-
-```kotlin
-// Gradle (Kotlin DSL)
-implementation("st.orm:storm-spring:1.9.0")
-```
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```xml
 <!-- Maven -->
@@ -78,13 +83,22 @@ implementation("st.orm:storm-spring:1.9.0")
 </dependency>
 ```
 
+```kotlin
+// Gradle (Kotlin DSL)
+implementation("st.orm:storm-spring:1.9.0")
+```
+
+</TabItem>
+</Tabs>
+
 The Spring integration modules provide transaction integration and repository auto-discovery. They are in addition to the base `storm-kotlin` or `storm-java21` dependency.
 
 ---
 
-## Kotlin
+## Configuration
 
-### Configuration
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 The minimum setup requires a single `ORMTemplate` bean. This bean is the entry point for all Storm operations and takes a standard `DataSource` as its only dependency. Spring Boot applications typically have a `DataSource` already configured through `application.properties`, so the `ORMTemplate` bean is the only Storm-specific configuration you need to add.
 
@@ -181,13 +195,10 @@ class UserService(
 }
 ```
 
----
+</TabItem>
+<TabItem value="java" label="Java">
 
-## Java
-
-### Configuration
-
-The Java configuration mirrors the Kotlin setup. Define a single `ORMTemplate` bean that wraps the Spring-managed `DataSource`.
+The configuration mirrors the Kotlin setup. Define a single `ORMTemplate` bean that wraps the Spring-managed `DataSource`.
 
 ```java
 @Configuration
@@ -278,6 +289,166 @@ public class UserService {
     }
 }
 ```
+
+</TabItem>
+</Tabs>
+
+---
+
+## Production DataSource Configuration
+
+Storm works with any JDBC `DataSource` and does not manage connections itself. In production, you should configure a connection pool to handle connection lifecycle, validation, and recycling. HikariCP is the default connection pool in Spring Boot and a good choice for most applications.
+
+### Adding HikariCP
+
+Spring Boot includes HikariCP by default when you add a `spring-boot-starter-jdbc` or `spring-boot-starter-data-jpa` dependency. If you are not using a starter that includes it, add HikariCP explicitly:
+
+```xml
+<dependency>
+    <groupId>com.zaxxer</groupId>
+    <artifactId>HikariCP</artifactId>
+</dependency>
+```
+
+### Pool Configuration
+
+Configure the pool in `application.yml`. A good starting point for pool size is `CPU cores * 2 + number of disk spindles`. For most cloud deployments with SSDs, this simplifies to roughly `CPU cores * 2`. A 4-core server would start with a pool of about 10 connections.
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/mydb
+    username: myuser
+    password: mypassword
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000       # 30 seconds
+      idle-timeout: 600000            # 10 minutes
+      max-lifetime: 1800000           # 30 minutes
+      validation-timeout: 5000        # 5 seconds
+      connection-test-query: SELECT 1 # Only needed for drivers that don't support JDBC4 isValid()
+```
+
+| Property | Description |
+|----------|-------------|
+| `maximum-pool-size` | Upper bound on connections. Start with CPU cores * 2 and adjust based on load testing. |
+| `minimum-idle` | Minimum idle connections to maintain. Set equal to `maximum-pool-size` for consistent latency. |
+| `connection-timeout` | Maximum time (ms) to wait for a connection from the pool before throwing an exception. |
+| `idle-timeout` | Maximum time (ms) a connection can sit idle before being retired. |
+| `max-lifetime` | Maximum lifetime (ms) of a connection. Set slightly shorter than your database's connection timeout. |
+| `connection-test-query` | Validation query for drivers that do not support JDBC4's `isValid()`. Most modern drivers do not need this. |
+
+Storm obtains connections from the `DataSource` for each operation (or transaction) and returns them to the pool immediately afterward. This means connection pool tuning directly affects Storm's throughput and latency characteristics.
+
+---
+
+## Template Decorator
+
+The `TemplateDecorator` interface lets you customize how Storm resolves table names, column names, and foreign key column names. This is useful when your database uses a naming convention that differs from Storm's default camelCase-to-snake_case conversion, or when you need to add a schema prefix or other transformation globally.
+
+The decorator is passed as a `UnaryOperator<TemplateDecorator>` to the `ORMTemplate.of()` factory method. It receives the default decorator and returns a modified version.
+
+### Available Resolvers
+
+| Method | Default Behavior | Use Case |
+|--------|------------------|----------|
+| `withTableNameResolver` | `CamelCase` to `snake_case` (e.g., `UserProfile` to `user_profile`) | Schema prefix, uppercase tables, custom naming |
+| `withColumnNameResolver` | `camelCase` to `snake_case` (e.g., `firstName` to `first_name`) | Uppercase columns, custom naming |
+| `withForeignKeyResolver` | `camelCase` to `snake_case` + `_id` suffix (e.g., `city` to `city_id`) | Custom FK naming conventions |
+
+### Example: Uppercase Table and Column Names
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val orm = dataSource.orm { decorator ->
+    decorator
+        .withTableNameResolver(TableNameResolver.toUpperCase(TableNameResolver.DEFAULT))
+        .withColumnNameResolver(ColumnNameResolver.toUpperCase(ColumnNameResolver.DEFAULT))
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+var orm = ORMTemplate.of(dataSource, decorator -> decorator
+    .withTableNameResolver(TableNameResolver.toUpperCase(TableNameResolver.DEFAULT))
+    .withColumnNameResolver(ColumnNameResolver.toUpperCase(ColumnNameResolver.DEFAULT))
+);
+```
+
+</TabItem>
+</Tabs>
+
+### Example: Schema Prefix
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val orm = dataSource.orm { decorator ->
+    decorator.withTableNameResolver { type ->
+        "myschema." + TableNameResolver.DEFAULT.resolveTableName(type)
+    }
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+var orm = ORMTemplate.of(dataSource, decorator -> decorator
+    .withTableNameResolver(type ->
+        "myschema." + TableNameResolver.DEFAULT.resolveTableName(type))
+);
+```
+
+</TabItem>
+</Tabs>
+
+In Spring Boot, apply the decorator when defining your `ORMTemplate` bean. If you use the starter and want to customize the auto-configured template, define your own `ORMTemplate` bean and the starter's auto-configured one will back off:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+@Configuration
+class StormConfig(private val dataSource: DataSource) {
+
+    @Bean
+    fun ormTemplate(): ORMTemplate =
+        dataSource.orm { decorator ->
+            decorator.withTableNameResolver(TableNameResolver.toUpperCase(TableNameResolver.DEFAULT))
+        }
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+@Configuration
+public class StormConfig {
+
+    private final DataSource dataSource;
+
+    public StormConfig(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    @Bean
+    public ORMTemplate ormTemplate() {
+        return ORMTemplate.of(dataSource, decorator -> decorator
+            .withTableNameResolver(TableNameResolver.toUpperCase(TableNameResolver.DEFAULT)));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
 
 ---
 

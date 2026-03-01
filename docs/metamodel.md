@@ -1,12 +1,15 @@
 # Static Metamodel
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 The static metamodel is a code generation feature that creates companion classes for your entities at compile time. These generated classes provide type-safe references to entity fields, enabling the compiler to catch errors that would otherwise surface only at runtime.
 
 Using the metamodel is optional. Storm works without it using SQL Templates or string-based field references. However, for projects that want to leverage Storm's full capabilities, the metamodel provides significant benefits in terms of type safety, IDE support, and maintainability.
 
 ## Why Use a Metamodel?
 
-Storm uses Java records and Kotlin data classes as entities. While this stateless approach simplifies the programming model, it presents a challenge: how do you reference entity fields in a type-safe way without using reflection at runtime?
+Storm uses Kotlin data classes and Java records as entities. While this stateless approach simplifies the programming model, it presents a challenge: how do you reference entity fields in a type-safe way without using reflection at runtime?
 
 The metamodel solves this by generating accessor classes during compilation. These classes provide direct access to record components without reflection, which offers two advantages:
 
@@ -40,20 +43,20 @@ The generator scans your entity classes and creates corresponding metamodel clas
 
 ### Gradle (Kotlin with KSP)
 
-```groovy
+```kotlin
 plugins {
-    id 'com.google.devtools.ksp' version '2.0.0-1.0.21'
+    id("com.google.devtools.ksp") version "2.0.21-1.0.28"
 }
 
 dependencies {
-    ksp 'st.orm:storm-metamodel-processor:1.9.0'
+    ksp("st.orm:storm-metamodel-processor:1.9.0")
 }
 ```
 
 ### Gradle (Java)
 
-```groovy
-annotationProcessor 'st.orm:storm-metamodel-processor:1.9.0'
+```kotlin
+annotationProcessor("st.orm:storm-metamodel-processor:1.9.0")
 ```
 
 ### Maven (Java)
@@ -73,7 +76,8 @@ annotationProcessor 'st.orm:storm-metamodel-processor:1.9.0'
 
 Once the metamodel is generated, you use the `_` suffixed classes in place of string-based field references throughout your queries. The metamodel provides type-safe field accessors that the compiler can verify, so a renamed or removed field produces a compile error rather than a runtime exception. The following examples demonstrate the metamodel in queries for both Kotlin and Java.
 
-### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // Type-safe field reference
@@ -91,7 +95,8 @@ val users = orm.entity(User::class)
     .resultList
 ```
 
-### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 // Type-safe field reference
@@ -116,6 +121,9 @@ Optional<User> user = orm.query(RAW."""
         WHERE \{User_.email} = \{email}""")
     .getOptionalResult(User.class);
 ```
+
+</TabItem>
+</Tabs>
 
 ## Path Resolution
 
@@ -348,6 +356,9 @@ The `@PK` annotation is meta-annotated with `@UK`, so primary key fields are aut
 
 ### Defining Unique Keys
 
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
 ```kotlin
 data class User(
     @PK val id: Int = 0,
@@ -356,12 +367,18 @@ data class User(
 ) : Entity<Int>
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
 record User(@PK Integer id,
             @UK String email,
             String name
 ) implements Entity<Integer> {}
 ```
+
+</TabItem>
+</Tabs>
 
 The metamodel processor generates `Metamodel.Key` fields for `id` (via `@PK`) and `email` (via `@UK`):
 
@@ -376,6 +393,9 @@ User_
 
 For compound unique constraints spanning multiple columns, use an inline record annotated with `@UK`. When the compound key columns overlap with other fields on the entity, combine `@UK` with `@Persist(insertable = false, updatable = false)` to prevent duplicate persistence:
 
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
 ```kotlin
 data class UserEmailUK(val userId: Int, val email: String)
 
@@ -387,6 +407,9 @@ data class SomeEntity(
 ) : Entity<Int>
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
 record UserEmailUK(int userId, String email) {}
 
@@ -397,27 +420,40 @@ record SomeEntity(@PK Integer id,
 ) implements Entity<Integer> {}
 ```
 
+</TabItem>
+</Tabs>
+
 The metamodel processor generates a `Metamodel.Key` for the compound field, which can be used for lookups and keyset pagination just like a single-column key.
 
 ### Using Keys for Lookups
 
 `Metamodel.Key` enables type-safe single-result lookups through the repository:
 
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
 ```kotlin
-// Kotlin
 val user: User? = userRepository.findBy(User_.email, "alice@example.com")
 val user: User = userRepository.getBy(User_.email, "alice@example.com")  // throws if not found
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
-// Java
 Optional<User> user = userRepository.findBy(User_.email, "alice@example.com");
 User user = userRepository.getBy(User_.email, "alice@example.com");  // throws if not found
 ```
 
+</TabItem>
+</Tabs>
+
 ### Using Keys for Keyset Pagination
 
 `Metamodel.Key` is also required for keyset pagination, where the cursor column must be unique:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 val page: Slice<User> = userRepository.slice(User_.id, 20)
@@ -432,21 +468,52 @@ val last = page.content.last()
 val nextPage: Slice<SomeEntity> = repository.sliceAfter(SomeEntity_.uniqueKey, last.uniqueKey, 20)
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+Slice<User> page = userRepository.slice(User_.id, 20);
+Slice<User> nextPage = userRepository.sliceAfter(User_.id, lastId, 20);
+```
+
+Compound unique keys work the same way:
+
+```java
+Slice<SomeEntity> page = repository.slice(SomeEntity_.uniqueKey, 20);
+SomeEntity last = page.content().getLast();
+Slice<SomeEntity> nextPage = repository.sliceAfter(SomeEntity_.uniqueKey, last.uniqueKey(), 20);
+```
+
+</TabItem>
+</Tabs>
+
 See [Queries](queries.md#keyset-pagination-with-slice) for full details on keyset pagination.
 
 ### Manual Key Wrapping
 
 For dynamically constructed metamodels or composite keys where the processor does not generate a `Key` instance, use `Metamodel.key()` (or the `.key()` extension in Kotlin) to wrap an existing metamodel:
 
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
 ```kotlin
 val key: Metamodel.Key<User, String> = Metamodel.key(Metamodel.of(User::class.java, "email"))
 ```
+
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 Metamodel.Key<User, String> key = Metamodel.key(Metamodel.of(User.class, "email"));
 ```
 
+</TabItem>
+</Tabs>
+
 This is also useful when a column that is not annotated with `@UK` becomes unique in the context of a query, for example because of a GROUP BY clause. In that case, the column can serve as a keyset pagination cursor even though the metamodel processor did not generate a `Key` for it:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 val ordersByCity = orm.query(Order::class)
@@ -455,12 +522,18 @@ val ordersByCity = orm.query(Order::class)
     .slice(Order_.city.key(), 20)
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
 var ordersByCity = orm.query(Order.class)
     .select(Order_.city, "COUNT(*)")
     .groupBy(Order_.city)
     .slice(Metamodel.key(Order_.city), 20);
 ```
+
+</TabItem>
+</Tabs>
 
 Callers are responsible for ensuring that the column contains unique values in the result set.
 
@@ -474,7 +547,7 @@ In standard SQL, `NULL != NULL`. This means a `UNIQUE` constraint typically allo
 
 Because of this, Storm validates nullable unique keys at two levels:
 
-1. **Compile-time warning.** The metamodel processor emits a warning when a `@UK` field is nullable (a reference type without `@Nonnull` in Java, or a nullable type in Kotlin) and the default `nullsDistinct = true` applies.
+1. **Compile-time warning.** The metamodel processor emits a warning when a `@UK` field is nullable (a nullable type in Kotlin, or a reference type without `@Nonnull` in Java) and the default `nullsDistinct = true` applies.
 2. **Runtime check.** The `slice`, `sliceAfter`, and `sliceBefore` methods throw a `PersistenceException` if the key's metamodel indicates that nulls are distinct for a nullable field, preventing silent data loss.
 
 Database behavior varies. Some databases offer stricter NULL handling for unique constraints:
@@ -496,15 +569,18 @@ When `nullsDistinct` is set to `false`, you are telling Storm that your database
 
 The following examples show how to define unique keys that are safe for keyset pagination.
 
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
 ```kotlin
-// Kotlin: safe (non-nullable)
+// Safe (non-nullable)
 data class User(
     @PK val id: Int = 0,
     @UK val email: String,     // Non-nullable, safe for keyset pagination
     val name: String
 ) : Entity<Int>
 
-// Kotlin: opt-in for nullable keys
+// Opt-in for nullable keys
 data class User(
     @PK val id: Int = 0,
     @UK(nullsDistinct = false) val email: String?,  // DB prevents duplicate NULLs
@@ -512,21 +588,171 @@ data class User(
 ) : Entity<Int>
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
-// Java: safe (non-nullable)
+// Safe (non-nullable)
 record User(@PK Integer id,
             @UK @Nonnull String email,  // Non-nullable, safe for keyset pagination
             String name
 ) implements Entity<Integer> {}
 
-// Java: opt-in for nullable keys
+// Opt-in for nullable keys
 record User(@PK Integer id,
             @UK(nullsDistinct = false) String email,  // DB prevents duplicate NULLs
             String name
 ) implements Entity<Integer> {}
 ```
 
+</TabItem>
+</Tabs>
+
 In most cases, the simplest approach is to ensure your unique key fields are non-nullable. If nullability is required, verify that your database constraint actually prevents duplicate `NULL` values before setting `nullsDistinct = false`.
+
+## Working with Metamodel Programmatically
+
+Beyond compile-time query construction, the `Metamodel` interface provides several runtime methods for working with entity metadata and values programmatically.
+
+### Extracting Field Values
+
+`Metamodel.getValue(record)` extracts the value of the field represented by a metamodel from a given record instance. This works for any metamodel, including nested paths. If any intermediate record in the path is `null`, the method returns `null`.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val user = User(id = 1, email = "alice@example.com", name = "Alice", city = someCity)
+
+// Extract the email value from the user record
+val email = User_.email.getValue(user)  // "alice@example.com"
+
+// Extract a nested value through the entity graph
+val countryName = User_.city.country.name.getValue(user)  // "United States"
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+var user = new User(1, "alice@example.com", "Alice", someCity);
+
+// Extract the email value from the user record
+Object email = User_.email.getValue(user);  // "alice@example.com"
+
+// Extract a nested value through the entity graph
+Object countryName = User_.city.country.name.getValue(user);  // "United States"
+```
+
+</TabItem>
+</Tabs>
+
+### Flattening Inline Records
+
+`Metamodel.flatten()` expands an inline record (embedded component) into its individual leaf column metamodels. If the metamodel already represents a leaf column, it returns a singleton list containing itself. This is the same expansion Storm performs internally for ORDER BY and GROUP BY clauses.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+// If Address is an inline record with (street, cityId) fields:
+val leafColumns = Owner_.address.flatten()
+// Returns: [Owner_.address.street, Owner_.address.city]
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// If Address is an inline record with (street, cityId) fields:
+List<Metamodel<Owner, ?>> leafColumns = Owner_.address.flatten();
+// Returns: [Owner_.address.street, Owner_.address.city]
+```
+
+</TabItem>
+</Tabs>
+
+### Canonical Form for Equality Checks
+
+`Metamodel.canonical()` returns a path-independent form of a metamodel that captures only the table type and field name. Two metamodels that refer to the same underlying field (but are reached through different paths in the entity graph) will have equal canonical forms. This is useful for programmatic comparison of metamodels.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+// These two metamodels reach the same Country.name field through different paths
+val path1 = User_.city.country.name
+val path2 = Order_.shippingAddress.country.name
+
+// Their canonical forms are equal
+path1.canonical() == path2.canonical()  // true
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// These two metamodels reach the same Country.name field through different paths
+var path1 = User_.city.country.name;
+var path2 = Order_.shippingAddress.country.name;
+
+// Their canonical forms are equal
+path1.canonical().equals(path2.canonical());  // true
+```
+
+</TabItem>
+</Tabs>
+
+### Wrapping as a Key
+
+`Metamodel.key(metamodel)` wraps any metamodel as a `Metamodel.Key`, indicating that the column can serve as a unique cursor for keyset pagination. If the metamodel already implements `Key`, it is returned as-is. See [Manual Key Wrapping](#manual-key-wrapping) for usage examples.
+
+## `@GenerateMetamodel` Annotation
+
+By default, the metamodel processor generates metamodel classes for all records that implement `Entity` or `Projection`. If you have a plain record (or data class) that does not implement either interface but you still want a metamodel generated for it, annotate it with `@GenerateMetamodel`.
+
+This is useful for:
+- Inline records (embedded components) that you want to reference in queries via the metamodel
+- `Data` implementations used in custom SQL templates
+- Any non-entity record where you want compile-time type-safe field references
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+@GenerateMetamodel
+data class Address(
+    val street: String,
+    @FK val city: City
+)
+
+// Now Address_ is available for type-safe references
+val addresses = orm.query { """
+    SELECT ${t(Address::class)}
+    FROM ${t(Address::class)}
+    WHERE ${t(Address_.street)} LIKE ${t("%Main%")}
+""" }
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+@GenerateMetamodel
+record Address(String street,
+               @FK City city) {}
+
+// Now Address_ is available for type-safe references
+var addresses = orm.query(RAW."""
+        SELECT \{Address.class}
+        FROM \{Address.class}
+        WHERE \{Address_.street} LIKE \{"%Main%"}""");
+```
+
+</TabItem>
+</Tabs>
+
+The `@GenerateMetamodel` annotation is located in `st.orm.core.template` and requires the `storm-core` dependency at compile time (provided scope is sufficient).
 
 ## Benefits
 
@@ -542,5 +768,5 @@ The metamodel is not required. You can use Storm with SQL Templates (Java) or ra
 ## Tips
 
 1. **Rebuild after changes.** Run `./gradlew build` or `mvn compile` after adding or modifying entity fields.
-2. **Check your IDE setup.** Ensure annotation processing (Java) or KSP (Kotlin) is enabled in your IDE settings.
+2. **Check your IDE setup.** Ensure KSP (Kotlin) or annotation processing (Java) is enabled in your IDE settings.
 3. **Use for all queries.** Consistent use of metamodel prevents runtime errors.
