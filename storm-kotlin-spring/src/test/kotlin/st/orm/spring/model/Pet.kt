@@ -15,5 +15,5 @@ data class Pet(
     val name: String,
     @Persist(updatable = false) val birthDate: LocalDate,
     @FK @Persist(updatable = false) val type: PetType,
-    @FK val owner: Owner? = null
+    @FK val owner: Owner? = null,
 ) : Entity<Int>

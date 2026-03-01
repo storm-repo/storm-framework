@@ -1,5 +1,8 @@
 # SQL Templates
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 SQL templates are the foundation of Storm. The `EntityRepository` and `ProjectionRepository` APIs are built entirely on top of SQL templates. Everything those repositories do, such as generating SELECT columns, deriving joins from `@FK` relationships, and resolving table aliases, uses the same template engine available to you directly.
 
 Most users will interact with Storm through repositories and only use templates when they need custom queries. This page covers the template features you're most likely to use: referencing tables and columns with automatic alias resolution, and understanding how joins are derived.
@@ -14,7 +17,8 @@ Storm uses string interpolation to inject template elements into SQL. Rather tha
 
 The syntax differs between Kotlin and Java due to language-level string interpolation support.
 
-### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 Kotlin uses `${}` interpolation inside a lambda that provides template functions. The lambda receiver exposes the `t()` function, which is the single entry point for all template elements.
 
@@ -28,7 +32,8 @@ orm.query { """
 
 The `t()` function wraps all injected elements: types, metamodel references, and parameter values.
 
-### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 Java uses string templates with `\{}` syntax:
 
@@ -41,6 +46,9 @@ orm.query(RAW."""
 
 > **Note:** Java string templates are a preview feature. Storm for Java requires Java 21+ with preview mode enabled (`--enable-preview`). Storm will adapt to the final string template specification once it's released.
 
+</TabItem>
+</Tabs>
+
 ---
 
 ## Data Interface
@@ -48,6 +56,9 @@ orm.query(RAW."""
 The `Data` interface marks a record or data class as eligible for Storm's SQL generation. Without this marker, Storm treats the type as a plain container and expects you to write all SQL manually. With it, template expressions like `t(MyType::class)` in a SELECT clause expand into the full column list, and the same expression in a FROM clause generates the table name with appropriate joins for `@FK` fields.
 
 Use `Data` for query-specific result types that do not need full repository support (insert, update, delete). If you need CRUD operations, use `Entity` or `Projection` instead, which extend `Data`.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 data class PetWithOwner(
@@ -64,6 +75,9 @@ val pets = orm.query { """
 """ }.getResultList(PetWithOwner::class)
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
 record PetWithOwner(
     @Nonnull String name,
@@ -78,6 +92,9 @@ List<PetWithOwner> pets = orm.query(RAW."""
         WHERE \{Owner_.city} = \{city}""")
     .getResultList(PetWithOwner.class);
 ```
+
+</TabItem>
+</Tabs>
 
 **When to use:** Single-use queries where you want Storm's SQL generation, automatic joins via `@FK`, and type-safe column references.
 
@@ -107,6 +124,9 @@ When you use a type in both SELECT and FROM expressions, Storm automatically gen
 
 Given these entities:
 
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
 ```kotlin
 data class Country(
     @PK val id: Int,
@@ -135,6 +155,37 @@ orm.query { """
     FROM ${t(User::class)}
 """ }
 ```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+record Country(@PK Integer id,
+               @Nonnull String name,
+               @Nonnull String code
+) implements Entity<Integer> {}
+
+record City(@PK Integer id,
+            @Nonnull String name,
+            @FK Country country
+) implements Entity<Integer> {}
+
+record User(@PK Integer id,
+            @Nonnull String email,
+            @FK City city
+) implements Entity<Integer> {}
+```
+
+This query:
+
+```java
+orm.query(RAW."""
+    SELECT \{User.class}
+    FROM \{User.class}""")
+```
+
+</TabItem>
+</Tabs>
 
 Generates:
 
@@ -198,11 +249,14 @@ orm.query { """
 
 ## Column References with Metamodel
 
-Hardcoding column names as strings in SQL is error-prone: a renamed field silently breaks at runtime. Storm's compile-time metamodel eliminates this risk. For each entity or data class, the annotation processor (KSP for Kotlin, APT for Java) generates a companion class (e.g., `User_`) with a static field for every column. These fields resolve to the correct column name and table alias at template compilation time, so a renamed field causes a compile error instead of a runtime failure.
+Hardcoding column names as strings in SQL is error-prone: a renamed field silently breaks at runtime. Storm's compile-time metamodel eliminates this risk. For each entity or data class, the code generator (KSP for Kotlin, annotation processor for Java) generates a companion class (e.g., `User_`) with a static field for every column. These fields resolve to the correct column name and table alias at template compilation time, so a renamed field causes a compile error instead of a runtime failure.
 
 ### Basic Column Reference
 
 For an entity `User`, Storm generates `User_` with fields for each column. Use these fields anywhere you would write a column name in SQL.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // Reference a column in WHERE clause
@@ -213,9 +267,25 @@ orm.query { """
 """ }
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+orm.query(RAW."""
+    SELECT \{User.class}
+    FROM \{User.class}
+    WHERE \{User_.email} = \{email}""")
+```
+
+</TabItem>
+</Tabs>
+
 ### Nested Column References
 
 Metamodel fields support path navigation for `@FK` relationships. This lets you reference columns on joined tables without writing the join alias yourself. Storm resolves the path to the correct alias based on the auto-generated joins.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // Reference a column through a relationship
@@ -225,6 +295,19 @@ orm.query { """
     WHERE ${t(User_.city.country.code)} = ${t("US")}
 """ }
 ```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+orm.query(RAW."""
+    SELECT \{User.class}
+    FROM \{User.class}
+    WHERE \{User_.city.country.code} = \{"US"}""")
+```
+
+</TabItem>
+</Tabs>
 
 This generates:
 
@@ -245,6 +328,54 @@ orm.query { """
     ORDER BY ${t(column(User_.email))}
 """ }
 ```
+
+---
+
+## ResolveScope
+
+When working with subqueries or nested template expressions, you may need to control how Storm resolves table aliases. The `ResolveScope` enum determines where Storm looks for aliases when resolving a column or table reference.
+
+| Scope | Behavior |
+|-------|----------|
+| `CASCADE` | Enforce unambiguity by requiring the alias to be resolved uniquely. This is the default. |
+| `INNER` | Resolve only within the current (innermost) scope. Fails if the alias is not defined locally. |
+| `OUTER` | Resolve only from outer scope(s), ignoring locally defined aliases. |
+
+The `alias()` and `column()` template functions accept an optional `ResolveScope` parameter:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+orm.query { """
+    SELECT ${t(User::class)}
+    FROM ${t(User::class)}
+    WHERE ${t(User_.id)} IN (
+        SELECT ${t(column(Order_.userId, ResolveScope.INNER))}
+        FROM ${t(table(Order::class))}
+        WHERE ${t(column(Order_.total, ResolveScope.INNER))} > ${t(1000)}
+    )
+""" }
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+orm.query(RAW."""
+    SELECT \{User.class}
+    FROM \{User.class}
+    WHERE \{User_.id} IN (
+        SELECT \{column(Order_.userId, ResolveScope.INNER)}
+        FROM \{table(Order.class)}
+        WHERE \{column(Order_.total, ResolveScope.INNER)} > \{1000}
+    )""")
+```
+
+</TabItem>
+</Tabs>
+
+In most cases the default `CASCADE` scope is correct, because it ensures that each alias resolves to exactly one table. Use `INNER` or `OUTER` when writing correlated subqueries where you need to control whether a reference resolves to the inner query's tables or the outer query's tables.
 
 ---
 
@@ -271,6 +402,9 @@ The following examples demonstrate common query patterns using SQL templates. Ea
 
 ### Filtering with Metamodel
 
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
 ```kotlin
 val users = orm.query { """
     SELECT ${t(User::class)}
@@ -279,6 +413,21 @@ val users = orm.query { """
       AND ${t(User_.email)} LIKE ${t("%@example.com")}
 """ }.getResultList(User::class)
 ```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+List<User> users = orm.query(RAW."""
+        SELECT \{User.class}
+        FROM \{User.class}
+        WHERE \{User_.city.country.code} = \{"US"}
+          AND \{User_.email} LIKE \{"%@example.com"}""")
+    .getResultList(User.class);
+```
+
+</TabItem>
+</Tabs>
 
 ### Custom Joins
 

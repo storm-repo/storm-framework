@@ -15,11 +15,30 @@
  */
 package st.orm.core.template.impl;
 
+import static java.lang.System.identityHashCode;
+import static java.lang.reflect.Proxy.newProxyInstance;
+import static st.orm.core.spi.Providers.getEntityRepository;
+import static st.orm.core.spi.Providers.getProjectionRepository;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.PersistenceException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.function.Predicate;
+import javax.sql.DataSource;
+import st.orm.Data;
 import st.orm.Entity;
+import st.orm.EntityCallback;
+import st.orm.PersistenceException;
 import st.orm.Projection;
+import st.orm.StormConfig;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.repository.ProjectionRepository;
 import st.orm.core.repository.Repository;
@@ -30,19 +49,6 @@ import st.orm.core.spi.QueryFactory;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.SqlTemplateException;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.function.Predicate;
-
-import static java.lang.System.identityHashCode;
-import static java.lang.reflect.Proxy.newProxyInstance;
-import static st.orm.core.spi.Providers.getEntityRepository;
-import static st.orm.core.spi.Providers.getProjectionRepository;
-
 public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTemplate {
 
     private static final ORMReflection REFLECTION = Providers.getORMReflection();
@@ -51,12 +57,91 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
     private final ConcurrentMap<Class<?>, ProjectionRepository<?, ?>> projectionRepositories = new ConcurrentHashMap<>();
     private final ConcurrentMap<Class<?>, Repository> repositories = new ConcurrentHashMap<>();
     private final Predicate<? super Provider> providerFilter;
+    private final StormConfig config;
+    private final List<EntityCallback<?>> entityCallbacks;
 
     public ORMTemplateImpl(@Nonnull QueryFactory factory,
                            @Nonnull ModelBuilder modelBuilder,
                            @Nullable Predicate<? super Provider> providerFilter) {
+        this(factory, modelBuilder, providerFilter, StormConfig.defaults());
+    }
+
+    public ORMTemplateImpl(@Nonnull QueryFactory factory,
+                           @Nonnull ModelBuilder modelBuilder,
+                           @Nullable Predicate<? super Provider> providerFilter,
+                           @Nonnull StormConfig config) {
+        this(factory, modelBuilder, providerFilter, config, List.of());
+    }
+
+    public ORMTemplateImpl(@Nonnull QueryFactory factory,
+                           @Nonnull ModelBuilder modelBuilder,
+                           @Nullable Predicate<? super Provider> providerFilter,
+                           @Nonnull StormConfig config,
+                           @Nonnull List<EntityCallback<?>> entityCallbacks) {
         super(factory, modelBuilder);
         this.providerFilter = providerFilter;
+        this.config = config;
+        this.entityCallbacks = List.copyOf(entityCallbacks);
+    }
+
+    @Override
+    public StormConfig config() {
+        return config;
+    }
+
+    @Override
+    public List<EntityCallback<?>> entityCallbacks() {
+        return entityCallbacks;
+    }
+
+    @Override
+    public ORMTemplate withEntityCallbacks(@Nonnull List<EntityCallback<?>> callbacks) {
+        if (callbacks.isEmpty()) {
+            return this;
+        }
+        var newCallbacks = new ArrayList<>(entityCallbacks);
+        newCallbacks.addAll(callbacks);
+        return new ORMTemplateImpl(queryFactory, modelBuilder, providerFilter, config, newCallbacks);
+    }
+
+    @Override
+    public List<String> validateSchema() {
+        return createSchemaValidator().validateAndReport(isStrictSchemaValidation());
+    }
+
+    @Override
+    public List<String> validateSchema(@Nonnull Iterable<Class<? extends Data>> types) {
+        return createSchemaValidator().validateAndReport(types, isStrictSchemaValidation());
+    }
+
+    @Override
+    public void validateSchemaOrThrow() {
+        createSchemaValidator().validateReportAndThrow(isStrictSchemaValidation());
+    }
+
+    @Override
+    public void validateSchemaOrThrow(@Nonnull Iterable<Class<? extends Data>> types) {
+        List<String> errors = createSchemaValidator().validateAndReport(types, isStrictSchemaValidation());
+        if (!errors.isEmpty()) {
+            throw new PersistenceException(SchemaValidator.formatErrors(errors));
+        }
+    }
+
+    private boolean isStrictSchemaValidation() {
+        return Boolean.parseBoolean(config.getProperty("storm.validation.strict", "false"));
+    }
+
+    private SchemaValidator createSchemaValidator() {
+        DataSource dataSource = queryFactory.dataSource();
+        if (dataSource == null) {
+            throw new PersistenceException(
+                    "Schema validation requires a DataSource-backed template. "
+                    + "Templates created from a Connection or EntityManager do not support schema validation.");
+        }
+        var sqlDialect = providerFilter != null
+                ? Providers.getSqlDialect(providerFilter, config)
+                : Providers.getSqlDialect(config);
+        return SchemaValidator.of(dataSource, modelBuilder, sqlDialect);
     }
 
     /**
@@ -124,33 +209,67 @@ public final class ORMTemplateImpl extends QueryTemplateImpl implements ORMTempl
                     if (method.getName().equals("toString") && method.getParameterCount() == 0) {
                         return "%s@proxy".formatted(type.getName());
                     }
-                    if (REFLECTION.isDefaultMethod(method)) {
-                        return REFLECTION.execute(proxy, method, args);
-                    }
-                    if (method.getDeclaringClass().isAssignableFrom(Repository.class)) {
-                        // Handle Repository interface methods by delegating to the 'repository' instance.
-                        return method.invoke(repository, args);
-                    }
-                    if (EntityRepository.class.isAssignableFrom(method.getDeclaringClass())) {   // Also support sub-interfaces of EntityRepository.
-                        if (entityRepository == null) {
-                            throw new UnsupportedOperationException("EntityRepository not available for %s.".formatted(type.getName()));
-                        }
-                        // Handle EntityRepository interface methods by delegating to the 'entityRepository' instance.
-                        return method.invoke(entityRepository, args);
-                    }
-                    if (ProjectionRepository.class.isAssignableFrom(method.getDeclaringClass())) {   // Also support sub-interfaces of ProjectionRepository.
-                        if (projectionRepository == null) {
-                            throw new UnsupportedOperationException("ProjectionRepository not available for %s.".formatted(type.getName()));
-                        }
-                        // Handle ProjectionRepository interface methods by delegating to the 'projectionRepository' instance.
-                        return method.invoke(projectionRepository, args);
-                    }
-                    throw new UnsupportedOperationException("Unsupported method: %s for %s.".formatted(method.getName(), type.getName()));
+                    return SqlLogInterceptor.wrapIfNeeded(
+                            SqlLogInterceptor.resolve(type, method),
+                            type,
+                            toShortSignature(method),
+                            () -> dispatch(proxy, method, args, repository, entityRepository, projectionRepository, type)
+                    );
                 } catch (InvocationTargetException e) {
                     throw e.getTargetException();
                 }
             });
         });
+    }
+
+    private static Object dispatch(Object proxy,
+                                    Method method,
+                                    Object[] args,
+                                    Repository repository,
+                                    EntityRepository<?, ?> entityRepository,
+                                    ProjectionRepository<?, ?> projectionRepository,
+                                    Class<?> type) throws Exception {
+        try {
+            if (REFLECTION.isDefaultMethod(method)) {
+                return REFLECTION.execute(proxy, method, args);
+            }
+            if (method.getDeclaringClass().isAssignableFrom(Repository.class)) {
+                return method.invoke(repository, args);
+            }
+            if (EntityRepository.class.isAssignableFrom(method.getDeclaringClass())) {
+                if (entityRepository == null) {
+                    throw new UnsupportedOperationException("EntityRepository not available for %s.".formatted(type.getName()));
+                }
+                return method.invoke(entityRepository, args);
+            }
+            if (ProjectionRepository.class.isAssignableFrom(method.getDeclaringClass())) {
+                if (projectionRepository == null) {
+                    throw new UnsupportedOperationException("ProjectionRepository not available for %s.".formatted(type.getName()));
+                }
+                return method.invoke(projectionRepository, args);
+            }
+            throw new UnsupportedOperationException("Unsupported method: %s for %s.".formatted(method.getName(), type.getName()));
+        } catch (InvocationTargetException e) {
+            var target = e.getTargetException();
+            if (target instanceof Exception ex) {
+                throw ex;
+            }
+            throw new PersistenceException(target);
+        } catch (Exception e) {
+            throw e;
+        } catch (Throwable t) {
+            throw new PersistenceException(t);
+        }
+    }
+
+    private static String toShortSignature(@Nonnull Method method) {
+        var sb = new StringBuilder(method.getName()).append('(');
+        var params = method.getParameterTypes();
+        for (int i = 0; i < params.length; i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(params[i].getSimpleName());
+        }
+        return sb.append(')').toString();
     }
 
     private <T extends Entity<ID>, ID> Optional<EntityRepository<T, ID>> createEntityRepository(@Nonnull Class<?> type) {

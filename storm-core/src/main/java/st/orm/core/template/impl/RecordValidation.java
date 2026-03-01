@@ -15,31 +15,15 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import st.orm.Data;
-import st.orm.Element;
-import st.orm.Entity;
-import st.orm.FK;
-import st.orm.GenerationStrategy;
-import st.orm.Inline;
-import st.orm.PK;
-import st.orm.PersistenceException;
-import st.orm.Projection;
-import st.orm.ProjectionQuery;
-import st.orm.Ref;
-import st.orm.Version;
-import st.orm.core.spi.ORMReflection;
-import st.orm.core.spi.Providers;
-import st.orm.core.spi.TypeDiscovery;
-import st.orm.core.template.SqlTemplate;
-import st.orm.core.template.SqlTemplate.Parameter;
-import st.orm.core.template.SqlTemplate.PositionalParameter;
-import st.orm.core.template.SqlTemplateException;
-import st.orm.mapping.RecordField;
-import st.orm.mapping.RecordType;
+import static java.util.Optional.empty;
+import static st.orm.core.spi.Providers.getORMConverter;
+import static st.orm.core.template.impl.RecordReflection.findPkField;
+import static st.orm.core.template.impl.RecordReflection.getRecordType;
+import static st.orm.core.template.impl.RecordReflection.getRefDataType;
+import static st.orm.core.template.impl.RecordReflection.getRefPkType;
+import static st.orm.core.template.impl.RecordReflection.isRecord;
 
+import jakarta.annotation.Nonnull;
 import java.math.BigInteger;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -51,18 +35,31 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-
-import static java.util.Optional.empty;
-import static st.orm.core.spi.Providers.getORMConverter;
-import static st.orm.core.template.impl.RecordReflection.findPkField;
-import static st.orm.core.template.impl.RecordReflection.getRecordType;
-import static st.orm.core.template.impl.RecordReflection.getRefDataType;
-import static st.orm.core.template.impl.RecordReflection.getRefPkType;
-import static st.orm.core.template.impl.RecordReflection.isRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import st.orm.Data;
+import st.orm.Entity;
+import st.orm.FK;
+import st.orm.GenerationStrategy;
+import st.orm.Inline;
+import st.orm.PK;
+import st.orm.PersistenceException;
+import st.orm.Projection;
+import st.orm.ProjectionQuery;
+import st.orm.Ref;
+import st.orm.StormConfig;
+import st.orm.Version;
+import st.orm.core.spi.ORMReflection;
+import st.orm.core.spi.Providers;
+import st.orm.core.spi.TypeDiscovery;
+import st.orm.core.template.SqlTemplate;
+import st.orm.core.template.SqlTemplate.Parameter;
+import st.orm.core.template.SqlTemplate.PositionalParameter;
+import st.orm.core.template.SqlTemplateException;
+import st.orm.mapping.RecordField;
+import st.orm.mapping.RecordType;
 
 /**
  * Helper class for validating record types and named parameters.
@@ -79,26 +76,40 @@ final class RecordValidation {
     record TypeValidationKey(@Nonnull Class<? extends Data> type, boolean requirePrimaryKey) {}
     private static final Map<TypeValidationKey, String> VALIDATE_RECORD_TYPE_CACHE = new ConcurrentHashMap<>();
 
-    private static AtomicBoolean VALIDATION_INITIALIZED = new AtomicBoolean(false);
+    private static volatile boolean validationCompleted = false;
+
     static void validate() {
-        if (VALIDATION_INITIALIZED.compareAndSet(false, true)) {
-            boolean skipValidation = Boolean.getBoolean("storm.validation.skip");
-            boolean warningsOnly = Boolean.getBoolean("storm.validation.warningsOnly");
-            if (skipValidation) {
-                LOGGER.info("Skipping Data type validation. Set -Dstorm.validation.skip=false to enable validation.");
+        validate(StormConfig.defaults());
+    }
+
+    static void validate(@Nonnull StormConfig config) {
+        if (validationCompleted) {
+            return;
+        }
+        String recordMode = resolveRecordMode(config);
+        synchronized (RecordValidation.class) {
+            if (validationCompleted) {
                 return;
             }
-            LOGGER.info("Validating Data types.");
+            if ("none".equalsIgnoreCase(recordMode)) {
+                LOGGER.info("Skipping Data type validation. Set storm.validation.record_mode=fail to enable validation.");
+                validationCompleted = true;
+                return;
+            }
+            boolean warningsOnly = "warn".equalsIgnoreCase(recordMode);
+            LOGGER.info("Validating Data types for correctness.");
             var dataTypes = TypeDiscovery.getDataTypes();
-            var validationErrors = new AtomicInteger();
+            var validationErrors = new AtomicReference<>(0);
             var firstError = new AtomicReference<String>();
             dataTypes.forEach(
                     dataType -> {
                         try {
                             validateDataType(dataType, Entity.class.isAssignableFrom(dataType));
                         } catch (SqlTemplateException e) {
-                            validationErrors.incrementAndGet();
-                            firstError.weakCompareAndSetPlain(null, e.getMessage());
+                            validationErrors.setPlain(validationErrors.getPlain() + 1);
+                            if (firstError.getPlain() == null) {
+                                firstError.setPlain(e.getMessage());
+                            }
                             LOGGER.warn("Validation failed for %s: %s"
                                     .formatted(dataType.getSimpleName(), e.getMessage()));
                         }
@@ -108,12 +119,27 @@ final class RecordValidation {
                 throw new PersistenceException(firstError.getPlain());
             }
             if (validationErrors.getPlain() > 0) {
-                LOGGER.warn("Entity validation found %d issues. Set -Dstorm.validation.warningsOnly=false to fail on startup."
+                LOGGER.warn("Entity validation found %d issues. Set storm.validation.record_mode=fail to fail on startup."
                         .formatted(validationErrors.getPlain()));
             } else {
-                LOGGER.info("Successfully validated %s Data types.".formatted(dataTypes.size()));
+                LOGGER.info("Successfully validated %s Data types for correctness.".formatted(dataTypes.size()));
             }
+            validationCompleted = true;
         }
+    }
+
+    /**
+     * Resolves the record validation mode from the given configuration.
+     *
+     * @param config the Storm configuration.
+     * @return the resolved record validation mode: {@code "none"}, {@code "warn"}, or {@code "fail"}.
+     */
+    private static String resolveRecordMode(@Nonnull StormConfig config) {
+        String recordMode = config.getProperty("storm.validation.record_mode", null);
+        if (recordMode != null) {
+            return recordMode.trim();
+        }
+        return "fail";
     }
 
     /**
@@ -209,9 +235,17 @@ final class RecordValidation {
                 } else {
                     return "Foreign key must either be a Data type or a Ref: %s.%s.".formatted(dataType.getSimpleName(), field.name());
                 }
-                String message = validate(fkType, true, duplicates);
-                if (!message.isEmpty()) {
-                    return message + " Should %s.%s be marked as @FK?".formatted(field.type().getSimpleName(), field.name());
+                // Sealed types (polymorphic FK, single-table, joined) are validated separately.
+                if (fkType.isSealed() && RecordReflection.detectSealedPattern(fkType).isPresent()) {
+                    String fkMessage = doValidateDataType(fkType, RecordReflection.isSealedEntity(fkType));
+                    if (!fkMessage.isEmpty()) {
+                        return fkMessage;
+                    }
+                } else {
+                    String message = validate(fkType, true, duplicates);
+                    if (!message.isEmpty()) {
+                        return message + " Should %s.%s be marked as @FK?".formatted(field.type().getSimpleName(), field.name());
+                    }
                 }
             }
             if (inline != null) {
@@ -224,6 +258,9 @@ final class RecordValidation {
                     return "Multiple @Version annotations found: %s.".formatted(dataType.getSimpleName());
                 }
                 versionFound = true;
+            }
+            if (Ref.class.isAssignableFrom(field.type()) && !field.isAnnotationPresent(FK.class) && !field.isAnnotationPresent(PK.class)) {
+                return "Ref fields must be marked as @FK: %s.%s.".formatted(dataType.getSimpleName(), field.name());
             }
             if (isRecord(field.type())) {
                 if (!field.isAnnotationPresent(FK.class)) {
@@ -295,13 +332,45 @@ final class RecordValidation {
         if (!Data.class.isAssignableFrom(dataType)) {
             throw new IllegalArgumentException("Not a data type: %s".formatted(dataType.getSimpleName()));
         }
-        String message = VALIDATE_RECORD_TYPE_CACHE.computeIfAbsent(new TypeValidationKey(dataType, requirePrimaryKey), ignore -> {
-            // Note that this result can be cached as we're inspecting types.
-            return validate(dataType, requirePrimaryKey, new HashSet<>());
-        });
+        String message = VALIDATE_RECORD_TYPE_CACHE.computeIfAbsent(
+                new TypeValidationKey(dataType, requirePrimaryKey),
+                ignore -> doValidateDataType(dataType, requirePrimaryKey));
         if (!message.isEmpty()) {
             throw new SqlTemplateException(message);
         }
+    }
+
+    /**
+     * Performs the actual validation without caching. All internal recursive calls go through this method
+     * to avoid {@link java.util.concurrent.ConcurrentHashMap#computeIfAbsent} recursive update issues.
+     */
+    @SuppressWarnings("unchecked")
+    private static String doValidateDataType(@Nonnull Class<? extends Data> dataType, boolean requirePrimaryKey) {
+        // Sealed entity interfaces (Single-Table/Joined) are valid even though they are not records.
+        // Their subtypes are validated individually.
+        if (dataType.isSealed() && RecordReflection.isSealedEntity(dataType)) {
+            String hierarchyMessage = RecordReflection.validateSealedHierarchy(dataType);
+            if (!hierarchyMessage.isEmpty()) {
+                return hierarchyMessage;
+            }
+            Class<?>[] permitted = dataType.getPermittedSubclasses();
+            if (permitted != null) {
+                for (Class<?> sub : permitted) {
+                    if (Data.class.isAssignableFrom(sub)) {
+                        String subMessage = doValidateDataType((Class<? extends Data>) sub, requirePrimaryKey);
+                        if (!subMessage.isEmpty()) {
+                            return subMessage;
+                        }
+                    }
+                }
+            }
+            return "";
+        }
+        // Polymorphic Data interfaces (Polymorphic FK) are valid even though they are not records.
+        if (dataType.isSealed() && RecordReflection.isPolymorphicData(dataType)) {
+            return RecordReflection.validateSealedHierarchy(dataType);
+        }
+        return validate(dataType, requirePrimaryKey, new HashSet<>());
     }
 
     record GraphValidationKey(@Nonnull Class<? extends Data> dataType) {}
@@ -450,15 +519,4 @@ final class RecordValidation {
         }
     }
 
-    /**
-     * Validates that there is only one WHERE clause in the SQL template.
-     *
-     * @param elements the list of SQL template elements to validate.
-     * @throws SqlTemplateException if multiple WHERE clauses are found.
-     */
-    static void validateWhere(@Nonnull List<Element> elements) throws SqlTemplateException {
-        if (elements.stream().filter(Elements.Where.class::isInstance).count() > 1) {
-            throw new SqlTemplateException("Multiple Where elements found.");
-        }
-    }
 }

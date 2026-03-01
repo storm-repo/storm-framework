@@ -15,15 +15,15 @@
  */
 package st.orm.template;
 
+import static java.lang.StringTemplate.RAW;
+import static st.orm.Operator.EQUALS;
+import static st.orm.Operator.IN;
+
 import jakarta.annotation.Nonnull;
 import st.orm.Data;
 import st.orm.Metamodel;
 import st.orm.Operator;
 import st.orm.Ref;
-
-import static java.lang.StringTemplate.RAW;
-import static st.orm.Operator.EQUALS;
-import static st.orm.Operator.IN;
 
 /**
  * A builder for constructing the WHERE clause of a query, providing type-safe predicate construction.

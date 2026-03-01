@@ -15,13 +15,12 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Optional.empty;
+
 import jakarta.annotation.Nonnull;
+import java.util.Optional;
 import st.orm.PersistenceException;
 import st.orm.core.template.SqlTemplateException;
-
-import java.util.Optional;
-
-import static java.util.Optional.empty;
 
 /**
  * Factory for creating instances of a specific type.

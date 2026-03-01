@@ -1,7 +1,20 @@
 package st.orm.core;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static st.orm.DirtyCheck.VALUE;
+import static st.orm.UpdateMode.ENTITY;
+import static st.orm.UpdateMode.FIELD;
+import static st.orm.UpdateMode.OFF;
+import static st.orm.core.template.SqlInterceptor.observe;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.concurrent.atomic.AtomicReference;
+import javax.sql.DataSource;
 import lombok.Builder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,20 +31,6 @@ import st.orm.Version;
 import st.orm.core.model.Pet;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.Sql;
-
-import javax.sql.DataSource;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static st.orm.DirtyCheck.VALUE;
-import static st.orm.UpdateMode.ENTITY;
-import static st.orm.UpdateMode.FIELD;
-import static st.orm.UpdateMode.OFF;
-import static st.orm.core.template.SqlInterceptor.observe;
 
 @SuppressWarnings("ALL")
 @ExtendWith(SpringExtension.class)
@@ -115,12 +114,12 @@ public class DynamicUpdateIntegrationTest {
     private static final String FULL_UPDATE_SQL = """
             UPDATE visit
             SET visit_date = ?, description = ?, pet_id = ?, "timestamp" = CURRENT_TIMESTAMP
-            WHERE (id = ? AND "timestamp" = ?)""";
+            WHERE id = ? AND "timestamp" = ?""";
 
     private static final String FIELD_UPDATE_PET_SQL = """
             UPDATE visit
             SET pet_id = ?, "timestamp" = CURRENT_TIMESTAMP
-            WHERE (id = ? AND "timestamp" = ?)""";
+            WHERE id = ? AND "timestamp" = ?""";
 
     // ------------------------------------------------------------
     // OFF: always updates all columns, dirtyCheck irrelevant

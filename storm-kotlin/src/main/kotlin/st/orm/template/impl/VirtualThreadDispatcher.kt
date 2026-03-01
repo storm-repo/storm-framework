@@ -15,8 +15,9 @@ import kotlin.coroutines.CoroutineContext
  * @since 1.5
  */
 class VirtualThreadDispatcher(
-    threadNamePrefix: String = "virtual"
-) : CoroutineDispatcher(), Closeable {
+    threadNamePrefix: String = "virtual",
+) : CoroutineDispatcher(),
+    Closeable {
 
     private val factory: ThreadFactory = Thread.ofVirtual()
         .name(threadNamePrefix, 0)

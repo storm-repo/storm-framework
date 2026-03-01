@@ -15,23 +15,16 @@
  */
 package st.orm.core.template.impl;
 
+import static java.lang.Integer.toHexString;
+import static java.lang.System.identityHashCode;
+import static java.util.stream.Stream.generate;
+import static st.orm.core.template.impl.LazySupplier.lazy;
+import static st.orm.core.template.impl.ObjectMapperFactory.getObjectMapper;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.Data;
-import st.orm.Entity;
-import st.orm.PersistenceException;
-import st.orm.Ref;
-import st.orm.core.spi.EntityCache;
-import st.orm.core.spi.Providers;
-import st.orm.core.spi.RefFactory;
-import st.orm.core.spi.TransactionTemplate;
-import st.orm.core.spi.WeakInterner;
-import st.orm.core.template.PreparedQuery;
-import st.orm.core.template.Query;
-import st.orm.core.template.SqlTemplateException;
-
 import java.math.BigDecimal;
-import java.util.Optional;
+import java.nio.ByteBuffer;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -50,12 +43,17 @@ import java.util.TimeZone;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
-
-import static java.lang.Integer.toHexString;
-import static java.lang.System.identityHashCode;
-import static java.util.stream.Stream.generate;
-import static st.orm.core.template.impl.LazySupplier.lazy;
-import static st.orm.core.template.impl.ObjectMapperFactory.getObjectMapper;
+import st.orm.Data;
+import st.orm.Entity;
+import st.orm.PersistenceException;
+import st.orm.Ref;
+import st.orm.core.spi.Providers;
+import st.orm.core.spi.RefFactory;
+import st.orm.core.spi.TransactionTemplate;
+import st.orm.core.spi.WeakInterner;
+import st.orm.core.template.PreparedQuery;
+import st.orm.core.template.Query;
+import st.orm.core.template.SqlTemplateException;
 
 @SuppressWarnings("ALL")
 class QueryImpl implements Query {
@@ -66,7 +64,7 @@ class QueryImpl implements Query {
     private final BindVarsHandle bindVarsHandle;
     private final boolean versionAware;
     private final Class<? extends Data> affectedType;
-    private final boolean safe;
+    private final boolean unsafe;
     private final boolean managed;
     private final Function<Throwable, PersistenceException> exceptionTransformer;
 
@@ -82,9 +80,9 @@ class QueryImpl implements Query {
               @Nonnull Function<Boolean, PreparedStatement> statement,
               @Nullable BindVarsHandle bindVarsHandle,
               boolean versionAware,
-              boolean safe,
+              boolean unsafe,
               @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        this(refFactory, statement, bindVarsHandle, null, versionAware, false, safe, exceptionTransformer);
+        this(refFactory, statement, bindVarsHandle, null, versionAware, false, unsafe, exceptionTransformer);
     }
 
     QueryImpl(@Nonnull RefFactory refFactory,
@@ -92,9 +90,9 @@ class QueryImpl implements Query {
               @Nullable BindVarsHandle bindVarsHandle,
               @Nullable Class<? extends Data> affectedType,
               boolean versionAware,
-              boolean safe,
+              boolean unsafe,
               @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
-        this(refFactory, statement, bindVarsHandle, affectedType, versionAware, false, safe, exceptionTransformer);
+        this(refFactory, statement, bindVarsHandle, affectedType, versionAware, false, unsafe, exceptionTransformer);
     }
 
     QueryImpl(@Nonnull RefFactory refFactory,
@@ -103,7 +101,7 @@ class QueryImpl implements Query {
               @Nullable Class<? extends Data> affectedType,
               boolean versionAware,
               boolean managed,
-              boolean safe,
+              boolean unsafe,
               @Nonnull Function<Throwable, PersistenceException> exceptionTransformer) {
         this.refFactory = refFactory;
         this.statement = statement;
@@ -111,7 +109,7 @@ class QueryImpl implements Query {
         this.versionAware = versionAware;
         this.affectedType = affectedType;
         this.managed = managed;
-        this.safe = safe;
+        this.unsafe = unsafe;
         this.exceptionTransformer = exceptionTransformer;
     }
 
@@ -129,7 +127,7 @@ class QueryImpl implements Query {
      */
     @Override
     public PreparedQuery prepare() {
-        return MonitoredResource.wrap(new PreparedQueryImpl(refFactory, statement.apply(safe), bindVarsHandle, affectedType, versionAware, managed, exceptionTransformer));
+        return MonitoredResource.wrap(new PreparedQueryImpl(refFactory, statement.apply(unsafe), bindVarsHandle, affectedType, versionAware, managed, exceptionTransformer));
     }
 
     /**
@@ -140,23 +138,22 @@ class QueryImpl implements Query {
      */
     @Override
     public Query managed() {
-        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, true, safe, exceptionTransformer);
+        return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, true, unsafe, exceptionTransformer);
     }
 
     /**
-     * Returns a new query that is marked as safe. This means that dangerous operations, such as DELETE and UPDATE
-     * without a WHERE clause, will be allowed.
+     * Returns a new query that allows dangerous operations, such as DELETE and UPDATE without a WHERE clause.
      *
-     * @return a new query that is marked as safe.
+     * @return a new query that allows dangerous operations.
      * @since 1.2
      */
     @Override
-    public Query safe() {
+    public Query unsafe() {
         return new QueryImpl(refFactory, statement, bindVarsHandle, affectedType, versionAware, managed, true, exceptionTransformer);
     }
 
     private PreparedStatement getStatement() {
-        return statement.apply(safe);
+        return statement.apply(unsafe);
     }
 
     protected boolean closeStatement() {
@@ -356,7 +353,7 @@ class QueryImpl implements Query {
                 // Unknown affected type: clear all caches to avoid stale observed state.
                 ctx.clearAllEntityCaches();
             } else if (Entity.class.isAssignableFrom(affectedType)) {
-                var cache = ctx.entityCache((Class<? extends Entity<?>>) affectedType);
+                var cache = ctx.findEntityCache((Class<? extends Entity<?>>) affectedType);
                 if (cache != null) {
                     cache.clear();
                 }
@@ -454,7 +451,10 @@ class QueryImpl implements Query {
             case Class<?> c when c == Boolean.TYPE || c == Boolean.class -> rs.getBoolean(columnIndex);
             case Class<?> c when c == String.class                       -> rs.getString(columnIndex);
             case Class<?> c when c == BigDecimal.class                   -> rs.getBigDecimal(columnIndex);
-            case Class<?> c when c == byte[].class                       -> rs.getBytes(columnIndex);
+            case Class<?> c when c == ByteBuffer.class -> {
+                byte[] bytes = rs.getBytes(columnIndex);
+                yield bytes != null ? ByteBuffer.wrap(bytes).asReadOnlyBuffer() : null;
+            }
             case Class<?> c when c.isEnum()                              -> rs.getString(columnIndex); // Enum handled by mapper.
             case Class<?> c when c == java.util.Date.class -> {
                 Timestamp ts = rs.getTimestamp(columnIndex, calendarSupplier.get());

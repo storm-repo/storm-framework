@@ -93,4 +93,55 @@ INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-13', 'spaye
 INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-13', 'rabies shot', 6);
 INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-13', 'spayed', 7);
 
+
+-- Polymorphic tables for sealed type hierarchy tests.
+
+-- Pattern A: Single-Table Inheritance
+DROP TABLE IF EXISTS animal;
+CREATE TABLE animal (id integer AUTO_INCREMENT PRIMARY KEY, dtype varchar(50) NOT NULL, name varchar(255), indoor boolean, weight integer);
+
+INSERT INTO animal (dtype, name, indoor) VALUES ('Cat', 'Whiskers', true);
+INSERT INTO animal (dtype, name, indoor) VALUES ('Cat', 'Luna', false);
+INSERT INTO animal (dtype, name, weight) VALUES ('Dog', 'Rex', 30);
+INSERT INTO animal (dtype, name, weight) VALUES ('Dog', 'Max', 15);
+
+-- Pattern C: Joined Table Inheritance
+drop table if exists joined_cat;
+drop table if exists joined_dog;
+drop table if exists joined_animal;
+create table joined_animal (id integer auto_increment, dtype varchar(50) not null, name varchar(255), primary key (id));
+create table joined_cat (id integer not null, indoor boolean, primary key (id));
+create table joined_dog (id integer not null, weight integer, primary key (id));
+alter table joined_cat add constraint joined_cat_animal_fk foreign key (id) references joined_animal (id);
+alter table joined_dog add constraint joined_dog_animal_fk foreign key (id) references joined_animal (id);
+
+INSERT INTO joined_animal (dtype, name) VALUES ('JoinedCat', 'Whiskers');
+INSERT INTO joined_cat (id, indoor) VALUES (1, true);
+INSERT INTO joined_animal (dtype, name) VALUES ('JoinedCat', 'Luna');
+INSERT INTO joined_cat (id, indoor) VALUES (2, false);
+INSERT INTO joined_animal (dtype, name) VALUES ('JoinedDog', 'Rex');
+INSERT INTO joined_dog (id, weight) VALUES (3, 30);
+
+-- Pattern D: Joined Table Inheritance without @Discriminator
+drop table if exists nodsc_cat;
+drop table if exists nodsc_dog;
+drop table if exists nodsc_bird;
+drop table if exists nodsc_animal;
+create table nodsc_animal (id integer auto_increment, name varchar(255), primary key (id));
+create table nodsc_cat (id integer not null, indoor boolean, primary key (id));
+create table nodsc_dog (id integer not null, weight integer, primary key (id));
+create table nodsc_bird (id integer not null, primary key (id));
+alter table nodsc_cat add constraint nodsc_cat_animal_fk foreign key (id) references nodsc_animal (id);
+alter table nodsc_dog add constraint nodsc_dog_animal_fk foreign key (id) references nodsc_animal (id);
+alter table nodsc_bird add constraint nodsc_bird_animal_fk foreign key (id) references nodsc_animal (id);
+
+INSERT INTO nodsc_animal (name) VALUES ('Whiskers');
+INSERT INTO nodsc_cat (id, indoor) VALUES (1, true);
+INSERT INTO nodsc_animal (name) VALUES ('Luna');
+INSERT INTO nodsc_cat (id, indoor) VALUES (2, false);
+INSERT INTO nodsc_animal (name) VALUES ('Rex');
+INSERT INTO nodsc_dog (id, weight) VALUES (3, 30);
+INSERT INTO nodsc_animal (name) VALUES ('Tweety');
+INSERT INTO nodsc_bird (id) VALUES (4);
+
 SET FOREIGN_KEY_CHECKS = 1;

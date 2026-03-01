@@ -15,28 +15,33 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
-import st.orm.AbstractMetamodel;
-import st.orm.Data;
-import st.orm.Metamodel;
-import st.orm.PersistenceException;
-import st.orm.Ref;
-import st.orm.core.template.SqlTemplateException;
-import st.orm.mapping.RecordField;
-
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Method;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-
 import static java.lang.invoke.MethodType.methodType;
 import static st.orm.core.template.impl.RecordReflection.findPkField;
 import static st.orm.core.template.impl.RecordReflection.getRecordField;
+import static st.orm.core.template.impl.RecordReflection.getRecordFields;
 import static st.orm.core.template.impl.RecordReflection.getRefDataType;
 import static st.orm.core.template.impl.RecordReflection.isRecord;
+
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import st.orm.AbstractKeyMetamodel;
+import st.orm.AbstractMetamodel;
+import st.orm.Data;
+import st.orm.Metamodel;
+import st.orm.PK;
+import st.orm.PersistenceException;
+import st.orm.Ref;
+import st.orm.UK;
+import st.orm.core.template.SqlTemplateException;
+import st.orm.mapping.RecordField;
 
 /**
  * Implementation that is used by the generated models.
@@ -109,6 +114,25 @@ public final class MetamodelFactory {
     }
 
     /**
+     * Returns a flat list of leaf metamodels for the given metamodel. If the metamodel is not an inline record, it
+     * returns a singleton list containing the metamodel. If it is an inline record, it recursively expands all nested
+     * inline records and returns the individual column metamodels.
+     */
+    public static <T extends Data> List<Metamodel<T, ?>> flatten(@Nonnull Metamodel<T, ?> metamodel) {
+        if (!metamodel.isInline()) {
+            return List.of(metamodel);
+        }
+        List<RecordField> fields = getRecordFields(metamodel.fieldType());
+        List<Metamodel<T, ?>> result = new ArrayList<>();
+        for (RecordField field : fields) {
+            String childPath = metamodel.fieldPath() + "." + field.name();
+            Metamodel<T, ?> child = of(metamodel.root(), childPath);
+            result.addAll(child.flatten());
+        }
+        return List.copyOf(result);
+    }
+
+    /**
      * Creates a new metamodel for the given root table and path.
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -125,8 +149,16 @@ public final class MetamodelFactory {
         StringBuilder effectiveField;
         boolean inline = false;
         boolean isColumn = false;
+        Class<?> declaringType;
+        boolean fieldNullable;
+        boolean fieldIsUnique;
+        boolean nullsDistinct;
         try {
             RecordField field = getRecordField(rootTable, path);
+            declaringType = field.declaringType();
+            fieldNullable = field.nullable();
+            fieldIsUnique = field.isAnnotationPresent(UK.class) || field.isAnnotationPresent(PK.class);
+            nullsDistinct = getNullsDistinct(field);
             effectiveField = new StringBuilder(field.name());
             if (Ref.class.isAssignableFrom(field.type())) {
                 fieldType = (Class<E>) getRefDataType(field);
@@ -189,6 +221,28 @@ public final class MetamodelFactory {
                 ? effectiveField.toString()
                 : effectivePath + "." + effectiveField;
         MethodHandle handle = buildGetterHandle(rootTable, fullPath);
+        // Determine if this field should be a Key metamodel with isNullable() support.
+        boolean useKey = false;
+        boolean keyNullable = false;
+        if (inline && !Data.class.isAssignableFrom(fieldType)) {
+            // Inline non-Data record (compound key or non-key inline).
+            useKey = true;
+            keyNullable = fieldIsUnique && nullsDistinct;
+        } else if (!Data.class.isAssignableFrom(declaringType) && isRecord(declaringType)
+                && !Data.class.isAssignableFrom(fieldType)) {
+            // Scalar field inside a non-Data record (leaf of compound key).
+            useKey = true;
+            keyNullable = fieldNullable;
+        } else if (fieldIsUnique) {
+            // Scalar @UK/@PK field on a Data record.
+            useKey = true;
+            keyNullable = fieldNullable && nullsDistinct;
+        }
+        if (useKey) {
+            return new SimpleKeyMetamodel<>(
+                    rootTable, effectivePath, fieldType, effectiveField.toString(),
+                    inline, isColumn, tableModel, handle, keyNullable);
+        }
         return new SimpleMetamodel<>(
                 rootTable,
                 effectivePath,
@@ -402,6 +456,120 @@ public final class MetamodelFactory {
         // Last resort: reflection.
         m.setAccessible(true);
         return base.unreflect(m);
+    }
+
+    private static boolean getNullsDistinct(@Nonnull RecordField field) {
+        UK uk = field.getAnnotation(UK.class);
+        if (uk != null) return uk.nullsDistinct();
+        if (field.isAnnotationPresent(PK.class)) {
+            UK metamodelUk = PK.class.getAnnotation(UK.class);
+            return metamodelUk != null ? metamodelUk.nullsDistinct() : true;
+        }
+        return true;
+    }
+
+    private static final class SimpleKeyMetamodel<T extends Data, E>
+            extends AbstractKeyMetamodel<T, E, Object> {
+
+        private final Class<T> root;
+        private final Metamodel<T, ? extends Data> table;
+        private final MethodHandle handle;
+        private final Identical<T> identical;
+        private final Same<T> same;
+
+        SimpleKeyMetamodel(@Nonnull Class<T> root,
+                           @Nonnull String path,
+                           @Nonnull Class<E> fieldType,
+                           @Nonnull String field,
+                           boolean inline,
+                           boolean isColumn,
+                           @Nonnull Metamodel<T, ? extends Data> table,
+                           @Nonnull MethodHandle handle,
+                           boolean nullable) {
+            super(fieldType, path, field, inline, null, isColumn, nullable);
+            this.root = root;
+            this.table = table;
+            this.handle = handle;
+            this.identical = EqualitySupport.compileIsIdentical(handle);
+            Same<T> wrapped = null;
+            if (Data.class.isAssignableFrom(fieldType)) {
+                var pkField = findPkField(fieldType).orElse(null);
+                if (pkField != null) {
+                    var pkHandle = buildGetterHandle(fieldType, pkField.name());
+                    var s = EqualitySupport.compileIsSame(pkHandle);
+                    wrapped = (a, b) -> {
+                        Object dataA = handle.invoke(a);
+                        Object dataB = handle.invoke(b);
+                        if (dataA == null || dataB == null) {
+                            return dataA == dataB;
+                        }
+                        return s.isSame(dataA, dataB);
+                    };
+                }
+            }
+            this.same = wrapped == null ? EqualitySupport.compileIsSame(handle) : wrapped;
+        }
+
+        @Override
+        public Class<T> root() {
+            return root;
+        }
+
+        @Override
+        public Metamodel<T, ? extends Data> table() {
+            return table;
+        }
+
+        @Override
+        public Object getValue(@Nonnull T record) {
+            try {
+                return handle.invoke(record);
+            } catch (RuntimeException e) {
+                throw e;
+            } catch (Throwable e) {
+                throw new PersistenceException(e);
+            }
+        }
+
+        @Override
+        public boolean isIdentical(@Nonnull T a, @Nonnull T b) {
+            try {
+                return identical.isIdentical(a, b);
+            } catch (RuntimeException e) {
+                throw e;
+            } catch (Throwable e) {
+                throw new PersistenceException(e);
+            }
+        }
+
+        @Override
+        public boolean isSame(@Nonnull T a, @Nonnull T b) {
+            try {
+                return same.isSame(a, b);
+            } catch (RuntimeException e) {
+                throw e;
+            } catch (Throwable e) {
+                throw new PersistenceException(e);
+            }
+        }
+
+        @Override
+        @SuppressWarnings("rawtypes")
+        public boolean isNullable() {
+            if (!isInline()) {
+                return super.isNullable();
+            }
+            // Compound key (inline record): derive from flattened leaves.
+            if (!super.isNullable()) {
+                return false;
+            }
+            for (var leaf : flatten()) {
+                if (leaf instanceof Metamodel.Key key && key.isNullable()) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 
     private static final class SimpleMetamodel<T extends Data, E>

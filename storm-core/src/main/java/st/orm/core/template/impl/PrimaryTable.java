@@ -15,10 +15,10 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Objects.requireNonNull;
+
 import jakarta.annotation.Nonnull;
 import st.orm.Data;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * Represents a primary table in a SQL query.

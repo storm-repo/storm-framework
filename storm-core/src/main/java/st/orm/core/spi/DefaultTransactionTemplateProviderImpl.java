@@ -15,19 +15,18 @@
  */
 package st.orm.core.spi;
 
+import static java.util.Optional.empty;
+
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.PersistenceException;
-import st.orm.Entity;
-import st.orm.core.spi.Orderable.AfterAny;
-
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-
-import static java.util.Optional.empty;
+import st.orm.Entity;
+import st.orm.core.spi.Orderable.AfterAny;
 
 @AfterAny
 public class DefaultTransactionTemplateProviderImpl implements TransactionTemplateProvider {
@@ -135,7 +134,8 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
         }
 
         @Override
-        public EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType) {
+        public EntityCache<? extends Entity<?>, ?> entityCache(@Nonnull Class<? extends Entity<?>> entityType,
+                                                                @Nonnull CacheRetention retention) {
             // Cache is used for dirty checking and/or identity preservation.
             // Whether cached instances are returned during reads is controlled by isRepeatableRead().
             //
@@ -148,7 +148,21 @@ public class DefaultTransactionTemplateProviderImpl implements TransactionTempla
             // - This class intentionally does not try to clear or split caches for NESTED savepoints. Spring does not
             //   expose reliable hooks here for "rolled back to savepoint", only for transaction completion.
             // - computeIfAbsent avoids duplicate allocations and keeps the method simpler and harder to get wrong.
-            return caches.computeIfAbsent(entityType, k -> new EntityCacheImpl<>());
+            return caches.computeIfAbsent(entityType, k -> new EntityCacheImpl<>(retention));
+        }
+
+        @Override
+        public EntityCache<? extends Entity<?>, ?> getEntityCache(@Nonnull Class<? extends Entity<?>> entityType) {
+            var cache = caches.get(entityType);
+            if (cache == null) {
+                throw new IllegalStateException("No entity cache exists for " + entityType.getName() + ".");
+            }
+            return cache;
+        }
+
+        @Override
+        public EntityCache<? extends Entity<?>, ?> findEntityCache(@Nonnull Class<? extends Entity<?>> entityType) {
+            return caches.get(entityType);
         }
 
         @Override

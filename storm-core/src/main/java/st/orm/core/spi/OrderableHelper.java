@@ -15,12 +15,12 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
-import st.orm.core.spi.Orderable.After;
-import st.orm.core.spi.Orderable.AfterAny;
-import st.orm.core.spi.Orderable.Before;
-import st.orm.core.spi.Orderable.BeforeAny;
+import static java.util.stream.Collectors.counting;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
 
+import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
@@ -33,11 +33,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
-
-import static java.util.stream.Collectors.counting;
-import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toList;
+import st.orm.core.spi.Orderable.After;
+import st.orm.core.spi.Orderable.AfterAny;
+import st.orm.core.spi.Orderable.Before;
+import st.orm.core.spi.Orderable.BeforeAny;
 
 /**
  * Helper class for sorting objects that implement the {@link Orderable} interface.

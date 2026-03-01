@@ -16,10 +16,9 @@
 package st.orm.template;
 
 import jakarta.annotation.Nonnull;
+import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.PersistenceException;
-
-import java.util.stream.Stream;
 
 /**
  * Represents an eagerly constructed, reusable query that supports batch operations and generated key retrieval.

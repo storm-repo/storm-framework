@@ -22,19 +22,19 @@ import st.orm.template.Column
 import kotlin.reflect.KClass
 
 class ColumnImpl(
-    internal val core: st.orm.core.template.Column
+    internal val core: st.orm.core.template.Column,
 ) : Column {
-    override val index: Int                                 get() = core.index()
-    override val name: String                               get() = core.name()
-    override val type: KClass<*>                            get() = core.type().kotlin
-    override val primaryKey: Boolean                        get() = core.primaryKey()
-    override val generation: GenerationStrategy             get() = core.generation()
-    override val sequence: String?                          get() = core.sequence()?.ifEmpty { null }
-    override val foreignKey: Boolean                        get() = core.foreignKey()
-    override val nullable: Boolean                          get() = core.nullable()
-    override val insertable: Boolean                        get() = core.insertable()
-    override val updatable: Boolean                         get() = core.updatable()
-    override val version: Boolean                           get() = core.version()
-    override val ref: Boolean                               get() = core.ref()
-    override val metamodel: Metamodel<Data, *>              get() = core.metamodel()
+    override val index: Int get() = core.index()
+    override val name: String get() = core.name()
+    override val type: KClass<*> get() = core.type().kotlin
+    override val primaryKey: Boolean get() = core.primaryKey()
+    override val generation: GenerationStrategy get() = core.generation()
+    override val sequence: String? get() = core.sequence()?.ifEmpty { null }
+    override val foreignKey: Boolean get() = core.foreignKey()
+    override val nullable: Boolean get() = core.nullable()
+    override val insertable: Boolean get() = core.insertable()
+    override val updatable: Boolean get() = core.updatable()
+    override val version: Boolean get() = core.version()
+    override val ref: Boolean get() = core.ref()
+    override val metamodel: Metamodel<Data, *> get() = core.metamodel()
 }

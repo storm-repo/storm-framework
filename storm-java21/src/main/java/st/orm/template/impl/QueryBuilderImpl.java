@@ -15,33 +15,32 @@
  */
 package st.orm.template.impl;
 
-import jakarta.annotation.Nonnull;
-import st.orm.Data;
-import st.orm.core.template.impl.Subqueryable;
-import st.orm.template.Query;
-import st.orm.core.spi.ORMReflection;
-import st.orm.core.spi.Providers;
-import st.orm.JoinType;
-import st.orm.core.template.TemplateString;
-import st.orm.template.JoinBuilder;
-import st.orm.template.QueryBuilder;
-import st.orm.template.TypedJoinBuilder;
-import st.orm.Metamodel;
-import st.orm.Operator;
-import st.orm.PersistenceException;
-import st.orm.Ref;
-import st.orm.template.PredicateBuilder;
-import st.orm.template.WhereBuilder;
-
-import java.util.function.Function;
-import java.util.stream.Stream;
-
 import static java.util.Objects.requireNonNull;
 import static st.orm.JoinType.cross;
 import static st.orm.JoinType.inner;
 import static st.orm.JoinType.left;
 import static st.orm.JoinType.right;
 import static st.orm.template.impl.StringTemplates.convert;
+
+import jakarta.annotation.Nonnull;
+import java.util.function.Function;
+import java.util.stream.Stream;
+import st.orm.Data;
+import st.orm.JoinType;
+import st.orm.Metamodel;
+import st.orm.Operator;
+import st.orm.PersistenceException;
+import st.orm.Ref;
+import st.orm.core.spi.ORMReflection;
+import st.orm.core.spi.Providers;
+import st.orm.core.template.TemplateString;
+import st.orm.core.template.impl.Subqueryable;
+import st.orm.template.JoinBuilder;
+import st.orm.template.PredicateBuilder;
+import st.orm.template.Query;
+import st.orm.template.QueryBuilder;
+import st.orm.template.TypedJoinBuilder;
+import st.orm.template.WhereBuilder;
 
 public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<T, R, ID> implements Subqueryable {
     private final static ORMReflection REFLECTION = Providers.getORMReflection();
@@ -68,16 +67,17 @@ public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<
     }
 
     /**
-     * Returns a query builder that does not require a WHERE clause for UPDATE and DELETE queries.
+     * Returns a query builder that allows UPDATE and DELETE queries without a WHERE clause.
      *
-     * <p>This method is used to prevent accidental updates or deletions of all records in a table when a WHERE clause
-     * is not provided.</p>
+     * <p>By default, Storm rejects UPDATE and DELETE queries that lack a WHERE clause, throwing a
+     * {@link PersistenceException}. Call this method to disable that check when you intentionally want to affect all
+     * rows in the table.</p>
      *
      * @since 1.2
      */
     @Override
-    public QueryBuilder<T, R, ID> safe() {
-        return new QueryBuilderImpl<>(core.safe());
+    public QueryBuilder<T, R, ID> unsafe() {
+        return new QueryBuilderImpl<>(core.unsafe());
     }
 
     /**
@@ -99,6 +99,56 @@ public final class QueryBuilderImpl<T extends Data, R, ID> extends QueryBuilder<
     @Override
     public QueryBuilder<T, R, ID> append(@Nonnull StringTemplate template) {
         return new QueryBuilderImpl<>(core.append(convert(template)));
+    }
+
+    /**
+     * Adds an ORDER BY clause to the query using a string template. Multiple calls to this method append additional
+     * columns to the ORDER BY clause.
+     *
+     * @param template the template to order by.
+     * @return the query builder.
+     * @since 1.2
+     */
+    @Override
+    protected QueryBuilder<T, R, ID> orderBy(@Nonnull StringTemplate template) {
+        return new QueryBuilderImpl<>(core.orderBy(convert(template)));
+    }
+
+    /**
+     * Adds a GROUP BY clause to the query using a string template. Multiple calls to this method append additional
+     * columns to the GROUP BY clause.
+     *
+     * @param template the template to group by.
+     * @return the query builder.
+     * @since 1.2
+     */
+    @Override
+    protected QueryBuilder<T, R, ID> groupBy(@Nonnull StringTemplate template) {
+        return new QueryBuilderImpl<>(core.groupBy(convert(template)));
+    }
+
+    /**
+     * Adds a HAVING clause to the query using the specified expression. Multiple calls to this method are combined
+     * using AND.
+     *
+     * @param template the expression to add.
+     * @return the query builder.
+     * @since 1.2
+     */
+    @Override
+    protected QueryBuilder<T, R, ID> having(@Nonnull StringTemplate template) {
+        return new QueryBuilderImpl<>(core.having(convert(template)));
+    }
+
+    /**
+     * Returns {@code true} if any ORDER BY columns have been added to this query builder.
+     *
+     * @return {@code true} if ORDER BY columns are present, {@code false} otherwise.
+     * @since 1.9
+     */
+    @Override
+    protected boolean hasOrderBy() {
+        return core.hasOrderBy();
     }
 
     /**

@@ -37,3 +37,12 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### Maven Flatten Plugin ###
+.flattened-pom.xml
+
+### Docusaurus ###
+website/node_modules/
+website/build/
+website/.docusaurus/
+website/static/api/

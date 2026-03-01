@@ -16,15 +16,14 @@
 package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
 import st.orm.PersistenceException;
 import st.orm.Ref;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Stream;
 
 /**
  * Abstraction for DQL (Data Query Language) statements, such as SELECT queries and  DML (Data Manipulation Language)
@@ -48,13 +47,12 @@ public interface Query {
     PreparedQuery prepare();
 
     /**
-     * Returns a new query that is marked as safe. This means that dangerous operations, such as DELETE and UPDATE
-     * without a WHERE clause, will be allowed.
+     * Returns a new query that allows dangerous operations, such as DELETE and UPDATE without a WHERE clause.
      *
-     * @return a new query that is marked as safe.
+     * @return a new query that allows dangerous operations.
      * @since 1.2
      */
-    Query safe();
+    Query unsafe();
 
     /**
      * Marks this query as repository-managed, indicating that cache invalidation

@@ -15,14 +15,14 @@
  */
 package st.orm.core.template;
 
+import static st.orm.Operator.EQUALS;
+import static st.orm.Operator.IN;
+
 import jakarta.annotation.Nonnull;
 import st.orm.Data;
 import st.orm.Metamodel;
 import st.orm.Operator;
 import st.orm.Ref;
-
-import static st.orm.Operator.EQUALS;
-import static st.orm.Operator.IN;
 
 /**
  * A builder for constructing the WHERE clause of the query.

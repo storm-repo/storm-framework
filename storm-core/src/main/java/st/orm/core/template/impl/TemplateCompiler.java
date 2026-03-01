@@ -17,6 +17,8 @@ package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.List;
+import java.util.Optional;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Element;
@@ -27,9 +29,6 @@ import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
-
-import java.util.List;
-import java.util.Optional;
 
 /**
  * Compile-time API used by element processors to convert templates and elements into SQL fragments.

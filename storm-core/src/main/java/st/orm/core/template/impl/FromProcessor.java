@@ -15,17 +15,16 @@
  */
 package st.orm.core.template.impl;
 
+import static st.orm.core.template.impl.RecordReflection.getTableName;
+
 import jakarta.annotation.Nonnull;
+import java.util.List;
+import java.util.function.Function;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.Elements.From;
 import st.orm.core.template.impl.Elements.TableSource;
 import st.orm.core.template.impl.Elements.TemplateSource;
-
-import java.util.List;
-import java.util.function.Function;
-
-import static st.orm.core.template.impl.RecordReflection.getTableName;
 
 final class FromProcessor implements ElementProcessor<From> {
 

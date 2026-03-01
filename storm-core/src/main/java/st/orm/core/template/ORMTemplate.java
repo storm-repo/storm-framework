@@ -17,17 +17,20 @@ package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.EntityManager;
+import java.sql.Connection;
+import java.util.List;
+import java.util.function.UnaryOperator;
+import javax.sql.DataSource;
+import st.orm.Data;
+import st.orm.EntityCallback;
 import st.orm.PersistenceException;
-import st.orm.mapping.TemplateDecorator;
+import st.orm.StormConfig;
 import st.orm.core.repository.EntityRepository;
 import st.orm.core.repository.ProjectionRepository;
 import st.orm.core.repository.RepositoryLookup;
 import st.orm.core.template.impl.JpaTemplateImpl;
 import st.orm.core.template.impl.PreparedStatementTemplateImpl;
-
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.util.function.UnaryOperator;
+import st.orm.mapping.TemplateDecorator;
 
 /**
  * <p>The {@code ORMTemplate} is the primary interface that extends the {@code QueryTemplate} and
@@ -38,6 +41,116 @@ import java.util.function.UnaryOperator;
  * @see ProjectionRepository
  */
 public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
+
+    /**
+     * Returns the configuration associated with this template.
+     *
+     * @return the Storm configuration; never {@code null}.
+     * @since 1.9
+     */
+    StormConfig config();
+
+    /**
+     * Returns the entity callbacks associated with this template.
+     *
+     * @return an unmodifiable list of entity callbacks; never {@code null}.
+     * @since 1.9
+     */
+    default List<EntityCallback<?>> entityCallbacks() {
+        return List.of();
+    }
+
+    /**
+     * Returns a new {@code ORMTemplate} with the specified entity callback added.
+     *
+     * <p>The returned template shares the same underlying connection and configuration, but applies the given
+     * callback to entity lifecycle operations (insert, update, delete) performed through its repositories. The
+     * callback is only invoked for entities matching its type parameter. Multiple callbacks can be registered by
+     * chaining calls to this method.</p>
+     *
+     * @param callback the entity callback to add; must not be {@code null}.
+     * @return a new {@code ORMTemplate} with the callback added.
+     * @since 1.9
+     */
+    default ORMTemplate withEntityCallback(@Nonnull EntityCallback<?> callback) {
+        return withEntityCallbacks(List.of(callback));
+    }
+
+    /**
+     * Returns a new {@code ORMTemplate} with the specified entity callbacks added.
+     *
+     * <p>The returned template shares the same underlying connection and configuration, but applies the given
+     * callbacks to entity lifecycle operations (insert, update, delete) performed through its repositories. Each
+     * callback is only invoked for entities matching its type parameter.</p>
+     *
+     * @param callbacks the entity callbacks to add; must not be {@code null}.
+     * @return a new {@code ORMTemplate} with the callbacks added.
+     * @since 1.9
+     */
+    ORMTemplate withEntityCallbacks(@Nonnull List<EntityCallback<?>> callbacks);
+
+    /**
+     * Validates all discovered entity and projection types against the database schema.
+     *
+     * <p>Logs each validation error and returns the list of error messages. On success, logs a
+     * confirmation message and returns an empty list.</p>
+     *
+     * <p>This method requires a DataSource-backed template. Templates created from a raw
+     * {@link Connection} or {@link jakarta.persistence.EntityManager} do not support schema validation.</p>
+     *
+     * @return the list of validation error messages (empty on success).
+     * @throws PersistenceException if the template does not support schema validation.
+     * @since 1.9
+     */
+    default List<String> validateSchema() {
+        throw new PersistenceException("Schema validation is not supported by this template.");
+    }
+
+    /**
+     * Validates the specified types against the database schema.
+     *
+     * <p>Logs each validation error and returns the list of error messages. On success, logs a
+     * confirmation message and returns an empty list.</p>
+     *
+     * <p>This method requires a DataSource-backed template. Templates created from a raw
+     * {@link Connection} or {@link jakarta.persistence.EntityManager} do not support schema validation.</p>
+     *
+     * @param types the entity and projection types to validate.
+     * @return the list of validation error messages (empty on success).
+     * @throws PersistenceException if the template does not support schema validation.
+     * @since 1.9
+     */
+    default List<String> validateSchema(@Nonnull Iterable<Class<? extends Data>> types) {
+        throw new PersistenceException("Schema validation is not supported by this template.");
+    }
+
+    /**
+     * Validates all discovered types and throws if any errors are found.
+     *
+     * <p>This method requires a DataSource-backed template. Templates created from a raw
+     * {@link Connection} or {@link jakarta.persistence.EntityManager} do not support schema validation.</p>
+     *
+     * @throws PersistenceException if validation fails or the template does not support schema validation.
+     * @since 1.9
+     */
+    default void validateSchemaOrThrow() {
+        throw new PersistenceException("Schema validation is not supported by this template.");
+    }
+
+    /**
+     * Validates the specified types and throws if any errors are found.
+     *
+     * <p>This method requires a DataSource-backed template. Templates created from a raw
+     * {@link Connection} or {@link jakarta.persistence.EntityManager} do not support schema validation.</p>
+     *
+     * @param types the entity and projection types to validate.
+     * @throws PersistenceException if validation fails or the template does not support schema validation.
+     * @since 1.9
+     */
+    default void validateSchemaOrThrow(@Nonnull Iterable<Class<? extends Data>> types) {
+        throw new PersistenceException("Schema validation is not supported by this template.");
+    }
+
     /**
      * Returns an {@link ORMTemplate} for use with JPA.
      *
@@ -197,6 +310,104 @@ public interface ORMTemplate extends QueryTemplate, RepositoryLookup {
     static ORMTemplate of(@Nonnull Connection connection,
                           @Nonnull UnaryOperator<TemplateDecorator> decorator) {
         var template = new PreparedStatementTemplateImpl(connection);
+        var decorated = decorator.apply(template);
+        if (!(decorated instanceof PreparedStatementTemplateImpl)) {
+            throw new PersistenceException("Decorator must return the same template type.");
+        }
+        return ((PreparedStatementTemplateImpl) decorated).toORM();
+    }
+
+    /**
+     * Returns an {@link ORMTemplate} for use with JPA, configured with the provided {@link StormConfig}.
+     *
+     * @param entityManager the {@link EntityManager} to use for database operations; must not be {@code null}.
+     * @param config the Storm configuration to apply; must not be {@code null}.
+     * @return an {@link ORMTemplate} configured for use with JPA.
+     */
+    static ORMTemplate of(@Nonnull EntityManager entityManager, @Nonnull StormConfig config) {
+        return new JpaTemplateImpl(entityManager, config).toORM();
+    }
+
+    /**
+     * Returns an {@link ORMTemplate} for use with JPA, configured with the provided {@link StormConfig} and a custom
+     * template decorator.
+     *
+     * @param entityManager the {@link EntityManager} to use for database operations; must not be {@code null}.
+     * @param config the Storm configuration to apply; must not be {@code null}.
+     * @param decorator a function that transforms the {@link TemplateDecorator} to customize template processing.
+     * @return an {@link ORMTemplate} configured for use with JPA.
+     */
+    static ORMTemplate of(@Nonnull EntityManager entityManager, @Nonnull StormConfig config,
+                          @Nonnull UnaryOperator<TemplateDecorator> decorator) {
+        var template = new JpaTemplateImpl(entityManager, config);
+        var decorated = decorator.apply(template);
+        if (!(decorated instanceof JpaTemplateImpl)) {
+            throw new PersistenceException("Decorator must return the same template type.");
+        }
+        return ((JpaTemplateImpl) decorated).toORM();
+    }
+
+    /**
+     * Returns an {@link ORMTemplate} for use with JDBC, configured with the provided {@link StormConfig}.
+     *
+     * <p>The provided configuration is applied to the template instance, not as a process-wide default.</p>
+     *
+     * @param dataSource the {@link DataSource} to use for database operations; must not be {@code null}.
+     * @param config the Storm configuration to apply; must not be {@code null}.
+     * @return an {@link ORMTemplate} configured for use with JDBC.
+     */
+    static ORMTemplate of(@Nonnull DataSource dataSource, @Nonnull StormConfig config) {
+        return new PreparedStatementTemplateImpl(dataSource, config).toORM();
+    }
+
+    /**
+     * Returns an {@link ORMTemplate} for use with JDBC, configured with the provided {@link StormConfig} and a custom
+     * template decorator.
+     *
+     * @param dataSource the {@link DataSource} to use for database operations; must not be {@code null}.
+     * @param config the Storm configuration to apply; must not be {@code null}.
+     * @param decorator a function that transforms the {@link TemplateDecorator} to customize template processing.
+     * @return an {@link ORMTemplate} configured for use with JDBC.
+     */
+    static ORMTemplate of(@Nonnull DataSource dataSource, @Nonnull StormConfig config,
+                          @Nonnull UnaryOperator<TemplateDecorator> decorator) {
+        var template = new PreparedStatementTemplateImpl(dataSource, config);
+        var decorated = decorator.apply(template);
+        if (!(decorated instanceof PreparedStatementTemplateImpl)) {
+            throw new PersistenceException("Decorator must return the same template type.");
+        }
+        return ((PreparedStatementTemplateImpl) decorated).toORM();
+    }
+
+    /**
+     * Returns an {@link ORMTemplate} for use with JDBC, configured with the provided {@link StormConfig}.
+     *
+     * <p>The provided configuration is applied to the template instance, not as a process-wide default.</p>
+     *
+     * <p><strong>Note:</strong> The caller is responsible for closing the connection after usage.</p>
+     *
+     * @param connection the {@link Connection} to use for database operations; must not be {@code null}.
+     * @param config the Storm configuration to apply; must not be {@code null}.
+     * @return an {@link ORMTemplate} configured for use with JDBC.
+     */
+    static ORMTemplate of(@Nonnull Connection connection, @Nonnull StormConfig config) {
+        return new PreparedStatementTemplateImpl(connection, config).toORM();
+    }
+
+    /**
+     * Returns an {@link ORMTemplate} for use with JDBC, configured with the provided {@link StormConfig} and a custom
+     * template decorator.
+     *
+     * <p><strong>Note:</strong> The caller is responsible for closing the connection after usage.</p>
+     *
+     * @param connection the {@link Connection} to use for database operations; must not be {@code null}.
+     * @param config the Storm configuration to apply; must not be {@code null}.
+     * @param decorator a function that transforms the {@link TemplateDecorator} to customize template processing.
+     * @return an {@link ORMTemplate} configured for use with JDBC.
+     */
+    static ORMTemplate of(@Nonnull Connection connection, @Nonnull StormConfig config,
+                          @Nonnull UnaryOperator<TemplateDecorator> decorator) {
+        var template = new PreparedStatementTemplateImpl(connection, config);
         var decorated = decorator.apply(template);
         if (!(decorated instanceof PreparedStatementTemplateImpl)) {
             throw new PersistenceException("Decorator must return the same template type.");

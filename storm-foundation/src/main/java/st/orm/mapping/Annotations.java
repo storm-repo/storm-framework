@@ -17,8 +17,6 @@ package st.orm.mapping;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.PersistenceException;
-
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Repeatable;
 import java.lang.reflect.Array;
@@ -26,6 +24,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import st.orm.PersistenceException;
 
 /**
  * Utility methods for working with annotations, including support for repeatable annotations.

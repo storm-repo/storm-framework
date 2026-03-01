@@ -32,19 +32,49 @@ mvn clean install
 
 ```
 storm-framework/
-├── storm-core/           # Core library (no preview dependencies)
-├── storm-java21/         # Java 21+ API (uses String Templates)
-├── storm-kotlin/         # Kotlin API
-├── storm-spring/         # Spring integration (Java)
-├── storm-kotlin-spring/  # Spring integration (Kotlin)
-├── storm-oracle/         # Oracle dialect
-├── storm-mysql/          # MySQL dialect
-├── storm-mariadb/        # MariaDB dialect
-├── storm-postgresql/     # PostgreSQL dialect
-├── storm-mssqlserver/    # MS SQL Server dialect
-├── storm-jackson/        # Jackson JSON support
-├── storm-kotlinx-serialization/  # Kotlinx serialization support
-└── storm-metamodel-processor/    # Annotation processor
+├── storm-bom/                         # Bill of Materials (BOM) for version management
+├── storm-core/                        # Core library (no preview dependencies)
+├── storm-java21/                      # Java 21+ API (uses String Templates)
+├── storm-kotlin/                      # Kotlin API
+├── storm-spring/                      # Spring integration (Java)
+├── storm-kotlin-spring/               # Spring integration (Kotlin)
+├── storm-spring-boot-starter/         # Spring Boot Starter (Java)
+├── storm-kotlin-spring-boot-starter/  # Spring Boot Starter (Kotlin)
+├── storm-oracle/                      # Oracle dialect
+├── storm-mysql/                       # MySQL dialect
+├── storm-mariadb/                     # MariaDB dialect
+├── storm-postgresql/                  # PostgreSQL dialect
+├── storm-mssqlserver/                 # MS SQL Server dialect
+├── storm-jackson/                     # Jackson JSON support
+├── storm-kotlinx-serialization/       # Kotlinx serialization support
+└── storm-metamodel-processor/         # Annotation processor
+```
+
+## Code Formatting
+
+Storm uses [Spotless](https://github.com/diffplug/spotless) to enforce consistent code formatting across the project. Formatting is checked automatically in CI and can be enforced locally with a git pre-push hook.
+
+- **Java** is formatted with [Palantir Java Format](https://github.com/palantir/palantir-java-format) (4-space indentation)
+- **Kotlin** is formatted with [ktlint](https://github.com/pinterest/ktlint) (Kotlin coding conventions)
+
+### Auto-fix formatting
+
+```bash
+mvn spotless:apply
+```
+
+### Check formatting without modifying files
+
+```bash
+mvn spotless:check
+```
+
+### Set up the pre-push hook
+
+To automatically check formatting before every push:
+
+```bash
+git config core.hooksPath .githooks
 ```
 
 ## Code Guidelines
@@ -53,7 +83,7 @@ storm-framework/
 
 - Follow existing code style and conventions
 - Write clear, self-documenting code
-- Keep changes focused—one feature or fix per PR
+- Keep changes focused; one feature or fix per PR
 - Add tests for new functionality
 
 ### Kotlin

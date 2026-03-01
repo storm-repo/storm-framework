@@ -1,8 +1,11 @@
 # Projections
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 ## What Are Projections?
 
-Projections are **read-only** data structures that represent database views or complex queries defined via `@ProjectionQuery`. Like entities, they are plain Java records or Kotlin data classes with no proxies and no bytecode manipulation. Unlike entities, projections support only read operations: no insert, update, or delete.
+Projections are **read-only** data structures that represent database views or complex queries defined via `@ProjectionQuery`. Like entities, they are plain Kotlin data classes or Java records with no proxies and no bytecode manipulation. Unlike entities, projections support only read operations: no insert, update, or delete.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -31,9 +34,12 @@ For simple ad-hoc queries or one-off aggregations, prefer using a plain data cla
 
 ## Defining a Projection
 
-A projection is a record (Java) or data class (Kotlin) that implements `Projection<ID>`, where `ID` is the type of the primary key. Use `Projection<Void>` when the projection has no primary key.
+A projection is a data class (Kotlin) or record (Java) that implements `Projection<ID>`, where `ID` is the type of the primary key. Use `Projection<Void>` when the projection has no primary key.
 
 ### Basic Projection with Primary Key
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 data class OwnerView(
@@ -44,6 +50,9 @@ data class OwnerView(
 ) : Projection<Int>
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
 record OwnerView(
     @PK Integer id,
@@ -53,11 +62,17 @@ record OwnerView(
 ) implements Projection<Integer> {}
 ```
 
+</TabItem>
+</Tabs>
+
 Storm maps this projection to the `owner` table (derived from the class name) and selects only the specified columns.
 
 ### Projection Without Primary Key
 
 When a projection doesn't need a primary key (e.g., aggregation results), use `Projection<Void>`:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 data class VisitSummary(
@@ -67,6 +82,9 @@ data class VisitSummary(
 ) : Projection<Void>
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
 record VisitSummary(
     @Nonnull LocalDate visitDate,
@@ -75,9 +93,15 @@ record VisitSummary(
 ) implements Projection<Void> {}
 ```
 
+</TabItem>
+</Tabs>
+
 ### Projection with Foreign Keys
 
 Projections can reference entities or other projections using `@FK`:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 data class PetView(
@@ -87,11 +111,27 @@ data class PetView(
 ) : Projection<Int>
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+record PetView(@PK Integer id,
+               @Nonnull String name,
+               @FK OwnerView owner  // References another projection
+) implements Projection<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
 Storm automatically joins the related table and populates the nested projection.
 
 ### Projection with Custom SQL
 
 Use `@ProjectionQuery` to define a projection backed by custom SQL:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 @ProjectionQuery("""
@@ -108,6 +148,9 @@ data class BasketSummary(
 ) : Projection<Int>
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
 @ProjectionQuery("""
     SELECT b.id, COUNT(*) AS item_count, SUM(i.price) AS total_price
@@ -123,6 +166,9 @@ record BasketSummary(
 ) implements Projection<Integer> {}
 ```
 
+</TabItem>
+</Tabs>
+
 This is useful for aggregations, complex joins, or mapping database views.
 
 ---
@@ -133,17 +179,29 @@ This is useful for aggregations, complex joins, or mapping database views.
 
 Obtain a `ProjectionRepository` from the ORM template. This is the read-only counterpart to `EntityRepository`. It provides find, select, count, and existence-check operations, but no insert, update, or delete.
 
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
 ```kotlin
 val ownerViews = orm.projection(OwnerView::class)
 ```
+
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 ProjectionRepository<OwnerView, Integer> ownerViews = orm.projection(OwnerView.class);
 ```
 
+</TabItem>
+</Tabs>
+
 ### Basic Operations
 
 The `ProjectionRepository` supports the same query patterns as `EntityRepository`, minus write operations. Results are plain data objects with no proxy behavior or session attachment.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // Count all
@@ -167,9 +225,40 @@ ownerViews.selectAll().forEach { owner ->
 }
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// Count all
+long count = ownerViews.count();
+
+// Find by primary key
+Optional<OwnerView> owner = ownerViews.findById(1);
+
+// Get by primary key (throws if not found)
+OwnerView owner = ownerViews.getById(1);
+
+// Check existence
+boolean exists = ownerViews.existsById(1);
+
+// Fetch all as a list
+List<OwnerView> allOwners = ownerViews.findAll();
+
+// Fetch all as a stream (must close)
+try (Stream<OwnerView> owners = ownerViews.selectAll()) {
+    owners.forEach(o -> System.out.println(o.firstName()));
+}
+```
+
+</TabItem>
+</Tabs>
+
 ### Query Builder
 
 Use the `select()` method for type-safe queries with the generated metamodel:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // Filter by field value
@@ -193,9 +282,35 @@ val count = ownerViews.selectCount()
     .getSingleResult()
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// Filter by field value
+List<OwnerView> owners = ownerViews.select()
+    .where(OwnerView_.lastName, EQUALS, "Smith")
+    .getResultList();
+
+// Filter with comparison operators
+List<VisitView> recentVisits = orm.projection(VisitView.class).select()
+    .where(VisitView_.visitDate, GREATER_THAN, LocalDate.of(2024, 1, 1))
+    .getResultList();
+
+// Filter by nested foreign key
+List<PetView> ownerPets = orm.projection(PetView.class).select()
+    .where(PetView_.owner.id, EQUALS, 1)
+    .getResultList();
+```
+
+</TabItem>
+</Tabs>
+
 ### Batch Operations
 
 Efficiently fetch multiple projections by ID:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // Fetch multiple by IDs
@@ -208,6 +323,25 @@ ownerViews.selectById(idFlow).collect { owner ->
     // Process each owner
 }
 ```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// Fetch multiple by IDs
+List<Integer> ids = List.of(1, 2, 3);
+List<OwnerView> owners = ownerViews.findAllById(ids);
+
+// Stream-based batch fetching (must close)
+try (Stream<OwnerView> stream = ownerViews.selectById(ids.stream())) {
+    stream.forEach(owner -> {
+        // Process each owner
+    });
+}
+```
+
+</TabItem>
+</Tabs>
 
 ---
 
@@ -232,6 +366,9 @@ ownerViews.selectById(idFlow).collect { owner ->
 ```
 
 ### Example: Same Table, Different Views
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // Full entity for writes
@@ -263,6 +400,39 @@ data class OwnerDetail(
 ) : Projection<Int>
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// Full entity for writes
+record Owner(@PK Integer id,
+             @Nonnull String firstName,
+             @Nonnull String lastName,
+             @Nonnull String address,
+             @Nonnull String city,
+             @Nullable String telephone,
+             @Version int version
+) implements Entity<Integer> {}
+
+// Lightweight projection for list views
+record OwnerListItem(@PK Integer id,
+                     @Nonnull String firstName,
+                     @Nonnull String lastName
+) implements Projection<Integer> {}
+
+// Detailed projection for detail views
+record OwnerDetail(@PK Integer id,
+                   @Nonnull String firstName,
+                   @Nonnull String lastName,
+                   @Nonnull String address,
+                   @Nonnull String city,
+                   @Nullable String telephone
+) implements Projection<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
 Use `Owner` when creating or updating owners. Use `OwnerListItem` for displaying a list (fewer columns, faster queries). Use `OwnerDetail` for read-only detail views.
 
 ---
@@ -270,8 +440,6 @@ Use `Owner` when creating or updating owners. Use `OwnerListItem` for displaying
 ## Working with Refs
 
 When a projection references another entity or projection but you do not need the full related object in every query, use `Ref<T>` to store only the foreign key value. This avoids the cost of an additional JOIN when you only need the key. You can resolve the reference later by fetching the full object on demand.
-
-Projections support the `Ref<T>` pattern for lightweight references that defer loading:
 
 ```kotlin
 data class PetListItem(

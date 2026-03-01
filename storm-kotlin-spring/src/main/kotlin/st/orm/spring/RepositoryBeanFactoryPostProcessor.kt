@@ -43,7 +43,6 @@ import java.lang.annotation.Annotation
 import java.util.*
 import java.util.stream.Stream
 
-
 /**
  * A [BeanFactoryPostProcessor] that scans the specified base packages for repository interfaces and registers
  * them as beans in the bean factory. This allows repository interfaces to be autowired by the ORM framework.
@@ -109,7 +108,7 @@ open class RepositoryBeanFactoryPostProcessor :
         registerRepositories(
             registry,
             beanFactory,
-            repositoryClasses.stream()
+            repositoryClasses.stream(),
         )
         RepositoryAutowireCandidateResolver.register(beanFactory)
     }
@@ -117,7 +116,7 @@ open class RepositoryBeanFactoryPostProcessor :
     private fun registerRepositories(
         registry: BeanDefinitionRegistry,
         beanFactory: ConfigurableListableBeanFactory,
-        repositories: Stream<Class<out Repository>>
+        repositories: Stream<Class<out Repository>>,
     ) {
         repositories.forEach { type: Class<out Repository> ->
             @Suppress("UNCHECKED_CAST")
@@ -166,42 +165,37 @@ open class RepositoryBeanFactoryPostProcessor :
         return false
     }
 
-    private fun defaultClassLoader(): ClassLoader =
-        resourceLoader?.classLoader ?: ClassUtils.getDefaultClassLoader() ?: ClassLoader.getSystemClassLoader()
+    private fun defaultClassLoader(): ClassLoader = resourceLoader?.classLoader ?: ClassUtils.getDefaultClassLoader() ?: ClassLoader.getSystemClassLoader()
 
     /**
      * Adds qualifier support by looking at the attribute "qualifier" of the bean definition. This works hand in hand
      * with the proxyBeanDefinition.setAttribute("qualifier", repositoryPrefix) call above.
      */
     class RepositoryAutowireCandidateResolver(
-        private val delegate: AutowireCandidateResolver
+        private val delegate: AutowireCandidateResolver,
     ) : AutowireCandidateResolver {
 
-        override fun isRequired(descriptor: DependencyDescriptor): Boolean =
-            delegate.isRequired(descriptor)
+        override fun isRequired(descriptor: DependencyDescriptor): Boolean = delegate.isRequired(descriptor)
 
-        override fun hasQualifier(descriptor: DependencyDescriptor): Boolean =
-            delegate.hasQualifier(descriptor)
+        override fun hasQualifier(descriptor: DependencyDescriptor): Boolean = delegate.hasQualifier(descriptor)
 
-        override fun getSuggestedValue(descriptor: DependencyDescriptor): Any? =
-            delegate.getSuggestedValue(descriptor)
+        override fun getSuggestedValue(descriptor: DependencyDescriptor): Any? = delegate.getSuggestedValue(descriptor)
 
         override fun getLazyResolutionProxyIfNecessary(
             descriptor: DependencyDescriptor,
-            beanName: String?
+            beanName: String?,
         ): Any? = delegate.getLazyResolutionProxyIfNecessary(descriptor, beanName)
 
         override fun getLazyResolutionProxyClass(
             descriptor: DependencyDescriptor,
-            beanName: String?
+            beanName: String?,
         ): Class<*>? = delegate.getLazyResolutionProxyClass(descriptor, beanName)
 
-        override fun cloneIfNecessary(): AutowireCandidateResolver =
-            delegate.cloneIfNecessary()
+        override fun cloneIfNecessary(): AutowireCandidateResolver = delegate.cloneIfNecessary()
 
         override fun isAutowireCandidate(
             holder: BeanDefinitionHolder,
-            descriptor: DependencyDescriptor
+            descriptor: DependencyDescriptor,
         ): Boolean {
             if (delegate.isAutowireCandidate(holder, descriptor)) return true
             val requiredQualifier = getRequiredQualifier(descriptor)
@@ -211,12 +205,11 @@ open class RepositoryBeanFactoryPostProcessor :
             return false
         }
 
-        private fun getRequiredQualifier(descriptor: DependencyDescriptor): String? =
-            Arrays.stream(descriptor.annotations)
-                .map { annotation -> getQualifierValue(annotation) }
-                .filter(Objects::nonNull)
-                .findFirst()
-                .orElse(null)
+        private fun getRequiredQualifier(descriptor: DependencyDescriptor): String? = Arrays.stream(descriptor.annotations)
+            .map { annotation -> getQualifierValue(annotation) }
+            .filter(Objects::nonNull)
+            .findFirst()
+            .orElse(null)
 
         private fun getQualifierValue(annotation: kotlin.Annotation): String? {
             if (annotation is Qualifier) return annotation.value

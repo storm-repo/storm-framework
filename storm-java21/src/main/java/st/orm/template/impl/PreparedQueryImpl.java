@@ -16,10 +16,9 @@
 package st.orm.template.impl;
 
 import jakarta.annotation.Nonnull;
+import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.template.PreparedQuery;
-
-import java.util.stream.Stream;
 
 
 public class PreparedQueryImpl extends QueryImpl implements PreparedQuery {

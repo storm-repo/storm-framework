@@ -6,7 +6,7 @@
     <parent>
         <groupId>st.orm</groupId>
         <artifactId>storm-framework</artifactId>
-        <version>1.8.2</version>
+        <version>1.9.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>storm-kotlin</artifactId>
@@ -38,6 +38,7 @@
                 <configuration>
                     <useModulePath>true</useModulePath>
                     <argLine>
+                        @{argLine}
                         --add-reads kotlin.stdlib=kotlinx.coroutines.core
                         --add-reads storm.core=storm.kotlin
                         --add-opens java.base/java.lang=ALL-UNNAMED
@@ -46,7 +47,7 @@
                         --add-opens storm.kotlin/st.orm.template=kotlin.reflect
                         --add-opens storm.kotlin/st.orm.template.model=storm.foundation
                         --add-opens storm.kotlin/st.orm.template.model=storm.core
-                        -Dstorm.ansiEscaping=true
+                        -Dstorm.ansi_escaping=true
                     </argLine>
                 </configuration>
             </plugin>
@@ -58,6 +59,7 @@
                     <jvmTarget>21</jvmTarget>
                     <args>
                         <arg>-Xjdk-release=21</arg>
+                        <arg>-module-name=${project.artifactId}</arg>
                     </args>
                 </configuration>
                 <executions>
@@ -71,7 +73,6 @@
                             <sourceDirs>
                                 <sourceDir>${project.basedir}/src/main/kotlin</sourceDir>
                             </sourceDirs>
-                            <moduleName>${project.artifactId}</moduleName>
                         </configuration>
                     </execution>
                     <execution>
@@ -249,7 +250,13 @@
         <dependency>
             <groupId>io.kotest</groupId>
             <artifactId>kotest-assertions-core-jvm</artifactId>
-            <version>5.7.2</version>
+            <version>5.9.1</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>st.orm</groupId>
+            <artifactId>storm-test</artifactId>
+            <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

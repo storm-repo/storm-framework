@@ -15,10 +15,10 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Objects.requireNonNull;
+
 import jakarta.annotation.Nonnull;
 import st.orm.core.template.SqlTemplateException;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * Runtime wrapper for {@link SqlTemplateException}.

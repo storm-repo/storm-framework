@@ -15,12 +15,12 @@
  */
 package st.orm;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
-
 import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.ElementType.RECORD_COMPONENT;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
 
 /**
  * Annotation for specifying multiple database column names, e.g., for compound keys.
@@ -38,4 +38,3 @@ public @interface DbColumns {
      */
     DbColumn[] value();
 }
-

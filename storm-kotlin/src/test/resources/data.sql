@@ -94,3 +94,101 @@ INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-12', 'rabie
 INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-13', 'spayed', 6);
 INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-13', 'rabies shot', 6);
 INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-13', 'spayed', 7);
+
+-- Polymorphic tables for sealed type hierarchy tests.
+
+-- Pattern A: Single-Table Inheritance
+drop table if exists adoption CASCADE;
+drop table if exists animal CASCADE;
+create table animal (id integer auto_increment, dtype varchar(50) not null, name varchar(255), indoor boolean, weight integer, primary key (id));
+
+INSERT INTO animal (dtype, name, indoor) VALUES ('Cat', 'Whiskers', true);
+INSERT INTO animal (dtype, name, indoor) VALUES ('Cat', 'Luna', false);
+INSERT INTO animal (dtype, name, weight) VALUES ('Dog', 'Rex', 30);
+INSERT INTO animal (dtype, name, weight) VALUES ('Dog', 'Max', 15);
+
+create table adoption (id integer auto_increment, animal_id integer, primary key (id));
+alter table adoption add constraint adoption_animal_fk foreign key (animal_id) references animal (id);
+
+INSERT INTO adoption (animal_id) VALUES (1);
+INSERT INTO adoption (animal_id) VALUES (3);
+
+-- Pattern B: Polymorphic FK
+drop table if exists comment CASCADE;
+drop table if exists post CASCADE;
+drop table if exists photo CASCADE;
+create table post (id integer auto_increment, title varchar(255), primary key (id));
+create table photo (id integer auto_increment, url varchar(255), primary key (id));
+create table comment (id integer auto_increment, text varchar(255), target_type varchar(50), target_id integer, primary key (id));
+
+INSERT INTO post (title) VALUES ('Hello World');
+INSERT INTO post (title) VALUES ('Second Post');
+INSERT INTO photo (url) VALUES ('photo1.jpg');
+INSERT INTO photo (url) VALUES ('photo2.jpg');
+INSERT INTO comment (text, target_type, target_id) VALUES ('Nice post!', 'post', 1);
+INSERT INTO comment (text, target_type, target_id) VALUES ('Great photo!', 'photo', 1);
+INSERT INTO comment (text, target_type, target_id) VALUES ('Love it!', 'post', 2);
+
+-- Pattern C: Joined Table Inheritance
+drop table if exists joined_adoption CASCADE;
+drop table if exists joined_cat CASCADE;
+drop table if exists joined_dog CASCADE;
+drop table if exists joined_animal CASCADE;
+create table joined_animal (id integer auto_increment, dtype varchar(50) not null, name varchar(255), primary key (id));
+create table joined_cat (id integer not null, indoor boolean, primary key (id));
+create table joined_dog (id integer not null, weight integer, primary key (id));
+alter table joined_cat add constraint joined_cat_animal_fk foreign key (id) references joined_animal (id);
+alter table joined_dog add constraint joined_dog_animal_fk foreign key (id) references joined_animal (id);
+
+INSERT INTO joined_animal (dtype, name) VALUES ('JoinedCat', 'Whiskers');
+INSERT INTO joined_cat (id, indoor) VALUES (1, true);
+INSERT INTO joined_animal (dtype, name) VALUES ('JoinedCat', 'Luna');
+INSERT INTO joined_cat (id, indoor) VALUES (2, false);
+INSERT INTO joined_animal (dtype, name) VALUES ('JoinedDog', 'Rex');
+INSERT INTO joined_dog (id, weight) VALUES (3, 30);
+
+create table joined_adoption (id integer auto_increment, animal_id integer, primary key (id));
+alter table joined_adoption add constraint joined_adoption_animal_fk foreign key (animal_id) references joined_animal (id);
+
+INSERT INTO joined_adoption (animal_id) VALUES (1);
+INSERT INTO joined_adoption (animal_id) VALUES (3);
+
+-- Pattern D: Joined Table Inheritance without @Discriminator
+drop table if exists nodsc_cat CASCADE;
+drop table if exists nodsc_dog CASCADE;
+drop table if exists nodsc_bird CASCADE;
+drop table if exists nodsc_animal CASCADE;
+create table nodsc_animal (id integer auto_increment, name varchar(255), primary key (id));
+create table nodsc_cat (id integer not null, indoor boolean, primary key (id));
+create table nodsc_dog (id integer not null, weight integer, primary key (id));
+create table nodsc_bird (id integer not null, primary key (id));
+alter table nodsc_cat add constraint nodsc_cat_animal_fk foreign key (id) references nodsc_animal (id);
+alter table nodsc_dog add constraint nodsc_dog_animal_fk foreign key (id) references nodsc_animal (id);
+alter table nodsc_bird add constraint nodsc_bird_animal_fk foreign key (id) references nodsc_animal (id);
+
+INSERT INTO nodsc_animal (name) VALUES ('Whiskers');
+INSERT INTO nodsc_cat (id, indoor) VALUES (1, true);
+INSERT INTO nodsc_animal (name) VALUES ('Luna');
+INSERT INTO nodsc_cat (id, indoor) VALUES (2, false);
+INSERT INTO nodsc_animal (name) VALUES ('Rex');
+INSERT INTO nodsc_dog (id, weight) VALUES (3, 30);
+INSERT INTO nodsc_animal (name) VALUES ('Tweety');
+INSERT INTO nodsc_bird (id) VALUES (4);
+
+-- Pattern E: Single-Table Inheritance with INTEGER discriminator
+drop table if exists int_disc_animal CASCADE;
+create table int_disc_animal (id integer auto_increment, dtype integer not null, name varchar(255), indoor boolean, weight integer, primary key (id));
+
+INSERT INTO int_disc_animal (dtype, name, indoor) VALUES (1, 'Whiskers', true);
+INSERT INTO int_disc_animal (dtype, name, indoor) VALUES (1, 'Luna', false);
+INSERT INTO int_disc_animal (dtype, name, weight) VALUES (2, 'Rex', 30);
+INSERT INTO int_disc_animal (dtype, name, weight) VALUES (2, 'Max', 15);
+
+-- Pattern F: Single-Table Inheritance with CHAR discriminator
+drop table if exists char_disc_animal CASCADE;
+create table char_disc_animal (id integer auto_increment, dtype char(1) not null, name varchar(255), indoor boolean, weight integer, primary key (id));
+
+INSERT INTO char_disc_animal (dtype, name, indoor) VALUES ('C', 'Whiskers', true);
+INSERT INTO char_disc_animal (dtype, name, indoor) VALUES ('C', 'Luna', false);
+INSERT INTO char_disc_animal (dtype, name, weight) VALUES ('D', 'Rex', 30);
+INSERT INTO char_disc_animal (dtype, name, weight) VALUES ('D', 'Max', 15);

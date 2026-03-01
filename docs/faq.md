@@ -1,3 +1,6 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Frequently Asked Questions
 
 ## General
@@ -19,13 +22,72 @@ Yes. Storm integrates seamlessly with Spring Boot. See [Spring Integration](spri
 
 Yes. Storm is used in production environments and follows semantic versioning for stable releases.
 
+### Does Storm support schema validation?
+
+Yes. Storm can validate your entity definitions against the actual database schema, catching mismatches like missing tables, missing columns, type incompatibilities, nullability differences, primary key mismatches, and missing sequences. This works similarly to Hibernate's `ddl-auto=validate`, but Storm never modifies the schema.
+
+Enable it in Spring Boot:
+
+```yaml
+storm:
+  validation:
+    schema-mode: fail   # or "warn" or "none"
+```
+
+Or call it programmatically:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+orm.validateSchemaOrThrow()
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+orm.validateSchemaOrThrow();
+```
+
+</TabItem>
+</Tabs>
+
+See [Configuration: Schema Validation](configuration.md#schema-validation) for full details.
+
+---
+
+## What Storm Does Not Do
+
+Storm is intentionally scoped. The following are conscious design decisions, not missing features. Each reflects a trade-off that keeps the framework simple, predictable, and free of hidden behavior.
+
+### No Schema Generation or Migration
+
+Storm never issues DDL statements (CREATE TABLE, ALTER TABLE, DROP TABLE). It reads and writes data, but never modifies the database structure. For schema management, use dedicated migration tools like [Flyway](https://flywaydb.org/) or [Liquibase](https://www.liquibase.org/). Storm's [schema validation](validation.md) can verify that your entities match the database at startup, serving as a safety net alongside your migration tool.
+
+### No Lazy-Loading Proxies
+
+Storm does not use bytecode manipulation or runtime proxies to intercept field access. This eliminates `LazyInitializationException`, hidden database queries, and session-dependent entity behavior. Relationships declared with `@FK` are loaded eagerly in a single query. When you need deferred loading (for example, a rarely-accessed large sub-graph), use `Ref<T>` to make the database access explicit and intentional. See [Entities: Deferred Loading](entities.md#deferred-loading-with-ref) for details.
+
+### No Second-Level Cache
+
+Storm maintains only a transaction-scoped entity cache for identity guarantees and dirty checking. There is no cross-transaction or application-wide cache. This avoids cache invalidation complexity, stale data bugs, and the configuration burden of managing cache regions. For caching reference data or frequently-read entities, use Spring's `@Cacheable` annotation or a dedicated caching layer (Redis, Caffeine) at the service level, where cache scope and invalidation strategy are explicit.
+
+### No Distributed Transactions
+
+Storm works with single-datasource JDBC transactions. You can manage transactions using Storm's own `transaction { }` block or Spring's transaction infrastructure. For distributed transactions, configure Spring's `JtaTransactionManager` with a JTA provider (Atomikos, Narayana) and an XA-capable DataSource. Storm will participate in the distributed transaction automatically through Spring's transaction support.
+
+### No Bytecode Manipulation
+
+Storm does not enhance, instrument, or proxy your entity classes at build time or runtime. Entities are plain Kotlin data classes or Java records with no hidden behavior. The metamodel is generated at compile time by a KSP plugin (Kotlin) or annotation processor (Java), but this is standard code generation, not bytecode rewriting.
+
 ---
 
 ## Entities
 
 ### Why use records/data classes instead of regular classes?
 
-Storm entities are pure data carriers. They never need to intercept method calls, track dirty fields, or manage lifecycle state. Records (Java) and data classes (Kotlin) are the natural fit because the language enforces immutability and generates `equals`, `hashCode`, and `toString` for free. This eliminates an entire category of bugs related to mutable shared state, identity confusion, and missing boilerplate.
+Storm entities are pure data carriers. They never need to intercept method calls, track dirty fields, or manage lifecycle state. Data classes (Kotlin) and records (Java) are the natural fit because the language enforces immutability and generates `equals`, `hashCode`, and `toString` for free. This eliminates an entire category of bugs related to mutable shared state, identity confusion, and missing boilerplate.
 
 - **Immutability:** Prevents accidental state changes.
 - **Simplicity:** No boilerplate getters/setters.
@@ -34,11 +96,58 @@ Storm entities are pure data carriers. They never need to intercept method calls
 
 ### Can I use inheritance with Storm entities?
 
-Storm focuses on composition over inheritance. Java records and Kotlin data classes cannot extend other classes (they can implement interfaces, but they cannot inherit fields). This is a language constraint, not a Storm limitation. To share fields across entities, extract them into an embedded record or data class and include it as a field.
+Kotlin data classes and Java records cannot extend other classes, but Storm supports polymorphic entity hierarchies using sealed interfaces. A sealed interface defines the type hierarchy, and each permitted subtype is a record or data class. Storm provides three inheritance strategies: **Single-Table** (all subtypes in one table), **Joined Table** (base table plus extension tables), and **Polymorphic FK** (independent tables referenced via a two-column foreign key). See the [Polymorphism](polymorphism.md) guide for details.
+
+To share fields across unrelated entities (without a polymorphic hierarchy), extract them into an embedded record or data class and include it as a field.
+
+### Which discriminator type should I use (STRING, INTEGER, CHAR)?
+
+Storm supports three discriminator column types via the `type()` attribute on `@Discriminator`:
+
+- **STRING** (default): Uses a `VARCHAR` column. Values are human-readable strings like the class name (`"Cat"`, `"Dog"`) or custom labels. This is the best choice for most new schemas because the discriminator values are self-documenting in the database.
+- **INTEGER**: Uses an `INTEGER` column. Each subtype must declare an explicit numeric value (e.g., `@Discriminator("1")`). Use this when your schema already has a numeric type code column, or when you need compact discriminator storage on high-volume tables.
+- **CHAR**: Uses a `CHAR(1)` column. Each subtype must declare a single-character value (e.g., `@Discriminator("C")`). This provides a compact, fixed-width discriminator that is still somewhat readable.
+
+If you are designing a new schema, `STRING` is the simplest choice. If you are integrating with an existing schema that uses integer or character type codes, use `INTEGER` or `CHAR` to match. See [Polymorphism: Discriminator Types](polymorphism.md#discriminator-types) for code examples.
+
+### Why does the Polymorphic FK sealed interface extend `Data` instead of `Entity`?
+
+In Storm, `Entity<ID>` represents a type backed by a specific database table. For Polymorphic FK, the sealed interface does not correspond to any table. It groups unrelated entities under a common type so they can be referenced by a two-column foreign key (discriminator + ID). Because the interface has no table, it extends `Data` (a marker for types that participate in SQL generation without owning a table). Each subtype independently implements `Entity<ID>` because each one maps to its own independent table.
+
+This design ensures that Storm treats the sealed interface as a type constraint rather than a table reference. The discriminator column in the referencing entity identifies which subtype (and therefore which table) the foreign key points to, while the ID column identifies the specific row.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+// Data: no table, just a type grouping
+sealed interface Commentable : Data {
+    // Entity: has its own table
+    data class Post(@PK val id: Int = 0, val title: String) : Commentable, Entity<Int>
+    data class Photo(@PK val id: Int = 0, val url: String) : Commentable, Entity<Int>
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// Data: no table, just a type grouping
+sealed interface Commentable extends Data permits Post, Photo {}
+
+// Entity: has its own table
+record Post(@PK Integer id, String title) implements Commentable, Entity<Integer> {}
+record Photo(@PK Integer id, String url) implements Commentable, Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+See [Polymorphism: Polymorphic Foreign Keys](polymorphism.md#polymorphic-foreign-keys) for the full explanation.
 
 ### How do I handle auto-generated IDs?
 
-Storm detects auto-generated IDs by checking whether the primary key is `null` (Java) or set to its default value (Kotlin). When inserting an entity with a null or default-valued primary key, Storm omits the ID from the INSERT statement and lets the database assign it. The generated ID is returned and available on the inserted instance.
+Storm detects auto-generated IDs by checking whether the primary key is set to its default value (Kotlin) or `null` (Java). When inserting an entity with a null or default-valued primary key, Storm omits the ID from the INSERT statement and lets the database assign it. The generated ID is returned and available on the inserted instance.
 
 ```kotlin
 data class User(@PK val id: Int = 0, val name: String) : Entity<Int>
@@ -90,7 +199,10 @@ orm.query(RAW."SELECT * FROM user WHERE email = \{email}")
 
 ### How do I handle pagination?
 
-Storm supports offset-based pagination through `offset()` and `limit()` methods on the query builder. These translate directly to the SQL `OFFSET` and `LIMIT` clauses (or equivalent for your database dialect). For large datasets, consider keyset pagination (filtering by a cursor value) for better performance, as offset-based pagination becomes slower with increasing page numbers.
+Storm supports two strategies. **Offset-based pagination** uses `offset()` and `limit()` on the query builder, which translates directly to SQL `OFFSET` and `LIMIT`. This works well for small tables or when users need to jump to arbitrary page numbers.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 val page = orm.entity(User::class)
@@ -100,6 +212,109 @@ val page = orm.entity(User::class)
     .limit(10)
     .resultList
 ```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+var page = orm.entity(User.class)
+    .select()
+    .orderByDescending(User_.createdAt)
+    .offset(20)
+    .limit(10)
+    .getResultList();
+```
+
+</TabItem>
+</Tabs>
+
+For large tables where users scroll through results sequentially, prefer **keyset pagination** via `slice()`, `sliceAfter()`, and `sliceBefore()`. These are available directly on repositories and on the query builder, and remain performant regardless of how deep into the result set you are. `Slice` intentionally does not include a total element count, since a separate `COUNT(*)` must execute the same joins and filters as the main query, which can be expensive on large or complex result sets. Total counts are also inherently unstable, as rows may be inserted or deleted while a user navigates through pages. If you need a total count separately, use the `count` (Kotlin) or `getCount()` (Java) method on the query builder. See [Queries](queries.md#keyset-pagination-with-slice) for a full explanation.
+
+```kotlin
+val page = userRepository.slice(User_.id, 20)
+val next = userRepository.sliceAfter(User_.id, page.content.last().id, 20)
+```
+
+### Why does my DELETE without a WHERE clause throw an exception?
+
+By default, Storm rejects DELETE and UPDATE queries that have no WHERE clause with a `PersistenceException`. This is a safety mechanism that prevents accidental deletion or modification of every row in a table.
+
+This protection is particularly valuable because `QueryBuilder` is immutable. If you accidentally ignore the return value of `where()` on a delete builder, the WHERE clause is silently lost and the query would affect all rows. The safety check catches this at runtime:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+// This throws PersistenceException: the where() return value is discarded,
+// so the delete has no WHERE clause and Storm blocks it.
+val builder = userRepository.delete()
+builder.where(User_.city eq city)
+builder.executeUpdate()
+
+// Correct: chain the calls so the WHERE clause is included.
+userRepository.delete()
+    .where(User_.city eq city)
+    .executeUpdate()
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// This throws PersistenceException: the where() return value is discarded,
+// so the delete has no WHERE clause and Storm blocks it.
+var builder = userRepository.delete();
+builder.where(User_.city, EQUALS, city);
+builder.executeUpdate();
+
+// Correct: chain the calls so the WHERE clause is included.
+userRepository.delete()
+    .where(User_.city, EQUALS, city)
+    .executeUpdate();
+```
+
+</TabItem>
+</Tabs>
+
+If you genuinely need to delete all rows from a table, use the `deleteAll()` convenience method:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+userRepository.deleteAll()
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+userRepository.deleteAll();
+```
+
+</TabItem>
+</Tabs>
+
+Alternatively, you can use the builder approach and call `unsafe()` to opt out of the safety check:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+userRepository.delete().unsafe().executeUpdate()
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+userRepository.delete().unsafe().executeUpdate();
+```
+
+</TabItem>
+</Tabs>
+
+The `unsafe()` method signals that the absence of a WHERE clause is intentional. Without it, Storm assumes the missing WHERE clause is a mistake. The `deleteAll()` convenience method calls `unsafe()` internally.
 
 ### Can I use database-specific functions?
 
@@ -199,6 +414,47 @@ When you read an entity within a transaction, Storm stores the original field va
 
 ## Troubleshooting
 
+### My where/orderBy/limit clause has no effect
+
+`QueryBuilder` is immutable. Every builder method returns a *new* instance with the modification applied, leaving the original unchanged. If you call a method like `where()`, `orderBy()`, or `limit()` and ignore the return value, the change is silently lost.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+// Wrong: the where clause is discarded
+val builder = userRepository.select()
+builder.where(User_.active, EQUALS, true)   // returns a new builder, but it's ignored
+builder.resultList                           // executes without the WHERE clause
+
+// Correct: chain the calls
+val results = userRepository.select()
+    .where(User_.active, EQUALS, true)
+    .resultList
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// Wrong: the where clause is discarded
+var builder = userRepository.select();
+builder.where(User_.active, EQUALS, true);   // returns a new builder, but it's ignored
+builder.getResultList();                      // executes without the WHERE clause
+
+// Correct: chain the calls
+var results = userRepository.select()
+        .where(User_.active, EQUALS, true)
+        .getResultList();
+```
+
+</TabItem>
+</Tabs>
+
+This applies to all builder methods: `where()`, `orderBy()`, `limit()`, `offset()`, `distinct()`, `groupBy()`, `having()`, joins, and locking methods like `forUpdate()`. Always use the returned builder.
+
+For DELETE and UPDATE queries, this mistake is especially dangerous because a lost WHERE clause means the operation applies to every row in the table. Storm guards against this by default: executing a DELETE or UPDATE without a WHERE clause throws a `PersistenceException`. See [Why does my DELETE without a WHERE clause throw an exception?](#why-does-my-delete-without-a-where-clause-throw-an-exception) below for details.
+
 ### My entity isn't mapping correctly
 
 Storm maps entity fields to database columns by converting field names from camelCase to snake_case. If your schema uses a different convention, explicit column annotations are required. The most common mapping issues stem from missing annotations or name mismatches.
@@ -221,7 +477,7 @@ Upsert (INSERT ... ON CONFLICT) is a database-specific feature. Storm delegates 
 
 1. Ensure you have included the dialect dependency for your database.
 2. Verify your table has a primary key or unique constraint.
-3. Pass `null` (Java) or default `0` (Kotlin) for the primary key.
+3. Pass default `0` (Kotlin) or `null` (Java) for the primary key.
 
 ### Refs won't fetch
 
@@ -232,14 +488,14 @@ A `Ref` created manually with `Ref.of(Type.class, id)` holds only the foreign ke
 Storm's Java streams are backed by a JDBC `ResultSet`, which is tied to the database connection. The stream must be consumed within the scope that opened it. Returning an unconsumed stream from a try-with-resources block closes the underlying `ResultSet` before the caller can read any rows. Either consume the stream inside the block or ensure the caller is responsible for closing it.
 
 ```java
-// Wrong -- stream closed before consumption
+// Wrong: stream closed before consumption
 Stream<User> getUsers() {
     try (var users = orm.entity(User.class).selectAll()) {
         return users;  // Stream is closed when method returns
     }
 }
 
-// Right -- consume within the block
+// Right: consume within the block
 List<User> getUsers() {
     try (var users = orm.entity(User.class).selectAll()) {
         return users.toList();
@@ -249,15 +505,45 @@ List<User> getUsers() {
 
 ### How do I see the SQL Storm generates?
 
-Use SQL interceptors to log all generated SQL:
+Annotate your repository with `@SqlLog` to log all generated SQL:
 
 ```java
-SqlInterceptor.registerGlobalObserver(sql ->
-    log.debug("SQL: {}", sql.statement())
-);
+@SqlLog
+public interface UserRepository extends EntityRepository<User, Integer> { ... }
 ```
 
-See [SQL Interceptors](interceptors.md) for scoped and targeted logging.
+To see executable SQL with actual parameter values instead of `?` placeholders, use `inlineParameters`:
+
+```java
+@SqlLog(inlineParameters = true)
+public interface UserRepository extends EntityRepository<User, Integer> { ... }
+```
+
+See [SQL Logging](sql-logging.md) for the full guide.
+
+### Schema validation reports type narrowing warnings for my Integer columns
+
+Some databases (notably Oracle) use a single numeric type for all integer columns. For example, Oracle's `NUMBER` maps to `java.sql.Types.NUMERIC`, which Storm considers a "narrowing" conversion for `Integer` fields. These are logged as warnings because the mapping works at runtime but may involve precision differences.
+
+If the warnings are expected, you can suppress them per field with `@DbIgnore`:
+
+```kotlin
+data class User(
+    @PK val id: Int = 0,
+    @DbIgnore("Oracle NUMBER maps to NUMERIC")
+    val score: Int
+) : Entity<Int>
+```
+
+Alternatively, enable strict mode to treat these warnings as errors if you want zero tolerance:
+
+```yaml
+storm:
+  validation:
+    strict: true
+```
+
+See [Configuration: Schema Validation](configuration.md#schema-validation) for details.
 
 ### Can I use Storm without Spring?
 

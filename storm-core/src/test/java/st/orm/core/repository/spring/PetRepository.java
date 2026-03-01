@@ -1,19 +1,18 @@
 package st.orm.core.repository.spring;
 
+import static st.orm.core.template.PreparedStatementTemplate.ORM;
+import static st.orm.core.template.TemplateString.raw;
+import static st.orm.core.template.Templates.select;
+import static st.orm.core.template.Templates.table;
+
+import java.util.List;
+import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
-import st.orm.core.model.PetType;
 import st.orm.core.model.Pet;
-
-import javax.sql.DataSource;
-import java.util.List;
-
-import static st.orm.core.template.Templates.select;
-import static st.orm.core.template.Templates.table;
-import static st.orm.core.template.PreparedStatementTemplate.ORM;
-import static st.orm.core.template.TemplateString.raw;
+import st.orm.core.model.PetType;
 
 @Repository
 public class PetRepository {

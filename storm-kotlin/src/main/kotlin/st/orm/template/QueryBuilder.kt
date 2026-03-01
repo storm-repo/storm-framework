@@ -58,6 +58,23 @@ import kotlin.reflect.KClass
  *     .executeUpdate()
  * ```
  *
+ * ## Immutability
+ * `QueryBuilder` is immutable: every builder method (such as `where()`, `orderBy()`,
+ * `limit()`, etc.) returns a *new* instance with the modification applied, leaving the original
+ * unchanged. If you call a builder method and ignore the return value, the change is silently lost.
+ *
+ * ```kotlin
+ * // WRONG - the where clause is lost because the return value is discarded:
+ * val builder = userRepository.select()
+ * builder.where(User_.active, EQUALS, true)  // returns a new builder, but it's ignored
+ * builder.resultList                          // executes without the WHERE clause
+ *
+ * // CORRECT - chain the calls or capture the returned builder:
+ * val results = userRepository.select()
+ *     .where(User_.active, EQUALS, true)
+ *     .resultList
+ * ```
+ *
  * @param T the type of the table being queried.
  * @param R the type of the result.
  * @param ID the type of the primary key.
@@ -78,14 +95,15 @@ interface QueryBuilder<T : Data, R, ID> {
     fun <X : Any> typed(pkType: KClass<X>): QueryBuilder<T, R, X>
 
     /**
-     * Returns a query builder that does not require a WHERE clause for UPDATE and DELETE queries.
+     * Returns a query builder that allows UPDATE and DELETE queries without a WHERE clause.
      *
-     * This method is used to prevent accidental updates or deletions of all records in a table when a WHERE clause
-     * is not provided.
+     * By default, Storm rejects UPDATE and DELETE queries that lack a WHERE clause, throwing a
+     * [PersistenceException]. Call this method to disable that check when you intentionally want to affect all
+     * rows in the table.
      *
      * @since 1.2
      */
-    fun safe(): QueryBuilder<T, R, ID>
+    fun unsafe(): QueryBuilder<T, R, ID>
 
     /**
      * Marks the current query as a distinct query.
@@ -137,7 +155,7 @@ interface QueryBuilder<T : Data, R, ID> {
     fun join(
         type: JoinType,
         relation: KClass<out Data>,
-        alias: String
+        alias: String,
     ): TypedJoinBuilder<T, R, ID>
 
     /**
@@ -146,9 +164,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param template the condition to join.
      * @return the query builder.
      */
-    fun crossJoin(template: TemplateBuilder): QueryBuilder<T, R, ID> {
-        return crossJoin(template.build())
-    }
+    fun crossJoin(template: TemplateBuilder): QueryBuilder<T, R, ID> = crossJoin(template.build())
 
     /**
      * Adds a cross join to the query.
@@ -165,9 +181,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    fun innerJoin(template: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> {
-        return innerJoin(template.build(), alias)
-    }
+    fun innerJoin(template: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> = innerJoin(template.build(), alias)
 
     /**
      * Adds an inner join to the query.
@@ -185,9 +199,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    fun leftJoin(builder: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> {
-        return leftJoin(builder.build(), alias)
-    }
+    fun leftJoin(template: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> = leftJoin(template.build(), alias)
 
     /**
      * Adds a left join to the query.
@@ -205,9 +217,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param alias the alias to use for the joined relation.
      * @return the query builder.
      */
-    fun rightJoin(template: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> {
-        return rightJoin(template.build(), alias)
-    }
+    fun rightJoin(template: TemplateBuilder, alias: String): JoinBuilder<T, R, ID> = rightJoin(template.build(), alias)
 
     /**
      * Adds a right join to the query.
@@ -229,10 +239,8 @@ interface QueryBuilder<T : Data, R, ID> {
     fun join(
         type: JoinType,
         template: TemplateBuilder,
-        alias: String
-    ): JoinBuilder<T, R, ID> {
-        return join(type, template.build(), alias)
-    }
+        alias: String,
+    ): JoinBuilder<T, R, ID> = join(type, template.build(), alias)
 
     /**
      * Adds a join of the specified type to the query using a template.
@@ -245,7 +253,7 @@ interface QueryBuilder<T : Data, R, ID> {
     fun join(
         type: JoinType,
         template: TemplateString,
-        alias: String
+        alias: String,
     ): JoinBuilder<T, R, ID>
 
     /**
@@ -259,7 +267,7 @@ interface QueryBuilder<T : Data, R, ID> {
     fun join(
         type: JoinType,
         subquery: QueryBuilder<*, *, *>,
-        alias: String
+        alias: String,
     ): JoinBuilder<T, R, ID>
 
     /**
@@ -268,9 +276,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param id the id to match.
      * @return the query builder.
      */
-    fun where(id: ID): QueryBuilder<T, R, ID> {
-        return whereBuilder { whereId(id) }
-    }
+    fun where(id: ID): QueryBuilder<T, R, ID> = whereBuilder { whereId(id) }
 
     /**
      * Adds a WHERE clause that matches the specified primary key of the table, expressed by a ref.
@@ -279,9 +285,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.3
      */
-    fun where(ref: Ref<T>): QueryBuilder<T, R, ID> {
-        return whereBuilder { whereRef(ref) }
-    }
+    fun where(ref: Ref<T>): QueryBuilder<T, R, ID> = whereBuilder { whereRef(ref) }
 
     /**
      * Adds a WHERE clause that matches the specified record.
@@ -289,9 +293,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param record the record to match.
      * @return the query builder.
      */
-    fun where(record: T): QueryBuilder<T, R, ID> {
-        return whereBuilder { where(record) }
-    }
+    fun where(record: T): QueryBuilder<T, R, ID> = whereBuilder { where(record) }
 
     /**
      * Adds a WHERE clause that matches the specified primary keys of the table.
@@ -300,9 +302,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun whereId(it: Iterable<ID>): QueryBuilder<T, R, ID> {
-        return whereBuilder { whereId(it) }
-    }
+    fun whereId(it: Iterable<ID>): QueryBuilder<T, R, ID> = whereBuilder { whereId(it) }
 
     /**
      * Adds a WHERE clause that matches the specified primary keys of the table, expressed by a ref.
@@ -311,9 +311,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.3
      */
-    fun whereRef(it: Iterable<Ref<T>>): QueryBuilder<T, R, ID> {
-        return whereBuilder { whereRef(it) }
-    }
+    fun whereRef(it: Iterable<Ref<T>>): QueryBuilder<T, R, ID> = whereBuilder { whereRef(it) }
 
     /**
      * Adds a WHERE clause that matches the specified record. The record can represent any of the related tables in the
@@ -323,9 +321,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param record the records to match.
      * @return the predicate builder.
      */
-    fun <V : Data> where(path: Metamodel<T, V>, record: V): QueryBuilder<T, R, ID> {
-        return where(path, EQUALS, record)
-    }
+    fun <V : Data> where(path: Metamodel<T, V>, record: V): QueryBuilder<T, R, ID> = where(path, EQUALS, record)
 
     /**
      * Adds a WHERE clause that matches the specified ref. The ref can represent any of the related tables in the
@@ -336,9 +332,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the predicate builder.
      * @since 1.3
      */
-    fun <V : Data> where(path: Metamodel<T, V>, ref: Ref<V>): QueryBuilder<T, R, ID> {
-        return whereBuilder { where(path, ref) }
-    }
+    fun <V : Data> where(path: Metamodel<T, V>, ref: Ref<V>): QueryBuilder<T, R, ID> = whereBuilder { where(path, ref) }
 
     /**
      * Adds a WHERE clause that matches the specified records. The records can represent any of the related tables in
@@ -348,9 +342,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param it the records to match.
      * @return the predicate builder.
      */
-    fun <V : Data> where(path: Metamodel<T, V>, it: Iterable<V>): QueryBuilder<T, R, ID> {
-        return where(path, IN, it)
-    }
+    fun <V : Data> where(path: Metamodel<T, V>, it: Iterable<V>): QueryBuilder<T, R, ID> = where(path, IN, it)
 
     /**
      * Adds a WHERE clause that matches the specified records. The records can represent any of the related tables in
@@ -363,10 +355,8 @@ interface QueryBuilder<T : Data, R, ID> {
      */
     fun <V : Data> whereRef(
         path: Metamodel<T, V>,
-        it: Iterable<Ref<V>>
-    ): QueryBuilder<T, R, ID> {
-        return whereBuilder { whereRef(path, it) }
-    }
+        it: Iterable<Ref<V>>,
+    ): QueryBuilder<T, R, ID> = whereBuilder { whereRef(path, it) }
 
     /**
      * Adds a WHERE clause that matches the specified records.
@@ -374,9 +364,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param it the records to match.
      * @return the query builder.
      */
-    fun where(it: Iterable<T>): QueryBuilder<T, R, ID> {
-        return whereBuilder { where(it) }
-    }
+    fun where(it: Iterable<T>): QueryBuilder<T, R, ID> = whereBuilder { where(it) }
 
     /**
      * Adds a WHERE clause that matches the specified objects at the specified path in the table graph.
@@ -392,10 +380,8 @@ interface QueryBuilder<T : Data, R, ID> {
     fun <V> where(
         path: Metamodel<T, V>,
         operator: Operator,
-        it: Iterable<V>
-    ): QueryBuilder<T, R, ID> {
-        return whereBuilder { where(path, operator, it) }
-    }
+        it: Iterable<V>,
+    ): QueryBuilder<T, R, ID> = whereBuilder { where(path, operator, it) }
 
     /**
      * Adds a WHERE clause that matches the specified objects at the specified path in the table graph.
@@ -411,10 +397,8 @@ interface QueryBuilder<T : Data, R, ID> {
     fun <V> where(
         path: Metamodel<T, V>,
         operator: Operator,
-        vararg o: V
-    ): QueryBuilder<T, R, ID> {
-        return whereBuilder { where(path, operator, *o) }
-    }
+        vararg o: V,
+    ): QueryBuilder<T, R, ID> = whereBuilder { where(path, operator, *o) }
 
     /**
      * Adds a WHERE clause to the query for the specified expression.
@@ -422,9 +406,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param builder the expression.
      * @return the query builder.
      */
-    fun where(builder: TemplateBuilder): QueryBuilder<T, R, ID> {
-        return where(builder.build())
-    }
+    fun where(builder: TemplateBuilder): QueryBuilder<T, R, ID> = where(builder.build())
 
     /**
      * Adds a WHERE clause to the query for the specified expression.
@@ -432,9 +414,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param template the expression.
      * @return the query builder.
      */
-    fun where(template: TemplateString): QueryBuilder<T, R, ID> {
-        return whereBuilder { where(template) }
-    }
+    fun where(template: TemplateString): QueryBuilder<T, R, ID> = whereBuilder { where(template) }
 
     /**
      * Adds a WHERE clause to the query using a [WhereBuilder].
@@ -442,9 +422,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param predicate the predicate to add.
      * @return the query builder.
      */
-    fun where(predicate: PredicateBuilder<T, *, *>): QueryBuilder<T, R, ID> {
-        return whereBuilder { predicate }
-    }
+    fun where(predicate: PredicateBuilder<T, *, *>): QueryBuilder<T, R, ID> = whereBuilder { predicate }
 
     /**
      * Adds a WHERE clause to the query using a [WhereBuilder].
@@ -452,9 +430,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param predicate the predicate to add.
      * @return the query builder.
      */
-    fun whereAny(predicate: PredicateBuilder<*, *, *>): QueryBuilder<T, R, ID> {
-        return whereAnyBuilder { predicate }
-    }
+    fun whereAny(predicate: PredicateBuilder<*, *, *>): QueryBuilder<T, R, ID> = whereAnyBuilder { predicate }
 
     /**
      * Adds an `EXISTS` WHERE clause using the specified subquery.
@@ -468,9 +444,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param subquery the subquery to check for existence.
      * @return the query builder.
      */
-    fun whereExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> {
-        return whereBuilder { exists(subquery) }
-    }
+    fun whereExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = whereBuilder { exists(subquery) }
 
     /**
      * Adds an `EXISTS` WHERE clause using the specified subquery.
@@ -483,9 +457,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param builder the subquery to check for existence.
      * @return the query builder.
      */
-    fun whereExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> {
-        return whereBuilder { exists(builder(this)) }
-    }
+    fun whereExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = whereBuilder { exists(builder(this)) }
 
     /**
      * Adds a `NOT EXISTS` WHERE clause using the specified subquery.
@@ -498,9 +470,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param subquery the subquery to check for existence.
      * @return the query builder.
      */
-    fun whereNotExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> {
-        return whereBuilder { notExists(subquery) }
-    }
+    fun whereNotExists(subquery: QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = whereBuilder { notExists(subquery) }
 
     /**
      * Adds a `NOT EXISTS` WHERE clause using the specified subquery.
@@ -513,9 +483,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param builder the subquery to check for existence.
      * @return the query builder.
      */
-    fun whereNotExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> {
-        return whereBuilder { notExists(builder(this)) }
-    }
+    fun whereNotExists(builder: SubqueryTemplate.() -> QueryBuilder<*, *, *>): QueryBuilder<T, R, ID> = whereBuilder { notExists(builder(this)) }
 
     /**
      * Adds a WHERE clause to the query using a [WhereBuilder].
@@ -579,20 +547,17 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun groupBy(builder: TemplateBuilder): QueryBuilder<T, R, ID> {
-        return groupBy(builder.build())
-    }
+    fun groupBy(builder: TemplateBuilder): QueryBuilder<T, R, ID> = groupBy(builder.build())
 
     /**
-     * Adds a GROUP BY clause to the query using a string template.
+     * Adds a GROUP BY clause to the query using a string template. Multiple calls to this method append additional
+     * columns to the GROUP BY clause.
      *
      * @param template the template to group by.
      * @return the query builder.
      * @since 1.2
      */
-    fun groupBy(template: TemplateString): QueryBuilder<T, R, ID> {
-        return append(combine(raw("GROUP BY "), template))
-    }
+    fun groupBy(template: TemplateString): QueryBuilder<T, R, ID>
 
     /**
      * Adds a HAVING clause to the query using the specified expression.
@@ -607,10 +572,8 @@ interface QueryBuilder<T : Data, R, ID> {
     fun <V> having(
         path: Metamodel<T, V>,
         operator: Operator,
-        vararg o: V
-    ): QueryBuilder<T, R, ID> {
-        return havingAny(path, operator, *o)
-    }
+        vararg o: V,
+    ): QueryBuilder<T, R, ID> = havingAny(path, operator, *o)
 
     /**
      * Adds a HAVING clause to the query using the specified expression. The metamodel can refer to manually added joins.
@@ -625,10 +588,8 @@ interface QueryBuilder<T : Data, R, ID> {
     fun <V> havingAny(
         path: Metamodel<*, V>,
         operator: Operator,
-        vararg o: V
-    ): QueryBuilder<T, R, ID> {
-        return having(wrap(ObjectExpression(path, operator, o)))
-    }
+        vararg o: V,
+    ): QueryBuilder<T, R, ID> = having(wrap(ObjectExpression(path, operator, o)))
 
     /**
      * Adds a HAVING clause to the query using the specified expression.
@@ -637,20 +598,17 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun having(builder: TemplateBuilder): QueryBuilder<T, R, ID> {
-        return having(builder.build())
-    }
+    fun having(builder: TemplateBuilder): QueryBuilder<T, R, ID> = having(builder.build())
 
     /**
-     * Adds a HAVING clause to the query using the specified expression.
+     * Adds a HAVING clause to the query using the specified expression. Multiple calls to this method are combined
+     * using AND.
      *
      * @param template the expression to add.
      * @return the query builder.
      * @since 1.2
      */
-    fun having(template: TemplateString): QueryBuilder<T, R, ID> {
-        return append(combine(raw("HAVING "), template))
-    }
+    fun having(template: TemplateString): QueryBuilder<T, R, ID>
 
     /**
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
@@ -674,9 +632,71 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun orderByDescending(path: Metamodel<T, *>): QueryBuilder<T, R, ID> {
-        return orderBy(combine(wrap(path), raw(" DESC")))
+    fun orderByDescending(path: Metamodel<T, *>): QueryBuilder<T, R, ID> = orderBy(combine(wrap(path), raw(" DESC")))
+
+    /**
+     * Adds an ORDER BY clause to the query for the fields at the specified paths in the table graph. The results
+     * are sorted in descending order for each column.
+     *
+     * @param path the paths to order by.
+     * @return the query builder.
+     * @since 1.9
+     */
+    fun orderByDescending(vararg path: Metamodel<T, *>): QueryBuilder<T, R, ID> = orderByDescendingAny(*path)
+
+    /**
+     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph or manually added
+     * joins. The results are sorted in descending order.
+     *
+     * @param path the path to order by.
+     * @return the query builder.
+     * @since 1.9
+     */
+    fun orderByDescendingAny(path: Metamodel<*, *>): QueryBuilder<T, R, ID> = orderBy(combine(wrap(path), raw(" DESC")))
+
+    /**
+     * Adds an ORDER BY clause to the query for the fields at the specified paths in the table graph or manually
+     * added joins. The results are sorted in descending order for each column.
+     *
+     * @param path the paths to order by.
+     * @return the query builder.
+     * @since 1.9
+     */
+    fun orderByDescendingAny(vararg path: Metamodel<*, *>): QueryBuilder<T, R, ID> {
+        if (path.isEmpty()) {
+            throw PersistenceException("At least one path must be provided for ORDER BY clause.")
+        }
+        val templates = buildList {
+            path.forEachIndexed { index, metamodel ->
+                add(wrap(metamodel))
+                add(raw(" DESC"))
+                if (index < path.size - 1) {
+                    add(raw(", "))
+                }
+            }
+        }
+        return orderBy(combine(*templates.toTypedArray()))
     }
+
+    /**
+     * Adds an ORDER BY clause to the query using a string template. The results are sorted in descending order.
+     * Multiple calls to this method append additional columns to the ORDER BY clause.
+     *
+     * @param builder the template to order by.
+     * @return the query builder.
+     * @since 1.9
+     */
+    fun orderByDescending(builder: TemplateBuilder): QueryBuilder<T, R, ID> = orderByDescending(builder.build())
+
+    /**
+     * Adds an ORDER BY clause to the query using a string template. The results are sorted in descending order.
+     * Multiple calls to this method append additional columns to the ORDER BY clause.
+     *
+     * @param template the template to order by.
+     * @return the query builder.
+     * @since 1.9
+     */
+    fun orderByDescending(template: TemplateString): QueryBuilder<T, R, ID> = orderBy(combine(template, raw(" DESC")))
 
     /**
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph or manually added
@@ -709,20 +729,25 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the query builder.
      * @since 1.2
      */
-    fun orderBy(template: TemplateBuilder): QueryBuilder<T, R, ID> {
-        return orderBy(template.build())
-    }
+    fun orderBy(template: TemplateBuilder): QueryBuilder<T, R, ID> = orderBy(template.build())
 
     /**
-     * Adds an ORDER BY clause to the query using a string template.
+     * Adds an ORDER BY clause to the query using a string template. Multiple calls to this method append additional
+     * columns to the ORDER BY clause.
      *
      * @param template the template to order by.
      * @return the query builder.
      * @since 1.2
      */
-    fun orderBy(template: TemplateString): QueryBuilder<T, R, ID> {
-        return append(combine(raw("ORDER BY "), template))
-    }
+    fun orderBy(template: TemplateString): QueryBuilder<T, R, ID>
+
+    /**
+     * Returns `true` if any ORDER BY columns have been added to this query builder.
+     *
+     * @return `true` if ORDER BY columns are present, `false` otherwise.
+     * @since 1.9
+     */
+    fun hasOrderBy(): Boolean
 
     /**
      * Adds a LIMIT clause to the query.
@@ -748,9 +773,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @param builder the string template to append.
      * @return the query builder.
      */
-    fun append(builder: TemplateBuilder): QueryBuilder<T, R, ID> {
-        return append(builder.build())
-    }
+    fun append(builder: TemplateBuilder): QueryBuilder<T, R, ID> = append(builder.build())
 
     /**
      * Append the query with a string template.
@@ -794,9 +817,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @throws PersistenceException if the lock mode is not supported for the current query.
      * @since 1.2
      */
-    fun forLock(builder: TemplateBuilder): QueryBuilder<T, R, ID> {
-        return forLock(builder.build())
-    }
+    fun forLock(builder: TemplateBuilder): QueryBuilder<T, R, ID> = forLock(builder.build())
 
     /**
      * Locks the selected rows using a custom lock mode.
@@ -813,6 +834,7 @@ interface QueryBuilder<T : Data, R, ID> {
     //
     // Finalization.
     //
+
     /**
      * Builds the query based on the current state of the query builder.
      *
@@ -832,8 +854,401 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the prepared query.
      * @throws PersistenceException if the query preparation fails.
      */
-    fun prepare(): PreparedQuery {
-        return build().prepare()
+    fun prepare(): PreparedQuery = build().prepare()
+
+    //
+    // Slice-based pagination.
+    //
+
+    /**
+     * Executes the query and returns a [Slice] of results.
+     *
+     * This method fetches `size + 1` rows to determine whether more results are available, then returns at
+     * most `size` results along with a `hasNext` flag. The caller is responsible for managing any WHERE
+     * and ORDER BY clauses externally.
+     *
+     * @param size the maximum number of results to include in the slice (must be positive).
+     * @return a slice containing the results and a flag indicating whether more results exist.
+     * @throws IllegalArgumentException if [size] is not positive.
+     * @since 1.9
+     */
+    fun slice(size: Int): Slice<R> {
+        require(size > 0) { "size must be positive." }
+        val results = this.limit(size + 1).resultList
+        val hasNext = results.size > size
+        val content = if (hasNext) results.subList(0, size) else results
+        return Slice(content, hasNext)
+    }
+
+    /**
+     * Validates that the given key is not nullable. Nullable keys are unsafe for keyset pagination because
+     * `WHERE key > cursor` silently excludes NULL rows.
+     *
+     */
+    private fun <E> validateKeyNotNullable(key: Metamodel.Key<T, E>) {
+        if (key.isNullable) {
+            throw PersistenceException(
+                "Keyset pagination requires a non-nullable unique key, but '${key.fieldPath()}' allows NULL values. " +
+                    "In SQL, NULL values are not comparable and will be silently excluded from paginated results. " +
+                    "Either use a non-nullable type, or set @UK(nullsDistinct = false) if the database constraint " +
+                    "prevents duplicate NULLs.",
+            )
+        }
+    }
+
+    /**
+     * Executes the query and returns the first [Slice] of results, ordered by the specified key in ascending order.
+     *
+     * This method manages the ORDER BY clause internally. An explicit `orderBy()` call must not be present
+     * on this builder; a [PersistenceException] is thrown if one is detected.
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the first page of results.
+     * @since 1.9
+     */
+    fun <E> slice(key: Metamodel.Key<T, E>, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
+        if (hasOrderBy()) {
+            throw PersistenceException("slice with key manages ORDER BY internally; remove explicit orderBy calls.")
+        }
+        return this.orderBy(key).slice(size)
+    }
+
+    /**
+     * Executes the query and returns the first [Slice] of results, ordered by the specified key in descending order.
+     *
+     * This is the cursorless variant of descending keyset pagination, useful for starting at the most recent
+     * entries. Subsequent pages can be obtained with [sliceBefore].
+     *
+     * This method manages the ORDER BY clause internally. An explicit `orderBy()` call must not be present
+     * on this builder; a [PersistenceException] is thrown if one is detected.
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the first page of results in descending key order.
+     * @since 1.9
+     */
+    fun <E> sliceBefore(key: Metamodel.Key<T, E>, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
+        if (hasOrderBy()) {
+            throw PersistenceException("sliceBefore with key manages ORDER BY internally; remove explicit orderBy calls.")
+        }
+        return this.orderByDescending(key).slice(size)
+    }
+
+    /**
+     * Executes the query and returns the next [Slice] of results after the specified cursor value, ordered by
+     * the specified key in ascending order.
+     *
+     * This method adds a `WHERE key > after` condition and an ascending ORDER BY clause internally.
+     * The additional WHERE condition is combined with any existing WHERE clauses using AND. An explicit
+     * `orderBy()` call must not be present on this builder; a [PersistenceException] is thrown if one is detected.
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param after the cursor value; only results with a key value greater than this are returned.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <E> sliceAfter(key: Metamodel.Key<T, E>, after: E, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
+        if (hasOrderBy()) {
+            throw PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.")
+        }
+        return this.where(key, GREATER_THAN, after)
+            .orderBy(key)
+            .slice(size)
+    }
+
+    /**
+     * Executes the query and returns the previous [Slice] of results before the specified cursor value, ordered
+     * by the specified key in descending order.
+     *
+     * This method adds a `WHERE key < before` condition and a descending ORDER BY clause internally.
+     * The additional WHERE condition is combined with any existing WHERE clauses using AND. An explicit
+     * `orderBy()` call must not be present on this builder; a [PersistenceException] is thrown if one is detected.
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param before the cursor value; only results with a key value less than this are returned.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <E> sliceBefore(key: Metamodel.Key<T, E>, before: E, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
+        if (hasOrderBy()) {
+            throw PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.")
+        }
+        return this.where(key, LESS_THAN, before)
+            .orderByDescending(key)
+            .slice(size)
+    }
+
+    /**
+     * Executes the query and returns the next [Slice] of results after the specified ref cursor value, ordered by
+     * the specified key in ascending order.
+     *
+     * This method adds a `WHERE key > after` condition and an ascending ORDER BY clause internally.
+     * The additional WHERE condition is combined with any existing WHERE clauses using AND. An explicit
+     * `orderBy()` call must not be present on this builder; a [PersistenceException] is thrown if one is detected.
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param after the ref cursor value; only results with a key value greater than this ref are returned.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceAfter(key: Metamodel.Key<T, V>, after: Ref<V>, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
+        if (hasOrderBy()) {
+            throw PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.")
+        }
+        return this.where(wrap(ObjectExpression(key, GREATER_THAN, after)))
+            .orderBy(key)
+            .slice(size)
+    }
+
+    /**
+     * Executes the query and returns the previous [Slice] of results before the specified ref cursor value, ordered
+     * by the specified key in descending order.
+     *
+     * This method adds a `WHERE key < before` condition and a descending ORDER BY clause internally.
+     * The additional WHERE condition is combined with any existing WHERE clauses using AND. An explicit
+     * `orderBy()` call must not be present on this builder; a [PersistenceException] is thrown if one is detected.
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param before the ref cursor value; only results with a key value less than this ref are returned.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceBefore(key: Metamodel.Key<T, V>, before: Ref<V>, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
+        if (hasOrderBy()) {
+            throw PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.")
+        }
+        return this.where(wrap(ObjectExpression(key, LESS_THAN, before)))
+            .orderByDescending(key)
+            .slice(size)
+    }
+
+    //
+    // Composite keyset pagination (key + sort).
+    //
+
+    /**
+     * Executes the query and returns the first [Slice] of results using composite keyset pagination, ordered by
+     * the [sort] column with [key] as a tiebreaker.
+     *
+     * Use this overload when sorting by a non-unique column (e.g., a name or timestamp). The [sort] defines
+     * the primary sort order, while the [key] (typically a primary key or another unique column) guarantees
+     * a deterministic, stable ordering even when [sort] values are identical.
+     *
+     * This method manages the ORDER BY clause internally. An explicit `orderBy()` call must not be present
+     * on this builder; a [PersistenceException] is thrown if one is detected.
+     *
+     * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
+     * @param sort the metamodel path for the primary (potentially non-unique) sort column.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the first page of results.
+     * @since 1.9
+     */
+    fun <E, S> slice(key: Metamodel.Key<T, E>, sort: Metamodel<T, S>, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
+        if (hasOrderBy()) {
+            throw PersistenceException("slice with sort and key manages ORDER BY internally; remove explicit orderBy calls.")
+        }
+        return this.orderBy(sort, key).slice(size)
+    }
+
+    /**
+     * Executes the query and returns the first [Slice] of results for composite keyset pagination, sorting by
+     * a non-unique column ([sort]) with a unique tiebreaker ([key]) in descending order.
+     *
+     * This is the cursorless variant of descending composite keyset pagination, useful for starting at the most
+     * recent entries. Subsequent pages can be obtained with [sliceBefore].
+     *
+     * This method manages the ORDER BY clause internally. An explicit `orderBy()` call must not be present
+     * on this builder; a [PersistenceException] is thrown if one is detected.
+     *
+     * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
+     * @param sort the metamodel path for the (potentially non-unique) primary sort column.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the first page of results in descending order.
+     * @since 1.9
+     */
+    fun <E, S> sliceBefore(key: Metamodel.Key<T, E>, sort: Metamodel<T, S>, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
+        if (hasOrderBy()) {
+            throw PersistenceException("sliceBefore with sort and key manages ORDER BY internally; remove explicit orderBy calls.")
+        }
+        return this.orderByDescending(sort, key).slice(size)
+    }
+
+    /**
+     * Executes the query and returns the next [Slice] of results after a composite cursor position, ordered by
+     * the [sort] column with [key] as a tiebreaker.
+     *
+     * Use this overload when sorting by a non-unique column (e.g., a name or timestamp). The [sort] defines
+     * the primary sort order, while the [key] (typically a primary key or another unique column) guarantees
+     * a deterministic, stable ordering even when [sort] values are identical.
+     *
+     * The client must supply both cursor values, [sortAfter] and [keyAfter], extracted from the **last** item
+     * of the current page. This method adds a composite WHERE condition equivalent to
+     * `WHERE (sort > sortAfter OR (sort = sortAfter AND key > keyAfter))` and ascending ORDER BY
+     * clauses internally. The additional WHERE condition is combined with any existing WHERE clauses using AND.
+     * An explicit `orderBy()` call must not be present on this builder; a [PersistenceException] is thrown if
+     * one is detected.
+     *
+     * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
+     * @param keyAfter the cursor value for [key], taken from the last item of the current page.
+     * @param sort the metamodel path for the primary (potentially non-unique) sort column.
+     * @param sortAfter the cursor value for [sort], taken from the last item of the current page.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <E, S> sliceAfter(key: Metamodel.Key<T, E>, keyAfter: E, sort: Metamodel<T, S>, sortAfter: S, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
+        if (hasOrderBy()) {
+            throw PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.")
+        }
+        return this
+            .whereBuilder {
+                where(sort, GREATER_THAN, sortAfter)
+                    .or(
+                        where(sort, EQUALS, sortAfter)
+                            .and(where(key, GREATER_THAN, keyAfter)),
+                    )
+            }
+            .orderBy(sort, key)
+            .slice(size)
+    }
+
+    /**
+     * Executes the query and returns the previous [Slice] of results before a composite cursor position, ordered
+     * by the [sort] column (descending) with [key] as a tiebreaker (also descending).
+     *
+     * Use this overload when sorting by a non-unique column (e.g., a name or timestamp). The [sort] defines
+     * the primary sort order, while the [key] (typically a primary key or another unique column) guarantees
+     * a deterministic, stable ordering even when [sort] values are identical.
+     *
+     * The client must supply both cursor values, [sortBefore] and [keyBefore], extracted from the **first**
+     * item of the current page. This method adds a composite WHERE condition equivalent to
+     * `WHERE (sort < sortBefore OR (sort = sortBefore AND key < keyBefore))` and descending
+     * ORDER BY clauses internally. The additional WHERE condition is combined with any existing WHERE clauses
+     * using AND. An explicit `orderBy()` call must not be present on this builder; a [PersistenceException] is
+     * thrown if one is detected.
+     *
+     * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
+     * @param keyBefore the cursor value for [key], taken from the first item of the current page.
+     * @param sort the metamodel path for the primary (potentially non-unique) sort column.
+     * @param sortBefore the cursor value for [sort], taken from the first item of the current page.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <E, S> sliceBefore(key: Metamodel.Key<T, E>, keyBefore: E, sort: Metamodel<T, S>, sortBefore: S, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
+        if (hasOrderBy()) {
+            throw PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.")
+        }
+        return this
+            .whereBuilder {
+                where(sort, LESS_THAN, sortBefore)
+                    .or(
+                        where(sort, EQUALS, sortBefore)
+                            .and(where(key, LESS_THAN, keyBefore)),
+                    )
+            }
+            .orderByDescending(sort)
+            .orderByDescending(key)
+            .slice(size)
+    }
+
+    /**
+     * Executes the query and returns the next [Slice] of results after a composite cursor position with a ref
+     * unique key, ordered by the [sort] column with [key] as a tiebreaker.
+     *
+     * Use this overload when sorting by a non-unique column (e.g., a name or timestamp) and the tiebreaker
+     * column is a foreign key reference. The [sort] defines the primary sort order, while the [key]
+     * (a unique reference column) guarantees a deterministic, stable ordering even when [sort] values are
+     * identical.
+     *
+     * The client must supply both cursor values, [sortAfter] and [keyAfter], extracted from the **last** item
+     * of the current page. This method adds a composite WHERE condition equivalent to
+     * `WHERE (sort > sortAfter OR (sort = sortAfter AND key > keyAfter))` and ascending ORDER BY
+     * clauses internally. The additional WHERE condition is combined with any existing WHERE clauses using AND.
+     * An explicit `orderBy()` call must not be present on this builder; a [PersistenceException] is thrown if
+     * one is detected.
+     *
+     * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
+     * @param keyAfter the ref cursor value for [key], taken from the last item of the current page.
+     * @param sort the metamodel path for the primary (potentially non-unique) sort column.
+     * @param sortAfter the cursor value for [sort], taken from the last item of the current page.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <V : Data, S> sliceAfter(key: Metamodel.Key<T, V>, keyAfter: Ref<V>, sort: Metamodel<T, S>, sortAfter: S, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
+        if (hasOrderBy()) {
+            throw PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.")
+        }
+        return this
+            .whereBuilder {
+                where(sort, GREATER_THAN, sortAfter)
+                    .or(
+                        where(sort, EQUALS, sortAfter)
+                            .and(where(wrap(ObjectExpression(key, GREATER_THAN, keyAfter)))),
+                    )
+            }
+            .orderBy(sort, key)
+            .slice(size)
+    }
+
+    /**
+     * Executes the query and returns the previous [Slice] of results before a composite cursor position with a
+     * ref unique key, ordered by the [sort] column (descending) with [key] as a tiebreaker (also
+     * descending).
+     *
+     * Use this overload when sorting by a non-unique column (e.g., a name or timestamp) and the tiebreaker
+     * column is a foreign key reference. The [sort] defines the primary sort order, while the [key]
+     * (a unique reference column) guarantees a deterministic, stable ordering even when [sort] values are
+     * identical.
+     *
+     * The client must supply both cursor values, [sortBefore] and [keyBefore], extracted from the **first**
+     * item of the current page. This method adds a composite WHERE condition equivalent to
+     * `WHERE (sort < sortBefore OR (sort = sortBefore AND key < keyBefore))` and descending
+     * ORDER BY clauses internally. The additional WHERE condition is combined with any existing WHERE clauses
+     * using AND. An explicit `orderBy()` call must not be present on this builder; a [PersistenceException] is
+     * thrown if one is detected.
+     *
+     * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
+     * @param keyBefore the ref cursor value for [key], taken from the first item of the current page.
+     * @param sort the metamodel path for the primary (potentially non-unique) sort column.
+     * @param sortBefore the cursor value for [sort], taken from the first item of the current page.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <V : Data, S> sliceBefore(key: Metamodel.Key<T, V>, keyBefore: Ref<V>, sort: Metamodel<T, S>, sortBefore: S, size: Int): Slice<R> {
+        validateKeyNotNullable(key)
+        if (hasOrderBy()) {
+            throw PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.")
+        }
+        return this
+            .whereBuilder {
+                where(sort, LESS_THAN, sortBefore)
+                    .or(
+                        where(sort, EQUALS, sortBefore)
+                            .and(where(wrap(ObjectExpression(key, LESS_THAN, keyBefore)))),
+                    )
+            }
+            .orderByDescending(sort)
+            .orderByDescending(key)
+            .slice(size)
     }
 
     //
@@ -927,7 +1342,6 @@ interface QueryBuilder<T : Data, R, ID> {
                 }
                     .orElse(null)
             }
-
         }
 
     /**
@@ -936,9 +1350,7 @@ interface QueryBuilder<T : Data, R, ID> {
      * @return the number of rows impacted as result of the statement.
      * @throws PersistenceException if the statement fails.
      */
-    fun executeUpdate(): Int {
-        return build().executeUpdate()
-    }
+    fun executeUpdate(): Int = build().executeUpdate()
 }
 
 // Kotlin specific DSL
@@ -946,112 +1358,94 @@ interface QueryBuilder<T : Data, R, ID> {
 /**
  * Infix function to create a predicate to check if a field is in a list of values.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.inList(value: Iterable<V>): PredicateBuilder<T, T, *> =
-    create(this, IN, value)
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.inList(value: Iterable<V>): PredicateBuilder<T, T, *> = create(this, IN, value)
 
 /**
  * Infix function to create a predicate to check if a field is in a list of references.
  */
-inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.inRefs(value: Iterable<Ref<V>>): PredicateBuilder<T, T, *> =
-    createRef(this, IN, value)
+inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.inRefs(value: Iterable<Ref<V>>): PredicateBuilder<T, T, *> = createRef(this, IN, value)
 
 /**
  * Infix function to create a predicate to check if a field is not in a list of values.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.notInList(value: Iterable<V>): PredicateBuilder<T, T, *> =
-    create(this, NOT_IN, value)
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.notInList(value: Iterable<V>): PredicateBuilder<T, T, *> = create(this, NOT_IN, value)
 
 /**
  * Infix function to create a predicate to check if a field is not in a list of references.
  */
-inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.notInRefs(value: Iterable<Ref<V>>): PredicateBuilder<T, T, *> =
-    createRef(this, NOT_IN, value)
+inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.notInRefs(value: Iterable<Ref<V>>): PredicateBuilder<T, T, *> = createRef(this, NOT_IN, value)
 
 /**
  * Infix functions to create a predicate to check if a field is equal to a value.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.eq(value: V): PredicateBuilder<T, T, *> =
-    create(this, EQUALS, listOf(value))
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.eq(value: V): PredicateBuilder<T, T, *> = create(this, EQUALS, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is equal to a reference.
  */
-inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.eq(value: Ref<V>): PredicateBuilder<T, T, *> =
-    createRef(this, EQUALS, listOf(value))
+inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.eq(value: Ref<V>): PredicateBuilder<T, T, *> = createRef(this, EQUALS, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is not equal to a value.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.neq(value: V): PredicateBuilder<T, T, *> =
-    create(this, NOT_EQUALS, listOf(value))
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.neq(value: V): PredicateBuilder<T, T, *> = create(this, NOT_EQUALS, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is not equal to a reference.
  */
-inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.neq(value: Ref<V>): PredicateBuilder<T, T, *> =
-    createRef(this, NOT_EQUALS, listOf(value))
+inline infix fun <reified T : Data, reified V : Data> Metamodel<T, V>.neq(value: Ref<V>): PredicateBuilder<T, T, *> = createRef(this, NOT_EQUALS, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is like a value.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.like(value: V): PredicateBuilder<T, T, *> =
-    create(this, LIKE, listOf(value))
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.like(value: V): PredicateBuilder<T, T, *> = create(this, LIKE, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is not like a value.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.notLike(value: V): PredicateBuilder<T, T, *> =
-    create(this, NOT_LIKE, listOf(value))
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.notLike(value: V): PredicateBuilder<T, T, *> = create(this, NOT_LIKE, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is greater than a value.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.greater(value: V): PredicateBuilder<T, T, *> =
-    create(this, GREATER_THAN, listOf(value))
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.greater(value: V): PredicateBuilder<T, T, *> = create(this, GREATER_THAN, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is less than a value.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.less(value: V): PredicateBuilder<T, T, *> =
-    create(this, LESS_THAN, listOf(value))
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.less(value: V): PredicateBuilder<T, T, *> = create(this, LESS_THAN, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is greater than or equal to a value.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.greaterEq(value: V): PredicateBuilder<T, T, *> =
-    create(this, GREATER_THAN_OR_EQUAL, listOf(value))
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.greaterEq(value: V): PredicateBuilder<T, T, *> = create(this, GREATER_THAN_OR_EQUAL, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is less than or equal to a value.
  */
-inline infix fun <reified T : Data, reified V> Metamodel<T, V>.lessEq(value: V): PredicateBuilder<T, T, *> =
-    create(this, LESS_THAN_OR_EQUAL, listOf(value))
+inline infix fun <reified T : Data, reified V> Metamodel<T, V>.lessEq(value: V): PredicateBuilder<T, T, *> = create(this, LESS_THAN_OR_EQUAL, listOf(value))
 
 /**
  * Infix functions to create a predicate to check if a field is between two values.
  */
-fun <T : Data, V> Metamodel<T, V>.between(left: V, right: V): PredicateBuilder<T, T, *> =
-    create(this, BETWEEN, listOf(left, right))
+fun <T : Data, V> Metamodel<T, V>.between(left: V, right: V): PredicateBuilder<T, T, *> = create(this, BETWEEN, listOf(left, right))
+
 /**
  * Infix functions to create a predicate to check if a field is true.
  */
-fun <T : Data, V> Metamodel<T, V>.isTrue(): PredicateBuilder<T, T, *> =
-    create(this, IS_TRUE, emptyList())
+fun <T : Data, V> Metamodel<T, V>.isTrue(): PredicateBuilder<T, T, *> = create(this, IS_TRUE, emptyList())
 
 /**
  * Infix functions to create a predicate to check if a field is false.
  */
-fun <T : Data, V> Metamodel<T, V>.isFalse(): PredicateBuilder<T, T, *> =
-    create(this, IS_FALSE, emptyList())
+fun <T : Data, V> Metamodel<T, V>.isFalse(): PredicateBuilder<T, T, *> = create(this, IS_FALSE, emptyList())
 
 /**
  * Infix functions to create a predicate to check if a field is null.
  */
-fun <T : Data, V> Metamodel<T, V>.isNull(): PredicateBuilder<T, T, *> =
-    create(this, IS_NULL, emptyList())
+fun <T : Data, V> Metamodel<T, V>.isNull(): PredicateBuilder<T, T, *> = create(this, IS_NULL, emptyList())
 
 /**
  * Infix functions to create a predicate to check if a field is not null.
  */
-fun <T : Data, V> Metamodel<T, V>.isNotNull(): PredicateBuilder<T, T, *> =
-    create(this, IS_NOT_NULL, emptyList())
+fun <T : Data, V> Metamodel<T, V>.isNotNull(): PredicateBuilder<T, T, *> = create(this, IS_NOT_NULL, emptyList())

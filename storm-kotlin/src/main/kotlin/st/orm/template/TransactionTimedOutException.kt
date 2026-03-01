@@ -24,5 +24,5 @@ import st.orm.PersistenceException
  */
 class TransactionTimedOutException(
     message: String,
-    cause: Throwable? = null
+    cause: Throwable? = null,
 ) : PersistenceException(message, cause)

@@ -17,28 +17,28 @@ import st.orm.repository.entity
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
 open class RecordValidationTest(
-    @Autowired val orm: ORMTemplate
+    @Autowired val orm: ORMTemplate,
 ) {
 
     data class VarField(
         @PK val id: Int = 0,
-        private var invalidField: Int
+        private var invalidField: Int,
     ) : Entity<Int>
 
     data class PrivateField(
         @PK val id: Int = 0,
-        private val invalidField: Int
+        private val invalidField: Int,
     ) : Entity<Int>
 
     @Test
-    fun `var field`(): Unit = runBlocking {
+    fun `entity with var field should throw PersistenceException`(): Unit = runBlocking {
         assertThrows<PersistenceException> {
             orm.entity<VarField>()
         }
     }
 
     @Test
-    fun `private field`(): Unit = runBlocking {
+    fun `entity with private field should throw PersistenceException`(): Unit = runBlocking {
         assertThrows<PersistenceException> {
             orm.entity<PrivateField>()
         }

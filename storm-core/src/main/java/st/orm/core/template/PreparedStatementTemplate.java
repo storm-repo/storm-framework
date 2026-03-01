@@ -16,19 +16,18 @@
 package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
-import st.orm.BindVars;
-import st.orm.mapping.ColumnNameResolver;
-import st.orm.mapping.ForeignKeyResolver;
-import st.orm.mapping.TableNameResolver;
-import st.orm.mapping.TemplateDecorator;
-import st.orm.core.spi.Provider;
-import st.orm.core.template.impl.PreparedStatementTemplateImpl;
-
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.function.Predicate;
+import javax.sql.DataSource;
+import st.orm.BindVars;
+import st.orm.core.spi.Provider;
+import st.orm.core.template.impl.PreparedStatementTemplateImpl;
+import st.orm.mapping.ColumnNameResolver;
+import st.orm.mapping.ForeignKeyResolver;
+import st.orm.mapping.TableNameResolver;
+import st.orm.mapping.TemplateDecorator;
 
 /**
  * A template backed by JDBC.

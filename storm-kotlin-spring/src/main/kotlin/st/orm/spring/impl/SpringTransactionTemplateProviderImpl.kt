@@ -34,8 +34,7 @@ import st.orm.spring.SpringTransactionConfiguration
 class SpringTransactionTemplateProviderImpl : TransactionTemplateProvider {
     private val contextHolder = ThreadLocal<TransactionContext>()
 
-    override fun isEnabled(): Boolean =
-        SpringTransactionConfiguration.transactionManagers.isNotEmpty()
+    override fun isEnabled(): Boolean = SpringTransactionConfiguration.transactionManagers.isNotEmpty()
 
     /**
      * Obtains a new transaction template instance.
@@ -77,16 +76,16 @@ class SpringTransactionTemplateProviderImpl : TransactionTemplateProvider {
 
             override fun newContext(suspendMode: Boolean): TransactionContext {
                 if (suspendMode) {
-                    throw PersistenceException("Suspend mode is not supported when spring-managed transactions are " +
+                    throw PersistenceException(
+                        "Suspend mode is not supported when spring-managed transactions are " +
                             "enabled for storm. Remove `@EnableTransactionIntegration` to disable spring-" +
-                            "managed transactions for storm.")
+                            "managed transactions for storm.",
+                    )
                 }
                 return SpringTransactionContext()
             }
 
-            override fun contextHolder(): ThreadLocal<TransactionContext> {
-                return contextHolder
-            }
+            override fun contextHolder(): ThreadLocal<TransactionContext> = contextHolder
 
             override fun <T> execute(callback: TransactionCallback<T>, context: TransactionContext): T {
                 if (context !is SpringTransactionContext) {

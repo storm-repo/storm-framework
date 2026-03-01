@@ -16,11 +16,10 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
-import st.orm.core.template.TemplateString;
-import st.orm.core.template.impl.Elements.Subquery;
-
 import java.util.List;
 import java.util.function.Function;
+import st.orm.core.template.TemplateString;
+import st.orm.core.template.impl.Elements.Subquery;
 
 final class SubqueryProcessor implements ElementProcessor<Subquery> {
 

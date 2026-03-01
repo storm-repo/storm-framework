@@ -15,13 +15,13 @@
  */
 package st.orm;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
-
 import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.ElementType.RECORD_COMPONENT;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static st.orm.EnumType.NAME;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
 
 /**
  * Specifies how an enum should be mapped when reading or writing to a column.
@@ -40,4 +40,3 @@ public @interface DbEnum {
      */
     EnumType value() default NAME;
 }
-

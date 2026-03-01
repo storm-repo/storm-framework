@@ -15,12 +15,12 @@
  */
 package st.orm.core.template;
 
+import static st.orm.core.template.TemplateString.wrap;
+
 import jakarta.annotation.Nonnull;
 import st.orm.BindVars;
 import st.orm.Data;
 import st.orm.Ref;
-
-import static st.orm.core.template.TemplateString.wrap;
 
 /**
  * The query template is used to construct queries.

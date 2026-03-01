@@ -9,5 +9,6 @@ import st.orm.PK
 data class Vet(
     @PK val id: Int = 0,
     override val firstName: String,
-    override val lastName: String
-) : Entity<Int>, Person
+    override val lastName: String,
+) : Entity<Int>,
+    Person

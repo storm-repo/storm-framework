@@ -15,12 +15,12 @@
  */
 package st.orm;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
-
 import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.ElementType.RECORD_COMPONENT;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
 
 /**
  * Indicates that the underlying fields of the record component are inlined in this record.
@@ -29,7 +29,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  * not specify {@code @FK} or converter annotations are implicitly regarded as inlined. Note that the {@code @Inline}
  * is optional and can be omitted if the record component is inlined.</p>
  *
- * <p>Example:</p>
+ * <p>Example (Java):</p>
  * <pre>{@code
  * record City(@PK int id, String name, long population)
  *         implements Entity<Integer> {};
@@ -38,6 +38,18 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  *
  * record User(@PK int id, String email, LocalDate birthDate, @Inline Address address)
  *         implements Entity<Integer> {};
+ * }</pre>
+ *
+ * <p>Example (Kotlin):</p>
+ * <pre>{@code
+ * data class City(@PK val id: Int, val name: String, val population: Long)
+ *     : Entity<Int>
+ *
+ * data class Address(val street: String, val postalCode: String, @FK val city: City)
+ *
+ * data class User(@PK val id: Int, val email: String, val birthDate: LocalDate,
+ *                 @Inline val address: Address)
+ *     : Entity<Int>
  * }</pre>
  *
  * <p>Is similar to:</p>

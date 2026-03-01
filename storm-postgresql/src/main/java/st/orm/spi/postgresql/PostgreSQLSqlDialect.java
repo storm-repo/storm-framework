@@ -15,24 +15,38 @@
  */
 package st.orm.spi.postgresql;
 
-import jakarta.annotation.Nonnull;
-import st.orm.core.spi.DefaultSqlDialect;
-import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlTemplateException;
+import static java.util.stream.Collectors.toSet;
+import static st.orm.Operator.BETWEEN;
+import static st.orm.Operator.EQUALS;
+import static st.orm.Operator.GREATER_THAN;
+import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
+import static st.orm.Operator.IN;
+import static st.orm.Operator.LESS_THAN;
+import static st.orm.Operator.LESS_THAN_OR_EQUAL;
+import static st.orm.Operator.NOT_EQUALS;
+import static st.orm.Operator.NOT_IN;
 
-import java.util.LinkedHashSet;
+import jakarta.annotation.Nonnull;
 import java.util.List;
-import java.util.Map;
 import java.util.SequencedMap;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-
-import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toSet;
+import st.orm.Operator;
+import st.orm.StormConfig;
+import st.orm.core.spi.DefaultSqlDialect;
+import st.orm.core.template.SqlDialect;
+import st.orm.core.template.SqlTemplateException;
 
 public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
+
+    public PostgreSQLSqlDialect() {
+    }
+
+    public PostgreSQLSqlDialect(@Nonnull StormConfig config) {
+        super(config);
+    }
 
     /**
      * Returns the name of the SQL dialect.
@@ -137,51 +151,34 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
     }
 
     /**
-     * Builds a multi-value IN clause.
+     * Builds a multi-column expression using row value constructor syntax.
      *
-     * <p>The provided values are processed in a deterministic order. First, the list is iterated row by row. For each
-     * row, the values of the map are then processed in the map’s iteration order. This order is used both for SQL
-     * rendering and for parameter binding.</p>
+     * <p>PostgreSQL supports tuple comparison syntax for all comparison operators, producing compact SQL like
+     * {@code (a, b) > (?, ?)} instead of the lexicographic expansion used by the default implementation.</p>
      *
-     * @param values the multi-row values to use in the IN clause. Each map represents a single row.
-     * @param parameterFunction the function responsible for binding the parameters to the SQL template and returning
-     * the string representation of each parameter, either a '?' placeholder or a literal value.
-     * @return the string that represents the multi-value IN clause.
-     * @throws SqlTemplateException if the values are incompatible.
-     * @since 1.2
+     * <p>Operators without clear tuple semantics ({@code IS_NULL}, {@code IS_NOT_NULL}, {@code LIKE}, etc.) fall back
+     * to the {@link SqlDialect} default implementation.</p>
+     *
+     * @param operator the comparison operator to apply.
+     * @param values the multi-row values. Each map represents a single row of column-name-to-value mappings.
+     * @param parameterFunction the function responsible for binding the parameters.
+     * @return the SQL fragment representing the multi-column expression.
+     * @throws SqlTemplateException if the operator is not supported for multi-column expressions.
+     * @since 1.9
      */
     @Override
-    public String multiValueIn(@Nonnull List<SequencedMap<String, Object>> values,
-                               @Nonnull Function<Object, String> parameterFunction) throws SqlTemplateException {
-        if (values.isEmpty()) {
-            throw new SqlTemplateException("Multi-value IN clause requires at least one value.");
+    public String multiColumnExpression(@Nonnull Operator operator,
+                                         @Nonnull List<SequencedMap<String, Object>> values,
+                                         @Nonnull Function<Object, String> parameterFunction)
+            throws SqlTemplateException {
+        if (operator == EQUALS || operator == NOT_EQUALS
+                || operator == IN || operator == NOT_IN
+                || operator == GREATER_THAN || operator == GREATER_THAN_OR_EQUAL
+                || operator == LESS_THAN || operator == LESS_THAN_OR_EQUAL
+                || operator == BETWEEN) {
+            return tupleExpression(operator, values, parameterFunction);
         }
-        Set<String> columns = new LinkedHashSet<>(values.getFirst().keySet());
-        if (columns.size() < 2) {
-            throw new SqlTemplateException("Multi-value IN clause requires at least two columns.");
-        }
-        if (!supportsMultiValueTuples()) {
-            return super.multiValueIn(values, parameterFunction);
-        }
-        StringBuilder in = new StringBuilder("(")
-                .append(String.join(", ", columns))
-                .append(") IN ((");
-        for (Map<String, Object> row : values) {
-            if (row.size() != columns.size()) {
-                throw new SqlTemplateException("Multi-value IN clause requires all entries to have the same number of columns.");
-            }
-            if (!columns.containsAll(row.keySet())) {
-                throw new SqlTemplateException("Multi-value IN clause requires all entries to have the same columns.");
-            }
-            in.append(columns.stream()
-                    .map(row::get)
-                    .map(parameterFunction)
-                    .collect(joining(", ")))
-              .append("), (");
-        }
-        in.setLength(in.length() - 3);  // Remove the trailing ", (".
-        in.append(")");
-        return in.toString();
+        return super.multiColumnExpression(operator, values, parameterFunction);
     }
 
     /**

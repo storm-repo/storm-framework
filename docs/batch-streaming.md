@@ -1,3 +1,6 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Batch Processing & Streaming
 
 Database performance often degrades when applications issue many individual SQL statements in a loop. Each statement incurs network latency, server-side parsing, and transaction log overhead. Batch processing and streaming solve two sides of this problem: batch processing reduces the cost of writing many rows, and streaming reduces the memory cost of reading many rows.
@@ -13,7 +16,8 @@ When you pass a list of entities to Storm's insert, update, delete, or upsert me
 
 ### Batch Insert
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 val users = listOf(
@@ -25,7 +29,8 @@ val users = listOf(
 orm insert users
 ```
 
-#### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 List<User> users = List.of(
@@ -37,18 +42,23 @@ List<User> users = List.of(
 orm.entity(User.class).insert(users);
 ```
 
+</TabItem>
+</Tabs>
+
 ### Batch Update
 
 Pass a list of modified entities and Storm generates a batched UPDATE statement. Each entity in the list produces one row in the batch. This is especially useful when you need to apply a transformation to many rows at once.
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 val updatedUsers = users.map { it.copy(active = true) }
 orm update updatedUsers
 ```
 
-#### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 Since Java records are immutable, you create new record instances with the modified values. Storm batches the resulting UPDATE statements.
 
@@ -60,11 +70,15 @@ List<User> updatedUsers = users.stream()
 orm.entity(User.class).update(updatedUsers);
 ```
 
+</TabItem>
+</Tabs>
+
 ### Batch Delete
 
 Batch deletes remove multiple entities in a single round-trip. Storm generates a batched DELETE using each entity's primary key.
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 orm delete users
@@ -73,17 +87,22 @@ orm delete users
 orm.deleteAll<User>()
 ```
 
-#### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 orm.entity(User.class).delete(users);
 ```
 
+</TabItem>
+</Tabs>
+
 ### Batch Upsert
 
 Batch upserts combine insert and update semantics for a list of entities. Each entity is either inserted (if no matching row exists) or updated (if a row with the same unique constraint already exists). This is useful for data synchronization scenarios where you receive a batch of records from an external source and need to merge them into your database. See [Upserts](upserts.md) for details on how conflict detection works per database.
 
-#### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 val users = listOf(
@@ -94,7 +113,8 @@ val users = listOf(
 orm upsert users  // Inserts new, updates existing
 ```
 
-#### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 List<User> users = List.of(
@@ -105,19 +125,31 @@ List<User> users = List.of(
 orm.entity(User.class).upsert(users);  // Inserts new, updates existing
 ```
 
+</TabItem>
+</Tabs>
+
 ### Batch Size
 
 Storm automatically groups batch operations for optimal performance. Batch operations have overloaded methods that accept a batch size parameter, giving you control over how many rows are grouped together before being sent to the database. Smaller batches reduce memory usage, while larger batches reduce network round-trips. The default batch size works well for most cases.
 
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
 ```kotlin
-// Kotlin -- insert in batches of 500
+// Insert in batches of 500
 orm.entity(User::class).insert(users, 500)
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
-// Java -- insert in batches of 500
+// Insert in batches of 500
 orm.entity(User.class).insert(users, 500);
 ```
+
+</TabItem>
+</Tabs>
 
 ---
 
@@ -125,7 +157,12 @@ orm.entity(User.class).insert(users, 500);
 
 When a query returns thousands or millions of rows, loading them all into a `List` can exhaust memory. Streaming processes rows one at a time as they arrive from the database, keeping memory usage constant regardless of result set size.
 
-### Kotlin (Flow)
+:::warning Stream Lifecycle
+Streams returned by Storm must be closed after use. Use `.use {}` (Kotlin) or try-with-resources (Java) to ensure proper cleanup. Failing to close a stream will leak database resources (cursors, connections).
+:::
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 Kotlin uses `Flow` for streaming, which provides automatic resource cleanup through structured concurrency. When the Flow completes or the coroutine is cancelled, database cursors and connections are released without explicit cleanup code.
 
@@ -146,7 +183,8 @@ val emails: List<String> = users
 val count: Int = users.count()
 ```
 
-### Java (Stream)
+</TabItem>
+<TabItem value="java" label="Java">
 
 Java uses `Stream` for streaming. Unlike Kotlin's Flow, Java streams do not have automatic resource management through structured concurrency. You must explicitly close streams to release database resources (cursors, connections). **Always use try-with-resources** to ensure cleanup happens even if an exception occurs.
 
@@ -169,20 +207,27 @@ try (Stream<User> users = orm.entity(User.class).selectAll()) {
 }
 ```
 
+</TabItem>
+</Tabs>
+
 ### Filtered Streaming
 
 You can combine streaming with query filters to process only rows that match your criteria. This pushes the filtering to the database rather than loading all rows and filtering in application code.
 
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
 ```kotlin
-// Kotlin
 val filteredUsers: Flow<User> = orm.entity(User::class)
     .select()
     .where(User_.name like "A%")
     .resultFlow
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
-// Java
 try (Stream<User> users = orm.entity(User.class)
         .select()
         .where(User_.name, LIKE, "A%")
@@ -190,6 +235,9 @@ try (Stream<User> users = orm.entity(User.class)
     users.forEach(this::processUser);
 }
 ```
+
+</TabItem>
+</Tabs>
 
 ### Streaming with Transactions
 
@@ -209,9 +257,9 @@ transaction {
 
 ## Tips
 
-1. **Always close Java streams** -- use try-with-resources to prevent resource leaks (database cursors, connections)
-2. **Kotlin Flow is safer** -- automatic resource management through structured concurrency
-3. **Use streaming for large datasets** -- avoid loading millions of rows into memory
-4. **Batch operations are automatic** -- Storm handles JDBC batching internally for bulk inserts/updates/deletes
-5. **Wrap in transactions** -- batch operations within a transaction commit atomically and perform better
-6. **Tune batch size for large imports** -- use the batch size parameter for datasets with thousands of rows
+1. **Always close Java streams** - use try-with-resources to prevent resource leaks (database cursors, connections)
+2. **Kotlin Flow is safer** - automatic resource management through structured concurrency
+3. **Use streaming for large datasets** - avoid loading millions of rows into memory
+4. **Batch operations are automatic** - Storm handles JDBC batching internally for bulk inserts/updates/deletes
+5. **Wrap in transactions** - batch operations within a transaction commit atomically and perform better
+6. **Tune batch size for large imports** - use the batch size parameter for datasets with thousands of rows

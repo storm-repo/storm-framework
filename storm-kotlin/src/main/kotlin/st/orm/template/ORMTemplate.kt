@@ -16,8 +16,10 @@
 package st.orm.template
 
 import jakarta.persistence.EntityManager
+import st.orm.Data
+import st.orm.EntityCallback
+import st.orm.StormConfig
 import st.orm.mapping.TemplateDecorator
-import st.orm.core.template.Templates
 import st.orm.repository.RepositoryLookup
 import st.orm.template.impl.ORMTemplateImpl
 import java.sql.Connection
@@ -51,7 +53,90 @@ import javax.sql.DataSource
  * @see st.orm.repository.EntityRepository
  * @see st.orm.repository.ProjectionRepository
  */
-interface ORMTemplate : QueryTemplate, RepositoryLookup {
+interface ORMTemplate :
+    QueryTemplate,
+    RepositoryLookup {
+
+    /**
+     * Returns a new [ORMTemplate] with the specified entity callback added.
+     *
+     * The returned template shares the same underlying connection and configuration, but applies the given
+     * callback to entity lifecycle operations (insert, update, delete) performed through its repositories. The
+     * callback is only invoked for entities matching its type parameter. Multiple callbacks can be registered by
+     * chaining calls to this method.
+     *
+     * @param callback the entity callback to add.
+     * @return a new [ORMTemplate] with the callback added.
+     * @since 1.9
+     */
+    fun withEntityCallback(callback: EntityCallback<*>): ORMTemplate
+
+    /**
+     * Returns a new [ORMTemplate] with the specified entity callbacks added.
+     *
+     * The returned template shares the same underlying connection and configuration, but applies the given
+     * callbacks to entity lifecycle operations (insert, update, delete) performed through its repositories. Each
+     * callback is only invoked for entities matching its type parameter.
+     *
+     * @param callbacks the entity callbacks to add.
+     * @return a new [ORMTemplate] with the callbacks added.
+     * @since 1.9
+     */
+    fun withEntityCallbacks(callbacks: List<EntityCallback<*>>): ORMTemplate
+
+    /**
+     * Validates all discovered entity and projection types against the database schema.
+     *
+     * Logs each validation error and returns the list of error messages. On success, logs a
+     * confirmation message and returns an empty list.
+     *
+     * This method requires a DataSource-backed template. Templates created from a raw
+     * [java.sql.Connection] or [EntityManager] do not support schema validation.
+     *
+     * @return the list of validation error messages (empty on success).
+     * @throws st.orm.PersistenceException if the template does not support schema validation.
+     * @since 1.9
+     */
+    fun validateSchema(): List<String>
+
+    /**
+     * Validates the specified types against the database schema.
+     *
+     * Logs each validation error and returns the list of error messages. On success, logs a
+     * confirmation message and returns an empty list.
+     *
+     * This method requires a DataSource-backed template. Templates created from a raw
+     * [java.sql.Connection] or [EntityManager] do not support schema validation.
+     *
+     * @param types the entity and projection types to validate.
+     * @return the list of validation error messages (empty on success).
+     * @throws st.orm.PersistenceException if the template does not support schema validation.
+     * @since 1.9
+     */
+    fun validateSchema(types: Iterable<Class<out Data>>): List<String>
+
+    /**
+     * Validates all discovered types and throws if any errors are found.
+     *
+     * This method requires a DataSource-backed template. Templates created from a raw
+     * [java.sql.Connection] or [EntityManager] do not support schema validation.
+     *
+     * @throws st.orm.PersistenceException if validation fails or the template does not support schema validation.
+     * @since 1.9
+     */
+    fun validateSchemaOrThrow()
+
+    /**
+     * Validates the specified types and throws if any errors are found.
+     *
+     * This method requires a DataSource-backed template. Templates created from a raw
+     * [java.sql.Connection] or [EntityManager] do not support schema validation.
+     *
+     * @param types the entity and projection types to validate.
+     * @throws st.orm.PersistenceException if validation fails or the template does not support schema validation.
+     * @since 1.9
+     */
+    fun validateSchemaOrThrow(types: Iterable<Class<out Data>>)
 
     companion object {
         /**
@@ -74,9 +159,7 @@ interface ORMTemplate : QueryTemplate, RepositoryLookup {
          * @param entityManager the [EntityManager] to use for database operations; must not be `null`.
          * @return an [ORMTemplate] configured for use with JPA.
          */
-        fun of(entityManager: EntityManager): ORMTemplate {
-            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(entityManager))
-        }
+        fun of(entityManager: EntityManager): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(entityManager))
 
         /**
          * Returns an [ORMTemplate] for use with JDBC.
@@ -98,9 +181,7 @@ interface ORMTemplate : QueryTemplate, RepositoryLookup {
          * @param dataSource the [DataSource] to use for database operations; must not be `null`.
          * @return an [ORMTemplate] configured for use with JDBC.
          */
-        fun of(dataSource: DataSource): ORMTemplate {
-            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource))
-        }
+        fun of(dataSource: DataSource): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource))
 
         /**
          * Returns an [ORMTemplate] for use with JDBC.
@@ -125,9 +206,7 @@ interface ORMTemplate : QueryTemplate, RepositoryLookup {
          * @param connection the [Connection] to use for database operations; must not be `null`.
          * @return an [ORMTemplate] configured for use with JDBC.
          */
-        fun of(connection: Connection): ORMTemplate {
-            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection))
-        }
+        fun of(connection: Connection): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection))
 
         /**
          * Returns an [ORMTemplate] for use with JPA, with a custom template decorator.
@@ -141,10 +220,8 @@ interface ORMTemplate : QueryTemplate, RepositoryLookup {
          */
         fun of(
             entityManager: EntityManager,
-            decorator: (TemplateDecorator) -> TemplateDecorator
-        ): ORMTemplate {
-            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(entityManager, decorator))
-        }
+            decorator: (TemplateDecorator) -> TemplateDecorator,
+        ): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(entityManager, decorator))
 
         /**
          * Returns an [ORMTemplate] for use with JDBC, with a custom template decorator.
@@ -158,10 +235,8 @@ interface ORMTemplate : QueryTemplate, RepositoryLookup {
          */
         fun of(
             dataSource: DataSource,
-            decorator: (TemplateDecorator) -> TemplateDecorator
-        ): ORMTemplate {
-            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, decorator))
-        }
+            decorator: (TemplateDecorator) -> TemplateDecorator,
+        ): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, decorator))
 
         /**
          * Returns an [ORMTemplate] for use with JDBC, with a custom template decorator.
@@ -177,11 +252,85 @@ interface ORMTemplate : QueryTemplate, RepositoryLookup {
          */
         fun of(
             connection: Connection,
-            decorator: (TemplateDecorator) -> TemplateDecorator
-        ): ORMTemplate {
-            return ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, decorator))
-        }
-    }    
+            decorator: (TemplateDecorator) -> TemplateDecorator,
+        ): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, decorator))
+
+        /**
+         * Returns an [ORMTemplate] for use with JPA, configured with the provided [StormConfig].
+         *
+         * @param entityManager the [EntityManager] to use for database operations.
+         * @param config the Storm configuration to apply.
+         * @return an [ORMTemplate] configured for use with JPA.
+         */
+        fun of(entityManager: EntityManager, config: StormConfig): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(entityManager, config))
+
+        /**
+         * Returns an [ORMTemplate] for use with JPA, configured with the provided [StormConfig] and a custom
+         * template decorator.
+         *
+         * @param entityManager the [EntityManager] to use for database operations.
+         * @param config the Storm configuration to apply.
+         * @param decorator a function that transforms the [TemplateDecorator] to customize template processing.
+         * @return an [ORMTemplate] configured for use with JPA.
+         */
+        fun of(
+            entityManager: EntityManager,
+            config: StormConfig,
+            decorator: (TemplateDecorator) -> TemplateDecorator,
+        ): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(entityManager, config, decorator))
+
+        /**
+         * Returns an [ORMTemplate] for use with JDBC, configured with the provided [StormConfig].
+         *
+         * @param dataSource the [DataSource] to use for database operations.
+         * @param config the Storm configuration to apply.
+         * @return an [ORMTemplate] configured for use with JDBC.
+         */
+        fun of(dataSource: DataSource, config: StormConfig): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config))
+
+        /**
+         * Returns an [ORMTemplate] for use with JDBC, configured with the provided [StormConfig] and a custom
+         * template decorator.
+         *
+         * @param dataSource the [DataSource] to use for database operations.
+         * @param config the Storm configuration to apply.
+         * @param decorator a function that transforms the [TemplateDecorator] to customize template processing.
+         * @return an [ORMTemplate] configured for use with JDBC.
+         */
+        fun of(
+            dataSource: DataSource,
+            config: StormConfig,
+            decorator: (TemplateDecorator) -> TemplateDecorator,
+        ): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(dataSource, config, decorator))
+
+        /**
+         * Returns an [ORMTemplate] for use with JDBC, configured with the provided [StormConfig].
+         *
+         * **Note:** The caller is responsible for closing the connection after usage.
+         *
+         * @param connection the [Connection] to use for database operations.
+         * @param config the Storm configuration to apply.
+         * @return an [ORMTemplate] configured for use with JDBC.
+         */
+        fun of(connection: Connection, config: StormConfig): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config))
+
+        /**
+         * Returns an [ORMTemplate] for use with JDBC, configured with the provided [StormConfig] and a custom
+         * template decorator.
+         *
+         * **Note:** The caller is responsible for closing the connection after usage.
+         *
+         * @param connection the [Connection] to use for database operations.
+         * @param config the Storm configuration to apply.
+         * @param decorator a function that transforms the [TemplateDecorator] to customize template processing.
+         * @return an [ORMTemplate] configured for use with JDBC.
+         */
+        fun of(
+            connection: Connection,
+            config: StormConfig,
+            decorator: (TemplateDecorator) -> TemplateDecorator,
+        ): ORMTemplate = ORMTemplateImpl(st.orm.core.template.ORMTemplate.of(connection, config, decorator))
+    }
 }
 
 val EntityManager.orm: ORMTemplate
@@ -193,11 +342,20 @@ val DataSource.orm: ORMTemplate
 val Connection.orm: ORMTemplate
     get() = ORMTemplate.of(this)
 
-fun EntityManager.orm(decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate =
-    ORMTemplate.of(this, decorator)
+fun EntityManager.orm(decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, decorator)
 
-fun DataSource.orm(decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate =
-    ORMTemplate.of(this, decorator)
+fun DataSource.orm(decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, decorator)
 
-fun Connection.orm(decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate =
-    ORMTemplate.of(this, decorator)
+fun Connection.orm(decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, decorator)
+
+fun EntityManager.orm(config: StormConfig): ORMTemplate = ORMTemplate.of(this, config)
+
+fun DataSource.orm(config: StormConfig): ORMTemplate = ORMTemplate.of(this, config)
+
+fun Connection.orm(config: StormConfig): ORMTemplate = ORMTemplate.of(this, config)
+
+fun EntityManager.orm(config: StormConfig, decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, config, decorator)
+
+fun DataSource.orm(config: StormConfig, decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, config, decorator)
+
+fun Connection.orm(config: StormConfig, decorator: (TemplateDecorator) -> TemplateDecorator): ORMTemplate = ORMTemplate.of(this, config, decorator)

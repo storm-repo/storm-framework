@@ -18,8 +18,8 @@ package st.orm.core.repository.impl;
 import jakarta.annotation.Nonnull;
 import st.orm.Projection;
 import st.orm.Ref;
-import st.orm.core.template.Model;
 import st.orm.core.repository.ProjectionRepository;
+import st.orm.core.template.Model;
 import st.orm.core.template.ORMTemplate;
 
 /**

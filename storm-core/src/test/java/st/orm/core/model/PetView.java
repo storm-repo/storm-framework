@@ -17,14 +17,13 @@ package st.orm.core.model;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.time.LocalDate;
 import lombok.Builder;
 import st.orm.FK;
 import st.orm.PK;
 import st.orm.Persist;
 import st.orm.Projection;
 import st.orm.ProjectionQuery;
-
-import java.time.LocalDate;
 
 /**
  * Simple business object representing a pet.

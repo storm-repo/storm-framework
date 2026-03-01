@@ -16,10 +16,9 @@
 package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
+import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.PersistenceException;
-
-import java.util.stream.Stream;
 
 /**
  * Represents a prepared query that can be executed multiple times, allows adding records to a batch and retrieving

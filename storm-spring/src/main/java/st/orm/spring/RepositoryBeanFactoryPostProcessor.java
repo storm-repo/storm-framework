@@ -16,6 +16,11 @@
 package st.orm.spring;
 
 import jakarta.annotation.Nonnull;
+import java.lang.annotation.Annotation;
+import java.util.*;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
@@ -38,12 +43,6 @@ import st.orm.repository.EntityRepository;
 import st.orm.repository.ProjectionRepository;
 import st.orm.repository.Repository;
 import st.orm.template.ORMTemplate;
-
-import java.lang.annotation.Annotation;
-import java.util.*;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * BeanFactoryPostProcessor that scans base packages for Repository interfaces and registers them as beans.
@@ -191,23 +190,23 @@ public class RepositoryBeanFactoryPostProcessor
         @Override public boolean isRequired(@Nonnull DependencyDescriptor descriptor) {
             return delegate.isRequired(descriptor);
         }
-        
+
         @Override public boolean hasQualifier(@Nonnull DependencyDescriptor descriptor) {
             return delegate.hasQualifier(descriptor);
         }
-        
+
         @Override public Object getSuggestedValue(@Nonnull DependencyDescriptor descriptor) {
             return delegate.getSuggestedValue(descriptor);
         }
-        
+
         @Override public Object getLazyResolutionProxyIfNecessary(@Nonnull DependencyDescriptor descriptor, String beanName) {
             return delegate.getLazyResolutionProxyIfNecessary(descriptor, beanName);
         }
-        
+
         @Override public Class<?> getLazyResolutionProxyClass(@Nonnull DependencyDescriptor descriptor, String beanName) {
             return delegate.getLazyResolutionProxyClass(descriptor, beanName);
         }
-        
+
         @Override public AutowireCandidateResolver cloneIfNecessary() {
             return delegate.cloneIfNecessary();
         }

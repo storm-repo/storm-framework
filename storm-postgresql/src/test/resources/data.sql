@@ -150,3 +150,53 @@ INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-12', 'rabie
 INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-13', 'spayed', 6);
 INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-13', 'rabies shot', 6);
 INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-13', 'spayed', 7);
+
+-- Polymorphic tables for sealed type hierarchy tests.
+
+-- Pattern A: Single-Table Inheritance
+DROP TABLE IF EXISTS animal CASCADE;
+CREATE TABLE animal (id serial PRIMARY KEY, dtype varchar(50) NOT NULL, name varchar(255), indoor boolean, weight integer);
+
+INSERT INTO animal (dtype, name, indoor) VALUES ('Cat', 'Whiskers', true);
+INSERT INTO animal (dtype, name, indoor) VALUES ('Cat', 'Luna', false);
+INSERT INTO animal (dtype, name, weight) VALUES ('Dog', 'Rex', 30);
+INSERT INTO animal (dtype, name, weight) VALUES ('Dog', 'Max', 15);
+
+-- Pattern C: Joined Table Inheritance
+DROP TABLE IF EXISTS joined_cat CASCADE;
+DROP TABLE IF EXISTS joined_dog CASCADE;
+DROP TABLE IF EXISTS joined_animal CASCADE;
+CREATE TABLE joined_animal (id serial PRIMARY KEY, dtype varchar(50) NOT NULL, name varchar(255));
+CREATE TABLE joined_cat (id integer NOT NULL PRIMARY KEY, indoor boolean);
+CREATE TABLE joined_dog (id integer NOT NULL PRIMARY KEY, weight integer);
+ALTER TABLE joined_cat ADD CONSTRAINT joined_cat_animal_fk FOREIGN KEY (id) REFERENCES joined_animal (id);
+ALTER TABLE joined_dog ADD CONSTRAINT joined_dog_animal_fk FOREIGN KEY (id) REFERENCES joined_animal (id);
+
+INSERT INTO joined_animal (dtype, name) VALUES ('JoinedCat', 'Whiskers');
+INSERT INTO joined_cat (id, indoor) VALUES (1, true);
+INSERT INTO joined_animal (dtype, name) VALUES ('JoinedCat', 'Luna');
+INSERT INTO joined_cat (id, indoor) VALUES (2, false);
+INSERT INTO joined_animal (dtype, name) VALUES ('JoinedDog', 'Rex');
+INSERT INTO joined_dog (id, weight) VALUES (3, 30);
+
+-- Pattern D: Joined Table Inheritance without @Discriminator
+DROP TABLE IF EXISTS nodsc_cat CASCADE;
+DROP TABLE IF EXISTS nodsc_dog CASCADE;
+DROP TABLE IF EXISTS nodsc_bird CASCADE;
+DROP TABLE IF EXISTS nodsc_animal CASCADE;
+CREATE TABLE nodsc_animal (id serial PRIMARY KEY, name varchar(255));
+CREATE TABLE nodsc_cat (id integer NOT NULL PRIMARY KEY, indoor boolean);
+CREATE TABLE nodsc_dog (id integer NOT NULL PRIMARY KEY, weight integer);
+CREATE TABLE nodsc_bird (id integer NOT NULL PRIMARY KEY);
+ALTER TABLE nodsc_cat ADD CONSTRAINT nodsc_cat_animal_fk FOREIGN KEY (id) REFERENCES nodsc_animal (id);
+ALTER TABLE nodsc_dog ADD CONSTRAINT nodsc_dog_animal_fk FOREIGN KEY (id) REFERENCES nodsc_animal (id);
+ALTER TABLE nodsc_bird ADD CONSTRAINT nodsc_bird_animal_fk FOREIGN KEY (id) REFERENCES nodsc_animal (id);
+
+INSERT INTO nodsc_animal (name) VALUES ('Whiskers');
+INSERT INTO nodsc_cat (id, indoor) VALUES (1, true);
+INSERT INTO nodsc_animal (name) VALUES ('Luna');
+INSERT INTO nodsc_cat (id, indoor) VALUES (2, false);
+INSERT INTO nodsc_animal (name) VALUES ('Rex');
+INSERT INTO nodsc_dog (id, weight) VALUES (3, 30);
+INSERT INTO nodsc_animal (name) VALUES ('Tweety');
+INSERT INTO nodsc_bird (id) VALUES (4);

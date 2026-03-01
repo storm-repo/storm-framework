@@ -15,12 +15,12 @@
  */
 package st.orm.core.template;
 
+import static st.orm.SelectMode.DECLARED;
+import static st.orm.core.template.TemplateString.wrap;
+import static st.orm.core.template.Templates.select;
+
 import jakarta.annotation.Nonnull;
 import st.orm.Data;
-
-import static st.orm.SelectMode.DECLARED;
-import static st.orm.core.template.Templates.select;
-import static st.orm.core.template.TemplateString.wrap;
 
 /**
  * The subquery template is used to construct subqueries that can be linked to the outer query.

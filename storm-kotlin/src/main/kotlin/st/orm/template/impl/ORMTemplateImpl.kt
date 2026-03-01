@@ -15,22 +15,84 @@
  */
 package st.orm.template.impl
 
-import st.orm.*
+import st.orm.Data
+import st.orm.Entity
+import st.orm.EntityCallback
+import st.orm.Projection
 import st.orm.core.spi.ORMReflection
 import st.orm.core.spi.Providers
+import st.orm.core.template.impl.SqlLogInterceptor
 import st.orm.repository.EntityRepository
 import st.orm.repository.ProjectionRepository
 import st.orm.repository.Repository
 import st.orm.repository.impl.EntityRepositoryImpl
 import st.orm.repository.impl.ProjectionRepositoryImpl
 import st.orm.template.ORMTemplate
-import java.lang.reflect.*
+import java.lang.reflect.InvocationTargetException
+import java.lang.reflect.Method
+import java.lang.reflect.ParameterizedType
+import java.lang.reflect.Proxy
 import kotlin.reflect.KClass
 
-class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) : QueryTemplateImpl(core), ORMTemplate {
+class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) :
+    QueryTemplateImpl(core),
+    ORMTemplate {
     companion object {
         val REFLECTION: ORMReflection = Providers.getORMReflection()
+
+        private fun dispatch(
+            proxy: Any,
+            method: Method,
+            args: Array<Any>,
+            repository: Repository,
+            entityRepository: EntityRepository<*, *>?,
+            projectionRepository: ProjectionRepository<*, *>?,
+            type: KClass<*>,
+        ): Any? {
+            try {
+                return when {
+                    method.declaringClass.isAssignableFrom(Repository::class.java) ->
+                        method.invoke(repository, *args)
+                    method.declaringClass.isAssignableFrom(EntityRepository::class.java) -> {
+                        requireNotNull(entityRepository)
+                        method.invoke(entityRepository, *args)
+                    }
+                    method.declaringClass.isAssignableFrom(ProjectionRepository::class.java) -> {
+                        requireNotNull(projectionRepository)
+                        method.invoke(projectionRepository, *args)
+                    }
+                    REFLECTION.isDefaultMethod(method) ->
+                        REFLECTION.execute(proxy, method, *args)
+                    else ->
+                        throw UnsupportedOperationException("Unsupported method: ${method.name} for ${type.java.name}.")
+                }
+            } catch (e: InvocationTargetException) {
+                throw e.targetException
+            }
+        }
+
+        private fun toShortSignature(method: Method): String = buildString {
+            append(method.name)
+            append('(')
+            method.parameterTypes.forEachIndexed { i, p ->
+                if (i > 0) append(", ")
+                append(p.simpleName)
+            }
+            append(')')
+        }
     }
+
+    override fun withEntityCallback(callback: EntityCallback<*>): ORMTemplate = ORMTemplateImpl(core.withEntityCallback(callback))
+
+    override fun withEntityCallbacks(callbacks: List<EntityCallback<*>>): ORMTemplate = ORMTemplateImpl(core.withEntityCallbacks(callbacks))
+
+    override fun validateSchema(): List<String> = core.validateSchema()
+
+    override fun validateSchema(types: Iterable<Class<out Data>>): List<String> = core.validateSchema(types)
+
+    override fun validateSchemaOrThrow() = core.validateSchemaOrThrow()
+
+    override fun validateSchemaOrThrow(types: Iterable<Class<out Data>>) = core.validateSchemaOrThrow(types)
 
     /**
      * Returns the repository for the given entity type.
@@ -40,9 +102,7 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) : Quer
      * @param <ID> the type of the entity's primary key.
      * @return the repository for the given entity type.
      */
-    override fun <T : Entity<ID>, ID : Any> entity(type: KClass<T>): EntityRepository<T, ID> {
-        return EntityRepositoryImpl(core.entity(type.java))
-    }
+    override fun <T : Entity<ID>, ID : Any> entity(type: KClass<T>): EntityRepository<T, ID> = EntityRepositoryImpl(core.entity(type.java))
 
     /**
      * Returns the repository for the given projection type.
@@ -52,9 +112,7 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) : Quer
      * @param <ID> the type of the projection's primary key, or Void if the projection specifies no primary key.
      * @return the repository for the given projection type.
      */
-    override fun <T : Projection<ID>, ID: Any> projection(type: KClass<T>): ProjectionRepository<T, ID> {
-        return ProjectionRepositoryImpl(core.projection(type.java))
-    }
+    override fun <T : Projection<ID>, ID : Any> projection(type: KClass<T>): ProjectionRepository<T, ID> = ProjectionRepositoryImpl(core.projection(type.java))
 
     @Suppress("UNCHECKED_CAST")
     override fun <R : Repository> repository(type: KClass<R>): R {
@@ -63,7 +121,7 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) : Quer
         val repository = createRepository()
         return Proxy.newProxyInstance(
             type.java.classLoader,
-            arrayOf(type.java)
+            arrayOf(type.java),
         ) { proxy, method, args ->
             val arguments = args ?: emptyArray()
             try {
@@ -74,22 +132,14 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) : Quer
                         proxy === arguments[0]
                     method.name == "toString" && method.parameterCount == 0 ->
                         "RepositoryProxy(${type.simpleName})"
-                    method.declaringClass.isAssignableFrom(Object::class.java) ->
-                        method.invoke(proxy, *arguments)
-                    method.declaringClass.isAssignableFrom(Repository::class.java) ->
-                        method.invoke(repository, *arguments)
-                    method.declaringClass.isAssignableFrom(EntityRepository::class.java) -> {
-                        requireNotNull(entityRepository)
-                        method.invoke(entityRepository, *arguments)
-                    }
-                    method.declaringClass.isAssignableFrom(ProjectionRepository::class.java) -> {
-                        requireNotNull(projectionRepository)
-                        method.invoke(projectionRepository, *arguments)
-                    }
-                    REFLECTION.isDefaultMethod(method) ->
-                        REFLECTION.execute(proxy, method, *arguments)
                     else ->
-                        throw UnsupportedOperationException("Unsupported method: ${method.name} for ${type.java.name}.")
+                        SqlLogInterceptor.wrapIfNeeded(
+                            SqlLogInterceptor.resolve(type.java, method),
+                            type.java,
+                            toShortSignature(method),
+                        ) {
+                            dispatch(proxy, method, arguments, repository, entityRepository, projectionRepository, type)
+                        }
                 }
             } catch (e: InvocationTargetException) {
                 throw e.targetException
@@ -101,7 +151,8 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) : Quer
         if (!EntityRepository::class.java.isAssignableFrom(type.java)) return null
         var entityClass: Class<*>? = null
         for (iface in type.java.genericInterfaces) {
-            if (iface is ParameterizedType && (iface.rawType as? Class<*>)?.let {
+            if (iface is ParameterizedType &&
+                (iface.rawType as? Class<*>)?.let {
                     EntityRepository::class.java.isAssignableFrom(it)
                 } == true
             ) {
@@ -124,7 +175,8 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) : Quer
         if (!ProjectionRepository::class.java.isAssignableFrom(type.java)) return null
         var projectionClass: Class<*>? = null
         for (iface in type.java.genericInterfaces) {
-            if (iface is ParameterizedType && (iface.rawType as? Class<*>)?.let {
+            if (iface is ParameterizedType &&
+                (iface.rawType as? Class<*>)?.let {
                     ProjectionRepository::class.java.isAssignableFrom(it)
                 } == true
             ) {
@@ -143,10 +195,8 @@ class ORMTemplateImpl(private val core: st.orm.core.template.ORMTemplate) : Quer
         return method.invoke(this, projectionClass.kotlin) as ProjectionRepository<*, *>
     }
 
-    private fun createRepository(): Repository {
-        return object : Repository {
-            override val orm: ORMTemplate
-                get() = this@ORMTemplateImpl
-        }
+    private fun createRepository(): Repository = object : Repository {
+        override val orm: ORMTemplate
+            get() = this@ORMTemplateImpl
     }
 }

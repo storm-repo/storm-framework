@@ -15,10 +15,10 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.stream.Collectors.joining;
+
 import jakarta.annotation.Nonnull;
 import st.orm.core.template.impl.Elements.Select;
-
-import static java.util.stream.Collectors.joining;
 
 final class SelectProcessor implements ElementProcessor<Select> {
 
@@ -53,7 +53,7 @@ final class SelectProcessor implements ElementProcessor<Select> {
     @Override
     public CompiledElement compile(@Nonnull Select select, @Nonnull TemplateCompiler compiler) {
         return new CompiledElement(compiler.getQueryModel().getColumns(select.table(), select.mode()).stream()
-                .map(column -> "%s%s".formatted(column.alias().isEmpty() ? "" : column.alias() + ".", column.name()))
+                .map(ColumnExpression::toSql)
                 .collect(joining(", ")));
     }
 

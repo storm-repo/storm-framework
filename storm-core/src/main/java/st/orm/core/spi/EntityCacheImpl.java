@@ -15,9 +15,9 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
-import st.orm.Entity;
+import static java.util.Objects.requireNonNull;
 
+import jakarta.annotation.Nonnull;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
@@ -25,8 +25,7 @@ import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-
-import static java.util.Objects.requireNonNull;
+import st.orm.Entity;
 
 /**
  * Transaction-local cache that interns entities by primary key with configurable retention behavior.
@@ -38,12 +37,13 @@ import static java.util.Objects.requireNonNull;
  * <p>Cache entries are cleaned up lazily when new entries are interned.</p>
  *
  * <h2>Retention configuration</h2>
- * <p>The retention behavior can be configured globally via the system property {@code storm.entityCache.retention}:</p>
+ * <p>The retention behavior can be configured via the {@code storm.entity_cache.retention} property
+ * (see {@link st.orm.StormConfig}):</p>
  * <ul>
- *   <li>{@code minimal} (default): Observed state may be cleaned up as soon as the application no longer holds a
- *       reference to the entity. This minimizes memory overhead.</li>
- *   <li>{@code aggressive}: Observed state is retained more aggressively, improving the dirty-check hit rate at the
- *       cost of higher memory usage during transactions.</li>
+ *   <li>{@code default} (default): Observed state is retained for the duration of the transaction, improving the
+ *       dirty-check hit rate at the cost of higher memory usage during transactions.</li>
+ *   <li>{@code light}: Observed state may be cleaned up as soon as the application no longer holds a reference to
+ *       the entity. This reduces memory overhead.</li>
  * </ul>
  *
  * <h2>Interning semantics</h2>
@@ -68,22 +68,18 @@ import static java.util.Objects.requireNonNull;
  */
 public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCache<E, ID> {
 
+    private static final EntityCacheMetrics metrics = EntityCacheMetrics.getInstance();
+
+    private final CacheRetention retention;
+
     /**
-     * Indicates whether the cache uses aggressive retention ({@code true}) or minimal retention ({@code false}).
+     * Creates a new entity cache with the specified retention behavior.
      *
-     * <p>This value is determined by the system property {@code storm.entityCache.retention}:</p>
-     * <ul>
-     *   <li>{@code minimal} (default): Observed state may be cleaned up as soon as the application no longer holds
-     *       a reference to the entity. This minimizes memory overhead.</li>
-     *   <li>{@code aggressive}: Observed state is retained more aggressively, improving the dirty-check hit rate at
-     *       the cost of higher memory usage.</li>
-     * </ul>
-     *
-     * <p>Implementation note: minimal retention uses {@link WeakReference}, aggressive retention uses
-     * {@link SoftReference}.</p>
+     * @param retention the cache retention strategy to use.
      */
-    public static final boolean AGGRESSIVE_RETENTION =
-            "aggressive".equalsIgnoreCase(System.getProperty("storm.entityCache.retention", "minimal").trim());
+    public EntityCacheImpl(@Nonnull CacheRetention retention) {
+        this.retention = retention;
+    }
 
     /** Queue for tracking garbage-collected entities to enable lazy cleanup of {@link #map}. */
     private final ReferenceQueue<E> queue = new ReferenceQueue<>();
@@ -105,14 +101,17 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     public Optional<E> get(@Nonnull ID pk) {
         PkReference<ID, E> ref = map.get(requireNonNull(pk));
         if (ref == null) {
+            metrics.recordGetMiss();
             return Optional.empty();
         }
         E value = ref.get();
         if (value != null) {
+            metrics.recordGetHit();
             return Optional.of(value);
         }
         // Collected but not yet drained.
         map.remove(pk, ref);
+        metrics.recordGetMiss();
         return Optional.empty();
     }
 
@@ -141,10 +140,12 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
         if (existingRef != null) {
             E existing = existingRef.get();
             if (existing != null && existing.equals(entity)) {
+                metrics.recordInternHit();
                 return existing;
             }
         }
         map.put(pk, createReference(pk, entity));
+        metrics.recordInternMiss();
         return entity;
     }
 
@@ -153,12 +154,12 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
      *
      * @param pk the primary key.
      * @param entity the entity to reference.
-     * @return a reference based on {@link #AGGRESSIVE_RETENTION}.
+     * @return a reference based on {@link #retention}.
      */
     private PkReference<ID, E> createReference(ID pk, E entity) {
-        return AGGRESSIVE_RETENTION
-                ? new PkSoftReference<>(pk, entity, queue)
-                : new PkWeakReference<>(pk, entity, queue);
+        return retention == CacheRetention.LIGHT
+                ? new PkWeakReference<>(pk, entity, queue)
+                : new PkSoftReference<>(pk, entity, queue);
     }
 
     /**
@@ -172,6 +173,7 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     @Override
     public void remove(@Nonnull ID pk) {
         map.remove(requireNonNull(pk));
+        metrics.recordRemoval();
     }
 
     /**
@@ -183,6 +185,7 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
     @Override
     public void clear() {
         map.clear();
+        metrics.recordClear();
     }
 
     /**
@@ -197,7 +200,9 @@ public final class EntityCacheImpl<E extends Entity<ID>, ID> implements EntityCa
         while ((ref = queue.poll()) != null) {
             if (ref instanceof PkReference<?, ?> pkRef) {
                 //noinspection unchecked
-                map.remove(((PkReference<ID, E>) pkRef).pk(), pkRef);
+                if (map.remove(((PkReference<ID, E>) pkRef).pk(), pkRef)) {
+                    metrics.recordEviction();
+                }
             }
         }
     }

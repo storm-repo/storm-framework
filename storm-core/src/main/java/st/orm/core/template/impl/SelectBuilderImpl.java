@@ -15,27 +15,26 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Objects.requireNonNull;
+import static st.orm.SelectMode.PK;
+import static st.orm.core.template.TemplateString.wrap;
+import static st.orm.core.template.Templates.from;
+import static st.orm.core.template.Templates.select;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.List;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.PersistenceException;
 import st.orm.Ref;
-import st.orm.core.template.Query;
 import st.orm.core.template.Model;
+import st.orm.core.template.Query;
 import st.orm.core.template.QueryBuilder;
 import st.orm.core.template.QueryTemplate;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.Elements.Where;
-
-import java.util.List;
-import java.util.function.Supplier;
-import java.util.stream.Stream;
-
-import static java.util.Objects.requireNonNull;
-import static st.orm.SelectMode.PK;
-import static st.orm.core.template.Templates.from;
-import static st.orm.core.template.Templates.select;
-import static st.orm.core.template.TemplateString.wrap;
 
 /**
  * A query builder for SELECT queries.
@@ -61,7 +60,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
                              @Nonnull TemplateString selectTemplate,
                              boolean subquery,
                              @Nonnull Supplier<Model<T, ID>> modelSupplier) {
-        this(queryTemplate, fromType, selectType, false, List.of(), List.of(), null, null, TemplateString.EMPTY, selectTemplate, List.of(), subquery, null, null, modelSupplier);
+        this(queryTemplate, fromType, selectType, false, List.of(), List.of(), null, null, TemplateString.EMPTY, selectTemplate, List.of(), List.of(), List.of(), List.of(), subquery, null, null, modelSupplier);
     }
 
     public SelectBuilderImpl(@Nonnull QueryTemplate queryTemplate,
@@ -70,7 +69,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
                              @Nonnull Class<?> pkType,
                              @Nonnull Supplier<Model<T, ID>> modelSupplier) {
         //noinspection unchecked
-        this(queryTemplate, fromType, (Class<R>) Ref.class, false, List.of(), List.of(), null, null, TemplateString.EMPTY, wrap(select(refType, PK)), List.of(), false, requireNonNull(refType), requireNonNull(pkType), modelSupplier);
+        this(queryTemplate, fromType, (Class<R>) Ref.class, false, List.of(), List.of(), null, null, TemplateString.EMPTY, wrap(select(refType, PK)), List.of(), List.of(), List.of(), List.of(), false, requireNonNull(refType), requireNonNull(pkType), modelSupplier);
     }
 
     private SelectBuilderImpl(@Nonnull QueryTemplate ormTemplate,
@@ -84,11 +83,14 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
                               @Nonnull TemplateString forLock,
                               @Nonnull TemplateString selectTemplate,
                               @Nonnull List<TemplateString> templates,
+                              @Nonnull List<TemplateString> groupBy,
+                              @Nonnull List<TemplateString> having,
+                              @Nonnull List<TemplateString> orderBy,
                               boolean subquery,
                               @Nullable Class<? extends Data> refType,
                               @Nullable Class<?> pkType,
                               @Nonnull Supplier<Model<T, ID>> modelSupplier) {
-        super(ormTemplate, fromType, join, where, templates, modelSupplier);
+        super(ormTemplate, fromType, join, where, templates, groupBy, having, orderBy, modelSupplier);
         this.forLock = forLock;
         this.selectType = selectType;
         this.distinct = distinct;
@@ -109,7 +111,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
      * @since 1.2
      */
     @Override
-    public QueryBuilder<T, R, ID> safe() {
+    public QueryBuilder<T, R, ID> unsafe() {
         return this;
     }
 
@@ -128,9 +130,12 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
                                     @Nonnull Class<T> fromType,
                                     @Nonnull List<Join> join,
                                     @Nonnull List<Where> where,
-                                    @Nonnull List<TemplateString> templates) {
+                                    @Nonnull List<TemplateString> templates,
+                                    @Nonnull List<TemplateString> groupBy,
+                                    @Nonnull List<TemplateString> having,
+                                    @Nonnull List<TemplateString> orderBy) {
         return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset, forLock,
-                selectTemplate, templates, subquery, refType, pkType, modelSupplier);
+                selectTemplate, templates, groupBy, having, orderBy, subquery, refType, pkType, modelSupplier);
     }
 
     /**
@@ -151,7 +156,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
     @Override
     public QueryBuilder<T, R, ID> distinct() {
         return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, true, join, where, limit, offset, forLock,
-                selectTemplate, templates, subquery, refType, pkType, modelSupplier);
+                selectTemplate, templates, groupBy, having, orderBy, subquery, refType, pkType, modelSupplier);
     }
 
     private TemplateString toTemplateString() {
@@ -177,14 +182,41 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
                             TemplateString::combine);
         }
         if (!where.isEmpty()) {
-            // Leave handling of multiple where's to the sql processor.
-            template = where.stream()
-                    .reduce(TemplateString.combine(template, TemplateString.of("\nWHERE ")),
-                            (acc, where) -> TemplateString.combine(acc, wrap(where)),
-                            TemplateString::combine);
+            if (where.size() == 1) {
+                template = TemplateString.combine(template, TemplateString.of("\nWHERE "), wrap(where.getFirst()));
+            } else {
+                TemplateString whereClause = where.stream()
+                        .map(w -> TemplateString.combine(TemplateString.of("("), wrap(w), TemplateString.of(")")))
+                        .reduce((a, b) -> TemplateString.combine(a, TemplateString.of("\n  AND "), b))
+                        .orElseThrow();
+                template = TemplateString.combine(template, TemplateString.of("\nWHERE "), whereClause);
+            }
+        }
+        if (!groupBy.isEmpty()) {
+            TemplateString groupByClause = groupBy.stream()
+                    .reduce((a, b) -> TemplateString.combine(a, TemplateString.of(", "), b))
+                    .orElseThrow();
+            template = TemplateString.combine(template, TemplateString.of("\nGROUP BY "), groupByClause);
+        }
+        if (!having.isEmpty()) {
+            if (having.size() == 1) {
+                template = TemplateString.combine(template, TemplateString.of("\nHAVING "), having.getFirst());
+            } else {
+                TemplateString havingClause = having.stream()
+                        .map(h -> TemplateString.combine(TemplateString.of("("), h, TemplateString.of(")")))
+                        .reduce((a, b) -> TemplateString.combine(a, TemplateString.of("\n  AND "), b))
+                        .orElseThrow();
+                template = TemplateString.combine(template, TemplateString.of("\nHAVING "), havingClause);
+            }
         }
         if (!templates.isEmpty()) {
             template = TemplateString.combine(template, TemplateString.combine(templates));
+        }
+        if (!orderBy.isEmpty()) {
+            TemplateString orderByClause = orderBy.stream()
+                    .reduce((a, b) -> TemplateString.combine(a, TemplateString.of(", "), b))
+                    .orElseThrow();
+            template = TemplateString.combine(template, TemplateString.of("\nORDER BY "), orderByClause);
         }
         if (!queryTemplate.dialect().applyLimitAfterSelect()) {
             if (limit != null && offset == null) {
@@ -217,7 +249,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
     @Override
     public QueryBuilder<T, R, ID> offset(int offset) {
         return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset, forLock,
-                selectTemplate, templates, subquery, refType, pkType, modelSupplier);
+                selectTemplate, templates, groupBy, having, orderBy, subquery, refType, pkType, modelSupplier);
     }
 
     /**
@@ -230,7 +262,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
     @Override
     public QueryBuilder<T, R, ID> limit(int limit) {
         return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset, forLock,
-                selectTemplate, templates, subquery, refType, pkType, modelSupplier);
+                selectTemplate, templates, groupBy, having, orderBy, subquery, refType, pkType, modelSupplier);
     }
 
     /**
@@ -272,7 +304,7 @@ public class SelectBuilderImpl<T extends Data, R, ID> extends QueryBuilderImpl<T
     @Override
     public QueryBuilder<T, R, ID> forLock(@Nonnull TemplateString template) {
         return new SelectBuilderImpl<>(queryTemplate, fromType, selectType, distinct, join, where, limit, offset,
-                template, selectTemplate, templates, subquery, refType, pkType, modelSupplier);
+                template, selectTemplate, templates, groupBy, having, orderBy, subquery, refType, pkType, modelSupplier);
     }
 
     /**

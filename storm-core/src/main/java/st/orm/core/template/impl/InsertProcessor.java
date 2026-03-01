@@ -15,15 +15,14 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.stream.Collectors.joining;
+
 import jakarta.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.Objects;
 import st.orm.core.template.Column;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Insert;
-
-import java.util.ArrayList;
-import java.util.Objects;
-
-import static java.util.stream.Collectors.joining;
 
 final class InsertProcessor implements ElementProcessor<Insert> {
 

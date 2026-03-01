@@ -1,18 +1,17 @@
 package st.orm.core.repository;
 
-import st.orm.core.model.Pet_;
+import static st.orm.core.template.TemplateString.raw;
+import static st.orm.core.template.Templates.alias;
+import static st.orm.core.template.Templates.table;
+import static st.orm.core.template.Templates.where;
+
+import java.util.List;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
 import st.orm.core.model.Pet;
 import st.orm.core.model.PetType;
+import st.orm.core.model.Pet_;
 import st.orm.core.model.Visit;
-
-import java.util.List;
-
-import static st.orm.core.template.Templates.alias;
-import static st.orm.core.template.Templates.table;
-import static st.orm.core.template.Templates.where;
-import static st.orm.core.template.TemplateString.raw;
 
 public interface PetRepository extends EntityRepository<Pet, Integer> {
 

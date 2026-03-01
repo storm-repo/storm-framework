@@ -15,17 +15,16 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
-import st.orm.Entity;
-import st.orm.Ref;
+import static java.util.Objects.requireNonNull;
 
+import jakarta.annotation.Nonnull;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
-
-import static java.util.Objects.requireNonNull;
+import st.orm.Entity;
+import st.orm.Ref;
 
 /**
  * A weak interner that ensures canonical instances of objects while holding them weakly to permit garbage collection.

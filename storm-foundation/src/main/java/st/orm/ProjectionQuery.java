@@ -15,18 +15,20 @@
  */
 package st.orm;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
-
 import static java.lang.annotation.ElementType.TYPE;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
 
 /**
  * Projection records marked with this annotation type can specify a SQL query that represents the projection.
  *
  * <p>Usage examples:
  *
- * <p>Define a projection record with a SQL query:
+ * <p>Define a projection record with a SQL query.
+ *
+ * <p>Java:
  * <pre>{@code
  * @ProjectionQuery("""
  *     SELECT b.id, COUNT(*) AS item_count, SUM(price) AS total_price
@@ -39,6 +41,19 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  * ) implements Projection<Integer> {}
  * }</pre>
  *
+ * <p>Kotlin:
+ * <pre>{@code
+ * @ProjectionQuery("""
+ *     SELECT b.id, COUNT(*) AS item_count, SUM(price) AS total_price
+ *     FROM basket b
+ *       LEFT JOIN basket_item bi ON b.id = bi.basket_id
+ *     GROUP BY b.id""")
+ * data class BasketSummary(@PK @FK("id") val basket: Basket,
+ *                          val itemCount: Int,
+ *                          val totalPrice: BigDecimal
+ * ) : Projection<Int>
+ * }</pre>
+ *
  * <p>Then, you can use the projection in a query like this:
  * <pre>{@code
  * var baskets = ...
@@ -48,11 +63,20 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  *     .getResultList();
  * }</pre>
  *
- * <p>Or use it as a foreign key in an entity:
+ * <p>Or use it as a foreign key in an entity.
+ *
+ * <p>Java:
  * <pre>{@code
  * record User(@PK int id,
  *             @FK("basket_id") BasketSummary basketSummary
  * ) implements Entity<Integer> {}
+ * }</pre>
+ *
+ * <p>Kotlin:
+ * <pre>{@code
+ * data class User(@PK val id: Int,
+ *                 @FK("basket_id") val basketSummary: BasketSummary
+ * ) : Entity<Int>
  * }</pre>
  *
  * <p>Then, you can query all users having a basket with at least 1 item:</p>

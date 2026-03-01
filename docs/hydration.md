@@ -1,3 +1,6 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Hydration
 
 Hydration is the process of transforming flat database rows into structured Kotlin data classes and Java records.
@@ -73,6 +76,9 @@ The three columns from the result set are passed directly to the `User` construc
 
 Not every query result maps to a full entity. Aggregate queries, reports, and ad-hoc projections return custom column sets that do not correspond to any database table. Storm handles these cases without requiring special interfaces or annotations. You can define a plain Kotlin data class or Java record whose constructor parameters match the query's columns by position and type, and Storm will hydrate it directly.
 
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
 ```kotlin
 data class MonthlySales(
     val month: YearMonth,
@@ -87,6 +93,9 @@ val sales = orm.query("""
 """).getResultList(MonthlySales::class)
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
 record MonthlySales(
     YearMonth month,
@@ -100,6 +109,9 @@ List<MonthlySales> sales = orm.query(RAW."""
         GROUP BY DATE_TRUNC('month', order_date)""")
     .getResultList(MonthlySales.class);
 ```
+
+</TabItem>
+</Tabs>
 
 This works for any query. The only requirement is that the number and order of columns matches the constructor parameters.
 
@@ -421,9 +433,9 @@ val users = userRepository.findAll { User_.city eq city }
 
 Without early lookup, Storm would construct 1000 `City` objects and then deduplicate. With early lookup:
 
-- Row 1: City PK=42 not in cache → construct City, store in interner
-- Row 2: City PK=42 found in interner → skip construction, reuse instance
-- Row 3: City PK=42 found in interner → skip construction, reuse instance
+- Row 1: City PK=42 not in cache -> construct City, store in interner
+- Row 2: City PK=42 found in interner -> skip construction, reuse instance
+- Row 3: City PK=42 found in interner -> skip construction, reuse instance
 - ...
 
 Result: Only 50 City objects are ever constructed, not 1000.
@@ -534,7 +546,8 @@ Converters map a single column to a custom type. For composite types spanning mu
 
 Database columns can contain NULL values, but not every field in your data model should accept null. Storm enforces nullability constraints during hydration, catching data integrity issues at the application boundary rather than letting null values propagate silently through your code.
 
-### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 Kotlin's type system indicates nullability:
 
@@ -548,7 +561,8 @@ data class User(
 
 If a non-nullable field receives NULL from the database, Storm throws an exception.
 
-### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 Use `@Nonnull` and `@Nullable` annotations:
 
@@ -559,6 +573,9 @@ record User(
     @Nullable String nickname  // Nullable
 ) {}
 ```
+
+</TabItem>
+</Tabs>
 
 ### Nullable Nested Records
 
@@ -592,3 +609,12 @@ If all columns for `address` are NULL, the field is set to `null`. If some colum
 - `@FK` hydrates all columns from the related entity
 - `Ref<T>` hydrates only the foreign key value
 - The interner ensures identity within a query result
+
+---
+
+## See Also
+
+- [Entity Cache](entity-cache.md) - identity interning across a transaction
+- [Refs](refs.md) - Ref column layout and lazy loading
+- [Projections](projections.md) - projection mapping for partial entity views
+- [Entities](entities.md) - entity definitions and annotations

@@ -1,17 +1,20 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Database Dialects
 
 Storm works with any JDBC-compatible database using standard SQL. However, databases diverge on features like upserts, pagination, JSON handling, and native data types. Dialect packages let Storm take advantage of these database-specific capabilities while keeping your application code portable. Your entities, repositories, and queries stay the same regardless of which database you use; only the dialect dependency changes.
 
 ## Supported Databases
 
-| Database | Dialect Package | Key Features |
-|----------|-----------------|--------------|
-| PostgreSQL | `storm-postgresql` | Upsert (`ON CONFLICT`), JSONB, arrays |
-| MySQL | `storm-mysql` | Upsert (`ON DUPLICATE KEY`), JSON |
-| MariaDB | `storm-mariadb` | Upsert (`ON DUPLICATE KEY`), JSON |
-| Oracle | `storm-oracle` | Merge (`MERGE INTO`), sequences |
-| MS SQL Server | `storm-mssqlserver` | Merge (`MERGE INTO`), identity columns |
-| H2 | Built-in | Testing and development (no extra dependency) |
+| | Database | Dialect Package | Key Features |
+|---|----------|-----------------|--------------|
+| ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white) | PostgreSQL | `storm-postgresql` | Upsert (`ON CONFLICT`), JSONB, arrays |
+| ![MySQL](https://img.shields.io/badge/MySQL-4479A1?logo=mysql&logoColor=white) | MySQL | `storm-mysql` | Upsert (`ON DUPLICATE KEY`), JSON |
+| ![MariaDB](https://img.shields.io/badge/MariaDB-003545?logo=mariadb&logoColor=white) | MariaDB | `storm-mariadb` | Upsert (`ON DUPLICATE KEY`), JSON |
+| ![Oracle](https://img.shields.io/badge/Oracle-F80000?logo=oracle&logoColor=white) | Oracle | `storm-oracle` | Merge (`MERGE INTO`), sequences |
+| ![SQL Server](https://img.shields.io/badge/SQL_Server-CC2927?logo=microsoftsqlserver&logoColor=white) | MS SQL Server | `storm-mssqlserver` | Merge (`MERGE INTO`), identity columns |
+| ![H2](https://img.shields.io/badge/H2-0000bb?logoColor=white) | H2 | Built-in | Testing and development (no extra dependency) |
 
 ## Installation
 
@@ -24,7 +27,7 @@ Add the dialect dependency for your database. Dialects are runtime-only dependen
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-postgresql</artifactId>
-    <version>1.8.2</version>
+    <version>1.9.0</version>
     <scope>runtime</scope>
 </dependency>
 
@@ -32,7 +35,7 @@ Add the dialect dependency for your database. Dialects are runtime-only dependen
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-mysql</artifactId>
-    <version>1.8.2</version>
+    <version>1.9.0</version>
     <scope>runtime</scope>
 </dependency>
 
@@ -40,7 +43,7 @@ Add the dialect dependency for your database. Dialects are runtime-only dependen
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-mariadb</artifactId>
-    <version>1.8.2</version>
+    <version>1.9.0</version>
     <scope>runtime</scope>
 </dependency>
 
@@ -48,7 +51,7 @@ Add the dialect dependency for your database. Dialects are runtime-only dependen
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-oracle</artifactId>
-    <version>1.8.2</version>
+    <version>1.9.0</version>
     <scope>runtime</scope>
 </dependency>
 
@@ -56,7 +59,7 @@ Add the dialect dependency for your database. Dialects are runtime-only dependen
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-mssqlserver</artifactId>
-    <version>1.8.2</version>
+    <version>1.9.0</version>
     <scope>runtime</scope>
 </dependency>
 ```
@@ -65,38 +68,38 @@ Add the dialect dependency for your database. Dialects are runtime-only dependen
 
 ```groovy
 // PostgreSQL
-runtimeOnly 'st.orm:storm-postgresql:1.8.2'
+runtimeOnly 'st.orm:storm-postgresql:1.9.0'
 
 // MySQL
-runtimeOnly 'st.orm:storm-mysql:1.8.2'
+runtimeOnly 'st.orm:storm-mysql:1.9.0'
 
 // MariaDB
-runtimeOnly 'st.orm:storm-mariadb:1.8.2'
+runtimeOnly 'st.orm:storm-mariadb:1.9.0'
 
 // Oracle
-runtimeOnly 'st.orm:storm-oracle:1.8.2'
+runtimeOnly 'st.orm:storm-oracle:1.9.0'
 
 // MS SQL Server
-runtimeOnly 'st.orm:storm-mssqlserver:1.8.2'
+runtimeOnly 'st.orm:storm-mssqlserver:1.9.0'
 ```
 
 ### Gradle (Kotlin DSL)
 
 ```kotlin
 // PostgreSQL
-runtimeOnly("st.orm:storm-postgresql:1.8.2")
+runtimeOnly("st.orm:storm-postgresql:1.9.0")
 
 // MySQL
-runtimeOnly("st.orm:storm-mysql:1.8.2")
+runtimeOnly("st.orm:storm-mysql:1.9.0")
 
 // MariaDB
-runtimeOnly("st.orm:storm-mariadb:1.8.2")
+runtimeOnly("st.orm:storm-mariadb:1.9.0")
 
 // Oracle
-runtimeOnly("st.orm:storm-oracle:1.8.2")
+runtimeOnly("st.orm:storm-oracle:1.9.0")
 
 // MS SQL Server
-runtimeOnly("st.orm:storm-mssqlserver:1.8.2")
+runtimeOnly("st.orm:storm-mssqlserver:1.9.0")
 ```
 
 ## Automatic Detection
@@ -123,11 +126,11 @@ See [Upserts](upserts.md) for usage examples.
 
 ### JSON Support
 
-PostgreSQL's JSONB and MySQL/MariaDB's JSON types are fully supported when using the corresponding dialect with a JSON serialization library (`storm-jackson` or `storm-kotlinx-serialization`). See [JSON Support](json.md) for details.
+PostgreSQL's JSONB and MySQL/MariaDB's JSON types are fully supported when using the corresponding dialect with a JSON serialization library (`storm-jackson2`/`storm-jackson3` or `storm-kotlinx-serialization`). See [JSON Support](json.md) for details.
 
 ### Database-Specific Data Types
 
-Beyond SQL syntax differences, databases support different native data types. Dialects handle the mapping between Java/Kotlin types and database-specific types automatically, so you can use idiomatic types in your entities without worrying about the underlying storage format.
+Beyond SQL syntax differences, databases support different native data types. Dialects handle the mapping between Kotlin/Java types and database-specific types automatically, so you can use idiomatic types in your entities without worrying about the underlying storage format.
 
 - **PostgreSQL:** JSONB, UUID, arrays, INET, CIDR
 - **MySQL/MariaDB:** JSON, TINYINT for booleans, ENUM
@@ -138,29 +141,36 @@ Beyond SQL syntax differences, databases support different native data types. Di
 
 Storm works without a specific dialect package by generating standard SQL. This is the typical setup during development and testing when using H2 as an in-memory database. The core framework handles entity mapping, queries, joins, transactions, streaming, dirty checking, and caching using only standard SQL. However, some features require database-specific syntax and will be unavailable without a dialect:
 
-- **Upsert operations** -- require database-specific syntax
-- **Database-specific optimizations** -- e.g., native pagination strategies
+- **Upsert operations** require database-specific syntax
+- **Database-specific optimizations** such as native pagination strategies
 
-All other features -- entity mapping, queries, joins, transactions, streaming, dirty checking, and caching -- work identically regardless of dialect.
+All other features (entity mapping, queries, joins, transactions, streaming, dirty checking, and caching) work identically regardless of dialect.
 
 ## Testing with H2
 
 H2 is an in-memory Java SQL database that starts instantly and requires no external processes. Storm includes built-in support for H2, making it the default choice for unit tests. Because H2 runs in-process, tests start in milliseconds and do not require Docker, network access, or database installation.
 
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
 ```kotlin
-// Kotlin
 val dataSource = JdbcDataSource().apply {
     setUrl("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1")
 }
 val orm = ORMTemplate.of(dataSource)
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
-// Java
 var dataSource = new JdbcDataSource();
 dataSource.setUrl("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
 var orm = ORMTemplate.of(dataSource);
 ```
+
+</TabItem>
+</Tabs>
 
 No additional dialect dependency is needed for H2. This makes it easy to write fast tests that run without Docker or external databases.
 
@@ -177,7 +187,14 @@ mvn test -pl storm-postgresql
 ## Tips
 
 1. **Always include the dialect** for production databases to unlock all features
-2. **Use H2** for unit tests -- no additional dialect needed, fast startup
-3. **Dialect is runtime-only** -- it doesn't affect your compile-time code or entity definitions
-4. **One dialect per application** -- Storm auto-detects the right dialect from your connection URL
-5. **Test with both** -- Use H2 for fast unit tests and the production dialect for integration tests
+2. **Use H2** for unit tests; no additional dialect needed, fast startup
+3. **Dialect is runtime-only**; it doesn't affect your compile-time code or entity definitions
+4. **One dialect per application**; Storm auto-detects the right dialect from your connection URL
+5. **Test with both**: Use H2 for fast unit tests and the production dialect for integration tests
+
+---
+
+## See Also
+
+- [Upserts](upserts.md) for dialect-specific upsert strategies and usage examples
+- [JSON](json.md) for database-specific JSON column support

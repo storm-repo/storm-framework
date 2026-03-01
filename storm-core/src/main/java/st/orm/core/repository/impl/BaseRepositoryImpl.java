@@ -15,32 +15,32 @@
  */
 package st.orm.core.repository.impl;
 
-import jakarta.annotation.Nonnull;
-import st.orm.Data;
-import st.orm.Metamodel;
-import st.orm.Ref;
-import st.orm.NoResultException;
-import st.orm.PersistenceException;
-import st.orm.core.template.Model;
-import st.orm.core.repository.Repository;
-import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.QueryBuilder;
-import st.orm.core.template.TemplateString;
+import static java.lang.Integer.MAX_VALUE;
+import static java.util.Objects.requireNonNull;
+import static java.util.Spliterator.ORDERED;
+import static java.util.Spliterators.spliteratorUnknownSize;
+import static st.orm.Operator.EQUALS;
+import static st.orm.core.spi.Providers.selectFrom;
+import static st.orm.core.spi.Providers.selectRefFrom;
+import static st.orm.core.template.TemplateString.wrap;
 
+import jakarta.annotation.Nonnull;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-
-import static java.lang.Integer.MAX_VALUE;
-import static java.util.Objects.requireNonNull;
-import static java.util.Spliterator.ORDERED;
-import static java.util.Spliterators.spliteratorUnknownSize;
-import static st.orm.core.spi.Providers.selectFrom;
-import static st.orm.core.spi.Providers.selectRefFrom;
-import static st.orm.core.template.TemplateString.wrap;
+import st.orm.Data;
+import st.orm.Metamodel;
+import st.orm.NoResultException;
+import st.orm.PersistenceException;
+import st.orm.Ref;
+import st.orm.core.repository.Repository;
+import st.orm.core.template.Model;
+import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.QueryBuilder;
+import st.orm.core.template.TemplateString;
 
 /**
  * Base implementation for all repositories.
@@ -312,6 +312,62 @@ abstract class BaseRepositoryImpl<E extends Data, ID> implements Repository {
      */
     public E getByRef(@Nonnull Ref<E> ref) {
         return select().where(ref).getSingleResult();
+    }
+
+    // Singular findBy / getBy methods for unique keys.
+
+    /**
+     * Retrieves an entity by the value of a unique key field.
+     *
+     * @param key the metamodel key identifying a unique column.
+     * @param value the value to match.
+     * @return the entity matching the given key value, or empty if none exists.
+     * @param <V> the type of the key field.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     */
+    public <V> Optional<E> findBy(@Nonnull Metamodel.Key<E, V> key, @Nonnull V value) {
+        return select().where(key, EQUALS, value).getOptionalResult();
+    }
+
+    /**
+     * Retrieves an entity by the value of a unique key field.
+     *
+     * @param key the metamodel key identifying a unique column.
+     * @param value the value to match.
+     * @return the entity matching the given key value.
+     * @param <V> the type of the key field.
+     * @throws NoResultException if no entity is found matching the given key value.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     */
+    public <V> E getBy(@Nonnull Metamodel.Key<E, V> key, @Nonnull V value) {
+        return select().where(key, EQUALS, value).getSingleResult();
+    }
+
+    /**
+     * Retrieves an entity by the ref value of a unique key field that references another entity.
+     *
+     * @param key the metamodel key identifying a unique foreign key column.
+     * @param value the ref value to match.
+     * @return the entity matching the given ref value, or empty if none exists.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     */
+    public <V extends Data> Optional<E> findByRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> value) {
+        return select().where(key, value).getOptionalResult();
+    }
+
+    /**
+     * Retrieves an entity by the ref value of a unique key field that references another entity.
+     *
+     * @param key the metamodel key identifying a unique foreign key column.
+     * @param value the ref value to match.
+     * @return the entity matching the given ref value.
+     * @param <V> the type of the referenced entity.
+     * @throws NoResultException if no entity is found matching the given ref value.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     */
+    public <V extends Data> E getByRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> value) {
+        return select().where(key, value).getSingleResult();
     }
 
     // List based methods.

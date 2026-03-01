@@ -1,20 +1,79 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Storm vs Other Frameworks
 
-There is no universally “best” database framework. Each has strengths suited to different situations, team preferences, and project requirements. Teams approach data access differently, including using frameworks at various abstraction levels or even plain SQL. This page provides an honest comparison to help you evaluate whether Storm fits your needs, particularly if you value explicit and predictable behavior and fast development. We encourage you to explore the linked documentation for each framework and form your own conclusions.
+There is no universally "best" database framework. Each has strengths suited to different situations, team preferences, and project requirements. Teams approach data access differently, including using frameworks at various abstraction levels or even plain SQL. This page provides an honest comparison to help you evaluate whether Storm fits your needs, particularly if you value explicit and predictable behavior and fast development. We encourage you to explore the linked documentation for each framework and form your own conclusions.
+
+## Feature Comparison
+
+The following tables provide a side-by-side comparison of concrete features across all frameworks discussed on this page. "Yes" and "No" indicate built-in support; "Manual" means the feature is achievable but requires explicit effort from the developer.
+
+### Entity & Data Modeling
+
+| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm |
+|---------|-------|-----|-------------|---------|------|------|---------|-------|
+| Lines per entity | ~5 | ~30<sup>1</sup> | ~30<sup>1</sup> | ~20+ | Generated | ~15 | ~12 | ~15 |
+| Immutable entities | Yes | No | No | Yes | Yes | Yes | DSL only | No |
+| Polymorphism | Yes<sup>2</sup> | Yes | Via JPA | No | No | No | No | No |
+| Automatic relationships | Yes | Yes<sup>3</sup> | Via JPA | No | No | No | DAO only | No |
+| Cascade persist | No | Yes | Yes | No | No | No | No | No |
+| Lifecycle callbacks | Yes | Yes | Via JPA | No | Yes | No | DAO only | No |
+
+<sup>1</sup> JPA/Spring Data lines without Lombok; ~10 lines with Lombok.
+
+<sup>2</sup> Storm supports Single-Table, Joined Table, and Polymorphic FK strategies using sealed types. JPA additionally supports Table-per-Class and multi-level inheritance hierarchies.
+
+<sup>3</sup> JPA relationships are runtime-managed via proxies.
+
+### Querying & Data Access
+
+| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm |
+|---------|-------|-----|-------------|---------|------|------|---------|-------|
+| Type-safe queries | Yes | Criteria | No | No | Yes | No | Yes | Yes |
+| SQL Templates | Yes | No | No | XML/Ann | Yes | Yes | No | No |
+| N+1 prevention | Yes | No | No | No | Manual | Manual | No | No |
+| Lazy loading | Refs | Yes | Yes | No | No | No | Yes | Yes |
+| Keyset pagination | Yes | No | Yes | No | Yes | No | No | No |
+| JSON columns | Yes | Yes<sup>4</sup> | Via JPA | Manual | Yes | Module | Yes | Module |
+| JSON aggregation | Yes | No | No | No | Yes | No | No | No |
+
+<sup>4</sup> JPA requires Hibernate 6.2+ for built-in JSON support; older versions need a third-party library or custom `AttributeConverter`.
+
+### Runtime & Ecosystem
+
+| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm |
+|---------|-------|-----|-------------|---------|------|------|---------|-------|
+| Transactions | Both | Both | Declarative | Both | Programmatic | Both | Required | Required |
+| Schema validation | Yes | Yes | Via JPA | No | N/A<sup>5</sup> | No | Yes | No |
+| Java support | Yes | Yes | Yes | Yes | Yes | Yes | No | No |
+| Kotlin support | First-class | Good | Good | Good | Good | Good | Native | Native |
+| Coroutines | Yes | No | No | No | No | No | Yes | Limited |
+| Spring integration | Yes | Yes | Native | Yes | Yes | Yes | Yes | Yes |
+| Runtime mechanism | Codegen<sup>6</sup> | Bytecode | Bytecode | Reflection | Codegen | Reflection | Reflection | Reflection |
+| Community | New | Huge | Huge | Large | Medium | Medium | Medium | Small |
+
+<sup>5</sup> jOOQ generates code from the database schema, so schema validation is inherent in its code generation step.
+
+<sup>6</sup> Storm uses codegen with reflection fallback.
+
+---
 
 ## Storm vs JPA/Hibernate
 
-JPA (typically implemented by Hibernate) is the most widely used persistence framework in the Java ecosystem. It provides a full object-relational mapping layer with managed entities, lifecycle callbacks, and second-level caching. Storm takes a fundamentally different approach: entities are plain values with no managed state, and database interactions are explicit rather than implicit. This makes Storm simpler to reason about at the cost of JPA's more automated (but less predictable) features.
+JPA (typically implemented by Hibernate) is the most widely used persistence framework in the Java ecosystem. It provides a full object-relational mapping layer with managed entities and second-level caching. Storm takes a fundamentally different approach: entities are plain values with no managed state, and database interactions are explicit rather than implicit. This makes Storm simpler to reason about at the cost of JPA's more automated (but less predictable) features.
 
 | Aspect | Storm | JPA/Hibernate                            |
 |--------|-------|------------------------------------------|
 | **Entities** | Immutable records/data classes | Mutable classes with getters/setters     |
+| **Polymorphism** | Sealed types (Single-Table, Joined, Polymorphic FK); STRING, INTEGER, CHAR discriminators | Class hierarchy (Single-Table, Joined, Table-per-Class); STRING, INTEGER, CHAR discriminators |
 | **State** | Stateless; no persistence context | Managed entities                         |
 | **Loading** | Loading in single query | Lazy loading common              |
 | **N+1 Problem** | Prevented by design; requires explicit opt-in | Common pitfall                           |
 | **Queries** | Type-safe DSL, SQL Templates | JPQL, Criteria API                       |
 | **Caching** | Transaction-scoped observation | First/second level cache                 |
 | **Transactions** | Programmatic + `@Transactional` (Spring) | `@Transactional`, JTA, container-managed |
+| **Schema Validation** | Programmatic + Spring Boot | `ddl-auto=validate` |
 | **Learning Curve** | Gentle; SQL-like | Steep; many concepts                     |
 | **Magic** | What you see is what you get | Proxies, bytecode enhancement            |
 
@@ -29,7 +88,7 @@ JPA (typically implemented by Hibernate) is the most widely used persistence fra
 ### When to Choose JPA/Hibernate
 
 - You rely on second-level caching
-- You have complex inheritance hierarchies
+- You have complex multi-level inheritance hierarchies (Storm supports [single-level sealed type polymorphism](polymorphism.md))
 - You have an existing JPA codebase to maintain
 - You need JPA compliance for vendor reasons
 - You want access to a large community and extensive resources
@@ -41,6 +100,7 @@ Spring Data JPA wraps JPA with a repository abstraction that derives query imple
 | Aspect | Storm | Spring Data JPA |
 |--------|-------|-----------------|
 | **Foundation** | Custom ORM | JPA/Hibernate |
+| **Polymorphism** | Sealed types (Single-Table, Joined, Polymorphic FK) | Via JPA |
 | **Repositories** | Interface with default methods | Interface with method naming, `@Query` |
 | **Query Methods** | Explicit DSL in method body | Derived from method names, `@Query` |
 | **Entities** | Records/data classes | JPA entities |
@@ -66,6 +126,7 @@ MyBatis is a SQL mapper that gives you full control over every query. You write 
 | Aspect | Storm | MyBatis |
 |--------|-------|---------|
 | **Approach** | Stateless ORM | SQL mapper |
+| **Polymorphism** | Sealed types (Single-Table, Joined, Polymorphic FK) | Manual (via SQL) |
 | **SQL Definition** | Inferred from entities, SQL Templates (optional) | XML files or annotations |
 | **Result Mapping** | Automatic from entity definitions | Manual XML/annotation mapping |
 | **Entities** | Records/data classes with annotations | POJOs, manual mapping |
@@ -98,8 +159,9 @@ jOOQ generates Java code from your database schema, providing a type-safe SQL DS
 | Aspect | Storm | jOOQ |
 |--------|-------|------|
 | **Approach** | Entity-first, convention | SQL-first, code generation |
+| **Polymorphism** | Sealed types (Single-Table, Joined, Polymorphic FK) | Manual (via SQL DSL) |
 | **Type Safety** | Metamodel from entities | Generated from schema |
-| **Setup** | Define entities → code generation | Schema → code generation |
+| **Setup** | Define entities, code generation | Schema, code generation |
 | **Entities** | Records/data classes with `Entity` | Records or POJOs |
 | **Query Style** | Repository + ORM DSL + SQL Templates | SQL-like DSL |
 | **Relationships** | Automatic from `@FK` | Manual joins |
@@ -117,6 +179,7 @@ jOOQ generates Java code from your database schema, providing a type-safe SQL DS
 
 - You prefer pure SQL control
 - You want native DSL support for advanced SQL features (window functions, CTEs)
+- You want a thin layer over SQL with minimal runtime overhead
 
 ## Storm vs JDBI
 
@@ -125,6 +188,7 @@ JDBI is a lightweight SQL convenience library that sits just above JDBC. It hand
 | Aspect | Storm | JDBI |
 |--------|-------|------|
 | **Level** | Stateless ORM | Low-level SQL mapping |
+| **Polymorphism** | Sealed types (Single-Table, Joined, Polymorphic FK) | Manual |
 | **Entities** | Automatic from annotations | Manual mapping |
 | **Relationships** | Automatic via `@FK` | Manual |
 | **Type Safety** | Metamodel DSL | String SQL |
@@ -140,7 +204,7 @@ JDBI is a lightweight SQL convenience library that sits just above JDBC. It hand
 
 - You want full SQL control
 - You prefer minimal abstraction
-- You have complex queries that don't fit ORM patterns
+- You have mostly complex queries that don't fit ORM patterns
 
 ---
 
@@ -155,9 +219,10 @@ Exposed is JetBrains' official Kotlin database framework. It offers two APIs: a 
 | Aspect | Exposed | Storm                                |
 |--------|---------|--------------------------------------|
 | **Language** | Kotlin only | Kotlin + Java                        |
+| **Polymorphism** | No | Sealed types (Single-Table, Joined, Polymorphic FK) |
 | **APIs** | DSL (SQL) + DAO (ORM) | Unified ORM + SQL Templates          |
 | **Table Definition** | DSL objects (`object Users : Table()`) | Annotations on data classes          |
-| **Entities (DAO)** | Mutable, extend `Entity` class | Immutable data classes/records       |
+| **Entities (DAO)** | Mutable, extend `Entity` class | Immutable data classes (Kotlin) / records (Java) |
 | **Relationships** | Lazy references, manual loading | Loading in single query              |
 | **N+1 Problem** | Possible with DAO | Prevented by design; requires explicit opt-in                 |
 | **Coroutines** | Supported (added later) | First-class from the start           |
@@ -166,7 +231,7 @@ Exposed is JetBrains' official Kotlin database framework. It offers two APIs: a 
 
 ### When to Choose Storm
 
-- You need Java support alongside Kotlin
+- You need Kotlin and Java support
 - You want immutable entities without base class inheritance
 - You prefer annotation-based entity definitions
 - N+1 queries are a concern
@@ -191,6 +256,7 @@ Ktorm is a lightweight Kotlin ORM that uses entity interfaces and DSL-based tabl
 | Aspect | Ktorm | Storm |
 |--------|-------|-------|
 | **Language** | Kotlin only | Kotlin + Java |
+| **Polymorphism** | No | Sealed types (Single-Table, Joined, Polymorphic FK) |
 | **Entities** | Interfaces extending `Entity` | Data classes with annotations |
 | **Table Definition** | DSL objects (`object Users : Table<User>`) | Annotations on data classes |
 | **Query Style** | Sequence API, DSL | ORM DSL + SQL Templates |
@@ -203,7 +269,7 @@ Ktorm is a lightweight Kotlin ORM that uses entity interfaces and DSL-based tabl
 
 ### When to Choose Storm
 
-- You need Java support alongside Kotlin
+- You need Kotlin and Java support
 - You want immutable data classes, not interfaces
 - You prefer annotation-based definitions
 - N+1 prevention is important
@@ -216,34 +282,6 @@ Ktorm is a lightweight Kotlin ORM that uses entity interfaces and DSL-based tabl
 - You like the Sequence API style
 - You want a lightweight, minimal dependency footprint
 - You prefer DSL-based table definitions
-
----
-
-## Feature Comparison
-
-The following table provides a side-by-side comparison of concrete features across all frameworks discussed above. "Yes" and "No" indicate built-in support; "Manual" means the feature is achievable but requires explicit effort from the developer.
-
-| Feature | Storm | JPA | Spring Data | MyBatis | jOOQ | JDBI | Exposed | Ktorm |
-|---------|-------|-----|-------------|---------|------|------|---------|-------|
-| Lines per entity | ~5 | ~30* | ~30* | ~20+ | Generated | ~15 | ~12 | ~15 |
-| Immutable entities | Yes | No | No | Yes | Yes | Yes | DSL only | No |
-| Type-safe queries | Yes | Criteria | No | No | Yes | No | Yes | Yes |
-| Automatic relationships | Yes | Yes** | Via JPA | No | No | No | DAO only | No |
-| Cascade persist | No | Yes | Yes | No | No | No | No | No |
-| N+1 prevention | Yes | No | No | No | Manual | Manual | No | No |
-| Lazy loading | Refs | Yes | Yes | No | No | No | Yes | Yes |
-| SQL Templates | Yes | No | No | XML/Ann | Yes | Yes | No | No |
-| Transactions | Both | Both | Declarative | Both | Programmatic | Both | Required | Required |
-| Kotlin support | First-class | Good | Good | Good | Good | Good | Native | Native |
-| Coroutines | Yes | No | No | No | No | No | Yes | Limited |
-| Runtime mechanism | Codegen* | Bytecode | Bytecode | Reflection | Codegen | Reflection | Reflection | Reflection |
-| Spring integration | Yes | Yes | Native | Yes | Yes | Yes | Yes | Yes |
-| Java support | Yes | Yes | Yes | Yes | Yes | Yes | No | No |
-| Community | New | Huge | Huge | Large | Medium | Medium | Medium | Small |
-
-*\* JPA/Spring Data lines without Lombok; ~10 lines with Lombok. Storm uses codegen with reflection fallback.*
-
-*\*\* JPA relationships are runtime-managed via proxies.*
 
 ## Summary
 

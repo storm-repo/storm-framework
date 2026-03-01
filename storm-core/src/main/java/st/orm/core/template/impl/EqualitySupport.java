@@ -15,13 +15,12 @@
  */
 package st.orm.core.template.impl;
 
-import jakarta.annotation.Nonnull;
+import static java.util.Objects.requireNonNull;
 
+import jakarta.annotation.Nonnull;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.util.Objects;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * Builds allocation-free equality checks for metamodel fields backed by {@link MethodHandle}.

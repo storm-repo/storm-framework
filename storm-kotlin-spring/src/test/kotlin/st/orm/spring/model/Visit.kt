@@ -16,5 +16,5 @@ data class Visit(
     val visitDate: LocalDate,
     val description: String? = null,
     @FK val pet: Pet,
-    @Version val timestamp: Instant?
+    @Version val timestamp: Instant?,
 ) : Entity<Int>

@@ -41,20 +41,17 @@ sealed interface TemplateString {
         /**
          * Create a new template string from a raw SQL string. No parameter interpolation is performed.
          */
-        fun raw(str: String): TemplateString =
-            TemplateStringHolder(st.orm.core.template.TemplateString.of(str))
+        fun raw(str: String): TemplateString = TemplateStringHolder(st.orm.core.template.TemplateString.of(str))
 
         /**
          * Create a new template string that wraps a single value as a bound parameter.
          */
-        fun wrap(value: Any?): TemplateString =
-            TemplateStringHolder(st.orm.core.template.TemplateString.wrap(value))
+        fun wrap(value: Any?): TemplateString = TemplateStringHolder(st.orm.core.template.TemplateString.wrap(value))
 
         /**
          * Combine multiple template strings into a single template string.
          */
-        fun combine(vararg templates: TemplateString): TemplateString =
-            TemplateStringHolder(st.orm.core.template.TemplateString.combine(*templates.map { it.unwrap }.toTypedArray()))
+        fun combine(vararg templates: TemplateString): TemplateString = TemplateStringHolder(st.orm.core.template.TemplateString.combine(*templates.map { it.unwrap }.toTypedArray()))
     }
 }
 
@@ -89,9 +86,7 @@ interface TemplateContext {
      * @param o the object to interpolate (a value, [KClass][kotlin.reflect.KClass], [Element], record, etc.).
      * @return a placeholder string that the template engine replaces with the appropriate SQL fragment.
      */
-    fun t(o: Any?): String {
-        return insert(o)
-    }
+    fun t(o: Any?): String = insert(o)
 
     /**
      * Interpolates the given object into the SQL template.
@@ -105,17 +100,20 @@ interface TemplateContext {
 /**
  * Builds this [TemplateBuilder] into a [TemplateString] ready for use with the Storm query engine.
  */
-fun TemplateBuilder.build(): TemplateString =
-    TemplateStringHolder(st.orm.core.template.TemplateBuilder.create { ctx ->
-        with(object : TemplateContext {
-            override fun insert(o: Any?) = ctx.insert(o)
-        }, this)
-    })
+fun TemplateBuilder.build(): TemplateString = TemplateStringHolder(
+    st.orm.core.template.TemplateBuilder.create { ctx ->
+        with(
+            object : TemplateContext {
+                override fun insert(o: Any?) = ctx.insert(o)
+            },
+            this,
+        )
+    },
+)
 
 internal data class TemplateStringHolder(
-    val templateString: st.orm.core.template.TemplateString
+    val templateString: st.orm.core.template.TemplateString,
 ) : TemplateString
 
 internal val TemplateString.unwrap: st.orm.core.template.TemplateString get() =
     (this as TemplateStringHolder).templateString
-

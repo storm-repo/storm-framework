@@ -27,7 +27,7 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 
 class TypeIndexProcessor(
     private val codeGenerator: CodeGenerator,
-    private val logger: KSPLogger
+    private val logger: KSPLogger,
 ) : SymbolProcessor {
 
     private val indexEntries: MutableMap<String, MutableSet<String>> =
@@ -62,7 +62,7 @@ class TypeIndexProcessor(
             Dependencies.ALL_FILES,
             INDEX_PACKAGE,
             typeFqName,
-            "idx"
+            "idx",
         )
         file.bufferedWriter().use { out ->
             lines.sorted().forEach { fqcn ->
@@ -76,7 +76,7 @@ class TypeIndexProcessor(
 
         private val INDEXED_TYPES = listOf(
             "st.orm.Data",
-            "st.orm.Converter"
+            "st.orm.Converter",
         )
     }
 }

@@ -8,5 +8,5 @@ import st.orm.PK
  */
 data class City(
     @PK val id: Int = 0,
-    val name: String
+    val name: String,
 ) : Entity<Int>

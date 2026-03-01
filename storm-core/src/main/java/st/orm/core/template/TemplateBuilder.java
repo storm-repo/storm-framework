@@ -1,12 +1,11 @@
 package st.orm.core.template;
 
+import static java.util.Arrays.asList;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-
 import java.util.ArrayList;
 import java.util.List;
-
-import static java.util.Arrays.asList;
 
 /**
  * Provides support for Java-style string templates without preview features.

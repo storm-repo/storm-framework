@@ -1,14 +1,13 @@
 package st.orm.core.template;
 
+import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-
-import static java.util.Arrays.asList;
-import static java.util.Collections.singletonList;
 
 /**
  * Holds the pieces of a split template string and the values that will be inserted between them.

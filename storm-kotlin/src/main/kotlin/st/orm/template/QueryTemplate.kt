@@ -89,9 +89,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param <T> table type.
      * @param <ID> primary key type.
      */
-    fun <T : Data> model(type: KClass<T>): Model<T, *> {
-        return model(type, false)
-    }
+    fun <T : Data> model(type: KClass<T>): Model<T, *> = model(type, false)
 
     /**
      * Get the model for the specified record `type`. The model provides information about the type's database
@@ -113,9 +111,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @return the query builder.
      * @param <T> the table type to select from.
      */
-    fun <T : Data> selectFrom(fromType: KClass<T>): QueryBuilder<T, T, *> {
-        return selectFrom(fromType, fromType)
-    }
+    fun <T : Data> selectFrom(fromType: KClass<T>): QueryBuilder<T, T, *> = selectFrom(fromType, fromType)
 
     /**
      * Creates a query builder for the specified table and select type.
@@ -128,10 +124,8 @@ interface QueryTemplate : SubqueryTemplate {
      */
     fun <T : Data, R : Any> selectFrom(
         fromType: KClass<T>,
-        selectType: KClass<R>
-    ): QueryBuilder<T, R, *> {
-        return selectFrom(fromType, selectType, wrap(selectType))
-    }
+        selectType: KClass<R>,
+    ): QueryBuilder<T, R, *> = selectFrom(fromType, selectType, wrap(selectType))
 
     /**
      * Creates a query builder for the specified table and select type using the given `template`.
@@ -146,10 +140,8 @@ interface QueryTemplate : SubqueryTemplate {
     fun <T : Data, R : Any> selectFrom(
         fromType: KClass<T>,
         selectType: KClass<R>,
-        template: TemplateBuilder
-    ): QueryBuilder<T, R, *> {
-        return selectFrom(fromType, selectType, template.build())
-    }
+        template: TemplateBuilder,
+    ): QueryBuilder<T, R, *> = selectFrom(fromType, selectType, template.build())
 
     /**
      * Creates a query builder for the specified table and select type using the given `template`.
@@ -164,7 +156,7 @@ interface QueryTemplate : SubqueryTemplate {
     fun <T : Data, R : Any> selectFrom(
         fromType: KClass<T>,
         selectType: KClass<R>,
-        template: TemplateString
+        template: TemplateString,
     ): QueryBuilder<T, R, *>
 
     /**
@@ -190,9 +182,7 @@ interface QueryTemplate : SubqueryTemplate {
      * @param template the query template.
      * @return the query.
      */
-    fun query(template: TemplateBuilder): Query {
-        return query(template.build())
-    }
+    fun query(template: TemplateBuilder): Query = query(template.build())
 
     /**
      * Creates a query for the specified query `template`.

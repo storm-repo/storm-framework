@@ -16,21 +16,21 @@
 package st.orm.core.repository;
 
 import jakarta.annotation.Nonnull;
-import st.orm.Data;
-import st.orm.FK;
-import st.orm.Inline;
-import st.orm.Ref;
-import st.orm.NoResultException;
-import st.orm.PK;
-import st.orm.PersistenceException;
-import st.orm.core.template.Model;
-import st.orm.core.template.QueryBuilder;
-import st.orm.core.template.TemplateString;
-import st.orm.Entity;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
+import st.orm.Data;
+import st.orm.Entity;
+import st.orm.FK;
+import st.orm.Inline;
+import st.orm.Metamodel;
+import st.orm.NoResultException;
+import st.orm.PK;
+import st.orm.PersistenceException;
+import st.orm.Ref;
+import st.orm.core.template.Model;
+import st.orm.core.template.QueryBuilder;
+import st.orm.core.template.TemplateString;
 
 /**
  * Provides a generic interface with CRUD operations for entities.
@@ -486,8 +486,9 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
     /**
      * Deletes an entity from the database.
      *
-     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database and is correctly identified by its primary key.</p>
+     * <p>This method removes an existing entity from the database. The entity must exist in the database; if it does
+     * not, a {@link PersistenceException} is thrown. Unlike {@link #deleteById} and {@link #deleteByRef}, this method
+     * is strict rather than idempotent, because possessing the full entity implies the caller expects it to exist.</p>
      *
      * @param entity the entity to delete. The entity must exist in the database and should be correctly identified by
      *               its primary key.
@@ -500,27 +501,24 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
     /**
      * Deletes an entity from the database based on its primary key.
      *
-     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database.</p>
+     * <p>This method ensures the entity with the given primary key is removed from the database. If the entity does
+     * not exist, the operation completes successfully without error (idempotent behavior).</p>
      *
      * @param id the primary key of the entity to delete.
-     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
-     *                              being found in the database, violations of database constraints, connectivity
-     *                              issues, or if the entity parameter is null.
+     * @throws PersistenceException if the deletion operation fails due to violations of database constraints,
+     *                              connectivity issues, or if the id parameter is null.
      */
     void deleteById(@Nonnull ID id);
 
     /**
-     * Deletes an entity from the database.
+     * Deletes an entity from the database by its reference.
      *
-     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database and is correctly identified by its primary key.</p>
+     * <p>This method ensures the entity identified by the given reference is removed from the database. If the entity
+     * does not exist, the operation completes successfully without error (idempotent behavior).</p>
      *
-     * @param ref the entity to delete. The entity must exist in the database and should be correctly identified by
-     *            its ref.
-     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
-     *                              being found in the database, violations of database constraints, connectivity
-     *                              issues, or if the entity parameter is null.
+     * @param ref the reference to the entity to delete.
+     * @throws PersistenceException if the deletion operation fails due to violations of database constraints,
+     *                              connectivity issues, or if the ref parameter is null.
      */
     void deleteByRef(@Nonnull Ref<E> ref);
 
@@ -598,6 +596,58 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      */
     E getByRef(@Nonnull Ref<E> ref);
 
+    // Singular findBy / getBy methods for unique keys.
+
+    /**
+     * Retrieves an entity by the value of a unique key field.
+     *
+     * @param key the metamodel key identifying a unique column.
+     * @param value the value to match.
+     * @return the entity matching the given key value, or empty if none exists.
+     * @param <V> the type of the key field.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.9
+     */
+    <V> Optional<E> findBy(@Nonnull Metamodel.Key<E, V> key, @Nonnull V value);
+
+    /**
+     * Retrieves an entity by the value of a unique key field.
+     *
+     * @param key the metamodel key identifying a unique column.
+     * @param value the value to match.
+     * @return the entity matching the given key value.
+     * @param <V> the type of the key field.
+     * @throws NoResultException if no entity is found matching the given key value.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.9
+     */
+    <V> E getBy(@Nonnull Metamodel.Key<E, V> key, @Nonnull V value);
+
+    /**
+     * Retrieves an entity by the ref value of a unique key field that references another entity.
+     *
+     * @param key the metamodel key identifying a unique foreign key column.
+     * @param value the ref value to match.
+     * @return the entity matching the given ref value, or empty if none exists.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.9
+     */
+    <V extends Data> Optional<E> findByRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> value);
+
+    /**
+     * Retrieves an entity by the ref value of a unique key field that references another entity.
+     *
+     * @param key the metamodel key identifying a unique foreign key column.
+     * @param value the ref value to match.
+     * @return the entity matching the given ref value.
+     * @param <V> the type of the referenced entity.
+     * @throws NoResultException if no entity is found matching the given ref value.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.9
+     */
+    <V extends Data> E getByRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> value);
+
     // List based methods.
 
     /**
@@ -618,8 +668,8 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      *
      * <p>This method retrieves entities matching the provided IDs in batches, consolidating them into a single list.
      * The batch-based retrieval minimizes database overhead, allowing efficient handling of larger collections of IDs.
-     * 
-     * <p><strong>Note:</strong> The order of entities in the returned list is not guaranteed to match the order of IDs 
+     *
+     * <p><strong>Note:</strong> The order of entities in the returned list is not guaranteed to match the order of IDs
      * in the input collection, as the database may not preserve insertion order during retrieval.</p>
      *
      * @param ids the primary keys of the entities to retrieve, represented as an iterable collection.
@@ -692,9 +742,14 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * generated by the database (e.g., auto-incremented). Otherwise, if the primary keys are not generated by the
      * database, the method returns an empty list.</p>
      *
+     * <p>For polymorphic (joined table inheritance) entities, the batch insert groups extension table operations by
+     * concrete subtype internally. However, the returned list of IDs always corresponds to the input entities in
+     * the same order, as the base table insert preserves the original input order.</p>
+     *
      * @param entities an iterable collection of entities to be inserted. Each entity in the collection must
      *                 be non-null and contain valid data for insertion.
-     * @return the primary keys assigned to the entities when the primary keys are generated by the database,
+     * @return the primary keys assigned to the entities when the primary keys are generated by the database. The
+     *         order of IDs in the returned list matches the order of entities in the input collection.
      * @throws PersistenceException if the insertion operation fails due to database issues, such as connectivity
      *                              problems, constraints violations, or invalid entity data.
      */
@@ -712,9 +767,14 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * returned entities include any changes that might have been applied during the insertion process, such as
      * primary key, default values or triggers.</p>
      *
+     * <p>For polymorphic (joined table inheritance) entities, the batch insert groups extension table operations by
+     * concrete subtype internally. Since the returned entities are fetched from the database by their generated IDs,
+     * their order is not guaranteed to match the input order.</p>
+     *
      * @param entities an iterable collection of entities to be inserted. Each entity in the collection must
      *                 be non-null and contain valid data for insertion.
-     * @return the entities that were inserted into the database.
+     * @return the entities that were inserted into the database. The order of entities in the returned list is not
+     *         guaranteed to match the order of the input collection.
      * @throws PersistenceException if the insertion operation fails due to database issues, such as connectivity
      *                              problems, constraints violations, or invalid entity data.
      */
@@ -741,6 +801,10 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * reducing database overhead. Upon successful update, it returns the entities as they exist in the database
      * after the update operation. This ensures that the returned entities reflect any modifications applied during
      * the update process, such as updated timestamps, versioning, or other automatic changes made by the database.</p>
+     *
+     * <p>For polymorphic (joined table inheritance) entities, the batch update groups extension table operations by
+     * concrete subtype internally. Since the returned entities are fetched from the database by their IDs, their
+     * order is not guaranteed to match the input order.</p>
      *
      * @param entities an iterable collection of entities to be updated. Each entity in the collection must be non-null
      *                 and contain valid data for modification in the database.
@@ -775,6 +839,9 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * the method returns a list of the IDs of the upserted entities, reflecting their identifiers as stored
      * in the database.</p>
      *
+     * <p>For polymorphic (joined table inheritance) entities, the upsert partitions operations by concrete subtype
+     * internally. The order of IDs in the returned list is not guaranteed to match the input order.</p>
+     *
      * @param entities an iterable collection of entities to be inserted or updated. Each entity in the collection
      *                 must be non-null and contain valid data for insertion or update in the database.
      * @return a list of IDs corresponding to the upserted entities. The order of IDs in the returned list
@@ -795,6 +862,10 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * any changes applied during the upsert process, such as generated primary keys, updated timestamps, or default
      * values set by the database.</p>
      *
+     * <p>For polymorphic (joined table inheritance) entities, the upsert partitions operations by concrete subtype
+     * internally. Since the returned entities are fetched from the database by their IDs, their order is not
+     * guaranteed to match the input order.</p>
+     *
      * @param entities an iterable collection of entities to be inserted or updated. Each entity in the collection
      *                 must be non-null and contain valid data for insertion or update in the database.
      * @return a list of upserted entities reflecting their current state in the database. The order of entities
@@ -808,7 +879,7 @@ public interface EntityRepository<E extends Entity<ID>, ID> extends Repository {
      * Deletes a collection of entities from the database in batches.
      *
      * <p>This method processes the provided entities in batches to optimize performance when handling larger collections,
-     * reducing database overhead. For each entity in the collection, the method removes the corresponding record from 
+     * reducing database overhead. For each entity in the collection, the method removes the corresponding record from
      * the database, if it exists. Batch processing ensures efficient handling of deletions, particularly for large data sets.</p>
      *
      * @param entities an iterable collection of entities to be deleted. Each entity in the collection must be non-null

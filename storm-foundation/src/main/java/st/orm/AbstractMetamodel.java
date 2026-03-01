@@ -15,13 +15,12 @@
  */
 package st.orm;
 
+import static java.util.Optional.ofNullable;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-
 import java.util.Objects;
 import java.util.Optional;
-
-import static java.util.Optional.ofNullable;
 
 /**
  * Implementation that is used by the generated models.

@@ -16,7 +16,6 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
-
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;

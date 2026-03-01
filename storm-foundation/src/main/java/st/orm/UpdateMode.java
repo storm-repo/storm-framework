@@ -26,8 +26,9 @@ package st.orm;
  * limiting which columns are written. This improvement is situational and must not be relied upon as a formal
  * correctness mechanism.</p>
  *
- * <p>The default update mode is {@link #ENTITY}. A different global default can be configured using the system property
- * {@code storm.update.defaultMode}. The update mode can also be configured per entity using {@link DynamicUpdate}.</p>
+ * <p>The default update mode is {@link #ENTITY}. A different default can be configured via the
+ * {@code storm.update.default_mode} property (see {@link StormConfig}). The update mode can also be configured per
+ * entity using {@link DynamicUpdate}.</p>
  *
  * <h2>General rules</h2>
  * <ul>

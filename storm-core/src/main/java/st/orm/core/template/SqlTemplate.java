@@ -17,15 +17,15 @@ package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.List;
 import st.orm.BindVars;
+import st.orm.StormConfig;
+import st.orm.core.template.impl.BindVarsHandle;
+import st.orm.core.template.impl.SqlTemplateImpl;
 import st.orm.mapping.ColumnNameResolver;
 import st.orm.mapping.ForeignKeyResolver;
 import st.orm.mapping.TableNameResolver;
 import st.orm.mapping.TemplateDecorator;
-import st.orm.core.template.impl.BindVarsHandle;
-import st.orm.core.template.impl.SqlTemplateImpl;
-
-import java.util.List;
 
 /**
  * A template processor for generating SQL queries. While this interface can be used directly, developers are encouraged
@@ -290,6 +290,16 @@ public interface SqlTemplate extends TemplateDecorator {
      * @since 1.2
      */
     SqlDialect dialect();
+
+    /**
+     * Returns a new SQL template with the specified Storm configuration. The SQL dialect is re-resolved from the
+     * provided configuration.
+     *
+     * @param config the Storm configuration to apply.
+     * @return a new SQL template.
+     * @since 1.9
+     */
+    SqlTemplate withConfig(@Nonnull StormConfig config);
 
     /**
      * Processes the specified {@code template} and returns the resulting SQL and parameters.

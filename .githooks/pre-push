@@ -1,0 +1,8 @@
+#!/bin/sh
+echo "Running Spotless formatting check..."
+mvn spotless:check -q 2>&1
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "Formatting check failed. Run 'mvn spotless:apply' to fix."
+    exit 1
+fi

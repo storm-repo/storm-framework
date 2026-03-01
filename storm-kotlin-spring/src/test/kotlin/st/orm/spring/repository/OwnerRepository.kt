@@ -5,5 +5,4 @@ import st.orm.repository.EntityRepository
 import st.orm.spring.model.Owner
 
 @NoRepositoryBean
-interface OwnerRepository : EntityRepository<Owner, Int> {
-}
+interface OwnerRepository : EntityRepository<Owner, Int>

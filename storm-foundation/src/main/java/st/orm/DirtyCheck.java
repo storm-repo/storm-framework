@@ -21,8 +21,8 @@ package st.orm;
  * <p>This enum controls how field changes are detected when dynamic updates are enabled.</p>
  *
  * <ul>
- *   <li>{@link #DEFAULT} – Use the globally configured dirty check strategy as defined by the
- *       system property {@code storm.update.dirtyCheck}.</li>
+ *   <li>{@link #DEFAULT} – Use the configured dirty check strategy as defined by the
+ *       {@code storm.update.dirty_check} property (see {@link StormConfig}).</li>
  *   <li>{@link #INSTANCE} – Fields are considered dirty as soon as their reference changes.
  *       This mode is fast and avoids potentially expensive value comparisons.</li>
  *   <li>{@link #VALUE} – Fields are compared using semantic equality. A field is only considered

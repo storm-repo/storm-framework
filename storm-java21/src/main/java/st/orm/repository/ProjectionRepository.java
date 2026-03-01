@@ -16,17 +16,18 @@
 package st.orm.repository;
 
 import jakarta.annotation.Nonnull;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 import st.orm.Data;
+import st.orm.Metamodel;
 import st.orm.NoResultException;
 import st.orm.PersistenceException;
 import st.orm.Projection;
 import st.orm.Ref;
+import st.orm.Slice;
 import st.orm.template.Model;
 import st.orm.template.QueryBuilder;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Stream;
 
 /**
  * Provides a generic interface with read operations for projections.
@@ -231,6 +232,507 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      */
     P getByRef(@Nonnull Ref<P> ref);
 
+    // Singular findBy / getBy methods for unique keys.
+
+    /**
+     * Retrieves a projection by the value of a unique key field.
+     *
+     * @param key the metamodel key identifying a unique column.
+     * @param value the value to match.
+     * @return the projection matching the given key value, or empty if none exists.
+     * @param <V> the type of the key field.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.9
+     */
+    <V> Optional<P> findBy(@Nonnull Metamodel.Key<P, V> key, @Nonnull V value);
+
+    /**
+     * Retrieves a projection by the value of a unique key field.
+     *
+     * @param key the metamodel key identifying a unique column.
+     * @param value the value to match.
+     * @return the projection matching the given key value.
+     * @param <V> the type of the key field.
+     * @throws NoResultException if no projection is found matching the given key value.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.9
+     */
+    <V> P getBy(@Nonnull Metamodel.Key<P, V> key, @Nonnull V value);
+
+    /**
+     * Retrieves a projection by the ref value of a unique key field that references another entity.
+     *
+     * @param key the metamodel key identifying a unique foreign key column.
+     * @param value the ref value to match.
+     * @return the projection matching the given ref value, or empty if none exists.
+     * @param <V> the type of the referenced entity.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.9
+     */
+    <V extends Data> Optional<P> findByRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> value);
+
+    /**
+     * Retrieves a projection by the ref value of a unique key field that references another entity.
+     *
+     * @param key the metamodel key identifying a unique foreign key column.
+     * @param value the ref value to match.
+     * @return the projection matching the given ref value.
+     * @param <V> the type of the referenced entity.
+     * @throws NoResultException if no projection is found matching the given ref value.
+     * @throws PersistenceException if the retrieval operation fails due to underlying database issues.
+     * @since 1.9
+     */
+    <V extends Data> P getByRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> value);
+
+    // Slice methods.
+
+    /**
+     * Returns the first slice of projections ordered by the specified key.
+     *
+     * <p>This method performs keyset pagination, returning at most {@code size} projections ordered by the given key
+     * in ascending order. The returned slice indicates whether more results are available beyond the current page.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param size the maximum number of projections to include in the slice.
+     * @param <V> the type of the key field.
+     * @return a slice containing the first page of results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V> Slice<P> slice(@Nonnull Metamodel.Key<P, V> key, int size) {
+        return select().slice(key, size);
+    }
+
+    /**
+     * Returns the first slice of projections ordered by the specified key in descending order.
+     *
+     * <p>This is the cursorless variant of descending keyset pagination, useful for starting at the most recent
+     * entries. Subsequent pages can be obtained with {@link #sliceBefore(Metamodel.Key, Object, int)}.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param size the maximum number of projections to include in the slice.
+     * @param <V> the type of the key field.
+     * @return a slice containing the first page of results in descending key order.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, int size) {
+        return select().sliceBefore(key, size);
+    }
+
+    /**
+     * Returns the first slice of projection refs ordered by the specified key in descending order.
+     *
+     * <p>This is the cursorless variant of descending keyset pagination for refs, useful for starting at the most
+     * recent entries.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <V> the type of the key field.
+     * @return a slice containing the first page of ref results in descending key order.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, int size) {
+        return selectRef().sliceBefore(key, size);
+    }
+
+    /**
+     * Returns the next slice of projections after the specified cursor value.
+     *
+     * <p>This method performs forward keyset pagination, returning projections where the key is greater than
+     * {@code after}, ordered ascending by the key. The returned slice indicates whether more results are available.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param after the cursor value; only projections with a key value greater than this will be returned.
+     * @param size the maximum number of projections to include in the slice.
+     * @param <V> the type of the key field.
+     * @return a slice containing the next page of results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V> Slice<P> sliceAfter(@Nonnull Metamodel.Key<P, V> key, @Nonnull V after, int size) {
+        return select().sliceAfter(key, after, size);
+    }
+
+    /**
+     * Returns the previous slice of projections before the specified cursor value.
+     *
+     * <p>This method performs backward keyset pagination, returning projections where the key is less than
+     * {@code before}, ordered descending by the key. The returned slice indicates whether more results are
+     * available.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param before the cursor value; only projections with a key value less than this will be returned.
+     * @param size the maximum number of projections to include in the slice.
+     * @param <V> the type of the key field.
+     * @return a slice containing the previous page of results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull V before, int size) {
+        return select().sliceBefore(key, before, size);
+    }
+
+    /**
+     * Returns the first slice of projection refs ordered by the specified key.
+     *
+     * <p>This method performs keyset pagination, returning at most {@code size} refs ordered by the given key in
+     * ascending order. Only the primary key is loaded for each projection; the full projection can be fetched on demand
+     * via {@link Ref#fetch()}. The returned slice indicates whether more results are available beyond the current
+     * page.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <V> the type of the key field.
+     * @return a slice containing the first page of ref results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V> Slice<Ref<P>> sliceRef(@Nonnull Metamodel.Key<P, V> key, int size) {
+        return selectRef().slice(key, size);
+    }
+
+    /**
+     * Returns the next slice of projection refs after the specified cursor value.
+     *
+     * <p>This method performs forward keyset pagination, returning refs where the key is greater than {@code after},
+     * ordered ascending by the key. Only the primary key is loaded for each projection; the full projection can be
+     * fetched on demand via {@link Ref#fetch()}. The returned slice indicates whether more results are available.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param after the cursor value; only projections with a key value greater than this will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <V> the type of the key field.
+     * @return a slice containing the next page of ref results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V> Slice<Ref<P>> sliceAfterRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull V after, int size) {
+        return selectRef().sliceAfter(key, after, size);
+    }
+
+    /**
+     * Returns the previous slice of projection refs before the specified cursor value.
+     *
+     * <p>This method performs backward keyset pagination, returning refs where the key is less than {@code before},
+     * ordered descending by the key. Only the primary key is loaded for each projection; the full projection can be
+     * fetched on demand via {@link Ref#fetch()}. The returned slice indicates whether more results are available.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param before the cursor value; only projections with a key value less than this will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <V> the type of the key field.
+     * @return a slice containing the previous page of ref results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull V before, int size) {
+        return selectRef().sliceBefore(key, before, size);
+    }
+
+    /**
+     * Returns the next slice of projections after the specified ref cursor value.
+     *
+     * <p>This method performs forward keyset pagination using a ref cursor, returning projections where the key is
+     * greater than {@code after}, ordered ascending by the key.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param after the ref cursor value; only projections with a key value greater than this ref will be returned.
+     * @param size the maximum number of projections to include in the slice.
+     * @param <V> the type of the key field, which must extend {@link Data}.
+     * @return a slice containing the next page of results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V extends Data> Slice<P> sliceAfter(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> after, int size) {
+        return select().sliceAfter(key, after, size);
+    }
+
+    /**
+     * Returns the previous slice of projections before the specified ref cursor value.
+     *
+     * <p>This method performs backward keyset pagination using a ref cursor, returning projections where the key is
+     * less than {@code before}, ordered descending by the key.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param before the ref cursor value; only projections with a key value less than this ref will be returned.
+     * @param size the maximum number of projections to include in the slice.
+     * @param <V> the type of the key field, which must extend {@link Data}.
+     * @return a slice containing the previous page of results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V extends Data> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> before, int size) {
+        return select().sliceBefore(key, before, size);
+    }
+
+    /**
+     * Returns the next slice of projection refs after the specified ref cursor value.
+     *
+     * <p>This method performs forward keyset pagination using a ref cursor, returning refs where the key is
+     * greater than {@code after}, ordered ascending by the key.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param after the ref cursor value; only projections with a key value greater than this ref will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <V> the type of the key field, which must extend {@link Data}.
+     * @return a slice containing the next page of ref results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V extends Data> Slice<Ref<P>> sliceAfterRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> after, int size) {
+        return selectRef().sliceAfter(key, after, size);
+    }
+
+    /**
+     * Returns the previous slice of projection refs before the specified ref cursor value.
+     *
+     * <p>This method performs backward keyset pagination using a ref cursor, returning refs where the key is
+     * less than {@code before}, ordered descending by the key.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param before the ref cursor value; only projections with a key value less than this ref will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <V> the type of the key field, which must extend {@link Data}.
+     * @return a slice containing the previous page of ref results.
+     * @throws PersistenceException if the query fails due to underlying database issues.
+     * @since 1.9
+     */
+    default <V extends Data> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> before, int size) {
+        return selectRef().sliceBefore(key, before, size);
+    }
+
+    // Composite keyset slice methods.
+
+    /**
+     * Returns the first slice of projections ordered by a non-unique sort column with a unique tiebreaker.
+     *
+     * <p>This method performs composite keyset pagination, returning at most {@code size} projections ordered by
+     * the given sort field and unique key in ascending order.</p>
+     *
+     * @param key the metamodel field used as the unique tiebreaker for stable ordering.
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param size the maximum number of projections to include in the slice.
+     * @param <V> the type of the unique key field.
+     * @param <S> the type of the sort field.
+     * @return a slice containing the first page of results.
+     * @since 1.9
+     */
+    default <V, S> Slice<P> slice(@Nonnull Metamodel.Key<P, V> key, @Nonnull Metamodel<P, S> sort, int size) {
+        return select().slice(key, sort, size);
+    }
+
+    /**
+     * Returns the first slice of projections ordered by a non-unique sort column with a unique tiebreaker, both in
+     * descending order.
+     *
+     * <p>This is the cursorless variant of descending composite keyset pagination, useful for starting at the most
+     * recent entries. Subsequent pages can be obtained with
+     * {@link #sliceBefore(Metamodel.Key, Object, Metamodel, Object, int)}.</p>
+     *
+     * @param key the metamodel field used as the unique tiebreaker for stable ordering.
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param size the maximum number of projections to include in the slice.
+     * @param <V> the type of the unique key field.
+     * @param <S> the type of the sort field.
+     * @return a slice containing the first page of results in descending order.
+     * @since 1.9
+     */
+    default <V, S> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull Metamodel<P, S> sort, int size) {
+        return select().sliceBefore(key, sort, size);
+    }
+
+    /**
+     * Returns the first slice of projection refs ordered by a non-unique sort column with a unique tiebreaker, both
+     * in descending order.
+     *
+     * <p>This is the cursorless variant of descending composite keyset pagination for refs, useful for starting at
+     * the most recent entries.</p>
+     *
+     * @param key the metamodel field used as the unique tiebreaker for stable ordering.
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <V> the type of the unique key field.
+     * @param <S> the type of the sort field.
+     * @return a slice containing the first page of ref results in descending order.
+     * @since 1.9
+     */
+    default <V, S> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Metamodel<P, S> sort, int size) {
+        return selectRef().sliceBefore(key, sort, size);
+    }
+
+    /**
+     * Returns the next slice of projections after the specified composite cursor, using a non-unique sort column
+     * with a unique tiebreaker.
+     *
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyAfter the cursor value for the unique key column.
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param sortAfter the cursor value for the sort column.
+     * @param size the maximum number of projections to include in the slice.
+     * @param <V> the type of the unique key field.
+     * @param <S> the type of the sort field.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    default <V, S> Slice<P> sliceAfter(@Nonnull Metamodel.Key<P, V> key, @Nonnull V keyAfter,
+                                       @Nonnull Metamodel<P, S> sort, @Nonnull S sortAfter, int size) {
+        return select().sliceAfter(key, keyAfter, sort, sortAfter, size);
+    }
+
+    /**
+     * Returns the previous slice of projections before the specified composite cursor, using a non-unique sort column
+     * with a unique tiebreaker.
+     *
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyBefore the cursor value for the unique key column.
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param sortBefore the cursor value for the sort column.
+     * @param size the maximum number of projections to include in the slice.
+     * @param <V> the type of the unique key field.
+     * @param <S> the type of the sort field.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    default <V, S> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull V keyBefore,
+                                        @Nonnull Metamodel<P, S> sort, @Nonnull S sortBefore, int size) {
+        return select().sliceBefore(key, keyBefore, sort, sortBefore, size);
+    }
+
+    /**
+     * Returns the next slice of projections after the specified composite cursor with a ref unique key, using a
+     * non-unique sort column with a unique tiebreaker.
+     *
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyAfter the ref cursor value for the unique key column.
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param sortAfter the cursor value for the sort column.
+     * @param size the maximum number of projections to include in the slice.
+     * @param <V> the type of the unique key, which must extend {@link Data}.
+     * @param <S> the type of the sort field.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    default <V extends Data, S> Slice<P> sliceAfter(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> keyAfter,
+                                                    @Nonnull Metamodel<P, S> sort, @Nonnull S sortAfter,
+                                                    int size) {
+        return select().sliceAfter(key, keyAfter, sort, sortAfter, size);
+    }
+
+    /**
+     * Returns the previous slice of projections before the specified composite cursor with a ref unique key, using a
+     * non-unique sort column with a unique tiebreaker.
+     *
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyBefore the ref cursor value for the unique key column.
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param sortBefore the cursor value for the sort column.
+     * @param size the maximum number of projections to include in the slice.
+     * @param <V> the type of the unique key, which must extend {@link Data}.
+     * @param <S> the type of the sort field.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    default <V extends Data, S> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> keyBefore,
+                                                     @Nonnull Metamodel<P, S> sort, @Nonnull S sortBefore,
+                                                     int size) {
+        return select().sliceBefore(key, keyBefore, sort, sortBefore, size);
+    }
+
+    /**
+     * Returns the first slice of projection refs ordered by a non-unique sort column with a unique tiebreaker.
+     *
+     * @param key the metamodel field used as the unique tiebreaker for stable ordering.
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <V> the type of the unique key field.
+     * @param <S> the type of the sort field.
+     * @return a slice containing the first page of ref results.
+     * @since 1.9
+     */
+    default <V, S> Slice<Ref<P>> sliceRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Metamodel<P, S> sort, int size) {
+        return selectRef().slice(key, sort, size);
+    }
+
+    /**
+     * Returns the next slice of projection refs after the specified composite cursor, using a non-unique sort column
+     * with a unique tiebreaker.
+     *
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyAfter the cursor value for the unique key column.
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param sortAfter the cursor value for the sort column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <V> the type of the unique key field.
+     * @param <S> the type of the sort field.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    default <V, S> Slice<Ref<P>> sliceAfterRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull V keyAfter,
+                                               @Nonnull Metamodel<P, S> sort, @Nonnull S sortAfter, int size) {
+        return selectRef().sliceAfter(key, keyAfter, sort, sortAfter, size);
+    }
+
+    /**
+     * Returns the previous slice of projection refs before the specified composite cursor, using a non-unique sort
+     * column with a unique tiebreaker.
+     *
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyBefore the cursor value for the unique key column.
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param sortBefore the cursor value for the sort column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <V> the type of the unique key field.
+     * @param <S> the type of the sort field.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    default <V, S> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull V keyBefore,
+                                                @Nonnull Metamodel<P, S> sort, @Nonnull S sortBefore, int size) {
+        return selectRef().sliceBefore(key, keyBefore, sort, sortBefore, size);
+    }
+
+    /**
+     * Returns the next slice of projection refs after the specified composite cursor with a ref unique key, using a
+     * non-unique sort column with a unique tiebreaker.
+     *
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyAfter the ref cursor value for the unique key column.
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param sortAfter the cursor value for the sort column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <V> the type of the unique key, which must extend {@link Data}.
+     * @param <S> the type of the sort field.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    default <V extends Data, S> Slice<Ref<P>> sliceAfterRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> keyAfter,
+                                                            @Nonnull Metamodel<P, S> sort, @Nonnull S sortAfter,
+                                                            int size) {
+        return selectRef().sliceAfter(key, keyAfter, sort, sortAfter, size);
+    }
+
+    /**
+     * Returns the previous slice of projection refs before the specified composite cursor with a ref unique key,
+     * using a non-unique sort column with a unique tiebreaker.
+     *
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyBefore the ref cursor value for the unique key column.
+     * @param sort the metamodel field used as the (potentially non-unique) primary sort column.
+     * @param sortBefore the cursor value for the sort column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param <V> the type of the unique key, which must extend {@link Data}.
+     * @param <S> the type of the sort field.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    default <V extends Data, S> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> keyBefore,
+                                                             @Nonnull Metamodel<P, S> sort, @Nonnull S sortBefore,
+                                                             int size) {
+        return selectRef().sliceBefore(key, keyBefore, sort, sortBefore, size);
+    }
+
     // List based methods.
 
     /**
@@ -265,7 +767,7 @@ public interface ProjectionRepository<P extends Projection<ID>, ID> extends Repo
      */
     List<P> findAllById(@Nonnull Iterable<ID> ids);
 
-    /** 
+    /**
      * Retrieves a list of projections based on their primary keys.
      *
      * <p>This method retrieves projections matching the provided IDs in batches, consolidating them into a single list.

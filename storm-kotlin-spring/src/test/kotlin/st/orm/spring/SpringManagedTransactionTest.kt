@@ -24,7 +24,7 @@ import st.orm.template.TransactionPropagation.*
 @SpringBootTest
 @Sql("/data.sql")
 open class SpringManagedTransactionTest(
-    @Autowired val orm: ORMTemplate
+    @Autowired val orm: ORMTemplate,
 ) {
 
     @AfterEach
@@ -34,7 +34,7 @@ open class SpringManagedTransactionTest(
             propagation = REQUIRED,
             isolation = null,
             timeoutSeconds = null,
-            readOnly = false
+            readOnly = false,
         )
     }
 
@@ -311,10 +311,10 @@ open class SpringManagedTransactionTest(
                 orm.deleteAll<Visit>()
                 orm.query(
                     """
-                        SELECT COUNT(*) 
+                        SELECT COUNT(*)
                         FROM SYSTEM_RANGE(1, 1_000_000) AS A
                         CROSS JOIN SYSTEM_RANGE(1, 1_000_000) AS B
-                    """.trimIndent()
+                    """.trimIndent(),
                 ).singleResult
             }
         }
@@ -357,10 +357,10 @@ open class SpringManagedTransactionTest(
         transactionBlocking {
             transactionBlocking(REQUIRED) {
                 orm.deleteAll<Visit>()
-                setRollbackOnly()               // Inner marks global tx rollback-only.
+                setRollbackOnly() // Inner marks global tx rollback-only.
             }
             orm.exists<Visit>().shouldBeFalse() // Mid-scope still sees uncommitted change.
-            setRollbackOnly()                   // Outer makes rollback explicit/expected.
+            setRollbackOnly() // Outer makes rollback explicit/expected.
             // exit -> should roll back WITHOUT throwing UnexpectedRollbackException.
         }
         orm.exists<Visit>().shouldBeTrue()

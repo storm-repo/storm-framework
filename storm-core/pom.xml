@@ -6,7 +6,7 @@
     <parent>
         <groupId>st.orm</groupId>
         <artifactId>storm-framework</artifactId>
-        <version>1.8.2</version>
+        <version>1.9.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>storm-core</artifactId>
@@ -37,12 +37,13 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <argLine>
+                        @{argLine}
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens storm.core/st.orm.core=ALL-UNNAMED
                         --add-opens storm.core/st.orm.core.repository=ALL-UNNAMED
                         --add-opens storm.core/st.orm.core.repository.spring=ALL-UNNAMED
                         --add-opens storm.core/st.orm.core.model=ALL-UNNAMED
-                        -Dstorm.ansiEscaping=true
+                        -Dstorm.ansi_escaping=true
                     </argLine>
                 </configuration>
             </plugin>

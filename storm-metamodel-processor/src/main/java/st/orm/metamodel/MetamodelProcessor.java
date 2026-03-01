@@ -15,9 +15,26 @@
  */
 package st.orm.metamodel;
 
+import static java.util.Optional.empty;
+import static java.util.Optional.ofNullable;
+import static javax.lang.model.element.ElementKind.CLASS;
+import static javax.lang.model.element.ElementKind.CONSTRUCTOR;
+import static javax.lang.model.element.ElementKind.FIELD;
+import static javax.lang.model.element.ElementKind.RECORD;
+import static javax.tools.Diagnostic.Kind.ERROR;
+import static javax.tools.Diagnostic.Kind.NOTE;
+import static javax.tools.Diagnostic.Kind.WARNING;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-
+import java.io.Writer;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
@@ -36,23 +53,6 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.JavaFileObject;
-import java.io.Writer;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import static java.util.Optional.empty;
-import static java.util.Optional.ofNullable;
-import static javax.lang.model.element.ElementKind.CLASS;
-import static javax.lang.model.element.ElementKind.CONSTRUCTOR;
-import static javax.lang.model.element.ElementKind.FIELD;
-import static javax.lang.model.element.ElementKind.RECORD;
-import static javax.tools.Diagnostic.Kind.ERROR;
-import static javax.tools.Diagnostic.Kind.NOTE;
 
 /**
  * @since 1.2
@@ -66,6 +66,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
     private static final String DATA = "st.orm.Data";
     private static final String FOREIGN_KEY = "st.orm.FK";
     private static final String PRIMARY_KEY = "st.orm.PK";
+    private static final String UNIQUE = "st.orm.UK";
 
     private static final Pattern REF_PATTERN = Pattern.compile("^st\\.orm\\.Ref<([^>]+)>$");
 
@@ -474,6 +475,163 @@ public final class MetamodelProcessor extends AbstractProcessor {
         return false;
     }
 
+    /**
+     * Returns {@code true} if the field with the given name on the record element has a {@code @Unique}
+     * annotation (directly or as a meta-annotation, e.g. via {@code @PK}).
+     */
+    private static boolean isUniqueField(@Nonnull Element recordElement, @Nonnull String fieldName) {
+        // Check record components (Java records).
+        if (recordElement.getKind() == RECORD && recordElement instanceof TypeElement te) {
+            for (RecordComponentElement rc : te.getRecordComponents()) {
+                if (rc.getSimpleName().toString().equals(fieldName)) {
+                    return hasAnnotationOrMeta(rc, UNIQUE);
+                }
+            }
+        }
+        // Check constructor parameters (works for both Java and Kotlin).
+        for (Element enclosed : recordElement.getEnclosedElements()) {
+            if (enclosed.getKind() != CONSTRUCTOR) continue;
+            for (VariableElement param : ((ExecutableElement) enclosed).getParameters()) {
+                if (param.getSimpleName().toString().equals(fieldName)) {
+                    return hasAnnotationOrMeta(param, UNIQUE);
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasNonnullAnnotation(@Nonnull Element element) {
+        for (AnnotationMirror am : element.getAnnotationMirrors()) {
+            String name = am.getAnnotationType().toString();
+            if ("jakarta.annotation.Nonnull".equals(name) || "javax.annotation.Nonnull".equals(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isPrimaryKeyField(@Nonnull Element recordElement, @Nonnull String fieldName) {
+        if (recordElement.getKind() == RECORD && recordElement instanceof TypeElement te) {
+            for (RecordComponentElement rc : te.getRecordComponents()) {
+                if (rc.getSimpleName().toString().equals(fieldName)) {
+                    return hasAnnotationOrMeta(rc, PRIMARY_KEY);
+                }
+            }
+        }
+        for (Element enclosed : recordElement.getEnclosedElements()) {
+            if (enclosed.getKind() != CONSTRUCTOR) continue;
+            for (VariableElement param : ((ExecutableElement) enclosed).getParameters()) {
+                if (param.getSimpleName().toString().equals(fieldName)) {
+                    return hasAnnotationOrMeta(param, PRIMARY_KEY);
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean isNullableUniqueField(@Nonnull Element recordElement, @Nonnull String fieldName) {
+        // PK fields are always non-null.
+        if (isPrimaryKeyField(recordElement, fieldName)) return false;
+
+        // Primitive types are never null.
+        TypeMirror fieldType = getTypeElement(recordElement, fieldName);
+        if (fieldType != null && isPrimitiveReturn(fieldType)) return false;
+
+        // Check for @Nonnull annotations on record components.
+        if (recordElement.getKind() == RECORD && recordElement instanceof TypeElement te) {
+            for (RecordComponentElement rc : te.getRecordComponents()) {
+                if (rc.getSimpleName().toString().equals(fieldName)) {
+                    if (hasNonnullAnnotation(rc)) return false;
+                }
+            }
+        }
+        // Check constructor parameters (works for both Java and Kotlin).
+        for (Element enclosed : recordElement.getEnclosedElements()) {
+            if (enclosed.getKind() != CONSTRUCTOR) continue;
+            for (VariableElement param : ((ExecutableElement) enclosed).getParameters()) {
+                if (param.getSimpleName().toString().equals(fieldName)) {
+                    if (hasNonnullAnnotation(param)) return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Returns {@code true} if the given record element has at least one leaf field that is nullable.
+     * Recursively walks inline sub-records. Used to determine if a compound key has nullable constituents.
+     */
+    private boolean hasNullableLeaf(@Nullable TypeElement recordElement) {
+        if (recordElement == null) return false;
+        for (Element enclosed : recordElement.getEnclosedElements()) {
+            TypeMirror recordComponentType = getRecordComponentType(enclosed).orElse(null);
+            if (recordComponentType == null) continue;
+
+            String fieldName = enclosed.getSimpleName().toString();
+            TypeMirror fieldType = getTypeElement(recordElement, fieldName);
+            if (fieldType == null) continue;
+
+            if (isRecord(fieldType) && !isRefType(fieldType) && !isNestedRecord(fieldType)) {
+                if (!isDataType(recordElement, fieldName)) {
+                    // Inline sub-record: recurse into it.
+                    if (hasNullableLeaf(asTypeElement(fieldType))) return true;
+                }
+                // FK (Data) fields: not part of compound key leaves; skip.
+            } else {
+                // Scalar leaf: nullable if not primitive, not @PK, not @Nonnull.
+                if (isNullableUniqueField(recordElement, fieldName)) return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean extractNullsDistinct(@Nonnull Element element) {
+        for (AnnotationMirror am : element.getAnnotationMirrors()) {
+            String annotationName = am.getAnnotationType().toString();
+            if (UNIQUE.equals(annotationName)) {
+                // Direct @UK annotation.
+                for (var entry : am.getElementValues().entrySet()) {
+                    if ("nullsDistinct".equals(entry.getKey().getSimpleName().toString())) {
+                        return (Boolean) entry.getValue().getValue();
+                    }
+                }
+                return true; // default value
+            }
+            // Check meta-annotation (e.g. @PK which has @UK).
+            Element annEl = am.getAnnotationType().asElement();
+            if (annEl instanceof TypeElement te) {
+                for (AnnotationMirror meta : te.getAnnotationMirrors()) {
+                    if (UNIQUE.equals(meta.getAnnotationType().toString())) {
+                        // Meta-annotated @UK does not carry the user's nullsDistinct attribute.
+                        return true;
+                    }
+                }
+            }
+        }
+        return true; // default
+    }
+
+    private static boolean getNullsDistinct(@Nonnull Element recordElement, @Nonnull String fieldName) {
+        // Check record components.
+        if (recordElement.getKind() == RECORD && recordElement instanceof TypeElement te) {
+            for (RecordComponentElement rc : te.getRecordComponents()) {
+                if (rc.getSimpleName().toString().equals(fieldName)) {
+                    return extractNullsDistinct(rc);
+                }
+            }
+        }
+        // Check constructor parameters.
+        for (Element enclosed : recordElement.getEnclosedElements()) {
+            if (enclosed.getKind() != CONSTRUCTOR) continue;
+            for (VariableElement param : ((ExecutableElement) enclosed).getParameters()) {
+                if (param.getSimpleName().toString().equals(fieldName)) {
+                    return extractNullsDistinct(param);
+                }
+            }
+        }
+        return true; // default
+    }
+
     private Optional<String> findPrimaryKeyFieldName(@Nonnull Element recordElement) {
         // Java record components.
         if (recordElement.getKind() == RECORD && recordElement instanceof TypeElement te) {
@@ -593,25 +751,22 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     generateMetamodelArtifacts(nestedTypeEl);
                 }
                 boolean inline = !isDataType(recordElement, fieldName);
-                String inlineFlag = inline ? "true" : "false";
-                String nestedGetter = " t -> " + accessorExpr(recordElement, "t", fieldName, fieldType);
                 builder.append("    /** Represents the ")
                         .append(inline ? "inline " : "")
                         .append("{@link ").append(recordName).append("#").append(fieldName).append("} ")
                         .append(inline ? "record." : "foreign key.")
                         .append(" */\n");
                 builder.append("    ").append(fieldTypeName).append("Metamodel<").append(recordName).append("> ")
-                        .append(fieldName).append(" = new ").append(fieldTypeName).append("Metamodel<>(")
-                        .append("\"\", \"").append(fieldName).append("\", ").append(inlineFlag).append(", ")
-                        .append("Metamodel.root(").append(recordName).append(".class), ")
-                        .append(nestedGetter)
-                        .append(");\n");
+                        .append(fieldName).append(" = new ").append(recordName).append("Metamodel<")
+                        .append(recordName).append(">().").append(fieldName).append(";\n");
             } else {
                 String valueTypeName = getValueTypeName(fieldType, packageName);
+                boolean unique = isUniqueField(recordElement, fieldName);
+                String baseClass = unique ? "AbstractKeyMetamodel" : "AbstractMetamodel";
 
                 builder.append("    /** Represents the {@link ").append(recordName).append("#").append(fieldName)
                         .append("} field. */\n");
-                builder.append("    AbstractMetamodel<").append(recordName).append(", ").append(fieldTypeName)
+                builder.append("    ").append(baseClass).append("<").append(recordName).append(", ").append(fieldTypeName)
                         .append(", ").append(valueTypeName).append("> ")
                         .append(fieldName).append(" = new ").append(recordName).append("Metamodel<")
                         .append(recordName).append(">().").append(fieldName).append(";\n");
@@ -637,6 +792,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 writer.write(String.format("""
                     %simport st.orm.Metamodel;
                     import st.orm.AbstractMetamodel;
+                    import st.orm.AbstractKeyMetamodel;
                     import javax.annotation.processing.Generated;
 
                     /**
@@ -687,10 +843,13 @@ public final class MetamodelProcessor extends AbstractProcessor {
                         .append(";\n");
             } else {
                 String valueTypeName = getValueTypeName(fieldType, packageName);
+                boolean unique = isUniqueField(recordElement, fieldName);
+                boolean isData = implementsData(recordElement);
+                String baseClass = (!isData || unique) ? "AbstractKeyMetamodel" : "AbstractMetamodel";
 
                 builder.append("    /** Represents the {@link ").append(recordName).append("#").append(fieldName)
                         .append("} field. */\n");
-                builder.append("    public final AbstractMetamodel<T, ").append(fieldTypeName).append(", ")
+                builder.append("    public final ").append(baseClass).append("<T, ").append(fieldTypeName).append(", ")
                         .append(valueTypeName).append("> ").append(fieldName)
                         .append(";\n");
             }
@@ -724,14 +883,54 @@ public final class MetamodelProcessor extends AbstractProcessor {
                                 "            " + recordName + " p = " + metaClassName + ".this.getValue(t);\n" +
                                 "            return (p == null) ? null : " + accessorExpr(recordElement, "p", fieldName, fieldType) + ";\n" +
                                 "        }";
-                builder.append("        this.").append(fieldName).append(" = new ").append(fieldTypeName)
-                        .append("Metamodel<>(")
-                        .append("subPath, fieldBase + \"").append(fieldName).append("\", ")
-                        .append(inlineFlag).append(", this, ")
-                        .append(nestedGetter)
-                        .append(");\n");
+                if (inline && isUniqueField(recordElement, fieldName)) {
+                    boolean nullsDistinct = getNullsDistinct(recordElement, fieldName);
+                    if (nullsDistinct && hasNullableLeaf(asTypeElement(fieldType))) {
+                        processingEnv.getMessager().printMessage(
+                                WARNING,
+                                "Unique key field '" + fieldName + "' on " + recordName + " has nullable constituent fields. "
+                                + "Keyset pagination (slice/sliceAfter/sliceBefore) will be rejected at runtime. "
+                                + "Consider adding @Nonnull to constituent fields, using primitive types, or setting "
+                                + "@UK(nullsDistinct = false) if the database constraint prevents duplicate NULLs.",
+                                enclosed);
+                    }
+                    builder.append("        this.").append(fieldName).append(" = new ").append(fieldTypeName)
+                            .append("Metamodel<>(")
+                            .append("subPath, fieldBase + \"").append(fieldName).append("\", ")
+                            .append(inlineFlag).append(", this, ")
+                            .append(nestedGetter).append(", ").append(nullsDistinct)
+                            .append(");\n");
+                } else {
+                    builder.append("        this.").append(fieldName).append(" = new ").append(fieldTypeName)
+                            .append("Metamodel<>(")
+                            .append("subPath, fieldBase + \"").append(fieldName).append("\", ")
+                            .append(inlineFlag).append(", this, ")
+                            .append(nestedGetter)
+                            .append(");\n");
+                }
             } else {
                 String valueTypeName = getValueTypeName(fieldType, packageName);
+                boolean unique = isUniqueField(recordElement, fieldName);
+                boolean isData = implementsData(recordElement);
+                String baseClass = (!isData || unique) ? "AbstractKeyMetamodel" : "AbstractMetamodel";
+                boolean effectivelyNullable = false;
+                if (!isData) {
+                    // Leaf of a compound key: report raw field nullability for runtime derivation.
+                    effectivelyNullable = isNullableUniqueField(recordElement, fieldName);
+                } else if (unique) {
+                    boolean nullable = isNullableUniqueField(recordElement, fieldName);
+                    boolean nullsDistinct = getNullsDistinct(recordElement, fieldName);
+                    effectivelyNullable = nullable && nullsDistinct;
+                    if (effectivelyNullable) {
+                        processingEnv.getMessager().printMessage(
+                                WARNING,
+                                "Unique key field '" + fieldName + "' on " + recordName + " is nullable. "
+                                + "Keyset pagination (slice/sliceAfter/sliceBefore) will be rejected at runtime. "
+                                + "Consider adding @Nonnull, using a primitive type, or setting @UK(nullsDistinct = false) "
+                                + "if the database constraint prevents duplicate NULLs.",
+                                enclosed);
+                    }
+                }
                 String ownerA = metaClassName + ".this.getValue(a)";
                 String ownerB = metaClassName + ".this.getValue(b)";
                 String leftValue = accessorExpr(recordElement, "ra", fieldName, fieldType);
@@ -739,10 +938,15 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 String sameExpr = sameComparisonExpr(leftValue, rightValue, fieldType);
                 String identicalExpr = identicalComparisonExpr(leftValue, rightValue, fieldType);
                 String accOnOwner = accessorExpr(recordElement, "r", fieldName, fieldType);
-                builder.append("        this.").append(fieldName).append(" = new AbstractMetamodel<T, ")
+                String constructorArgs;
+                if (!isData || unique) {
+                    constructorArgs = fieldTypeName + ".class, subPath, fieldBase + \"" + fieldName + "\", false, this, true, " + effectivelyNullable;
+                } else {
+                    constructorArgs = fieldTypeName + ".class, subPath, fieldBase + \"" + fieldName + "\", false, this";
+                }
+                builder.append("        this.").append(fieldName).append(" = new ").append(baseClass).append("<T, ")
                         .append(fieldTypeName).append(", ").append(valueTypeName).append(">(")
-                        .append(fieldTypeName).append(".class, subPath, fieldBase + \"").append(fieldName)
-                        .append("\", false, this) {\n")
+                        .append(constructorArgs).append(") {\n")
                         .append("            @Override public ").append(valueTypeName).append(" getValue(@Nonnull T record) {\n")
                         .append("                ").append(recordName).append(" r = ").append(metaClassName).append(".this.getValue(record);\n")
                         .append("                if (r == null) return null;\n")
@@ -766,6 +970,61 @@ public final class MetamodelProcessor extends AbstractProcessor {
         if (!builder.isEmpty()) {
             builder.setLength(builder.length() - 1);
         }
+        return builder.toString();
+    }
+
+    private String buildFlattenMethod(@Nonnull Element recordElement) {
+        boolean hasInlineSubRecords = false;
+        // Collect field entries: each is either "inline" (needs .flatten()) or "column" (add directly).
+        List<String> fieldNames = new java.util.ArrayList<>();
+        List<Boolean> fieldIsInline = new java.util.ArrayList<>();
+
+        for (Element enclosed : recordElement.getEnclosedElements()) {
+            TypeMirror recordComponent = getRecordComponentType(enclosed).orElse(null);
+            if (recordComponent == null) continue;
+
+            String fieldName = enclosed.getSimpleName().toString();
+            TypeMirror fieldType = getTypeElement(recordElement, fieldName);
+            if (fieldType == null) continue;
+
+            if (isRecord(fieldType) && !isRefType(fieldType)) {
+                if (isNestedRecord(fieldType)) continue;
+                boolean inline = !isDataType(recordElement, fieldName);
+                fieldNames.add(fieldName);
+                fieldIsInline.add(inline);
+                if (inline) hasInlineSubRecords = true;
+            } else {
+                fieldNames.add(fieldName);
+                fieldIsInline.add(false);
+            }
+        }
+
+        StringBuilder builder = new StringBuilder();
+        builder.append("    @Override\n");
+        builder.append("    public java.util.List<Metamodel<T, ?>> flatten() {\n");
+
+        if (!hasInlineSubRecords) {
+            // Simple case: all fields are direct columns.
+            builder.append("        return java.util.List.of(");
+            for (int i = 0; i < fieldNames.size(); i++) {
+                if (i > 0) builder.append(", ");
+                builder.append("this.").append(fieldNames.get(i));
+            }
+            builder.append(");\n");
+        } else {
+            // Complex case: some fields are nested inline records.
+            builder.append("        java.util.List<Metamodel<T, ?>> result = new java.util.ArrayList<>();\n");
+            for (int i = 0; i < fieldNames.size(); i++) {
+                if (fieldIsInline.get(i)) {
+                    builder.append("        result.addAll(this.").append(fieldNames.get(i)).append(".flatten());\n");
+                } else {
+                    builder.append("        result.add(this.").append(fieldNames.get(i)).append(");\n");
+                }
+            }
+            builder.append("        return java.util.Collections.unmodifiableList(result);\n");
+        }
+
+        builder.append("    }\n\n");
         return builder.toString();
     }
 
@@ -817,6 +1076,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
                     (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n") +
                             "import st.orm.Metamodel;\n" +
                             "import st.orm.AbstractMetamodel;\n" +
+                            "import st.orm.AbstractKeyMetamodel;\n" +
                             "import jakarta.annotation.Nonnull;\n" +
                             "import javax.annotation.processing.Generated;\n" +
                             "import java.util.Objects;\n\n" +
@@ -826,7 +1086,23 @@ public final class MetamodelProcessor extends AbstractProcessor {
                             " * @param <T> the record type of the root table of the entity graph.\n" +
                             " */\n" +
                             "@Generated(\"" + getClass().getName() + "\")\n" +
-                            "public final class " + metaClassName + "<T extends st.orm.Data> extends AbstractMetamodel<T, " + recordName + ", " + recordName + "> {\n\n";
+                            "public final class " + metaClassName + "<T extends st.orm.Data> extends " + (isData ? "AbstractMetamodel" : "AbstractKeyMetamodel") + "<T, " + recordName + ", " + recordName + "> {\n\n";
+
+            String flattenMethod = buildFlattenMethod(recordElement);
+
+            String isNullableOverride = "";
+            if (!isData) {
+                isNullableOverride =
+                        "    @Override\n" +
+                        "    @SuppressWarnings(\"rawtypes\")\n" +
+                        "    public boolean isNullable() {\n" +
+                        "        if (!super.isNullable()) return false;\n" +
+                        "        for (var leaf : flatten()) {\n" +
+                        "            if (leaf instanceof Metamodel.Key key && key.isNullable()) return true;\n" +
+                        "        }\n" +
+                        "        return false;\n" +
+                        "    }\n\n";
+            }
 
             String body =
                     classFields + "\n" +
@@ -844,7 +1120,9 @@ public final class MetamodelProcessor extends AbstractProcessor {
                             "    @Override\n" +
                             "    public boolean isSame(@Nonnull T a, @Nonnull T b) {\n" +
                             "        " + rootIsSameBody + "\n" +
-                            "    }\n\n";
+                            "    }\n\n" +
+                            flattenMethod +
+                            isNullableOverride;
             String constructors;
             if (isData) {
                 constructors =
@@ -872,16 +1150,34 @@ public final class MetamodelProcessor extends AbstractProcessor {
                                 "        this(path, field, false, parent, getter);\n" +
                                 "    }\n\n";
             }
-            String fullCtor =
-                    "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
-                            "java.util.function.Function<T, " + recordName + "> getter) {\n" +
-                            "        super(" + recordName + ".class, path, field, inline, parent);\n" +
-                            "        this.getter = getter;\n\n" +
-                            "        String subPath = inline ? path : field.isEmpty() ? path : path.isEmpty() ? field : " +
-                            "path + \".\" + field;\n" +
-                            "        String fieldBase = inline ? (field.isEmpty() ? \"\" : field + \".\") : \"\";\n\n" +
-                            initFields + "\n" +
-                            "    }\n";
+            String fullCtor;
+            if (isData) {
+                fullCtor =
+                        "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
+                                "java.util.function.Function<T, " + recordName + "> getter) {\n" +
+                                "        super(" + recordName + ".class, path, field, inline, parent);\n" +
+                                "        this.getter = getter;\n\n" +
+                                "        String subPath = inline ? path : field.isEmpty() ? path : path.isEmpty() ? field : " +
+                                "path + \".\" + field;\n" +
+                                "        String fieldBase = inline ? (field.isEmpty() ? \"\" : field + \".\") : \"\";\n\n" +
+                                initFields + "\n" +
+                                "    }\n";
+            } else {
+                fullCtor =
+                        "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
+                                "java.util.function.Function<T, " + recordName + "> getter, boolean nullable) {\n" +
+                                "        super(" + recordName + ".class, path, field, inline, parent, !inline && !field.isEmpty(), nullable);\n" +
+                                "        this.getter = getter;\n\n" +
+                                "        String subPath = inline ? path : field.isEmpty() ? path : path.isEmpty() ? field : " +
+                                "path + \".\" + field;\n" +
+                                "        String fieldBase = inline ? (field.isEmpty() ? \"\" : field + \".\") : \"\";\n\n" +
+                                initFields + "\n" +
+                                "    }\n\n" +
+                                "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
+                                "java.util.function.Function<T, " + recordName + "> getter) {\n" +
+                                "        this(path, field, inline, parent, getter, false);\n" +
+                                "    }\n";
+            }
             String footer = "}\n";
             try (Writer writer = fileObject.openWriter()) {
                 writer.write(header);

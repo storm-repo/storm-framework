@@ -1,11 +1,14 @@
 # ST/ORM
 
 [![Maven Central](https://img.shields.io/maven-central/v/st.orm/storm-core.svg)](https://central.sonatype.com/namespace/st.orm)
+[![CI](https://github.com/storm-repo/storm-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/storm-repo/storm-framework/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/storm-repo/storm-framework/graph/badge.svg)](https://codecov.io/gh/storm-repo/storm-framework)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Docs](https://img.shields.io/badge/docs-storm--framework-blue)](https://storm-repo.github.io/storm-framework/)
 [![Kotlin 2.0+](https://img.shields.io/badge/Kotlin-2.0%2B-purple)](https://kotlinlang.org/)
 [![Java 21+](https://img.shields.io/badge/Java-21%2B-blue)](https://openjdk.org/projects/jdk/21/)
 
-**Storm** is a SQL Template and ORM framework designed for Kotlin 2.0+ and Java 21+, focusing on modernizing and simplifying database programming. By leveraging the latest features of Kotlin and Java, it enables developers to define entities and queries in a concise and readable manner, enhancing both productivity and code clarity.
+**Storm** is a modern, high-performance ORM for Kotlin 2.0+ and Java 21+, built around a powerful SQL template engine. It focuses on simplicity, type safety, and predictable performance through immutable models and compile-time metadata.
 
 **Key benefits:**
 
@@ -126,12 +129,43 @@ List<User> users = orm.query(RAW."""
 
 ## Quick Start
 
+### Dependency Management (BOM)
+
+Storm provides a Bill of Materials (BOM) for centralized version management. Import the BOM once and omit version numbers from individual Storm dependencies.
+
+**Maven:**
+
+```xml
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>st.orm</groupId>
+            <artifactId>storm-bom</artifactId>
+            <version>1.9.0</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+```
+
+**Gradle (Kotlin DSL):**
+
+```kotlin
+dependencies {
+    implementation(platform("st.orm:storm-bom:1.9.0"))
+}
+```
+
+With the BOM imported, add Storm modules without specifying versions:
+
 ### Kotlin
 
 ```kotlin
 dependencies {
-    implementation("st.orm:storm-kotlin:1.8.2")
-    runtimeOnly("st.orm:storm-core:1.8.2")
+    implementation(platform("st.orm:storm-bom:1.9.0"))
+    implementation("st.orm:storm-kotlin")
+    runtimeOnly("st.orm:storm-core")
 }
 ```
 
@@ -141,17 +175,17 @@ dependencies {
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-java21</artifactId>
-    <version>1.8.2</version>
 </dependency>
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-core</artifactId>
-    <version>1.8.2</version>
     <scope>runtime</scope>
 </dependency>
 ```
 
 ## Documentation
+
+Full documentation is available at [storm-repo.github.io/storm-framework](https://storm-repo.github.io/storm-framework/).
 
 ### Core Concepts
 
@@ -169,10 +203,14 @@ Everything you need to build applications with Storm. Start with Getting Started
 | [Refs](docs/refs.md) | Lazy loading and optimized references (7 min) |
 | [Batch & Streaming](docs/batch-streaming.md) | Bulk operations and Flow/Stream (5 min) |
 | [Upserts](docs/upserts.md) | Insert-or-update operations (6 min) |
+| [Polymorphism](docs/polymorphism.md) | Sealed type inheritance strategies (20 min) |
+| [Entity Lifecycle](docs/entity-lifecycle.md) | Callbacks for auditing, validation, and logging (8 min) |
 | [JSON Support](docs/json.md) | JSON columns and aggregation (6 min) |
 | [Transactions](docs/transactions.md) | Transaction management and propagation (22 min) |
-| [Spring Integration](docs/spring-integration.md) | Spring Boot configuration (6 min) |
+| [Spring Integration](docs/spring-integration.md) | Spring Boot Starter and auto-configuration (8 min) |
 | [Database Dialects](docs/dialects.md) | Database-specific support (5 min) |
+| [Testing](docs/testing.md) | JUnit 5 integration and statement capture (5 min) |
+| [Validation](docs/validation.md) | Record and schema validation (5 min) |
 
 ### Advanced Topics
 
@@ -184,7 +222,7 @@ Deep dives into Storm's internals. You don't need these to be productive, but th
 | [Hydration](docs/hydration.md) | Result mapping to records (16 min) |
 | [Dirty Checking](docs/dirty-checking.md) | Update modes and change detection (19 min) |
 | [Entity Cache](docs/entity-cache.md) | Transaction-scoped caching and identity (10 min) |
-| [SQL Interceptors](docs/interceptors.md) | Query logging and modification (6 min) |
+| [SQL Logging](docs/sql-logging.md) | Declarative query logging with `@SqlLog` (6 min) |
 | [Configuration](docs/configuration.md) | System properties reference (7 min) |
 
 ### Resources

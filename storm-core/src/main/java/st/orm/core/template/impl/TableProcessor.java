@@ -15,11 +15,11 @@
  */
 package st.orm.core.template.impl;
 
+import static st.orm.core.template.impl.RecordReflection.getTableName;
+
 import jakarta.annotation.Nonnull;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Table;
-
-import static st.orm.core.template.impl.RecordReflection.getTableName;
 
 final class TableProcessor implements ElementProcessor<Table> {
 

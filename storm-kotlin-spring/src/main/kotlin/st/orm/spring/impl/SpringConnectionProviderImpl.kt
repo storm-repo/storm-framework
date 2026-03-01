@@ -30,8 +30,7 @@ import javax.sql.DataSource
  */
 @BeforeAny
 class SpringConnectionProviderImpl : ConnectionProvider {
-    override fun isEnabled(): Boolean =
-        SpringTransactionConfiguration.transactionManagers.isNotEmpty()
+    override fun isEnabled(): Boolean = SpringTransactionConfiguration.transactionManagers.isNotEmpty()
 
     override fun getConnection(dataSource: DataSource, context: TransactionContext?): Connection {
         if (context != null) {

@@ -17,8 +17,8 @@ package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
 import st.orm.Projection;
-import st.orm.core.template.Model;
 import st.orm.core.repository.ProjectionRepository;
+import st.orm.core.template.Model;
 import st.orm.core.template.ORMTemplate;
 
 /**

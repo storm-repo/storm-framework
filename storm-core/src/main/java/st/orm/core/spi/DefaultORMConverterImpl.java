@@ -15,16 +15,15 @@
  */
 package st.orm.core.spi;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
-import st.orm.Converter;
-import st.orm.mapping.RecordField;
-import st.orm.core.template.SqlTemplateException;
-
-import java.util.List;
-
 import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
+
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
+import java.util.List;
+import st.orm.Converter;
+import st.orm.core.template.SqlTemplateException;
+import st.orm.mapping.RecordField;
 
 /**
  *

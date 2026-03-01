@@ -15,14 +15,13 @@
  */
 package st.orm.core.spi;
 
-import st.orm.Data;
-import st.orm.Converter;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.*;
+import st.orm.Converter;
+import st.orm.Data;
 
 public final class TypeDiscovery {
 

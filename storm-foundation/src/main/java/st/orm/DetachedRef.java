@@ -15,10 +15,10 @@
  */
 package st.orm;
 
+import static java.util.Objects.requireNonNull;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * Detached {@link Ref} implementation.

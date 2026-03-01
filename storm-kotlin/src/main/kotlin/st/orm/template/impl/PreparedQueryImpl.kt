@@ -20,14 +20,14 @@ import st.orm.template.PreparedQuery
 import java.util.stream.Stream
 import kotlin.reflect.KClass
 
-class PreparedQueryImpl(private val core: st.orm.core.template.PreparedQuery) : QueryImpl(core), PreparedQuery {
+class PreparedQueryImpl(private val core: st.orm.core.template.PreparedQuery) :
+    QueryImpl(core),
+    PreparedQuery {
     override fun addBatch(record: Data) {
         core.addBatch(record)
     }
 
-    override fun <ID : Any> getGeneratedKeys(type: KClass<ID>): Stream<ID> {
-        return core.getGeneratedKeys<ID>(type.java)
-    }
+    override fun <ID : Any> getGeneratedKeys(type: KClass<ID>): Stream<ID> = core.getGeneratedKeys<ID>(type.java)
 
     override fun close() {
         core.close()

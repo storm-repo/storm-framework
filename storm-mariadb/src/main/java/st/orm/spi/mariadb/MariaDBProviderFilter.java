@@ -15,10 +15,9 @@
  */
 package st.orm.spi.mariadb;
 
+import java.util.function.Predicate;
 import st.orm.core.spi.Provider;
 import st.orm.core.spi.SqlDialectProvider;
-
-import java.util.function.Predicate;
 
 /**
  * Provider filter to select the MariaDB entity repository provider.
@@ -29,7 +28,7 @@ public final class MariaDBProviderFilter implements Predicate<Provider> {
 
     private MariaDBProviderFilter() {
     }
-    
+
     @Override
     public boolean test(Provider provider) {
         if (!(provider instanceof SqlDialectProvider)) {

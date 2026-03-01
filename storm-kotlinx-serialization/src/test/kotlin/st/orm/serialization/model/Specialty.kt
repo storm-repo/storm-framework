@@ -22,5 +22,5 @@ import st.orm.PK
 @Serializable
 data class Specialty(
     @PK val id: Int,
-    val name: String
+    val name: String,
 ) : Data

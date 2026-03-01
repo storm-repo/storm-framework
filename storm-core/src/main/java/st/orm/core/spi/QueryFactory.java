@@ -16,6 +16,8 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
+import javax.sql.DataSource;
 import st.orm.BindVars;
 import st.orm.PersistenceException;
 import st.orm.core.template.Query;
@@ -55,4 +57,15 @@ public interface QueryFactory {
      * @throws PersistenceException if the template is invalid.
      */
     Query create(@Nonnull TemplateString template);
+
+    /**
+     * Returns the {@link DataSource} backing this factory, or {@code null} if the factory was created from a raw
+     * {@link java.sql.Connection} or JPA {@link jakarta.persistence.EntityManager}.
+     *
+     * @return the data source, or {@code null}.
+     * @since 1.9
+     */
+    default @Nullable DataSource dataSource() {
+        return null;
+    }
 }

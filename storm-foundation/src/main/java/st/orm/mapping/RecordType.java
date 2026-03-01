@@ -15,16 +15,15 @@
  */
 package st.orm.mapping;
 
-import jakarta.annotation.Nonnull;
-import st.orm.Data;
-import st.orm.PersistenceException;
+import static java.util.Objects.requireNonNull;
 
+import jakarta.annotation.Nonnull;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-
-import static java.util.Objects.requireNonNull;
+import st.orm.Data;
+import st.orm.PersistenceException;
 
 /**
  * Represents metadata about a data record type.

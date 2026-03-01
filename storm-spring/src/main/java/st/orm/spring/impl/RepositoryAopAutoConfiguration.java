@@ -28,9 +28,4 @@ public class RepositoryAopAutoConfiguration {
     public static RepositoryProxyingPostProcessor javaRepositoryProxyingPostProcessor() {
         return new RepositoryProxyingPostProcessor();
     }
-
-    @Bean
-    public SqlLoggerAspect javaSqlLoggerAspect() {
-        return new SqlLoggerAspect();
-    }
 }

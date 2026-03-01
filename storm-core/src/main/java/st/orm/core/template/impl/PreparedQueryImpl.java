@@ -15,22 +15,21 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.stream.Stream.generate;
+import static st.orm.core.template.impl.ObjectMapperFactory.getObjectMapper;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.Data;
-import st.orm.PersistenceException;
-import st.orm.core.spi.RefFactory;
-import st.orm.core.template.PreparedQuery;
-
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Stream;
-
-import static java.util.stream.Stream.generate;
-import static st.orm.core.template.impl.ObjectMapperFactory.getObjectMapper;
+import st.orm.Data;
+import st.orm.PersistenceException;
+import st.orm.core.spi.RefFactory;
+import st.orm.core.template.PreparedQuery;
 
 /**
  *

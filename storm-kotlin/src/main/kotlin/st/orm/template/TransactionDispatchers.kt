@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicReference
  * and falls back to Dispatchers.IO on older JVMs (to avoid VT pinning on Java 21–23).
  *
  * You can override with:
- *   -Dstorm.virtualThreads.enabled=true|false
+ *   -Dstorm.virtual_threads.enabled=true|false
  *
  * @since 1.5
  */
@@ -41,7 +41,9 @@ object TransactionDispatchers {
      */
     var Default: CoroutineDispatcher
         get() = overrideRef.get() ?: resolveDefault()
-        set(value) { overrideRef.set(value) }
+        set(value) {
+            overrideRef.set(value)
+        }
 
     /**
      * Virtual-thread dispatcher (created lazily).
@@ -57,14 +59,12 @@ object TransactionDispatchers {
         (Virtual as? Closeable)?.close()
     }
 
-    private fun resolveDefault(): CoroutineDispatcher {
-        return if (isVirtualThreadsEnabled()) Virtual else Dispatchers.IO
-    }
+    private fun resolveDefault(): CoroutineDispatcher = if (isVirtualThreadsEnabled()) Virtual else Dispatchers.IO
 
     private fun isVirtualThreadsEnabled(): Boolean {
         // Explicit property takes precedence, otherwise enable only if Java >= 24 to prevent pinning issues with
         // suspendTransaction.
-        val propEnabled = System.getProperty("storm.virtualThreads.enabled", "false")
+        val propEnabled = System.getProperty("storm.virtual_threads.enabled", "false")
             .equals("true", ignoreCase = true)
         return propEnabled || isJava24OrNewer()
     }

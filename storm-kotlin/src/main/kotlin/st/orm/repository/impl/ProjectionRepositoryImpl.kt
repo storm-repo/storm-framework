@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.fold
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.stream.consumeAsFlow
 import st.orm.Data
+import st.orm.Metamodel
 import st.orm.Projection
 import st.orm.Ref
 import st.orm.repository.ProjectionRepository
@@ -33,7 +34,7 @@ import kotlin.reflect.KClass
 /**
  */
 class ProjectionRepositoryImpl<P, ID : Any>(
-    private val core: st.orm.core.repository.ProjectionRepository<P, ID>
+    private val core: st.orm.core.repository.ProjectionRepository<P, ID>,
 ) : ProjectionRepository<P, ID> where P : Data, P : Projection<ID> {
 
     override val orm: ORMTemplate
@@ -42,123 +43,84 @@ class ProjectionRepositoryImpl<P, ID : Any>(
     override val model: Model<P, ID>
         get() = ModelImpl<P, ID>(core.model())
 
-    override fun ref(id: ID): Ref<P> {
-        return core.ref(id)
-    }
+    override fun ref(id: ID): Ref<P> = core.ref(id)
 
-    override fun ref(projection: P, id: ID): Ref<P> {
-        return core.ref(projection, id)
-    }
+    override fun ref(projection: P, id: ID): Ref<P> = core.ref(projection, id)
 
-    override fun select(): QueryBuilder<P, P, ID> {
-        return QueryBuilderImpl(core.select())
-    }
+    override fun select(): QueryBuilder<P, P, ID> = QueryBuilderImpl(core.select())
 
-    override fun selectCount(): QueryBuilder<P, Long, ID> {
-        return QueryBuilderImpl(core.selectCount())
-    }
+    override fun selectCount(): QueryBuilder<P, Long, ID> = QueryBuilderImpl(core.selectCount())
 
-    override fun <R : Any> select(selectType: KClass<R>): QueryBuilder<P, R, ID> {
-        return QueryBuilderImpl(core.select(selectType.java))
-    }
+    override fun <R : Any> select(selectType: KClass<R>): QueryBuilder<P, R, ID> = QueryBuilderImpl(core.select(selectType.java))
 
-    override fun selectRef(): QueryBuilder<P, Ref<P>, ID> {
-        return QueryBuilderImpl<P, Ref<P>, ID>(core.selectRef())
-    }
+    override fun selectRef(): QueryBuilder<P, Ref<P>, ID> = QueryBuilderImpl<P, Ref<P>, ID>(core.selectRef())
 
     override fun <R : Any> select(
         selectType: KClass<R>,
-        template: TemplateString
-    ): QueryBuilder<P, R, ID> {
-        return QueryBuilderImpl<P, R, ID>(
-            core.select(selectType.java, template.unwrap)
-        )
-    }
+        template: TemplateString,
+    ): QueryBuilder<P, R, ID> = QueryBuilderImpl<P, R, ID>(
+        core.select(selectType.java, template.unwrap),
+    )
 
-    override fun <R : Data> selectRef(refType: KClass<R>): QueryBuilder<P, Ref<R>, ID> {
-        return QueryBuilderImpl(core.selectRef(refType.java))
-    }
+    override fun <R : Data> selectRef(refType: KClass<R>): QueryBuilder<P, Ref<R>, ID> = QueryBuilderImpl(core.selectRef(refType.java))
 
-    override fun count(): Long {
-        return core.count()
-    }
+    override fun count(): Long = core.count()
 
-    override fun exists(): Boolean {
-        return core.exists()
-    }
+    override fun exists(): Boolean = core.exists()
 
-    override fun existsById(id: ID): Boolean {
-        return core.existsById(id)
-    }
+    override fun existsById(id: ID): Boolean = core.existsById(id)
 
-    override fun existsByRef(ref: Ref<P>): Boolean {
-        return core.existsByRef(ref)
-    }
+    override fun existsByRef(ref: Ref<P>): Boolean = core.existsByRef(ref)
 
-    override fun findById(id: ID): P? {
-        return core.findById(id).orElse(null)
-    }
+    override fun findById(id: ID): P? = core.findById(id).orElse(null)
 
-    override fun findByRef(ref: Ref<P>): P? {
-        return core.findByRef(ref).orElse(null)
-    }
+    override fun findByRef(ref: Ref<P>): P? = core.findByRef(ref).orElse(null)
 
-    override fun getById(id: ID): P {
-        return core.getById(id)
-    }
+    override fun getById(id: ID): P = core.getById(id)
 
-    override fun getByRef(ref: Ref<P>): P {
-        return core.getByRef(ref)
-    }
+    override fun getByRef(ref: Ref<P>): P = core.getByRef(ref)
 
-    override fun findAll(): List<P> {
-        return core.findAll()
-    }
+    override fun <V : Any> findBy(key: Metamodel.Key<P, V>, value: V): P? = core.findBy(key, value).orElse(null)
 
-    override fun findAllById(ids: Iterable<ID>): List<P> {
-        return core.findAllById(ids)
-    }
+    override fun <V : Any> getBy(key: Metamodel.Key<P, V>, value: V): P = core.getBy(key, value)
 
-    override fun findAllByRef(refs: Iterable<Ref<P>>): List<P> {
-        return core.findAllByRef(refs)
-    }
+    override fun <V : Data> findByRef(key: Metamodel.Key<P, V>, value: Ref<V>): P? = core.findByRef(key, value).orElse(null)
 
-    override fun selectAll(): Flow<P> =
-        core.selectAll().consumeAsFlow()
+    override fun <V : Data> getByRef(key: Metamodel.Key<P, V>, value: Ref<V>): P = core.getByRef(key, value)
 
-    override fun selectById(ids: Flow<ID>): Flow<P> =
-        ids.chunked(core.defaultChunkSize)
-            .flatMapConcat { core.findAllById(it).asFlow() }
+    override fun findAll(): List<P> = core.findAll()
 
-    override fun selectByRef(refs: Flow<Ref<P>>): Flow<P> =
-        refs.chunked(core.defaultChunkSize)
-            .flatMapConcat { core.findAllByRef(it).asFlow() }
+    override fun findAllById(ids: Iterable<ID>): List<P> = core.findAllById(ids)
 
-    override fun selectById(ids: Flow<ID>, chunkSize: Int): Flow<P> =
-        ids.chunked(chunkSize)
-            .flatMapConcat { core.findAllById(it).asFlow() }
+    override fun findAllByRef(refs: Iterable<Ref<P>>): List<P> = core.findAllByRef(refs)
 
-    override fun selectByRef(refs: Flow<Ref<P>>, chunkSize: Int): Flow<P> =
-        refs.chunked(chunkSize)
-            .flatMapConcat { core.findAllByRef(it).asFlow() }
+    override fun selectAll(): Flow<P> = core.selectAll().consumeAsFlow()
 
-    override suspend fun countById(ids: Flow<ID>): Long =
-        ids.chunked(core.defaultChunkSize)
-            .map { chunk -> core.countById(chunk.stream()) }
-            .fold(0L) { acc, v -> acc + v }
+    override fun selectById(ids: Flow<ID>): Flow<P> = ids.chunked(core.defaultChunkSize)
+        .flatMapConcat { core.findAllById(it).asFlow() }
 
-    override suspend fun countById(ids: Flow<ID>, chunkSize: Int): Long =
-        ids.chunked(chunkSize)
-            .map { chunk -> core.countById(chunk.stream()) }
-            .fold(0L) { acc, v -> acc + v }
+    override fun selectByRef(refs: Flow<Ref<P>>): Flow<P> = refs.chunked(core.defaultChunkSize)
+        .flatMapConcat { core.findAllByRef(it).asFlow() }
 
-    override suspend fun countByRef(refs: Flow<Ref<P>>): Long =
-        refs.chunked(core.defaultChunkSize)
-            .map { chunk -> core.countByRef(chunk.stream()) }
-            .fold(0L) { acc, v -> acc + v }
+    override fun selectById(ids: Flow<ID>, chunkSize: Int): Flow<P> = ids.chunked(chunkSize)
+        .flatMapConcat { core.findAllById(it).asFlow() }
 
-    override suspend fun countByRef(refs: Flow<Ref<P>>, chunkSize: Int): Long =
-        refs.chunked(chunkSize)
-            .map { chunk -> core.countByRef(chunk.stream()) }
-            .fold(0L) { acc, v -> acc + v }
+    override fun selectByRef(refs: Flow<Ref<P>>, chunkSize: Int): Flow<P> = refs.chunked(chunkSize)
+        .flatMapConcat { core.findAllByRef(it).asFlow() }
+
+    override suspend fun countById(ids: Flow<ID>): Long = ids.chunked(core.defaultChunkSize)
+        .map { chunk -> core.countById(chunk.stream()) }
+        .fold(0L) { acc, v -> acc + v }
+
+    override suspend fun countById(ids: Flow<ID>, chunkSize: Int): Long = ids.chunked(chunkSize)
+        .map { chunk -> core.countById(chunk.stream()) }
+        .fold(0L) { acc, v -> acc + v }
+
+    override suspend fun countByRef(refs: Flow<Ref<P>>): Long = refs.chunked(core.defaultChunkSize)
+        .map { chunk -> core.countByRef(chunk.stream()) }
+        .fold(0L) { acc, v -> acc + v }
+
+    override suspend fun countByRef(refs: Flow<Ref<P>>, chunkSize: Int): Long = refs.chunked(chunkSize)
+        .map { chunk -> core.countByRef(chunk.stream()) }
+        .fold(0L) { acc, v -> acc + v }
 }

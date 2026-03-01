@@ -15,12 +15,12 @@
  */
 package st.orm.core.template.impl;
 
+import static java.util.Objects.requireNonNull;
+
 import jakarta.annotation.Nonnull;
 import st.orm.core.spi.Name;
 import st.orm.core.template.SqlDialect;
 import st.orm.core.template.TemplateString;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * SQL template processor that converts a {@link TemplateString} into a SQL string using a {@link SqlDialect}.

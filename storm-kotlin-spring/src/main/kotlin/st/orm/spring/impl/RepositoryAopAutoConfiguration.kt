@@ -27,10 +27,6 @@ open class RepositoryAopAutoConfiguration {
     companion object {
         @JvmStatic
         @Bean
-        fun repositoryProxyingPostProcessor(): RepositoryProxyingPostProcessor =
-            RepositoryProxyingPostProcessor()
+        fun repositoryProxyingPostProcessor(): RepositoryProxyingPostProcessor = RepositoryProxyingPostProcessor()
     }
-
-    @Bean
-    open fun sqlLoggerAspect(): SqlLoggerAspect = SqlLoggerAspect()
 }

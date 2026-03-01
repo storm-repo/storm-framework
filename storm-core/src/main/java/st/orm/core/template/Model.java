@@ -17,15 +17,14 @@ package st.orm.core.template;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.Data;
-import st.orm.Metamodel;
-import st.orm.mapping.RecordType;
-
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.SequencedMap;
 import java.util.function.BiConsumer;
+import st.orm.Data;
+import st.orm.Metamodel;
+import st.orm.mapping.RecordType;
 
 /**
  * Represents the model of an entity or projection.
@@ -67,6 +66,15 @@ public interface Model<E extends Data, ID> {
      * @return the record type.
      */
     Class<E> type();
+
+    /**
+     * Returns {@code true} if this model represents a joined inheritance entity (Joined Table inheritance),
+     * where the base table has common fields and each permitted subclass has its own extension table.
+     *
+     * @return {@code true} if this model uses joined table inheritance.
+     * @since 1.9
+     */
+    boolean isJoinedInheritance();
 
     /**
      * Returns the type of the primary key.
@@ -250,4 +258,5 @@ public interface Model<E extends Data, ID> {
                       @Nonnull Object object,
                       @Nonnull BiConsumer<Column, Object> consumer)
             throws SqlTemplateException;
+
 }

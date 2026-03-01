@@ -6,7 +6,7 @@
     <parent>
         <groupId>st.orm</groupId>
         <artifactId>storm-framework</artifactId>
-        <version>1.8.2</version>
+        <version>1.9.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>storm-postgresql</artifactId>
@@ -37,6 +37,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <argLine>
+                        @{argLine}
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens storm.postgresql/st.orm.spi.postgresql=ALL-UNNAMED
                         --add-opens storm.postgresql/st.orm.spi.postgresql=storm.core

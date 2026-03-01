@@ -16,10 +16,6 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import st.orm.PersistenceException;
-
 import java.lang.ref.Cleaner;
 import java.lang.ref.Cleaner.Cleanable;
 import java.lang.reflect.InvocationTargetException;
@@ -29,6 +25,9 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import st.orm.PersistenceException;
 
 /**
  * Monitors whether streams are closed.

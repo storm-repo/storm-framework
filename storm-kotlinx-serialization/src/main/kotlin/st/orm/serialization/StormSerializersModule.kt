@@ -50,42 +50,53 @@ val StormSerializers: SerializersModule = StormSerializersModule()
 /**
  * Creates a [SerializersModule] for Storm ORM types with optional [RefFactory] support.
  *
- * @param refFactoryProvider Optional provider for [RefFactory] to create attached refs.
- *   When null, refs are created as detached via [Ref.of].
- *   The provider is invoked on each deserialization, allowing for ThreadLocal or
- *   scoped value resolution.
+ * This module registers contextual serializers for [Ref] types. Because kotlinx.serialization only
+ * consults the [SerializersModule] for fields annotated with
+ * [@Contextual][kotlinx.serialization.Contextual], [Ref] fields must carry that annotation:
+ * ```
+ * @Serializable
+ * data class Order(
+ *     @PK val id: Int = 0,
+ *     @Contextual val customer: Ref<Customer>,
+ * ) : Entity<Int>
+ * ```
  *
  * Usage:
  * ```
  * val json = Json {
- *     serializersModule = StormSerializers()
+ *     serializersModule = StormSerializersModule()
  * }
  * ```
  *
  * Usage with RefFactory:
  * ```
  * val json = Json {
- *     serializersModule = StormSerializers {
+ *     serializersModule = StormSerializersModule {
  *         // Resolve from ThreadLocal, scope, or DI container
  *         MyRefFactoryHolder.current()
  *     }
  * }
  * ```
+ *
+ * @param refFactoryProvider optional provider for [RefFactory] to create attached refs.
+ *   When null, refs are created as detached via [Ref.of].
+ *   The provider is invoked on each deserialization, allowing for ThreadLocal or
+ *   scoped value resolution.
  */
 fun StormSerializersModule(
-    refFactoryProvider: (() -> RefFactory?)? = null
+    refFactoryProvider: (() -> RefFactory?)? = null,
 ): SerializersModule = SerializersModule {
     contextual(Ref::class) { typeArgs ->
         val targetSerializerAny = typeArgs.firstOrNull()
             ?: throw SerializationException(
-                "Cannot determine Ref<T> target type: missing type argument. Ensure Ref has a concrete type."
+                "Cannot determine Ref<T> target type: missing type argument. Ensure Ref has a concrete type.",
             )
         val targetClass = resolveTargetClass(targetSerializerAny)
         @Suppress("UNCHECKED_CAST")
         RefSerializer(
             targetClass = targetClass,
             targetSerializerProvider = { targetSerializerAny as KSerializer<Data> },
-            refFactoryProvider = refFactoryProvider
+            refFactoryProvider = refFactoryProvider,
         ) as KSerializer<*>
     }
 }
@@ -106,7 +117,7 @@ fun StormSerializersModule(
 class RefSerializer<T : Data>(
     private val targetClass: Class<out Data>,
     targetSerializerProvider: () -> KSerializer<T>,
-    private val refFactoryProvider: (() -> RefFactory?)? = null
+    private val refFactoryProvider: (() -> RefFactory?)? = null,
 ) : KSerializer<Ref<T>?> {
     // Lazy - Only resolved when serializing/deserializing loaded entities.
     private val targetSerializer: KSerializer<T> by lazy(targetSerializerProvider)
@@ -148,54 +159,48 @@ class RefSerializer<T : Data>(
         }
     }
 
-    private fun deserializeFromJsonElement(json: Json, element: JsonElement): Ref<T>? {
-        return when (element) {
-            is JsonNull -> null
-            is JsonObject -> deserializeObject(json, element)
-            else -> {
-                val id = decodeId(json, element, targetClass)
-                @Suppress("UNCHECKED_CAST")
-                createRef(targetClass as Class<Data>, id) as Ref<T>?
-            }
+    private fun deserializeFromJsonElement(json: Json, element: JsonElement): Ref<T>? = when (element) {
+        is JsonNull -> null
+        is JsonObject -> deserializeObject(json, element)
+        else -> {
+            val id = decodeId(json, element, targetClass)
+            @Suppress("UNCHECKED_CAST")
+            createRef(targetClass as Class<Data>, id) as Ref<T>?
         }
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun deserializeObject(json: Json, obj: JsonObject): Ref<T> {
-        return when {
-            obj.containsKey(ENTITY_FIELD) -> {
-                val payload = obj[ENTITY_FIELD]
-                    ?: throw SerializationException("$ENTITY_FIELD field is null")
-                val entity = json.decodeFromJsonElement(targetSerializer, payload)
-                if (entity !is Entity<*>) {
-                    throw SerializationException("$ENTITY_FIELD must decode to an Entity")
-                }
-                Ref.of(entity as Entity<Any?>) as Ref<T>
+    private fun deserializeObject(json: Json, obj: JsonObject): Ref<T> = when {
+        obj.containsKey(ENTITY_FIELD) -> {
+            val payload = obj[ENTITY_FIELD]
+                ?: throw SerializationException("$ENTITY_FIELD field is null")
+            val entity = json.decodeFromJsonElement(targetSerializer, payload)
+            if (entity !is Entity<*>) {
+                throw SerializationException("$ENTITY_FIELD must decode to an Entity")
             }
-            obj.containsKey(PROJECTION_FIELD) -> {
-                val idElement = obj[ID_FIELD]
-                    ?: throw SerializationException("$PROJECTION_FIELD requires $ID_FIELD field")
-                // For @projection, @id must be present and non-null.
-                val id = decodeId(json, idElement, targetClass)
-                    ?: throw SerializationException("$PROJECTION_FIELD requires non-null $ID_FIELD")
-                val payload = obj[PROJECTION_FIELD]
-                    ?: throw SerializationException("$PROJECTION_FIELD field is null")
-                val data = json.decodeFromJsonElement(targetSerializer, payload)
-                createLoadedRef(data, id)
-            }
-            else -> throw SerializationException(
-                "Ref object must contain $ENTITY_FIELD or $PROJECTION_FIELD"
-            )
+            Ref.of(entity as Entity<Any?>) as Ref<T>
         }
+        obj.containsKey(PROJECTION_FIELD) -> {
+            val idElement = obj[ID_FIELD]
+                ?: throw SerializationException("$PROJECTION_FIELD requires $ID_FIELD field")
+            // For @projection, @id must be present and non-null.
+            val id = decodeId(json, idElement, targetClass)
+                ?: throw SerializationException("$PROJECTION_FIELD requires non-null $ID_FIELD")
+            val payload = obj[PROJECTION_FIELD]
+                ?: throw SerializationException("$PROJECTION_FIELD field is null")
+            val data = json.decodeFromJsonElement(targetSerializer, payload)
+            createLoadedRef(data, id)
+        }
+        else -> throw SerializationException(
+            "Ref object must contain $ENTITY_FIELD or $PROJECTION_FIELD",
+        )
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun createLoadedRef(data: T, id: Any): Ref<T> {
-        return when (data) {
-            is Entity<*> -> Ref.of(data as Entity<Any?>) as Ref<T>
-            is Projection<*> -> Ref.of(data as Projection<Any?>, id) as Ref<T>
-            else -> Ref.of(targetClass as Class<Data>, id) as Ref<T>
-        }
+    private fun createLoadedRef(data: T, id: Any): Ref<T> = when (data) {
+        is Entity<*> -> Ref.of(data as Entity<Any?>) as Ref<T>
+        is Projection<*> -> Ref.of(data as Projection<Any?>, id) as Ref<T>
+        else -> Ref.of(targetClass as Class<Data>, id) as Ref<T>
     }
 
     private fun <D : Data> createRef(targetClass: Class<D>, id: Any?): Ref<D>? {
@@ -223,7 +228,7 @@ class RefSerializer<T : Data>(
             is Float -> JsonPrimitive(id)
             is Boolean -> JsonPrimitive(id)
             else -> throw SerializationException(
-                "Cannot encode Ref id '$id': no serializer found for PK type '$pkType' and no primitive fallback applies"
+                "Cannot encode Ref id '$id': no serializer found for PK type '$pkType' and no primitive fallback applies",
             )
         }
     }
@@ -234,7 +239,7 @@ class RefSerializer<T : Data>(
         if (pkType != null) {
             val serializer = json.serializerOrNull(pkType)
                 ?: throw SerializationException(
-                    "Cannot decode Ref id: no serializer found for PK type '$pkType'."
+                    "Cannot decode Ref id: no serializer found for PK type '$pkType'.",
                 )
             return json.decodeFromJsonElement(serializer, element)
         }
@@ -285,19 +290,16 @@ private object PkTypeResolver {
 /**
  * Extension to get a serializer or null for a given class (kotlinx Json).
  */
-private fun Json.serializerOrNull(kclass: KClass<*>): KSerializer<*>? {
-    return try {
-        serializersModule.serializer(kclass.starProjectedType)
-    } catch (_: Exception) {
-        null
-    }
+private fun Json.serializerOrNull(kclass: KClass<*>): KSerializer<*>? = try {
+    serializersModule.serializer(kclass.starProjectedType)
+} catch (_: Exception) {
+    null
 }
 
 /**
  * Extension to get a serializer or null for a given class (kotlinx Json).
  */
-private fun Json.serializerOrNull(clazz: Class<*>): KSerializer<*>? =
-    serializerOrNull(clazz.kotlin)
+private fun Json.serializerOrNull(clazz: Class<*>): KSerializer<*>? = serializerOrNull(clazz.kotlin)
 
 /**
  * Resolve the target class that a serializer was generated for.
@@ -337,7 +339,7 @@ private fun resolveTargetClass(serializer: KSerializer<*>): Class<out Data> {
         // Continue.
     }
     throw SerializationException(
-        "Cannot determine target class from serializer: ${serializerClass.name}, serialName: $serialName."
+        "Cannot determine target class from serializer: ${serializerClass.name}, serialName: $serialName.",
     )
 }
 

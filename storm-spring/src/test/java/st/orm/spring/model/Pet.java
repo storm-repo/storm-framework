@@ -17,12 +17,11 @@ package st.orm.spring.model;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.time.LocalDate;
 import st.orm.Entity;
 import st.orm.FK;
 import st.orm.PK;
 import st.orm.Persist;
-
-import java.time.LocalDate;
 
 /**
  * Simple business object representing a pet.

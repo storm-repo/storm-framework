@@ -12,6 +12,7 @@ module storm.core {
     exports st.orm.core.spi;
     exports st.orm.core.repository;
     exports st.orm.core.repository.impl;
+    requires java.management;
     requires java.sql;
     requires jakarta.persistence;
     requires jakarta.annotation;

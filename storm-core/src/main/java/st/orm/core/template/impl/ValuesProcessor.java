@@ -16,15 +16,14 @@
 package st.orm.core.template.impl;
 
 import jakarta.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import st.orm.Data;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.Elements.Values;
-
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
 
 final class ValuesProcessor implements ElementProcessor<Values> {
     record ValuesBindHint(@Nonnull List<Column> columns) implements BindHint {}

@@ -16,10 +16,9 @@
 package st.orm.spi.mssqlserver;
 
 
+import java.util.function.Predicate;
 import st.orm.core.spi.Provider;
 import st.orm.core.spi.SqlDialectProvider;
-
-import java.util.function.Predicate;
 
 /**
  * Provider filter to select the SQL Server entity repository provider.

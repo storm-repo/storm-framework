@@ -15,24 +15,24 @@
  */
 package st.orm.repository.impl;
 
+import static java.util.Objects.requireNonNull;
+import static st.orm.template.impl.StringTemplates.convert;
+
 import jakarta.annotation.Nonnull;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 import st.orm.Data;
-import st.orm.repository.ProjectionRepository;
+import st.orm.Metamodel;
 import st.orm.Projection;
 import st.orm.Ref;
+import st.orm.repository.ProjectionRepository;
 import st.orm.template.Model;
 import st.orm.template.ORMTemplate;
 import st.orm.template.QueryBuilder;
 import st.orm.template.impl.ModelImpl;
 import st.orm.template.impl.ORMTemplateImpl;
 import st.orm.template.impl.QueryBuilderImpl;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Stream;
-
-import static java.util.Objects.requireNonNull;
-import static st.orm.template.impl.StringTemplates.convert;
 
 /**
  */
@@ -126,6 +126,26 @@ public final class ProjectionRepositoryImpl<P extends Projection<ID>, ID> implem
     @Override
     public P getByRef(@Nonnull Ref<P> ref) {
         return core.getByRef(ref);
+    }
+
+    @Override
+    public <V> Optional<P> findBy(@Nonnull Metamodel.Key<P, V> key, @Nonnull V value) {
+        return core.findBy(key, value);
+    }
+
+    @Override
+    public <V> P getBy(@Nonnull Metamodel.Key<P, V> key, @Nonnull V value) {
+        return core.getBy(key, value);
+    }
+
+    @Override
+    public <V extends Data> Optional<P> findByRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> value) {
+        return core.findByRef(key, value);
+    }
+
+    @Override
+    public <V extends Data> P getByRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> value) {
+        return core.getByRef(key, value);
     }
 
     @Override

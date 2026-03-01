@@ -15,16 +15,15 @@
  */
 package st.orm.template.impl;
 
+import static java.util.Objects.requireNonNull;
+
 import jakarta.annotation.Nonnull;
+import java.util.stream.Stream;
 import st.orm.Data;
-import st.orm.template.PreparedQuery;
-import st.orm.template.Query;
 import st.orm.PersistenceException;
 import st.orm.Ref;
-
-import java.util.stream.Stream;
-
-import static java.util.Objects.requireNonNull;
+import st.orm.template.PreparedQuery;
+import st.orm.template.Query;
 
 public class QueryImpl implements Query {
     private final st.orm.core.template.Query core;
@@ -50,15 +49,14 @@ public class QueryImpl implements Query {
     }
 
     /**
-     * Returns a new query that is marked as safe. This means that dangerous operations, such as DELETE and UPDATE
-     * without a WHERE clause, will be allowed.
+     * Returns a new query that allows dangerous operations, such as DELETE and UPDATE without a WHERE clause.
      *
-     * @return a new query that is marked as safe.
+     * @return a new query that allows dangerous operations.
      * @since 1.2
      */
     @Override
-    public Query safe() {
-        return new QueryImpl(core.safe());
+    public Query unsafe() {
+        return new QueryImpl(core.unsafe());
     }
 
     /**

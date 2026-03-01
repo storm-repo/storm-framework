@@ -32,12 +32,10 @@ class JsonORMConverterProviderImpl : ORMConverterProvider {
         val kType = resolveKType(owner.kotlin, field.name())
             ?: throw IllegalArgumentException(
                 "Cannot resolve Kotlin KType for '${owner.name}.${field.name()}'. " +
-                        "Add Kotlin metadata access to RecordField or fall back to Java Type resolution."
+                    "Add Kotlin metadata access to RecordField or fall back to Java Type resolution.",
             )
         return Optional.of(JsonORMConverterImpl(field, kType, jsonAnn))
     }
 
-    private fun resolveKType(kClass: KClass<*>, fieldName: String): KType? {
-        return kClass.declaredMemberProperties.firstOrNull { it.name == fieldName }?.returnType
-    }
+    private fun resolveKType(kClass: KClass<*>, fieldName: String): KType? = kClass.declaredMemberProperties.firstOrNull { it.name == fieldName }?.returnType
 }

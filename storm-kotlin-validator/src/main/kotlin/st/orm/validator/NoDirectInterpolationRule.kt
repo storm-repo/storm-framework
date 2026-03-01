@@ -19,7 +19,7 @@ class NoDirectInterpolationRule(config: Config = Config.empty) : Rule(config) {
         id = "NoDirectInterpolation",
         severity = Severity.CodeSmell,
         description = "Avoid direct `\${…}` inside TemplateContext scope; wrap value with t()/insert() instead.",
-        debt = Debt.FIVE_MINS
+        debt = Debt.FIVE_MINS,
     )
 
     override fun visitStringTemplateExpression(expr: KtStringTemplateExpression) {
@@ -34,7 +34,9 @@ class NoDirectInterpolationRule(config: Config = Config.empty) : Rule(config) {
                         val called = (innerExpr.calleeExpression as? KtNameReferenceExpression)
                             ?.getReferencedName()
                         called !in setOf("t", "insert")
-                    } else true // if not a call, it's unsafe
+                    } else {
+                        true // if not a call, it's unsafe
+                    }
                 }
                 else -> false
             }
@@ -69,8 +71,8 @@ class NoDirectInterpolationRule(config: Config = Config.empty) : Rule(config) {
                     CodeSmell(
                         issue,
                         Entity.from(expr),
-                        "Avoid direct `\${…}` in TemplateContext scope; wrap with t()/insert()."
-                    )
+                        "Avoid direct `\${…}` in TemplateContext scope; wrap with t()/insert().",
+                    ),
                 )
             }
         }

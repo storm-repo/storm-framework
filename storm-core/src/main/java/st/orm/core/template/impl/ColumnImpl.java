@@ -20,8 +20,8 @@ import st.orm.Data;
 import st.orm.GenerationStrategy;
 import st.orm.Metamodel;
 import st.orm.core.spi.Name;
-import st.orm.core.template.SqlDialect;
 import st.orm.core.template.Column;
+import st.orm.core.template.SqlDialect;
 
 /**
  * Represents a column in a database table.

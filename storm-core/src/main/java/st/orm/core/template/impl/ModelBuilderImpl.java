@@ -18,10 +18,10 @@ package st.orm.core.template.impl;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import st.orm.Data;
-import st.orm.mapping.ColumnNameResolver;
-import st.orm.mapping.ForeignKeyResolver;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlTemplateException;
+import st.orm.mapping.ColumnNameResolver;
+import st.orm.mapping.ForeignKeyResolver;
 import st.orm.mapping.TableNameResolver;
 
 /**

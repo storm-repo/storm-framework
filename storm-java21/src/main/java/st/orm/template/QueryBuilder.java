@@ -15,25 +15,27 @@
  */
 package st.orm.template;
 
-import jakarta.annotation.Nonnull;
-import st.orm.Data;
-import st.orm.JoinType;
-import st.orm.Metamodel;
-import st.orm.Operator;
-import st.orm.Ref;
-import st.orm.core.template.impl.Elements.ObjectExpression;
-import st.orm.NoResultException;
-import st.orm.NonUniqueResultException;
-import st.orm.PersistenceException;
+import static java.lang.StringTemplate.RAW;
+import static st.orm.Operator.EQUALS;
+import static st.orm.Operator.GREATER_THAN;
+import static st.orm.Operator.IN;
+import static st.orm.Operator.LESS_THAN;
 
+import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
-
-import static java.lang.StringTemplate.RAW;
-import static st.orm.Operator.EQUALS;
-import static st.orm.Operator.IN;
+import st.orm.Data;
+import st.orm.JoinType;
+import st.orm.Metamodel;
+import st.orm.NoResultException;
+import st.orm.NonUniqueResultException;
+import st.orm.Operator;
+import st.orm.PersistenceException;
+import st.orm.Ref;
+import st.orm.Slice;
+import st.orm.core.template.impl.Elements.ObjectExpression;
 
 /**
  * A fluent builder for constructing type-safe SELECT and DELETE queries using the entity graph and metamodel.
@@ -75,6 +77,23 @@ import static st.orm.Operator.IN;
  *         .getResultList();
  * }</pre>
  *
+ * <h2>Immutability</h2>
+ * <p>{@code QueryBuilder} is immutable: every builder method (such as {@code where()}, {@code orderBy()},
+ * {@code limit()}, etc.) returns a <em>new</em> instance with the modification applied, leaving the original
+ * unchanged. If you call a builder method and ignore the return value, the change is silently lost.</p>
+ *
+ * <pre>{@code
+ * // WRONG - the where clause is lost because the return value is discarded:
+ * var builder = userRepository.select();
+ * builder.where(User_.active, EQUALS, true);  // returns a new builder, but it's ignored
+ * builder.getResultList();                     // executes without the WHERE clause
+ *
+ * // CORRECT - chain the calls or capture the returned builder:
+ * var results = userRepository.select()
+ *         .where(User_.active, EQUALS, true)
+ *         .getResultList();
+ * }</pre>
+ *
  * @param <T> the type of the table being queried.
  * @param <R> the type of the result.
  * @param <ID> the type of the primary key.
@@ -96,14 +115,15 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     public abstract <X> QueryBuilder<T, R, X> typed(@Nonnull Class<X> pkType);
 
     /**
-     * Returns a query builder that does not require a WHERE clause for UPDATE and DELETE queries.
+     * Returns a query builder that allows UPDATE and DELETE queries without a WHERE clause.
      *
-     * <p>This method is used to prevent accidental updates or deletions of all records in a table when a WHERE clause
-     * is not provided.</p>
+     * <p>By default, Storm rejects UPDATE and DELETE queries that lack a WHERE clause, throwing a
+     * {@link PersistenceException}. Call this method to disable that check when you intentionally want to affect all
+     * rows in the table.</p>
      *
      * @since 1.2
      */
-    public abstract QueryBuilder<T, R, ID> safe();
+    public abstract QueryBuilder<T, R, ID> unsafe();
 
     /**
      * Marks the current query as a distinct query.
@@ -418,15 +438,14 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     }
 
     /**
-     * Adds a GROUP BY clause to the query using a string template.
+     * Adds a GROUP BY clause to the query using a string template. Multiple calls to this method append additional
+     * columns to the GROUP BY clause.
      *
      * @param template the template to group by.
      * @return the query builder.
      * @since 1.2
      */
-    public final QueryBuilder<T, R, ID> groupBy(@Nonnull StringTemplate template) {
-        return append(StringTemplate.combine(RAW."GROUP BY ", template));
-    }
+    protected abstract QueryBuilder<T, R, ID> groupBy(@Nonnull StringTemplate template);
 
     /**
      * Adds a HAVING clause to the query using the specified expression.
@@ -463,15 +482,14 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     }
 
     /**
-     * Adds a HAVING clause to the query using the specified expression.
+     * Adds a HAVING clause to the query using the specified expression. Multiple calls to this method are combined
+     * using AND.
      *
      * @param template the expression to add.
      * @return the query builder.
      * @since 1.2
      */
-    public final QueryBuilder<T, R, ID> having(@Nonnull StringTemplate template) {
-        return append(StringTemplate.combine(RAW."HAVING ", template));
-    }
+    protected abstract QueryBuilder<T, R, ID> having(@Nonnull StringTemplate template);
 
     /**
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph.
@@ -501,6 +519,61 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     }
 
     /**
+     * Adds an ORDER BY clause to the query for the fields at the specified paths in the table graph. The results
+     * are sorted in descending order for each column.
+     *
+     * @param path the paths to order by.
+     * @return the query builder.
+     * @since 1.9
+     */
+    @SafeVarargs
+    public final QueryBuilder<T, R, ID> orderByDescending(@Nonnull Metamodel<T, ?>... path) {
+        return orderByDescendingAny(path);
+    }
+
+    /**
+     * Adds an ORDER BY clause to the query for the field at the specified path in the table graph or manually added
+     * joins. The results are sorted in descending order.
+     *
+     * @param path the path to order by.
+     * @return the query builder.
+     * @since 1.9
+     */
+    public final QueryBuilder<T, R, ID> orderByDescendingAny(@Nonnull Metamodel<?, ?> path) {
+        return orderBy(RAW."\{path} DESC");
+    }
+
+    /**
+     * Adds an ORDER BY clause to the query for the fields at the specified paths in the table graph or manually
+     * added joins. The results are sorted in descending order for each column.
+     *
+     * @param path the paths to order by.
+     * @return the query builder.
+     * @since 1.9
+     */
+    public final QueryBuilder<T, R, ID> orderByDescendingAny(@Nonnull Metamodel<?, ?>... path) {
+        if (path.length == 0) {
+            throw new PersistenceException("At least one path must be provided for ORDER BY clause.");
+        }
+        List<StringTemplate> templates = Stream.of(path)
+                .flatMap(metamodel -> Stream.of(RAW."\{metamodel}", RAW." DESC", RAW.", "))
+                .toList();
+        return orderBy(StringTemplate.combine(templates.subList(0, templates.size() - 1).toArray(new StringTemplate[0])));
+    }
+
+    /**
+     * Adds an ORDER BY clause to the query using a string template. The results are sorted in descending order.
+     * Multiple calls to this method append additional columns to the ORDER BY clause.
+     *
+     * @param template the template to order by.
+     * @return the query builder.
+     * @since 1.9
+     */
+    public final QueryBuilder<T, R, ID> orderByDescending(@Nonnull StringTemplate template) {
+        return orderBy(StringTemplate.combine(template, RAW." DESC"));
+    }
+
+    /**
      * Adds an ORDER BY clause to the query for the field at the specified path in the table graph or manually added
      * joins.
      *
@@ -519,15 +592,22 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
     }
 
     /**
-     * Adds an ORDER BY clause to the query using a string template.
+     * Adds an ORDER BY clause to the query using a string template. Multiple calls to this method append additional
+     * columns to the ORDER BY clause.
      *
      * @param template the template to order by.
      * @return the query builder.
      * @since 1.2
      */
-    public final QueryBuilder<T, R, ID> orderBy(@Nonnull StringTemplate template) {
-        return append(StringTemplate.combine(RAW."ORDER BY ", template));
-    }
+    protected abstract QueryBuilder<T, R, ID> orderBy(@Nonnull StringTemplate template);
+
+    /**
+     * Returns {@code true} if any ORDER BY columns have been added to this query builder.
+     *
+     * @return {@code true} if ORDER BY columns are present, {@code false} otherwise.
+     * @since 1.9
+     */
+    protected abstract boolean hasOrderBy();
 
     /**
      * Adds a LIMIT clause to the query.
@@ -617,6 +697,387 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      */
     public final PreparedQuery prepare() {
         return build().prepare();
+    }
+
+    //
+    // Slice-based pagination.
+    //
+
+    /**
+     * Executes the query and returns a {@link Slice} of results.
+     *
+     * <p>This method fetches {@code size + 1} rows to determine whether more results are available, then returns at
+     * most {@code size} results along with a {@code hasNext} flag. The caller is responsible for managing any WHERE
+     * and ORDER BY clauses externally.</p>
+     *
+     * @param size the maximum number of results to include in the slice (must be positive).
+     * @return a slice containing the results and a flag indicating whether more results exist.
+     * @throws IllegalArgumentException if {@code size} is not positive.
+     * @since 1.9
+     */
+    public final Slice<R> slice(int size) {
+        if (size <= 0) {
+            throw new IllegalArgumentException("size must be positive.");
+        }
+        List<R> results = this.limit(size + 1).getResultList();
+        boolean hasNext = results.size() > size;
+        List<R> content = hasNext ? results.subList(0, size) : results;
+        return new Slice<>(content, hasNext);
+    }
+
+    /**
+     * Executes the query and returns the first {@link Slice} of results, ordered by the specified key in ascending
+     * order.
+     *
+     * <p>This method manages the ORDER BY clause internally. An explicit {@code orderBy()} call must not be present
+     * on this builder; a {@link PersistenceException} is thrown if one is detected.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the first page of results.
+     * @param <E> the type of the key.
+     * @since 1.9
+     */
+    public final <E> Slice<R> slice(@Nonnull Metamodel.Key<T, E> key, int size) {
+        if (hasOrderBy()) {
+            throw new PersistenceException("slice with key manages ORDER BY internally; remove explicit orderBy calls.");
+        }
+        return this.orderBy(key).slice(size);
+    }
+
+    /**
+     * Executes the query and returns the first {@link Slice} of results, ordered by the specified key in descending
+     * order.
+     *
+     * <p>This is the cursorless variant of descending keyset pagination, useful for starting at the most recent
+     * entries. Subsequent pages can be obtained with
+     * {@link #sliceBefore(Metamodel.Key, Object, int)}.</p>
+     *
+     * <p>This method manages the ORDER BY clause internally. An explicit {@code orderBy()} call must not be present
+     * on this builder; a {@link PersistenceException} is thrown if one is detected.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the first page of results in descending key order.
+     * @param <E> the type of the key.
+     * @since 1.9
+     */
+    public final <E> Slice<R> sliceBefore(@Nonnull Metamodel.Key<T, E> key, int size) {
+        if (hasOrderBy()) {
+            throw new PersistenceException("sliceBefore with key manages ORDER BY internally; remove explicit orderBy calls.");
+        }
+        return this.orderByDescending(key).slice(size);
+    }
+
+    /**
+     * Executes the query and returns the next {@link Slice} of results after the specified cursor value, ordered by
+     * the specified key in ascending order.
+     *
+     * <p>This method adds a {@code WHERE key > after} condition and an ascending ORDER BY clause internally.
+     * The additional WHERE condition is combined with any existing WHERE clauses using AND. An explicit
+     * {@code orderBy()} call must not be present on this builder; a {@link PersistenceException} is thrown if one is
+     * detected.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param after the cursor value; only results with a key value greater than this are returned.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the next page of results.
+     * @param <E> the type of the key.
+     * @since 1.9
+     */
+    @SuppressWarnings("unchecked")
+    public final <E> Slice<R> sliceAfter(@Nonnull Metamodel.Key<T, E> key, @Nonnull E after, int size) {
+        if (hasOrderBy()) {
+            throw new PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.");
+        }
+        return this.where(key, Operator.GREATER_THAN, after)
+                   .orderBy(key)
+                   .slice(size);
+    }
+
+    /**
+     * Executes the query and returns the previous {@link Slice} of results before the specified cursor value, ordered
+     * by the specified key in descending order.
+     *
+     * <p>This method adds a {@code WHERE key < before} condition and a descending ORDER BY clause internally.
+     * The additional WHERE condition is combined with any existing WHERE clauses using AND. An explicit
+     * {@code orderBy()} call must not be present on this builder; a {@link PersistenceException} is thrown if one is
+     * detected.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param before the cursor value; only results with a key value less than this are returned.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the previous page of results.
+     * @param <E> the type of the key.
+     * @since 1.9
+     */
+    @SuppressWarnings("unchecked")
+    public final <E> Slice<R> sliceBefore(@Nonnull Metamodel.Key<T, E> key, @Nonnull E before, int size) {
+        if (hasOrderBy()) {
+            throw new PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.");
+        }
+        return this.where(key, Operator.LESS_THAN, before)
+                   .orderByDescending(key)
+                   .slice(size);
+    }
+
+    /**
+     * Executes the query and returns the next {@link Slice} of results after the specified ref cursor value, ordered
+     * by the specified key in ascending order.
+     *
+     * <p>This method adds a {@code WHERE key > after} condition and an ascending ORDER BY clause internally.
+     * The additional WHERE condition is combined with any existing WHERE clauses using AND. An explicit
+     * {@code orderBy()} call must not be present on this builder; a {@link PersistenceException} is thrown if one is
+     * detected.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param after the ref cursor value; only results with a key value greater than this ref are returned.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the next page of results.
+     * @param <V> the type of the key, which must extend {@link Data}.
+     * @since 1.9
+     */
+    public final <V extends Data> Slice<R> sliceAfter(@Nonnull Metamodel.Key<T, V> key, @Nonnull Ref<V> after, int size) {
+        if (hasOrderBy()) {
+            throw new PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.");
+        }
+        return this.where(RAW."\{new ObjectExpression(key, Operator.GREATER_THAN, after)}")
+                   .orderBy(key)
+                   .slice(size);
+    }
+
+    /**
+     * Executes the query and returns the previous {@link Slice} of results before the specified ref cursor value,
+     * ordered by the specified key in descending order.
+     *
+     * <p>This method adds a {@code WHERE key < before} condition and a descending ORDER BY clause internally.
+     * The additional WHERE condition is combined with any existing WHERE clauses using AND. An explicit
+     * {@code orderBy()} call must not be present on this builder; a {@link PersistenceException} is thrown if one is
+     * detected.</p>
+     *
+     * @param key the metamodel path for a unique column used for ordering and as keyset cursor.
+     * @param before the ref cursor value; only results with a key value less than this ref are returned.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the previous page of results.
+     * @param <V> the type of the key, which must extend {@link Data}.
+     * @since 1.9
+     */
+    public final <V extends Data> Slice<R> sliceBefore(@Nonnull Metamodel.Key<T, V> key, @Nonnull Ref<V> before, int size) {
+        if (hasOrderBy()) {
+            throw new PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.");
+        }
+        return this.where(RAW."\{new ObjectExpression(key, Operator.LESS_THAN, before)}")
+                   .orderByDescending(key)
+                   .slice(size);
+    }
+
+    //
+    // Composite keyset pagination (key + sort).
+    //
+
+    /**
+     * Executes the query and returns the first {@link Slice} of results using composite keyset pagination with two
+     * columns: a non-unique {@code sort} for ordering and a unique {@code key} as a tiebreaker.
+     *
+     * <p>This combination provides stable, deterministic pagination even when the sort column contains duplicate
+     * values. Results are ordered by {@code sort} ascending, then {@code key} ascending.</p>
+     *
+     * <p>This method manages the ORDER BY clause internally. An explicit {@code orderBy()} call must not be present
+     * on this builder; a {@link PersistenceException} is thrown if one is detected.</p>
+     *
+     * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
+     * @param sort the metamodel path for the (possibly non-unique) primary sort column.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the first page of results.
+     * @param <E> the type of the unique key field.
+     * @param <S> the type of the sort field.
+     * @since 1.9
+     */
+    public final <E, S> Slice<R> slice(@Nonnull Metamodel.Key<T, E> key, @Nonnull Metamodel<T, S> sort, int size) {
+        if (hasOrderBy()) {
+            throw new PersistenceException("slice with sort and key manages ORDER BY internally; remove explicit orderBy calls.");
+        }
+        return this.orderBy(sort, key).slice(size);
+    }
+
+    /**
+     * Executes the query and returns the first {@link Slice} of results for composite keyset pagination, sorting by
+     * a non-unique column ({@code sort}) with a unique tiebreaker ({@code key}) in descending order.
+     *
+     * <p>This is the cursorless variant of descending composite keyset pagination, useful for starting at the most
+     * recent entries. Subsequent pages can be obtained with
+     * {@link #sliceBefore(Metamodel.Key, Object, Metamodel, Object, int)}.</p>
+     *
+     * <p>This method manages the ORDER BY clause internally. An explicit {@code orderBy()} call must not be present
+     * on this builder; a {@link PersistenceException} is thrown if one is detected.</p>
+     *
+     * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
+     * @param sort the metamodel path for the (possibly non-unique) primary sort column.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the first page of results in descending order.
+     * @param <E> the type of the unique key field.
+     * @param <S> the type of the sort field.
+     * @since 1.9
+     */
+    public final <E, S> Slice<R> sliceBefore(@Nonnull Metamodel.Key<T, E> key, @Nonnull Metamodel<T, S> sort, int size) {
+        if (hasOrderBy()) {
+            throw new PersistenceException("sliceBefore with sort and key manages ORDER BY internally; remove explicit orderBy calls.");
+        }
+        return this.orderByDescending(sort, key).slice(size);
+    }
+
+    /**
+     * Executes the query and returns the next {@link Slice} of results after the specified composite cursor using
+     * two-column keyset pagination: a non-unique {@code sort} for ordering and a unique {@code key} as a
+     * tiebreaker.
+     *
+     * <p>The caller must supply both cursor values, extracted from the last item of the current page:
+     * {@code sortAfter} from the sort column, and {@code keyAfter} from the unique tiebreaker column.</p>
+     *
+     * <p>This method adds a composite WHERE condition equivalent to
+     * {@code WHERE (sort > sortAfter OR (sort = sortAfter AND key > keyAfter))} and ascending ORDER BY
+     * clauses internally. An explicit {@code orderBy()} call must not be present on this builder; a
+     * {@link PersistenceException} is thrown if one is detected.</p>
+     *
+     * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
+     * @param keyAfter the cursor value for the unique key column, taken from the last item of the current page.
+     * @param sort the metamodel path for the (possibly non-unique) primary sort column.
+     * @param sortAfter the cursor value for the sort column, taken from the last item of the current page.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the next page of results.
+     * @param <E> the type of the unique key field.
+     * @param <S> the type of the sort field.
+     * @since 1.9
+     */
+    @SuppressWarnings("unchecked")
+    public final <E, S> Slice<R> sliceAfter(@Nonnull Metamodel.Key<T, E> key, @Nonnull E keyAfter,
+                                             @Nonnull Metamodel<T, S> sort, @Nonnull S sortAfter, int size) {
+        if (hasOrderBy()) {
+            throw new PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.");
+        }
+        return this
+                .where(wb -> wb.where(sort, GREATER_THAN, sortAfter)
+                               .or(wb.where(sort, EQUALS, sortAfter)
+                                     .and(wb.where(key, GREATER_THAN, keyAfter))))
+                .orderBy(sort, key)
+                .slice(size);
+    }
+
+    /**
+     * Executes the query and returns the previous {@link Slice} of results before the specified composite cursor
+     * using two-column keyset pagination: a non-unique {@code sort} for ordering and a unique {@code key}
+     * as a tiebreaker.
+     *
+     * <p>The caller must supply both cursor values, extracted from the first item of the current page:
+     * {@code sortBefore} from the sort column, and {@code keyBefore} from the unique tiebreaker column.</p>
+     *
+     * <p>This method adds a composite WHERE condition equivalent to
+     * {@code WHERE (sort < sortBefore OR (sort = sortBefore AND key < keyBefore))} and descending
+     * ORDER BY clauses internally. An explicit {@code orderBy()} call must not be present on this builder; a
+     * {@link PersistenceException} is thrown if one is detected.</p>
+     *
+     * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
+     * @param keyBefore the cursor value for the unique key column, taken from the first item of the current page.
+     * @param sort the metamodel path for the (possibly non-unique) primary sort column.
+     * @param sortBefore the cursor value for the sort column, taken from the first item of the current page.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the previous page of results.
+     * @param <E> the type of the unique key field.
+     * @param <S> the type of the sort field.
+     * @since 1.9
+     */
+    @SuppressWarnings("unchecked")
+    public final <E, S> Slice<R> sliceBefore(@Nonnull Metamodel.Key<T, E> key, @Nonnull E keyBefore,
+                                              @Nonnull Metamodel<T, S> sort, @Nonnull S sortBefore, int size) {
+        if (hasOrderBy()) {
+            throw new PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.");
+        }
+        return this
+                .where(wb -> wb.where(sort, LESS_THAN, sortBefore)
+                               .or(wb.where(sort, EQUALS, sortBefore)
+                                     .and(wb.where(key, LESS_THAN, keyBefore))))
+                .orderByDescending(sort)
+                .orderByDescending(key)
+                .slice(size);
+    }
+
+    /**
+     * Executes the query and returns the next {@link Slice} of results after the specified composite cursor using
+     * two-column keyset pagination with a ref-typed unique key: a non-unique {@code sort} for ordering and a
+     * unique {@code key} as a tiebreaker.
+     *
+     * <p>The caller must supply both cursor values, extracted from the last item of the current page:
+     * {@code sortAfter} from the sort column, and {@code keyAfter} (as a {@link Ref}) from the unique tiebreaker
+     * column.</p>
+     *
+     * <p>This method adds a composite WHERE condition equivalent to
+     * {@code WHERE (sort > sortAfter OR (sort = sortAfter AND key > keyAfter))} and ascending ORDER BY
+     * clauses internally. An explicit {@code orderBy()} call must not be present on this builder; a
+     * {@link PersistenceException} is thrown if one is detected.</p>
+     *
+     * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
+     * @param keyAfter the ref cursor value for the unique key column, taken from the last item of the current page.
+     * @param sort the metamodel path for the (possibly non-unique) primary sort column.
+     * @param sortAfter the cursor value for the sort column, taken from the last item of the current page.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the next page of results.
+     * @param <V> the type of the unique key, which must extend {@link Data}.
+     * @param <S> the type of the sort field.
+     * @since 1.9
+     */
+    @SuppressWarnings("unchecked")
+    public final <V extends Data, S> Slice<R> sliceAfter(@Nonnull Metamodel.Key<T, V> key, @Nonnull Ref<V> keyAfter,
+                                                          @Nonnull Metamodel<T, S> sort, @Nonnull S sortAfter,
+                                                          int size) {
+        if (hasOrderBy()) {
+            throw new PersistenceException("sliceAfter manages ORDER BY internally; remove explicit orderBy calls.");
+        }
+        return this
+                .where(wb -> wb.where(sort, GREATER_THAN, sortAfter)
+                               .or(wb.where(sort, EQUALS, sortAfter)
+                                     .and(wb.where(RAW."\{new ObjectExpression(key, GREATER_THAN, keyAfter)}"))))
+                .orderBy(sort, key)
+                .slice(size);
+    }
+
+    /**
+     * Executes the query and returns the previous {@link Slice} of results before the specified composite cursor
+     * using two-column keyset pagination with a ref-typed unique key: a non-unique {@code sort} for ordering and
+     * a unique {@code key} as a tiebreaker.
+     *
+     * <p>The caller must supply both cursor values, extracted from the first item of the current page:
+     * {@code sortBefore} from the sort column, and {@code keyBefore} (as a {@link Ref}) from the unique tiebreaker
+     * column.</p>
+     *
+     * <p>This method adds a composite WHERE condition equivalent to
+     * {@code WHERE (sort < sortBefore OR (sort = sortBefore AND key < keyBefore))} and descending
+     * ORDER BY clauses internally. An explicit {@code orderBy()} call must not be present on this builder; a
+     * {@link PersistenceException} is thrown if one is detected.</p>
+     *
+     * @param key the metamodel path for a unique tiebreaker column (typically the primary key) that ensures stable ordering.
+     * @param keyBefore the ref cursor value for the unique key column, taken from the first item of the current page.
+     * @param sort the metamodel path for the (possibly non-unique) primary sort column.
+     * @param sortBefore the cursor value for the sort column, taken from the first item of the current page.
+     * @param size the maximum number of results to include in the slice.
+     * @return a slice containing the previous page of results.
+     * @param <V> the type of the unique key, which must extend {@link Data}.
+     * @param <S> the type of the sort field.
+     * @since 1.9
+     */
+    @SuppressWarnings("unchecked")
+    public final <V extends Data, S> Slice<R> sliceBefore(@Nonnull Metamodel.Key<T, V> key, @Nonnull Ref<V> keyBefore,
+                                                           @Nonnull Metamodel<T, S> sort, @Nonnull S sortBefore,
+                                                           int size) {
+        if (hasOrderBy()) {
+            throw new PersistenceException("sliceBefore manages ORDER BY internally; remove explicit orderBy calls.");
+        }
+        return this
+                .where(wb -> wb.where(sort, LESS_THAN, sortBefore)
+                               .or(wb.where(sort, EQUALS, sortBefore)
+                                     .and(wb.where(RAW."\{new ObjectExpression(key, LESS_THAN, keyBefore)}"))))
+                .orderByDescending(sort)
+                .orderByDescending(key)
+                .slice(size);
     }
 
     //

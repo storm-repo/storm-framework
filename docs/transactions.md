@@ -1,3 +1,6 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Transactions
 
 Transaction management is fundamental to database programming. Storm takes a practical approach: rather than inventing new abstractions, it provides first-class support for standard transaction semantics while integrating seamlessly with your existing infrastructure.
@@ -6,7 +9,8 @@ Storm works directly with JDBC transactions and supports both programmatic and d
 
 ---
 
-## Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 Storm for Kotlin provides a fully programmatic transaction solution (following the style popularized by [Exposed](https://github.com/JetBrains/Exposed)) that is **completely coroutine-friendly**. It supports **all isolation levels and propagation modes** found in traditional transaction management systems. You can freely switch coroutine dispatchers within a transaction (offload CPU-bound work to `Dispatchers.Default` or IO work to `Dispatchers.IO`) and still remain in the **same active transaction**.
 
@@ -195,7 +199,7 @@ transaction {
     transaction(propagation = NESTED) {
         val promo = promoRepository.findByCode(promoCode) ?: return@transaction
         discountRepository.insert(Discount(order.id, promo.amount))
-        
+
         if (promo.expired) {
             setRollbackOnly()  // Rolls back the discount insert
         }
@@ -766,9 +770,8 @@ class UserService(private val orm: ORMTemplate) {
 }
 ```
 
----
-
-## Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 Storm for Java follows the principle of integration over invention. Rather than providing its own transaction API, Storm works with your existing transaction infrastructure. Whether you use Spring's `@Transactional` annotation, programmatic `TransactionTemplate`, or direct JDBC connection management, Storm participates correctly in the active transaction.
 
@@ -967,6 +970,9 @@ public class HybridService {
     }
 }
 ```
+
+</TabItem>
+</Tabs>
 
 ---
 

@@ -23,14 +23,14 @@ import kotlin.reflect.KClass
 class ModelImpl<E : Data, ID : Any>(
     internal val core: st.orm.core.template.Model<E, ID>,
     override val columns: List<Column> = core.columns().map(::ColumnImpl),
-    override val declaredColumns: List<Column> = core.declaredColumns().map(::ColumnImpl)
+    override val declaredColumns: List<Column> = core.declaredColumns().map(::ColumnImpl),
 ) : Model<E, ID> {
 
-    override val schema: String                             get() = core.schema()
-    override val name: String                               get() = core.name()
-    override val type: KClass<E>                            get() = core.type().kotlin
-    override val primaryKeyType: KClass<ID>                 get() = core.primaryKeyType().kotlin
-    override fun isDefaultPrimaryKey(pk: ID?): Boolean      = core.isDefaultPrimaryKey(pk)
+    override val schema: String get() = core.schema()
+    override val name: String get() = core.name()
+    override val type: KClass<E> get() = core.type().kotlin
+    override val primaryKeyType: KClass<ID> get() = core.primaryKeyType().kotlin
+    override fun isDefaultPrimaryKey(pk: ID?): Boolean = core.isDefaultPrimaryKey(pk)
     override fun forEachValue(columns: List<Column>, record: E, consumer: (Column, Any?) -> Unit) {
         core.forEachValue(columns.map { c -> (c as ColumnImpl).core }, record, { c, v -> consumer(ColumnImpl(c), v) })
     }

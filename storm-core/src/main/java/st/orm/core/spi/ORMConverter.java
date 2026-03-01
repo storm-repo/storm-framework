@@ -17,10 +17,9 @@ package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.mapping.RecordField;
-import st.orm.core.template.SqlTemplateException;
-
 import java.util.List;
+import st.orm.core.template.SqlTemplateException;
+import st.orm.mapping.RecordField;
 
 /**
  * Interface for converting ORM parameters to SQL parameters.

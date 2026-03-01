@@ -1,4 +1,7 @@
-# Dirty Checking & Update Modes
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Dirty Checking
 
 ## What Is Dirty Checking?
 
@@ -47,6 +50,8 @@ Observed state is stored in the transaction context, not on the entity itself. T
 ```
 
 **Key insight:** Dirty checking in Storm is scoped to a single transaction. Once the transaction commits, all observed state is discarded. This keeps memory usage predictable and avoids the complexity of managing detached entities.
+
+Entity cache misses can affect dirty checking behavior. When an entity is not found in the cache, Storm falls back to a full-row update. See [Entity Cache](entity-cache.md) for cache retention configuration.
 
 ---
 
@@ -285,7 +290,8 @@ Storm mitigates this with a [max shapes limit](#max-shapes-limit) that automatic
 
 Use the `@DynamicUpdate` annotation to specify the update mode for individual entity classes. This allows you to use different strategies for different entities based on their characteristics.
 
-### Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 @DynamicUpdate(FIELD)
@@ -297,7 +303,8 @@ data class User(
 ) : Entity<Int>
 ```
 
-### Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ```java
 @DynamicUpdate(FIELD)
@@ -307,6 +314,9 @@ record User(@PK Integer id,
             @FK City city
 ) implements Entity<Integer> {}
 ```
+
+</TabItem>
+</Tabs>
 
 ### How It Works
 
@@ -389,10 +399,14 @@ data class User(
 ) : Entity<Int>
 ```
 
-Globally via system property:
+Globally via `StormConfig` or system property:
 
+```kotlin
+val config = StormConfig.of(mapOf("storm.update.dirty_check" to "VALUE"))
 ```
--Dstorm.update.dirtyCheck=VALUE
+
+```bash
+-Dstorm.update.dirty_check=VALUE
 ```
 
 ---
@@ -436,10 +450,14 @@ Storm enforces a **maximum number of UPDATE shapes per entity**. Once this limit
 
 **Default:** 5 shapes per entity
 
-**Configure via system property:**
+**Configure via `StormConfig` or system property:**
 
+```kotlin
+val config = StormConfig.of(mapOf("storm.update.max_shapes" to "10"))
 ```
--Dstorm.update.maxShapes=10
+
+```bash
+-Dstorm.update.max_shapes=10
 ```
 
 ### Choosing the Right Limit
@@ -456,31 +474,36 @@ Storm enforces a **maximum number of UPDATE shapes per entity**. Once this limit
 
 ## Configuration Reference
 
-Storm's dirty checking behavior can be configured at multiple levels: globally via system properties, or per-entity via annotations. Entity-level configuration always takes precedence over global defaults.
+Storm's dirty checking behavior can be configured at multiple levels: via `StormConfig`, system properties, or per-entity annotations. Entity-level configuration always takes precedence over `StormConfig` defaults, and `StormConfig` values take precedence over system properties.
 
-### System Properties
+### Properties
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `storm.update.defaultMode` | `ENTITY` | Default update mode for entities without `@DynamicUpdate` |
-| `storm.update.dirtyCheck` | `INSTANCE` | Default dirty check strategy (`INSTANCE` or `VALUE`) |
-| `storm.update.maxShapes` | `5` | Maximum UPDATE shapes before fallback to full-row |
+| `storm.update.default_mode` | `ENTITY` | Default update mode for entities without `@DynamicUpdate` |
+| `storm.update.dirty_check` | `INSTANCE` | Default dirty check strategy (`INSTANCE` or `VALUE`) |
+| `storm.update.max_shapes` | `5` | Maximum UPDATE shapes before fallback to full-row |
 
 For cache retention settings, see [Entity Cache Configuration](entity-cache.md#configuration-reference).
 
-**Example: Setting system properties**
-
-```bash
-# Via JVM arguments
-java -Dstorm.update.defaultMode=FIELD \
-     -Dstorm.update.dirtyCheck=VALUE \
-     -Dstorm.update.maxShapes=10 \
-     -jar myapp.jar
-```
+**Example: Setting properties**
 
 ```kotlin
-// Or programmatically (before ORM initialization)
-System.setProperty("storm.update.defaultMode", "FIELD")
+// Via StormConfig
+val config = StormConfig.of(mapOf(
+    "storm.update.default_mode" to "FIELD",
+    "storm.update.dirty_check" to "VALUE",
+    "storm.update.max_shapes" to "10"
+))
+val orm = ORMTemplate.of(dataSource, config)
+```
+
+```bash
+# Or via JVM arguments (used as fallback when not set in StormConfig)
+java -Dstorm.update.default_mode=FIELD \
+     -Dstorm.update.dirty_check=VALUE \
+     -Dstorm.update.max_shapes=10 \
+     -jar myapp.jar
 ```
 
 ### Per-Entity Annotation
@@ -503,9 +526,11 @@ The `@DynamicUpdate` annotation provides fine-grained control per entity:
 │                                                             │
 │  1. @DynamicUpdate annotation on entity class               │
 │     ↓ (if not present)                                      │
-│  2. System property (storm.update.defaultMode)              │
+│  2. StormConfig property                                    │
 │     ↓ (if not set)                                          │
-│  3. Built-in default (ENTITY mode, INSTANCE checking)       │
+│  3. System property (-Dstorm.update.default_mode)           │
+│     ↓ (if not set)                                          │
+│  4. Built-in default (ENTITY mode, INSTANCE checking)       │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -688,6 +713,6 @@ If using `FIELD` mode extensively, monitor:
 - **Batch sizes:** Verify batching is still effective for your use case
 
 Most databases provide metrics for prepared statement cache usage. If you see degradation, consider:
-- Lowering `storm.update.maxShapes`
+- Lowering `storm.update.max_shapes`
 - Switching some entities back to `ENTITY` mode
 - Increasing database statement cache size

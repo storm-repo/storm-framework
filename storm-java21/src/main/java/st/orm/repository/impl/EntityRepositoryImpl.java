@@ -15,24 +15,24 @@
  */
 package st.orm.repository.impl;
 
+import static java.util.Objects.requireNonNull;
+import static st.orm.template.impl.StringTemplates.convert;
+
 import jakarta.annotation.Nonnull;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 import st.orm.Data;
-import st.orm.repository.EntityRepository;
 import st.orm.Entity;
+import st.orm.Metamodel;
 import st.orm.Ref;
+import st.orm.repository.EntityRepository;
 import st.orm.template.Model;
 import st.orm.template.ORMTemplate;
 import st.orm.template.QueryBuilder;
 import st.orm.template.impl.ModelImpl;
 import st.orm.template.impl.ORMTemplateImpl;
 import st.orm.template.impl.QueryBuilderImpl;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Stream;
-
-import static java.util.Objects.requireNonNull;
-import static st.orm.template.impl.StringTemplates.convert;
 
 /**
  */
@@ -201,6 +201,26 @@ public final class EntityRepositoryImpl<E extends Entity<ID>, ID> implements Ent
     @Override
     public E getByRef(@Nonnull Ref<E> ref) {
         return core.getByRef(ref);
+    }
+
+    @Override
+    public <V> Optional<E> findBy(@Nonnull Metamodel.Key<E, V> key, @Nonnull V value) {
+        return core.findBy(key, value);
+    }
+
+    @Override
+    public <V> E getBy(@Nonnull Metamodel.Key<E, V> key, @Nonnull V value) {
+        return core.getBy(key, value);
+    }
+
+    @Override
+    public <V extends Data> Optional<E> findByRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> value) {
+        return core.findByRef(key, value);
+    }
+
+    @Override
+    public <V extends Data> E getByRef(@Nonnull Metamodel.Key<E, V> key, @Nonnull Ref<V> value) {
+        return core.getByRef(key, value);
     }
 
     @Override

@@ -61,13 +61,12 @@ interface Query {
     fun prepare(): PreparedQuery
 
     /**
-     * Returns a new query that is marked as safe. This means that dangerous operations, such as DELETE and UPDATE
-     * without a WHERE clause, will be allowed.
+     * Returns a new query that allows dangerous operations, such as DELETE and UPDATE without a WHERE clause.
      *
-     * @return a new query that is marked as safe.
+     * @return a new query that allows dangerous operations.
      * @since 1.2
      */
-    fun safe(): Query
+    fun unsafe(): Query
 
     val singleResult: Array<Any>
         /**
@@ -117,9 +116,7 @@ interface Query {
      * @throws st.orm.NonUniqueResultException if more than one result.
      * @throws st.orm.PersistenceException if the query fails.
      */
-    fun <T : Any> getSingleResult(type: KClass<T>): T {
-        return singleResult(getResultStream(type))
-    }
+    fun <T : Any> getSingleResult(type: KClass<T>): T = singleResult(getResultStream(type))
 
     /**
      * Execute a SELECT query and returns a single row, where the columns of the row are mapped to the constructor
@@ -131,9 +128,7 @@ interface Query {
      * @throws st.orm.NonUniqueResultException if more than one result.
      * @throws st.orm.PersistenceException if the query fails.
      */
-    fun <T : Any> getOptionalResult(type: KClass<T>): T? {
-        return optionalResult(getResultStream(type))
-    }
+    fun <T : Any> getOptionalResult(type: KClass<T>): T? = optionalResult(getResultStream(type))
 
     val resultList: List<Array<Any>>
         /**
@@ -252,8 +247,7 @@ interface Query {
      * connectivity.
      * @since 1.5
      */
-    fun <T : Any> getResultFlow(type: KClass<T>): Flow<T> =
-        getResultStream(type).consumeAsFlow()
+    fun <T : Any> getResultFlow(type: KClass<T>): Flow<T> = getResultStream(type).consumeAsFlow()
 
     /**
      * Execute a SELECT query and return the resulting rows as a stream of ref instances.
@@ -286,8 +280,7 @@ interface Query {
      * @throws st.orm.PersistenceException if the query fails.
      * @since 1.5
      */
-    fun <T : Data> getRefFlow(type: KClass<T>, pkType: KClass<*>): Flow<Ref<T>> =
-        getRefStream(type, pkType).consumeAsFlow()
+    fun <T : Data> getRefFlow(type: KClass<T>, pkType: KClass<*>): Flow<Ref<T>> = getRefStream(type, pkType).consumeAsFlow()
 
     /**
      * Returns true if the query is version aware, false otherwise.

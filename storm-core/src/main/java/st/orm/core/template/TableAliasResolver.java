@@ -15,11 +15,11 @@
  */
 package st.orm.core.template;
 
-import jakarta.annotation.Nonnull;
-import st.orm.Data;
-
 import static java.lang.Character.isUpperCase;
 import static java.lang.Character.toLowerCase;
+
+import jakarta.annotation.Nonnull;
+import st.orm.Data;
 
 /**
  * Resolves the alias for a table.

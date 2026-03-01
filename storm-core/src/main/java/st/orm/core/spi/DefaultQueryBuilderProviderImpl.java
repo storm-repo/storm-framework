@@ -16,17 +16,16 @@
 package st.orm.core.spi;
 
 import jakarta.annotation.Nonnull;
+import java.util.function.Supplier;
 import st.orm.Data;
 import st.orm.Ref;
-import st.orm.core.template.Model;
 import st.orm.core.spi.Orderable.AfterAny;
+import st.orm.core.template.Model;
 import st.orm.core.template.QueryBuilder;
 import st.orm.core.template.QueryTemplate;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.DeleteBuilderImpl;
 import st.orm.core.template.impl.SelectBuilderImpl;
-
-import java.util.function.Supplier;
 
 /**
  * Default implementation of {@link QueryBuilderProvider} that are based on {@code SelectBuilderImpl} and

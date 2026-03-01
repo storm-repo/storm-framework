@@ -15,24 +15,23 @@
  */
 package st.orm.core.template.impl;
 
+import static st.orm.core.template.TemplateString.wrap;
+import static st.orm.core.template.Templates.from;
+import static st.orm.core.template.Templates.subquery;
+
 import jakarta.annotation.Nonnull;
+import java.util.List;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.PersistenceException;
-import st.orm.core.template.Query;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
+import st.orm.core.template.Query;
 import st.orm.core.template.QueryBuilder;
 import st.orm.core.template.QueryTemplate;
 import st.orm.core.template.TemplateString;
 import st.orm.core.template.impl.Elements.Where;
-
-import java.util.List;
-import java.util.function.Supplier;
-import java.util.stream.Stream;
-
-import static st.orm.core.template.Templates.from;
-import static st.orm.core.template.Templates.subquery;
-import static st.orm.core.template.TemplateString.wrap;
 
 /**
  * A query builder for DELETE queries.
@@ -42,10 +41,10 @@ import static st.orm.core.template.TemplateString.wrap;
  */
 public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, Object, ID> {
 
-    private final boolean safe;
+    private final boolean unsafe;
 
     public DeleteBuilderImpl(@Nonnull QueryTemplate queryTemplate, @Nonnull Class<T> fromType, @Nonnull Supplier<Model<T, ID>> modelSupplier) {
-        this(queryTemplate, fromType, List.of(), List.of(), List.of(), modelSupplier, false);
+        this(queryTemplate, fromType, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), modelSupplier, false);
     }
 
     private DeleteBuilderImpl(@Nonnull QueryTemplate queryTemplate,
@@ -53,23 +52,27 @@ public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, O
                               @Nonnull List<Join> join,
                               @Nonnull List<Where> where,
                               @Nonnull List<TemplateString> templates,
+                              @Nonnull List<TemplateString> groupBy,
+                              @Nonnull List<TemplateString> having,
+                              @Nonnull List<TemplateString> orderBy,
                               @Nonnull Supplier<Model<T, ID>> modelSupplier,
-                              boolean safe) {
-        super(queryTemplate, fromType, join, where, templates, modelSupplier);
-        this.safe = safe;
+                              boolean unsafe) {
+        super(queryTemplate, fromType, join, where, templates, groupBy, having, orderBy, modelSupplier);
+        this.unsafe = unsafe;
     }
 
     /**
-     * Returns a query builder that does not require a WHERE clause for UPDATE and DELETE queries.
+     * Returns a query builder that allows UPDATE and DELETE queries without a WHERE clause.
      *
-     * <p>This method is used to prevent accidental updates or deletions of all records in a table when a WHERE clause
-     * is not provided.</p>
+     * <p>By default, Storm rejects UPDATE and DELETE queries that lack a WHERE clause, throwing a
+     * {@link PersistenceException}. Call this method to disable that check when you intentionally want to affect all
+     * rows in the table.</p>
      *
      * @since 1.2
      */
     @Override
-    public QueryBuilder<T, Object, ID> safe() {
-        return new DeleteBuilderImpl<>(queryTemplate, fromType, join, where, templates, modelSupplier, true);
+    public QueryBuilder<T, Object, ID> unsafe() {
+        return new DeleteBuilderImpl<>(queryTemplate, fromType, join, where, templates, groupBy, having, orderBy, modelSupplier, true);
     }
 
     /**
@@ -87,8 +90,11 @@ public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, O
                                          @Nonnull Class<T> fromType,
                                          @Nonnull List<Join> join,
                                          @Nonnull List<Where> where,
-                                         @Nonnull List<TemplateString> templates) {
-        return new DeleteBuilderImpl<>(queryTemplate, fromType, join, where, templates, modelSupplier, safe);
+                                         @Nonnull List<TemplateString> templates,
+                                         @Nonnull List<TemplateString> groupBy,
+                                         @Nonnull List<TemplateString> having,
+                                         @Nonnull List<TemplateString> orderBy) {
+        return new DeleteBuilderImpl<>(queryTemplate, fromType, join, where, templates, groupBy, having, orderBy, modelSupplier, unsafe);
     }
 
     /**
@@ -200,11 +206,15 @@ public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, O
                             TemplateString::combine);
         }
         if (!where.isEmpty()) {
-            // Leave handling of multiple where's to the sql processor.
-            template = where.stream()
-                    .reduce(TemplateString.combine(template, TemplateString.of("\nWHERE ")),
-                            (acc, where) -> TemplateString.combine(acc, wrap(where)),
-                            TemplateString::combine);
+            if (where.size() == 1) {
+                template = TemplateString.combine(template, TemplateString.of("\nWHERE "), wrap(where.getFirst()));
+            } else {
+                TemplateString whereClause = where.stream()
+                        .map(w -> TemplateString.combine(TemplateString.of("("), wrap(w), TemplateString.of(")")))
+                        .reduce((a, b) -> TemplateString.combine(a, TemplateString.of("\n  AND "), b))
+                        .orElseThrow();
+                template = TemplateString.combine(template, TemplateString.of("\nWHERE "), whereClause);
+            }
         }
         if (!templates.isEmpty()) {
             template = TemplateString.combine(template, TemplateString.combine(templates));
@@ -229,8 +239,8 @@ public class DeleteBuilderImpl<T extends Data, ID> extends QueryBuilderImpl<T, O
     @Override
     public Query build() {
         Query query = queryTemplate.query(toTemplateString());
-        if (safe || !where.isEmpty()) {
-            query = query.safe();
+        if (unsafe || !where.isEmpty()) {
+            query = query.unsafe();
         }
         return query;
     }

@@ -15,7 +15,16 @@
  */
 package st.orm.core.spi;
 
+import static java.lang.reflect.Modifier.isAbstract;
+import static java.lang.reflect.Modifier.isStatic;
+import static java.util.Objects.requireNonNull;
+
 import jakarta.annotation.Nonnull;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import st.orm.Convert;
@@ -23,16 +32,6 @@ import st.orm.Converter;
 import st.orm.DefaultConverter;
 import st.orm.PersistenceException;
 import st.orm.mapping.RecordField;
-
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
-import static java.lang.reflect.Modifier.isAbstract;
-import static java.lang.reflect.Modifier.isStatic;
-import static java.util.Objects.requireNonNull;
 
 /**
  * @since 1.7

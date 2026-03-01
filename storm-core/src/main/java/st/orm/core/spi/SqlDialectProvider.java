@@ -15,6 +15,8 @@
  */
 package st.orm.core.spi;
 
+import jakarta.annotation.Nonnull;
+import st.orm.StormConfig;
 import st.orm.core.template.SqlDialect;
 
 /**
@@ -25,7 +27,10 @@ import st.orm.core.template.SqlDialect;
 public interface SqlDialectProvider extends Provider {
 
     /**
-     * Returns the SQL dialect.
+     * Returns the SQL dialect configured with the given {@link StormConfig}.
+     *
+     * @param config the Storm configuration to apply.
+     * @return the SQL dialect.
      */
-    SqlDialect getSqlDialect();
+    SqlDialect getSqlDialect(@Nonnull StormConfig config);
 }

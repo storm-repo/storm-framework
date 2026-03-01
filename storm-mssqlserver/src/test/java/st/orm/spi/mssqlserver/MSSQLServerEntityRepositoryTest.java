@@ -1,8 +1,27 @@
 package st.orm.spi.mssqlserver;
 
+import static java.util.Collections.nCopies;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.util.AssertionErrors.assertNull;
+import static st.orm.GenerationStrategy.NONE;
+import static st.orm.GenerationStrategy.SEQUENCE;
+import static st.orm.Operator.EQUALS;
+import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
+import static st.orm.core.template.SqlInterceptor.observe;
+
 import com.microsoft.sqlserver.jdbc.SQLServerException;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import javax.sql.DataSource;
 import lombok.Builder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,26 +45,6 @@ import st.orm.Persist;
 import st.orm.PersistenceException;
 import st.orm.Version;
 import st.orm.core.template.PreparedStatementTemplate;
-
-import javax.sql.DataSource;
-import java.time.LocalDate;
-import java.util.Comparator;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static java.util.Collections.nCopies;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.springframework.test.util.AssertionErrors.assertNull;
-import static st.orm.GenerationStrategy.NONE;
-import static st.orm.GenerationStrategy.SEQUENCE;
-import static st.orm.Operator.EQUALS;
-import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
-import static st.orm.core.template.SqlInterceptor.observe;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
@@ -283,7 +282,7 @@ public class MSSQLServerEntityRepositoryTest {
         String expectedSql = """
                 UPDATE owner
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE (id = ? AND version = ?)""";
+                WHERE id = ? AND version = ?""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entity = repo.getById(1);
         var first = new AtomicBoolean(false);
@@ -426,7 +425,7 @@ public class MSSQLServerEntityRepositoryTest {
         String expectedSql = """
                 UPDATE owner
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE (id = ? AND version = ?)""";
+                WHERE id = ? AND version = ?""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entity = repo.getById(1);
         var first = new AtomicBoolean(false);
@@ -460,7 +459,7 @@ public class MSSQLServerEntityRepositoryTest {
         String expectedSql = """
                 UPDATE owner
                 SET first_name = ?, last_name = ?, address = ?, city = ?, telephone = ?, version = version + 1
-                WHERE (id = ? AND version = ?)""";
+                WHERE id = ? AND version = ?""";
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(Owner.class);
         var entity = repo.getById(1);
         var first = new AtomicBoolean(false);

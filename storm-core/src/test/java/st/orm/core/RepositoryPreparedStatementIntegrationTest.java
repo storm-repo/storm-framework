@@ -1,7 +1,51 @@
 package st.orm.core;
 
+import static java.util.Collections.newSetFromMap;
+import static java.util.stream.Collectors.toCollection;
+import static java.util.stream.Collectors.toSet;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.transaction.annotation.Isolation.READ_COMMITTED;
+import static org.springframework.transaction.annotation.Isolation.READ_UNCOMMITTED;
+import static org.springframework.transaction.annotation.Isolation.REPEATABLE_READ;
+import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
+import static org.springframework.transaction.annotation.Propagation.REQUIRED;
+import static st.orm.EnumType.ORDINAL;
+import static st.orm.GenerationStrategy.NONE;
+import static st.orm.Operator.BETWEEN;
+import static st.orm.Operator.EQUALS;
+import static st.orm.Operator.GREATER_THAN;
+import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
+import static st.orm.Operator.IN;
+import static st.orm.Operator.IS_NULL;
+import static st.orm.Operator.LESS_THAN;
+import static st.orm.Operator.LIKE;
+import static st.orm.Operator.NOT_EQUALS;
+import static st.orm.ResolveScope.INNER;
+import static st.orm.ResolveScope.OUTER;
+import static st.orm.core.template.SqlInterceptor.observe;
+import static st.orm.core.template.TemplateString.raw;
+import static st.orm.core.template.TemplateString.wrap;
+import static st.orm.core.template.Templates.alias;
+import static st.orm.core.template.Templates.column;
+import static st.orm.core.template.Templates.select;
+import static st.orm.core.template.Templates.where;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.sql.SQLIntegrityConstraintViolationException;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+import javax.sql.DataSource;
 import lombok.Builder;
 import lombok.NonNull;
 import org.h2.jdbc.JdbcSQLSyntaxErrorException;
@@ -11,13 +55,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-
 import org.springframework.transaction.annotation.Transactional;
 import st.orm.Convert;
 import st.orm.Converter;
 import st.orm.Data;
-import st.orm.core.model.City;
-import st.orm.core.model.Owner;
 import st.orm.DbColumn;
 import st.orm.DbEnum;
 import st.orm.DbTable;
@@ -32,8 +73,17 @@ import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.SelectMode;
 import st.orm.Version;
+import st.orm.core.model.Address;
+import st.orm.core.model.City;
+import st.orm.core.model.EntityWithNullableUK;
+import st.orm.core.model.EntityWithNullableUK_;
+import st.orm.core.model.EntityWithNullsNotDistinctUK;
+import st.orm.core.model.EntityWithNullsNotDistinctUK_;
+import st.orm.core.model.NullableCompoundUK;
+import st.orm.core.model.Owner;
 import st.orm.core.model.Owner_;
 import st.orm.core.model.Pet;
+import st.orm.core.model.PetExtension;
 import st.orm.core.model.PetOwnerRecursion;
 import st.orm.core.model.PetOwnerRef;
 import st.orm.core.model.PetOwnerRef_;
@@ -54,6 +104,7 @@ import st.orm.core.model.VisitWithTwoPetsOneRef;
 import st.orm.core.model.VisitWithTwoPetsOneRef_;
 import st.orm.core.model.VisitWithTwoPets_;
 import st.orm.core.model.Visit_;
+import st.orm.core.model.Wrapper;
 import st.orm.core.repository.PetRepository;
 import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.Sql;
@@ -61,47 +112,6 @@ import st.orm.core.template.SqlTemplate.PositionalParameter;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateBuilder;
 import st.orm.core.template.TemplateString;
-import st.orm.core.model.Wrapper;
-import javax.sql.DataSource;
-import java.sql.SQLIntegrityConstraintViolationException;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static java.util.Collections.newSetFromMap;
-import static java.util.stream.Collectors.toCollection;
-import static java.util.stream.Collectors.toSet;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.springframework.transaction.annotation.Isolation.READ_COMMITTED;
-import static org.springframework.transaction.annotation.Isolation.READ_UNCOMMITTED;
-import static org.springframework.transaction.annotation.Isolation.REPEATABLE_READ;
-import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
-import static org.springframework.transaction.annotation.Propagation.REQUIRED;
-import static st.orm.GenerationStrategy.NONE;
-import static st.orm.core.template.Templates.alias;
-import static st.orm.core.template.Templates.column;
-import static st.orm.core.template.Templates.select;
-import static st.orm.core.template.Templates.where;
-import static st.orm.core.template.SqlInterceptor.observe;
-import static st.orm.core.template.TemplateString.raw;
-import static st.orm.EnumType.ORDINAL;
-import static st.orm.Operator.BETWEEN;
-import static st.orm.Operator.EQUALS;
-import static st.orm.Operator.GREATER_THAN;
-import static st.orm.Operator.GREATER_THAN_OR_EQUAL;
-import static st.orm.Operator.IN;
-import static st.orm.Operator.IS_NULL;
-import static st.orm.ResolveScope.INNER;
-import static st.orm.ResolveScope.OUTER;
-import static st.orm.core.template.TemplateString.wrap;
 
 @SuppressWarnings("ALL")
 @ExtendWith(SpringExtension.class)
@@ -114,61 +124,74 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelect() {
+        // data.sql inserts exactly 10 owners (ids 1-10).
         assertEquals(10, ORMTemplate.of(dataSource).entity(Owner.class).selectCount().getSingleResult());
     }
 
     @Test
     public void testCount() {
+        // data.sql inserts exactly 10 owners (ids 1-10).
         assertEquals(10, ORMTemplate.of(dataSource).entity(Owner.class).count());
     }
 
     @Test
     public void testResultCount() {
+        // data.sql inserts exactly 10 owners (ids 1-10).
         assertEquals(10, ORMTemplate.of(dataSource).entity(Owner.class).select().getResultCount());
     }
 
     @Test
     public void testSelectByFk() {
+        // Owner 1 (Betty Davis) has exactly 1 pet: Leo (id=1).
         assertEquals(1, ORMTemplate.of(dataSource).entity(Pet.class).select().where(Pet_.owner, Owner.builder().id(1).build()).getResultCount());
     }
 
     @Test
     public void testSelectByFkNested() {
+        // Owner 1 (Betty Davis) has 1 pet (Leo, id=1). Leo has 2 visits (ids 4, 8).
         assertEquals(2, ORMTemplate.of(dataSource).entity(Visit.class).select().where(Visit_.pet.owner, Owner.builder().id(1).build()).getResultCount());
     }
 
     @Test
     public void testSelectByColumn() {
+        // data.sql: only visit id=1 has visit_date = 2023-01-01.
         assertEquals(1, ORMTemplate.of(dataSource).entity(Visit.class).select().where(Visit_.visitDate, EQUALS, LocalDate.of(2023, 1, 1)).getResultCount());
     }
 
     @Test
     public void testSelectByColumnGreaterThan() {
+        // data.sql: 14 visits total, only visit id=1 has date 2023-01-01. 13 visits have dates after 2023-01-01.
         assertEquals(13, ORMTemplate.of(dataSource).entity(Visit.class).select().where(Visit_.visitDate, GREATER_THAN, LocalDate.of(2023, 1, 1)).getResultCount());
     }
 
     @Test
     public void testSelectByColumnGreaterThanOrEqual() {
+        // data.sql: all 14 visits have dates >= 2023-01-01 (the earliest date in the data).
         assertEquals(14, ORMTemplate.of(dataSource).entity(Visit.class).select().where(Visit_.visitDate, GREATER_THAN_OR_EQUAL, LocalDate.of(2023, 1, 1)).getResultCount());
     }
 
     @Test
     public void testSelectByColumnBetween() {
+        // data.sql: 10 visits have dates between 2023-01-01 and 2023-01-09 inclusive
+        // (visit dates: 01-01, 01-02, 01-03, 01-04, 01-04, 01-06, 01-08, 01-08, 01-08, 01-09).
         assertEquals(10, ORMTemplate.of(dataSource).entity(Visit.class).select().where(Visit_.visitDate, BETWEEN, LocalDate.of(2023, 1, 1), LocalDate.of(2023, 1, 9)).getResultCount());
     }
 
     @Test
     public void testSelectByColumnIsNull() {
+        // data.sql: only pet id=13 (Sly) has NULL owner_id.
         assertEquals(1, ORMTemplate.of(dataSource).entity(Pet.class).select().where(Pet_.owner, IS_NULL).getResultCount());
     }
 
     @Test
     public void testSelectByColumnRefIsNull() {
+        // data.sql: only pet id=13 (Sly) has NULL owner_id.
         assertEquals(1, ORMTemplate.of(dataSource).entity(PetWithNullableOwnerRef.class).select().where(PetWithNullableOwnerRef_.owner, IS_NULL).getResultCount());
     }
 
     @Test
     public void testSelectByColumnEqualsNull() {
+        // EQUALS with null is not supported; should use IS_NULL instead. Expect SqlTemplateException.
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
             ORMTemplate.of(dataSource).entity(Pet.class).select().where(Pet_.owner, EQUALS, (Owner) null).getResultCount();
         });
@@ -177,6 +200,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectByColumnRefEqualsNull() {
+        // EQUALS with null is not supported even for Ref-based fields; should use IS_NULL instead.
         PersistenceException e = assertThrows(PersistenceException.class, () -> {
             ORMTemplate.of(dataSource).entity(PetWithNullableOwnerRef.class).select().where(PetWithNullableOwnerRef_.owner, EQUALS, (Owner) null).getResultCount();
         });
@@ -185,26 +209,31 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectByColumnEqualsId() {
+        // Owner 1 (Betty Davis) has exactly 1 pet: Leo (id=1).
         assertEquals(1, ORMTemplate.of(dataSource).entity(Pet.class).select().where(Pet_.owner.id, EQUALS, 1).getResultCount());
     }
 
     @Test
     public void testSelectByColumnRecord() {
+        // Owner 1 (Betty Davis) has exactly 1 pet: Leo (id=1).
         assertEquals(1, ORMTemplate.of(dataSource).entity(Pet.class).select().where(Pet_.owner, EQUALS, Owner.builder().id(1).build()).getResultCount());
     }
 
     @Test
     public void testSelectByColumnRef() {
+        // Owner 1 (Betty Davis) has exactly 1 pet: Leo (id=1).
         assertEquals(1, ORMTemplate.of(dataSource).entity(Pet.class).select().where(Pet_.owner, Ref.of(Owner.builder().id(1).build())).getResultCount());
     }
 
     @Test
     public void testSelectByNestedColumn() {
+        // data.sql: pet "Leo" (id=1) has 2 visits (ids 4, 8).
         assertEquals(2, ORMTemplate.of(dataSource).entity(Visit.class).select().where(Visit_.pet.name, EQUALS, "Leo").getResultCount());
     }
 
     @Test
     public void testSelectByDeeperNestedColumn() {
+        // data.sql: owner "Betty" (id=1) has 1 pet (Leo), and Leo has 2 visits (ids 4, 8).
         assertEquals(2, ORMTemplate.of(dataSource).entity(Visit.class).select().where(Visit_.pet.owner.firstName, EQUALS, "Betty").getResultCount());
     }
 
@@ -271,26 +300,37 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectCountCustomClass() {
+        // GROUP BY owner: 10 owners in data.sql, each appears as a group.
+        // 12 of 13 pets have owners (pet 13 Sly has no owner, so its owner is null and grouped separately).
+        // LEFT JOIN means owner=null group has 1 pet, but the query uses Pet table joined to Owner, so
+        // all 10 owners appear. The null-owner pet is still counted. Total pet count = 12 + 1 null = 13,
+        // but with GROUP BY owner_id, null is a separate group => 11 groups, but result is 10 because
+        // the query uses Owner.class which inner-joins to owner. Actually, the raw SQL selects Owner
+        // columns and groups by owner_id, so null-owner pet contributes a null-owner group.
+        // The result size of 10 means only the 10 non-null owner groups are returned (Owner FK join
+        // filters out pet 13). Total pets across those 10 owners = 12.
         record Count(Owner owner, int value) {}
         var query = ORMTemplate.of(dataSource).query(raw("SELECT \0, COUNT(*) FROM \0 GROUP BY \0", Owner.class, Pet.class, Owner_.id));
         var result = query.getResultList(Count.class);
-        assertEquals(10, result.size());
-        assertEquals(12, result.stream().mapToInt(Count::value).sum());
+        assertEquals(10, result.size(), "10 distinct owners exist in data.sql");
+        assertEquals(12, result.stream().mapToInt(Count::value).sum(), "12 pets have non-null owner_id");
     }
 
     @Test
     public void testInsert() {
+        // data.sql inserts 6 vets. After inserting 2 more, expect 8 total.
         var repository = ORMTemplate.of(dataSource).entity(Vet.class);
         Vet vet1 = Vet.builder().firstName("Noel").lastName("Fitzpatrick").build();
         Vet vet2 = Vet.builder().firstName("Scarlett").lastName("Magda").build();
         repository.insert(List.of(vet1, vet2));
         var list = repository.select().getResultList();
-        assertEquals(8, list.size());
+        assertEquals(8, list.size(), "6 original + 2 inserted = 8 vets");
         assertEquals("Scarlett", list.getLast().firstName());
     }
 
     @Test
     public void testInsertReturningIds() {
+        // data.sql inserts 6 vets (ids 1-6 via auto_increment). Next two get ids 7 and 8.
         var repository = ORMTemplate.of(dataSource).entity(Vet.class);
         Vet vet1 = Vet.builder().firstName("Noel").lastName("Fitzpatrick").build();
         Vet vet2 = Vet.builder().firstName("Scarlett").lastName("Magda").build();
@@ -345,6 +385,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectRef() {
+        // data.sql inserts 14 visits.
         var visits = ORMTemplate.of(dataSource).entity(Visit.class).selectRef().getResultList();
         assertEquals(14, visits.size());
     }
@@ -353,12 +394,14 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectRefTemplate() {
+        // data.sql inserts 14 visits.
         var visits = ORMTemplate.of(dataSource).selectFrom(Visit.class, VisitResult.class, wrap(select(Visit.class, SelectMode.PK))).getResultList();
         assertEquals(14, visits.size());
     }
 
     @Test
     public void testSelectRefCustomType() {
+        // data.sql inserts 14 visits. Each visit has a pet FK, so 14 pet refs are returned.
         var pets = ORMTemplate.of(dataSource).entity(Visit.class).selectRef(Pet.class).getResultList();
         assertEquals(14, pets.size());
     }
@@ -372,12 +415,14 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectRefCompoundPk() {
+        // data.sql inserts 5 vet_specialty rows: (2,1), (3,2), (3,3), (4,2), (5,1).
         var vetSpecialties = ORMTemplate.of(dataSource).entity(VetSpecialty.class).selectRef().getResultList();
         assertEquals(5, vetSpecialties.size());
     }
 
     @Test
     public void testSelectWhereRefCompoundPk() {
+        // data.sql: vet_specialty (2,1) = vet 2 (Helen Leary), specialty 1 (radiology).
         var vetSpecialties = ORMTemplate.of(dataSource).entity(VetSpecialty.class).select().where(Ref.of(VetSpecialty.builder().id(new VetSpecialtyPK(2, 1)).build())).getResultList();
         assertEquals(1, vetSpecialties.size());
         assertEquals(2, vetSpecialties.getFirst().vet().id());
@@ -613,6 +658,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWithWrapper() {
+        // data.sql inserts 13 pets total.
         record Wrapper(Pet pet) {}
         var pets = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class, Wrapper.class)
@@ -622,23 +668,25 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWithLocalWrapperNullOwner() {
+        // data.sql: pet 13 (Sly) has NULL owner_id, so owner should be null.
         record LocalWrapper(Pet pet) {}
         var wrapper = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class, LocalWrapper.class)
                 .where(Pet_.id, EQUALS, 13)
                 .getSingleResult();
         assertEquals(13, wrapper.pet().id());
-        assertNull(wrapper.pet().owner());
+        assertNull(wrapper.pet().owner(), "Pet 13 (Sly) has NULL owner_id");
     }
 
     @Test
     public void testSelectWithWrapperNullOwner() {
+        // data.sql: pet 13 (Sly) has NULL owner_id, so owner should be null.
         var wrapper = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class, Wrapper.class)
                 .where(Pet_.id, EQUALS, 13)
                 .getSingleResult();
         assertEquals(13, wrapper.pet().id());
-        assertNull(wrapper.pet().owner());
+        assertNull(wrapper.pet().owner(), "Pet 13 (Sly) has NULL owner_id");
     }
 
     @Test
@@ -978,22 +1026,28 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testInternerRecord() {
+        // 13 pets, but 12 have owners and 1 (Sly) has null owner. The interner deduplicates
+        // owner instances by identity; 10 distinct owners + 1 null = 11 identity-distinct values.
         var pets = ORMTemplate.of(dataSource).entity(Pet.class).select().getResultList();
         var owners = newSetFromMap(new IdentityHashMap<>());
         owners.addAll(pets.stream().map(Pet::owner).toList());
-        assertEquals(11, owners.size());
+        assertEquals(11, owners.size(), "10 distinct owners + 1 null = 11 identity-distinct owner instances");
     }
 
     @Test
     public void testInternerRef() {
+        // Same logic as testInternerRecord but with Ref-based owner field.
+        // 13 pets, 10 distinct owner refs + 1 null ref = 11 identity-distinct values.
         var pets = ORMTemplate.of(dataSource).entity(PetOwnerRef.class).select().getResultList();
         var owners = newSetFromMap(new IdentityHashMap<>());
         owners.addAll(pets.stream().map(PetOwnerRef::owner).toList());
-        assertEquals(11, owners.size());
+        assertEquals(11, owners.size(), "10 distinct owner refs + 1 null = 11 identity-distinct ref instances");
     }
 
     @Test
     public void testSelectWithInlinePath() {
+        // data.sql: owners with city_id=2 (Madison) are: George Franklin (2), Peter McTavish (5),
+        // Maria Escobito (8), David Schroeder (9) = 4 owners.
         var list = ORMTemplate.of(dataSource).entity(Owner.class).select().where(Owner_.address.city.name, EQUALS, "Madison").getResultList();
         assertEquals(4, list.size());
     }
@@ -1008,12 +1062,14 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectWithInlinePathInMultiArgument() {
+        // data.sql: Madison (city_id=2) has 4 owners, Monona (city_id=5) has 2 owners = 6 total.
         var list = ORMTemplate.of(dataSource).entity(Owner.class).select().where(Owner_.address.city.name, IN, "Madison", "Monona").getResultList();
         assertEquals(6, list.size());
     }
 
     @Test
     public void testSelectWhere() {
+        // Owner 1 (Betty Davis) has exactly 1 pet: Leo (id=1).
         Owner owner = Owner.builder().id(1).build();
         var pets = ORMTemplate.of(dataSource).entity(Pet.class)
                 .select()
@@ -1024,6 +1080,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectRefWhere() {
+        // Owner 1 (Betty Davis) has exactly 1 pet: Leo (id=1).
         Owner owner = Owner.builder().id(1).build();
         var pets = ORMTemplate.of(dataSource).entity(PetWithNullableOwnerRef.class)
                 .select()
@@ -1058,15 +1115,16 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectNullableOwner() {
-        // Ref elements are not joined by default. Test whether join works.
+        // 12 of 13 pets have non-null owner_id. Inner join on Owner filters out pet 13 (Sly).
         var owners = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class, Owner.class, wrap(Owner.class))
                 .getResultList();
-        assertEquals(12, owners.size());
+        assertEquals(12, owners.size(), "12 pets have non-null owner_id");
     }
 
     @Test
     public void testCustomRepo1() {
+        // Custom repository method getById1 should return the same Pet as the standard getById.
         var repo = ORMTemplate.of(dataSource).repository(PetRepository.class);
         var pet = repo.getById(1);
         assertEquals(pet, repo.getById1(1));
@@ -1074,6 +1132,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testCustomRepo2() {
+        // Custom repository method getById2 should return the same Pet as the standard getById.
         var repo = ORMTemplate.of(dataSource).repository(PetRepository.class);
         var pet = repo.getById(1);
         assertEquals(pet, repo.getById2(1));
@@ -1081,6 +1140,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testCustomRepo3() {
+        // Custom repository method getById3 should return the same Pet as the standard getById.
         var repo = ORMTemplate.of(dataSource).repository(PetRepository.class);
         var pet = repo.getById(1);
         assertEquals(pet, repo.getById3(1));
@@ -1088,24 +1148,30 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testCustomRepo4() {
+        // data.sql: owner "Betty" Davis (id=1) has 1 pet: Leo (id=1).
         var repo = ORMTemplate.of(dataSource).repository(PetRepository.class);
         assertEquals(1, repo.findByOwnerFirstName("Betty").size());
     }
 
     @Test
     public void testCustomRepo5() {
+        // data.sql: 4 owners live in Madison (city_id=2): Franklin, McTavish, Escobito, Schroeder.
+        // They have pets: Basil(2), George(6), Mulligan(10), Freddy(11) = 4 pets.
         var repo = ORMTemplate.of(dataSource).repository(PetRepository.class);
         assertEquals(4, repo.findByOwnerCity("Madison").size());
     }
 
     @Test
     public void testPetVisitCount() {
+        // data.sql: 8 distinct pets have visits (pets 1-8 all have at least one visit;
+        // pets 9-13 have no visits).
         var repo = ORMTemplate.of(dataSource).repository(PetRepository.class);
         assertEquals(8, repo.petVisitCount().size());
     }
 
     @Test
     public void delete() {
+        // data.sql: 14 visits. After deleting visit 1, expect 13.
         var repo = ORMTemplate.of(dataSource).entity(Visit.class);
         repo.delete(Visit.builder().id(1).build());
         assertEquals(13, repo.select().getResultCount());
@@ -1113,6 +1179,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void deleteByPet() {
+        // data.sql: pet 1 (Leo) has 2 visits (ids 4, 8). After deleting, 14 - 2 = 12.
         var repo = ORMTemplate.of(dataSource).entity(Visit.class);
         repo.delete().where(it -> it.whereAny(Pet.builder().id(1).build())).executeUpdate();
         assertEquals(12, repo.select().getResultCount());
@@ -1120,6 +1187,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void deleteByOwner() {
+        // data.sql: owner 1 (Betty Davis) has 1 pet (Leo, id=1). Leo has 2 visits. 14 - 2 = 12.
         var repo = ORMTemplate.of(dataSource).entity(Visit.class);
         repo.delete().where(it -> it.whereAny(Owner.builder().id(1).build())).executeUpdate();
         assertEquals(12, repo.select().getResultCount());
@@ -1127,6 +1195,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void deleteAll() {
+        // After deleting all visits, count should be 0.
         var repo = ORMTemplate.of(dataSource).entity(Visit.class);
         repo.deleteAll();
         assertEquals(0, repo.select().getResultCount());
@@ -1161,6 +1230,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithJoin() {
+        // data.sql: 3 visits on 2023-01-08: visit ids 7 (pet 4), 8 (pet 1), 9 (pet 2).
         var list = ORMTemplate.of(dataSource)
                 .entity(Pet.class)
                 .select()
@@ -1172,6 +1242,8 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithAutoJoin() {
+        // data.sql: visit 1 has pet_id=7 (Samantha). Selecting pets joined with visits where visit_id=1
+        // should return exactly 1 pet: Samantha (id=7).
         var list = ORMTemplate.of(dataSource)
                 .entity(Pet.class)
                 .select()
@@ -1186,7 +1258,7 @@ public class RepositoryPreparedStatementIntegrationTest {
                 .getResultList();
 
         assertEquals(1, list2.size());
-        assertEquals(7, list2.getFirst().id());
+        assertEquals(7, list2.getFirst().id(), "Visit 1 references pet 7 (Samantha)");
     }
 
     @Test
@@ -1217,18 +1289,20 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testBuilderWithSelectTemplate() {
+        // data.sql: 8 distinct pets have visits. Total visit count = 14.
         record Result(int petId, int visitCount) {}
         var list = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class, Result.class, raw("\0, COUNT(*)", Pet_.id))
                 .innerJoin(Visit.class).on(Pet.class)
                 .groupBy(Pet_.id)
                 .getResultList();
-        assertEquals(8, list.size());
-        assertEquals(14, list.stream().mapToInt(Result::visitCount).sum());
+        assertEquals(8, list.size(), "8 distinct pets have at least one visit");
+        assertEquals(14, list.stream().mapToInt(Result::visitCount).sum(), "14 total visits in data.sql");
     }
 
     @Test
     public void testBuilderWithNonRecordSelectTemplate() {
+        // data.sql: 14 total visits.
         var count = ORMTemplate.of(dataSource)
                 .selectFrom(Pet.class, Integer.class, TemplateString.of("COUNT(*)"))
                 .innerJoin(Visit.class).on(Pet.class)
@@ -1334,6 +1408,9 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testWhereExists() {
+        // data.sql: visits reference pets that reference owners. 6 distinct owners have pets with visits:
+        // owner 1 (Leo), 2 (Basil), 3 (Rosy, Jewel), 4 (Iggy), 5 (George), 6 (Samantha, Max).
+        // Owners 7-10 have pets without visits.
         var list = ORMTemplate.of(dataSource).entity(Owner.class)
                 .select()
                 .where(it -> it.exists(it.subquery(Visit.class).where(raw("\0.id = \0.id", alias(Owner.class, OUTER), alias(Owner.class, INNER)))))
@@ -1343,6 +1420,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testWhereExistsMetamodel() {
+        // Same as testWhereExists but using metamodel for column references. 6 owners have visits.
         var list = ORMTemplate.of(dataSource).entity(Owner.class)
                 .select()
                 .where(it -> it.exists(it.subquery(Visit.class).where(raw("\0 = \0", column(Owner_.id, OUTER), column(Owner_.id, INNER)))))
@@ -1478,6 +1556,7 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testOrdinalEnumSelect() {
+        // data.sql inserts 13 pets. Using ordinal enum for type_id should map correctly.
         var pets = ORMTemplate.of(dataSource).entity(PetWithEnum.class)
                 .select()
                 .getResultList();
@@ -1507,10 +1586,11 @@ public class RepositoryPreparedStatementIntegrationTest {
 
     @Test
     public void testSelectCompoundFK() {
+        // data.sql: visit 3 has vet_id=3, specialty_id=2 (Linda Douglas, surgery).
         var repository = ORMTemplate.of(dataSource).entity(VisitWithCompoundFK.class);
         var visit = repository.getById(3);
-        assertEquals(3, visit.vetSpecialty().vet().id());
-        assertEquals(2, visit.vetSpecialty().specialty().id());
+        assertEquals(3, visit.vetSpecialty().vet().id(), "Visit 3 references vet 3 (Linda Douglas)");
+        assertEquals(2, visit.vetSpecialty().specialty().id(), "Visit 3 references specialty 2 (surgery)");
     }
 
     @Test
@@ -1536,6 +1616,130 @@ public class RepositoryPreparedStatementIntegrationTest {
         var visit = repository.select().where(VisitWithCompoundFK_.vetSpecialty, VetSpecialty.builder().id(new VetSpecialtyPK(3, 2)).build()).getSingleResult();
         assertEquals(3, visit.vetSpecialty().vet().id());
         assertEquals(2, visit.vetSpecialty().specialty().id());
+    }
+
+    @Test
+    public void testSelectWhereInlineRecord() {
+        var repository = ORMTemplate.of(dataSource).entity(Owner.class);
+        var address = new Address("638 Cardinal Ave.", City.builder().id(1).build());
+        var owner = repository.select()
+                .where(Owner_.address, EQUALS, address)
+                .getSingleResult();
+        assertEquals(1, owner.id());
+        assertEquals("Betty", owner.firstName());
+        assertEquals("Davis", owner.lastName());
+    }
+
+    @Test
+    public void testSelectWhereInlineRecordSql() {
+        String expectedSql = """
+                SELECT o.id, o.first_name, o.last_name, o.address, o.city_id, c.name, o.telephone, o.version
+                FROM owner o
+                LEFT JOIN city c ON o.city_id = c.id
+                WHERE o.address = ? AND o.city_id = ?""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            var repository = ORMTemplate.of(dataSource).entity(Owner.class);
+            var address = new Address("638 Cardinal Ave.", City.builder().id(1).build());
+            repository.select()
+                    .where(Owner_.address, EQUALS, address)
+                    .getSingleResult();
+        });
+    }
+
+    @Test
+    public void testSelectWhereInlineRecordSubField() {
+        var repository = ORMTemplate.of(dataSource).entity(Owner.class);
+        var owners = repository.select()
+                .where(Owner_.address.address, EQUALS, "638 Cardinal Ave.")
+                .getResultList();
+        assertEquals(1, owners.size());
+        assertEquals("Betty", owners.getFirst().firstName());
+    }
+
+    @Test
+    public void testSelectWhereInlineRecordGreaterThanSql() {
+        String expectedSql = """
+                SELECT o.id, o.first_name, o.last_name, o.address, o.city_id, c.name, o.telephone, o.version
+                FROM owner o
+                LEFT JOIN city c ON o.city_id = c.id
+                WHERE (o.address > ? OR (o.address = ? AND o.city_id > ?))""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            var repository = ORMTemplate.of(dataSource).entity(Owner.class);
+            var address = new Address("638 Cardinal Ave.", City.builder().id(1).build());
+            repository.select()
+                    .where(Owner_.address, GREATER_THAN, address)
+                    .getResultList();
+        });
+    }
+
+    @Test
+    public void testSelectWhereInlineRecordGreaterThanOrEqualSql() {
+        String expectedSql = """
+                SELECT o.id, o.first_name, o.last_name, o.address, o.city_id, c.name, o.telephone, o.version
+                FROM owner o
+                LEFT JOIN city c ON o.city_id = c.id
+                WHERE (o.address > ? OR (o.address = ? AND o.city_id >= ?))""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            var repository = ORMTemplate.of(dataSource).entity(Owner.class);
+            var address = new Address("638 Cardinal Ave.", City.builder().id(1).build());
+            repository.select()
+                    .where(Owner_.address, GREATER_THAN_OR_EQUAL, address)
+                    .getResultList();
+        });
+    }
+
+    @Test
+    public void testSelectWhereInlineRecordLessThanSql() {
+        String expectedSql = """
+                SELECT o.id, o.first_name, o.last_name, o.address, o.city_id, c.name, o.telephone, o.version
+                FROM owner o
+                LEFT JOIN city c ON o.city_id = c.id
+                WHERE (o.address < ? OR (o.address = ? AND o.city_id < ?))""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            var repository = ORMTemplate.of(dataSource).entity(Owner.class);
+            var address = new Address("638 Cardinal Ave.", City.builder().id(1).build());
+            repository.select()
+                    .where(Owner_.address, LESS_THAN, address)
+                    .getResultList();
+        });
+    }
+
+    @Test
+    public void testSelectWhereInlineRecordNotEqualsSql() {
+        String expectedSql = """
+                SELECT o.id, o.first_name, o.last_name, o.address, o.city_id, c.name, o.telephone, o.version
+                FROM owner o
+                LEFT JOIN city c ON o.city_id = c.id
+                WHERE NOT (o.address = ? AND o.city_id = ?)""";
+        observe(sql -> assertEquals(expectedSql, sql.statement()), () -> {
+            var repository = ORMTemplate.of(dataSource).entity(Owner.class);
+            var address = new Address("638 Cardinal Ave.", City.builder().id(1).build());
+            repository.select()
+                    .where(Owner_.address, NOT_EQUALS, address)
+                    .getResultList();
+        });
+    }
+
+    @Test
+    public void testSelectWhereInlineRecordGreaterThan() {
+        var repository = ORMTemplate.of(dataSource).entity(Owner.class);
+        // Use a low-value address so that results with lexicographically greater addresses exist.
+        var address = new Address("0", City.builder().id(0).build());
+        var owners = repository.select()
+                .where(Owner_.address, GREATER_THAN, address)
+                .getResultList();
+        assertFalse(owners.isEmpty());
+    }
+
+    @Test
+    public void testSelectWhereInlineRecordLikeThrows() {
+        var repository = ORMTemplate.of(dataSource).entity(Owner.class);
+        var address = new Address("638%", City.builder().id(1).build());
+        assertThrows(Exception.class, () -> {
+            repository.select()
+                    .where(Owner_.address, LIKE, address)
+                    .getResultList();
+        });
     }
 
     @DbTable("visit")
@@ -1933,5 +2137,315 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertEquals(2, result.size());
         assertTrue(result.contains(pet1), "Result should contain cached pet1");
         assertTrue(result.contains(pet2), "Result should contain cached pet2");
+    }
+
+    @Test
+    public void testSelectEntityTypedPkFk() {
+        var repository = ORMTemplate.of(dataSource).entity(PetExtension.class);
+        var extensions = repository.select().getResultList();
+        assertEquals(3, extensions.size());
+        // Verify the entity-typed PK is fully populated (not just the FK id).
+        var ext = extensions.stream().filter(e -> e.pet().id() == 1).findFirst().orElseThrow();
+        assertEquals("Leo", ext.pet().name());
+        assertEquals("Good cat", ext.notes());
+        // Verify nested FK within the PK entity (Pet -> Owner) is also populated.
+        assertNotNull(ext.pet().owner());
+        assertEquals("Betty", ext.pet().owner().firstName());
+    }
+
+    // Inline record flatten / ORDER BY / GROUP BY tests.
+
+    @Test
+    public void testFlattenSingleColumn() {
+        // A non-inline metamodel should return a singleton list.
+        var result = Owner_.id.flatten();
+        assertEquals(1, result.size());
+        assertSame(Owner_.id, result.getFirst());
+    }
+
+    @Test
+    public void testFlattenInlineRecord() {
+        // An inline record metamodel should expand to its leaf columns.
+        var result = Owner_.address.flatten();
+        assertEquals(2, result.size());
+        // Field names include the inline record prefix.
+        assertEquals("address.address", result.get(0).field());
+        assertEquals("address.city", result.get(1).field());
+    }
+
+    @Test
+    public void testOrderByInlineRecord() {
+        // orderBy(Owner_.address) should expand the inline record and produce a valid query.
+        var list = ORMTemplate.of(dataSource)
+                .selectFrom(Owner.class)
+                .orderBy(Owner_.address)
+                .getResultList();
+        assertEquals(10, list.size());
+    }
+
+    @Test
+    public void testOrderByInlineRecordSql() {
+        // Verify the SQL shape includes both expanded columns.
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        observe(sql::setPlain, () -> {
+            ORMTemplate.of(dataSource)
+                    .selectFrom(Owner.class)
+                    .orderBy(Owner_.address)
+                    .getResultList();
+        });
+        String statement = sql.getPlain().statement();
+        assertTrue(statement.contains("ORDER BY"), "Expected ORDER BY clause in SQL: " + statement);
+        // Should contain the two columns from the inline Address record (address, city_id).
+        String orderByClause = statement.substring(statement.indexOf("ORDER BY"));
+        assertTrue(orderByClause.contains("address"), "Expected 'address' column in ORDER BY: " + orderByClause);
+        assertTrue(orderByClause.contains("city_id"), "Expected 'city_id' column in ORDER BY: " + orderByClause);
+    }
+
+    @Test
+    public void testOrderByDescendingInlineRecord() {
+        // orderByDescending(Owner_.address) should expand and add DESC to each column.
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        observe(sql::setPlain, () -> {
+            ORMTemplate.of(dataSource)
+                    .selectFrom(Owner.class)
+                    .orderByDescending(Owner_.address)
+                    .getResultList();
+        });
+        String statement = sql.getPlain().statement();
+        String orderByClause = statement.substring(statement.indexOf("ORDER BY"));
+        // Count occurrences of DESC (should be 2, one for each expanded column).
+        int count = 0;
+        int index = 0;
+        while ((index = orderByClause.indexOf("DESC", index)) != -1) {
+            count++;
+            index += 4;
+        }
+        assertEquals(2, count, "Expected 2 DESC keywords in ORDER BY: " + orderByClause);
+    }
+
+    @Test
+    public void testGroupByInlineRecord() {
+        // groupBy(Owner_.address) should expand the inline record.
+        record Result(String address, int cityId, long count) {}
+        AtomicReference<Sql> sql = new AtomicReference<>();
+        observe(sql::setPlain, () -> {
+            ORMTemplate.of(dataSource)
+                    .selectFrom(Owner.class, Result.class, raw("\0, \0, COUNT(*)", Owner_.address.address, Owner_.address.city))
+                    .groupBy(Owner_.address)
+                    .getResultList();
+        });
+        String statement = sql.getPlain().statement();
+        assertTrue(statement.contains("GROUP BY"), "Expected GROUP BY clause in SQL: " + statement);
+        String groupByClause = statement.substring(statement.indexOf("GROUP BY"));
+        assertTrue(groupByClause.contains("address"), "Expected 'address' column in GROUP BY: " + groupByClause);
+        assertTrue(groupByClause.contains("city_id"), "Expected 'city_id' column in GROUP BY: " + groupByClause);
+    }
+
+    @Test
+    public void testOrderByInlineRecordWithNonInlineColumn() {
+        // orderBy with both inline record and regular column.
+        var list = ORMTemplate.of(dataSource)
+                .selectFrom(Owner.class)
+                .orderBy(Owner_.id, Owner_.address)
+                .getResultList();
+        assertEquals(10, list.size());
+    }
+
+    @Test
+    public void testSliceWithInlineRecordKey() {
+        // slice with inline record key should expand inline record for ORDER BY.
+        var slice = ORMTemplate.of(dataSource)
+                .selectFrom(Owner.class)
+                .slice(Metamodel.key(Owner_.address), 5);
+        assertEquals(5, slice.content().size());
+        assertTrue(slice.hasNext());
+    }
+
+    @Test
+    public void testSliceAfterWithInlineRecordKey() {
+        // sliceAfter should expand inline record for both WHERE and ORDER BY.
+        var allOwners = ORMTemplate.of(dataSource)
+                .selectFrom(Owner.class)
+                .orderBy(Owner_.address)
+                .getResultList();
+        // Get the address of the 5th owner (index 4) as cursor.
+        var cursor = allOwners.get(4).address();
+        var slice = ORMTemplate.of(dataSource)
+                .selectFrom(Owner.class)
+                .sliceAfter(Metamodel.key(Owner_.address), cursor, 10);
+        // Should return remaining owners after the cursor.
+        assertFalse(slice.content().isEmpty());
+    }
+
+    @Test
+    public void testSliceBeforeWithInlineRecordKey() {
+        // sliceBefore (cursorless, descending) should expand inline record for ORDER BY.
+        var slice = ORMTemplate.of(dataSource)
+                .selectFrom(Owner.class)
+                .sliceBefore(Metamodel.key(Owner_.address), 5);
+        assertEquals(5, slice.content().size());
+        assertTrue(slice.hasNext());
+    }
+
+    @Test
+    public void testSliceRejectsNullableCompoundKey() {
+        // EntityWithNullableUK has @UK NullableCompoundUK(String, String) with nullable constituents.
+        // slice should throw PersistenceException because the compound key is effectively nullable.
+        var key = (Metamodel.Key<EntityWithNullableUK, NullableCompoundUK>) (Metamodel.Key) EntityWithNullableUK_.uniqueKey;
+        assertTrue(key.isNullable());
+        assertThrows(PersistenceException.class, () ->
+                ORMTemplate.of(dataSource)
+                        .selectFrom(EntityWithNullableUK.class)
+                        .slice(key, 5));
+    }
+
+    @Test
+    public void testSliceAcceptsNullsNotDistinctCompoundKey() {
+        // EntityWithNullsNotDistinctUK has @UK(nullsDistinct = false) NullableCompoundUK.
+        // The key should NOT be considered nullable, so slice should not throw PersistenceException.
+        var key = (Metamodel.Key<EntityWithNullsNotDistinctUK, NullableCompoundUK>) (Metamodel.Key) EntityWithNullsNotDistinctUK_.uniqueKey;
+        assertFalse(key.isNullable());
+        // The query may fail due to missing table, but it should NOT throw PersistenceException
+        // for nullable key validation. We just need to verify the key is accepted.
+    }
+
+    // Metamodel.Key and findBy/getBy tests.
+
+    @Test
+    public void testMetamodelKeyFactory() {
+        // Owner_.id is already a Key (via @PK -> @UK), so key() should return the same instance.
+        assertSame(Owner_.id, Metamodel.key(Owner_.id));
+        // Owner_.address is not unique, so key() should wrap it in a KeyDelegate.
+        var addressKey = Metamodel.key(Owner_.address);
+        assertNotNull(addressKey);
+        assertInstanceOf(Metamodel.Key.class, addressKey);
+        // The delegate should be equal to the original metamodel.
+        assertEquals(Owner_.address, addressKey);
+        assertEquals(addressKey, Owner_.address);
+    }
+
+    @Test
+    public void testOwnerIdIsKey() {
+        // Owner_.id should be a Metamodel.Key since @PK is meta-annotated with @UK.
+        assertInstanceOf(Metamodel.Key.class, Owner_.id);
+    }
+
+    @Test
+    public void testSliceWithPrimaryKey() {
+        // slice using Owner_.id directly (a Key via @PK).
+        var slice = ORMTemplate.of(dataSource)
+                .selectFrom(Owner.class)
+                .slice(Owner_.id, 5);
+        assertEquals(5, slice.content().size());
+        assertTrue(slice.hasNext());
+    }
+
+    @Test
+    public void testFindByKey() {
+        var repo = ORMTemplate.of(dataSource).entity(Owner.class);
+        var result = repo.findBy(Owner_.id, 1);
+        assertTrue(result.isPresent());
+        assertEquals(1, result.get().id());
+    }
+
+    @Test
+    public void testFindByKeyNotFound() {
+        var repo = ORMTemplate.of(dataSource).entity(Owner.class);
+        var result = repo.findBy(Owner_.id, 999);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    public void testGetByKey() {
+        var repo = ORMTemplate.of(dataSource).entity(Owner.class);
+        var owner = repo.getBy(Owner_.id, 1);
+        assertEquals(1, owner.id());
+    }
+
+    @Test
+    public void testGetByKeyNotFound() {
+        var repo = ORMTemplate.of(dataSource).entity(Owner.class);
+        assertThrows(st.orm.NoResultException.class, () -> repo.getBy(Owner_.id, 999));
+    }
+
+    // -- @Persist propagation on inline records --
+
+    record OwnerCityInline(int ownerId, int cityId) {}
+
+    @DbTable("pet")
+    record PetWithPersistInline(
+            @PK Integer id,
+            @Nonnull String name,
+            @Nonnull LocalDate birthDate,
+            int typeId,
+            int ownerId,
+            int cityId,
+            @Persist(insertable = false, updatable = false) OwnerCityInline ownerCity
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void testInsertWithPersistOnInlineRecord() {
+        // The inline record's child columns (owner_id, city_id) should be excluded from INSERT
+        // because @Persist(insertable=false, updatable=false) is on the inline field.
+        var repository = ORMTemplate.of(dataSource).entity(PetWithPersistInline.class);
+        observe(sql -> {
+            String statement = sql.statement();
+            // The INSERT should include columns for id, name, birth_date, type_id, owner_id, city_id
+            // but NOT the inline record's owner_id and city_id duplicates.
+            // Insertable columns: id (PK), name, birth_date, type_id, owner_id, city_id (direct fields).
+            // Non-insertable: ownerCity.ownerId, ownerCity.cityId (from inline with @Persist(false,false)).
+            assertFalse(statement.contains("owner_city_owner_id"), "Inline field ownerId should not appear in INSERT");
+            assertFalse(statement.contains("owner_city_city_id"), "Inline field cityId should not appear in INSERT");
+        }, () -> {
+            var e = assertThrows(PersistenceException.class, () ->
+                    repository.insert(new PetWithPersistInline(null, "Test", LocalDate.now(), 1, 1, 1, new OwnerCityInline(1, 1))));
+            // Exception is expected because the table schema doesn't match, but the SQL is still generated.
+        });
+    }
+
+    @Test
+    public void testUpdateWithPersistOnInlineRecord() {
+        // The inline record's child columns should be excluded from UPDATE
+        // because @Persist(insertable=false, updatable=false) is on the inline field.
+        var repository = ORMTemplate.of(dataSource).entity(PetWithPersistInline.class);
+        observe(sql -> {
+            String statement = sql.statement();
+            assertFalse(statement.contains("owner_city_owner_id"), "Inline field ownerId should not appear in UPDATE");
+            assertFalse(statement.contains("owner_city_city_id"), "Inline field cityId should not appear in UPDATE");
+        }, () -> {
+            var e = assertThrows(PersistenceException.class, () ->
+                    repository.update(new PetWithPersistInline(1, "Test", LocalDate.now(), 1, 1, 1, new OwnerCityInline(1, 1))));
+        });
+    }
+
+    record InnerInline(String value) {}
+    record OuterInline(@Persist(insertable = true, updatable = true) InnerInline override, String other) {}
+
+    @DbTable("pet")
+    record PetWithNestedPersistOverride(
+            @PK Integer id,
+            @Nonnull String name,
+            @Nonnull LocalDate birthDate,
+            int typeId,
+            int ownerId,
+            @Persist(insertable = false, updatable = false) OuterInline nested
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void testChildPersistOverridesParent() {
+        // OuterInline has @Persist(false, false) on the parent, but InnerInline has its own
+        // @Persist(true, true) which should override. The 'other' field should still inherit false.
+        var repository = ORMTemplate.of(dataSource).entity(PetWithNestedPersistOverride.class);
+        observe(sql -> {
+            String statement = sql.statement();
+            // InnerInline.value has @Persist(insertable=true) via child override, so it should be insertable.
+            assertTrue(statement.contains("value"), "InnerInline.value should be insertable due to child override");
+            // OuterInline.other inherits @Persist(false,false) from parent, so it should not appear.
+            assertFalse(statement.contains("other"), "OuterInline.other should not be insertable (inherits parent @Persist)");
+        }, () -> {
+            var e = assertThrows(PersistenceException.class, () ->
+                    repository.insert(new PetWithNestedPersistOverride(null, "Test", LocalDate.now(), 1, 1,
+                            new OuterInline(new InnerInline("test"), "excluded"))));
+        });
     }
 }

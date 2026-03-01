@@ -15,29 +15,17 @@
  */
 package st.orm.core.repository.impl;
 
+import static st.orm.GenerationStrategy.IDENTITY;
+import static st.orm.GenerationStrategy.NONE;
+import static st.orm.GenerationStrategy.SEQUENCE;
+import static st.orm.core.repository.impl.StreamSupport.partitioned;
+import static st.orm.core.spi.Providers.deleteFrom;
+import static st.orm.core.template.TemplateString.raw;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import st.orm.Entity;
-import st.orm.GenerationStrategy;
-import st.orm.Metamodel;
-import st.orm.Ref;
-import st.orm.NoResultException;
-import st.orm.NonUniqueResultException;
-import st.orm.OptimisticLockException;
-import st.orm.PersistenceException;
-import st.orm.core.spi.EntityCache;
-import st.orm.core.spi.Providers;
-import st.orm.core.spi.TransactionContext;
-import st.orm.core.spi.TransactionTemplate;
-import st.orm.core.template.PreparedQuery;
-import st.orm.core.template.Templates;
-import st.orm.core.template.Column;
-import st.orm.core.repository.EntityRepository;
-import st.orm.core.template.Model;
-import st.orm.core.template.ORMTemplate;
-import st.orm.core.template.QueryBuilder;
-import st.orm.core.template.TemplateString;
-
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -46,14 +34,33 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-
-import static st.orm.GenerationStrategy.IDENTITY;
-import static st.orm.GenerationStrategy.NONE;
-import static st.orm.GenerationStrategy.SEQUENCE;
-import static st.orm.core.repository.impl.DirtySupport.getMaxShapes;
-import static st.orm.core.repository.impl.StreamSupport.partitioned;
-import static st.orm.core.spi.Providers.deleteFrom;
-import static st.orm.core.template.TemplateString.raw;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import st.orm.Entity;
+import st.orm.EntityCallback;
+import st.orm.GenerationStrategy;
+import st.orm.Metamodel;
+import st.orm.NoResultException;
+import st.orm.NonUniqueResultException;
+import st.orm.OptimisticLockException;
+import st.orm.PersistenceException;
+import st.orm.Ref;
+import st.orm.core.repository.EntityRepository;
+import st.orm.core.spi.CacheRetention;
+import st.orm.core.spi.EntityCache;
+import st.orm.core.spi.EntityCacheMetrics;
+import st.orm.core.spi.Providers;
+import st.orm.core.spi.TransactionContext;
+import st.orm.core.spi.TransactionTemplate;
+import st.orm.core.template.Column;
+import st.orm.core.template.Model;
+import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.PreparedQuery;
+import st.orm.core.template.QueryBuilder;
+import st.orm.core.template.TemplateString;
+import st.orm.core.template.Templates;
+import st.orm.core.template.impl.JoinedEntityHelper;
+import st.orm.core.template.impl.LazySupplier;
 
 /**
  * Default implementation of {@link EntityRepository}.
@@ -66,12 +73,23 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         extends BaseRepositoryImpl<E, ID>
         implements EntityRepository<E, ID> {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(EntityRepositoryImpl.class);
+
+    /**
+     * Re-entrancy guard that prevents entity callbacks from firing recursively. When a callback performs database
+     * operations (e.g., inserting an audit log), those operations must not trigger callbacks again. This guard is
+     * static and thread-local so that it applies across all repository instances on the current thread.
+     */
+    private static final ThreadLocal<Boolean> CALLBACK_ACTIVE = ThreadLocal.withInitial(() -> Boolean.FALSE);
+
     private final TransactionTemplate TRANSACTION_TEMPLATE = Providers.getTransactionTemplate();
 
     protected final int defaultBatchSize;
     protected final List<Column> primaryKeyColumns;
     protected final GenerationStrategy generationStrategy;
     private final DirtySupport<E, ID> dirtySupport;
+    private final CacheRetention cacheRetention;
+    private final List<EntityCallback<E>> entityCallbacks;
 
     public EntityRepositoryImpl(@Nonnull ORMTemplate ormTemplate, @Nonnull Model<E, ID> model) {
         super(ormTemplate, model);
@@ -86,11 +104,311 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         if (generationStrategy == SEQUENCE && primaryKeyColumns.size() != 1) {
             throw new PersistenceException("Sequence generation is only supported for single-column primary keys.");
         }
-        this.dirtySupport = new DirtySupport<>(model);
+        this.dirtySupport = new DirtySupport<>(model, ormTemplate.config());
+        this.cacheRetention = CacheRetention.fromConfig(ormTemplate.config());
+        this.entityCallbacks = resolveCallbacks(ormTemplate.entityCallbacks(), model.type());
+        EntityCacheMetrics.getInstance().registerEntity(model.type().getName(), cacheRetention.name());
+        LOGGER.debug("{}: cacheRetention={}", model.type().getSimpleName(), cacheRetention);
+    }
+
+    /**
+     * Resolves the entity callbacks that match the given entity type, filtering by the generic type parameter
+     * declared on each {@link EntityCallback}.
+     */
+    @SuppressWarnings("unchecked")
+    private static <E extends Entity<ID>, ID> List<EntityCallback<E>> resolveCallbacks(
+            @Nonnull List<EntityCallback<?>> callbacks, @Nonnull Class<E> entityType) {
+        List<EntityCallback<E>> result = new ArrayList<>();
+        for (EntityCallback<?> callback : callbacks) {
+            Class<?> callbackType = resolveCallbackEntityType(callback.getClass());
+            if (callbackType.isAssignableFrom(entityType)) {
+                result.add((EntityCallback<E>) callback);
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    /**
+     * Resolves the entity type parameter {@code E} from a concrete {@link EntityCallback} class by inspecting
+     * its generic interface hierarchy.
+     */
+    private static Class<?> resolveCallbackEntityType(@Nonnull Class<?> clazz) {
+        for (Type iface : clazz.getGenericInterfaces()) {
+            if (iface instanceof ParameterizedType pt) {
+                if (pt.getRawType() == EntityCallback.class) {
+                    return extractClass(pt.getActualTypeArguments()[0]);
+                }
+                if (pt.getRawType() instanceof Class<?> raw && EntityCallback.class.isAssignableFrom(raw)) {
+                    Class<?> resolved = resolveCallbackEntityType(raw);
+                    if (resolved != Entity.class) {
+                        return resolved;
+                    }
+                }
+            } else if (iface instanceof Class<?> raw && EntityCallback.class.isAssignableFrom(raw)) {
+                Class<?> resolved = resolveCallbackEntityType(raw);
+                if (resolved != Entity.class) {
+                    return resolved;
+                }
+            }
+        }
+        Class<?> superclass = clazz.getSuperclass();
+        if (superclass != null && superclass != Object.class) {
+            return resolveCallbackEntityType(superclass);
+        }
+        return Entity.class;
+    }
+
+    private static Class<?> extractClass(@Nonnull Type type) {
+        if (type instanceof Class<?> cls) {
+            return cls;
+        }
+        if (type instanceof ParameterizedType pt) {
+            return (Class<?>) pt.getRawType();
+        }
+        return Entity.class;
     }
 
     protected boolean isAutoGeneratedPrimaryKey() {
         return generationStrategy == IDENTITY || generationStrategy == SEQUENCE;
+    }
+
+    /**
+     * Returns {@code true} if the given entity should be routed to {@link #update(Entity)} when
+     * {@link #upsert(Entity)} is called. This is the case for auto-generated primary keys where
+     * the entity has a non-default primary key value (i.e., the entity was previously inserted).
+     *
+     * @param entity the entity to check.
+     * @return {@code true} if the upsert should be routed to update.
+     * @since 1.9
+     */
+    protected boolean isUpsertUpdate(@Nonnull E entity) {
+        return isAutoGeneratedPrimaryKey() && !model.isDefaultPrimaryKey(entity.id());
+    }
+
+    /**
+     * Returns {@code true} if the given entity should be routed to {@link #insert(Entity)} when
+     * {@link #upsert(Entity)} is called. This is the case for databases that cannot perform a
+     * SQL-level upsert (MERGE) with auto-generated primary keys (e.g., Oracle, SQL Server).
+     *
+     * <p>The default implementation returns {@code false}. Dialect-specific subclasses override
+     * this method to return {@code true} when appropriate.</p>
+     *
+     * @param entity the entity to check.
+     * @return {@code true} if the upsert should be routed to insert.
+     * @since 1.9
+     */
+    protected boolean isUpsertInsert(@Nonnull E entity) {
+        return false;
+    }
+
+    /**
+     * Fires {@link EntityCallback#beforeInsert(Entity)} on all registered callbacks, returning the (potentially
+     * transformed) entity to persist.
+     *
+     * <p>Callbacks are invoked in registration order. Each callback receives the entity returned by the previous
+     * one, forming a transformation chain.</p>
+     *
+     * @param entity the entity about to be inserted.
+     * @return the entity to persist, after all callbacks have been applied.
+     * @since 1.9
+     */
+    private E fireBeforeInsert(E entity) {
+        if (entityCallbacks.isEmpty() || CALLBACK_ACTIVE.get()) {
+            return entity;
+        }
+        CALLBACK_ACTIVE.set(Boolean.TRUE);
+        try {
+            for (EntityCallback<E> callback : entityCallbacks) {
+                entity = callback.beforeInsert(entity);
+            }
+            return entity;
+        } finally {
+            CALLBACK_ACTIVE.set(Boolean.FALSE);
+        }
+    }
+
+    /**
+     * Fires {@link EntityCallback#beforeUpdate(Entity)} on all registered callbacks, returning the (potentially
+     * transformed) entity to persist.
+     *
+     * <p>Callbacks are invoked in registration order. Each callback receives the entity returned by the previous
+     * one, forming a transformation chain.</p>
+     *
+     * @param entity the entity about to be updated.
+     * @return the entity to persist, after all callbacks have been applied.
+     * @since 1.9
+     */
+    protected E fireBeforeUpdate(E entity) {
+        if (entityCallbacks.isEmpty() || CALLBACK_ACTIVE.get()) {
+            return entity;
+        }
+        CALLBACK_ACTIVE.set(Boolean.TRUE);
+        try {
+            for (EntityCallback<E> callback : entityCallbacks) {
+                entity = callback.beforeUpdate(entity);
+            }
+            return entity;
+        } finally {
+            CALLBACK_ACTIVE.set(Boolean.FALSE);
+        }
+    }
+
+    /**
+     * Fires {@link EntityCallback#afterInsert(Entity)} on all registered callbacks.
+     *
+     * <p>The entity passed to this method is the entity as it was sent to the database (after
+     * {@link #fireBeforeInsert(Entity) beforeInsert} transformation), not the entity as it exists in the database
+     * after the operation. In particular, database-generated values such as auto-incremented primary keys, version
+     * increments, or default column values are not reflected.</p>
+     *
+     * @param entity the entity that was inserted.
+     * @since 1.9
+     */
+    private void fireAfterInsert(E entity) {
+        if (entityCallbacks.isEmpty() || CALLBACK_ACTIVE.get()) {
+            return;
+        }
+        CALLBACK_ACTIVE.set(Boolean.TRUE);
+        try {
+            for (EntityCallback<E> callback : entityCallbacks) {
+                callback.afterInsert(entity);
+            }
+        } finally {
+            CALLBACK_ACTIVE.set(Boolean.FALSE);
+        }
+    }
+
+    /**
+     * Fires {@link EntityCallback#afterUpdate(Entity)} on all registered callbacks.
+     *
+     * <p>The entity passed to this method is the entity as it was sent to the database (after
+     * {@link #fireBeforeUpdate(Entity) beforeUpdate} transformation), not the entity as it exists in the database
+     * after the operation. In particular, database-side changes such as version increments or trigger-applied
+     * modifications are not reflected.</p>
+     *
+     * @param entity the entity that was updated.
+     * @since 1.9
+     */
+    private void fireAfterUpdate(E entity) {
+        if (entityCallbacks.isEmpty() || CALLBACK_ACTIVE.get()) {
+            return;
+        }
+        CALLBACK_ACTIVE.set(Boolean.TRUE);
+        try {
+            for (EntityCallback<E> callback : entityCallbacks) {
+                callback.afterUpdate(entity);
+            }
+        } finally {
+            CALLBACK_ACTIVE.set(Boolean.FALSE);
+        }
+    }
+
+    /**
+     * Returns {@code true} if there are entity callbacks registered.
+     *
+     * @return {@code true} if entity callbacks are registered.
+     * @since 1.9
+     */
+    protected boolean hasEntityCallbacks() {
+        return !entityCallbacks.isEmpty() && !CALLBACK_ACTIVE.get();
+    }
+
+    /**
+     * Fires {@link EntityCallback#beforeUpsert(Entity)} on all registered callbacks, returning the (potentially
+     * transformed) entity to persist.
+     *
+     * <p>This method is only called on the SQL-level upsert path. When an upsert is routed to
+     * {@link #insert(Entity)} or {@link #update(Entity)}, the corresponding {@code beforeInsert} or
+     * {@code beforeUpdate} callbacks are fired instead.</p>
+     *
+     * <p>Callbacks are invoked in registration order. Each callback receives the entity returned by the previous
+     * one, forming a transformation chain.</p>
+     *
+     * @param entity the entity about to be upserted.
+     * @return the entity to persist, after all callbacks have been applied.
+     * @since 1.9
+     */
+    protected E fireBeforeUpsert(E entity) {
+        if (entityCallbacks.isEmpty() || CALLBACK_ACTIVE.get()) {
+            return entity;
+        }
+        CALLBACK_ACTIVE.set(Boolean.TRUE);
+        try {
+            for (EntityCallback<E> callback : entityCallbacks) {
+                entity = callback.beforeUpsert(entity);
+            }
+            return entity;
+        } finally {
+            CALLBACK_ACTIVE.set(Boolean.FALSE);
+        }
+    }
+
+    /**
+     * Fires {@link EntityCallback#afterUpsert(Entity)} on all registered callbacks.
+     *
+     * <p>This method is only called on the SQL-level upsert path. When an upsert is routed to
+     * {@link #insert(Entity)} or {@link #update(Entity)}, the corresponding {@code afterInsert} or
+     * {@code afterUpdate} callbacks are fired instead.</p>
+     *
+     * <p>The entity passed to this method is the entity as it was sent to the database (after
+     * {@link #fireBeforeUpsert(Entity) beforeUpsert} transformation), not the entity as it exists in the database
+     * after the operation.</p>
+     *
+     * @param entity the entity that was upserted.
+     * @since 1.9
+     */
+    protected void fireAfterUpsert(E entity) {
+        if (entityCallbacks.isEmpty() || CALLBACK_ACTIVE.get()) {
+            return;
+        }
+        CALLBACK_ACTIVE.set(Boolean.TRUE);
+        try {
+            for (EntityCallback<E> callback : entityCallbacks) {
+                callback.afterUpsert(entity);
+            }
+        } finally {
+            CALLBACK_ACTIVE.set(Boolean.FALSE);
+        }
+    }
+
+    /**
+     * Fires {@link EntityCallback#beforeDelete(Entity)} on all registered callbacks.
+     *
+     * @param entity the entity about to be deleted.
+     * @since 1.9
+     */
+    private void fireBeforeDelete(E entity) {
+        if (entityCallbacks.isEmpty() || CALLBACK_ACTIVE.get()) {
+            return;
+        }
+        CALLBACK_ACTIVE.set(Boolean.TRUE);
+        try {
+            for (EntityCallback<E> callback : entityCallbacks) {
+                callback.beforeDelete(entity);
+            }
+        } finally {
+            CALLBACK_ACTIVE.set(Boolean.FALSE);
+        }
+    }
+
+    /**
+     * Fires {@link EntityCallback#afterDelete(Entity)} on all registered callbacks.
+     *
+     * @param entity the entity that was deleted.
+     * @since 1.9
+     */
+    private void fireAfterDelete(E entity) {
+        if (entityCallbacks.isEmpty() || CALLBACK_ACTIVE.get()) {
+            return;
+        }
+        CALLBACK_ACTIVE.set(Boolean.TRUE);
+        try {
+            for (EntityCallback<E> callback : entityCallbacks) {
+                callback.afterDelete(entity);
+            }
+        } finally {
+            CALLBACK_ACTIVE.set(Boolean.FALSE);
+        }
     }
 
     /**
@@ -137,6 +455,23 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     protected E validateDelete(@Nonnull E entity) {
         if (model.isDefaultPrimaryKey(entity.id())) {
             throw new PersistenceException("Primary key must be set for deletes.");
+        }
+        return entity;
+    }
+
+    /**
+     * Validates the entity for an upsert operation.
+     *
+     * <p>For non-auto-generated primary keys, the primary key must be set. Dialect-specific subclasses
+     * may override this method to add additional validation logic.</p>
+     *
+     * @param entity the entity to validate.
+     * @return the validated entity.
+     * @since 1.9
+     */
+    protected E validateUpsert(@Nonnull E entity) {
+        if (!isAutoGeneratedPrimaryKey() && model.isDefaultPrimaryKey(entity.id())) {
+            throw new PersistenceException("Primary key must be set for non-auto-generated primary keys for upserts.");
         }
         return entity;
     }
@@ -209,7 +544,13 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void insert(@Nonnull E entity) {
+        entity = fireBeforeInsert(entity);
         validateInsert(entity);
+        if (model.isJoinedInheritance()) {
+            JoinedEntityHelper.insert(ormTemplate, model, entity);
+            fireAfterInsert(entity);
+            return;
+        }
         var query = ormTemplate.query(TemplateString.raw("""
                 INSERT INTO \0
                 VALUES \0""", model.type(), entity))
@@ -217,6 +558,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         if (query.executeUpdate() != 1) {
             throw new PersistenceException("Insert failed.");
         }
+        fireAfterInsert(entity);
     }
 
     /**
@@ -235,6 +577,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void insert(@Nonnull E entity, boolean ignoreAutoGenerate) {
+        entity = fireBeforeInsert(entity);
         validateInsert(entity, ignoreAutoGenerate);
         var query = ormTemplate.query(TemplateString.raw("""
                 INSERT INTO \0
@@ -243,6 +586,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         if (query.executeUpdate() != 1) {
             throw new PersistenceException("Insert failed.");
         }
+        fireAfterInsert(entity);
     }
 
     /**
@@ -259,16 +603,24 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public ID insertAndFetchId(@Nonnull E entity) {
+        entity = fireBeforeInsert(entity);
         validateInsert(entity);
+        if (model.isJoinedInheritance()) {
+            ID id = JoinedEntityHelper.insertAndFetchId(ormTemplate, model, entity);
+            fireAfterInsert(entity);
+            return id;
+        }
         try (var query = ormTemplate.query(TemplateString.raw("""
                 INSERT INTO \0
                 VALUES \0""", model.type(), entity)).managed().prepare()) {
             if (query.executeUpdate() != 1) {
                 throw new PersistenceException("Insert failed.");
             }
-            return singleResult(isAutoGeneratedPrimaryKey()
+            ID id = singleResult(isAutoGeneratedPrimaryKey()
                     ? query.getGeneratedKeys(model.primaryKeyType())
                     : Stream.of(entity.id()));
+            fireAfterInsert(entity);
+            return id;
         }
     }
 
@@ -301,7 +653,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     protected Optional<EntityCache<E, ID>> entityCache() {
         //noinspection unchecked
         return TRANSACTION_TEMPLATE.currentContext()
-                .map(ctx -> (EntityCache<E, ID>) ctx.entityCache(model().type()));
+                .map(ctx -> (EntityCache<E, ID>) ctx.entityCache(model().type(), cacheRetention));
     }
 
     /**
@@ -487,21 +839,33 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void update(@Nonnull E entity) {
+        E e = fireBeforeUpdate(entity);
+        if (model.isJoinedInheritance()) {
+            validateUpdate(e);
+            entityCache().ifPresent(cache -> {
+                if (!model.isDefaultPrimaryKey(e.id())) {
+                    cache.remove(e.id());
+                }
+            });
+            JoinedEntityHelper.update(ormTemplate, model, e);
+            fireAfterUpdate(e);
+            return;
+        }
         var entityCache = entityCache();
-        var dirty = getDirty(entity, entityCache.orElse(null));
+        var dirty = getDirty(e, entityCache.orElse(null));
         if (dirty.isEmpty()) {
             return;
         }
-        validateUpdate(entity);
+        validateUpdate(e);
         entityCache.ifPresent(cache -> {
-            if (!model.isDefaultPrimaryKey(entity.id())) {
-                cache.remove(entity.id());
+            if (!model.isDefaultPrimaryKey(e.id())) {
+                cache.remove(e.id());
             }
         });
         var query = ormTemplate.query(TemplateString.raw("""
                 UPDATE \0
                 SET \0
-                WHERE \0""", model.type(), Templates.set(entity, dirty.get()), entity))
+                WHERE \0""", model.type(), Templates.set(e, dirty.get()), e))
                 .managed();
         int result = query.executeUpdate();
         if (query.isVersionAware() && result == 0) {
@@ -509,6 +873,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         } else if (result != 1) {
             throw new PersistenceException("Update failed.");
         }
+        fireAfterUpdate(e);
     }
 
     /**
@@ -536,6 +901,12 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         return new PersistenceException("Upsert is not available for the default implementation.");
     }
 
+    private void requireNonJoinedSealedEntity() {
+        if (model.isJoinedInheritance()) {
+            throw new PersistenceException("Upsert is not supported for joined sealed entities.");
+        }
+    }
+
     /**
      * Inserts or updates a single entity in the database.
      *
@@ -544,6 +915,11 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      * the entity. This approach ensures that the entity is either created or brought up-to-date, depending on
      * its existence in the database.</p>
      *
+     * <p>When the entity is routed to an {@link #update(Entity) update} or {@link #insert(Entity) insert}, the
+     * corresponding lifecycle callbacks ({@code beforeUpdate}/{@code afterUpdate} or
+     * {@code beforeInsert}/{@code afterInsert}) are fired. When the entity goes through the SQL-level upsert
+     * path, the {@code beforeUpsert}/{@code afterUpsert} callbacks are fired instead.</p>
+     *
      * @param entity the entity to be inserted or updated. The entity must be non-null and contain valid data
      *               for insertion or update in the database.
      * @throws PersistenceException if the upsert operation fails due to database issues, such as connectivity
@@ -551,6 +927,32 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void upsert(@Nonnull E entity) {
+        if (isUpsertUpdate(entity)) {
+            update(entity);
+            return;
+        }
+        if (isUpsertInsert(entity)) {
+            insert(entity);
+            return;
+        }
+        requireNonJoinedSealedEntity();
+        entity = fireBeforeUpsert(entity);
+        doUpsert(entity);
+        fireAfterUpsert(entity);
+    }
+
+    /**
+     * Performs the SQL-level upsert operation for a single entity, without lifecycle callbacks.
+     *
+     * <p>Dialect-specific subclasses must override this method to provide the actual upsert SQL logic
+     * (e.g., {@code INSERT ... ON CONFLICT} for PostgreSQL, {@code INSERT ... ON DUPLICATE KEY} for MySQL,
+     * {@code MERGE} for Oracle/SQL Server).</p>
+     *
+     * @param entity the entity to upsert.
+     * @throws PersistenceException if the upsert operation is not available or fails.
+     * @since 1.9
+     */
+    protected void doUpsert(@Nonnull E entity) {
         throw upsertNotAvailable();
     }
 
@@ -570,6 +972,31 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public ID upsertAndFetchId(@Nonnull E entity) {
+        if (isUpsertUpdate(entity)) {
+            update(entity);
+            return entity.id();
+        }
+        if (isUpsertInsert(entity)) {
+            return insertAndFetchId(entity);
+        }
+        requireNonJoinedSealedEntity();
+        entity = fireBeforeUpsert(entity);
+        ID id = doUpsertAndFetchId(entity);
+        fireAfterUpsert(entity);
+        return id;
+    }
+
+    /**
+     * Performs the SQL-level upsert operation for a single entity and returns its ID, without lifecycle callbacks.
+     *
+     * <p>Dialect-specific subclasses must override this method to provide the actual upsert SQL logic.</p>
+     *
+     * @param entity the entity to upsert.
+     * @return the ID of the upserted entity.
+     * @throws PersistenceException if the upsert operation is not available or fails.
+     * @since 1.9
+     */
+    protected ID doUpsertAndFetchId(@Nonnull E entity) {
         throw upsertNotAvailable();
     }
 
@@ -591,14 +1018,15 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public E upsertAndFetch(@Nonnull E entity) {
-        throw upsertNotAvailable();
+        return getById(upsertAndFetchId(entity));
     }
 
     /**
      * Deletes an entity from the database.
      *
-     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database and is correctly identified by its primary key.</p>
+     * <p>This method removes an existing entity from the database. The entity must exist in the database; if it does
+     * not, a {@link PersistenceException} is thrown. Unlike {@link #deleteById} and {@link #deleteByRef}, this method
+     * is strict rather than idempotent, because possessing the full entity implies the caller expects it to exist.</p>
      *
      * @param entity the entity to delete. The entity must exist in the database and should be correctly identified by
      *               its primary key.
@@ -609,11 +1037,17 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
     @Override
     public void delete(@Nonnull E entity) {
         validateDelete(entity);
+        fireBeforeDelete(entity);
         entityCache().ifPresent(cache -> {
             if (!model.isDefaultPrimaryKey(entity.id())) {
                 cache.remove(entity.id());
             }
         });
+        if (model.isJoinedInheritance()) {
+            JoinedEntityHelper.delete(ormTemplate, model, entity);
+            fireAfterDelete(entity);
+            return;
+        }
         // Don't use query builder to prevent WHERE IN clause.
         int result = ormTemplate.query(TemplateString.raw("""
                 DELETE FROM \0
@@ -623,58 +1057,54 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         if (result != 1) {
             throw new PersistenceException("Delete failed.");
         }
+        fireAfterDelete(entity);
     }
 
     /**
      * Deletes an entity from the database based on its primary key.
      *
-     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database.</p>
+     * <p>This method ensures the entity with the given primary key is removed from the database. If the entity does
+     * not exist, the operation completes successfully without error (idempotent behavior).</p>
      *
      * @param id the primary key of the entity to delete.
-     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
-     *                              being found in the database, violations of database constraints, connectivity
-     *                              issues, or if the entity parameter is null.
+     * @throws PersistenceException if the deletion operation fails due to violations of database constraints,
+     *                              connectivity issues, or if the id parameter is null.
      */
     @Override
     public void deleteById(@Nonnull ID id) {
         entityCache().ifPresent(cache -> cache.remove(id));
+        if (model.isJoinedInheritance()) {
+            JoinedEntityHelper.deleteById(ormTemplate, model, id);
+            return;
+        }
         // Don't use query builder to prevent WHERE IN clause.
-        int result = ormTemplate.query(TemplateString.raw("""
+        ormTemplate.query(TemplateString.raw("""
                 DELETE FROM \0
                 WHERE \0""", model.type(), id))
                 .managed()
                 .executeUpdate();
-        if (result != 1) {
-            throw new PersistenceException("Delete failed.");
-        }
     }
 
     /**
-     * Deletes an entity from the database.
+     * Deletes an entity from the database by its reference.
      *
-     * <p>This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database and is correctly identified by its primary key.</p>
+     * <p>This method ensures the entity identified by the given reference is removed from the database. If the entity
+     * does not exist, the operation completes successfully without error (idempotent behavior).</p>
      *
-     * @param ref the entity to delete. The entity must exist in the database and should be correctly identified by
-     *            its ref.
-     * @throws PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
-     *                              being found in the database, violations of database constraints, connectivity
-     *                              issues, or if the entity parameter is null.
+     * @param ref the reference to the entity to delete.
+     * @throws PersistenceException if the deletion operation fails due to violations of database constraints,
+     *                              connectivity issues, or if the ref parameter is null.
      */
     @Override
     public void deleteByRef(@Nonnull Ref<E> ref) {
         //noinspection unchecked
         entityCache().ifPresent(cache -> cache.remove((ID) ref.id()));
         // Don't use query builder to prevent WHERE IN clause.
-        int result = ormTemplate.query(TemplateString.raw("""
+        ormTemplate.query(TemplateString.raw("""
                 DELETE FROM \0
                 WHERE \0""", model.type(), ref))
                 .managed()
                 .executeUpdate();
-        if (result != 1) {
-            throw new PersistenceException("Delete failed.");
-        }
     }
 
     /**
@@ -692,12 +1122,28 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         entityCache().ifPresent(EntityCache::clear);
         // Don't use query builder to prevent WHERE IN clause.
         ormTemplate.query(TemplateString.raw("DELETE FROM \0", model.type()))
-                .safe() // Omission of WHERE clause is intentional.
+                .unsafe() // Omission of WHERE clause is intentional.
                 .managed()
                 .executeUpdate();
     }
 
     // List based methods.
+
+    /**
+     * Inserts a batch of joined (sealed/polymorphic) entities into both base and extension tables.
+     *
+     * <p>This method delegates to {@link JoinedEntityHelper#insertBatch} by default. Dialect-specific
+     * implementations may override this method to handle database-specific limitations, such as SQL Server's
+     * lack of support for {@code getGeneratedKeys()} after {@code executeBatch()}.</p>
+     *
+     * @param entities the entities to insert (already validated and transformed by callbacks).
+     * @return the list of generated (or provided) primary keys, one per entity.
+     * @throws PersistenceException if the insert fails.
+     * @since 1.9
+     */
+    protected List<ID> insertJoinedBatch(@Nonnull List<E> entities) {
+        return JoinedEntityHelper.insertBatch(ormTemplate, model, entities);
+    }
 
     /**
      * Inserts a collection of entities into the database in batches.
@@ -755,6 +1201,15 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public List<ID> insertAndFetchIds(@Nonnull Iterable<E> entities) {
+        if (model.isJoinedInheritance()) {
+            return chunked(toStream(entities), defaultBatchSize, batch -> {
+                List<E> transformed = batch.stream().map(this::fireBeforeInsert).toList();
+                transformed.forEach(this::validateInsert);
+                List<ID> ids = insertJoinedBatch(transformed);
+                transformed.forEach(this::fireAfterInsert);
+                return ids.stream();
+            }).toList();
+        }
         try (var query = prepareInsertQuery()) {
             return chunked(toStream(entities), defaultBatchSize,
                     batch -> insertAndFetchIds(batch, query).stream()
@@ -838,7 +1293,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void upsert(@Nonnull Iterable<E> entities) {
-        throw upsertNotAvailable();
+        upsert(toStream(entities), defaultBatchSize);
     }
 
     /**
@@ -859,7 +1314,57 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public List<ID> upsertAndFetchIds(@Nonnull Iterable<E> entities) {
-        throw upsertNotAvailable();
+        requireNonJoinedSealedEntity();
+        Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
+        LazySupplier<PreparedQuery> insertQuery = isAutoGeneratedPrimaryKey()
+                ? new LazySupplier<>(this::prepareInsertQuery) : null;
+        LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
+        try {
+            var result = new ArrayList<ID>();
+            var entityCache = entityCache();
+            partitioned(toStream(entities), defaultBatchSize, entity -> {
+                if (isUpsertUpdate(entity)) {
+                    var dirty = getDirty(entity, entityCache.orElse(null));
+                    if (dirty.isEmpty()) {
+                        return UpsertNoOp.INSTANCE;
+                    }
+                    return new UpsertUpdateKey(dirty.get());
+                }
+                if (isUpsertInsert(entity)) {
+                    return UpsertInsertKey.INSTANCE;
+                }
+                return UpsertSqlKey.INSTANCE;
+            }, getMaxShapes(), new UpsertUpdateKey()).forEach(partition -> {
+                switch (partition.key()) {
+                    case UpsertNoOp ignore -> result.addAll(partition.chunk().stream().map(E::id).toList());
+                    case UpsertInsertKey ignore -> result.addAll(insertAndFetchIds(partition.chunk(), insertQuery.get()));
+                    case UpsertSqlKey ignore -> {
+                        List<E> batch = !entityCallbacks.isEmpty()
+                                ? partition.chunk().stream().map(this::fireBeforeUpsert).toList()
+                                : partition.chunk();
+                        result.addAll(doUpsertAndFetchIdsBatch(batch, upsertQuery.get(), entityCache.orElse(null)));
+                        if (!entityCallbacks.isEmpty()) {
+                            batch.forEach(this::fireAfterUpsert);
+                        }
+                    }
+                    case UpsertUpdateKey u -> {
+                        List<E> batch = !entityCallbacks.isEmpty()
+                                ? partition.chunk().stream().map(this::fireBeforeUpdate).toList()
+                                : partition.chunk();
+                        result.addAll(updateAndFetchIds(batch,
+                                updateQueries.computeIfAbsent(u.fields(), this::prepareUpdateQuery),
+                                entityCache.orElse(null)));
+                    }
+                }
+            });
+            return result;
+        } finally {
+            var streams = updateQueries.values().stream();
+            if (insertQuery != null) {
+                streams = Stream.concat(streams, insertQuery.value().stream());
+            }
+            closeQuietly(Stream.concat(streams, upsertQuery.value().stream()));
+        }
     }
 
     /**
@@ -882,7 +1387,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public List<E> upsertAndFetch(@Nonnull Iterable<E> entities) {
-        throw upsertNotAvailable();
+        return findAllById(upsertAndFetchIds(entities));
     }
 
     /**
@@ -973,6 +1478,15 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void insert(@Nonnull Stream<E> entities, int batchSize) {
+        if (model.isJoinedInheritance()) {
+            chunked(entities, batchSize).forEach(batch -> {
+                List<E> transformed = batch.stream().map(this::fireBeforeInsert).toList();
+                transformed.forEach(this::validateInsert);
+                insertJoinedBatch(transformed);
+                transformed.forEach(this::fireAfterInsert);
+            });
+            return;
+        }
         try (var query = prepareInsertQuery()) {
             chunked(entities, batchSize)
                     .forEach(batch -> insert(batch, query));
@@ -996,6 +1510,15 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void insert(@Nonnull Stream<E> entities, int batchSize, boolean ignoreAutoGenerate) {
+        if (model.isJoinedInheritance()) {
+            chunked(entities, batchSize).forEach(batch -> {
+                List<E> transformed = batch.stream().map(this::fireBeforeInsert).toList();
+                transformed.forEach(e -> validateInsert(e, ignoreAutoGenerate));
+                insertJoinedBatch(transformed);
+                transformed.forEach(this::fireAfterInsert);
+            });
+            return;
+        }
         try (var query = prepareInsertQuery(ignoreAutoGenerate)) {
             chunked(entities, batchSize)
                     .forEach(batch -> insert(batch, query, ignoreAutoGenerate));
@@ -1024,11 +1547,17 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         if (batch.isEmpty()) {
             return;
         }
-        batch.stream().map(e -> validateInsert(e, ignoreAutoGenerate)).forEach(query::addBatch);
+        List<E> transformed = batch.stream()
+                .map(this::fireBeforeInsert)
+                .toList();
+        transformed.stream()
+                .map(e -> validateInsert(e, ignoreAutoGenerate))
+                .forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 1)) {
             throw new PersistenceException("Batch insert failed.");
         }
+        transformed.forEach(this::fireAfterInsert);
     }
 
     protected List<ID> insertAndFetchIds(@Nonnull List<E> batch, @Nonnull PreparedQuery query) {
@@ -1040,17 +1569,23 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         if (batch.isEmpty()) {
             return List.of();
         }
-        batch.stream().map(e -> validateInsert(e, ignoreAutoGenerate)).forEach(query::addBatch);
+        List<E> transformed = batch.stream()
+                .map(this::fireBeforeInsert)
+                .toList();
+        transformed.stream()
+                .map(e -> validateInsert(e, ignoreAutoGenerate))
+                .forEach(query::addBatch);
         int[] result = query.executeBatch();
         if (IntStream.of(result).anyMatch(r -> r != 1)) {
             throw new PersistenceException("Batch insert failed.");
         }
+        transformed.forEach(this::fireAfterInsert);
         if (isAutoGeneratedPrimaryKey() && !ignoreAutoGenerate) {
             try (var stream = query.getGeneratedKeys(model.primaryKeyType())) {
                 return stream.toList();
             }
         }
-        return batch.stream().map(Entity::id).toList();
+        return transformed.stream().map(Entity::id).toList();
     }
 
     /**
@@ -1096,16 +1631,34 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void update(@Nonnull Stream<E> entities, int batchSize) {
+        if (model.isJoinedInheritance()) {
+            Stream<E> mapped = entityCallbacks.isEmpty()
+                    ? entities
+                    : entities.map(this::fireBeforeUpdate);
+            var entityCache = entityCache();
+            chunked(mapped, batchSize).forEach(batch -> {
+                batch.forEach(this::validateUpdate);
+                entityCache.ifPresent(cache -> batch.stream()
+                        .filter(e -> !model.isDefaultPrimaryKey(e.id()))
+                        .forEach(e -> cache.remove(e.id())));
+                JoinedEntityHelper.updateBatch(ormTemplate, model, batch);
+                batch.forEach(this::fireAfterUpdate);
+            });
+            return;
+        }
         Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
         try {
             var entityCache = entityCache();
-            partitioned(entities, batchSize, entity -> {
+            Stream<E> mapped = entityCallbacks.isEmpty()
+                    ? entities
+                    : entities.map(this::fireBeforeUpdate);
+            partitioned(mapped, batchSize, entity -> {
                 var dirty = getDirty(entity, entityCache.orElse(null));
                 if (dirty.isEmpty()) {
                     return NoOpKey.INSTANCE;
                 }
                 return new UpdateKey(dirty.get());
-            }, getMaxShapes(), new UpdateKey()).forEach(partition -> {
+            }, dirtySupport.getMaxShapes(), new UpdateKey()).forEach(partition -> {
                 switch (partition.key()) {
                     case NoOpKey ignore -> {}
                     case UpdateKey u -> update(partition.chunk(),
@@ -1128,6 +1681,16 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     protected Optional<Set<Metamodel<?, ?>>> getDirty(@Nonnull E entity, @Nullable EntityCache<E, ID> cache) {
         return dirtySupport.getDirty(entity, cache);
+    }
+
+    /**
+     * Returns the maximum number of distinct update shapes that may be generated when dynamic updates are enabled.
+     *
+     * @return the maximum number of allowed update shapes.
+     * @since 1.9
+     */
+    protected int getMaxShapes() {
+        return dirtySupport.getMaxShapes();
     }
 
     protected PreparedQuery prepareUpdateQuery(@Nonnull Set<Metamodel<?, ?>> fields) {
@@ -1155,6 +1718,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         } else if (IntStream.of(result).anyMatch(r -> r != 1)) {
             throw new PersistenceException("Batch update failed.");
         }
+        batch.forEach(this::fireAfterUpdate);
     }
 
     protected List<ID> updateAndFetchIds(@Nonnull List<E> batch, @Nonnull PreparedQuery query, @Nullable EntityCache<E, ID> cache) {
@@ -1173,6 +1737,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
         } else if (IntStream.of(result).anyMatch(r -> r != 1)) {
             throw new PersistenceException("Batch update failed.");
         }
+        batch.forEach(this::fireAfterUpdate);
         return batch.stream().map(Entity::id).toList();
     }
 
@@ -1195,7 +1760,24 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void upsert(@Nonnull Stream<E> entities) {
-        throw upsertNotAvailable();
+        upsert(entities, defaultBatchSize);
+    }
+
+    // Partition keys for the upsert batch routing.
+    private sealed interface UpsertPartitionKey {}
+    private static final class UpsertNoOp implements UpsertPartitionKey {
+        private static final UpsertNoOp INSTANCE = new UpsertNoOp();
+    }
+    private static final class UpsertInsertKey implements UpsertPartitionKey {
+        private static final UpsertInsertKey INSTANCE = new UpsertInsertKey();
+    }
+    private static final class UpsertSqlKey implements UpsertPartitionKey {
+        private static final UpsertSqlKey INSTANCE = new UpsertSqlKey();
+    }
+    private record UpsertUpdateKey(@Nonnull Set<Metamodel<?, ?>> fields) implements UpsertPartitionKey {
+        UpsertUpdateKey() {
+            this(Set.of()); // All fields.
+        }
     }
 
     /**
@@ -1216,6 +1798,96 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void upsert(@Nonnull Stream<E> entities, int batchSize) {
+        requireNonJoinedSealedEntity();
+        Map<Set<Metamodel<?, ?>>, PreparedQuery> updateQueries = new HashMap<>();
+        LazySupplier<PreparedQuery> insertQuery = isAutoGeneratedPrimaryKey()
+                ? new LazySupplier<>(this::prepareInsertQuery) : null;
+        LazySupplier<PreparedQuery> upsertQuery = new LazySupplier<>(this::prepareUpsertQuery);
+        try {
+            var entityCache = entityCache();
+            partitioned(entities, batchSize, entity -> {
+                if (isUpsertUpdate(entity)) {
+                    var dirty = getDirty(entity, entityCache.orElse(null));
+                    if (dirty.isEmpty()) {
+                        return UpsertNoOp.INSTANCE;
+                    }
+                    return new UpsertUpdateKey(dirty.get());
+                }
+                if (isUpsertInsert(entity)) {
+                    return UpsertInsertKey.INSTANCE;
+                }
+                return UpsertSqlKey.INSTANCE;
+            }, getMaxShapes(), new UpsertUpdateKey()).forEach(partition -> {
+                switch (partition.key()) {
+                    case UpsertNoOp ignore -> {}
+                    case UpsertInsertKey ignore -> insert(partition.chunk(), insertQuery.get());
+                    case UpsertSqlKey ignore -> {
+                        List<E> batch = !entityCallbacks.isEmpty()
+                                ? partition.chunk().stream().map(this::fireBeforeUpsert).toList()
+                                : partition.chunk();
+                        doUpsertBatch(batch, upsertQuery.get(), entityCache.orElse(null));
+                        if (!entityCallbacks.isEmpty()) {
+                            batch.forEach(this::fireAfterUpsert);
+                        }
+                    }
+                    case UpsertUpdateKey u -> {
+                        List<E> batch = !entityCallbacks.isEmpty()
+                                ? partition.chunk().stream().map(this::fireBeforeUpdate).toList()
+                                : partition.chunk();
+                        update(batch,
+                                updateQueries.computeIfAbsent(u.fields(), this::prepareUpdateQuery),
+                                entityCache.orElse(null));
+                    }
+                }
+            });
+        } finally {
+            var streams = updateQueries.values().stream();
+            if (insertQuery != null) {
+                streams = Stream.concat(streams, insertQuery.value().stream());
+            }
+            closeQuietly(Stream.concat(streams, upsertQuery.value().stream()));
+        }
+    }
+
+    /**
+     * Prepares the SQL-level upsert query. Dialect-specific subclasses must override this method to provide
+     * the dialect-specific upsert SQL (e.g., {@code INSERT ... ON CONFLICT}, {@code MERGE}).
+     *
+     * @return the prepared upsert query.
+     * @since 1.9
+     */
+    protected PreparedQuery prepareUpsertQuery() {
+        throw upsertNotAvailable();
+    }
+
+    /**
+     * Performs the SQL-level upsert for a batch of entities, without lifecycle callbacks.
+     *
+     * <p>Dialect-specific subclasses must override this method to provide the actual batch upsert SQL logic.</p>
+     *
+     * @param batch the batch of entities to upsert.
+     * @param query the prepared upsert query.
+     * @param cache the entity cache, or {@code null} if not available.
+     * @since 1.9
+     */
+    protected void doUpsertBatch(@Nonnull List<E> batch, @Nonnull PreparedQuery query,
+                                 @Nullable EntityCache<E, ID> cache) {
+        throw upsertNotAvailable();
+    }
+
+    /**
+     * Performs the SQL-level upsert for a batch of entities and returns their IDs, without lifecycle callbacks.
+     *
+     * <p>Dialect-specific subclasses must override this method to provide the actual batch upsert SQL logic.</p>
+     *
+     * @param batch the batch of entities to upsert.
+     * @param query the prepared upsert query.
+     * @param cache the entity cache, or {@code null} if not available.
+     * @return the list of IDs of the upserted entities.
+     * @since 1.9
+     */
+    protected List<ID> doUpsertAndFetchIdsBatch(@Nonnull List<E> batch, @Nonnull PreparedQuery query,
+                                                @Nullable EntityCache<E, ID> cache) {
         throw upsertNotAvailable();
     }
 
@@ -1255,13 +1927,31 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void delete(@Nonnull Stream<E> entities, int batchSize) {
+        if (model.isJoinedInheritance()) {
+            var entityCache = entityCache();
+            chunked(entities, batchSize).forEach(batch -> {
+                batch.forEach(e -> {
+                    validateDelete(e);
+                    fireBeforeDelete(e);
+                });
+                entityCache.ifPresent(cache -> batch.stream()
+                        .filter(e -> !model.isDefaultPrimaryKey(e.id()))
+                        .forEach(e -> cache.remove(e.id())));
+                JoinedEntityHelper.deleteBatch(ormTemplate, model, batch);
+                batch.forEach(this::fireAfterDelete);
+            });
+            return;
+        }
         var bindVars = ormTemplate.createBindVars();
         var entityCache = entityCache();
         try (var query = ormTemplate.query(TemplateString.raw("""
                 DELETE FROM \0
                 WHERE \0""", model.type(), bindVars)).managed().prepare()) {
             chunked(entities, batchSize).forEach(chunk -> {
-                chunk.stream().map(this::validateDelete).forEach(query::addBatch);
+                chunk.stream().map(this::validateDelete).forEach(e -> {
+                    fireBeforeDelete(e);
+                    query.addBatch(e);
+                });
                 entityCache.ifPresent(cache -> chunk.stream()
                         .filter(e -> !model.isDefaultPrimaryKey(e.id()))
                         .forEach(e -> cache.remove(e.id())));
@@ -1269,6 +1959,7 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                 if (IntStream.of(result).anyMatch(r -> r != 1)) {
                     throw new PersistenceException("Batch delete failed.");
                 }
+                chunk.forEach(this::fireAfterDelete);
             });
         }
     }
@@ -1309,6 +2000,17 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
      */
     @Override
     public void deleteByRef(@Nonnull Stream<Ref<E>> refs, int batchSize) {
+        if (model.isJoinedInheritance()) {
+            var entityCache = entityCache();
+            chunked(refs, batchSize).forEach(chunk -> {
+                //noinspection unchecked
+                entityCache.ifPresent(cache -> chunk.stream()
+                        .filter(r -> !model.isDefaultPrimaryKey((ID) r.id()))
+                        .forEach(r -> cache.remove((ID) r.id())));
+                JoinedEntityHelper.deleteBatchByRef(ormTemplate, model, chunk);
+            });
+            return;
+        }
         var entityCache = entityCache();
         chunked(refs, batchSize).forEach(chunk -> {
             //noinspection unchecked
@@ -1316,14 +2018,11 @@ public class EntityRepositoryImpl<E extends Entity<ID>, ID>
                     .filter(r -> !model.isDefaultPrimaryKey((ID) r.id()))
                     .forEach(r -> cache.remove((ID) r.id())));
             // Don't use query builder to prevent WHERE IN clause.
-            int result = ormTemplate.query(TemplateString.raw("""
+            ormTemplate.query(TemplateString.raw("""
                     DELETE FROM \0
                     WHERE \0""", model.type(), chunk))
                     .managed()
                     .executeUpdate();
-            if (result < chunk.stream().distinct().count()) {
-                throw new PersistenceException("Delete failed.");
-            }
         });
     }
 

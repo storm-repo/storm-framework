@@ -10,5 +10,5 @@ import st.orm.PK
 @JvmRecord
 data class City(
     @PK val id: Int = 0,
-    val name: String
+    val name: String,
 ) : Entity<Int>

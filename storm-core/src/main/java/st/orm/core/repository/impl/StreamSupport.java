@@ -15,9 +15,12 @@
  */
 package st.orm.core.repository.impl;
 
+import static java.lang.Integer.MAX_VALUE;
+import static java.util.Objects.requireNonNull;
+import static java.util.Spliterators.spliteratorUnknownSize;
+
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -27,10 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
-
-import static java.lang.Integer.MAX_VALUE;
-import static java.util.Objects.requireNonNull;
-import static java.util.Spliterators.spliteratorUnknownSize;
 
 /**
  * Helper class for working with streams.

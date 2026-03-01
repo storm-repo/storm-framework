@@ -1,3 +1,6 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Upserts
 
 Many applications need to create a record if it does not exist, or update it if it does. A naive approach using separate SELECT-then-INSERT-or-UPDATE logic introduces race conditions: two concurrent requests can both see that a row is missing and both attempt to insert, causing a constraint violation. Even with application-level locking, this approach adds complexity and reduces throughput.
@@ -8,7 +11,8 @@ Use upsert when you need idempotent write operations, data synchronization from 
 
 ---
 
-## Kotlin
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ### Single Upsert
 
@@ -55,9 +59,8 @@ transaction {
 }
 ```
 
----
-
-## Java
+</TabItem>
+<TabItem value="java" label="Java">
 
 ### Single Upsert
 
@@ -117,6 +120,9 @@ List<User> users = List.of(
 orm.entity(User.class).upsert(users);
 ```
 
+</TabItem>
+</Tabs>
+
 ---
 
 ## How Upsert Works
@@ -136,11 +142,27 @@ Storm does not implement upsert logic in application code. Instead, it delegates
 - **MySQL/MariaDB** upserts trigger the update branch when an insert would violate the primary key **or any unique constraint**. When multiple unique constraints exist, the database decides which conflict applies. Be aware of this if your table has multiple unique constraints.
 - **Oracle** and **MS SQL Server** define upsert behavior through explicit match conditions in the `MERGE` statement, giving you control over how conflicts are detected.
 
+## Failure Modes
+
+Understanding how upserts fail helps you diagnose issues quickly and design your schema correctly.
+
+**Missing dialect dependency:** Upsert requires a database-specific dialect module (e.g., `storm-postgresql`, `storm-mysql`). If no dialect is on the classpath, Storm throws an `UnsupportedOperationException` at runtime when you call `upsert()`. The error message indicates that the current dialect does not support upsert operations. Add the appropriate dialect dependency to resolve this. See [Dialects](dialects.md) for the full list.
+
+**Missing unique constraint:** Upsert relies on database-level unique constraints to detect conflicts. If the table has no unique constraint (or the constraint does not cover the fields you expect), the behavior depends on the database:
+- **PostgreSQL:** The `ON CONFLICT` clause references a specific constraint. If the constraint does not exist, the database returns a SQL error.
+- **MySQL/MariaDB:** Without any unique constraint, every row is treated as a new insert. No update branch is triggered, and duplicates accumulate silently.
+- **Oracle/MS SQL Server:** The `MERGE` statement's match condition determines conflict detection. If the match condition references columns without a unique constraint, concurrent upserts may produce duplicates.
+
+In all cases, Storm does **not** fall back to a plain insert. It always generates the upsert SQL for the configured dialect. If the SQL fails at the database level, the exception propagates to the caller.
+
+**Joined sealed entities:** Upsert is not supported for [Joined Table](polymorphism.md#joined-table-inheritance) polymorphic entities. SQL-level upsert constructs (`ON CONFLICT`, `MERGE`) are fundamentally single-table operations. Attempting an upsert on a joined sealed entity throws an `UnsupportedOperationException`. Use `insert()` and `update()` separately instead.
+
 ## Requirements
 
-1. **Database dialect** -- include the appropriate dialect dependency for your database (see [Dialects](dialects.md))
-2. **Unique constraints** -- the table must have a primary key or unique constraint for conflict detection
-3. **Null ID for new inserts** -- pass `null` (Java) or default `0` (Kotlin) for the primary key field to allow the database to generate a value
+1. **Database dialect** - include the appropriate dialect dependency for your database (see [Dialects](dialects.md))
+2. **Unique constraints** - the table must have a primary key or unique constraint for conflict detection
+3. **Null ID for new inserts** - pass default `0` (Kotlin) or `null` (Java) for the primary key field to allow the database to generate a value
+4. **Not a joined sealed entity** - upsert is not supported for [Joined Table](polymorphism.md#joined-table-inheritance) polymorphic entities, because SQL-level upsert constructs (`ON CONFLICT`, `MERGE`, etc.) are fundamentally single-table operations. Use `insert()` and `update()` separately instead
 
 ## Common Use Cases
 
@@ -204,8 +226,8 @@ orm.entity(User.class).upsert(new User("alice@example.com", "Alice", birthDate, 
 
 ## Tips
 
-1. **Use upsert for idempotent operations** -- safe to retry without creating duplicates
-2. **Check your constraints** -- upsert relies on unique constraints to detect conflicts
-3. **Use upsertAndFetch for generated IDs** (Java) -- get the actual ID assigned by the database; Kotlin's `orm upsert` returns the entity with the ID populated
-4. **Include the dialect dependency** -- upsert requires database-specific SQL syntax; see [Dialects](dialects.md)
-5. **Be mindful of multiple unique constraints** -- especially on MySQL/MariaDB, where any unique constraint can trigger the update branch
+1. **Use upsert for idempotent operations** - safe to retry without creating duplicates
+2. **Check your constraints** - upsert relies on unique constraints to detect conflicts
+3. **Use upsertAndFetch for generated IDs** (Java) - get the actual ID assigned by the database; Kotlin's `orm upsert` returns the entity with the ID populated
+4. **Include the dialect dependency** - upsert requires database-specific SQL syntax; see [Dialects](dialects.md)
+5. **Be mindful of multiple unique constraints** - especially on MySQL/MariaDB, where any unique constraint can trigger the update branch

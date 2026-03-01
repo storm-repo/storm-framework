@@ -22,9 +22,17 @@ package st.orm;
  *
  * <p>Define a projection record based on the {@code basket_summary_view} view, with a {@code basket_id} primary
  * key.
+ *
+ * <p>Java:
  * <pre>{@code
  * @DbTable("basket_summary_view")
  * record BasketSummary(@PK @FK Basket basket, int itemCount, BigDecimal totalPrice) implements Projection<Integer> {}
+ * }</pre>
+ *
+ * <p>Kotlin:
+ * <pre>{@code
+ * @DbTable("basket_summary_view")
+ * data class BasketSummary(@PK @FK val basket: Basket, val itemCount: Int, val totalPrice: BigDecimal) : Projection<Int>
  * }</pre>
  *
  * <p>Then, you can use the projection in a query like this:
@@ -36,9 +44,16 @@ package st.orm;
  *     .getResultList();
  * }</pre>
  *
- * <p>Or use it as a foreign key in an entity:
+ * <p>Or use it as a foreign key in an entity.
+ *
+ * <p>Java:
  * <pre>{@code
  * record User(@PK int id, @FK("basket_id") BasketSummary basketSummary) implements Entity<Integer> {}
+ * }</pre>
+ *
+ * <p>Kotlin:
+ * <pre>{@code
+ * data class User(@PK val id: Int, @FK("basket_id") val basketSummary: BasketSummary) : Entity<Int>
  * }</pre>
  *
  * <p>Then, you can query all users having a basket with at least 1 item:</p>

@@ -22,6 +22,7 @@ import st.orm.Metamodel
 import st.orm.Operator.EQUALS
 import st.orm.Operator.IN
 import st.orm.Ref
+import st.orm.Slice
 import st.orm.template.*
 import kotlin.reflect.KClass
 
@@ -258,9 +259,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a new query builder for the specialized `selectType`.
      * @param <R> the result type of the query.
      */
-    fun <R : Any> select(selectType: KClass<R>, template: TemplateBuilder): QueryBuilder<E, R, ID> {
-        return select(selectType, template.build())
-    }
+    fun <R : Any> select(selectType: KClass<R>, template: TemplateBuilder): QueryBuilder<E, R, ID> = select(selectType, template.build())
 
     /**
      * Creates a new query builder for the specialized `selectType` and specialized `template` for the select clause.
@@ -493,8 +492,9 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * Deletes an entity from the database.
      *
      *
-     * This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database and is correctly identified by its primary key.
+     * This method removes an existing entity from the database. The entity must exist in the database; if it does
+     * not, a [st.orm.PersistenceException] is thrown. Unlike [deleteById] and [deleteByRef], this method is strict
+     * rather than idempotent, because possessing the full entity implies the caller expects it to exist.
      *
      * @param entity the entity to delete. The entity must exist in the database and should be correctly identified by
      * its primary key.
@@ -508,28 +508,25 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * Deletes an entity from the database based on its primary key.
      *
      *
-     * This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database.
+     * This method ensures the entity with the given primary key is removed from the database. If the entity does
+     * not exist, the operation completes successfully without error (idempotent behavior).
      *
      * @param id the primary key of the entity to delete.
-     * @throws st.orm.PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
-     * being found in the database, violations of database constraints, connectivity
-     * issues, or if the entity parameter is null.
+     * @throws st.orm.PersistenceException if the deletion operation fails due to violations of database constraints,
+     * connectivity issues, or if the id parameter is null.
      */
     fun deleteById(id: ID)
 
     /**
-     * Deletes an entity from the database.
+     * Deletes an entity from the database by its reference.
      *
      *
-     * This method removes an existing entity from the database. It is important to ensure that the entity passed for
-     * deletion exists in the database and is correctly identified by its primary key.
+     * This method ensures the entity identified by the given reference is removed from the database. If the entity
+     * does not exist, the operation completes successfully without error (idempotent behavior).
      *
-     * @param ref the entity to delete. The entity must exist in the database and should be correctly identified by
-     * its ref.
-     * @throws st.orm.PersistenceException if the deletion operation fails. Reasons for failure might include the entity not
-     * being found in the database, violations of database constraints, connectivity
-     * issues, or if the entity parameter is null.
+     * @param ref the reference to the entity to delete.
+     * @throws st.orm.PersistenceException if the deletion operation fails due to violations of database constraints,
+     * connectivity issues, or if the ref parameter is null.
      */
     fun deleteByRef(ref: Ref<E>)
 
@@ -607,6 +604,50 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * connectivity problems or query execution errors.
      */
     fun getByRef(ref: Ref<E>): E
+
+    // Singular findBy / getBy methods for unique keys.
+
+    /**
+     * Retrieves an entity by the value of a unique key field.
+     *
+     * @param key the metamodel key identifying a unique column.
+     * @param value the value to match.
+     * @return the entity matching the given key value, or null if none exists.
+     * @since 1.9
+     */
+    fun <V : Any> findBy(key: Metamodel.Key<E, V>, value: V): E?
+
+    /**
+     * Retrieves an entity by the value of a unique key field.
+     *
+     * @param key the metamodel key identifying a unique column.
+     * @param value the value to match.
+     * @return the entity matching the given key value.
+     * @throws st.orm.NoResultException if no entity is found matching the given key value.
+     * @since 1.9
+     */
+    fun <V : Any> getBy(key: Metamodel.Key<E, V>, value: V): E
+
+    /**
+     * Retrieves an entity by the ref value of a unique key field that references another entity.
+     *
+     * @param key the metamodel key identifying a unique foreign key column.
+     * @param value the ref value to match.
+     * @return the entity matching the given ref value, or null if none exists.
+     * @since 1.9
+     */
+    fun <V : Data> findByRef(key: Metamodel.Key<E, V>, value: Ref<V>): E?
+
+    /**
+     * Retrieves an entity by the ref value of a unique key field that references another entity.
+     *
+     * @param key the metamodel key identifying a unique foreign key column.
+     * @param value the ref value to match.
+     * @return the entity matching the given ref value.
+     * @throws st.orm.NoResultException if no entity is found matching the given ref value.
+     * @since 1.9
+     */
+    fun <V : Data> getByRef(key: Metamodel.Key<E, V>, value: Ref<V>): E
 
     // List based methods.
 
@@ -1165,7 +1206,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * violation of database constraints, connectivity issues, or if any entity in the
      * flow is null.
      */
-    fun insertAndFetchIds(entities: Flow<E>, batchSize: Int) : Flow<ID>
+    fun insertAndFetchIds(entities: Flow<E>, batchSize: Int): Flow<ID>
 
     /**
      * Inserts a flow of entities into the database with the insertion process divided into batches of the specified size,
@@ -1438,8 +1479,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      *
      * @return a list containing all entities.
      */
-    fun findAllRef(): List<Ref<E>> =
-        selectRef().resultList
+    fun findAllRef(): List<Ref<E>> = selectRef().resultList
 
     /**
      * Retrieves all entities of type [E] from the repository.
@@ -1454,8 +1494,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      *
      * @return a sequence containing all entities.
      */
-    fun selectAllRef(): Flow<Ref<E>> =
-        selectRef().resultFlow
+    fun selectAllRef(): Flow<Ref<E>> = selectRef().resultFlow
 
     /**
      * Retrieves an optional entity of type [E] based on a single field and its value.
@@ -1465,8 +1504,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V> findBy(field: Metamodel<E, V>, value: V): E? =
-        select().where(field, EQUALS, value).optionalResult
+    fun <V> findBy(field: Metamodel<E, V>, value: V): E? = select().where(field, EQUALS, value).optionalResult
 
     /**
      * Retrieves an optional entity of type [T] based on a single field and its value.
@@ -1476,8 +1514,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V : Data> findBy(field: Metamodel<E, V>, value: Ref<V>): E? =
-        select().where(field, value).optionalResult
+    fun <V : Data> findBy(field: Metamodel<E, V>, value: Ref<V>): E? = select().where(field, value).optionalResult
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -1487,8 +1524,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return list of matching entities.
      */
-    fun <V> findAllBy(field: Metamodel<E, V>, value: V): List<E> =
-        select().where(field, EQUALS, value).resultList
+    fun <V> findAllBy(field: Metamodel<E, V>, value: V): List<E> = select().where(field, EQUALS, value).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -1506,8 +1542,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V> selectBy(field: Metamodel<E, V>, value: V): Flow<E> =
-        select().where(field, EQUALS, value).resultFlow
+    fun <V> selectBy(field: Metamodel<E, V>, value: V): Flow<E> = select().where(field, EQUALS, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -1517,8 +1552,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllBy(field: Metamodel<E, V>, value: Ref<V>): List<E> =
-        select().where(field, value).resultList
+    fun <V : Data> findAllBy(field: Metamodel<E, V>, value: Ref<V>): List<E> = select().where(field, value).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -1536,8 +1570,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Data> selectBy(field: Metamodel<E, V>, value: Ref<V>): Flow<E> =
-        select().where(field, value).resultFlow
+    fun <V : Data> selectBy(field: Metamodel<E, V>, value: Ref<V>): Flow<E> = select().where(field, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1547,8 +1580,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return list of matching entities.
      */
-    fun <V> findAllBy(field: Metamodel<E, V>, values: Iterable<V>): List<E> =
-        select().where(field, IN, values).resultList
+    fun <V> findAllBy(field: Metamodel<E, V>, values: Iterable<V>): List<E> = select().where(field, IN, values).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1566,8 +1598,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return at sequence of matching entities.
      */
-    fun <V> selectBy(field: Metamodel<E, V>, values: Iterable<V>): Flow<E> =
-        select().where(field, IN, values).resultFlow
+    fun <V> selectBy(field: Metamodel<E, V>, values: Iterable<V>): Flow<E> = select().where(field, IN, values).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1577,8 +1608,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): List<E> =
-        select().whereRef(field, values).resultList
+    fun <V : Data> findAllByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): List<E> = select().whereRef(field, values).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1588,8 +1618,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Data> selectByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): Flow<E> =
-        select().whereRef(field, values).resultFlow
+    fun <V : Data> selectByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): Flow<E> = select().whereRef(field, values).resultFlow
 
     /**
      * Retrieves exactly one entity of type [T] based on a single field and its value.
@@ -1601,8 +1630,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V> getBy(field: Metamodel<E, V>, value: V): E =
-        select().where(field, EQUALS, value).singleResult
+    fun <V> getBy(field: Metamodel<E, V>, value: V): E = select().where(field, EQUALS, value).singleResult
 
     /**
      * Retrieves exactly one entity of type [T] based on a single field and its value.
@@ -1614,8 +1642,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V : Data> getBy(field: Metamodel<E, V>, value: Ref<V>): E =
-        select().where(field, value).singleResult
+    fun <V : Data> getBy(field: Metamodel<E, V>, value: Ref<V>): E = select().where(field, value).singleResult
 
     /**
      * Retrieves an optional entity of type [T] based on a single field and its value.
@@ -1625,8 +1652,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <T, ID, V> findRefBy(field: Metamodel<E, V>, value: V): Ref<E>? =
-        selectRef().where(field, EQUALS, value).optionalResult
+    fun <T, ID, V> findRefBy(field: Metamodel<E, V>, value: V): Ref<E>? = selectRef().where(field, EQUALS, value).optionalResult
 
     /**
      * Retrieves an optional entity of type [T] based on a single field and its value.
@@ -1636,8 +1662,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return an optional entity, or null if none found.
      */
-    fun <V : Data> findRefBy(field: Metamodel<E, V>, value: Ref<V>): Ref<E>? =
-        selectRef().where(field, value).optionalResult
+    fun <V : Data> findRefBy(field: Metamodel<E, V>, value: Ref<V>): Ref<E>? = selectRef().where(field, value).optionalResult
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -1647,8 +1672,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V> findAllRefBy(field: Metamodel<E, V>, value: V): List<Ref<E>> =
-        selectRef().where(field, EQUALS, value).resultList
+    fun <V> findAllRefBy(field: Metamodel<E, V>, value: V): List<Ref<E>> = selectRef().where(field, EQUALS, value).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -1666,8 +1690,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V> selectRefBy(field: Metamodel<E, V>, value: V): Flow<Ref<E>> =
-        selectRef().where(field, EQUALS, value).resultFlow
+    fun <V> selectRefBy(field: Metamodel<E, V>, value: V): Flow<Ref<E>> = selectRef().where(field, EQUALS, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -1677,8 +1700,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllRefBy(field: Metamodel<E, V>, value: Ref<V>): List<Ref<E>> =
-        selectRef().where(field, value).resultList
+    fun <V : Data> findAllRefBy(field: Metamodel<E, V>, value: Ref<V>): List<Ref<E>> = selectRef().where(field, value).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field and a single value.
@@ -1696,8 +1718,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param value the value to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Data> selectRefBy(field: Metamodel<E, V>, value: Ref<V>): Flow<Ref<E>> =
-        selectRef().where(field, value).resultFlow
+    fun <V : Data> selectRefBy(field: Metamodel<E, V>, value: Ref<V>): Flow<Ref<E>> = selectRef().where(field, value).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1707,8 +1728,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllRefBy(field: Metamodel<E, V>, values: Iterable<V>): List<Ref<E>> =
-        selectRef().where(field, IN, values).resultList
+    fun <V : Data> findAllRefBy(field: Metamodel<E, V>, values: Iterable<V>): List<Ref<E>> = selectRef().where(field, IN, values).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1726,8 +1746,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return a sequence of matching entities.
      */
-    fun <V> selectRefBy(field: Metamodel<E, V>, values: Iterable<V>): Flow<Ref<E>> =
-        selectRef().where(field, IN, values).resultFlow
+    fun <V> selectRefBy(field: Metamodel<E, V>, values: Iterable<V>): Flow<Ref<E>> = selectRef().where(field, IN, values).resultFlow
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1737,8 +1756,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return a list of matching entities.
      */
-    fun <V : Data> findAllRefByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): List<Ref<E>> =
-        selectRef().whereRef(field, values).resultList
+    fun <V : Data> findAllRefByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): List<Ref<E>> = selectRef().whereRef(field, values).resultList
 
     /**
      * Retrieves entities of type [T] matching a single field against multiple values.
@@ -1756,8 +1774,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param values Iterable of values to match against.
      * @return a sequence of matching entities.
      */
-    fun <V : Data> selectRefByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): Flow<Ref<E>> =
-        selectRef().whereRef(field, values).resultFlow
+    fun <V : Data> selectRefByRef(field: Metamodel<E, V>, values: Iterable<Ref<V>>): Flow<Ref<E>> = selectRef().whereRef(field, values).resultFlow
 
     /**
      * Retrieves exactly one entity of type [T] based on a single field and its value.
@@ -1769,8 +1786,7 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V> getRefBy(field: Metamodel<E, V>, value: V): Ref<E> =
-        selectRef().where(field, EQUALS, value).singleResult
+    fun <V> getRefBy(field: Metamodel<E, V>, value: V): Ref<E> = selectRef().where(field, EQUALS, value).singleResult
 
     /**
      * Retrieves exactly one entity of type [T] based on a single field and its value.
@@ -1782,24 +1798,21 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NoResultException if there is no result.
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
-    fun <V : Data> getRefBy(field: Metamodel<E, V>, value: Ref<V>): Ref<E> =
-        selectRef().where(field, value).singleResult
+    fun <V : Data> getRefBy(field: Metamodel<E, V>, value: Ref<V>): Ref<E> = selectRef().where(field, value).singleResult
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
-    fun findAll(predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>): List<E> =
-        select().whereBuilder(predicate).resultList
+    fun findAll(predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>): List<E> = select().whereBuilder(predicate).resultList
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
-    fun findAll(predicate: PredicateBuilder<E, *, *>): List<E> =
-        select().where(predicate).resultList
+    fun findAll(predicate: PredicateBuilder<E, *, *>): List<E> = select().where(predicate).resultList
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -1807,17 +1820,15 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a list of matching entities.
      */
     fun findAllRef(
-        predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>
-    ): List<Ref<E>> =
-        selectRef().whereBuilder(predicate).resultList
+        predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>,
+    ): List<Ref<E>> = selectRef().whereBuilder(predicate).resultList
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
      *
      * @return a list of matching entities.
      */
-    fun findAllRef(predicate: PredicateBuilder<E, *, *>): List<Ref<E>> =
-        selectRef().where(predicate).resultList
+    fun findAllRef(predicate: PredicateBuilder<E, *, *>): List<Ref<E>> = selectRef().where(predicate).resultList
 
     /**
      * Retrieves an optional entity of type [T] matching the specified predicate.
@@ -1826,9 +1837,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return an optional entity, or null if none found.
      */
     fun find(
-        predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>
-    ): E? =
-        select().whereBuilder(predicate).optionalResult
+        predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>,
+    ): E? = select().whereBuilder(predicate).optionalResult
 
     /**
      * Retrieves an optional entity of type [T] matching the specified predicate.
@@ -1837,9 +1847,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return an optional entity, or null if none found.
      */
     fun find(
-        predicate: PredicateBuilder<E, *, *>
-    ): E? =
-        select().where(predicate).optionalResult
+        predicate: PredicateBuilder<E, *, *>,
+    ): E? = select().where(predicate).optionalResult
 
     /**
      * Retrieves an optional entity of type [T] matching the specified predicate.
@@ -1848,9 +1857,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return an optional entity, or null if none found.
      */
     fun findRef(
-        predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>
-    ): Ref<E>? =
-        selectRef().whereBuilder(predicate).optionalResult
+        predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>,
+    ): Ref<E>? = selectRef().whereBuilder(predicate).optionalResult
 
     /**
      * Retrieves an optional entity of type [T] matching the specified predicate.
@@ -1859,9 +1867,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return an optional entity, or null if none found.
      */
     fun findRef(
-        predicate: PredicateBuilder<E, *, *>
-    ): Ref<E>? =
-        selectRef().where(predicate).optionalResult
+        predicate: PredicateBuilder<E, *, *>,
+    ): Ref<E>? = selectRef().where(predicate).optionalResult
 
     /**
      * Retrieves a single entity of type [T] matching the specified predicate.
@@ -1872,9 +1879,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
     fun get(
-        predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>
-    ): E =
-        select().whereBuilder(predicate).singleResult
+        predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>,
+    ): E = select().whereBuilder(predicate).singleResult
 
     /**
      * Retrieves a single entity of type [T] matching the specified predicate.
@@ -1885,9 +1891,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
     fun get(
-        predicate: PredicateBuilder<E, *, *>
-    ): E =
-        select().where(predicate).singleResult
+        predicate: PredicateBuilder<E, *, *>,
+    ): E = select().where(predicate).singleResult
 
     /**
      * Retrieves a single entity of type [T] matching the specified predicate.
@@ -1898,9 +1903,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
     fun getRef(
-        predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>
-    ): Ref<E> =
-        selectRef().whereBuilder(predicate).singleResult
+        predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>,
+    ): Ref<E> = selectRef().whereBuilder(predicate).singleResult
 
     /**
      * Retrieves a single entity of type [T] matching the specified predicate.
@@ -1911,9 +1915,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @throws st.orm.NonUniqueResultException if more than one result.
      */
     fun getRef(
-        predicate: PredicateBuilder<E, *, *>
-    ): Ref<E> =
-        selectRef().where(predicate).singleResult
+        predicate: PredicateBuilder<E, *, *>,
+    ): Ref<E> = selectRef().where(predicate).singleResult
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -1929,9 +1932,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a sequence of matching entities.
      */
     fun select(
-        predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>
-    ): Flow<E> =
-        select().whereBuilder(predicate).resultFlow
+        predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>,
+    ): Flow<E> = select().whereBuilder(predicate).resultFlow
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -1947,9 +1949,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a sequence of matching entities.
      */
     fun select(
-        predicate: PredicateBuilder<E, *, *>
-    ): Flow<E> =
-        select().where(predicate).resultFlow
+        predicate: PredicateBuilder<E, *, *>,
+    ): Flow<E> = select().where(predicate).resultFlow
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -1965,9 +1966,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a sequence of matching entities.
      */
     fun selectRef(
-        predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>
-    ): Flow<Ref<E>> =
-        selectRef().whereBuilder(predicate).resultFlow
+        predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>,
+    ): Flow<Ref<E>> = selectRef().whereBuilder(predicate).resultFlow
 
     /**
      * Retrieves entities of type [T] matching the specified predicate.
@@ -1983,9 +1983,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return a sequence of matching entities.
      */
     fun selectRef(
-        predicate: PredicateBuilder<E, *, *>
-    ): Flow<Ref<E>> =
-        selectRef().where(predicate).resultFlow
+        predicate: PredicateBuilder<E, *, *>,
+    ): Flow<Ref<E>> = selectRef().where(predicate).resultFlow
 
     /**
      * Counts entities of type [T] matching the specified field and value.
@@ -1996,9 +1995,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      */
     fun <V> countBy(
         field: Metamodel<E, V>,
-        value: V
-    ): Long =
-        selectCount().where(field, EQUALS, value).singleResult
+        value: V,
+    ): Long = selectCount().where(field, EQUALS, value).singleResult
 
     /**
      * Counts entities of type [T] matching the specified field and referenced value.
@@ -2009,9 +2007,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      */
     fun <V : Data> countBy(
         field: Metamodel<E, V>,
-        value: Ref<V>
-    ): Long =
-        selectCount().where(field, value).singleResult
+        value: Ref<V>,
+    ): Long = selectCount().where(field, value).singleResult
 
     /**
      * Counts entities of type [T] matching the specified predicate.
@@ -2020,9 +2017,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return the count of matching entities.
      */
     fun count(
-        predicate: WhereBuilder<E, *, ID>.() -> PredicateBuilder<E, *, *>
-    ): Long =
-        selectCount().whereBuilder(predicate).singleResult
+        predicate: WhereBuilder<E, *, ID>.() -> PredicateBuilder<E, *, *>,
+    ): Long = selectCount().whereBuilder(predicate).singleResult
 
     /**
      * Counts entities of type [T] matching the specified predicate.
@@ -2031,9 +2027,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return the count of matching entities.
      */
     fun count(
-        predicate: PredicateBuilder<E, *, *>
-    ): Long =
-        selectCount().where(predicate).singleResult
+        predicate: PredicateBuilder<E, *, *>,
+    ): Long = selectCount().where(predicate).singleResult
 
     /**
      * Checks if entities of type [T] matching the specified field and value exists.
@@ -2044,9 +2039,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      */
     fun <V> existsBy(
         field: Metamodel<E, V>,
-        value: V
-    ): Boolean =
-        selectCount().where(field, EQUALS, value).singleResult > 0
+        value: V,
+    ): Boolean = selectCount().where(field, EQUALS, value).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified field and referenced value exists.
@@ -2057,9 +2051,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      */
     fun <V : Data> existsBy(
         field: Metamodel<E, V>,
-        value: Ref<V>
-    ): Boolean =
-        selectCount().where(field, value).singleResult > 0
+        value: Ref<V>,
+    ): Boolean = selectCount().where(field, value).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified predicate exists.
@@ -2068,9 +2061,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return true if any matching entities exist, false otherwise.
      */
     fun exists(
-        predicate: WhereBuilder<E, *, ID>.() -> PredicateBuilder<E, *, *>
-    ): Boolean =
-        selectCount().whereBuilder(predicate).singleResult > 0
+        predicate: WhereBuilder<E, *, ID>.() -> PredicateBuilder<E, *, *>,
+    ): Boolean = selectCount().whereBuilder(predicate).singleResult > 0
 
     /**
      * Checks if entities of type [T] matching the specified predicate exists.
@@ -2079,9 +2071,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return true if any matching entities exist, false otherwise.
      */
     fun exists(
-        predicate: PredicateBuilder<E, *, *>
-    ): Boolean =
-        selectCount().where(predicate).singleResult > 0
+        predicate: PredicateBuilder<E, *, *>,
+    ): Boolean = selectCount().where(predicate).singleResult > 0
 
     /**
      * Deletes entities of type [T] matching the specified field and value.
@@ -2092,9 +2083,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      */
     fun <V> deleteAllBy(
         field: Metamodel<E, V>,
-        value: V
-    ): Int =
-        delete().where(field, EQUALS, value).executeUpdate()
+        value: V,
+    ): Int = delete().where(field, EQUALS, value).executeUpdate()
 
     /**
      * Deletes entities of type [T] matching the specified field and referenced value.
@@ -2105,9 +2095,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      */
     fun <V : Data> deleteAllBy(
         field: Metamodel<E, V>,
-        value: Ref<V>
-    ): Int =
-        delete().where(field, value).executeUpdate()
+        value: Ref<V>,
+    ): Int = delete().where(field, value).executeUpdate()
 
     /**
      * Deletes entities of type [T] matching the specified field against multiple values.
@@ -2118,9 +2107,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      */
     fun <V> deleteAllBy(
         field: Metamodel<E, V>,
-        values: Iterable<V>
-    ): Int =
-        delete().where(field, IN, values).executeUpdate()
+        values: Iterable<V>,
+    ): Int = delete().where(field, IN, values).executeUpdate()
 
     /**
      * Deletes entities of type [T] matching the specified field against multiple referenced values.
@@ -2131,9 +2119,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      */
     fun <V : Data> deleteAllByRef(
         field: Metamodel<E, V>,
-        values: Iterable<Ref<V>>
-    ): Int =
-        delete().whereRef(field, values).executeUpdate()
+        values: Iterable<Ref<V>>,
+    ): Int = delete().whereRef(field, values).executeUpdate()
 
     /**
      * Deletes entities of type [T] matching the specified predicate.
@@ -2142,9 +2129,8 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @return the number of entities deleted.
      */
     fun delete(
-        predicate: WhereBuilder<E, *, ID>.() -> PredicateBuilder<E, *, *>
-    ): Int =
-        delete().whereBuilder(predicate).executeUpdate()
+        predicate: WhereBuilder<E, *, ID>.() -> PredicateBuilder<E, *, *>,
+    ): Int = delete().whereBuilder(predicate).executeUpdate()
 
     /**
      * Deletes entities of type [T] matching the specified predicate.
@@ -2152,6 +2138,593 @@ interface EntityRepository<E, ID : Any> : Repository where E : Entity<ID> {
      * @param predicate Lambda to build the WHERE clause.
      * @return the number of entities deleted.
      */
-    fun delete(predicate: PredicateBuilder<E, *, *>): Int =
-        delete().where(predicate).executeUpdate()
+    fun delete(predicate: PredicateBuilder<E, *, *>): Int = delete().where(predicate).executeUpdate()
+
+    // Slice methods.
+
+    /**
+     * Returns the first slice of entities ordered by the specified key.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the first page of results.
+     * @since 1.9
+     */
+    fun <V> slice(key: Metamodel.Key<E, V>, size: Int): Slice<E> = select().slice(key, size)
+
+    /**
+     * Returns the first slice of entities ordered by the specified key in descending order.
+     *
+     * This is the cursorless variant of descending keyset pagination, useful for starting at the most recent
+     * entries. Subsequent pages can be obtained with [sliceBefore].
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the first page of results in descending key order.
+     * @since 1.9
+     */
+    fun <V> sliceBefore(key: Metamodel.Key<E, V>, size: Int): Slice<E> = select().sliceBefore(key, size)
+
+    /**
+     * Returns the first slice of entity refs ordered by the specified key.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the first page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceRef(key: Metamodel.Key<E, V>, size: Int): Slice<Ref<E>> = selectRef().slice(key, size)
+
+    /**
+     * Returns the first slice of entity refs ordered by the specified key in descending order.
+     *
+     * This is the cursorless variant of descending keyset pagination for refs, useful for starting at the most
+     * recent entries.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the first page of ref results in descending key order.
+     * @since 1.9
+     */
+    fun <V> sliceBeforeRef(key: Metamodel.Key<E, V>, size: Int): Slice<Ref<E>> = selectRef().sliceBefore(key, size)
+
+    /**
+     * Returns the first slice of entities ordered by the specified key, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the first page of results.
+     * @since 1.9
+     */
+    fun <V> slice(key: Metamodel.Key<E, V>, size: Int, predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>): Slice<E> = select().whereBuilder(predicate).slice(key, size)
+
+    /**
+     * Returns the first slice of entities ordered by the specified key, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the first page of results.
+     * @since 1.9
+     */
+    fun <V> slice(key: Metamodel.Key<E, V>, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<E> = select().where(predicate).slice(key, size)
+
+    /**
+     * Returns the first slice of entity refs ordered by the specified key, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the first page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceRef(key: Metamodel.Key<E, V>, size: Int, predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().whereBuilder(predicate).slice(key, size)
+
+    /**
+     * Returns the first slice of entity refs ordered by the specified key, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the first page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceRef(key: Metamodel.Key<E, V>, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().where(predicate).slice(key, size)
+
+    /**
+     * Returns the first slice of entities ordered by the specified key in descending order, filtered by the given
+     * predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the first page of results in descending key order.
+     * @since 1.9
+     */
+    fun <V> sliceBefore(key: Metamodel.Key<E, V>, size: Int, predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>): Slice<E> = select().whereBuilder(predicate).sliceBefore(key, size)
+
+    /**
+     * Returns the first slice of entities ordered by the specified key in descending order, filtered by the given
+     * predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the first page of results in descending key order.
+     * @since 1.9
+     */
+    fun <V> sliceBefore(key: Metamodel.Key<E, V>, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<E> = select().where(predicate).sliceBefore(key, size)
+
+    /**
+     * Returns the first slice of entity refs ordered by the specified key in descending order, filtered by the
+     * given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the first page of ref results in descending key order.
+     * @since 1.9
+     */
+    fun <V> sliceBeforeRef(key: Metamodel.Key<E, V>, size: Int, predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().whereBuilder(predicate).sliceBefore(key, size)
+
+    /**
+     * Returns the first slice of entity refs ordered by the specified key in descending order, filtered by the
+     * given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the first page of ref results in descending key order.
+     * @since 1.9
+     */
+    fun <V> sliceBeforeRef(key: Metamodel.Key<E, V>, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().where(predicate).sliceBefore(key, size)
+
+    /**
+     * Returns the next slice of entities after the specified cursor value.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the cursor value; only entities with a key value greater than this will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <V> sliceAfter(key: Metamodel.Key<E, V>, after: V, size: Int): Slice<E> = select().sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entity refs after the specified cursor value.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the cursor value; only entities with a key value greater than this will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceAfterRef(key: Metamodel.Key<E, V>, after: V, size: Int): Slice<Ref<E>> = selectRef().sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entities after the specified cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the cursor value; only entities with a key value greater than this will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <V> sliceAfter(key: Metamodel.Key<E, V>, after: V, size: Int, predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>): Slice<E> = select().whereBuilder(predicate).sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entities after the specified cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the cursor value; only entities with a key value greater than this will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <V> sliceAfter(key: Metamodel.Key<E, V>, after: V, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<E> = select().where(predicate).sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entity refs after the specified cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the cursor value; only entities with a key value greater than this will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceAfterRef(key: Metamodel.Key<E, V>, after: V, size: Int, predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().whereBuilder(predicate).sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entity refs after the specified cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the cursor value; only entities with a key value greater than this will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceAfterRef(key: Metamodel.Key<E, V>, after: V, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().where(predicate).sliceAfter(key, after, size)
+
+    /**
+     * Returns the previous slice of entities before the specified cursor value.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the cursor value; only entities with a key value less than this will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <V> sliceBefore(key: Metamodel.Key<E, V>, before: V, size: Int): Slice<E> = select().sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entity refs before the specified cursor value.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the cursor value; only entities with a key value less than this will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceBeforeRef(key: Metamodel.Key<E, V>, before: V, size: Int): Slice<Ref<E>> = selectRef().sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entities before the specified cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the cursor value; only entities with a key value less than this will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <V> sliceBefore(key: Metamodel.Key<E, V>, before: V, size: Int, predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>): Slice<E> = select().whereBuilder(predicate).sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entities before the specified cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the cursor value; only entities with a key value less than this will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <V> sliceBefore(key: Metamodel.Key<E, V>, before: V, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<E> = select().where(predicate).sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entity refs before the specified cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the cursor value; only entities with a key value less than this will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceBeforeRef(key: Metamodel.Key<E, V>, before: V, size: Int, predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().whereBuilder(predicate).sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entity refs before the specified cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the cursor value; only entities with a key value less than this will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    fun <V> sliceBeforeRef(key: Metamodel.Key<E, V>, before: V, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().where(predicate).sliceBefore(key, before, size)
+
+    /**
+     * Returns the next slice of entities after the specified ref cursor value.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the ref cursor value; only entities with a key value greater than this ref will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceAfter(key: Metamodel.Key<E, V>, after: Ref<V>, size: Int): Slice<E> = select().sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entity refs after the specified ref cursor value.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the ref cursor value; only entities with a key value greater than this ref will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceAfterRef(key: Metamodel.Key<E, V>, after: Ref<V>, size: Int): Slice<Ref<E>> = selectRef().sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entities after the specified ref cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the ref cursor value; only entities with a key value greater than this ref will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceAfter(key: Metamodel.Key<E, V>, after: Ref<V>, size: Int, predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>): Slice<E> = select().whereBuilder(predicate).sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entities after the specified ref cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the ref cursor value; only entities with a key value greater than this ref will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceAfter(key: Metamodel.Key<E, V>, after: Ref<V>, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<E> = select().where(predicate).sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entity refs after the specified ref cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the ref cursor value; only entities with a key value greater than this ref will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceAfterRef(key: Metamodel.Key<E, V>, after: Ref<V>, size: Int, predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().whereBuilder(predicate).sliceAfter(key, after, size)
+
+    /**
+     * Returns the next slice of entity refs after the specified ref cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param after the ref cursor value; only entities with a key value greater than this ref will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceAfterRef(key: Metamodel.Key<E, V>, after: Ref<V>, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().where(predicate).sliceAfter(key, after, size)
+
+    /**
+     * Returns the previous slice of entities before the specified ref cursor value.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the ref cursor value; only entities with a key value less than this ref will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceBefore(key: Metamodel.Key<E, V>, before: Ref<V>, size: Int): Slice<E> = select().sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entity refs before the specified ref cursor value.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the ref cursor value; only entities with a key value less than this ref will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceBeforeRef(key: Metamodel.Key<E, V>, before: Ref<V>, size: Int): Slice<Ref<E>> = selectRef().sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entities before the specified ref cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the ref cursor value; only entities with a key value less than this ref will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceBefore(key: Metamodel.Key<E, V>, before: Ref<V>, size: Int, predicate: WhereBuilder<E, E, ID>.() -> PredicateBuilder<E, *, *>): Slice<E> = select().whereBuilder(predicate).sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entities before the specified ref cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the ref cursor value; only entities with a key value less than this ref will be returned.
+     * @param size the maximum number of entities to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceBefore(key: Metamodel.Key<E, V>, before: Ref<V>, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<E> = select().where(predicate).sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entity refs before the specified ref cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the ref cursor value; only entities with a key value less than this ref will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate lambda to build the WHERE clause.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceBeforeRef(key: Metamodel.Key<E, V>, before: Ref<V>, size: Int, predicate: WhereBuilder<E, Ref<E>, ID>.() -> PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().whereBuilder(predicate).sliceBefore(key, before, size)
+
+    /**
+     * Returns the previous slice of entity refs before the specified ref cursor value, filtered by the given predicate.
+     *
+     * @param key the metamodel field to use as the pagination key; must refer to a unique column.
+     * @param before the ref cursor value; only entities with a key value less than this ref will be returned.
+     * @param size the maximum number of refs to include in the slice.
+     * @param predicate infix predicate for the WHERE clause.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    fun <V : Data> sliceBeforeRef(key: Metamodel.Key<E, V>, before: Ref<V>, size: Int, predicate: PredicateBuilder<E, *, *>): Slice<Ref<E>> = selectRef().where(predicate).sliceBefore(key, before, size)
+
+    // Composite keyset slice methods.
+
+    /**
+     * Returns the first slice of entities ordered by a non-unique sort column with a unique tiebreaker for stable
+     * pagination.
+     *
+     * @param key the metamodel field used as the unique tiebreaker for stable ordering.
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the first page of results.
+     * @since 1.9
+     */
+    fun <V, S> slice(key: Metamodel.Key<E, V>, sort: Metamodel<E, S>, size: Int): Slice<E> = select().slice(key, sort, size)
+
+    /**
+     * Returns the first slice of entities ordered by a non-unique sort column with a unique tiebreaker, both in
+     * descending order.
+     *
+     * This is the cursorless variant of descending composite keyset pagination, useful for starting at the most
+     * recent entries. Subsequent pages can be obtained with [sliceBefore].
+     *
+     * @param key the metamodel field used as the unique tiebreaker for stable ordering.
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the first page of results in descending order.
+     * @since 1.9
+     */
+    fun <V, S> sliceBefore(key: Metamodel.Key<E, V>, sort: Metamodel<E, S>, size: Int): Slice<E> = select().sliceBefore(key, sort, size)
+
+    /**
+     * Returns the next slice of entities after the specified composite cursor, using a non-unique sort column with a
+     * unique tiebreaker for stable pagination.
+     *
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyAfter the cursor value for the unique key column.
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param sortAfter the cursor value for the sort column.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <V, S> sliceAfter(key: Metamodel.Key<E, V>, keyAfter: V, sort: Metamodel<E, S>, sortAfter: S, size: Int): Slice<E> = select().sliceAfter(key, keyAfter, sort, sortAfter, size)
+
+    /**
+     * Returns the previous slice of entities before the specified composite cursor, using a non-unique sort column
+     * with a unique tiebreaker for stable pagination.
+     *
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyBefore the cursor value for the unique key column.
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param sortBefore the cursor value for the sort column.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <V, S> sliceBefore(key: Metamodel.Key<E, V>, keyBefore: V, sort: Metamodel<E, S>, sortBefore: S, size: Int): Slice<E> = select().sliceBefore(key, keyBefore, sort, sortBefore, size)
+
+    /**
+     * Returns the next slice of entities after the specified composite cursor with a ref-based unique key, using a
+     * non-unique sort column with a unique tiebreaker for stable pagination.
+     *
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyAfter the ref cursor value for the unique key column.
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param sortAfter the cursor value for the sort column.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the next page of results.
+     * @since 1.9
+     */
+    fun <V : Data, S> sliceAfter(key: Metamodel.Key<E, V>, keyAfter: Ref<V>, sort: Metamodel<E, S>, sortAfter: S, size: Int): Slice<E> = select().sliceAfter(key, keyAfter, sort, sortAfter, size)
+
+    /**
+     * Returns the previous slice of entities before the specified composite cursor with a ref-based unique key, using
+     * a non-unique sort column with a unique tiebreaker for stable pagination.
+     *
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyBefore the ref cursor value for the unique key column.
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param sortBefore the cursor value for the sort column.
+     * @param size the maximum number of entities to include in the slice.
+     * @return a slice containing the previous page of results.
+     * @since 1.9
+     */
+    fun <V : Data, S> sliceBefore(key: Metamodel.Key<E, V>, keyBefore: Ref<V>, sort: Metamodel<E, S>, sortBefore: S, size: Int): Slice<E> = select().sliceBefore(key, keyBefore, sort, sortBefore, size)
+
+    /**
+     * Returns the first slice of entity refs ordered by a non-unique sort column with a unique tiebreaker for stable
+     * pagination.
+     *
+     * @param key the metamodel field used as the unique tiebreaker for stable ordering.
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the first page of ref results.
+     * @since 1.9
+     */
+    fun <V, S> sliceRef(key: Metamodel.Key<E, V>, sort: Metamodel<E, S>, size: Int): Slice<Ref<E>> = selectRef().slice(key, sort, size)
+
+    /**
+     * Returns the first slice of entity refs ordered by a non-unique sort column with a unique tiebreaker, both in
+     * descending order.
+     *
+     * This is the cursorless variant of descending composite keyset pagination for refs, useful for starting at
+     * the most recent entries.
+     *
+     * @param key the metamodel field used as the unique tiebreaker for stable ordering.
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the first page of ref results in descending order.
+     * @since 1.9
+     */
+    fun <V, S> sliceBeforeRef(key: Metamodel.Key<E, V>, sort: Metamodel<E, S>, size: Int): Slice<Ref<E>> = selectRef().sliceBefore(key, sort, size)
+
+    /**
+     * Returns the next slice of entity refs after the specified composite cursor, using a non-unique sort column with
+     * a unique tiebreaker for stable pagination.
+     *
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyAfter the cursor value for the unique key column.
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param sortAfter the cursor value for the sort column.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    fun <V, S> sliceAfterRef(key: Metamodel.Key<E, V>, keyAfter: V, sort: Metamodel<E, S>, sortAfter: S, size: Int): Slice<Ref<E>> = selectRef().sliceAfter(key, keyAfter, sort, sortAfter, size)
+
+    /**
+     * Returns the previous slice of entity refs before the specified composite cursor, using a non-unique sort column
+     * with a unique tiebreaker for stable pagination.
+     *
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyBefore the cursor value for the unique key column.
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param sortBefore the cursor value for the sort column.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    fun <V, S> sliceBeforeRef(key: Metamodel.Key<E, V>, keyBefore: V, sort: Metamodel<E, S>, sortBefore: S, size: Int): Slice<Ref<E>> = selectRef().sliceBefore(key, keyBefore, sort, sortBefore, size)
+
+    /**
+     * Returns the next slice of entity refs after the specified composite cursor with a ref-based unique key, using a
+     * non-unique sort column with a unique tiebreaker for stable pagination.
+     *
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyAfter the ref cursor value for the unique key column.
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param sortAfter the cursor value for the sort column.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the next page of ref results.
+     * @since 1.9
+     */
+    fun <V : Data, S> sliceAfterRef(key: Metamodel.Key<E, V>, keyAfter: Ref<V>, sort: Metamodel<E, S>, sortAfter: S, size: Int): Slice<Ref<E>> = selectRef().sliceAfter(key, keyAfter, sort, sortAfter, size)
+
+    /**
+     * Returns the previous slice of entity refs before the specified composite cursor with a ref-based unique key,
+     * using a non-unique sort column with a unique tiebreaker for stable pagination.
+     *
+     * @param key the metamodel field used as the unique tiebreaker.
+     * @param keyBefore the ref cursor value for the unique key column.
+     * @param sort the metamodel field used as the (potentially non-unique) sort column.
+     * @param sortBefore the cursor value for the sort column.
+     * @param size the maximum number of refs to include in the slice.
+     * @return a slice containing the previous page of ref results.
+     * @since 1.9
+     */
+    fun <V : Data, S> sliceBeforeRef(key: Metamodel.Key<E, V>, keyBefore: Ref<V>, sort: Metamodel<E, S>, sortBefore: S, size: Int): Slice<Ref<E>> = selectRef().sliceBefore(key, keyBefore, sort, sortBefore, size)
 }

@@ -15,12 +15,12 @@
  */
 package st.orm.template;
 
-import jakarta.annotation.Nonnull;
-import st.orm.Data;
-
 import static java.lang.StringTemplate.RAW;
 import static st.orm.SelectMode.DECLARED;
 import static st.orm.template.Templates.select;
+
+import jakarta.annotation.Nonnull;
+import st.orm.Data;
 
 /**
  * Provides factory methods for constructing subqueries that can be correlated with or embedded in an outer query.

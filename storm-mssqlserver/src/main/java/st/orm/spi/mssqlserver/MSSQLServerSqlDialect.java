@@ -15,22 +15,24 @@
  */
 package st.orm.spi.mssqlserver;
 
-import jakarta.annotation.Nonnull;
-import st.orm.core.spi.DefaultSqlDialect;
-import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlTemplateException;
-
-import java.util.List;
-import java.util.Map;
-import java.util.SequencedMap;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
-
 import static java.util.stream.Collectors.toSet;
 
+import jakarta.annotation.Nonnull;
+import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
+import st.orm.StormConfig;
+import st.orm.core.spi.DefaultSqlDialect;
+import st.orm.core.template.SqlDialect;
+
 public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDialect {
+
+    public MSSQLServerSqlDialect() {
+    }
+
+    public MSSQLServerSqlDialect(@Nonnull StormConfig config) {
+        super(config);
+    }
 
     /**
      * Returns the name of the SQL dialect.
@@ -143,30 +145,6 @@ public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDiale
     @Override
     public Pattern getQuoteLiteralPattern() {
         return QUOTE_LITERAL_PATTERN;
-    }
-
-    /**
-     * Builds a multi-value IN clause.
-     *
-     * <p>The provided values are processed in a deterministic order. First, the list is iterated row by row. For each
-     * row, the values of the map are then processed in the map’s iteration order. This order is used both for SQL
-     * rendering and for parameter binding.</p>
-     *
-     * @param values the multi-row values to use in the IN clause. Each map represents a single row.
-     * @param parameterFunction the function responsible for binding the parameters to the SQL template and returning
-     * the string representation of each parameter, either a '?' placeholder or a literal value.
-     * @return the string that represents the multi-value IN clause.
-     * @throws SqlTemplateException if the values are incompatible.
-     * @since 1.2
-     */
-    @Override
-    public String multiValueIn(@Nonnull List<SequencedMap<String, Object>> values,
-                               @Nonnull Function<Object, String> parameterFunction) throws SqlTemplateException {
-        if (values.isEmpty()) {
-            throw new SqlTemplateException("Multi-value IN clause requires at least one value.");
-        }
-        // For SQL Server, multi-value tuple IN clauses are not supported. Fall back to the default implementation.
-        return super.multiValueIn(values, parameterFunction);
     }
 
     /**
