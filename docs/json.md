@@ -285,3 +285,4 @@ This approach gives you control over pagination, caching, and memory usage.
 - [Queries](queries.md) - aggregation with JSON
 - [Dialects](dialects.md) - database-specific JSON support
 - [Entities](entities.md) - `@Json` annotation
+- [Entity Serialization](serialization.md) - serializing entities with `Ref` fields to JSON (for REST APIs, not database columns)

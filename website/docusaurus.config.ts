@@ -7,8 +7,8 @@ const config: Config = {
   tagline: 'A modern, high-performance ORM for Kotlin 2.0+ and Java 21+',
   favicon: 'img/favicon.ico',
 
-  url: 'https://storm-repo.github.io',
-  baseUrl: '/storm-framework/',
+  url: 'https://orm.st',
+  baseUrl: '/',
 
   organizationName: 'storm-repo',
   projectName: 'storm-framework',

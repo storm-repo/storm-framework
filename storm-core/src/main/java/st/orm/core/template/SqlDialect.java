@@ -371,6 +371,39 @@ public interface SqlDialect {
     }
 
     /**
+     * Strategy for discovering primary keys, unique keys, and foreign keys in the database schema.
+     *
+     * <p>The default {@link #INFORMATION_SCHEMA} strategy executes a small number of bulk SQL queries against
+     * standard {@code INFORMATION_SCHEMA} views, regardless of the number of tables in the schema. This is
+     * significantly faster than the per-table {@link #JDBC_METADATA} fallback when the database is accessed over
+     * a high-latency connection.</p>
+     *
+     * @since 1.9
+     */
+    enum ConstraintDiscoveryStrategy {
+        /**
+         * Per-table JDBC {@link java.sql.DatabaseMetaData} calls. Safe, portable fallback that works with any
+         * JDBC driver but issues three metadata queries per table in the schema.
+         */
+        JDBC_METADATA,
+        /**
+         * Bulk queries using standard {@code INFORMATION_SCHEMA} views ({@code TABLE_CONSTRAINTS},
+         * {@code KEY_COLUMN_USAGE}, {@code REFERENTIAL_CONSTRAINTS}). Requires the driver to expose
+         * {@code POSITION_IN_UNIQUE_CONSTRAINT} in {@code KEY_COLUMN_USAGE} for foreign key discovery.
+         */
+        INFORMATION_SCHEMA,
+        /**
+         * Bulk queries using {@code INFORMATION_SCHEMA} views with {@code REFERENCED_TABLE_NAME} and
+         * {@code REFERENCED_COLUMN_NAME} columns in {@code KEY_COLUMN_USAGE} for foreign key discovery.
+         */
+        INFORMATION_SCHEMA_REFERENCING,
+        /**
+         * Bulk queries using {@code ALL_CONSTRAINTS} and {@code ALL_CONS_COLUMNS} dictionary views.
+         */
+        ALL_CONSTRAINTS
+    }
+
+    /**
      * Returns the strategy for discovering sequences in the database schema.
      *
      * <p>The default strategy queries {@code INFORMATION_SCHEMA.SEQUENCES}, which works for H2, PostgreSQL, and
@@ -382,6 +415,21 @@ public interface SqlDialect {
      */
     default SequenceDiscoveryStrategy sequenceDiscoveryStrategy() {
         return SequenceDiscoveryStrategy.INFORMATION_SCHEMA;
+    }
+
+    /**
+     * Returns the strategy for discovering primary keys, unique keys, and foreign keys in the database schema.
+     *
+     * <p>The default strategy uses bulk {@code INFORMATION_SCHEMA} queries, which reduces the number of database
+     * round-trips from three per table to a fixed number of queries regardless of table count. Dialects that do not
+     * support the required {@code INFORMATION_SCHEMA} views should override this method to return an appropriate
+     * alternative strategy.</p>
+     *
+     * @return the constraint discovery strategy.
+     * @since 1.9
+     */
+    default ConstraintDiscoveryStrategy constraintDiscoveryStrategy() {
+        return ConstraintDiscoveryStrategy.INFORMATION_SCHEMA;
     }
 
     /**

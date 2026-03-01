@@ -269,6 +269,20 @@ public class MySQLSqlDialect extends DefaultSqlDialect implements SqlDialect {
     }
 
     /**
+     * Returns the strategy for discovering constraints in the database schema.
+     *
+     * <p>MySQL exposes {@code REFERENCED_TABLE_NAME} and {@code REFERENCED_COLUMN_NAME} columns in
+     * {@code INFORMATION_SCHEMA.KEY_COLUMN_USAGE}, which enables efficient bulk foreign key discovery.</p>
+     *
+     * @return {@link ConstraintDiscoveryStrategy#INFORMATION_SCHEMA_REFERENCING}.
+     * @since 1.9
+     */
+    @Override
+    public ConstraintDiscoveryStrategy constraintDiscoveryStrategy() {
+        return ConstraintDiscoveryStrategy.INFORMATION_SCHEMA_REFERENCING;
+    }
+
+    /**
      * Returns the SQL statement for getting the next value of the given sequence.
      *
      * @param sequenceName the name of the sequence.

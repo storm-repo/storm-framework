@@ -65,7 +65,6 @@ Once you have completed the getting-started guides, explore the features that ma
 **Integration:**
 - [Spring Integration](spring-integration.md) -- Spring Boot Starter, auto-configuration, and DI
 - [Testing](testing.md) -- JUnit 5 integration and statement capture
-- [JSON Support](json.md) -- JSON columns and aggregation
 - [Database Dialects](dialects.md) -- database-specific features
 
 **Advanced:**
@@ -73,6 +72,8 @@ Once you have completed the getting-started guides, explore the features that ma
 - [Projections](projections.md) -- read-only views of entities
 - [SQL Templates](sql-templates.md) -- raw SQL with type safety
 - [Metamodel](metamodel.md) -- compile-time type-safe field references
+- [JSON Support](json.md) -- JSON columns and aggregation
+- [Entity Serialization](serialization.md) -- JSON serialization with Ref support
 
 **Migration:**
 - [Migration from JPA](migration-from-jpa.md) -- step-by-step guide

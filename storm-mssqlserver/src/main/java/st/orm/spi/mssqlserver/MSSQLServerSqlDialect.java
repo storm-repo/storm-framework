@@ -236,6 +236,21 @@ public class MSSQLServerSqlDialect extends DefaultSqlDialect implements SqlDiale
     }
 
     /**
+     * Returns the strategy for discovering constraints in the database schema.
+     *
+     * <p>Falls back to per-table JDBC metadata calls because the required
+     * {@code POSITION_IN_UNIQUE_CONSTRAINT} column is not available in
+     * {@code INFORMATION_SCHEMA.KEY_COLUMN_USAGE}.</p>
+     *
+     * @return {@link ConstraintDiscoveryStrategy#JDBC_METADATA}.
+     * @since 1.9
+     */
+    @Override
+    public ConstraintDiscoveryStrategy constraintDiscoveryStrategy() {
+        return ConstraintDiscoveryStrategy.JDBC_METADATA;
+    }
+
+    /**
      * Returns the SQL statement for getting the next value of the given sequence.
      *
      * @param sequenceName the name of the sequence.

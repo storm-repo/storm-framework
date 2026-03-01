@@ -38,7 +38,7 @@ jobs:
         working-directory: website
 
       - name: Build project (skip tests)
-        run: mvn install -DskipTests -Dgpg.skip=true -q
+        run: mvn install -DskipTests -q
 
       - name: Generate Javadoc (aggregate)
         run: |

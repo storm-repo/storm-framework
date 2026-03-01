@@ -242,6 +242,20 @@ public class OracleSqlDialect extends DefaultSqlDialect implements SqlDialect {
     }
 
     /**
+     * Returns the strategy for discovering constraints in the database schema.
+     *
+     * <p>Oracle does not support {@code INFORMATION_SCHEMA}. Constraints are discovered using the
+     * {@code ALL_CONSTRAINTS} and {@code ALL_CONS_COLUMNS} dictionary views.</p>
+     *
+     * @return {@link ConstraintDiscoveryStrategy#ALL_CONSTRAINTS}.
+     * @since 1.9
+     */
+    @Override
+    public ConstraintDiscoveryStrategy constraintDiscoveryStrategy() {
+        return ConstraintDiscoveryStrategy.ALL_CONSTRAINTS;
+    }
+
+    /**
      * Returns the SQL statement for getting the next value of the given sequence.
      *
      * @param sequenceName the name of the sequence.

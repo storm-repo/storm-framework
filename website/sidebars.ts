@@ -33,6 +33,7 @@ const sidebars: SidebarsConfig = {
             'entity-lifecycle',
             'validation',
             'json',
+            'serialization',
           ],
         },
         {

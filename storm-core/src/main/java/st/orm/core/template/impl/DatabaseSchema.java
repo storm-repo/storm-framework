@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import st.orm.core.template.SqlDialect.ConstraintDiscoveryStrategy;
 import st.orm.core.template.SqlDialect.SequenceDiscoveryStrategy;
 
 /**
@@ -131,36 +132,18 @@ public final class DatabaseSchema {
      * @throws SQLException if a database access error occurs.
      */
     public static DatabaseSchema read(@Nonnull Connection connection) throws SQLException {
-        return read(connection, connection.getCatalog(), connection.getSchema());
+        return read(connection, connection.getCatalog(), connection.getSchema(),
+                SequenceDiscoveryStrategy.INFORMATION_SCHEMA, ConstraintDiscoveryStrategy.INFORMATION_SCHEMA);
     }
 
     /**
-     * Reads the database schema from the given connection.
+     * Reads the database schema from the given connection using the specified discovery strategies.
      *
-     * <p>This overload defaults to the {@link SequenceDiscoveryStrategy#INFORMATION_SCHEMA INFORMATION_SCHEMA}
-     * strategy for sequence discovery.</p>
-     *
-     * @param connection    the JDBC connection.
-     * @param catalog       the catalog name (may be null).
-     * @param schemaPattern the schema pattern (may be null).
-     * @return the database schema.
-     * @throws SQLException if a database access error occurs.
-     */
-    public static DatabaseSchema read(
-            @Nonnull Connection connection,
-            @Nullable String catalog,
-            @Nullable String schemaPattern
-    ) throws SQLException {
-        return read(connection, catalog, schemaPattern, SequenceDiscoveryStrategy.INFORMATION_SCHEMA);
-    }
-
-    /**
-     * Reads the database schema from the given connection using the specified sequence discovery strategy.
-     *
-     * @param connection                  the JDBC connection.
-     * @param catalog                     the catalog name (may be null).
-     * @param schemaPattern               the schema pattern (may be null).
-     * @param sequenceDiscoveryStrategy   the strategy for discovering sequences.
+     * @param connection                    the JDBC connection.
+     * @param catalog                       the catalog name (may be null).
+     * @param schemaPattern                 the schema pattern (may be null).
+     * @param sequenceDiscoveryStrategy     the strategy for discovering sequences.
+     * @param constraintDiscoveryStrategy   the strategy for discovering primary keys, unique keys, and foreign keys.
      * @return the database schema.
      * @throws SQLException if a database access error occurs.
      */
@@ -168,7 +151,8 @@ public final class DatabaseSchema {
             @Nonnull Connection connection,
             @Nullable String catalog,
             @Nullable String schemaPattern,
-            @Nonnull SequenceDiscoveryStrategy sequenceDiscoveryStrategy
+            @Nonnull SequenceDiscoveryStrategy sequenceDiscoveryStrategy,
+            @Nonnull ConstraintDiscoveryStrategy constraintDiscoveryStrategy
     ) throws SQLException {
         DatabaseMetaData metadata = connection.getMetaData();
         // Normalize the schema pattern to match the database's identifier casing convention.
@@ -213,7 +197,63 @@ public final class DatabaseSchema {
                         .add(new DbColumn(tableName, columnName, dataType, typeName, columnSize, nullable, autoIncrement));
             }
         }
-        // Discover primary keys per table.
+        // Discover primary keys, unique keys, and foreign keys using the dialect-provided strategy.
+        readConstraints(connection, metadata, catalog, schemaPattern, columnsByTable,
+                primaryKeysByTable, uniqueKeysByTable, foreignKeysByTable, constraintDiscoveryStrategy);
+        // Discover sequences using the dialect-provided strategy.
+        readSequences(connection, catalog, schemaPattern, sequences, sequenceDiscoveryStrategy);
+        return new DatabaseSchema(columnsByTable, primaryKeysByTable, uniqueKeysByTable, foreignKeysByTable, sequences);
+    }
+
+    // ------------------------------------------------------------------------------------------------------------------
+    // Constraint discovery strategies.
+    // ------------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Dispatches constraint discovery to the appropriate strategy.
+     */
+    private static void readConstraints(
+            @Nonnull Connection connection,
+            @Nonnull DatabaseMetaData metadata,
+            @Nullable String catalog,
+            @Nullable String schemaPattern,
+            @Nonnull SortedMap<String, List<DbColumn>> columnsByTable,
+            @Nonnull SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
+            @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
+            @Nonnull SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
+            @Nonnull ConstraintDiscoveryStrategy strategy
+    ) throws SQLException {
+        switch (strategy) {
+            case JDBC_METADATA -> readConstraintsFromJdbcMetadata(
+                    metadata, catalog, schemaPattern, columnsByTable,
+                    primaryKeysByTable, uniqueKeysByTable, foreignKeysByTable);
+            case INFORMATION_SCHEMA -> readConstraintsFromInformationSchema(
+                    connection, catalog, schemaPattern, columnsByTable,
+                    primaryKeysByTable, uniqueKeysByTable, foreignKeysByTable);
+            case INFORMATION_SCHEMA_REFERENCING -> readConstraintsFromInformationSchemaReferencing(
+                    connection, catalog, schemaPattern, columnsByTable,
+                    primaryKeysByTable, uniqueKeysByTable, foreignKeysByTable);
+            case ALL_CONSTRAINTS -> readConstraintsFromAllConstraints(
+                    connection, schemaPattern, columnsByTable,
+                    primaryKeysByTable, uniqueKeysByTable, foreignKeysByTable);
+        }
+    }
+
+    /**
+     * Reads constraints using per-table JDBC {@link DatabaseMetaData} calls.
+     *
+     * <p>This is the portable fallback that works with any JDBC driver but issues three metadata queries per table
+     * in the schema.</p>
+     */
+    private static void readConstraintsFromJdbcMetadata(
+            @Nonnull DatabaseMetaData metadata,
+            @Nullable String catalog,
+            @Nullable String schemaPattern,
+            @Nonnull SortedMap<String, List<DbColumn>> columnsByTable,
+            @Nonnull SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
+            @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
+            @Nonnull SortedMap<String, List<DbForeignKey>> foreignKeysByTable
+    ) throws SQLException {
         for (String tableName : new ArrayList<>(columnsByTable.keySet())) {
             try (ResultSet primaryKeys = metadata.getPrimaryKeys(catalog, schemaPattern, tableName)) {
                 while (primaryKeys.next()) {
@@ -227,11 +267,9 @@ public final class DatabaseSchema {
                 // Some databases/views may not support getPrimaryKeys; skip gracefully.
             }
         }
-        // Discover unique indexes per table.
         for (String tableName : new ArrayList<>(columnsByTable.keySet())) {
             try (ResultSet indexInfo = metadata.getIndexInfo(catalog, schemaPattern, tableName, true, true)) {
                 while (indexInfo.next()) {
-                    // Skip table statistics entries (TYPE == tableIndexStatistic).
                     if (indexInfo.getShort("TYPE") == 0) {
                         continue;
                     }
@@ -248,7 +286,6 @@ public final class DatabaseSchema {
                 // Some databases/views may not support getIndexInfo; skip gracefully.
             }
         }
-        // Discover foreign keys per table.
         for (String tableName : new ArrayList<>(columnsByTable.keySet())) {
             try (ResultSet importedKeys = metadata.getImportedKeys(catalog, schemaPattern, tableName)) {
                 while (importedKeys.next()) {
@@ -263,10 +300,261 @@ public final class DatabaseSchema {
                 // Some databases/views may not support getImportedKeys; skip gracefully.
             }
         }
-        // Discover sequences using the dialect-provided strategy.
-        readSequences(connection, catalog, schemaPattern, sequences, sequenceDiscoveryStrategy);
-        return new DatabaseSchema(columnsByTable, primaryKeysByTable, uniqueKeysByTable, foreignKeysByTable, sequences);
     }
+
+    /**
+     * Appends a {@code WHERE} or {@code AND} clause filtering by the given column and value.
+     *
+     * @param sql          the SQL builder to append to.
+     * @param hasCondition whether a {@code WHERE} clause has already been appended.
+     * @param column       the column name to filter on.
+     * @param value        the value to match (may be null, in which case no clause is appended).
+     * @return {@code true} if a condition was appended.
+     */
+    private static boolean appendFilter(
+            @Nonnull StringBuilder sql,
+            boolean hasCondition,
+            @Nonnull String column,
+            @Nullable String value
+    ) {
+        if (value == null || value.isEmpty()) {
+            return hasCondition;
+        }
+        sql.append(hasCondition ? " AND " : " WHERE ");
+        sql.append(column).append(" = '").append(value.replace("'", "''")).append("'");
+        return true;
+    }
+
+    /**
+     * Reads primary keys and unique keys from {@code INFORMATION_SCHEMA.TABLE_CONSTRAINTS} joined with
+     * {@code KEY_COLUMN_USAGE}. This helper is shared by both {@code INFORMATION_SCHEMA} strategies.
+     */
+    private static void readPrimaryAndUniqueKeysFromInformationSchema(
+            @Nonnull Connection connection,
+            @Nullable String catalog,
+            @Nullable String schemaPattern,
+            @Nonnull SortedMap<String, List<DbColumn>> columnsByTable,
+            @Nonnull SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
+            @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable
+    ) {
+        try {
+            StringBuilder sql = new StringBuilder("""
+                    SELECT tc.CONSTRAINT_TYPE, tc.CONSTRAINT_NAME,
+                           kcu.TABLE_NAME, kcu.COLUMN_NAME, kcu.ORDINAL_POSITION
+                    FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+                    JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+                      ON tc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
+                      AND tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+                      AND tc.TABLE_NAME = kcu.TABLE_NAME
+                    WHERE tc.CONSTRAINT_TYPE IN ('PRIMARY KEY', 'UNIQUE')""");
+            appendFilter(sql, true, "tc.TABLE_CATALOG", catalog);
+            appendFilter(sql, true, "tc.TABLE_SCHEMA", schemaPattern);
+            try (var statement = connection.createStatement();
+                 var resultSet = statement.executeQuery(sql.toString())) {
+                while (resultSet.next()) {
+                    String tableName = resultSet.getString("TABLE_NAME");
+                    if (!columnsByTable.containsKey(tableName)) {
+                        continue;
+                    }
+                    String constraintType = resultSet.getString("CONSTRAINT_TYPE");
+                    String constraintName = resultSet.getString("CONSTRAINT_NAME");
+                    String columnName = resultSet.getString("COLUMN_NAME");
+                    int ordinalPosition = resultSet.getInt("ORDINAL_POSITION");
+                    if ("PRIMARY KEY".equals(constraintType)) {
+                        primaryKeysByTable.computeIfAbsent(tableName, k -> new ArrayList<>())
+                                .add(new DbPrimaryKey(tableName, columnName, ordinalPosition));
+                    } else {
+                        uniqueKeysByTable.computeIfAbsent(tableName, k -> new ArrayList<>())
+                                .add(new DbUniqueKey(tableName, constraintName, columnName, ordinalPosition));
+                    }
+                }
+            }
+        } catch (SQLException ignored) {
+            // INFORMATION_SCHEMA views not available; constraint validation will be skipped.
+        }
+    }
+
+    /**
+     * Reads constraints using standard {@code INFORMATION_SCHEMA} views. Foreign keys are discovered via
+     * {@code REFERENTIAL_CONSTRAINTS} joined with {@code KEY_COLUMN_USAGE} using
+     * {@code POSITION_IN_UNIQUE_CONSTRAINT}.
+     */
+    private static void readConstraintsFromInformationSchema(
+            @Nonnull Connection connection,
+            @Nullable String catalog,
+            @Nullable String schemaPattern,
+            @Nonnull SortedMap<String, List<DbColumn>> columnsByTable,
+            @Nonnull SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
+            @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
+            @Nonnull SortedMap<String, List<DbForeignKey>> foreignKeysByTable
+    ) {
+        readPrimaryAndUniqueKeysFromInformationSchema(
+                connection, catalog, schemaPattern, columnsByTable, primaryKeysByTable, uniqueKeysByTable);
+        // Foreign keys: join REFERENTIAL_CONSTRAINTS with KEY_COLUMN_USAGE on both sides, matching columns by
+        // POSITION_IN_UNIQUE_CONSTRAINT.
+        try {
+            StringBuilder sql = new StringBuilder("""
+                    SELECT kcu.TABLE_NAME AS FK_TABLE, kcu.COLUMN_NAME AS FK_COLUMN,
+                           kcu2.TABLE_NAME AS PK_TABLE, kcu2.COLUMN_NAME AS PK_COLUMN
+                    FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
+                    JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+                      ON rc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
+                      AND rc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+                    JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu2
+                      ON rc.UNIQUE_CONSTRAINT_SCHEMA = kcu2.CONSTRAINT_SCHEMA
+                      AND rc.UNIQUE_CONSTRAINT_NAME = kcu2.CONSTRAINT_NAME
+                      AND kcu.POSITION_IN_UNIQUE_CONSTRAINT = kcu2.ORDINAL_POSITION
+                    WHERE 1=1""");
+            appendFilter(sql, true, "rc.CONSTRAINT_CATALOG", catalog);
+            appendFilter(sql, true, "rc.CONSTRAINT_SCHEMA", schemaPattern);
+            try (var statement = connection.createStatement();
+                 var resultSet = statement.executeQuery(sql.toString())) {
+                while (resultSet.next()) {
+                    String fkTableName = resultSet.getString("FK_TABLE");
+                    if (!columnsByTable.containsKey(fkTableName)) {
+                        continue;
+                    }
+                    String fkColumnName = resultSet.getString("FK_COLUMN");
+                    String pkTableName = resultSet.getString("PK_TABLE");
+                    String pkColumnName = resultSet.getString("PK_COLUMN");
+                    foreignKeysByTable.computeIfAbsent(fkTableName, k -> new ArrayList<>())
+                            .add(new DbForeignKey(fkTableName, fkColumnName, pkTableName, pkColumnName));
+                }
+            }
+        } catch (SQLException ignored) {
+            // REFERENTIAL_CONSTRAINTS not available; foreign key validation will be skipped.
+        }
+    }
+
+    /**
+     * Reads constraints using {@code INFORMATION_SCHEMA} views with {@code REFERENCED_TABLE_NAME} and
+     * {@code REFERENCED_COLUMN_NAME} columns in {@code KEY_COLUMN_USAGE} for foreign key discovery.
+     */
+    private static void readConstraintsFromInformationSchemaReferencing(
+            @Nonnull Connection connection,
+            @Nullable String catalog,
+            @Nullable String schemaPattern,
+            @Nonnull SortedMap<String, List<DbColumn>> columnsByTable,
+            @Nonnull SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
+            @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
+            @Nonnull SortedMap<String, List<DbForeignKey>> foreignKeysByTable
+    ) {
+        // For databases that use catalogs as schemas, the catalog value represents the database name and maps to
+        // TABLE_SCHEMA in INFORMATION_SCHEMA views (not TABLE_CATALOG).
+        String effectiveSchema = schemaPattern != null ? schemaPattern : catalog;
+        readPrimaryAndUniqueKeysFromInformationSchema(
+                connection, null, effectiveSchema, columnsByTable, primaryKeysByTable, uniqueKeysByTable);
+        // Foreign keys: use REFERENCED_TABLE_NAME and REFERENCED_COLUMN_NAME columns in KEY_COLUMN_USAGE.
+        try {
+            StringBuilder sql = new StringBuilder("""
+                    SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+                    FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+                    WHERE REFERENCED_TABLE_NAME IS NOT NULL""");
+            appendFilter(sql, true, "TABLE_SCHEMA", effectiveSchema);
+            try (var statement = connection.createStatement();
+                 var resultSet = statement.executeQuery(sql.toString())) {
+                while (resultSet.next()) {
+                    String fkTableName = resultSet.getString("TABLE_NAME");
+                    if (!columnsByTable.containsKey(fkTableName)) {
+                        continue;
+                    }
+                    String fkColumnName = resultSet.getString("COLUMN_NAME");
+                    String pkTableName = resultSet.getString("REFERENCED_TABLE_NAME");
+                    String pkColumnName = resultSet.getString("REFERENCED_COLUMN_NAME");
+                    foreignKeysByTable.computeIfAbsent(fkTableName, k -> new ArrayList<>())
+                            .add(new DbForeignKey(fkTableName, fkColumnName, pkTableName, pkColumnName));
+                }
+            }
+        } catch (SQLException ignored) {
+            // REFERENCED columns not available; foreign key validation will be skipped.
+        }
+    }
+
+    /**
+     * Reads constraints using {@code ALL_CONSTRAINTS} and {@code ALL_CONS_COLUMNS} dictionary views.
+     */
+    private static void readConstraintsFromAllConstraints(
+            @Nonnull Connection connection,
+            @Nullable String schemaPattern,
+            @Nonnull SortedMap<String, List<DbColumn>> columnsByTable,
+            @Nonnull SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
+            @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
+            @Nonnull SortedMap<String, List<DbForeignKey>> foreignKeysByTable
+    ) {
+        // Primary keys and unique constraints.
+        try {
+            StringBuilder sql = new StringBuilder("""
+                    SELECT ac.CONSTRAINT_TYPE, ac.CONSTRAINT_NAME,
+                           acc.TABLE_NAME, acc.COLUMN_NAME, acc.POSITION
+                    FROM ALL_CONSTRAINTS ac
+                    JOIN ALL_CONS_COLUMNS acc
+                      ON ac.OWNER = acc.OWNER
+                      AND ac.CONSTRAINT_NAME = acc.CONSTRAINT_NAME
+                    WHERE ac.CONSTRAINT_TYPE IN ('P', 'U')""");
+            appendFilter(sql, true, "ac.OWNER", schemaPattern);
+            try (var statement = connection.createStatement();
+                 var resultSet = statement.executeQuery(sql.toString())) {
+                while (resultSet.next()) {
+                    String tableName = resultSet.getString("TABLE_NAME");
+                    if (!columnsByTable.containsKey(tableName)) {
+                        continue;
+                    }
+                    String constraintType = resultSet.getString("CONSTRAINT_TYPE");
+                    String constraintName = resultSet.getString("CONSTRAINT_NAME");
+                    String columnName = resultSet.getString("COLUMN_NAME");
+                    int position = resultSet.getInt("POSITION");
+                    if ("P".equals(constraintType)) {
+                        primaryKeysByTable.computeIfAbsent(tableName, k -> new ArrayList<>())
+                                .add(new DbPrimaryKey(tableName, columnName, position));
+                    } else {
+                        uniqueKeysByTable.computeIfAbsent(tableName, k -> new ArrayList<>())
+                                .add(new DbUniqueKey(tableName, constraintName, columnName, position));
+                    }
+                }
+            }
+        } catch (SQLException ignored) {
+            // ALL_CONSTRAINTS not available; primary key and unique key validation will be skipped.
+        }
+        // Foreign keys.
+        try {
+            StringBuilder sql = new StringBuilder("""
+                    SELECT fkc.TABLE_NAME AS FK_TABLE, fkc.COLUMN_NAME AS FK_COLUMN,
+                           pkc.TABLE_NAME AS PK_TABLE, pkc.COLUMN_NAME AS PK_COLUMN
+                    FROM ALL_CONSTRAINTS fk
+                    JOIN ALL_CONS_COLUMNS fkc
+                      ON fk.OWNER = fkc.OWNER
+                      AND fk.CONSTRAINT_NAME = fkc.CONSTRAINT_NAME
+                    JOIN ALL_CONSTRAINTS pk
+                      ON fk.R_OWNER = pk.OWNER
+                      AND fk.R_CONSTRAINT_NAME = pk.CONSTRAINT_NAME
+                    JOIN ALL_CONS_COLUMNS pkc
+                      ON pk.OWNER = pkc.OWNER
+                      AND pk.CONSTRAINT_NAME = pkc.CONSTRAINT_NAME
+                      AND fkc.POSITION = pkc.POSITION
+                    WHERE fk.CONSTRAINT_TYPE = 'R'""");
+            appendFilter(sql, true, "fk.OWNER", schemaPattern);
+            try (var statement = connection.createStatement();
+                 var resultSet = statement.executeQuery(sql.toString())) {
+                while (resultSet.next()) {
+                    String fkTableName = resultSet.getString("FK_TABLE");
+                    if (!columnsByTable.containsKey(fkTableName)) {
+                        continue;
+                    }
+                    String fkColumnName = resultSet.getString("FK_COLUMN");
+                    String pkTableName = resultSet.getString("PK_TABLE");
+                    String pkColumnName = resultSet.getString("PK_COLUMN");
+                    foreignKeysByTable.computeIfAbsent(fkTableName, k -> new ArrayList<>())
+                            .add(new DbForeignKey(fkTableName, fkColumnName, pkTableName, pkColumnName));
+                }
+            }
+        } catch (SQLException ignored) {
+            // ALL_CONSTRAINTS FK query not available; foreign key validation will be skipped.
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------------------------------
+    // Sequence discovery strategies.
+    // ------------------------------------------------------------------------------------------------------------------
 
     /**
      * Reads sequences using the specified discovery strategy.

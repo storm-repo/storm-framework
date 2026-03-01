@@ -50,7 +50,6 @@ import st.orm.core.spi.TypeDiscovery;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
 import st.orm.core.template.SqlDialect;
-import st.orm.core.template.SqlDialect.SequenceDiscoveryStrategy;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.DatabaseSchema.DbColumn;
 import st.orm.core.template.impl.DatabaseSchema.DbForeignKey;
@@ -320,8 +319,8 @@ public final class SchemaValidator {
             catalog = defaultCatalog;
             schemaPattern = entitySchema.isEmpty() ? defaultSchema : entitySchema;
         }
-        SequenceDiscoveryStrategy strategy = sqlDialect.sequenceDiscoveryStrategy();
-        DatabaseSchema databaseSchema = DatabaseSchema.read(connection, catalog, schemaPattern, strategy);
+        DatabaseSchema databaseSchema = DatabaseSchema.read(connection, catalog, schemaPattern,
+                sqlDialect.sequenceDiscoveryStrategy(), sqlDialect.constraintDiscoveryStrategy());
         schemaCache.put(schemaKey, databaseSchema);
         return databaseSchema;
     }
