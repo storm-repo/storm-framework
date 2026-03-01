@@ -104,16 +104,6 @@
                 <version>3.6.0</version>
                 <executions>
                     <execution>
-                        <id>add-java-main</id>
-                        <phase>generate-sources</phase>
-                        <goals><goal>add-source</goal></goals>
-                        <configuration>
-                            <sources>
-                                <source>src/main/java</source>
-                            </sources>
-                        </configuration>
-                    </execution>
-                    <execution>
                         <id>add-kotlin-main</id>
                         <phase>generate-sources</phase>
                         <goals><goal>add-source</goal></goals>
