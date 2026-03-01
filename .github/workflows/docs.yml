@@ -44,13 +44,15 @@ jobs:
         run: |
           mvn javadoc:aggregate -q \
             -Dmaven.javadoc.failOnError=false \
-            -Dadditionaloption="--enable-preview --source 21"
+            -DadditionalJOption=--enable-preview \
+            -Ddoclint=none \
+            -pl '!:storm-kotlin,!:storm-kotlin-spring,!:storm-kotlin-spring-boot-starter,!:storm-kotlin-validator,!:storm-kotlinx-serialization,!:storm-metamodel-ksp,!:storm-spring-boot-starter,!:storm-jackson3'
 
       - name: Copy Javadoc to website/static/api/java
         run: |
           mkdir -p website/static/api/java
-          if [ -d target/site/apidocs ]; then
-            cp -r target/site/apidocs/* website/static/api/java/
+          if [ -d target/reports/apidocs ]; then
+            cp -r target/reports/apidocs/* website/static/api/java/
           fi
 
       - name: Copy KDoc to website/static/api/kotlin

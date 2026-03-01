@@ -202,10 +202,9 @@ If you are coming from JPA or Hibernate, these pages explain the key differences
 1. [Migration from JPA](migration-from-jpa.md) -- annotation mapping, concept translation, coexistence strategy
 2. [Storm vs Other Frameworks](comparison.md) -- honest feature comparison with JPA, jOOQ, MyBatis, and others
 3. [Entities](entities.md) -- how Storm entities differ from JPA entities
-4. [Dirty Checking](dirty-checking.md) -- how Storm handles change detection without a persistence context
-5. [Repositories](repositories.md) -- Storm repositories vs. Spring Data repositories
-6. [Transactions](transactions.md) -- transaction management without an EntityManager
-7. [Spring Integration](spring-integration.md) -- Spring Boot Starter and auto-configuration
+4. [Repositories](repositories.md) -- Storm repositories vs. Spring Data repositories
+5. [Transactions](transactions.md) -- transaction management without an EntityManager
+6. [Spring Integration](spring-integration.md) -- Spring Boot Starter and auto-configuration
 
 ### Evaluating for Production
 
@@ -217,7 +216,6 @@ If you are a tech lead or architect evaluating Storm for a production system, th
 4. [Testing](testing.md) -- JUnit 5 integration, statement capture, and test isolation
 5. [Configuration](configuration.md) -- runtime tuning, dirty checking modes, cache retention
 6. [Database Dialects](dialects.md) -- database-specific optimizations
-7. [Entity Cache](entity-cache.md) -- transaction-scoped caching and identity preservation
 
 ## What Storm Does Not Do
 
