@@ -145,8 +145,7 @@ class StormAutoConfigurationTest {
                 "storm.entity-cache.retention=default",
                 "storm.template-cache.size=100",
                 "storm.ansi-escaping=false",
-                "storm.validation.skip=false",
-                "storm.validation.warnings-only=true",
+                "storm.validation.record-mode=warn",
             )
             .run { context ->
                 context.getBean(ORMTemplate::class.java) shouldNotBe null
@@ -157,8 +156,7 @@ class StormAutoConfigurationTest {
                 properties.entityCache.retention shouldBe "default"
                 properties.templateCache.size shouldBe 100
                 properties.ansiEscaping shouldBe false
-                properties.validation.skip shouldBe false
-                properties.validation.warningsOnly shouldBe true
+                properties.validation.recordMode shouldBe "warn"
             }
     }
 
@@ -183,8 +181,7 @@ class StormAutoConfigurationTest {
         properties.templateCache = templateCache
 
         val validation = StormProperties.Validation()
-        validation.skip = true
-        validation.warningsOnly = false
+        validation.recordMode = "none"
         properties.validation = validation
 
         properties.ansiEscaping = true
@@ -194,8 +191,7 @@ class StormAutoConfigurationTest {
         properties.update.maxShapes shouldBe 10
         properties.entityCache.retention shouldBe "light"
         properties.templateCache.size shouldBe 200
-        properties.validation.skip shouldBe true
-        properties.validation.warningsOnly shouldBe false
+        properties.validation.recordMode shouldBe "none"
         properties.ansiEscaping shouldBe true
     }
 

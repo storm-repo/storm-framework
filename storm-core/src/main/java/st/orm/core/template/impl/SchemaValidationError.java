@@ -48,7 +48,11 @@ public record SchemaValidationError(
         /** The primary key columns in the entity do not match the database primary key. */
         PRIMARY_KEY_MISMATCH,
         /** A sequence referenced by the entity does not exist in the database. */
-        SEQUENCE_NOT_FOUND;
+        SEQUENCE_NOT_FOUND,
+        /** A {@code @UK} field does not have a matching unique constraint in the database. */
+        UNIQUE_KEY_MISSING(true),
+        /** A {@code @FK} field does not have a matching foreign key constraint in the database. */
+        FOREIGN_KEY_MISSING(true);
 
         private final boolean warning;
 

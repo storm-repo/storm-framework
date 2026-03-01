@@ -4,6 +4,7 @@
 [![CI](https://github.com/storm-repo/storm-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/storm-repo/storm-framework/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/storm-repo/storm-framework/graph/badge.svg)](https://codecov.io/gh/storm-repo/storm-framework)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Docs](https://img.shields.io/badge/docs-storm--framework-blue)](https://storm-repo.github.io/storm-framework/)
 [![Kotlin 2.0+](https://img.shields.io/badge/Kotlin-2.0%2B-purple)](https://kotlinlang.org/)
 [![Java 21+](https://img.shields.io/badge/Java-21%2B-blue)](https://openjdk.org/projects/jdk/21/)
 
@@ -184,6 +185,8 @@ dependencies {
 
 ## Documentation
 
+Full documentation is available at [storm-repo.github.io/storm-framework](https://storm-repo.github.io/storm-framework/).
+
 ### Core Concepts
 
 Everything you need to build applications with Storm. Start with Getting Started and work through the topics as needed.
@@ -207,6 +210,7 @@ Everything you need to build applications with Storm. Start with Getting Started
 | [Spring Integration](docs/spring-integration.md) | Spring Boot Starter and auto-configuration (8 min) |
 | [Database Dialects](docs/dialects.md) | Database-specific support (5 min) |
 | [Testing](docs/testing.md) | JUnit 5 integration and statement capture (5 min) |
+| [Validation](docs/validation.md) | Record and schema validation (5 min) |
 
 ### Advanced Topics
 

@@ -1,4 +1,4 @@
-# Entity Lifecycle Callbacks
+# Entity Lifecycle
 
 Storm provides a typed `EntityCallback<E>` interface that lets you hook into entity lifecycle events. Callbacks are a general-purpose building block for cross-cutting concerns like auditing, validation, and logging, while keeping Storm unopinionated about how those concerns are implemented.
 

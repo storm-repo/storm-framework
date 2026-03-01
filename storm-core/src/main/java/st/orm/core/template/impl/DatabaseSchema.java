@@ -22,9 +22,9 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.SortedMap;
 import java.util.TreeMap;
 import st.orm.core.template.SqlDialect.SequenceDiscoveryStrategy;
 
@@ -72,18 +72,54 @@ public final class DatabaseSchema {
             int keySeq
     ) {}
 
-    // Case-insensitive maps: table name -> columns/PKs.
-    private final TreeMap<String, List<DbColumn>> columnsByTable;
-    private final TreeMap<String, List<DbPrimaryKey>> primaryKeysByTable;
-    private final TreeMap<String, Boolean> sequences;
+    /**
+     * Represents a column that is part of a unique index discovered from the database metadata.
+     *
+     * @param tableName       the table containing this unique index.
+     * @param indexName        the name of the unique index.
+     * @param columnName      the column name that is part of the unique index.
+     * @param ordinalPosition the ordinal position of the column within the index (1-based).
+     */
+    public record DbUniqueKey(
+            @Nonnull String tableName,
+            @Nonnull String indexName,
+            @Nonnull String columnName,
+            int ordinalPosition
+    ) {}
+
+    /**
+     * Represents a foreign key relationship discovered from the database metadata.
+     *
+     * @param fkTableName  the table containing the foreign key column.
+     * @param fkColumnName the foreign key column name.
+     * @param pkTableName  the referenced (primary key) table name.
+     * @param pkColumnName the referenced (primary key) column name.
+     */
+    public record DbForeignKey(
+            @Nonnull String fkTableName,
+            @Nonnull String fkColumnName,
+            @Nonnull String pkTableName,
+            @Nonnull String pkColumnName
+    ) {}
+
+    // Case-insensitive maps: table name -> columns/PKs/UKs/FKs.
+    private final SortedMap<String, List<DbColumn>> columnsByTable;
+    private final SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable;
+    private final SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable;
+    private final SortedMap<String, List<DbForeignKey>> foreignKeysByTable;
+    private final SortedMap<String, Boolean> sequences;
 
     private DatabaseSchema(
-            @Nonnull TreeMap<String, List<DbColumn>> columnsByTable,
-            @Nonnull TreeMap<String, List<DbPrimaryKey>> primaryKeysByTable,
-            @Nonnull TreeMap<String, Boolean> sequences
+            @Nonnull SortedMap<String, List<DbColumn>> columnsByTable,
+            @Nonnull SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable,
+            @Nonnull SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable,
+            @Nonnull SortedMap<String, List<DbForeignKey>> foreignKeysByTable,
+            @Nonnull SortedMap<String, Boolean> sequences
     ) {
         this.columnsByTable = columnsByTable;
         this.primaryKeysByTable = primaryKeysByTable;
+        this.uniqueKeysByTable = uniqueKeysByTable;
+        this.foreignKeysByTable = foreignKeysByTable;
         this.sequences = sequences;
     }
 
@@ -143,9 +179,11 @@ public final class DatabaseSchema {
                 schemaPattern = schemaPattern.toLowerCase();
             }
         }
-        TreeMap<String, List<DbColumn>> columnsByTable = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        TreeMap<String, List<DbPrimaryKey>> primaryKeysByTable = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        TreeMap<String, Boolean> sequences = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        SortedMap<String, List<DbColumn>> columnsByTable = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        SortedMap<String, List<DbPrimaryKey>> primaryKeysByTable = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        SortedMap<String, List<DbUniqueKey>> uniqueKeysByTable = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        SortedMap<String, List<DbForeignKey>> foreignKeysByTable = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        SortedMap<String, Boolean> sequences = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         // Discover tables and views.
         try (ResultSet tables = metadata.getTables(catalog, schemaPattern, "%", new String[]{"TABLE", "VIEW"})) {
             while (tables.next()) {
@@ -189,9 +227,45 @@ public final class DatabaseSchema {
                 // Some databases/views may not support getPrimaryKeys; skip gracefully.
             }
         }
+        // Discover unique indexes per table.
+        for (String tableName : new ArrayList<>(columnsByTable.keySet())) {
+            try (ResultSet indexInfo = metadata.getIndexInfo(catalog, schemaPattern, tableName, true, true)) {
+                while (indexInfo.next()) {
+                    // Skip table statistics entries (TYPE == tableIndexStatistic).
+                    if (indexInfo.getShort("TYPE") == 0) {
+                        continue;
+                    }
+                    String indexName = indexInfo.getString("INDEX_NAME");
+                    String columnName = indexInfo.getString("COLUMN_NAME");
+                    int ordinalPosition = indexInfo.getShort("ORDINAL_POSITION");
+                    if (indexName == null || columnName == null) {
+                        continue;
+                    }
+                    uniqueKeysByTable.computeIfAbsent(tableName, k -> new ArrayList<>())
+                            .add(new DbUniqueKey(tableName, indexName, columnName, ordinalPosition));
+                }
+            } catch (SQLException ignored) {
+                // Some databases/views may not support getIndexInfo; skip gracefully.
+            }
+        }
+        // Discover foreign keys per table.
+        for (String tableName : new ArrayList<>(columnsByTable.keySet())) {
+            try (ResultSet importedKeys = metadata.getImportedKeys(catalog, schemaPattern, tableName)) {
+                while (importedKeys.next()) {
+                    String fkTableName = importedKeys.getString("FKTABLE_NAME");
+                    String fkColumnName = importedKeys.getString("FKCOLUMN_NAME");
+                    String pkTableName = importedKeys.getString("PKTABLE_NAME");
+                    String pkColumnName = importedKeys.getString("PKCOLUMN_NAME");
+                    foreignKeysByTable.computeIfAbsent(fkTableName, k -> new ArrayList<>())
+                            .add(new DbForeignKey(fkTableName, fkColumnName, pkTableName, pkColumnName));
+                }
+            } catch (SQLException ignored) {
+                // Some databases/views may not support getImportedKeys; skip gracefully.
+            }
+        }
         // Discover sequences using the dialect-provided strategy.
         readSequences(connection, catalog, schemaPattern, sequences, sequenceDiscoveryStrategy);
-        return new DatabaseSchema(columnsByTable, primaryKeysByTable, sequences);
+        return new DatabaseSchema(columnsByTable, primaryKeysByTable, uniqueKeysByTable, foreignKeysByTable, sequences);
     }
 
     /**
@@ -203,7 +277,7 @@ public final class DatabaseSchema {
             @Nonnull Connection connection,
             @Nullable String catalog,
             @Nullable String schemaPattern,
-            @Nonnull TreeMap<String, Boolean> sequences,
+            @Nonnull SortedMap<String, Boolean> sequences,
             @Nonnull SequenceDiscoveryStrategy strategy
     ) {
         switch (strategy) {
@@ -220,7 +294,7 @@ public final class DatabaseSchema {
             @Nonnull Connection connection,
             @Nullable String catalog,
             @Nullable String schemaPattern,
-            @Nonnull TreeMap<String, Boolean> sequences
+            @Nonnull SortedMap<String, Boolean> sequences
     ) {
         try {
             StringBuilder sql = new StringBuilder("SELECT SEQUENCE_NAME FROM INFORMATION_SCHEMA.SEQUENCES");
@@ -250,7 +324,7 @@ public final class DatabaseSchema {
     private static void readSequencesFromAllSequences(
             @Nonnull Connection connection,
             @Nullable String schemaPattern,
-            @Nonnull TreeMap<String, Boolean> sequences
+            @Nonnull SortedMap<String, Boolean> sequences
     ) {
         try {
             StringBuilder sql = new StringBuilder("SELECT SEQUENCE_NAME FROM ALL_SEQUENCES");
@@ -304,9 +378,37 @@ public final class DatabaseSchema {
     public List<DbPrimaryKey> getPrimaryKeys(@Nonnull String tableName) {
         List<DbPrimaryKey> primaryKeys = primaryKeysByTable.get(tableName);
         if (primaryKeys == null) {
-            return Collections.emptyList();
+            return List.of();
         }
-        return Collections.unmodifiableList(primaryKeys);
+        return List.copyOf(primaryKeys);
+    }
+
+    /**
+     * Returns the unique key columns for the given table.
+     *
+     * @param tableName the table name (case-insensitive).
+     * @return the unique key columns, or an empty list if none found.
+     */
+    public List<DbUniqueKey> getUniqueKeys(@Nonnull String tableName) {
+        List<DbUniqueKey> uniqueKeys = uniqueKeysByTable.get(tableName);
+        if (uniqueKeys == null) {
+            return List.of();
+        }
+        return List.copyOf(uniqueKeys);
+    }
+
+    /**
+     * Returns the foreign key constraints for the given table.
+     *
+     * @param tableName the table name (case-insensitive).
+     * @return the foreign key constraints, or an empty list if none found.
+     */
+    public List<DbForeignKey> getForeignKeys(@Nonnull String tableName) {
+        List<DbForeignKey> foreignKeys = foreignKeysByTable.get(tableName);
+        if (foreignKeys == null) {
+            return List.of();
+        }
+        return List.copyOf(foreignKeys);
     }
 
     /**

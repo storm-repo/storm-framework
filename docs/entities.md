@@ -117,7 +117,11 @@ data class Pet(
 
 ### Unique Keys
 
-Use `@UK` on fields that have a unique constraint in the database. Fields annotated with `@UK` indicate that the corresponding column contains unique values, enabling type-safe single-result lookups and keyset pagination. The `@PK` annotation implies `@UK`, so primary key fields are automatically unique. See [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey) for details on how the metamodel processor generates `Metamodel.Key` instances for unique fields.
+Use `@UK` on fields that have a unique constraint in the database. The `@PK` annotation implies `@UK`, so primary key fields are automatically unique. Annotating a field with `@UK` tells Storm that the column contains unique values, which enables several framework features:
+
+1. **Type-safe lookups.** `findBy(Key, value)` and `getBy(Key, value)` return a single result without requiring a predicate. The metamodel processor generates `Metamodel.Key` instances for `@UK` fields. See [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey) for details.
+2. **Keyset pagination.** `@UK` fields can serve as cursor columns for `slice`, `sliceAfter`, and `sliceBefore`. Because the values are unique, the cursor position is always unambiguous. See [Keyset Pagination](queries.md#keyset-pagination-with-slice).
+3. **Schema validation.** When [schema validation](validation.md) is enabled, Storm checks that the database actually has a matching unique constraint for each `@UK` field and reports a warning if it is missing.
 
 ```kotlin
 data class User(
@@ -139,6 +143,8 @@ data class SomeEntity(
     @UK @Persist(insertable = false, updatable = false) val uniqueKey: UserEmailUK
 ) : Entity<Int>
 ```
+
+When a column is not annotated with `@UK` but becomes unique in a specific query context (for example, a GROUP BY column produces unique values in the result set), wrap the metamodel with `.key()` to indicate it can serve as a keyset pagination cursor. See [Manual Key Wrapping](metamodel.md#manual-key-wrapping) for details.
 
 ### Suppressing Schema Validation
 
@@ -380,7 +386,11 @@ record Pet(@PK Integer id,
 
 ### Unique Keys
 
-Use `@UK` on fields that have a unique constraint in the database. Fields annotated with `@UK` indicate that the corresponding column contains unique values, enabling type-safe single-result lookups and keyset pagination. The `@PK` annotation implies `@UK`, so primary key fields are automatically unique. See [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey) for details.
+Use `@UK` on fields that have a unique constraint in the database. The `@PK` annotation implies `@UK`, so primary key fields are automatically unique. Annotating a field with `@UK` tells Storm that the column contains unique values, which enables several framework features:
+
+1. **Type-safe lookups.** `findBy(Key, value)` and `getBy(Key, value)` return a single result without requiring a predicate. The metamodel processor generates `Metamodel.Key` instances for `@UK` fields. See [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey) for details.
+2. **Keyset pagination.** `@UK` fields can serve as cursor columns for `slice`, `sliceAfter`, and `sliceBefore`. Because the values are unique, the cursor position is always unambiguous. See [Keyset Pagination](queries.md#keyset-pagination-with-slice).
+3. **Schema validation.** When [schema validation](validation.md) is enabled, Storm checks that the database actually has a matching unique constraint for each `@UK` field and reports a warning if it is missing.
 
 ```java
 record User(@PK Integer id,
@@ -400,6 +410,8 @@ record SomeEntity(@PK Integer id,
                   @UK @Persist(insertable = false, updatable = false) UserEmailUK uniqueKey
 ) implements Entity<Integer> {}
 ```
+
+When a column is not annotated with `@UK` but becomes unique in a specific query context (for example, a GROUP BY column produces unique values in the result set), wrap the metamodel with `Metamodel.key()` to indicate it can serve as a keyset pagination cursor. See [Manual Key Wrapping](metamodel.md#manual-key-wrapping) for details.
 
 ### Suppressing Schema Validation
 

@@ -86,17 +86,17 @@ final class RecordValidation {
         if (validationCompleted) {
             return;
         }
-        boolean skipValidation = Boolean.parseBoolean(config.getProperty("storm.validation.skip", "false"));
-        boolean warningsOnly = Boolean.parseBoolean(config.getProperty("storm.validation.warnings_only", "false"));
+        String recordMode = resolveRecordMode(config);
         synchronized (RecordValidation.class) {
             if (validationCompleted) {
                 return;
             }
-            if (skipValidation) {
-                LOGGER.info("Skipping Data type validation. Set -Dstorm.validation.skip=false to enable validation.");
+            if ("none".equalsIgnoreCase(recordMode)) {
+                LOGGER.info("Skipping Data type validation. Set storm.validation.record_mode=fail to enable validation.");
                 validationCompleted = true;
                 return;
             }
+            boolean warningsOnly = "warn".equalsIgnoreCase(recordMode);
             LOGGER.info("Validating Data types for correctness.");
             var dataTypes = TypeDiscovery.getDataTypes();
             var validationErrors = new AtomicReference<>(0);
@@ -119,13 +119,27 @@ final class RecordValidation {
                 throw new PersistenceException(firstError.getPlain());
             }
             if (validationErrors.getPlain() > 0) {
-                LOGGER.warn("Entity validation found %d issues. Set -Dstorm.validation.warnings_only=false to fail on startup."
+                LOGGER.warn("Entity validation found %d issues. Set storm.validation.record_mode=fail to fail on startup."
                         .formatted(validationErrors.getPlain()));
             } else {
                 LOGGER.info("Successfully validated %s Data types for correctness.".formatted(dataTypes.size()));
             }
             validationCompleted = true;
         }
+    }
+
+    /**
+     * Resolves the record validation mode from the given configuration.
+     *
+     * @param config the Storm configuration.
+     * @return the resolved record validation mode: {@code "none"}, {@code "warn"}, or {@code "fail"}.
+     */
+    private static String resolveRecordMode(@Nonnull StormConfig config) {
+        String recordMode = config.getProperty("storm.validation.record_mode", null);
+        if (recordMode != null) {
+            return recordMode.trim();
+        }
+        return "fail";
     }
 
     /**

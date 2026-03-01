@@ -40,7 +40,9 @@ import st.orm.Entity;
 import st.orm.FK;
 import st.orm.GenerationStrategy;
 import st.orm.PK;
+import st.orm.Persist;
 import st.orm.Ref;
+import st.orm.UK;
 import st.orm.core.template.impl.SchemaValidationError;
 import st.orm.core.template.impl.SchemaValidationError.ErrorKind;
 import st.orm.core.template.impl.SchemaValidationException;
@@ -144,6 +146,47 @@ class SchemaValidatorTest {
             @PK Integer id,
             @Nonnull String name,
             @DbIgnore @Nonnull LocalDate description  // type mismatch, but ignored
+    ) implements Entity<Integer> {}
+
+    // --- UK/FK validation test entities ---
+
+    public record UniqueKeyEntity(
+            @PK Integer id,
+            @UK @Nonnull String email,
+            @Nonnull String name
+    ) implements Entity<Integer> {}
+
+    public record CompoundUniqueKeyFields(int userId, @Nonnull String email) {}
+
+    public record CompoundUniqueKeyEntity(
+            @PK Integer id,
+            @Nonnull String name,
+            int userId,
+            @Nonnull String email,
+            @UK @Persist(insertable = false, updatable = false) @Nonnull CompoundUniqueKeyFields uniqueKey
+    ) implements Entity<Integer> {}
+
+    public record ForeignKeyTarget(
+            @PK Integer id,
+            @Nonnull String name
+    ) implements Entity<Integer> {}
+
+    public record ForeignKeySourceEntity(
+            @PK Integer id,
+            @Nonnull String name,
+            @Nullable @FK Ref<ForeignKeyTarget> foreignKeyTarget
+    ) implements Entity<Integer> {}
+
+    public record UniqueKeyIgnoredEntity(
+            @PK Integer id,
+            @Nonnull String name,
+            @DbIgnore @UK @Nonnull String email
+    ) implements Entity<Integer> {}
+
+    public record ForeignKeyIgnoredEntity(
+            @PK Integer id,
+            @Nonnull String name,
+            @DbIgnore @Nullable @FK Ref<ForeignKeyTarget> foreignKeyTarget
     ) implements Entity<Integer> {}
 
     @BeforeEach
@@ -291,7 +334,8 @@ class SchemaValidatorTest {
                 + "id INTEGER AUTO_INCREMENT, "
                 + "name VARCHAR(255) NOT NULL, "
                 + "foreign_key_ref_id INTEGER, "
-                + "PRIMARY KEY (id))");
+                + "PRIMARY KEY (id), "
+                + "FOREIGN KEY (foreign_key_ref_id) REFERENCES foreign_key_ref(id))");
 
         List<SchemaValidationError> errors = SchemaValidator.of(dataSource)
                 .validate(List.of(EntityWithFk.class));
@@ -399,6 +443,160 @@ class SchemaValidatorTest {
 
         // The description field has a type mismatch, but @DbIgnore suppresses it.
         assertTrue(errors.isEmpty(), "Expected no errors for @DbIgnore field but got: " + errors);
+    }
+
+    // --- UK validation tests ---
+
+    @Test
+    void testUniqueKeyWithMatchingConstraint() throws SQLException {
+        execute("CREATE TABLE unique_key_entity ("
+                + "id INTEGER AUTO_INCREMENT, "
+                + "email VARCHAR(255) NOT NULL, "
+                + "name VARCHAR(255) NOT NULL, "
+                + "PRIMARY KEY (id), "
+                + "UNIQUE (email))");
+
+        List<SchemaValidationError> errors = SchemaValidator.of(dataSource)
+                .validate(List.of(UniqueKeyEntity.class));
+
+        assertFalse(errors.stream().anyMatch(error -> error.kind() == ErrorKind.UNIQUE_KEY_MISSING),
+                "Expected no UNIQUE_KEY_MISSING when unique constraint exists, but got: " + errors);
+    }
+
+    @Test
+    void testUniqueKeyMissing() throws SQLException {
+        execute("CREATE TABLE unique_key_entity ("
+                + "id INTEGER AUTO_INCREMENT, "
+                + "email VARCHAR(255) NOT NULL, "
+                + "name VARCHAR(255) NOT NULL, "
+                + "PRIMARY KEY (id))");
+
+        List<SchemaValidationError> errors = SchemaValidator.of(dataSource)
+                .validate(List.of(UniqueKeyEntity.class));
+
+        assertTrue(errors.stream().anyMatch(
+                error -> error.kind() == ErrorKind.UNIQUE_KEY_MISSING
+                        && error.message().contains("email")),
+                "Expected UNIQUE_KEY_MISSING for email column, but got: " + errors);
+        // Should be a warning, not an error.
+        assertTrue(errors.stream()
+                .filter(error -> error.kind() == ErrorKind.UNIQUE_KEY_MISSING)
+                .allMatch(error -> error.kind().warning()));
+    }
+
+    @Test
+    void testCompoundUniqueKeyWithMatchingConstraint() throws SQLException {
+        execute("CREATE TABLE compound_unique_key_entity ("
+                + "id INTEGER AUTO_INCREMENT, "
+                + "name VARCHAR(255) NOT NULL, "
+                + "user_id INTEGER NOT NULL, "
+                + "email VARCHAR(255) NOT NULL, "
+                + "PRIMARY KEY (id), "
+                + "UNIQUE (user_id, email))");
+
+        List<SchemaValidationError> errors = SchemaValidator.of(dataSource)
+                .validate(List.of(CompoundUniqueKeyEntity.class));
+
+        assertFalse(errors.stream().anyMatch(error -> error.kind() == ErrorKind.UNIQUE_KEY_MISSING),
+                "Expected no UNIQUE_KEY_MISSING for compound unique key, but got: " + errors);
+    }
+
+    @Test
+    void testCompoundUniqueKeyMissing() throws SQLException {
+        execute("CREATE TABLE compound_unique_key_entity ("
+                + "id INTEGER AUTO_INCREMENT, "
+                + "name VARCHAR(255) NOT NULL, "
+                + "user_id INTEGER NOT NULL, "
+                + "email VARCHAR(255) NOT NULL, "
+                + "PRIMARY KEY (id))");
+
+        List<SchemaValidationError> errors = SchemaValidator.of(dataSource)
+                .validate(List.of(CompoundUniqueKeyEntity.class));
+
+        assertTrue(errors.stream().anyMatch(
+                error -> error.kind() == ErrorKind.UNIQUE_KEY_MISSING
+                        && error.message().contains("uniqueKey")));
+    }
+
+    @Test
+    void testUniqueKeyIgnoredByDbIgnore() throws SQLException {
+        execute("CREATE TABLE unique_key_ignored_entity ("
+                + "id INTEGER AUTO_INCREMENT, "
+                + "name VARCHAR(255) NOT NULL, "
+                + "email VARCHAR(255) NOT NULL, "
+                + "PRIMARY KEY (id))");
+
+        List<SchemaValidationError> errors = SchemaValidator.of(dataSource)
+                .validate(List.of(UniqueKeyIgnoredEntity.class));
+
+        assertFalse(errors.stream().anyMatch(error -> error.kind() == ErrorKind.UNIQUE_KEY_MISSING),
+                "Expected no UNIQUE_KEY_MISSING when @DbIgnore suppresses it, but got: " + errors);
+    }
+
+    // --- FK validation tests ---
+
+    @Test
+    void testForeignKeyWithMatchingConstraint() throws SQLException {
+        execute("CREATE TABLE foreign_key_target ("
+                + "id INTEGER AUTO_INCREMENT, "
+                + "name VARCHAR(255) NOT NULL, "
+                + "PRIMARY KEY (id))");
+        execute("CREATE TABLE foreign_key_source_entity ("
+                + "id INTEGER AUTO_INCREMENT, "
+                + "name VARCHAR(255) NOT NULL, "
+                + "foreign_key_target_id INTEGER, "
+                + "PRIMARY KEY (id), "
+                + "FOREIGN KEY (foreign_key_target_id) REFERENCES foreign_key_target(id))");
+
+        List<SchemaValidationError> errors = SchemaValidator.of(dataSource)
+                .validate(List.of(ForeignKeySourceEntity.class));
+
+        assertFalse(errors.stream().anyMatch(error -> error.kind() == ErrorKind.FOREIGN_KEY_MISSING),
+                "Expected no FOREIGN_KEY_MISSING when FK constraint exists, but got: " + errors);
+    }
+
+    @Test
+    void testForeignKeyMissing() throws SQLException {
+        execute("CREATE TABLE foreign_key_target ("
+                + "id INTEGER AUTO_INCREMENT, "
+                + "name VARCHAR(255) NOT NULL, "
+                + "PRIMARY KEY (id))");
+        execute("CREATE TABLE foreign_key_source_entity ("
+                + "id INTEGER AUTO_INCREMENT, "
+                + "name VARCHAR(255) NOT NULL, "
+                + "foreign_key_target_id INTEGER, "
+                + "PRIMARY KEY (id))");
+
+        List<SchemaValidationError> errors = SchemaValidator.of(dataSource)
+                .validate(List.of(ForeignKeySourceEntity.class));
+
+        assertTrue(errors.stream().anyMatch(
+                error -> error.kind() == ErrorKind.FOREIGN_KEY_MISSING
+                        && error.message().contains("foreign_key_target_id")),
+                "Expected FOREIGN_KEY_MISSING for FK column, but got: " + errors);
+        // Should be a warning, not an error.
+        assertTrue(errors.stream()
+                .filter(error -> error.kind() == ErrorKind.FOREIGN_KEY_MISSING)
+                .allMatch(error -> error.kind().warning()));
+    }
+
+    @Test
+    void testForeignKeyIgnoredByDbIgnore() throws SQLException {
+        execute("CREATE TABLE foreign_key_target ("
+                + "id INTEGER AUTO_INCREMENT, "
+                + "name VARCHAR(255) NOT NULL, "
+                + "PRIMARY KEY (id))");
+        execute("CREATE TABLE foreign_key_ignored_entity ("
+                + "id INTEGER AUTO_INCREMENT, "
+                + "name VARCHAR(255) NOT NULL, "
+                + "foreign_key_target_id INTEGER, "
+                + "PRIMARY KEY (id))");
+
+        List<SchemaValidationError> errors = SchemaValidator.of(dataSource)
+                .validate(List.of(ForeignKeyIgnoredEntity.class));
+
+        assertFalse(errors.stream().anyMatch(error -> error.kind() == ErrorKind.FOREIGN_KEY_MISSING),
+                "Expected no FOREIGN_KEY_MISSING when @DbIgnore suppresses it, but got: " + errors);
     }
 
     // --- Helpers ---

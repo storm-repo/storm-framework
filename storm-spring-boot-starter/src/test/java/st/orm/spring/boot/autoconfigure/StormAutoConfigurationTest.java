@@ -140,8 +140,7 @@ class StormAutoConfigurationTest {
                         "storm.update.max-shapes=5",
                         "storm.entity-cache.retention=light",
                         "storm.template-cache.size=100",
-                        "storm.validation.skip=false",
-                        "storm.validation.warnings-only=true"
+                        "storm.validation.record-mode=warn"
                 )
                 .run(context -> {
                     assertThat(context).hasSingleBean(ORMTemplate.class);
@@ -153,8 +152,7 @@ class StormAutoConfigurationTest {
                     assertThat(props.getUpdate().getMaxShapes()).isEqualTo(5);
                     assertThat(props.getEntityCache().getRetention()).isEqualTo("light");
                     assertThat(props.getTemplateCache().getSize()).isEqualTo(100);
-                    assertThat(props.getValidation().getSkip()).isFalse();
-                    assertThat(props.getValidation().getWarningsOnly()).isTrue();
+                    assertThat(props.getValidation().getRecordMode()).isEqualTo("warn");
                 });
     }
 

@@ -160,11 +160,14 @@ public class StormProperties {
      */
     public static class Validation {
 
-        /** Whether to skip validation entirely. */
-        private Boolean skip;
-
-        /** Whether to treat validation errors as warnings instead of failures. */
-        private Boolean warningsOnly;
+        /**
+         * Record validation mode: {@code "fail"} (default), {@code "warn"}, or {@code "none"}.
+         *
+         * <p>When set to {@code "fail"}, validation errors cause startup to fail with a {@code PersistenceException}.
+         * When set to {@code "warn"}, errors are logged as warnings; startup continues.
+         * When set to {@code "none"}, record validation is skipped entirely.</p>
+         */
+        private String recordMode;
 
         /**
          * Schema validation mode: {@code "none"} (default), {@code "warn"}, or {@code "fail"}.
@@ -178,17 +181,11 @@ public class StormProperties {
         /** Whether to treat warnings (type narrowing, nullability mismatches) as errors. */
         private Boolean strict;
 
-        /** Returns whether validation is skipped. */
-        public Boolean getSkip() { return skip; }
+        /** Returns the record validation mode. */
+        public String getRecordMode() { return recordMode; }
 
-        /** Sets whether validation is skipped. */
-        public void setSkip(Boolean skip) { this.skip = skip; }
-
-        /** Returns whether validation errors are treated as warnings. */
-        public Boolean getWarningsOnly() { return warningsOnly; }
-
-        /** Sets whether validation errors are treated as warnings. */
-        public void setWarningsOnly(Boolean warningsOnly) { this.warningsOnly = warningsOnly; }
+        /** Sets the record validation mode. */
+        public void setRecordMode(String recordMode) { this.recordMode = recordMode; }
 
         /** Returns the schema validation mode. */
         public String getSchemaMode() { return schemaMode; }

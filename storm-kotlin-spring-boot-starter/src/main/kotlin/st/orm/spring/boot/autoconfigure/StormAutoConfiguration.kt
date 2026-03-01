@@ -97,11 +97,8 @@ open class StormAutoConfiguration {
         properties.ansiEscaping?.let {
             map["storm.ansi_escaping"] = it.toString()
         }
-        properties.validation.skip?.let {
-            map["storm.validation.skip"] = it.toString()
-        }
-        properties.validation.warningsOnly?.let {
-            map["storm.validation.warnings_only"] = it.toString()
+        properties.validation.recordMode?.let {
+            map["storm.validation.record_mode"] = it.trim()
         }
         properties.validation.strict?.let {
             map["storm.validation.strict"] = it.toString()

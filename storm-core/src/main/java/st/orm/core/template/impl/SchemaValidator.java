@@ -19,6 +19,8 @@ import static st.orm.core.spi.Providers.getSqlDialect;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -27,6 +29,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
@@ -36,8 +40,12 @@ import org.slf4j.LoggerFactory;
 import st.orm.Data;
 import st.orm.DbIgnore;
 import st.orm.Entity;
+import st.orm.FK;
 import st.orm.GenerationStrategy;
+import st.orm.PK;
 import st.orm.ProjectionQuery;
+import st.orm.Ref;
+import st.orm.UK;
 import st.orm.core.spi.TypeDiscovery;
 import st.orm.core.template.Column;
 import st.orm.core.template.Model;
@@ -45,6 +53,8 @@ import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlDialect.SequenceDiscoveryStrategy;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.impl.DatabaseSchema.DbColumn;
+import st.orm.core.template.impl.DatabaseSchema.DbForeignKey;
+import st.orm.core.template.impl.DatabaseSchema.DbUniqueKey;
 import st.orm.core.template.impl.SchemaValidationError.ErrorKind;
 import st.orm.core.template.impl.TypeCompatibility.Compatibility;
 import st.orm.mapping.RecordField;
@@ -142,7 +152,7 @@ public final class SchemaValidator {
             String defaultCatalog = connection.getCatalog();
             String defaultSchema = connection.getSchema();
             // Cache DatabaseSchema instances per schema name (case-insensitive) to avoid redundant metadata reads.
-            TreeMap<String, DatabaseSchema> schemaCache = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+            SortedMap<String, DatabaseSchema> schemaCache = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
             for (Class<? extends Data> type : types) {
                 validateType(type, connection, defaultCatalog, defaultSchema, schemaCache, errors);
             }
@@ -289,7 +299,7 @@ public final class SchemaValidator {
             @Nullable String defaultCatalog,
             @Nullable String defaultSchema,
             @Nonnull String entitySchema,
-            @Nonnull TreeMap<String, DatabaseSchema> schemaCache
+            @Nonnull SortedMap<String, DatabaseSchema> schemaCache
     ) throws SQLException {
         // Use the entity's schema if specified, otherwise fall back to the connection's default schema.
         String schemaKey = entitySchema.isEmpty()
@@ -324,7 +334,7 @@ public final class SchemaValidator {
             @Nonnull Connection connection,
             @Nullable String defaultCatalog,
             @Nullable String defaultSchema,
-            @Nonnull TreeMap<String, DatabaseSchema> schemaCache,
+            @Nonnull SortedMap<String, DatabaseSchema> schemaCache,
             @Nonnull List<SchemaValidationError> errors
     ) {
         // Skip sealed interfaces: their permitted subclasses will be validated individually,
@@ -430,6 +440,145 @@ public final class SchemaValidator {
                     errors.add(new SchemaValidationError(type, ErrorKind.SEQUENCE_NOT_FOUND,
                             "Sequence '%s' not found in database (referenced by column '%s' in table '%s')."
                                     .formatted(sequenceName, column.name(), qualifiedTableName)));
+                }
+            }
+        }
+        // 7. Unique key validation.
+        validateUniqueKeys(type, model, schema, tableName, qualifiedTableName, ignoredComponents, errors);
+        // 8. Foreign key validation.
+        if (requirePrimaryKey) {
+            validateForeignKeys(type, model, schema, tableName, qualifiedTableName, ignoredComponents, errors);
+        }
+    }
+
+    /**
+     * Validates that {@code @UK}-annotated fields have a matching unique constraint in the database.
+     */
+    private void validateUniqueKeys(
+            @Nonnull Class<? extends Data> type,
+            @Nonnull Model<?, ?> model,
+            @Nonnull DatabaseSchema schema,
+            @Nonnull String tableName,
+            @Nonnull String qualifiedTableName,
+            @Nonnull Set<String> ignoredComponents,
+            @Nonnull List<SchemaValidationError> errors
+    ) {
+        // Build a map of unique index name -> set of column names from the database.
+        List<DbUniqueKey> dbUniqueKeys = schema.getUniqueKeys(tableName);
+        SortedMap<String, SortedSet<String>> indexColumnsByName = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (DbUniqueKey uk : dbUniqueKeys) {
+            indexColumnsByName.computeIfAbsent(uk.indexName(), k -> new TreeSet<>(String.CASE_INSENSITIVE_ORDER))
+                    .add(uk.columnName());
+        }
+        for (RecordField field : model.recordType().fields()) {
+            if (field.isAnnotationPresent(DbIgnore.class)) {
+                continue;
+            }
+            if (!field.isAnnotationPresent(UK.class)) {
+                continue;
+            }
+            // Skip @PK fields, since primary keys are already validated in step 5.
+            if (field.isAnnotationPresent(PK.class)) {
+                continue;
+            }
+            if (ignoredComponents.contains(field.name())) {
+                continue;
+            }
+            // Collect the expected column names for this @UK field.
+            SortedSet<String> expectedColumns = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+            for (Column column : model.declaredColumns()) {
+                String fieldPath = column.metamodel().fieldPath();
+                if (fieldPath.equals(field.name()) || fieldPath.startsWith(field.name() + ".")) {
+                    expectedColumns.add(column.name());
+                }
+            }
+            if (expectedColumns.isEmpty()) {
+                continue;
+            }
+            // Check if any unique index in the database covers exactly these columns.
+            boolean found = indexColumnsByName.values().stream()
+                    .anyMatch(indexColumns -> indexColumns.equals(expectedColumns));
+            if (!found) {
+                String columnDescription = expectedColumns.size() == 1
+                        ? "column '%s'".formatted(expectedColumns.first())
+                        : "columns %s".formatted(expectedColumns);
+                errors.add(new SchemaValidationError(type, ErrorKind.UNIQUE_KEY_MISSING,
+                        "No unique constraint found on %s in table '%s' for @UK field '%s'."
+                                .formatted(columnDescription, qualifiedTableName, field.name())));
+            }
+        }
+    }
+
+    /**
+     * Validates that {@code @FK}-annotated fields have a matching foreign key constraint in the database.
+     */
+    private void validateForeignKeys(
+            @Nonnull Class<? extends Data> type,
+            @Nonnull Model<?, ?> model,
+            @Nonnull DatabaseSchema schema,
+            @Nonnull String tableName,
+            @Nonnull String qualifiedTableName,
+            @Nonnull Set<String> ignoredComponents,
+            @Nonnull List<SchemaValidationError> errors
+    ) {
+        List<DbForeignKey> dbForeignKeys = schema.getForeignKeys(tableName);
+        for (RecordField field : model.recordType().fields()) {
+            if (field.isAnnotationPresent(DbIgnore.class)) {
+                continue;
+            }
+            if (!field.isAnnotationPresent(FK.class)) {
+                continue;
+            }
+            if (ignoredComponents.contains(field.name())) {
+                continue;
+            }
+            // Determine the target entity type.
+            Class<?> targetType = field.type();
+            if (Ref.class.isAssignableFrom(targetType)) {
+                Type genericType = field.genericType();
+                if (genericType instanceof ParameterizedType parameterizedType) {
+                    Type[] typeArgs = parameterizedType.getActualTypeArguments();
+                    if (typeArgs.length > 0 && typeArgs[0] instanceof Class<?> refTarget) {
+                        targetType = refTarget;
+                    }
+                }
+            }
+            if (!Data.class.isAssignableFrom(targetType)) {
+                continue;
+            }
+            // Build a model for the target entity to get its table name.
+            @SuppressWarnings("unchecked")
+            Class<? extends Data> targetDataType = (Class<? extends Data>) targetType;
+            Model<?, ?> targetModel;
+            try {
+                targetModel = modelBuilder.build(targetDataType, Entity.class.isAssignableFrom(targetDataType));
+            } catch (SqlTemplateException e) {
+                continue;
+            }
+            String targetTableName = targetModel.name();
+            // Find the FK column(s) for this field in the current model.
+            List<String> fkColumnNames = new ArrayList<>();
+            for (Column column : model.declaredColumns()) {
+                if (!column.foreignKey()) {
+                    continue;
+                }
+                String fieldPath = column.metamodel().fieldPath();
+                if (fieldPath.equals(field.name()) || fieldPath.startsWith(field.name() + ".")) {
+                    fkColumnNames.add(column.name());
+                }
+            }
+            if (fkColumnNames.isEmpty()) {
+                continue;
+            }
+            // Check if the database has matching FK constraints for each FK column.
+            for (String fkColumnName : fkColumnNames) {
+                boolean found = dbForeignKeys.stream()
+                        .anyMatch(fk -> fk.fkColumnName().equalsIgnoreCase(fkColumnName)
+                                && fk.pkTableName().equalsIgnoreCase(targetTableName));
+                if (!found) {
+                    errors.add(new SchemaValidationError(type, ErrorKind.FOREIGN_KEY_MISSING,
+                            "No foreign key constraint found on column '%s' in table '%s' referencing table '%s'."
+                                    .formatted(fkColumnName, qualifiedTableName, targetTableName)));
                 }
             }
         }

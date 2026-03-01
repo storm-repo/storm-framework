@@ -38,7 +38,7 @@
                 <configuration>
                     <argLine>
                         @{argLine}
-                        -Dstorm.validation.skip=true
+                        -Dstorm.validation.record_mode=none
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens storm.jackson2/st.orm.jackson=storm.core
                         --add-opens storm.jackson2/st.orm.jackson.model=storm.core

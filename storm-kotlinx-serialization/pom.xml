@@ -41,7 +41,7 @@
                     <useModulePath>true</useModulePath>
                     <argLine>
                         @{argLine}
-                        -Dstorm.validation.skip=false
+                        -Dstorm.validation.record_mode=fail
                         -Dstorm.ansi_escaping=true
                     </argLine>
                     <forkCount>1</forkCount>

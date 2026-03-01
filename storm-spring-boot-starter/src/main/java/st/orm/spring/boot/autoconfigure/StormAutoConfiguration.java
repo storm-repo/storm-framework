@@ -104,11 +104,8 @@ public class StormAutoConfiguration {
             map.put("storm.ansi_escaping", properties.getAnsiEscaping().toString());
         }
         var validation = properties.getValidation();
-        if (validation.getSkip() != null) {
-            map.put("storm.validation.skip", validation.getSkip().toString());
-        }
-        if (validation.getWarningsOnly() != null) {
-            map.put("storm.validation.warnings_only", validation.getWarningsOnly().toString());
+        if (validation.getRecordMode() != null) {
+            map.put("storm.validation.record_mode", validation.getRecordMode().trim());
         }
         if (validation.getStrict() != null) {
             map.put("storm.validation.strict", validation.getStrict().toString());

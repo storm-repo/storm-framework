@@ -1,0 +1,82 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: docs-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install website dependencies
+        run: npm ci
+        working-directory: website
+
+      - name: Build project (skip tests)
+        run: mvn install -DskipTests -Dgpg.skip=true -q
+
+      - name: Generate Javadoc (aggregate)
+        run: |
+          mvn javadoc:aggregate -q \
+            -Dmaven.javadoc.failOnError=false \
+            -Dadditionaloption="--enable-preview --source 21"
+
+      - name: Generate KDoc (Dokka)
+        run: |
+          for module in storm-kotlin storm-kotlin-spring storm-kotlin-spring-boot-starter storm-kotlin-validator storm-metamodel-ksp storm-kotlinx-serialization; do
+            if [ -d "$module" ]; then
+              mvn dokka:dokka -pl "$module" -q -Dmaven.javadoc.failOnError=false || true
+            fi
+          done
+
+      - name: Copy Javadoc to website/static/api/java
+        run: |
+          mkdir -p website/static/api/java
+          if [ -d target/site/apidocs ]; then
+            cp -r target/site/apidocs/* website/static/api/java/
+          fi
+
+      - name: Copy KDoc to website/static/api/kotlin
+        run: |
+          for module in storm-kotlin storm-kotlin-spring storm-kotlin-spring-boot-starter storm-kotlin-validator storm-metamodel-ksp storm-kotlinx-serialization; do
+            if [ -d "$module/target/dokka" ]; then
+              mkdir -p "website/static/api/kotlin/$module"
+              cp -r "$module/target/dokka/"* "website/static/api/kotlin/$module/"
+            fi
+          done
+
+      - name: Build Docusaurus
+        run: npm run build
+        working-directory: website
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./website/build
+          force_orphan: true

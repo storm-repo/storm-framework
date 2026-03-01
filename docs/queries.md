@@ -150,6 +150,103 @@ val users = orm.entity(User::class)
     .resultList
 ```
 
+### Compound Fields in Queries
+
+When an inline record (embedded component) is used in a query clause, Storm automatically expands it into its constituent columns. This applies to WHERE, ORDER BY, and GROUP BY clauses.
+
+#### WHERE Clauses
+
+Inline records expand differently depending on the operator:
+
+**EQUALS / NOT_EQUALS** generate per-column AND conditions:
+
+```kotlin
+val owner = orm.entity(Owner::class)
+    .select()
+    .where(Owner_.address, EQUALS, address)
+    .singleResult
+```
+
+```sql
+WHERE o.address = ? AND o.city_id = ?
+```
+
+For NOT_EQUALS, the condition is wrapped in NOT:
+
+```sql
+WHERE NOT (o.address = ? AND o.city_id = ?)
+```
+
+**Comparison operators** (GREATER_THAN, GREATER_THAN_OR_EQUAL, LESS_THAN, LESS_THAN_OR_EQUAL) generate lexicographic comparisons using nested OR/AND. This preserves the natural multi-column ordering:
+
+```kotlin
+val owners = orm.entity(Owner::class)
+    .select()
+    .where(Owner_.address, GREATER_THAN, address)
+    .resultList
+```
+
+```sql
+WHERE (o.address > ? OR (o.address = ? AND o.city_id > ?))
+```
+
+For GREATER_THAN_OR_EQUAL, only the last column uses the inclusive operator:
+
+```sql
+WHERE (o.address > ? OR (o.address = ? AND o.city_id >= ?))
+```
+
+Some databases (PostgreSQL, MySQL, MariaDB, Oracle) support native tuple comparison syntax, which Storm uses automatically when available:
+
+```sql
+WHERE (o.address, o.city_id) > (?, ?)
+```
+
+**Unsupported operators.** LIKE, NOT_LIKE, IN, and NOT_IN do not have a meaningful multi-column interpretation and throw a `PersistenceException` when used with inline records. To filter on a sub-field, reference it directly:
+
+```kotlin
+val owners = orm.entity(Owner::class)
+    .select()
+    .where(Owner_.address.address, LIKE, "%Main%")
+    .resultList
+```
+
+#### ORDER BY
+
+As described in the Ordering section above, passing an inline record to `orderBy` or `orderByDescending` expands it into its leaf columns. For example, if `Owner_.address` is an inline record with `address` and `city` fields:
+
+```kotlin
+val owners = orm.entity(Owner::class)
+    .select()
+    .orderBy(Owner_.address)
+    .resultList
+```
+
+```sql
+ORDER BY o.address, o.city_id
+```
+
+Using `orderByDescending` applies DESC to each expanded column:
+
+```sql
+ORDER BY o.address DESC, o.city_id DESC
+```
+
+#### GROUP BY
+
+Inline records expand in GROUP BY the same way. This is particularly useful in combination with keyset pagination, where grouping by a column makes it unique in the result set. Wrap the metamodel with `.key()` to indicate it can serve as a cursor:
+
+```kotlin
+data class CityOrderCount(val city: City, val count: Long)
+
+val page = orm.query(Order::class)
+    .select(Order_.city, "COUNT(*)")
+    .groupBy(Order_.city)
+    .slice(Order_.city.key(), 20)
+```
+
+See [Keyset Pagination with GROUP BY](#keyset-pagination-with-group-by) for details.
+
 ### Aggregation
 
 To perform GROUP BY queries with aggregate functions like COUNT, SUM, or AVG, define a result data class with the desired columns and pass a custom SELECT expression. The `t()` function generates the column list for an entity or projection type, so you do not have to enumerate columns manually.
@@ -524,6 +621,51 @@ List<User> users = orm.entity(User.class)
     .orderBy(RAW."\{User_.lastName}, \{User_.firstName} DESC")
     .getResultList();
 ```
+
+### Compound Fields in Queries
+
+When an inline record (embedded component) is used in a query clause, Storm automatically expands it into its constituent columns. This applies to WHERE, ORDER BY, and GROUP BY clauses. The behavior mirrors the Kotlin section above; the examples here show the Java API equivalents.
+
+#### WHERE Clauses
+
+**EQUALS / NOT_EQUALS** generate per-column AND conditions:
+
+```java
+Owner owner = orm.entity(Owner.class)
+    .select()
+    .where(Owner_.address, EQUALS, address)
+    .getSingleResult();
+```
+
+```sql
+WHERE o.address = ? AND o.city_id = ?
+```
+
+**Comparison operators** generate lexicographic comparisons:
+
+```java
+List<Owner> owners = orm.entity(Owner.class)
+    .select()
+    .where(Owner_.address, GREATER_THAN, address)
+    .getResultList();
+```
+
+```sql
+WHERE (o.address > ? OR (o.address = ? AND o.city_id > ?))
+```
+
+**Unsupported operators.** LIKE, NOT_LIKE, IN, and NOT_IN throw a `PersistenceException` when used with inline records. Reference sub-fields directly instead:
+
+```java
+List<Owner> owners = orm.entity(Owner.class)
+    .select()
+    .where(Owner_.address.address, LIKE, "%Main%")
+    .getResultList();
+```
+
+#### ORDER BY and GROUP BY
+
+Inline records expand in ORDER BY and GROUP BY the same way as in Kotlin. See the Kotlin section above for detailed examples and SQL output.
 
 ### Aggregation
 

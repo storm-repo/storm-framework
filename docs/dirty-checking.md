@@ -1,4 +1,4 @@
-# Dirty Checking & Update Modes
+# Dirty Checking
 
 ## What Is Dirty Checking?
 
