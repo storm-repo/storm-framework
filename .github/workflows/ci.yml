@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,8 +33,8 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           flags: unittests
           fail_ci_if_error: false

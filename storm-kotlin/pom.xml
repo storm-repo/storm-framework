@@ -141,8 +141,14 @@
               <version>2.0.0</version>
               <executions>
                 <execution>
+                  <id>javadoc-jar</id>
                   <phase>prepare-package</phase>
                   <goals><goal>javadocJar</goal></goals>
+                </execution>
+                <execution>
+                  <id>dokka-html</id>
+                  <phase>prepare-package</phase>
+                  <goals><goal>dokka</goal></goals>
                 </execution>
               </executions>
             </plugin>

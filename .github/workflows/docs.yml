@@ -46,14 +46,6 @@ jobs:
             -Dmaven.javadoc.failOnError=false \
             -Dadditionaloption="--enable-preview --source 21"
 
-      - name: Generate KDoc (Dokka)
-        run: |
-          for module in storm-kotlin storm-kotlin-spring storm-kotlin-spring-boot-starter storm-kotlin-validator storm-metamodel-ksp storm-kotlinx-serialization; do
-            if [ -d "$module" ]; then
-              mvn dokka:dokka -pl "$module" -q -Dmaven.javadoc.failOnError=false || true
-            fi
-          done
-
       - name: Copy Javadoc to website/static/api/java
         run: |
           mkdir -p website/static/api/java
