@@ -53,7 +53,7 @@ public class MySQLEntityRepositoryTest {
 
     @SuppressWarnings("resource")
     @Container
-    public static MySQLContainer<?> mysqlContainer = new MySQLContainer<>("mysql:latest")
+    public static MySQLContainer<?> mysqlContainer = new MySQLContainer<>("mysql:9.2")
             .withDatabaseName("testdb")
             .withUsername("test")
             .withPassword("test")

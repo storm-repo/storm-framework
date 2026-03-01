@@ -6,7 +6,7 @@
     </appender>
 
     <logger name="org.springframework" level="WARN"/>
-    <logger name="st.orm.transaction" level="DEBUG"/>
+    <logger name="st.orm.transaction" level="INFO"/>
 
     <root level="INFO">
         <appender-ref ref="STDOUT"/>

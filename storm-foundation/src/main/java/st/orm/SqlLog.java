@@ -31,18 +31,24 @@ import java.lang.annotation.Target;
  * <p>When applied at the type level, the annotation affects all methods within the repository. Method-level annotations
  * override type-level annotations.</p>
  *
- * @param inlineParameters if true, SQL parameters are inlined into the logged SQL statements for better readability.
- * @param level defines the logging level used when outputting captured SQL. Defaults to {@code INFO}.
- * @param name optional logger name. If empty, the repository interface name is used.
  * @since 1.9
  */
 @Retention(RUNTIME)
 @Target({METHOD, TYPE})
 public @interface SqlLog {
 
+    /**
+     * If true, SQL parameters are inlined into the logged SQL statements for better readability.
+     */
     boolean inlineParameters() default false;
 
+    /**
+     * Defines the logging level used when outputting captured SQL. Defaults to {@code INFO}.
+     */
     System.Logger.Level level() default System.Logger.Level.INFO;
 
+    /**
+     * Optional logger name. If empty, the repository interface name is used.
+     */
     String name() default "";
 }
