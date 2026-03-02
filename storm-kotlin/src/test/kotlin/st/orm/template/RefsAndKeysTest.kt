@@ -1,10 +1,8 @@
 package st.orm.template
 
-import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -26,8 +24,7 @@ open class RefsAndKeysTest(
 ) {
 
     @Suppress("UNCHECKED_CAST")
-    private fun <T : Data, V> metamodel(model: Model<*, *>, columnName: String): Metamodel<T, V> =
-        model.columns.first { it.name == columnName }.metamodel as Metamodel<T, V>
+    private fun <T : Data, V> metamodel(model: Model<*, *>, columnName: String): Metamodel<T, V> = model.columns.first { it.name == columnName }.metamodel as Metamodel<T, V>
 
     // ======================================================================
     // Entity.ref() extension function tests

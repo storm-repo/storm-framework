@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+#
+# Pre-commit hook: checks formatting before commit.
+#
+# Enable by running: git config core.hooksPath .githooks
+#
+
+set -euo pipefail
+
+echo "Running Spotless check..."
+
+if ! ./mvnw spotless:check -q 2>&1; then
+    echo ""
+    echo "Spotless check failed! Run './mvnw spotless:apply' to fix, then re-commit."
+    exit 1
+fi
