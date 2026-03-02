@@ -172,6 +172,47 @@ class StormAutoConfigurationTest {
                 });
     }
 
+    @Test
+    void schemaValidationWarnModeShouldNotPreventContextStartup() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:schemaWarnTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver",
+                        "storm.validation.schema-mode=warn"
+                )
+                .run(context -> {
+                    assertThat(context).hasSingleBean(ORMTemplate.class);
+                });
+    }
+
+    @Test
+    void schemaValidationNoneModeShouldNotPreventContextStartup() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:schemaNoneTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver",
+                        "storm.validation.schema-mode=none"
+                )
+                .run(context -> {
+                    assertThat(context).hasSingleBean(ORMTemplate.class);
+                });
+    }
+
+    @Test
+    void strictValidationPropertyShouldBeBoundCorrectly() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:strictTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver",
+                        "storm.validation.strict=true"
+                )
+                .run(context -> {
+                    assertThat(context).hasSingleBean(ORMTemplate.class);
+                    StormProperties props = context.getBean(StormProperties.class);
+                    assertThat(props.getValidation().getStrict()).isTrue();
+                });
+    }
+
     @Configuration
     static class EntityCallbackConfig {
         @Bean
