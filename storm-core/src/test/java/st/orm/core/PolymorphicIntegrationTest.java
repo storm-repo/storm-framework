@@ -2,9 +2,13 @@ package st.orm.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static st.orm.Operator.EQUALS;
+import static st.orm.Operator.IN;
+import static st.orm.Operator.LIKE;
 
 import java.util.List;
 import java.util.Optional;
@@ -19,6 +23,7 @@ import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.core.model.polymorphic.Adoption;
 import st.orm.core.model.polymorphic.Animal;
+import st.orm.core.model.polymorphic.Animal_;
 import st.orm.core.model.polymorphic.Cat;
 import st.orm.core.model.polymorphic.CharDiscAnimal;
 import st.orm.core.model.polymorphic.CharDiscCat;
@@ -1076,6 +1081,55 @@ public class PolymorphicIntegrationTest {
         assertTrue(found.isPresent());
         assertTrue(found.get() instanceof Cat);
         assertEquals("Whiskers", ((Cat) found.get()).name());
+    }
+
+    @Test
+    public void testSelectAnimalByNameUsingMetamodel() {
+        var orm = ORMTemplate.of(dataSource);
+        var animals = orm.entity(Animal.class);
+        var result = animals.select().where(Animal_.name, EQUALS, "Whiskers").getResultList();
+        assertEquals(1, result.size());
+        assertInstanceOf(Cat.class, result.getFirst());
+        assertEquals("Whiskers", result.getFirst().name());
+    }
+
+    @Test
+    public void testSelectAnimalByIdUsingMetamodel() {
+        var orm = ORMTemplate.of(dataSource);
+        var animals = orm.entity(Animal.class);
+        var result = animals.select().where(Animal_.id, EQUALS, 3).getResultList();
+        assertEquals(1, result.size());
+        assertInstanceOf(Dog.class, result.getFirst());
+        assertEquals("Rex", result.getFirst().name());
+    }
+
+    @Test
+    public void testSelectAnimalByNameLikeUsingMetamodel() {
+        var orm = ORMTemplate.of(dataSource);
+        var animals = orm.entity(Animal.class);
+        // Both "Rex" and "Max" end with 'x'.
+        var result = animals.select().where(Animal_.name, LIKE, "%x").getResultList();
+        assertEquals(2, result.size());
+        assertTrue(result.stream().allMatch(a -> a instanceof Dog));
+    }
+
+    @Test
+    public void testSelectAnimalByNameInUsingMetamodel() {
+        var orm = ORMTemplate.of(dataSource);
+        var animals = orm.entity(Animal.class);
+        var result = animals.select().where(Animal_.name, IN, List.of("Luna", "Max")).getResultList();
+        assertEquals(2, result.size());
+        assertInstanceOf(Cat.class, result.get(0));
+        assertInstanceOf(Dog.class, result.get(1));
+        assertEquals("Luna", result.get(0).name());
+        assertEquals("Max", result.get(1).name());
+    }
+
+    @Test
+    public void testCountAnimalByNameUsingMetamodel() {
+        var orm = ORMTemplate.of(dataSource);
+        var animals = orm.entity(Animal.class);
+        assertEquals(1, animals.select().where(Animal_.name, EQUALS, "Rex").getResultCount());
     }
 
     // ---- Type Change Tests for STI (D6) ----

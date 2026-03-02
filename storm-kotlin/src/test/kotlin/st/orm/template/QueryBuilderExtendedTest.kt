@@ -206,7 +206,7 @@ open class QueryBuilderExtendedTest(
     fun `orderBy with TemplateString should sort results`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val templateString = TemplateString.raw { "${t(Templates.column(idPath))}" }
+        val templateString = TemplateString.raw { t(Templates.column(idPath)) }
         val cities = repo.select().orderBy(templateString).resultList
         cities[0].id shouldBe 1
     }
@@ -215,7 +215,7 @@ open class QueryBuilderExtendedTest(
     fun `orderByDescending with TemplateBuilder should sort descending`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val cities = repo.select().orderByDescending { "${t(Templates.column(idPath))}" }.resultList
+        val cities = repo.select().orderByDescending { t(Templates.column(idPath)) }.resultList
         cities[0].id shouldBe 6
         cities[5].id shouldBe 1
     }
@@ -224,7 +224,7 @@ open class QueryBuilderExtendedTest(
     fun `orderByDescending with TemplateString should sort descending`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val templateString = TemplateString.raw { "${t(Templates.column(idPath))}" }
+        val templateString = TemplateString.raw { t(Templates.column(idPath)) }
         val cities = repo.select().orderByDescending(templateString).resultList
         cities[0].id shouldBe 6
     }
@@ -274,7 +274,7 @@ open class QueryBuilderExtendedTest(
     fun `groupBy with TemplateBuilder should group results`() {
         val repo = orm.entity(Owner::class)
         val cityPath = metamodel<Owner, Any>(repo.model, "city_id")
-        val counts = repo.selectCount().groupBy { "${t(Templates.column(cityPath))}" }.resultList
+        val counts = repo.selectCount().groupBy { t(Templates.column(cityPath)) }.resultList
         counts shouldHaveSize 6
     }
 
@@ -282,7 +282,7 @@ open class QueryBuilderExtendedTest(
     fun `groupBy with TemplateString should group results`() {
         val repo = orm.entity(Owner::class)
         val cityPath = metamodel<Owner, Any>(repo.model, "city_id")
-        val templateString = TemplateString.raw { "${t(Templates.column(cityPath))}" }
+        val templateString = TemplateString.raw { t(Templates.column(cityPath)) }
         val counts = repo.selectCount().groupBy(templateString).resultList
         counts shouldHaveSize 6
     }
@@ -546,9 +546,7 @@ open class QueryBuilderExtendedTest(
     fun `whereAny with PredicateBuilder should filter entities`() {
         val repo = orm.entity(City::class)
         val namePath = metamodel<City, String>(repo.model, "name")
-        val predicate = repo.select().whereBuilder { where(namePath, EQUALS, "Madison") }
-        // whereAny is already tested via whereAnyBuilder; verify the builder-level method.
-        val result = repo.select().where(namePath, EQUALS, "Madison").resultList
+        val result = repo.select().whereAny(namePath eq "Madison").resultList
         result shouldHaveSize 1
     }
 
@@ -644,7 +642,7 @@ open class QueryBuilderExtendedTest(
 
     @Test
     fun `selectFrom with TemplateBuilder should work`() {
-        val cities = orm.selectFrom(City::class, City::class) { "${t(City::class)}" }.resultList
+        val cities = orm.selectFrom(City::class, City::class) { t(City::class) }.resultList
         cities shouldHaveSize 6
     }
 

@@ -44,11 +44,13 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -64,6 +66,7 @@ public final class MetamodelProcessor extends AbstractProcessor {
     private static final String METAMODEL_TYPE = "st.orm.MetamodelType";
     private static final String GENERATE_METAMODEL = "st.orm.GenerateMetamodel";
     private static final String DATA = "st.orm.Data";
+    private static final String DISCRIMINATOR = "st.orm.Discriminator";
     private static final String FOREIGN_KEY = "st.orm.FK";
     private static final String PRIMARY_KEY = "st.orm.PK";
     private static final String UNIQUE = "st.orm.UK";
@@ -247,15 +250,24 @@ public final class MetamodelProcessor extends AbstractProcessor {
         processingEnv.getMessager().printMessage(NOTE, "Storm Metamodel Processor is running.");
         try {
             for (Element element : roundEnv.getRootElements()) {
-                if (!isRecord(element)) continue;
+                if (isRecord(element)) {
+                    boolean hasGenerateMetamodel = element.getAnnotationMirrors().stream()
+                            .anyMatch(annotationMirror -> GENERATE_METAMODEL
+                                    .equals(annotationMirror.getAnnotationType().toString()));
 
-                boolean hasGenerateMetamodel = element.getAnnotationMirrors().stream()
-                        .anyMatch(annotationMirror -> GENERATE_METAMODEL
-                                .equals(annotationMirror.getAnnotationType().toString()));
-
-                boolean isData = implementsData(element);
-                if (hasGenerateMetamodel || isData) {
-                    generateMetamodelArtifacts(element);
+                    boolean isData = implementsData(element);
+                    if (hasGenerateMetamodel || isData) {
+                        generateMetamodelArtifacts(element);
+                    }
+                } else if (element.getKind() == ElementKind.INTERFACE
+                        && element instanceof TypeElement typeElement
+                        && typeElement.getModifiers().contains(javax.lang.model.element.Modifier.SEALED)
+                        && hasAnnotation(element, DISCRIMINATOR)
+                        && implementsData(element)) {
+                    List<ExecutableElement> declaredGetters = getDeclaredAbstractGetters(typeElement);
+                    if (!declaredGetters.isEmpty()) {
+                        generateSealedMetamodelArtifacts(typeElement, declaredGetters);
+                    }
                 }
             }
         } catch (Exception e) {
@@ -1175,6 +1187,437 @@ public final class MetamodelProcessor extends AbstractProcessor {
                                 "    }\n\n" +
                                 "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
                                 "java.util.function.Function<T, " + recordName + "> getter) {\n" +
+                                "        this(path, field, inline, parent, getter, false);\n" +
+                                "    }\n";
+            }
+            String footer = "}\n";
+            try (Writer writer = fileObject.openWriter()) {
+                writer.write(header);
+                writer.write(body);
+                writer.write(constructors);
+                writer.write(fullCtor);
+                writer.write(footer);
+            }
+        } catch (Exception e) {
+            processingEnv.getMessager().printMessage(ERROR, "Failed to process " + metaClassName + ". Error: " + e);
+        }
+    }
+
+    // ---- Sealed interface support ----
+
+    private static boolean hasAnnotation(@Nonnull Element element, @Nonnull String annotationFqn) {
+        return element.getAnnotationMirrors().stream()
+                .anyMatch(am -> annotationFqn.equals(am.getAnnotationType().toString()));
+    }
+
+    private static List<ExecutableElement> getDeclaredAbstractGetters(@Nonnull TypeElement sealedInterface) {
+        return sealedInterface.getEnclosedElements().stream()
+                .filter(e -> e.getKind() == ElementKind.METHOD)
+                .map(e -> (ExecutableElement) e)
+                .filter(m -> m.getModifiers().contains(javax.lang.model.element.Modifier.ABSTRACT))
+                .filter(m -> m.getParameters().isEmpty())
+                .filter(m -> m.getReturnType().getKind() != TypeKind.VOID)
+                .toList();
+    }
+
+    @Nullable
+    private TypeElement getFirstPermittedRecord(@Nonnull TypeElement sealedInterface) {
+        for (TypeMirror permitted : sealedInterface.getPermittedSubclasses()) {
+            TypeElement sub = asTypeElement(permitted);
+            if (sub != null && isRecord(sub)) {
+                return sub;
+            }
+        }
+        return null;
+    }
+
+    private boolean isPrimaryKeyOnSubclass(@Nonnull TypeElement sealedInterface, @Nonnull String fieldName) {
+        TypeElement firstRecord = getFirstPermittedRecord(sealedInterface);
+        return firstRecord != null && isPrimaryKeyField(firstRecord, fieldName);
+    }
+
+    private boolean isUniqueFieldOnSubclass(@Nonnull TypeElement sealedInterface, @Nonnull String fieldName) {
+        TypeElement firstRecord = getFirstPermittedRecord(sealedInterface);
+        return firstRecord != null && isUniqueField(firstRecord, fieldName);
+    }
+
+    private boolean getNullsDistinctOnSubclass(@Nonnull TypeElement sealedInterface, @Nonnull String fieldName) {
+        TypeElement firstRecord = getFirstPermittedRecord(sealedInterface);
+        return firstRecord != null ? getNullsDistinct(firstRecord, fieldName) : true;
+    }
+
+    private boolean isNullableOnSubclass(@Nonnull TypeElement sealedInterface, @Nonnull String fieldName) {
+        TypeElement firstRecord = getFirstPermittedRecord(sealedInterface);
+        return firstRecord != null && isNullableUniqueField(firstRecord, fieldName);
+    }
+
+    private void generateSealedMetamodelArtifacts(@Nonnull TypeElement sealedInterface,
+                                                   @Nonnull List<ExecutableElement> declaredGetters) {
+        String qn = sealedInterface.getQualifiedName().toString();
+        boolean isData = implementsData(sealedInterface);
+
+        if (generatedMetamodelClasses.add(qn)) {
+            generateSealedMetamodelClass(sealedInterface, declaredGetters);
+        }
+
+        if (isData && generatedMetamodelInterfaces.add(qn)) {
+            generateSealedMetamodelInterface(sealedInterface, declaredGetters);
+        }
+    }
+
+    private void generateSealedMetamodelInterface(@Nonnull TypeElement sealedInterface,
+                                                   @Nonnull List<ExecutableElement> declaredGetters) {
+        String packageName = elementUtils.getPackageOf(sealedInterface).getQualifiedName().toString();
+        String typeName = sealedInterface.getSimpleName().toString();
+        String metaInterfaceName = typeName + "_";
+
+        StringBuilder fields = new StringBuilder();
+        for (ExecutableElement getter : declaredGetters) {
+            String fieldName = getter.getSimpleName().toString();
+            TypeMirror fieldType = getter.getReturnType();
+            String fieldTypeName = getTypeName(fieldType, packageName);
+
+            if (isRecord(fieldType) && !isRefType(fieldType)) {
+                if (isNestedRecord(fieldType)) continue;
+                TypeElement nestedTypeEl = asTypeElement(fieldType);
+                if (nestedTypeEl != null) {
+                    generateMetamodelArtifacts(nestedTypeEl);
+                }
+                fields.append("    /** Represents the {@link ").append(typeName).append("#").append(fieldName)
+                        .append("()} record. */\n");
+                fields.append("    ").append(fieldTypeName).append("Metamodel<").append(typeName).append("> ")
+                        .append(fieldName).append(" = new ").append(typeName).append("Metamodel<")
+                        .append(typeName).append(">().").append(fieldName).append(";\n");
+            } else {
+                String valueTypeName = getValueTypeName(fieldType, packageName);
+                boolean unique = isUniqueFieldOnSubclass(sealedInterface, fieldName);
+                String baseClass = unique ? "AbstractKeyMetamodel" : "AbstractMetamodel";
+                fields.append("    /** Represents the {@link ").append(typeName).append("#").append(fieldName)
+                        .append("()} field. */\n");
+                fields.append("    ").append(baseClass).append("<").append(typeName).append(", ").append(fieldTypeName)
+                        .append(", ").append(valueTypeName).append("> ")
+                        .append(fieldName).append(" = new ").append(typeName).append("Metamodel<")
+                        .append(typeName).append(">().").append(fieldName).append(";\n");
+            }
+        }
+        if (!fields.isEmpty()) {
+            fields.setLength(fields.length() - 1);
+        }
+
+        try {
+            JavaFileObject fileObject = processingEnv.getFiler()
+                    .createSourceFile((packageName.isEmpty() ? "" : packageName + ".") + metaInterfaceName, sealedInterface);
+            try (Writer writer = fileObject.openWriter()) {
+                writer.write(String.format("""
+                    %simport st.orm.Metamodel;
+                    import st.orm.AbstractMetamodel;
+                    import st.orm.AbstractKeyMetamodel;
+                    import javax.annotation.processing.Generated;
+
+                    /**
+                     * Metamodel for %s.
+                     *
+                     * @param <T> the record type of the root table of the entity graph.
+                     */
+                    @Generated("%s")
+                    public interface %s extends Metamodel<%s, %s> {
+                    %s
+                    }""",
+                        (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n"),
+                        typeName,
+                        getClass().getName(),
+                        metaInterfaceName,
+                        typeName,
+                        typeName,
+                        fields.toString()
+                ));
+            }
+        } catch (Exception e) {
+            processingEnv.getMessager().printMessage(ERROR, "Failed to process " + metaInterfaceName + ". Error: " + e + ".");
+        }
+    }
+
+    private void generateSealedMetamodelClass(@Nonnull TypeElement sealedInterface,
+                                               @Nonnull List<ExecutableElement> declaredGetters) {
+        String packageName = elementUtils.getPackageOf(sealedInterface).getQualifiedName().toString();
+        String typeName = sealedInterface.getSimpleName().toString();
+        String metaClassName = typeName + "Metamodel";
+        boolean isData = implementsData(sealedInterface);
+
+        // Find PK via subclass.
+        String pkName = null;
+        TypeMirror pkType = null;
+        for (ExecutableElement getter : declaredGetters) {
+            String fieldName = getter.getSimpleName().toString();
+            if (isPrimaryKeyOnSubclass(sealedInterface, fieldName)) {
+                pkName = fieldName;
+                pkType = getter.getReturnType();
+                break;
+            }
+        }
+
+        String rootIsSameBody;
+        if (pkName != null && pkType != null) {
+            String left = "ra." + pkName + "()";
+            String right = "rb." + pkName + "()";
+            rootIsSameBody =
+                    typeName + " ra = getter.apply(a);\n" +
+                            "        " + typeName + " rb = getter.apply(b);\n" +
+                            "        if (ra == null || rb == null) return ra == rb;\n" +
+                            "        return " + sameComparisonExpr(left, right, pkType) + ";";
+        } else {
+            rootIsSameBody =
+                    typeName + " ra = getter.apply(a);\n" +
+                            "        " + typeName + " rb = getter.apply(b);\n" +
+                            "        if (ra == null || rb == null) return ra == rb;\n" +
+                            "        return Objects.equals(ra, rb);";
+        }
+
+        // Build class fields.
+        StringBuilder classFields = new StringBuilder();
+        for (ExecutableElement getter : declaredGetters) {
+            String fieldName = getter.getSimpleName().toString();
+            TypeMirror fieldType = getter.getReturnType();
+            String fieldTypeName = getTypeName(fieldType, packageName);
+
+            if (isRecord(fieldType) && !isRefType(fieldType)) {
+                if (isNestedRecord(fieldType)) continue;
+                boolean inline = !implementsInterface(fieldType, DATA, typeUtils);
+                classFields.append("    /** Represents the ").append(inline ? "inline " : "")
+                        .append("{@link ").append(typeName).append("#").append(fieldName).append("()} ")
+                        .append(inline ? "record." : "foreign key.").append(" */\n");
+                classFields.append("    public final ").append(fieldTypeName).append("Metamodel<T> ").append(fieldName)
+                        .append(";\n");
+            } else {
+                String valueTypeName = getValueTypeName(fieldType, packageName);
+                boolean unique = isUniqueFieldOnSubclass(sealedInterface, fieldName);
+                String baseClass = (!isData || unique) ? "AbstractKeyMetamodel" : "AbstractMetamodel";
+                classFields.append("    /** Represents the {@link ").append(typeName).append("#").append(fieldName)
+                        .append("()} field. */\n");
+                classFields.append("    public final ").append(baseClass).append("<T, ").append(fieldTypeName).append(", ")
+                        .append(valueTypeName).append("> ").append(fieldName).append(";\n");
+            }
+        }
+
+        // Build field initializations.
+        StringBuilder initFields = new StringBuilder();
+        for (ExecutableElement getter : declaredGetters) {
+            String fieldName = getter.getSimpleName().toString();
+            TypeMirror fieldType = getter.getReturnType();
+            String fieldTypeName = getTypeName(fieldType, packageName);
+
+            if (isRecord(fieldType) && !isRefType(fieldType)) {
+                if (isNestedRecord(fieldType)) continue;
+                boolean inline = !implementsInterface(fieldType, DATA, typeUtils);
+                String inlineFlag = inline ? "true" : "false";
+                String nestedGetter =
+                        "t -> {\n" +
+                                "            " + typeName + " p = " + metaClassName + ".this.getValue(t);\n" +
+                                "            return (p == null) ? null : p." + fieldName + "();\n" +
+                                "        }";
+                if (inline && isUniqueFieldOnSubclass(sealedInterface, fieldName)) {
+                    boolean nullsDistinct = getNullsDistinctOnSubclass(sealedInterface, fieldName);
+                    initFields.append("        this.").append(fieldName).append(" = new ").append(fieldTypeName)
+                            .append("Metamodel<>(")
+                            .append("subPath, fieldBase + \"").append(fieldName).append("\", ")
+                            .append(inlineFlag).append(", this, ")
+                            .append(nestedGetter).append(", ").append(nullsDistinct)
+                            .append(");\n");
+                } else {
+                    initFields.append("        this.").append(fieldName).append(" = new ").append(fieldTypeName)
+                            .append("Metamodel<>(")
+                            .append("subPath, fieldBase + \"").append(fieldName).append("\", ")
+                            .append(inlineFlag).append(", this, ")
+                            .append(nestedGetter)
+                            .append(");\n");
+                }
+            } else {
+                String valueTypeName = getValueTypeName(fieldType, packageName);
+                boolean unique = isUniqueFieldOnSubclass(sealedInterface, fieldName);
+                String baseClass = (!isData || unique) ? "AbstractKeyMetamodel" : "AbstractMetamodel";
+                boolean effectivelyNullable;
+                if (!isData) {
+                    effectivelyNullable = isNullableOnSubclass(sealedInterface, fieldName);
+                } else if (unique) {
+                    boolean nullable = isNullableOnSubclass(sealedInterface, fieldName);
+                    boolean nullsDistinct = getNullsDistinctOnSubclass(sealedInterface, fieldName);
+                    effectivelyNullable = nullable && nullsDistinct;
+                } else {
+                    effectivelyNullable = false;
+                }
+                String accessExpr = "r." + fieldName + "()";
+                String leftValue = "ra." + fieldName + "()";
+                String rightValue = "rb." + fieldName + "()";
+                String sameExpr = sameComparisonExpr(leftValue, rightValue, fieldType);
+                String identicalExpr = identicalComparisonExpr(leftValue, rightValue, fieldType);
+                String constructorArgs;
+                if (!isData || unique) {
+                    constructorArgs = fieldTypeName + ".class, subPath, fieldBase + \"" + fieldName + "\", false, this, true, " + effectivelyNullable;
+                } else {
+                    constructorArgs = fieldTypeName + ".class, subPath, fieldBase + \"" + fieldName + "\", false, this";
+                }
+                initFields.append("        this.").append(fieldName).append(" = new ").append(baseClass).append("<T, ")
+                        .append(fieldTypeName).append(", ").append(valueTypeName).append(">(")
+                        .append(constructorArgs).append(") {\n")
+                        .append("            @Override public ").append(valueTypeName).append(" getValue(@Nonnull T record) {\n")
+                        .append("                ").append(typeName).append(" r = ").append(metaClassName).append(".this.getValue(record);\n")
+                        .append("                if (r == null) return null;\n")
+                        .append("                return ").append(accessExpr).append(";\n")
+                        .append("            }\n\n")
+                        .append("            @Override public boolean isIdentical(@Nonnull T a, @Nonnull T b) {\n")
+                        .append("                ").append(typeName).append(" ra = ").append(metaClassName).append(".this.getValue(a);\n")
+                        .append("                ").append(typeName).append(" rb = ").append(metaClassName).append(".this.getValue(b);\n")
+                        .append("                if (ra == null || rb == null) return ra == rb;\n")
+                        .append("                return ").append(identicalExpr).append(";\n")
+                        .append("            }\n\n")
+                        .append("            @Override public boolean isSame(@Nonnull T a, @Nonnull T b) {\n")
+                        .append("                ").append(typeName).append(" ra = ").append(metaClassName).append(".this.getValue(a);\n")
+                        .append("                ").append(typeName).append(" rb = ").append(metaClassName).append(".this.getValue(b);\n")
+                        .append("                if (ra == null || rb == null) return ra == rb;\n")
+                        .append("                return ").append(sameExpr).append(";\n")
+                        .append("            }\n")
+                        .append("        };\n");
+            }
+        }
+        if (!initFields.isEmpty()) {
+            initFields.setLength(initFields.length() - 1);
+        }
+
+        // Build flatten method.
+        List<String> fieldNames = new java.util.ArrayList<>();
+        List<Boolean> fieldIsInline = new java.util.ArrayList<>();
+        boolean hasInlineSubRecords = false;
+        for (ExecutableElement getter : declaredGetters) {
+            String fieldName = getter.getSimpleName().toString();
+            TypeMirror fieldType = getter.getReturnType();
+            if (isRecord(fieldType) && !isRefType(fieldType)) {
+                if (isNestedRecord(fieldType)) continue;
+                boolean inline = !implementsInterface(fieldType, DATA, typeUtils);
+                fieldNames.add(fieldName);
+                fieldIsInline.add(inline);
+                if (inline) hasInlineSubRecords = true;
+            } else {
+                fieldNames.add(fieldName);
+                fieldIsInline.add(false);
+            }
+        }
+        StringBuilder flattenMethod = new StringBuilder();
+        flattenMethod.append("    @Override\n");
+        flattenMethod.append("    public java.util.List<Metamodel<T, ?>> flatten() {\n");
+        if (!hasInlineSubRecords) {
+            flattenMethod.append("        return java.util.List.of(");
+            for (int i = 0; i < fieldNames.size(); i++) {
+                if (i > 0) flattenMethod.append(", ");
+                flattenMethod.append("this.").append(fieldNames.get(i));
+            }
+            flattenMethod.append(");\n");
+        } else {
+            flattenMethod.append("        java.util.List<Metamodel<T, ?>> result = new java.util.ArrayList<>();\n");
+            for (int i = 0; i < fieldNames.size(); i++) {
+                if (fieldIsInline.get(i)) {
+                    flattenMethod.append("        result.addAll(this.").append(fieldNames.get(i)).append(".flatten());\n");
+                } else {
+                    flattenMethod.append("        result.add(this.").append(fieldNames.get(i)).append(");\n");
+                }
+            }
+            flattenMethod.append("        return java.util.Collections.unmodifiableList(result);\n");
+        }
+        flattenMethod.append("    }\n\n");
+
+        // Assemble the class.
+        try {
+            JavaFileObject fileObject = processingEnv.getFiler()
+                    .createSourceFile((packageName.isEmpty() ? "" : packageName + ".") + metaClassName, sealedInterface);
+
+            String header =
+                    (packageName.isEmpty() ? "" : "package " + packageName + ";\n\n") +
+                            "import st.orm.Metamodel;\n" +
+                            "import st.orm.AbstractMetamodel;\n" +
+                            "import st.orm.AbstractKeyMetamodel;\n" +
+                            "import jakarta.annotation.Nonnull;\n" +
+                            "import javax.annotation.processing.Generated;\n" +
+                            "import java.util.Objects;\n\n" +
+                            "/**\n" +
+                            " * Metamodel implementation for " + typeName + ".\n" +
+                            " *\n" +
+                            " * @param <T> the record type of the root table of the entity graph.\n" +
+                            " */\n" +
+                            "@Generated(\"" + getClass().getName() + "\")\n" +
+                            "public final class " + metaClassName + "<T extends st.orm.Data> extends " +
+                            (isData ? "AbstractMetamodel" : "AbstractKeyMetamodel") + "<T, " + typeName + ", " + typeName + "> {\n\n";
+
+            String body =
+                    classFields + "\n" +
+                            "    private final java.util.function.Function<T, " + typeName + "> getter;\n\n" +
+                            "    @Override\n" +
+                            "    public " + typeName + " getValue(@Nonnull T record) {\n" +
+                            "        return getter.apply(record);\n" +
+                            "    }\n\n" +
+                            "    @Override\n" +
+                            "    public boolean isIdentical(@Nonnull T a, @Nonnull T b) {\n" +
+                            "        " + typeName + " ra = getter.apply(a);\n" +
+                            "        " + typeName + " rb = getter.apply(b);\n" +
+                            "        return ra == rb;\n" +
+                            "    }\n\n" +
+                            "    @Override\n" +
+                            "    public boolean isSame(@Nonnull T a, @Nonnull T b) {\n" +
+                            "        " + rootIsSameBody + "\n" +
+                            "    }\n\n" +
+                            flattenMethod;
+
+            String constructors;
+            if (isData) {
+                constructors =
+                        "    public " + metaClassName + "() {\n" +
+                                "        this(\"\", \"\", false, (Metamodel<T, ?>) Metamodel.root(" + typeName + ".class), " +
+                                "t -> (" + typeName + ") t);\n" +
+                                "    }\n\n" +
+                                "    public " + metaClassName + "(String field, Metamodel<T, ?> parent) {\n" +
+                                "        this(\"\", field, false, parent, t -> (" + typeName + ") t);\n" +
+                                "    }\n\n" +
+                                "    public " + metaClassName + "(String path, String field, Metamodel<T, ?> parent) {\n" +
+                                "        this(path, field, false, parent, t -> (" + typeName + ") t);\n" +
+                                "    }\n\n" +
+                                "    public " + metaClassName + "(String path, String field, Metamodel<T, ?> parent, " +
+                                "java.util.function.Function<T, " + typeName + "> getter) {\n" +
+                                "        this(path, field, false, parent, getter);\n" +
+                                "    }\n\n" +
+                                "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent) {\n" +
+                                "        this(path, field, inline, parent, t -> (" + typeName + ") t);\n" +
+                                "    }\n\n";
+            } else {
+                constructors =
+                        "    public " + metaClassName + "(String path, String field, Metamodel<T, ?> parent, " +
+                                "java.util.function.Function<T, " + typeName + "> getter) {\n" +
+                                "        this(path, field, false, parent, getter);\n" +
+                                "    }\n\n";
+            }
+
+            String fullCtor;
+            if (isData) {
+                fullCtor =
+                        "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
+                                "java.util.function.Function<T, " + typeName + "> getter) {\n" +
+                                "        super(" + typeName + ".class, path, field, inline, parent);\n" +
+                                "        this.getter = getter;\n\n" +
+                                "        String subPath = inline ? path : field.isEmpty() ? path : path.isEmpty() ? field : " +
+                                "path + \".\" + field;\n" +
+                                "        String fieldBase = inline ? (field.isEmpty() ? \"\" : field + \".\") : \"\";\n\n" +
+                                initFields + "\n" +
+                                "    }\n";
+            } else {
+                fullCtor =
+                        "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
+                                "java.util.function.Function<T, " + typeName + "> getter, boolean nullable) {\n" +
+                                "        super(" + typeName + ".class, path, field, inline, parent, !inline && !field.isEmpty(), nullable);\n" +
+                                "        this.getter = getter;\n\n" +
+                                "        String subPath = inline ? path : field.isEmpty() ? path : path.isEmpty() ? field : " +
+                                "path + \".\" + field;\n" +
+                                "        String fieldBase = inline ? (field.isEmpty() ? \"\" : field + \".\") : \"\";\n\n" +
+                                initFields + "\n" +
+                                "    }\n\n" +
+                                "    public " + metaClassName + "(String path, String field, boolean inline, Metamodel<T, ?> parent, " +
+                                "java.util.function.Function<T, " + typeName + "> getter) {\n" +
                                 "        this(path, field, inline, parent, getter, false);\n" +
                                 "    }\n";
             }

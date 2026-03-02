@@ -2,7 +2,6 @@ package st.orm.core.repository.impl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -187,10 +186,17 @@ public class DefaultORMReflectionImplTest {
 
     // -- execute (default method) --
 
+    interface Greeter {
+        default String greet() {
+            return "hello";
+        }
+    }
+    record GreeterEntity(@PK Integer id) implements Entity<Integer>, Greeter {}
+
     @Test
-    public void testExecuteObjectMethod() throws Throwable {
-        var entity = new SimpleEntity(1, "test");
-        var method = Object.class.getMethod("toString");
-        assertNotNull(reflection.execute(entity, method));
+    public void testExecuteDefaultMethod() throws Throwable {
+        var entity = new GreeterEntity(1);
+        var method = Greeter.class.getMethod("greet");
+        assertEquals("hello", reflection.execute(entity, method));
     }
 }

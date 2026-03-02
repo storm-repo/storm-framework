@@ -218,6 +218,15 @@ final class ModelFactory {
                 null
         ));
         fields.add(pkFieldOfFirst); // Placeholder field for discriminator.
+        // Check whether the sealed type has a generated metamodel class. If so, we can add
+        // secondary metamodels to enable metamodel-based column lookups (e.g., Animal_.name).
+        boolean hasGeneratedMetamodel;
+        try {
+            Class.forName(sealedType.getName() + "Metamodel", true, sealedType.getClassLoader());
+            hasGeneratedMetamodel = true;
+        } catch (ClassNotFoundException ignored) {
+            hasGeneratedMetamodel = false;
+        }
         // Build union of all subtype fields. Use LinkedHashMap to preserve insertion order
         // and avoid duplicates (fields shared across subtypes keep the first occurrence).
         java.util.LinkedHashMap<String, RecordField> seenFields = new java.util.LinkedHashMap<>();
@@ -279,6 +288,20 @@ final class ModelFactory {
             // For JOINED pattern, extension-specific columns (not common across all subtypes,
             // not PK) should not be insertable or updatable via the sealed (base table) model.
             boolean extensionColumn = pattern == SealedPattern.JOINED && !isCommon && !isPk;
+            // If the sealed type has a generated metamodel, try to resolve a secondary metamodel
+            // for each field so that generated metamodel fields (e.g., Animal_.name) can be used
+            // in where clauses. The lookup is safe because it goes through lookupGeneratedMetamodel
+            // which finds the field on the generated metamodel class.
+            Metamodel<Data, ?> sealedFieldMetamodel = null;
+            if (hasGeneratedMetamodel) {
+                try {
+                    //noinspection unchecked
+                    sealedFieldMetamodel = (Metamodel<Data, ?>) Metamodel.of(
+                            (Class<? extends Data>) sealedType, field.name());
+                } catch (RuntimeException ignored) {
+                    // Field not declared on the sealed interface's generated metamodel.
+                }
+            }
             columns.add(new ColumnImpl(
                     columnName,
                     index.getAndIncrement(),
@@ -294,7 +317,7 @@ final class ModelFactory {
                     field.isAnnotationPresent(Version.class),
                     false,  // not ref
                     columnMetamodel,
-                    null
+                    sealedFieldMetamodel
             ));
             fields.add(field);
         }

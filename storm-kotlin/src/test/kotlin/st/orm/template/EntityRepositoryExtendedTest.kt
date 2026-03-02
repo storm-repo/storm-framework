@@ -294,9 +294,7 @@ open class EntityRepositoryExtendedTest(
     fun `delete with PredicateBuilder should delete matching entities`() {
         val repo = orm.entity(Vet::class)
         val firstNamePath = metamodel<Vet, String>(repo.model, "first_name")
-        val predicate = repo.select().whereBuilder { where(firstNamePath, EQUALS, "James") }
-        // We cannot directly get the predicate builder, but we can test via the WhereBuilder lambda.
-        val deleted = repo.delete { where(firstNamePath, EQUALS, "James") }
+        val deleted = repo.delete(firstNamePath eq "James")
         deleted shouldBe 1
     }
 
@@ -1310,42 +1308,6 @@ open class EntityRepositoryExtendedTest(
     }
 
     // ======================================================================
-    // EntityRepository: WhereBuilder-based findAllRef/findRef/getRef/selectRef
-    // ======================================================================
-
-    @Test
-    fun `findAllRef with WhereBuilder should return matching entity refs`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val refs = repo.findAllRef { where(namePath, EQUALS, "Madison") }
-        refs shouldHaveSize 1
-    }
-
-    @Test
-    fun `findRef with WhereBuilder predicate should return matching ref`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val ref = repo.findRef { where(namePath, EQUALS, "Madison") }
-        ref.shouldNotBeNull()
-    }
-
-    @Test
-    fun `getRef with WhereBuilder predicate should return matching ref`() {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val ref = repo.getRef { where(namePath, EQUALS, "Madison") }
-        ref.shouldNotBeNull()
-    }
-
-    @Test
-    fun `selectRef with WhereBuilder predicate should return matching refs`(): Unit = runBlocking {
-        val repo = orm.entity(City::class)
-        val namePath = metamodel<City, String>(repo.model, "name")
-        val refs = repo.selectRef { where(namePath, EQUALS, "Madison") }.toList()
-        refs shouldHaveSize 1
-    }
-
-    // ======================================================================
     // EntityRepository: selectAll/selectAllRef
     // ======================================================================
 
@@ -1747,7 +1709,7 @@ open class EntityRepositoryExtendedTest(
     }
 
     // ======================================================================
-    // EntityRepository: delete with PredicateBuilder
+    // EntityRepository: delete with WhereBuilder and PredicateBuilder
     // ======================================================================
 
     @Test

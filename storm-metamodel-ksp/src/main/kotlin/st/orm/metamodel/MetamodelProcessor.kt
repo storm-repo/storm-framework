@@ -16,6 +16,7 @@
 package st.orm.metamodel
 
 import com.google.devtools.ksp.getAllSuperTypes
+import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.processing.*
 import com.google.devtools.ksp.symbol.*
 import com.google.devtools.ksp.validate
@@ -61,6 +62,7 @@ class MetamodelProcessor(
     companion object {
         private const val GENERATE_METAMODEL = "st.orm.GenerateMetamodel"
         private const val DATA = "st.orm.Data"
+        private const val DISCRIMINATOR = "st.orm.Discriminator"
         private const val REF = "st.orm.Ref"
         private const val PRIMARY_KEY = "st.orm.PK"
         private const val UNIQUE = "st.orm.UK"
@@ -138,10 +140,52 @@ class MetamodelProcessor(
                 }
             }
         }
+
+        // Also process sealed interfaces annotated with @Discriminator.
+        resolver.getAllFiles()
+            .flatMap { it.declarations }
+            .filterIsInstance<KSClassDeclaration>()
+            .filter { it.classKind == ClassKind.INTERFACE }
+            .filter { it.modifiers.contains(Modifier.SEALED) }
+            .filter { it.hasAnnotation(DISCRIMINATOR) }
+            .filter { it.implementsInterface(DATA) }
+            .filter { it.getDeclaredProperties().any() }
+            .forEach { sealedInterface ->
+                if (!sealedInterface.validate()) {
+                    deferred.add(sealedInterface)
+                } else {
+                    try {
+                        generateMetamodelArtifacts(sealedInterface, resolver)
+                    } catch (e: Exception) {
+                        logger.error(
+                            "Failed to process metamodel for ${sealedInterface.qualifiedName?.asString()}: ${e.message}\n" +
+                                e.stackTraceToString(),
+                            sealedInterface,
+                        )
+                        throw e
+                    }
+                }
+            }
+
         return deferred
     }
 
     private fun KSClassDeclaration.isDataClass(): Boolean = modifiers.contains(Modifier.DATA)
+
+    private fun KSClassDeclaration.hasAnnotation(annotationQn: String): Boolean = annotations.any { it.annotationType.resolve().declaration.qualifiedName?.asString() == annotationQn }
+
+    private fun isSealedInterface(classDeclaration: KSClassDeclaration): Boolean = classDeclaration.classKind == ClassKind.INTERFACE && classDeclaration.modifiers.contains(Modifier.SEALED)
+
+    /**
+     * Returns the properties to include in the metamodel for the given class declaration.
+     * For sealed interfaces, only declared properties are included.
+     * For data classes, all properties (including inherited) are included.
+     */
+    private fun getModelProperties(classDeclaration: KSClassDeclaration): Sequence<KSPropertyDeclaration> = if (isSealedInterface(classDeclaration)) {
+        classDeclaration.getDeclaredProperties()
+    } else {
+        classDeclaration.getAllProperties()
+    }
 
     private fun KSClassDeclaration.implementsInterface(interfaceName: String): Boolean = try {
         getAllSuperTypes().any { superType ->
@@ -380,18 +424,47 @@ class MetamodelProcessor(
         if (hasAnnotationOrMeta(prop, PRIMARY_KEY)) return true
 
         val parent = prop.parentDeclaration as? KSClassDeclaration ?: return false
-        val ctor = parent.primaryConstructor ?: return false
-        val param = ctor.parameters.firstOrNull { it.name?.asString() == prop.simpleName.asString() } ?: return false
-        return hasAnnotationOrMeta(param, PRIMARY_KEY)
+
+        // Check constructor parameter annotations (data classes).
+        val ctor = parent.primaryConstructor
+        if (ctor != null) {
+            val param = ctor.parameters.firstOrNull { it.name?.asString() == prop.simpleName.asString() }
+            if (param != null && hasAnnotationOrMeta(param, PRIMARY_KEY)) return true
+        }
+
+        // Fallback for sealed interface properties: delegate to first sealed subclass.
+        if (isSealedInterface(parent)) {
+            return parent.getSealedSubclasses().firstOrNull()?.let { subclass ->
+                val matchingProp = subclass.getAllProperties()
+                    .firstOrNull { it.simpleName.asString() == prop.simpleName.asString() }
+                matchingProp != null && isPrimaryKey(matchingProp)
+            } ?: false
+        }
+
+        return false
     }
 
     private fun isUniqueField(prop: KSPropertyDeclaration): Boolean {
         if (hasAnnotationOrMeta(prop, UNIQUE)) return true
 
         val parent = prop.parentDeclaration as? KSClassDeclaration ?: return false
-        val ctor = parent.primaryConstructor ?: return false
-        val param = ctor.parameters.firstOrNull { it.name?.asString() == prop.simpleName.asString() } ?: return false
-        return hasAnnotationOrMeta(param, UNIQUE)
+
+        val ctor = parent.primaryConstructor
+        if (ctor != null) {
+            val param = ctor.parameters.firstOrNull { it.name?.asString() == prop.simpleName.asString() }
+            if (param != null && hasAnnotationOrMeta(param, UNIQUE)) return true
+        }
+
+        // Fallback for sealed interface properties: delegate to first sealed subclass.
+        if (isSealedInterface(parent)) {
+            return parent.getSealedSubclasses().firstOrNull()?.let { subclass ->
+                val matchingProp = subclass.getAllProperties()
+                    .firstOrNull { it.simpleName.asString() == prop.simpleName.asString() }
+                matchingProp != null && isUniqueField(matchingProp)
+            } ?: false
+        }
+
+        return false
     }
 
     private fun getNullsDistinct(prop: KSPropertyDeclaration): Boolean {
@@ -406,15 +479,27 @@ class MetamodelProcessor(
         }
         // Check constructor parameter annotations.
         val parent = prop.parentDeclaration as? KSClassDeclaration ?: return true
-        val ctor = parent.primaryConstructor ?: return true
-        val param = ctor.parameters.firstOrNull { it.name?.asString() == prop.simpleName.asString() } ?: return true
-        for (ann in param.annotations) {
-            val annDecl = ann.annotationType.resolve().declaration as? KSClassDeclaration ?: continue
-            val annQn = annDecl.qualifiedName?.asString()
-            if (annQn == UNIQUE) {
-                val argument = ann.arguments.firstOrNull { it.name?.asString() == "nullsDistinct" }
-                return argument?.value as? Boolean ?: true
+        val ctor = parent.primaryConstructor
+        if (ctor != null) {
+            val param = ctor.parameters.firstOrNull { it.name?.asString() == prop.simpleName.asString() }
+            if (param != null) {
+                for (ann in param.annotations) {
+                    val annDecl = ann.annotationType.resolve().declaration as? KSClassDeclaration ?: continue
+                    val annQn = annDecl.qualifiedName?.asString()
+                    if (annQn == UNIQUE) {
+                        val argument = ann.arguments.firstOrNull { it.name?.asString() == "nullsDistinct" }
+                        return argument?.value as? Boolean ?: true
+                    }
+                }
             }
+        }
+        // Fallback for sealed interface properties: delegate to first sealed subclass.
+        if (isSealedInterface(parent)) {
+            return parent.getSealedSubclasses().firstOrNull()?.let { subclass ->
+                val matchingProp = subclass.getAllProperties()
+                    .firstOrNull { it.simpleName.asString() == prop.simpleName.asString() }
+                if (matchingProp != null) getNullsDistinct(matchingProp) else true
+            } ?: true
         }
         return true
     }
@@ -451,7 +536,7 @@ class MetamodelProcessor(
         return false
     }
 
-    private fun findPrimaryKeyProperty(clazz: KSClassDeclaration): KSPropertyDeclaration? = clazz.getAllProperties().firstOrNull { isPrimaryKey(it) }
+    private fun findPrimaryKeyProperty(clazz: KSClassDeclaration): KSPropertyDeclaration? = getModelProperties(clazz).firstOrNull { isPrimaryKey(it) }
 
     private enum class PrimitiveKind { BOOLEAN, BYTE, SHORT, INT, LONG, CHAR, FLOAT, DOUBLE }
 
@@ -562,7 +647,7 @@ class MetamodelProcessor(
     ): String {
         val builder = StringBuilder()
         val className = classDeclaration.simpleName.asString()
-        classDeclaration.getAllProperties().forEach { prop ->
+        getModelProperties(classDeclaration).forEach { prop ->
             val fieldName = prop.simpleName.asString()
             val typeRef = prop.type
             val propNullable = typeRef.resolve().isMarkedNullable
@@ -603,7 +688,7 @@ class MetamodelProcessor(
         forceNullableChain: Boolean,
     ): String {
         val builder = StringBuilder()
-        classDeclaration.getAllProperties().forEach { prop ->
+        getModelProperties(classDeclaration).forEach { prop ->
             val fieldName = prop.simpleName.asString()
             val typeRef = prop.type
             val propNullable = typeRef.resolve().isMarkedNullable
@@ -634,7 +719,7 @@ class MetamodelProcessor(
     ): String {
         val builder = StringBuilder()
 
-        classDeclaration.getAllProperties().forEach { prop ->
+        getModelProperties(classDeclaration).forEach { prop ->
             val fieldName = prop.simpleName.asString()
             val typeRef = prop.type
             val propNullable = typeRef.resolve().isMarkedNullable
@@ -767,7 +852,7 @@ class MetamodelProcessor(
         classDeclaration: KSClassDeclaration,
         resolver: Resolver,
     ) {
-        classDeclaration.getAllProperties().forEach { prop ->
+        getModelProperties(classDeclaration).forEach { prop ->
             val typeRef = prop.type
 
             if (!typeRef.isDataClass()) return@forEach
@@ -841,7 +926,7 @@ class MetamodelProcessor(
         val fieldNames = mutableListOf<String>()
         val fieldIsInline = mutableListOf<Boolean>()
 
-        classDeclaration.getAllProperties().forEach { prop ->
+        getModelProperties(classDeclaration).forEach { prop ->
             val fieldName = prop.simpleName.asString()
             val typeRef = prop.type
 
