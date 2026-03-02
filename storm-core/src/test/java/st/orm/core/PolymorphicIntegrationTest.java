@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.Metamodel;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.core.model.polymorphic.Adoption;
@@ -39,6 +40,7 @@ import st.orm.core.model.polymorphic.JoinedAnimal;
 import st.orm.core.model.polymorphic.JoinedCat;
 import st.orm.core.model.polymorphic.JoinedDog;
 import st.orm.core.model.polymorphic.NodscAnimal;
+import st.orm.core.model.polymorphic.NodscAnimal_;
 import st.orm.core.model.polymorphic.NodscBird;
 import st.orm.core.model.polymorphic.NodscCat;
 import st.orm.core.model.polymorphic.NodscDog;
@@ -1130,6 +1132,126 @@ public class PolymorphicIntegrationTest {
         var orm = ORMTemplate.of(dataSource);
         var animals = orm.entity(Animal.class);
         assertEquals(1, animals.select().where(Animal_.name, EQUALS, "Rex").getResultCount());
+    }
+
+    // ---- NodscAnimal Metamodel Tests (generated, joined without @Discriminator) ----
+
+    @Test
+    public void testSelectNodscAnimalByNameUsingMetamodel() {
+        var orm = ORMTemplate.of(dataSource);
+        var animals = orm.entity(NodscAnimal.class);
+        var result = animals.select().where(NodscAnimal_.name, EQUALS, "Whiskers").getResultList();
+        assertEquals(1, result.size());
+        assertInstanceOf(NodscCat.class, result.getFirst());
+        assertEquals("Whiskers", result.getFirst().name());
+    }
+
+    @Test
+    public void testSelectNodscAnimalByIdUsingMetamodel() {
+        var orm = ORMTemplate.of(dataSource);
+        var animals = orm.entity(NodscAnimal.class);
+        var result = animals.select().where(NodscAnimal_.id, EQUALS, 4).getResultList();
+        assertEquals(1, result.size());
+        assertInstanceOf(NodscBird.class, result.getFirst());
+        assertEquals("Tweety", result.getFirst().name());
+    }
+
+    @Test
+    public void testSelectNodscAnimalByNameLikeUsingMetamodel() {
+        var orm = ORMTemplate.of(dataSource);
+        var animals = orm.entity(NodscAnimal.class);
+        // "Whiskers", "Rex", and "Tweety" all contain 'e'.
+        var result = animals.select().where(NodscAnimal_.name, LIKE, "%e%").getResultList();
+        assertEquals(3, result.size());
+        assertInstanceOf(NodscCat.class, result.get(0));
+        assertInstanceOf(NodscDog.class, result.get(1));
+        assertInstanceOf(NodscBird.class, result.get(2));
+    }
+
+    @Test
+    public void testSelectNodscAnimalByNameInUsingMetamodel() {
+        var orm = ORMTemplate.of(dataSource);
+        var animals = orm.entity(NodscAnimal.class);
+        var result = animals.select().where(NodscAnimal_.name, IN, List.of("Luna", "Tweety")).getResultList();
+        assertEquals(2, result.size());
+        assertInstanceOf(NodscCat.class, result.get(0));
+        assertInstanceOf(NodscBird.class, result.get(1));
+    }
+
+    @Test
+    public void testCountNodscAnimalByNameUsingMetamodel() {
+        var orm = ORMTemplate.of(dataSource);
+        var animals = orm.entity(NodscAnimal.class);
+        assertEquals(1, animals.select().where(NodscAnimal_.name, EQUALS, "Rex").getResultCount());
+    }
+
+    // ---- NodscAnimal MetamodelFactory Tests (non-generated, joined without @Discriminator) ----
+
+    @Test
+    public void testSelectNodscAnimalByNameUsingMetamodelFactory() {
+        var orm = ORMTemplate.of(dataSource);
+        var animals = orm.entity(NodscAnimal.class);
+        Metamodel<NodscAnimal, String> name = Metamodel.of(NodscAnimal.class, "name");
+        var result = animals.select().where(name, EQUALS, "Whiskers").getResultList();
+        assertEquals(1, result.size());
+        assertInstanceOf(NodscCat.class, result.getFirst());
+        assertEquals("Whiskers", result.getFirst().name());
+    }
+
+    @Test
+    public void testSelectNodscAnimalByIdUsingMetamodelFactory() {
+        var orm = ORMTemplate.of(dataSource);
+        var animals = orm.entity(NodscAnimal.class);
+        Metamodel<NodscAnimal, Integer> id = Metamodel.of(NodscAnimal.class, "id");
+        var result = animals.select().where(id, EQUALS, 4).getResultList();
+        assertEquals(1, result.size());
+        assertInstanceOf(NodscBird.class, result.getFirst());
+        assertEquals("Tweety", result.getFirst().name());
+    }
+
+    @Test
+    public void testSelectNodscAnimalByNameLikeUsingMetamodelFactory() {
+        var orm = ORMTemplate.of(dataSource);
+        var animals = orm.entity(NodscAnimal.class);
+        Metamodel<NodscAnimal, String> name = Metamodel.of(NodscAnimal.class, "name");
+        // "Whiskers", "Rex", and "Tweety" all contain 'e'.
+        var result = animals.select().where(name, LIKE, "%e%").getResultList();
+        assertEquals(3, result.size());
+        assertInstanceOf(NodscCat.class, result.get(0));
+        assertInstanceOf(NodscDog.class, result.get(1));
+        assertInstanceOf(NodscBird.class, result.get(2));
+    }
+
+    @Test
+    public void testCountNodscAnimalByNameUsingMetamodelFactory() {
+        var orm = ORMTemplate.of(dataSource);
+        var animals = orm.entity(NodscAnimal.class);
+        Metamodel<NodscAnimal, String> name = Metamodel.of(NodscAnimal.class, "name");
+        assertEquals(1, animals.select().where(name, EQUALS, "Rex").getResultCount());
+    }
+
+    // ---- Animal MetamodelFactory Tests (non-generated, single table with @Discriminator) ----
+
+    @Test
+    public void testSelectAnimalByNameUsingMetamodelFactory() {
+        var orm = ORMTemplate.of(dataSource);
+        var animals = orm.entity(Animal.class);
+        Metamodel<Animal, String> name = Metamodel.of(Animal.class, "name");
+        var result = animals.select().where(name, EQUALS, "Whiskers").getResultList();
+        assertEquals(1, result.size());
+        assertInstanceOf(Cat.class, result.getFirst());
+        assertEquals("Whiskers", result.getFirst().name());
+    }
+
+    @Test
+    public void testSelectAnimalByIdUsingMetamodelFactory() {
+        var orm = ORMTemplate.of(dataSource);
+        var animals = orm.entity(Animal.class);
+        Metamodel<Animal, Integer> id = Metamodel.of(Animal.class, "id");
+        var result = animals.select().where(id, EQUALS, 3).getResultList();
+        assertEquals(1, result.size());
+        assertInstanceOf(Dog.class, result.getFirst());
+        assertEquals("Rex", result.getFirst().name());
     }
 
     // ---- Type Change Tests for STI (D6) ----

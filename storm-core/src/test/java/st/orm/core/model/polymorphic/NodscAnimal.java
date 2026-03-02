@@ -13,4 +13,6 @@ import st.orm.Polymorphic;
 @Polymorphic(JOINED)
 @DbTable("nodsc_animal")
 public sealed interface NodscAnimal extends Entity<Integer> permits NodscCat, NodscDog, NodscBird {
+    Integer id();
+    String name();
 }

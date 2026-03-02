@@ -8,24 +8,27 @@ import st.orm.Polymorphic.Strategy.JOINED
 
 @Polymorphic(JOINED)
 @DbTable("nodsc_animal")
-sealed interface NodscAnimal : Entity<Int>
+sealed interface NodscAnimal : Entity<Int> {
+    val id: Int
+    val name: String
+}
 
 @DbTable("nodsc_cat")
 data class NodscCat(
-    @PK val id: Int = 0,
-    val name: String,
+    @PK override val id: Int = 0,
+    override val name: String,
     val indoor: Boolean,
 ) : NodscAnimal
 
 @DbTable("nodsc_dog")
 data class NodscDog(
-    @PK val id: Int = 0,
-    val name: String,
+    @PK override val id: Int = 0,
+    override val name: String,
     val weight: Int,
 ) : NodscAnimal
 
 @DbTable("nodsc_bird")
 data class NodscBird(
-    @PK val id: Int = 0,
-    val name: String,
+    @PK override val id: Int = 0,
+    override val name: String,
 ) : NodscAnimal

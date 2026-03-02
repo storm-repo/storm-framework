@@ -262,7 +262,6 @@ public final class MetamodelProcessor extends AbstractProcessor {
                 } else if (element.getKind() == ElementKind.INTERFACE
                         && element instanceof TypeElement typeElement
                         && typeElement.getModifiers().contains(javax.lang.model.element.Modifier.SEALED)
-                        && hasAnnotation(element, DISCRIMINATOR)
                         && implementsData(element)) {
                     List<ExecutableElement> declaredGetters = getDeclaredAbstractGetters(typeElement);
                     if (!declaredGetters.isEmpty()) {

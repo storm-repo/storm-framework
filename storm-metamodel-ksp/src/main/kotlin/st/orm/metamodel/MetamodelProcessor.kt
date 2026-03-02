@@ -141,13 +141,12 @@ class MetamodelProcessor(
             }
         }
 
-        // Also process sealed interfaces annotated with @Discriminator.
+        // Also process sealed interfaces that implement Data and have declared properties.
         resolver.getAllFiles()
             .flatMap { it.declarations }
             .filterIsInstance<KSClassDeclaration>()
             .filter { it.classKind == ClassKind.INTERFACE }
             .filter { it.modifiers.contains(Modifier.SEALED) }
-            .filter { it.hasAnnotation(DISCRIMINATOR) }
             .filter { it.implementsInterface(DATA) }
             .filter { it.getDeclaredProperties().any() }
             .forEach { sealedInterface ->
