@@ -780,4 +780,273 @@ open class TransactionTest(
         }
         orm.exists<Visit>().shouldBeFalse()
     }
+
+    /**
+     * SUPPORTS propagation scenarios.
+     */
+
+    @Test
+    fun `SUPPORTS with outer transaction should join and commit`(): Unit = runBlocking {
+        transactionBlocking {
+            transactionBlocking(SUPPORTS) {
+                orm.deleteAll<Visit>()
+            }
+        }
+        orm.exists<Visit>().shouldBeFalse()
+    }
+
+    @Test
+    fun `SUPPORTS with outer transaction should join and rollback`(): Unit = runBlocking {
+        transactionBlocking {
+            transactionBlocking(SUPPORTS) {
+                orm.deleteAll<Visit>()
+            }
+            setRollbackOnly()
+        }
+        orm.exists<Visit>().shouldBeTrue()
+    }
+
+    @Test
+    fun `SUPPORTS without outer transaction should run non-transactionally`(): Unit = runBlocking {
+        transactionBlocking(SUPPORTS) {
+            orm.deleteAll<Visit>()
+        }
+        // Non-transactional: changes are auto-committed immediately
+        orm.exists<Visit>().shouldBeFalse()
+    }
+
+    @Test
+    fun `SUPPORTS inner rollback marks outer rollback-only`(): Unit = runBlocking {
+        assertThrows<UnexpectedRollbackException> {
+            transactionBlocking {
+                transactionBlocking(SUPPORTS) {
+                    orm.deleteAll<Visit>()
+                    setRollbackOnly()
+                }
+            }
+        }
+        orm.exists<Visit>().shouldBeTrue()
+    }
+
+    /**
+     * MANDATORY propagation scenarios.
+     */
+
+    @Test
+    fun `MANDATORY with outer transaction should join and commit`(): Unit = runBlocking {
+        transactionBlocking {
+            transactionBlocking(MANDATORY) {
+                orm.deleteAll<Visit>()
+            }
+        }
+        orm.exists<Visit>().shouldBeFalse()
+    }
+
+    @Test
+    fun `MANDATORY with outer transaction should join and rollback`(): Unit = runBlocking {
+        transactionBlocking {
+            transactionBlocking(MANDATORY) {
+                orm.deleteAll<Visit>()
+            }
+            setRollbackOnly()
+        }
+        orm.exists<Visit>().shouldBeTrue()
+    }
+
+    @Test
+    fun `MANDATORY without outer transaction should throw`(): Unit = runBlocking {
+        assertThrows<PersistenceException> {
+            transactionBlocking(MANDATORY) {
+                orm.deleteAll<Visit>()
+            }
+        }
+    }
+
+    /**
+     * NEVER propagation scenarios.
+     */
+
+    @Test
+    fun `NEVER without outer transaction should run non-transactionally`(): Unit = runBlocking {
+        transactionBlocking(NEVER) {
+            orm.deleteAll<Visit>()
+        }
+        // Non-transactional: auto-committed
+        orm.exists<Visit>().shouldBeFalse()
+    }
+
+    @Test
+    fun `NEVER with outer transaction should throw`(): Unit = runBlocking {
+        assertThrows<PersistenceException> {
+            transactionBlocking {
+                transactionBlocking(NEVER) {
+                    orm.deleteAll<Visit>()
+                }
+            }
+        }
+    }
+
+    /**
+     * NOT_SUPPORTED propagation scenarios.
+     */
+
+    @Test
+    fun `NOT_SUPPORTED without outer transaction should run non-transactionally`(): Unit = runBlocking {
+        transactionBlocking(NOT_SUPPORTED) {
+            orm.deleteAll<Visit>()
+        }
+        orm.exists<Visit>().shouldBeFalse()
+    }
+
+    @Test
+    fun `NOT_SUPPORTED with outer transaction should suspend outer and run non-transactionally`(): Unit = runBlocking {
+        transactionBlocking {
+            transactionBlocking(NOT_SUPPORTED) {
+                // This runs non-transactionally, changes are auto-committed
+                orm.deleteAll<Visit>()
+            }
+            // After NOT_SUPPORTED completes, outer transaction is resumed
+            // The inner changes are already committed independently
+        }
+        orm.exists<Visit>().shouldBeFalse()
+    }
+
+    @Test
+    fun `NOT_SUPPORTED with outer rollback should still have inner changes committed`(): Unit = runBlocking {
+        transactionBlocking {
+            transactionBlocking(NOT_SUPPORTED) {
+                orm.deleteAll<Visit>()
+            }
+            setRollbackOnly()
+        }
+        // NOT_SUPPORTED inner was non-transactional, so changes persist even though outer rolled back
+        orm.exists<Visit>().shouldBeFalse()
+    }
+
+    /**
+     * Read-only transaction scenarios.
+     */
+
+    @Test
+    fun `readOnly transaction should allow reads`(): Unit = runBlocking {
+        transactionBlocking(readOnly = true) {
+            orm.exists<Visit>().shouldBeTrue()
+        }
+    }
+
+    @Test
+    fun `global readOnly default should allow reads`(): Unit = runBlocking {
+        setGlobalTransactionOptions(readOnly = true)
+        transactionBlocking {
+            orm.exists<Visit>().shouldBeTrue()
+        }
+    }
+
+    @Test
+    fun `scoped readOnly default should allow reads`(): Unit = runBlocking {
+        withTransactionOptions(readOnly = true) {
+            transaction {
+                orm.exists<Visit>().shouldBeTrue()
+            }
+        }
+    }
+
+    @Test
+    fun `threadScoped readOnly default should allow reads`(): Unit = runBlocking {
+        withTransactionOptionsBlocking(readOnly = true) {
+            transactionBlocking {
+                orm.exists<Visit>().shouldBeTrue()
+            }
+        }
+    }
+
+    /**
+     * SUPPORTS with suspend transaction.
+     */
+
+    @Test
+    fun `suspend SUPPORTS with outer transaction should join`(): Unit = runBlocking {
+        transaction {
+            transaction(propagation = SUPPORTS) {
+                orm.deleteAll<Visit>()
+            }
+        }
+        orm.exists<Visit>().shouldBeFalse()
+    }
+
+    @Test
+    fun `suspend SUPPORTS without outer transaction should run non-transactionally`(): Unit = runBlocking {
+        transaction(propagation = SUPPORTS) {
+            orm.deleteAll<Visit>()
+        }
+        orm.exists<Visit>().shouldBeFalse()
+    }
+
+    /**
+     * MANDATORY with suspend transaction.
+     */
+
+    @Test
+    fun `suspend MANDATORY with outer transaction should join`(): Unit = runBlocking {
+        transaction {
+            transaction(propagation = MANDATORY) {
+                orm.deleteAll<Visit>()
+            }
+        }
+        orm.exists<Visit>().shouldBeFalse()
+    }
+
+    @Test
+    fun `suspend MANDATORY without outer transaction should throw`(): Unit = runBlocking {
+        assertThrows<PersistenceException> {
+            transaction(propagation = MANDATORY) {
+                orm.deleteAll<Visit>()
+            }
+        }
+    }
+
+    /**
+     * NEVER with suspend transaction.
+     */
+
+    @Test
+    fun `suspend NEVER without outer should run non-transactionally`(): Unit = runBlocking {
+        transaction(propagation = NEVER) {
+            orm.deleteAll<Visit>()
+        }
+        orm.exists<Visit>().shouldBeFalse()
+    }
+
+    @Test
+    fun `suspend NEVER with outer should throw`(): Unit = runBlocking {
+        assertThrows<PersistenceException> {
+            transaction {
+                transaction(propagation = NEVER) {
+                    orm.deleteAll<Visit>()
+                }
+            }
+        }
+    }
+
+    /**
+     * NOT_SUPPORTED with suspend transaction.
+     */
+
+    @Test
+    fun `suspend NOT_SUPPORTED without outer should run non-transactionally`(): Unit = runBlocking {
+        transaction(propagation = NOT_SUPPORTED) {
+            orm.deleteAll<Visit>()
+        }
+        orm.exists<Visit>().shouldBeFalse()
+    }
+
+    @Test
+    fun `suspend NOT_SUPPORTED with outer should suspend and run non-transactionally`(): Unit = runBlocking {
+        transaction {
+            transaction(propagation = NOT_SUPPORTED) {
+                orm.deleteAll<Visit>()
+            }
+        }
+        orm.exists<Visit>().shouldBeFalse()
+    }
 }

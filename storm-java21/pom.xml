@@ -40,9 +40,12 @@
                         @{argLine}
                         --enable-preview
                         --add-opens java.base/java.lang=ALL-UNNAMED
-                        --add-opens storm/st.orm=ALL-UNNAMED
-                        --add-opens storm/st.orm.repository=ALL-UNNAMED
-                        --add-opens storm/st.orm.repository.spring=ALL-UNNAMED
+                        --add-opens storm.java/st.orm.repository=ALL-UNNAMED
+                        --add-opens storm.java/st.orm.repository.impl=ALL-UNNAMED
+                        --add-opens storm.java/st.orm.template=ALL-UNNAMED
+                        --add-opens storm.java/st.orm.template.impl=ALL-UNNAMED
+                        --add-opens storm.java/st.orm.template.model=ALL-UNNAMED
+                        --add-opens storm.java/st.orm.template.model=storm.core
                         -Dstorm.ansi_escaping=true
                     </argLine>
                 </configuration>

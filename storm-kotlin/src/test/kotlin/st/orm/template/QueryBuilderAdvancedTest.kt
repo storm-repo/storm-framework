@@ -14,9 +14,13 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import st.orm.Data
+import st.orm.JoinType
 import st.orm.Metamodel
+import st.orm.NoResultException
+import st.orm.NonUniqueResultException
 import st.orm.Operator.*
 import st.orm.PersistenceException
+import st.orm.Ref
 import st.orm.template.model.*
 
 @ExtendWith(SpringExtension::class)
@@ -290,5 +294,496 @@ open class QueryBuilderAdvancedTest(
         cities shouldHaveSize 6
         cities[0].id shouldBe 1
         cities[5].id shouldBe 6
+    }
+
+    // ======================================================================
+    // QueryBuilder: where with varargs
+    // ======================================================================
+
+    @Test
+    fun `where with metamodel and IN operator and varargs should filter entities`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val cities = repo.select().where(namePath, IN, "Madison", "Windsor").resultList
+        cities shouldHaveSize 2
+    }
+
+    // ======================================================================
+    // QueryBuilder: having with metamodel path and operator
+    // ======================================================================
+
+    @Test
+    fun `having with template builder should filter groups`() {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val queryResult = repo.selectCount()
+            .groupBy(cityPath)
+            .having { "COUNT(*) > 1" }
+            .resultList
+        // Cities with more than 1 owner
+        queryResult.size shouldNotBe 0
+    }
+
+    // ======================================================================
+    // QueryBuilder: where/whereAny with PredicateBuilder (using eq infix)
+    // ======================================================================
+
+    @Test
+    fun `where with PredicateBuilder should filter entities`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val predicate = namePath eq "Madison"
+        val cities = repo.select().where(predicate).resultList
+        cities shouldHaveSize 1
+    }
+
+    @Test
+    fun `whereAny with PredicateBuilder should filter entities`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val predicate = namePath eq "Madison"
+        val cities = repo.select().whereAny(predicate).resultList
+        cities shouldHaveSize 1
+    }
+
+    // ======================================================================
+    // QueryBuilder: resultCount
+    // ======================================================================
+
+    @Test
+    fun `resultCount should return total count`() {
+        val repo = orm.entity(City::class)
+        val count = repo.select().resultCount
+        count shouldBe 6L
+    }
+
+    @Test
+    fun `resultCount with where should return filtered count`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val count = repo.select().where(namePath, EQUALS, "Madison").resultCount
+        count shouldBe 1L
+    }
+
+    // ======================================================================
+    // QueryBuilder: limit/offset
+    // ======================================================================
+
+    @Test
+    fun `limit should restrict result count`() {
+        val repo = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(repo.model, "id")
+        val cities = repo.select().orderBy(idPath).limit(3).resultList
+        cities shouldHaveSize 3
+    }
+
+    @Test
+    fun `limit with offset should skip and restrict results`() {
+        val repo = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(repo.model, "id")
+        val cities = repo.select().orderBy(idPath).limit(2).offset(2).resultList
+        cities shouldHaveSize 2
+        cities[0].id shouldBe 3
+    }
+
+    // ======================================================================
+    // QueryBuilder: selectAll flow
+    // ======================================================================
+
+    @Test
+    fun `resultFlow should return all entities as flow`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val count = repo.select().resultFlow.count()
+        count shouldBe 6
+    }
+
+    // ======================================================================
+    // QueryBuilder: whereExists and whereNotExists
+    // ======================================================================
+
+    @Test
+    fun `whereExists with subquery builder should filter cities with owners`() {
+        val repo = orm.entity(City::class)
+        val cities = repo.select().whereExists { subquery(Owner::class) }.resultList
+        // All 6 cities are referenced by owners
+        cities shouldHaveSize 6
+    }
+
+    @Test
+    fun `whereNotExists with subquery builder should filter cities without owners`() {
+        val repo = orm.entity(City::class)
+        val cities = repo.select().whereNotExists { subquery(Owner::class) }.resultList
+        // All cities are referenced by owners
+        cities shouldHaveSize 0
+    }
+
+    // ======================================================================
+    // orderByDescending tests
+    // ======================================================================
+
+    @Test
+    fun `orderByDescending with single metamodel path should sort descending`() {
+        val repo = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(repo.model, "id")
+        val cities = repo.select().orderByDescending(idPath).resultList
+        cities shouldHaveSize 6
+        cities[0].id shouldBe 6
+        cities[5].id shouldBe 1
+    }
+
+    @Test
+    fun `orderByDescending with varargs metamodel paths should sort descending`() {
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val firstNamePath = metamodel<Owner, String>(repo.model, "first_name")
+        val owners = repo.select().orderByDescending(lastNamePath, firstNamePath).limit(3).resultList
+        owners shouldHaveSize 3
+    }
+
+    @Test
+    fun `orderByDescendingAny with single metamodel path should sort descending`() {
+        val repo = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(repo.model, "id")
+        val cities = repo.select().orderByDescendingAny(idPath).resultList
+        cities shouldHaveSize 6
+        cities[0].id shouldBe 6
+        cities[5].id shouldBe 1
+    }
+
+    @Test
+    fun `orderByDescendingAny with multiple metamodel paths should sort descending`() {
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val firstNamePath = metamodel<Owner, String>(repo.model, "first_name")
+        val owners = repo.select().orderByDescendingAny(lastNamePath, firstNamePath).limit(3).resultList
+        owners shouldHaveSize 3
+    }
+
+    @Test
+    fun `orderByDescending with template builder should sort descending`() {
+        val repo = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(repo.model, "id")
+        val cities = repo.select().orderByDescending { "${t(Templates.column(idPath))}" }.resultList
+        cities shouldHaveSize 6
+        cities[0].id shouldBe 6
+        cities[5].id shouldBe 1
+    }
+
+    // ======================================================================
+    // orderByAny tests
+    // ======================================================================
+
+    @Test
+    fun `orderByAny with multiple metamodel paths should sort ascending`() {
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val firstNamePath = metamodel<Owner, String>(repo.model, "first_name")
+        val owners = repo.select().orderByAny(lastNamePath, firstNamePath).limit(3).resultList
+        owners shouldHaveSize 3
+    }
+
+    // ======================================================================
+    // singleResult / optionalResult tests
+    // ======================================================================
+
+    @Test
+    fun `singleResult should return entity when exactly one match`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val city = repo.select().where(namePath, EQUALS, "Madison").singleResult
+        city.name shouldBe "Madison"
+    }
+
+    @Test
+    fun `singleResult should throw NoResultException when no match`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        assertThrows<NoResultException> {
+            repo.select().where(namePath, EQUALS, "NonExistent").singleResult
+        }
+    }
+
+    @Test
+    fun `singleResult should throw NonUniqueResultException when multiple matches`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        assertThrows<NonUniqueResultException> {
+            repo.select().where(namePath, LIKE, "M%").singleResult
+        }
+    }
+
+    @Test
+    fun `optionalResult should return entity when exactly one match`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val city = repo.select().where(namePath, EQUALS, "Madison").optionalResult
+        city shouldNotBe null
+        city!!.name shouldBe "Madison"
+    }
+
+    @Test
+    fun `optionalResult should return null when no match`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val city = repo.select().where(namePath, EQUALS, "NonExistent").optionalResult
+        city shouldBe null
+    }
+
+    @Test
+    fun `optionalResult should throw NonUniqueResultException when multiple matches`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        assertThrows<NonUniqueResultException> {
+            repo.select().where(namePath, LIKE, "M%").optionalResult
+        }
+    }
+
+    // ======================================================================
+    // having / havingAny with metamodel + operator
+    // ======================================================================
+
+    @Test
+    fun `having with TemplateBuilder should add having clause`() {
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val result = repo.selectCount()
+            .groupBy(lastNamePath)
+            .having { "COUNT(*) >= 1" }
+            .resultList
+        result.size shouldNotBe 0
+    }
+
+    @Test
+    fun `having with metamodel and operator should filter groups`() {
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val result = repo.selectCount()
+            .groupBy(lastNamePath)
+            .having(lastNamePath, EQUALS, "Davis")
+            .resultList
+        result shouldHaveSize 1
+    }
+
+    @Test
+    fun `havingAny with metamodel and operator should filter groups`() {
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val result = repo.selectCount()
+            .groupBy(lastNamePath)
+            .havingAny(lastNamePath, IN, "Davis", "Franklin")
+            .resultList
+        result shouldHaveSize 2
+    }
+
+    // ======================================================================
+    // where with Metamodel and Data (FK reference)
+    // ======================================================================
+
+    @Test
+    fun `where with metamodel and data reference should filter entities`() {
+        val cityRepo = orm.entity(City::class)
+        val madison = cityRepo.select().where(2).singleResult
+        val ownerRepo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(ownerRepo.model, "city_id")
+        val owners = ownerRepo.select().where(cityPath, madison).resultList
+        owners shouldHaveSize 4
+    }
+
+    // ======================================================================
+    // QueryBuilder slice (no key) tests
+    // ======================================================================
+
+    @Test
+    fun `slice without key should return first page with hasNext`() {
+        val repo = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(repo.model, "id")
+        val slice = repo.select().orderBy(idPath).slice(3)
+        slice.content shouldHaveSize 3
+        slice.hasNext shouldBe true
+    }
+
+    @Test
+    fun `slice without key should return all when size exceeds count`() {
+        val repo = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(repo.model, "id")
+        val slice = repo.select().orderBy(idPath).slice(10)
+        slice.content shouldHaveSize 6
+        slice.hasNext shouldBe false
+    }
+
+    // ======================================================================
+    // QueryBuilder: sliceAfter/sliceBefore with Ref cursor
+    // ======================================================================
+
+    @Test
+    fun `sliceAfter with ref cursor should return next page`() {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val cityKey = cityPath.key()
+        val cityRef: Ref<City> = Ref.of(City::class.java, 2)
+        val slice = repo.select().sliceAfter(cityKey, cityRef, 10)
+        slice.content.size shouldNotBe 0
+    }
+
+    @Test
+    fun `sliceBefore with ref cursor should return previous page`() {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val cityKey = cityPath.key()
+        val cityRef: Ref<City> = Ref.of(City::class.java, 5)
+        val slice = repo.select().sliceBefore(cityKey, cityRef, 10)
+        slice.content.size shouldNotBe 0
+    }
+
+    // ======================================================================
+    // QueryBuilder: sliceAfter/sliceBefore with sort + cursor (composite keyset)
+    // ======================================================================
+
+    @Test
+    fun `sliceAfter with composite key and sort cursor should return next page`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        // Get first page sorted by name
+        val firstPage = repo.select().slice(idKey, namePath, 3)
+        firstPage.content shouldHaveSize 3
+        val lastItem = firstPage.content.last()
+        // Get next page after last item
+        val nextPage = repo.select().sliceAfter(idKey, lastItem.id, namePath, lastItem.name, 3)
+        nextPage.content shouldHaveSize 3
+    }
+
+    @Test
+    fun `sliceBefore with composite key and sort cursor should return previous page`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        // Get last page (descending)
+        val lastPage = repo.select().sliceBefore(idKey, namePath, 3)
+        lastPage.content shouldHaveSize 3
+        val firstItem = lastPage.content.last()
+        // Get previous page before first item
+        val previousPage = repo.select().sliceBefore(idKey, firstItem.id, namePath, firstItem.name, 3)
+        previousPage.content shouldHaveSize 3
+    }
+
+    @Test
+    fun `sliceAfter with composite ref key and sort cursor should return next page`() {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val cityKey = cityPath.key()
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val cityRef: Ref<City> = Ref.of(City::class.java, 1)
+        val slice = repo.select().sliceAfter(cityKey, cityRef, lastNamePath, "A", 10)
+        slice.content.size shouldNotBe 0
+    }
+
+    @Test
+    fun `sliceBefore with composite ref key and sort cursor should return previous page`() {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val cityKey = cityPath.key()
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val cityRef: Ref<City> = Ref.of(City::class.java, 6)
+        val slice = repo.select().sliceBefore(cityKey, cityRef, lastNamePath, "Z", 10)
+        slice.content.size shouldNotBe 0
+    }
+
+    // ======================================================================
+    // QueryBuilder: join with template
+    // ======================================================================
+
+    @Test
+    fun `join with joinType and template and alias should produce correct result`() {
+        val repo = orm.entity(Pet::class)
+        val count = repo.select()
+            .join(JoinType.inner(), TemplateString.raw("visit"), "v")
+            .on(TemplateString.raw("v.pet_id = p.id"))
+            .resultList.size
+        count shouldNotBe 0
+    }
+
+    // ======================================================================
+    // Kotlin DSL infix predicates
+    // ======================================================================
+
+    @Test
+    fun `neq infix should filter not equal entities`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val cities = repo.select().where(namePath neq "Madison").resultList
+        cities shouldHaveSize 5
+    }
+
+    @Test
+    fun `greater infix should filter greater than entities`() {
+        val repo = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(repo.model, "id")
+        val cities = repo.select().where(idPath greater 4).resultList
+        cities shouldHaveSize 2
+    }
+
+    @Test
+    fun `less infix should filter less than entities`() {
+        val repo = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(repo.model, "id")
+        val cities = repo.select().where(idPath less 3).resultList
+        cities shouldHaveSize 2
+    }
+
+    @Test
+    fun `greaterEq infix should filter greater or equal entities`() {
+        val repo = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(repo.model, "id")
+        val cities = repo.select().where(idPath greaterEq 5).resultList
+        cities shouldHaveSize 2
+    }
+
+    @Test
+    fun `lessEq infix should filter less or equal entities`() {
+        val repo = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(repo.model, "id")
+        val cities = repo.select().where(idPath lessEq 2).resultList
+        cities shouldHaveSize 2
+    }
+
+    @Test
+    fun `notLike infix should filter not matching entities`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val cities = repo.select().where(namePath notLike "M%").resultList
+        cities shouldHaveSize 3
+    }
+
+    @Test
+    fun `inList infix should filter entities in list`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val cities = repo.select().where(namePath inList listOf("Madison", "Windsor")).resultList
+        cities shouldHaveSize 2
+    }
+
+    @Test
+    fun `notInList infix should filter entities not in list`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val cities = repo.select().where(namePath notInList listOf("Madison", "Windsor")).resultList
+        cities shouldHaveSize 4
+    }
+
+    @Test
+    fun `isNotNull predicate should filter non-null values`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val cities = repo.select().where(namePath.isNotNull()).resultList
+        cities shouldHaveSize 6
+    }
+
+    @Test
+    fun `between predicate should filter values in range`() {
+        val repo = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(repo.model, "id")
+        val cities = repo.select().where(idPath.between(2, 4)).resultList
+        cities shouldHaveSize 3
     }
 }
