@@ -77,6 +77,8 @@ JPA (typically implemented by Hibernate) is the most widely used persistence fra
 | **Learning Curve** | Gentle; SQL-like | Steep; many concepts                     |
 | **Magic** | What you see is what you get | Proxies, bytecode enhancement            |
 
+**Polymorphism differences.** Storm and JPA overlap on Single-Table and Joined Table, but diverge beyond that. Storm adds [Polymorphic FK](polymorphism.md#polymorphic-foreign-keys), a two-column foreign key (type + id) that references independent tables with no shared base. This has no JPA equivalent (Hibernate offers the non-standard `@Any` annotation for a similar purpose). JPA adds Table-per-Class, which duplicates all fields into per-subtype tables and queries the base type via `UNION ALL`, and multi-level inheritance (e.g., `Animal` → `Pet` → `Cat`). Storm intentionally limits hierarchies to a single sealed level, which covers the vast majority of real-world use cases while keeping SQL generation predictable.
+
 ### When to Choose Storm
 
 - You want predictable, explicit database behavior

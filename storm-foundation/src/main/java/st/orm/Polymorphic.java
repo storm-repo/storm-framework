@@ -30,7 +30,9 @@ import java.lang.annotation.Target;
  * <p>Java:
  * <pre>{@code
  * @Polymorphic(JOINED)
- * sealed interface Pet extends Entity<Integer> permits Cat, Dog {}
+ * sealed interface Pet extends Entity<Integer> permits Cat, Dog {
+ *     String name();
+ * }
  *
  * record Cat(@PK Integer id, String name, boolean indoor) implements Pet {}
  * record Dog(@PK Integer id, String name, int weight) implements Pet {}
@@ -39,7 +41,9 @@ import java.lang.annotation.Target;
  * <p>Kotlin:
  * <pre>{@code
  * @Polymorphic(JOINED)
- * sealed interface Pet : Entity<Int>
+ * sealed interface Pet : Entity<Int> {
+ *     val name: String
+ * }
  *
  * data class Cat(@PK val id: Int?, val name: String, val indoor: Boolean) : Pet
  * data class Dog(@PK val id: Int?, val name: String, val weight: Int) : Pet
@@ -68,8 +72,10 @@ public @interface Polymorphic {
         SINGLE_TABLE,
 
         /**
-         * A base table holds shared fields and an optional discriminator column. Each subtype has its own extension table with
-         * subtype-specific fields, linked by the primary key.
+         * A base table holds shared fields and each subtype has its own extension table with subtype-specific fields,
+         * linked by the primary key. A {@link Discriminator} column in the base table is optional: when present, Storm
+         * reads the discriminator value directly; when absent, Storm resolves the concrete type at query time by
+         * generating an expression that checks which extension table has a matching row.
          */
         JOINED
     }

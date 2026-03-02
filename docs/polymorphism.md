@@ -60,12 +60,15 @@ The following table summarizes the key differences between the three strategies.
 | Aspect | Single-Table | Joined Table | Polymorphic FK |
 |--------|-------------|-------------|----------------|
 | **Tables** | One shared table | Base table + extension tables | Separate independent tables |
-| **Discriminator** | In the shared table | In the base table | In the *referencing* entity |
+| **Discriminator** | In the shared table | In the base table (optional<sup>1</sup>) | In the *referencing* entity |
 | **Unused columns** | NULL for other subtypes | None (normalized) | None |
 | **Query performance** | Fast (no JOINs) | Moderate (LEFT JOINs) | Variable (per-type lookup) |
 | **Schema normalization** | Low | High | High |
-| **FK from other entities** | Single column | Single column (to base) | Two columns (type + id) |
+| **FK from other entities** | Single column | Single column (to base) | Two columns (type + id)<sup>2</sup> |
 | **Adding subtypes** | Add columns to shared table | Add new extension table | Add new table |
+
+<sup>1</sup> When `@Discriminator` is omitted, Storm resolves the concrete type at query time by generating an expression that checks which extension table has a matching row. See [The `@Discriminator` Annotation](#the-discriminator-annotation) for details.<br/>
+<sup>2</sup> Because the subtypes are independent tables with no shared base table, a single FK column cannot identify both the target table and the target row. The discriminator column identifies the table, and the ID column identifies the row. See [Polymorphic Foreign Keys](#polymorphic-foreign-keys) for details.
 
 Each strategy has strengths that make it the natural choice in certain scenarios. The sections below cover each one in detail.
 
@@ -129,7 +132,7 @@ The table below summarizes where `@Discriminator` can be placed, whether it is r
 |---------|--------|-----------|---------|---------|
 | Sealed interface | `TYPE` | **Yes** (Single-Table), Optional (Joined) | Set discriminator column name | `"dtype"` |
 | Concrete subtype | `TYPE` | No | Set discriminator value | Simple class name |
-| FK field (Polymorphic FK) | `RECORD_COMPONENT` | No | Set discriminator column in referencing table | `"{fieldName}_type"` |
+| FK field (Polymorphic FK) | `FIELD` | No | Set discriminator column in referencing table | `"{fieldName}_type"` |
 
 The following examples show how to apply the annotation in each context.
 
@@ -139,21 +142,27 @@ The following examples show how to apply the annotation in each context.
 ```kotlin
 // On the sealed interface: required for Single-Table, optional for Joined Table
 @Discriminator                    // uses default column name "dtype"
-sealed interface Pet : Entity<Int>
+sealed interface Pet : Entity<Int> {
+    val name: String
+}
 
 // Or with a custom column name
 @Discriminator(column = "pet_type")
-sealed interface Pet : Entity<Int>
+sealed interface Pet : Entity<Int> {
+    val name: String
+}
 
 // Joined Table without @Discriminator: type is resolved via extension table PKs
 @Polymorphic(JOINED)
-sealed interface Pet : Entity<Int>
+sealed interface Pet : Entity<Int> {
+    val name: String
+}
 
 // On a subtype: customize the discriminator value (optional)
 @Discriminator("LARGE_DOG")
 data class Dog(
-    @PK val id: Int = 0,
-    val name: String,
+    @PK override val id: Int = 0,
+    override val name: String,
     val weight: Int
 ) : Pet
 ```
@@ -164,15 +173,21 @@ data class Dog(
 ```java
 // On the sealed interface: required for Single-Table, optional for Joined Table
 @Discriminator                    // uses default column name "dtype"
-sealed interface Pet extends Entity<Integer> permits Cat, Dog {}
+sealed interface Pet extends Entity<Integer> permits Cat, Dog {
+    String name();
+}
 
 // Or with a custom column name
 @Discriminator(column = "pet_type")
-sealed interface Pet extends Entity<Integer> permits Cat, Dog {}
+sealed interface Pet extends Entity<Integer> permits Cat, Dog {
+    String name();
+}
 
 // Joined Table without @Discriminator: type is resolved via extension table PKs
 @Polymorphic(JOINED)
-sealed interface Pet extends Entity<Integer> permits Cat, Dog {}
+sealed interface Pet extends Entity<Integer> permits Cat, Dog {
+    String name();
+}
 
 // On a subtype: customize the discriminator value (optional)
 @Discriminator("LARGE_DOG")
@@ -645,17 +660,19 @@ With `@Discriminator`:
 ```kotlin
 @Discriminator
 @Polymorphic(JOINED)
-sealed interface Pet : Entity<Int>
+sealed interface Pet : Entity<Int> {
+    val name: String
+}
 
 data class Cat(
-    @PK val id: Int = 0,
-    val name: String,
+    @PK override val id: Int = 0,
+    override val name: String,
     val indoor: Boolean
 ) : Pet
 
 data class Dog(
-    @PK val id: Int = 0,
-    val name: String,
+    @PK override val id: Int = 0,
+    override val name: String,
     val weight: Int
 ) : Pet
 ```
@@ -664,24 +681,26 @@ Without `@Discriminator`:
 
 ```kotlin
 @Polymorphic(JOINED)
-sealed interface Pet : Entity<Int>
+sealed interface Pet : Entity<Int> {
+    val name: String
+}
 
 data class Cat(
-    @PK val id: Int = 0,
-    val name: String,
+    @PK override val id: Int = 0,
+    override val name: String,
     val indoor: Boolean
 ) : Pet
 
 data class Dog(
-    @PK val id: Int = 0,
-    val name: String,
+    @PK override val id: Int = 0,
+    override val name: String,
     val weight: Int
 ) : Pet
 
 // Bird has no extension fields, but still gets an extension table
 data class Bird(
-    @PK val id: Int = 0,
-    val name: String
+    @PK override val id: Int = 0,
+    override val name: String
 ) : Pet
 ```
 
@@ -693,7 +712,9 @@ With `@Discriminator`:
 ```java
 @Discriminator
 @Polymorphic(JOINED)
-sealed interface Pet extends Entity<Integer> permits Cat, Dog {}
+sealed interface Pet extends Entity<Integer> permits Cat, Dog {
+    String name();
+}
 
 record Cat(@PK Integer id, String name, boolean indoor) implements Pet {}
 
@@ -704,7 +725,9 @@ Without `@Discriminator`:
 
 ```java
 @Polymorphic(JOINED)
-sealed interface Pet extends Entity<Integer> permits Cat, Dog, Bird {}
+sealed interface Pet extends Entity<Integer> permits Cat, Dog, Bird {
+    String name();
+}
 
 record Cat(@PK Integer id, String name, boolean indoor) implements Pet {}
 
