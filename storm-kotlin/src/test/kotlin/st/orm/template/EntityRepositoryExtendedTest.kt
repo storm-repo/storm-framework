@@ -1768,139 +1768,115 @@ open class EntityRepositoryExtendedTest(
     }
 
     // ======================================================================
-    // EntityRepository: Ref-based keyset pagination
+    // EntityRepository: Keyset pagination with PK
     // ======================================================================
 
     @Test
-    fun `entity sliceAfter with ref cursor should return next page`() {
+    fun `entity sliceAfter should return next page`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
-        // city_ids: 1,2,3,4,2,5,5,2,2,6. After city_id > 2: ids with city_id 3,4,5,5,6 = 5 owners
-        val cityRef: Ref<City> = Ref.of(City::class.java, 2)
-        val slice = repo.sliceAfter(cityKey, cityRef, 10)
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        // Owners have ids 1-10. After id > 5: ids 6,7,8,9,10 = 5 owners.
+        val slice = repo.sliceAfter(idKey, 5, 10)
         slice.content.size shouldBe 5
     }
 
     @Test
-    fun `entity sliceAfterRef with ref cursor should return next page refs`() {
+    fun `entity sliceAfterRef should return next page refs`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
-        val cityRef: Ref<City> = Ref.of(City::class.java, 2)
-        val slice = repo.sliceAfterRef(cityKey, cityRef, 10)
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        val slice = repo.sliceAfterRef(idKey, 5, 10)
         slice.content.size shouldBe 5
     }
 
     @Test
-    fun `entity sliceBefore with ref cursor should return previous page`() {
+    fun `entity sliceBefore should return previous page`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
-        // city_ids: 1,2,3,4,2,5,5,2,2,6. Before city_id < 5: ids with city_id 1,2,3,4,2,2,2 = 7 owners
-        val cityRef: Ref<City> = Ref.of(City::class.java, 5)
-        val slice = repo.sliceBefore(cityKey, cityRef, 10)
-        slice.content.size shouldBe 7
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        // Owners have ids 1-10. Before id < 6: ids 1,2,3,4,5 = 5 owners.
+        val slice = repo.sliceBefore(idKey, 6, 10)
+        slice.content.size shouldBe 5
     }
 
     @Test
-    fun `entity sliceBeforeRef with ref cursor should return previous page refs`() {
+    fun `entity sliceBeforeRef should return previous page refs`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
-        val cityRef: Ref<City> = Ref.of(City::class.java, 5)
-        val slice = repo.sliceBeforeRef(cityKey, cityRef, 10)
-        slice.content.size shouldBe 7
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        val slice = repo.sliceBeforeRef(idKey, 6, 10)
+        slice.content.size shouldBe 5
     }
 
     @Test
-    fun `entity sliceAfter with ref cursor and WhereBuilder should filter`() {
+    fun `entity sliceAfter with WhereBuilder should filter`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        // After city_id > 1 AND last_name LIKE '%': city_ids 2,3,4,2,5,5,2,2,6 = 9 owners
-        val cityRef: Ref<City> = Ref.of(City::class.java, 1)
-        val slice = repo.sliceAfter(cityKey, cityRef, 10) { where(lastNamePath, LIKE, "%") }
-        slice.content.size shouldBe 9
+        // After id > 1 AND last_name LIKE 'D%': owners 4 (Harold Davis) = 1 owner.
+        val slice = repo.sliceAfter(idKey, 1, 10) { where(lastNamePath, LIKE, "D%") }
+        slice.content.size shouldBe 1
     }
 
     @Test
-    fun `entity sliceAfter with ref cursor and PredicateBuilder should filter`() {
+    fun `entity sliceAfter with PredicateBuilder should filter`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val cityRef: Ref<City> = Ref.of(City::class.java, 1)
-        val slice = repo.sliceAfter(cityKey, cityRef, 10, lastNamePath like "%")
-        slice.content.size shouldBe 9
+        val slice = repo.sliceAfter(idKey, 1, 10, lastNamePath like "D%")
+        slice.content.size shouldBe 1
     }
 
     @Test
-    fun `entity sliceAfterRef with ref cursor and WhereBuilder should filter refs`() {
+    fun `entity sliceAfterRef with WhereBuilder should filter refs`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val cityRef: Ref<City> = Ref.of(City::class.java, 1)
-        val slice = repo.sliceAfterRef(cityKey, cityRef, 10) { where(lastNamePath, LIKE, "%") }
-        slice.content.size shouldBe 9
+        val slice = repo.sliceAfterRef(idKey, 1, 10) { where(lastNamePath, LIKE, "D%") }
+        slice.content.size shouldBe 1
     }
 
     @Test
-    fun `entity sliceAfterRef with ref cursor and PredicateBuilder should filter refs`() {
+    fun `entity sliceAfterRef with PredicateBuilder should filter refs`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val cityRef: Ref<City> = Ref.of(City::class.java, 1)
-        val slice = repo.sliceAfterRef(cityKey, cityRef, 10, lastNamePath like "%")
-        slice.content.size shouldBe 9
+        val slice = repo.sliceAfterRef(idKey, 1, 10, lastNamePath like "D%")
+        slice.content.size shouldBe 1
     }
 
     @Test
-    fun `entity sliceBefore with ref cursor and WhereBuilder should filter`() {
+    fun `entity sliceBefore with WhereBuilder should filter`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        // Before city_id < 6 AND last_name LIKE '%': city_ids 1,2,3,4,2,5,5,2,2 = 9 owners
-        val cityRef: Ref<City> = Ref.of(City::class.java, 6)
-        val slice = repo.sliceBefore(cityKey, cityRef, 10) { where(lastNamePath, LIKE, "%") }
-        slice.content.size shouldBe 9
+        // Before id < 10 AND last_name LIKE 'D%': owners 1 (Betty Davis), 4 (Harold Davis) = 2 owners.
+        val slice = repo.sliceBefore(idKey, 10, 10) { where(lastNamePath, LIKE, "D%") }
+        slice.content.size shouldBe 2
     }
 
     @Test
-    fun `entity sliceBefore with ref cursor and PredicateBuilder should filter`() {
+    fun `entity sliceBefore with PredicateBuilder should filter`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val cityRef: Ref<City> = Ref.of(City::class.java, 6)
-        val slice = repo.sliceBefore(cityKey, cityRef, 10, lastNamePath like "%")
-        slice.content.size shouldBe 9
+        val slice = repo.sliceBefore(idKey, 10, 10, lastNamePath like "D%")
+        slice.content.size shouldBe 2
     }
 
     @Test
-    fun `entity sliceBeforeRef with ref cursor and WhereBuilder should filter refs`() {
+    fun `entity sliceBeforeRef with WhereBuilder should filter refs`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val cityRef: Ref<City> = Ref.of(City::class.java, 6)
-        val slice = repo.sliceBeforeRef(cityKey, cityRef, 10) { where(lastNamePath, LIKE, "%") }
-        slice.content.size shouldBe 9
+        val slice = repo.sliceBeforeRef(idKey, 10, 10) { where(lastNamePath, LIKE, "D%") }
+        slice.content.size shouldBe 2
     }
 
     @Test
-    fun `entity sliceBeforeRef with ref cursor and PredicateBuilder should filter refs`() {
+    fun `entity sliceBeforeRef with PredicateBuilder should filter refs`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val cityRef: Ref<City> = Ref.of(City::class.java, 6)
-        val slice = repo.sliceBeforeRef(cityKey, cityRef, 10, lastNamePath like "%")
-        slice.content.size shouldBe 9
+        val slice = repo.sliceBeforeRef(idKey, 10, 10, lastNamePath like "D%")
+        slice.content.size shouldBe 2
     }
 
     // ======================================================================
@@ -1954,48 +1930,40 @@ open class EntityRepositoryExtendedTest(
     }
 
     @Test
-    fun `entity sliceAfter with ref key sort cursor should return next page`() {
+    fun `entity sliceAfter with composite key sort cursor should return next page`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        // After (lastName > "A" OR (lastName = "A" AND city_id > 1)): all owners
-        val cityRef: Ref<City> = Ref.of(City::class.java, 1)
-        val slice = repo.sliceAfter(cityKey, cityRef, lastNamePath, "A", 10)
+        // After (lastName > "A" OR (lastName = "A" AND id > 1)): all 10 owners have lastName > "A".
+        val slice = repo.sliceAfter(idKey, 1, lastNamePath, "A", 10)
         slice.content.size shouldBe 10
     }
 
     @Test
-    fun `entity sliceBefore with ref key sort cursor should return previous page`() {
+    fun `entity sliceBefore with composite key sort cursor should return previous page`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        // Before (lastName < "Z" OR (lastName = "Z" AND city_id < 6)): all owners
-        val cityRef: Ref<City> = Ref.of(City::class.java, 6)
-        val slice = repo.sliceBefore(cityKey, cityRef, lastNamePath, "Z", 10)
+        // Before (lastName < "Z" OR (lastName = "Z" AND id < 10)): all 10 owners have lastName < "Z".
+        val slice = repo.sliceBefore(idKey, 10, lastNamePath, "Z", 10)
         slice.content.size shouldBe 10
     }
 
     @Test
-    fun `entity sliceAfterRef with ref key sort cursor should return next page refs`() {
+    fun `entity sliceAfterRef with composite key sort cursor should return next page refs`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val cityRef: Ref<City> = Ref.of(City::class.java, 1)
-        val slice = repo.sliceAfterRef(cityKey, cityRef, lastNamePath, "A", 10)
+        val slice = repo.sliceAfterRef(idKey, 1, lastNamePath, "A", 10)
         slice.content.size shouldBe 10
     }
 
     @Test
-    fun `entity sliceBeforeRef with ref key sort cursor should return previous page refs`() {
+    fun `entity sliceBeforeRef with composite key sort cursor should return previous page refs`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val cityRef: Ref<City> = Ref.of(City::class.java, 6)
-        val slice = repo.sliceBeforeRef(cityKey, cityRef, lastNamePath, "Z", 10)
+        val slice = repo.sliceBeforeRef(idKey, 10, lastNamePath, "Z", 10)
         slice.content.size shouldBe 10
     }
 

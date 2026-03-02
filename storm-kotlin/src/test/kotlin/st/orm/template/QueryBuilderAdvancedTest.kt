@@ -20,7 +20,6 @@ import st.orm.NoResultException
 import st.orm.NonUniqueResultException
 import st.orm.Operator.*
 import st.orm.PersistenceException
-import st.orm.Ref
 import st.orm.template.model.*
 
 @ExtendWith(SpringExtension::class)
@@ -612,27 +611,25 @@ open class QueryBuilderAdvancedTest(
     }
 
     // ======================================================================
-    // QueryBuilder: sliceAfter/sliceBefore with Ref cursor
+    // QueryBuilder: sliceAfter/sliceBefore with PK cursor
     // ======================================================================
 
     @Test
-    fun `sliceAfter with ref cursor should return next page`() {
+    fun `sliceAfter should return next page`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
-        val cityRef: Ref<City> = Ref.of(City::class.java, 2)
-        val slice = repo.select().sliceAfter(cityKey, cityRef, 10)
-        slice.content.size shouldNotBe 0
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        // Owners have ids 1-10. After id > 5: ids 6,7,8,9,10 = 5 owners.
+        val slice = repo.select().sliceAfter(idKey, 5, 10)
+        slice.content shouldHaveSize 5
     }
 
     @Test
-    fun `sliceBefore with ref cursor should return previous page`() {
+    fun `sliceBefore should return previous page`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
-        val cityRef: Ref<City> = Ref.of(City::class.java, 5)
-        val slice = repo.select().sliceBefore(cityKey, cityRef, 10)
-        slice.content.size shouldNotBe 0
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        // Owners have ids 1-10. Before id < 6: ids 1,2,3,4,5 = 5 owners.
+        val slice = repo.select().sliceBefore(idKey, 6, 10)
+        slice.content shouldHaveSize 5
     }
 
     // ======================================================================
@@ -668,25 +665,23 @@ open class QueryBuilderAdvancedTest(
     }
 
     @Test
-    fun `sliceAfter with composite ref key and sort cursor should return next page`() {
+    fun `sliceAfter with composite key and sort cursor should return all matching owners`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val cityRef: Ref<City> = Ref.of(City::class.java, 1)
-        val slice = repo.select().sliceAfter(cityKey, cityRef, lastNamePath, "A", 10)
-        slice.content.size shouldNotBe 0
+        // After (lastName > "A" OR (lastName = "A" AND id > 1)): all 10 owners have lastName > "A".
+        val slice = repo.select().sliceAfter(idKey, 1, lastNamePath, "A", 10)
+        slice.content shouldHaveSize 10
     }
 
     @Test
-    fun `sliceBefore with composite ref key and sort cursor should return previous page`() {
+    fun `sliceBefore with composite key and sort cursor should return all matching owners`() {
         val repo = orm.entity(Owner::class)
-        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
-        val cityKey = cityPath.key()
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
         val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
-        val cityRef: Ref<City> = Ref.of(City::class.java, 6)
-        val slice = repo.select().sliceBefore(cityKey, cityRef, lastNamePath, "Z", 10)
-        slice.content.size shouldNotBe 0
+        // Before (lastName < "Z" OR (lastName = "Z" AND id < 10)): all 10 owners have lastName < "Z".
+        val slice = repo.select().sliceBefore(idKey, 10, lastNamePath, "Z", 10)
+        slice.content shouldHaveSize 10
     }
 
     // ======================================================================
