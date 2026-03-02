@@ -14,12 +14,12 @@ import org.springframework.test.context.TestConstructor.AutowireMode.ALL
 import org.springframework.test.context.jdbc.Sql
 import st.orm.PersistenceException
 import st.orm.repository.countAll
+import st.orm.repository.delete
 import st.orm.repository.deleteAll
 import st.orm.repository.exists
 import st.orm.repository.findAll
 import st.orm.repository.insert
 import st.orm.repository.update
-import st.orm.repository.delete
 import st.orm.spring.model.City
 import st.orm.spring.model.Pet
 import st.orm.spring.model.PetType
