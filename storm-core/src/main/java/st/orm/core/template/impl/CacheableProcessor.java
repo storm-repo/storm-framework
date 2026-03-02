@@ -23,6 +23,7 @@ import st.orm.Data;
 import st.orm.Ref;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
+import st.orm.core.template.impl.BindHint.NoBindHint;
 import st.orm.core.template.impl.Elements.ObjectExpression;
 import st.orm.core.template.impl.Elements.TemplateExpression;
 
@@ -122,13 +123,16 @@ final class CacheableProcessor implements ElementProcessor<Cacheable> {
      * <p>This method is responsible for producing the compile-time representation of the element. It must not perform
      * runtime binding. Any binding should be deferred to {@link #bind(Cacheable, TemplateBinder, BindHint)}.</p>
      *
-     * @param object the element to compile.
+     * @param cacheable the element to compile.
      * @param compiler the active compiler context.
      * @return the compiled result for this element.
      */
     @Override
-    public CompiledElement compile(@Nonnull Cacheable object, @Nonnull TemplateCompiler compiler) {
-        throw new UncheckedSqlTemplateException(new SqlTemplateException("Compilation not supported for expressions."));
+    public CompiledElement compile(@Nonnull Cacheable cacheable, @Nonnull TemplateCompiler compiler)
+            throws SqlTemplateException {
+        return new CompiledElement(
+                compiler.getQueryModel().compileExpression(cacheable.expression(), compiler),
+                NoBindHint.INSTANCE);
     }
 
     /**
@@ -138,12 +142,12 @@ final class CacheableProcessor implements ElementProcessor<Cacheable> {
      * parameters, registering bind variables, or applying runtime-only adjustments that must not affect the compiled
      * SQL shape.</p>
      *
-     * @param object the element that was compiled.
+     * @param cacheable the element that was compiled.
      * @param binder the binder used to bind runtime values.
      * @param bindHint the bind hint for the element, providing additional context for binding.
      */
     @Override
-    public void bind(@Nonnull Cacheable object, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
-        throw new UncheckedSqlTemplateException(new SqlTemplateException("Binding not supported for expressions."));
+    public void bind(@Nonnull Cacheable cacheable, @Nonnull TemplateBinder binder, @Nonnull BindHint bindHint) {
+        binder.getQueryModel().bindExpression(cacheable.expression(), binder);
     }
 }

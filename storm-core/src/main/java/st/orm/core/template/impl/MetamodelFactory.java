@@ -21,6 +21,7 @@ import static st.orm.core.template.impl.RecordReflection.getRecordField;
 import static st.orm.core.template.impl.RecordReflection.getRecordFields;
 import static st.orm.core.template.impl.RecordReflection.getRefDataType;
 import static st.orm.core.template.impl.RecordReflection.isRecord;
+import static st.orm.core.template.impl.RecordReflection.isSealedEntity;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
@@ -144,6 +145,17 @@ public final class MetamodelFactory {
         if (path.isEmpty()) {
             return (Metamodel<T, E>) root(rootTable);
         }
+        // For sealed entity interfaces, delegate field resolution to the first permitted subclass.
+        // The sealed interface itself declares accessor methods but is not a record, so getRecordField()
+        // cannot inspect it directly. This mirrors the delegation pattern used by findPkField().
+        Class<? extends Data> fieldResolutionClass = rootTable;
+        if (rootTable.isSealed() && isSealedEntity(rootTable)) {
+            Class<?>[] permitted = rootTable.getPermittedSubclasses();
+            if (permitted != null && permitted.length > 0) {
+                //noinspection unchecked
+                fieldResolutionClass = (Class<? extends Data>) permitted[0];
+            }
+        }
         Class<E> fieldType;
         String effectivePath;
         StringBuilder effectiveField;
@@ -154,7 +166,7 @@ public final class MetamodelFactory {
         boolean fieldIsUnique;
         boolean nullsDistinct;
         try {
-            RecordField field = getRecordField(rootTable, path);
+            RecordField field = getRecordField(fieldResolutionClass, path);
             declaringType = field.declaringType();
             fieldNullable = field.nullable();
             fieldIsUnique = field.isAnnotationPresent(UK.class) || field.isAnnotationPresent(PK.class);
@@ -180,7 +192,7 @@ public final class MetamodelFactory {
             // Walk up until we hit the Data class boundary; everything below becomes part of field(), everything above
             // (including the FK field) becomes path().
             while (!effectivePath.isEmpty()) {
-                RecordField parent = getRecordField(rootTable, effectivePath);
+                RecordField parent = getRecordField(fieldResolutionClass, effectivePath);
                 if (Data.class.isAssignableFrom(parent.type())) {
                     break;
                 }
@@ -191,7 +203,7 @@ public final class MetamodelFactory {
             throw new PersistenceException(e);
         }
         Metamodel<T, ? extends Data> rootModel = root(rootTable);
-        String tablePath = getTablePath(rootTable, effectivePath);
+        String tablePath = getTablePath(fieldResolutionClass, effectivePath);
         String tableField = "";
         if (!tablePath.isEmpty()
                 && effectivePath.length() > tablePath.length()
@@ -204,7 +216,7 @@ public final class MetamodelFactory {
         } else {
             String tableModelPath = tablePath.isEmpty() ? "" : tablePath;
             String tableModelField = tablePath.isEmpty() ? effectivePath : tableField;
-            Class<? extends Data> tableType = resolveDataTypeAtPath(rootTable, effectivePath);
+            Class<? extends Data> tableType = resolveDataTypeAtPath(fieldResolutionClass, effectivePath);
             MethodHandle tableHandle = buildGetterHandle(rootTable, effectivePath);
             tableModel = new SimpleMetamodel<>(
                     rootTable,
@@ -463,7 +475,7 @@ public final class MetamodelFactory {
         if (uk != null) return uk.nullsDistinct();
         if (field.isAnnotationPresent(PK.class)) {
             UK metamodelUk = PK.class.getAnnotation(UK.class);
-            return metamodelUk != null ? metamodelUk.nullsDistinct() : true;
+            return metamodelUk == null || metamodelUk.nullsDistinct();
         }
         return true;
     }

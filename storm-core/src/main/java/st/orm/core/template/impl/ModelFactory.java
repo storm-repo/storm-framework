@@ -279,6 +279,17 @@ final class ModelFactory {
             // For JOINED pattern, extension-specific columns (not common across all subtypes,
             // not PK) should not be insertable or updatable via the sealed (base table) model.
             boolean extensionColumn = pattern == SealedPattern.JOINED && !isCommon && !isPk;
+            // Resolve a secondary metamodel rooted at the sealed type so that runtime metamodels
+            // (e.g., Metamodel.of(Animal.class, "name")) can be used in where clauses. This works
+            // both with generated metamodels and with the MetamodelFactory runtime path.
+            Metamodel<Data, ?> sealedFieldMetamodel = null;
+            try {
+                //noinspection unchecked
+                sealedFieldMetamodel = (Metamodel<Data, ?>) Metamodel.of(
+                        (Class<? extends Data>) sealedType, field.name());
+            } catch (RuntimeException ignored) {
+                // Field not declared on the sealed interface (e.g., extension-specific field).
+            }
             columns.add(new ColumnImpl(
                     columnName,
                     index.getAndIncrement(),
@@ -294,7 +305,7 @@ final class ModelFactory {
                     field.isAnnotationPresent(Version.class),
                     false,  // not ref
                     columnMetamodel,
-                    null
+                    sealedFieldMetamodel
             ));
             fields.add(field);
         }

@@ -11,4 +11,6 @@ import st.orm.Entity;
 @Discriminator
 @DbTable("animal")
 public sealed interface Animal extends Entity<Integer> permits Cat, Dog {
+    Integer id();
+    String name();
 }

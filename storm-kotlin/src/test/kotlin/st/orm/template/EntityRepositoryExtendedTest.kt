@@ -1,0 +1,1971 @@
+package st.orm.template
+
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.count
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.extension.ExtendWith
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.test.context.ContextConfiguration
+import org.springframework.test.context.jdbc.Sql
+import org.springframework.test.context.junit.jupiter.SpringExtension
+import st.orm.Data
+import st.orm.Metamodel
+import st.orm.NoResultException
+import st.orm.Operator.*
+import st.orm.PersistenceException
+import st.orm.Ref
+import st.orm.repository.*
+import st.orm.template.model.*
+
+@ExtendWith(SpringExtension::class)
+@ContextConfiguration(classes = [IntegrationConfig::class])
+@Sql("/data.sql")
+open class EntityRepositoryExtendedTest(
+    @Autowired val orm: ORMTemplate,
+) {
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T : Data, V> metamodel(model: Model<*, *>, columnName: String): Metamodel<T, V> = model.columns.first { it.name == columnName }.metamodel as Metamodel<T, V>
+
+    // ======================================================================
+    // EntityRepository: findBy/getBy with Metamodel field and value
+    // ======================================================================
+
+    @Test
+    fun `findBy with field and value should return matching entity`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val city = repo.findBy(namePath, "Madison")
+        city.shouldNotBeNull()
+        city.name shouldBe "Madison"
+    }
+
+    @Test
+    fun `findBy with field and value should return null when no match`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val city = repo.findBy(namePath, "NonExistent")
+        city.shouldBeNull()
+    }
+
+    @Test
+    fun `getBy with field and value should return matching entity`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val city = repo.getBy(namePath, "Madison")
+        city.name shouldBe "Madison"
+    }
+
+    @Test
+    fun `getBy with field and value should throw NoResultException when no match`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        assertThrows<NoResultException> {
+            repo.getBy(namePath, "NonExistent")
+        }
+    }
+
+    @Test
+    fun `findAllBy with field and single value should return matching entities`() {
+        // data.sql: Two owners have last_name 'Davis': Betty Davis (id=1) and Harold Davis (id=4).
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val owners = repo.findAllBy(lastNamePath, "Davis")
+        owners shouldHaveSize 2
+    }
+
+    @Test
+    fun `findAllBy with field and iterable values should return matching entities`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val cities = repo.findAllBy(namePath, listOf("Madison", "Windsor", "Monona"))
+        cities shouldHaveSize 3
+    }
+
+    // ======================================================================
+    // EntityRepository: findRefBy/getRefBy with Metamodel field
+    // ======================================================================
+
+    @Test
+    fun `findRefBy with field and value should return matching ref`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val ref = repo.findRefBy<Any, Any, String>(namePath, "Madison")
+        ref.shouldNotBeNull()
+    }
+
+    @Test
+    fun `findRefBy with field and value should return null when no match`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val ref = repo.findRefBy<Any, Any, String>(namePath, "NonExistent")
+        ref.shouldBeNull()
+    }
+
+    @Test
+    fun `findAllRefBy with field and value should return refs of matching entities`() {
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val refs = repo.findAllRefBy(lastNamePath, "Davis")
+        refs shouldHaveSize 2
+    }
+
+    @Test
+    fun `getRefBy with field and value should return matching ref`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val ref = repo.getRefBy(namePath, "Madison")
+        ref.shouldNotBeNull()
+    }
+
+    @Test
+    fun `getRefBy with field and value should throw when no match`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        assertThrows<NoResultException> {
+            repo.getRefBy(namePath, "NonExistent")
+        }
+    }
+
+    @Test
+    fun `selectRefBy with field and value should return matching refs as flow`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val refs = repo.selectRefBy(namePath, "Madison").toList()
+        refs shouldHaveSize 1
+    }
+
+    // ======================================================================
+    // EntityRepository: selectBy with Metamodel field
+    // ======================================================================
+
+    @Test
+    fun `selectBy with field and single value should return matching entities as flow`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val cities = repo.selectBy(namePath, "Madison").toList()
+        cities shouldHaveSize 1
+        cities.first().name shouldBe "Madison"
+    }
+
+    @Test
+    fun `selectBy with field and iterable values should return matching entities as flow`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val cities = repo.selectBy(namePath, listOf("Madison", "Windsor")).toList()
+        cities shouldHaveSize 2
+    }
+
+    // ======================================================================
+    // EntityRepository: countBy/existsBy with Metamodel field
+    // ======================================================================
+
+    @Test
+    fun `countBy with field and value should count matching entities`() {
+        val repo = orm.entity(Owner::class)
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        repo.countBy(lastNamePath, "Davis") shouldBe 2
+    }
+
+    @Test
+    fun `countBy with field and ref value should count matching entities`() {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val cityRef: Ref<City> = Ref.of(City::class.java, 2)
+        repo.countBy(cityPath, cityRef) shouldBe 4
+    }
+
+    @Test
+    fun `existsBy with field and value should return true when match exists`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        repo.existsBy(namePath, "Madison") shouldBe true
+    }
+
+    @Test
+    fun `existsBy with field and value should return false when no match`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        repo.existsBy(namePath, "NonExistent") shouldBe false
+    }
+
+    @Test
+    fun `existsBy with field and ref value should return true when match exists`() {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val cityRef: Ref<City> = Ref.of(City::class.java, 2)
+        repo.existsBy(cityPath, cityRef) shouldBe true
+    }
+
+    @Test
+    fun `existsBy with field and ref value should return false when no match`() {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val cityRef: Ref<City> = Ref.of(City::class.java, 999)
+        repo.existsBy(cityPath, cityRef) shouldBe false
+    }
+
+    // ======================================================================
+    // EntityRepository: deleteAllBy with Metamodel field
+    // ======================================================================
+
+    @Test
+    fun `deleteAllBy with field and value should delete matching entities`() {
+        val repo = orm.entity(Vet::class)
+        val firstNamePath = metamodel<Vet, String>(repo.model, "first_name")
+        // Vet 1 (James Carter) has no vet_specialty entries, safe to delete.
+        val deleted = repo.deleteAllBy(firstNamePath, "James")
+        deleted shouldBe 1
+        repo.count() shouldBe 5
+    }
+
+    @Test
+    fun `deleteAllBy with field and ref value should delete matching entities`() {
+        // First insert a city, then insert an owner referencing it, then delete by city ref.
+        val cityRepo = orm.entity(City::class)
+        val newCity = cityRepo.insertAndFetch(City(name = "DeleteByRefCity"))
+        val ownerRepo = orm.entity(Owner::class)
+        val newOwner = ownerRepo.insertAndFetch(
+            Owner(
+                firstName = "Test",
+                lastName = "DeleteByRef",
+                address = Address("123 Test", newCity),
+                telephone = "555",
+                version = 0,
+            ),
+        )
+        val cityPath = metamodel<Owner, City>(ownerRepo.model, "city_id")
+        val cityRef: Ref<City> = Ref.of(City::class.java, newCity.id)
+        val deleted = ownerRepo.deleteAllBy(cityPath, cityRef)
+        deleted shouldBe 1
+        ownerRepo.findById(newOwner.id).shouldBeNull()
+    }
+
+    @Test
+    fun `deleteAllBy with field and iterable values should delete matching entities`() {
+        val repo = orm.entity(Vet::class)
+        val firstNamePath = metamodel<Vet, String>(repo.model, "first_name")
+        // Delete vets 1 (James) and 6 (Sharon) - both have no vet_specialty entries.
+        val deleted = repo.deleteAllBy(firstNamePath, listOf("James", "Sharon"))
+        deleted shouldBe 2
+        repo.count() shouldBe 4
+    }
+
+    @Test
+    fun `deleteAllByRef with field and iterable of refs should delete matching entities`() {
+        // Create two owners and delete them by city ref.
+        val cityRepo = orm.entity(City::class)
+        val testCity = cityRepo.insertAndFetch(City(name = "RefDelCity"))
+        val ownerRepo = orm.entity(Owner::class)
+        ownerRepo.insertAndFetch(
+            Owner(firstName = "A", lastName = "Test", address = Address("1", testCity), telephone = "111", version = 0),
+        )
+        ownerRepo.insertAndFetch(
+            Owner(firstName = "B", lastName = "Test", address = Address("2", testCity), telephone = "222", version = 0),
+        )
+        val cityPath = metamodel<Owner, City>(ownerRepo.model, "city_id")
+        val cityRef: Ref<City> = Ref.of(City::class.java, testCity.id)
+        val deleted = ownerRepo.deleteAllByRef(cityPath, listOf(cityRef))
+        deleted shouldBe 2
+    }
+
+    // ======================================================================
+    // EntityRepository: delete with predicate
+    // ======================================================================
+
+    @Test
+    fun `delete with whereBuilder predicate should delete matching entities`() {
+        val repo = orm.entity(Vet::class)
+        val firstNamePath = metamodel<Vet, String>(repo.model, "first_name")
+        val deleted = repo.delete { where(firstNamePath, EQUALS, "James") }
+        deleted shouldBe 1
+        repo.count() shouldBe 5
+    }
+
+    @Test
+    fun `delete with PredicateBuilder should delete matching entities`() {
+        val repo = orm.entity(Vet::class)
+        val firstNamePath = metamodel<Vet, String>(repo.model, "first_name")
+        val deleted = repo.delete(firstNamePath eq "James")
+        deleted shouldBe 1
+    }
+
+    // ======================================================================
+    // EntityRepository: count/exists with PredicateBuilder directly
+    // ======================================================================
+
+    @Test
+    fun `count with PredicateBuilder should count matching entities`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val count = repo.count(namePath eq "Madison")
+        count shouldBe 1
+    }
+
+    @Test
+    fun `exists with PredicateBuilder should return true for match`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        repo.exists(namePath eq "Madison") shouldBe true
+    }
+
+    @Test
+    fun `exists with PredicateBuilder should return false for no match`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        repo.exists(namePath eq "NonExistent") shouldBe false
+    }
+
+    // ======================================================================
+    // EntityRepository: PredicateBuilder-based find/get/select/selectRef
+    // ======================================================================
+
+    @Test
+    fun `findAll with PredicateBuilder should filter entities`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val cities = repo.findAll(namePath eq "Madison")
+        cities shouldHaveSize 1
+    }
+
+    @Test
+    fun `find with PredicateBuilder should return matching entity`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val city = repo.find(namePath eq "Madison")
+        city.shouldNotBeNull()
+        city.name shouldBe "Madison"
+    }
+
+    @Test
+    fun `get with PredicateBuilder should return matching entity`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val city = repo.get(namePath eq "Madison")
+        city.name shouldBe "Madison"
+    }
+
+    @Test
+    fun `findAllRef with PredicateBuilder should return refs`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val refs = repo.findAllRef(namePath eq "Madison")
+        refs shouldHaveSize 1
+    }
+
+    @Test
+    fun `findRef with PredicateBuilder should return ref`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val ref = repo.findRef(namePath eq "Madison")
+        ref.shouldNotBeNull()
+    }
+
+    @Test
+    fun `getRef with PredicateBuilder should return ref`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val ref = repo.getRef(namePath eq "Madison")
+        ref.shouldNotBeNull()
+    }
+
+    @Test
+    fun `select with PredicateBuilder should return flow`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val count = repo.select(namePath eq "Madison").count()
+        count shouldBe 1
+    }
+
+    @Test
+    fun `selectRef with PredicateBuilder should return flow of refs`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val count = repo.selectRef(namePath eq "Madison").count()
+        count shouldBe 1
+    }
+
+    @Test
+    fun `delete with PredicateBuilder directly should delete matching`() {
+        val repo = orm.entity(Vet::class)
+        val firstNamePath = metamodel<Vet, String>(repo.model, "first_name")
+        val deleted = repo.delete(firstNamePath eq "James")
+        deleted shouldBe 1
+    }
+
+    // ======================================================================
+    // EntityRepository: Flow batch operations with custom chunk size
+    // ======================================================================
+
+    @Test
+    fun `insert flow with custom batch size should persist entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val cities = (1..5).map { City(name = "BatchCity$it") }.asFlow()
+        repo.insert(cities, 2)
+        repo.count() shouldBe 11
+    }
+
+    @Test
+    fun `insert flow with ignoreAutoGenerate should persist entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val cities = flowOf(City(name = "IgnoreAutoA"), City(name = "IgnoreAutoB"))
+        repo.insert(cities, false)
+        repo.count() shouldBe 8
+    }
+
+    @Test
+    fun `insert flow with batch size and ignoreAutoGenerate should persist entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val cities = (1..4).map { City(name = "FullBatch$it") }.asFlow()
+        repo.insert(cities, 2, false)
+        repo.count() shouldBe 10
+    }
+
+    @Test
+    fun `update flow with custom batch size should modify entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val cities = repo.findAllById(listOf(1, 2, 3)).map { it.copy(name = "${it.name}-batch") }.asFlow()
+        repo.update(cities, 2)
+        repo.getById(1).name shouldBe "Sun Paririe-batch"
+        repo.getById(2).name shouldBe "Madison-batch"
+    }
+
+    @Test
+    fun `insertAndFetch flow with custom batch size should return persisted entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val cities = (1..4).map { City(name = "FetchBatch$it") }.asFlow()
+        val result = repo.insertAndFetch(cities, 2).toList()
+        result shouldHaveSize 4
+        result.all { it.id != 0 } shouldBe true
+    }
+
+    @Test
+    fun `insertAndFetchIds flow with custom batch size should return generated ids`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val cities = (1..4).map { City(name = "IdBatch$it") }.asFlow()
+        val ids = repo.insertAndFetchIds(cities, 2).toList()
+        ids shouldHaveSize 4
+        ids.all { it != 0 } shouldBe true
+    }
+
+    @Test
+    fun `updateAndFetch flow with custom batch size should return updated entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val cities = repo.findAllById(listOf(1, 2)).map { it.copy(name = "${it.name}-uf") }.asFlow()
+        val result = repo.updateAndFetch(cities, 2).toList()
+        result shouldHaveSize 2
+        result.all { it.name.endsWith("-uf") } shouldBe true
+    }
+
+    @Test
+    fun `delete flow with custom batch size should remove entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val inserted = repo.insertAndFetch(listOf(City(name = "DelBatchA"), City(name = "DelBatchB"), City(name = "DelBatchC")))
+        val flow = inserted.asFlow()
+        repo.delete(flow, 2)
+        inserted.forEach { repo.findById(it.id).shouldBeNull() }
+    }
+
+    @Test
+    fun `deleteByRef flow with custom batch size should remove entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val inserted = repo.insertAndFetch(listOf(City(name = "RefDelBatchA"), City(name = "RefDelBatchB")))
+        val refs = inserted.map { repo.ref(it) }.asFlow()
+        repo.deleteByRef(refs, 2)
+        inserted.forEach { repo.findById(it.id).shouldBeNull() }
+    }
+
+    @Test
+    fun `upsert flow with custom batch size should throw on H2`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        assertThrows<PersistenceException> {
+            repo.upsert(flowOf(City(name = "UpsA")), 2)
+        }
+    }
+
+    @Test
+    fun `upsertAndFetch flow with custom batch size should throw on H2`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        assertThrows<PersistenceException> {
+            repo.upsertAndFetch(flowOf(City(name = "UfA")), 2).toList()
+        }
+    }
+
+    @Test
+    fun `upsertAndFetchIds flow with custom batch size should throw on H2`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        assertThrows<PersistenceException> {
+            repo.upsertAndFetchIds(flowOf(City(name = "UidA")), 2).toList()
+        }
+    }
+
+    @Test
+    fun `upsertAndFetchIds flow should throw on H2`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        assertThrows<PersistenceException> {
+            repo.upsertAndFetchIds(flowOf(City(name = "UidA"))).toList()
+        }
+    }
+
+    @Test
+    fun `countById with custom chunk size should count matching entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val count = repo.countById(flowOf(1, 2, 3, 4), 2)
+        count shouldBe 4
+    }
+
+    @Test
+    fun `countByRef with custom chunk size should count matching entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val refs = (1..4).map { repo.ref(it) }.asFlow()
+        val count = repo.countByRef(refs, 2)
+        count shouldBe 4
+    }
+
+    // ======================================================================
+    // EntityRepository: findAllByRef with metamodel (Ref-based where)
+    // ======================================================================
+
+    @Test
+    fun `findAllByRef with metamodel and iterable of refs should return matching entities`() {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val refs = listOf(Ref.of(City::class.java, 1), Ref.of(City::class.java, 3))
+        val owners = repo.findAllByRef(cityPath, refs)
+        // City 1: Betty, City 3: Eduardo
+        owners shouldHaveSize 2
+    }
+
+    @Test
+    fun `selectByRef with metamodel and iterable of refs should return matching flow`(): Unit = runBlocking {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val refs = listOf(Ref.of(City::class.java, 1), Ref.of(City::class.java, 3))
+        val count = repo.selectByRef(cityPath, refs).count()
+        count shouldBe 2
+    }
+
+    // ======================================================================
+    // EntityRepository: Slice methods
+    // ======================================================================
+
+    @Test
+    fun `slice on entity repo should return first page`() {
+        val repo = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(repo.model, "id")
+        val slice = repo.select().orderBy(idPath).slice(3)
+        slice.content shouldHaveSize 3
+        slice.hasNext shouldBe true
+        slice.content[0].id shouldBe 1
+    }
+
+    @Test
+    fun `slice with large size should return all entities`() {
+        val repo = orm.entity(City::class)
+        val idPath = metamodel<City, Int>(repo.model, "id")
+        val slice = repo.select().orderBy(idPath).slice(100)
+        slice.content shouldHaveSize 6
+        slice.hasNext shouldBe false
+    }
+
+    // ======================================================================
+    // RepositoryLookup: delete extension functions
+    // ======================================================================
+
+    @Test
+    fun `orm delete reified with WhereBuilder should delete matching`() {
+        val firstNamePath = metamodel<Vet, String>(orm.entity(Vet::class).model, "first_name")
+        val deleted = orm.delete<Vet> { where(firstNamePath, EQUALS, "James") }
+        deleted shouldBe 1
+    }
+
+    @Test
+    fun `orm delete reified with PredicateBuilder should delete matching`() {
+        val firstNamePath = metamodel<Vet, String>(orm.entity(Vet::class).model, "first_name")
+        val deleted = orm.delete<Vet>(firstNamePath eq "James")
+        deleted shouldBe 1
+    }
+
+    @Test
+    fun `orm deleteBy with field and value should delete matching`() {
+        val firstNamePath = metamodel<Vet, Int>(orm.entity(Vet::class).model, "id")
+        val deleted = orm.deleteBy<Vet, Int>(firstNamePath, 1)
+        deleted shouldBe 1
+    }
+
+    @Test
+    fun `orm deleteAllBy with field and value should delete matching`() {
+        val firstNamePath = metamodel<Vet, String>(orm.entity(Vet::class).model, "first_name")
+        val deleted = orm.deleteAllBy<Vet, String>(firstNamePath, "James")
+        deleted shouldBe 1
+    }
+
+    @Test
+    fun `orm deleteAllBy with field and iterable values should delete matching`() {
+        val firstNamePath = metamodel<Vet, String>(orm.entity(Vet::class).model, "first_name")
+        val deleted = orm.deleteAllBy<Vet, String>(firstNamePath, listOf("James", "Sharon"))
+        deleted shouldBe 2
+    }
+
+    // ======================================================================
+    // ORMTemplate: withEntityCallback / withEntityCallbacks
+    // ======================================================================
+
+    @Test
+    fun `withEntityCallback should return new ORM template`() {
+        val callback = object : st.orm.EntityCallback<City> {
+            override fun beforeInsert(entity: City): City = entity
+        }
+        val newOrm = orm.withEntityCallback(callback)
+        newOrm.shouldNotBeNull()
+        // Verify the new template is functional.
+        val cities = newOrm.entity(City::class).findAll()
+        cities shouldHaveSize 6
+    }
+
+    @Test
+    fun `withEntityCallbacks should return new ORM template`() {
+        val callback = object : st.orm.EntityCallback<City> {
+            override fun beforeInsert(entity: City): City = entity
+        }
+        val newOrm = orm.withEntityCallbacks(listOf(callback))
+        newOrm.shouldNotBeNull()
+        val cities = newOrm.entity(City::class).findAll()
+        cities shouldHaveSize 6
+    }
+
+    // ======================================================================
+    // ORMTemplate: factory methods (DataSource.orm extension)
+    // ======================================================================
+
+    @Test
+    fun `ORMTemplate of Connection should create functional template`() {
+        // Get the DataSource from the IntegrationConfig and create a connection-based ORM.
+        val dataSource = org.springframework.boot.jdbc.DataSourceBuilder.create()
+            .url("jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false")
+            .username("sa")
+            .password("")
+            .driverClassName("org.h2.Driver")
+            .build()
+        val connectionOrm = dataSource.connection.use { connection ->
+            val connectionOrm = ORMTemplate.of(connection)
+            connectionOrm.entity(City::class).findAll()
+        }
+        connectionOrm shouldHaveSize 6
+    }
+
+    // ======================================================================
+    // RepositoryLookup: findBy/getBy/countBy/existsBy reified extensions
+    // ======================================================================
+
+    @Test
+    fun `orm findBy reified should return matching entity`() {
+        val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
+        val city = orm.findBy<City, String>(namePath, "Madison")
+        city.shouldNotBeNull()
+        city.name shouldBe "Madison"
+    }
+
+    @Test
+    fun `orm getBy reified should return matching entity`() {
+        val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
+        val city = orm.getBy<City, String>(namePath, "Madison")
+        city.name shouldBe "Madison"
+    }
+
+    @Test
+    fun `orm findAllBy reified with value should return matching entities`() {
+        val lastNamePath = metamodel<Owner, String>(orm.entity(Owner::class).model, "last_name")
+        val owners = orm.findAllBy<Owner, String>(lastNamePath, "Davis")
+        owners shouldHaveSize 2
+    }
+
+    @Test
+    fun `orm findAllBy reified with iterable values should return matching entities`() {
+        val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
+        val cities = orm.findAllBy<City, String>(namePath, listOf("Madison", "Windsor"))
+        cities shouldHaveSize 2
+    }
+
+    @Test
+    fun `orm countBy reified should count matching entities`() {
+        val lastNamePath = metamodel<Owner, String>(orm.entity(Owner::class).model, "last_name")
+        val count = orm.countBy<Owner, String>(lastNamePath, "Davis")
+        count shouldBe 2
+    }
+
+    @Test
+    fun `orm existsBy reified should return true for match`() {
+        val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
+        orm.existsBy<City, String>(namePath, "Madison") shouldBe true
+    }
+
+    @Test
+    fun `orm existsBy reified should return false for no match`() {
+        val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
+        orm.existsBy<City, String>(namePath, "NonExistent") shouldBe false
+    }
+
+    @Test
+    fun `orm selectBy reified should return matching flow`(): Unit = runBlocking {
+        val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
+        val count = orm.selectBy<City, String>(namePath, "Madison").count()
+        count shouldBe 1
+    }
+
+    @Test
+    fun `orm selectBy reified with iterable should return matching flow`(): Unit = runBlocking {
+        val namePath = metamodel<City, String>(orm.entity(City::class).model, "name")
+        val count = orm.selectBy<City, String>(namePath, listOf("Madison", "Windsor")).count()
+        count shouldBe 2
+    }
+
+    // ======================================================================
+    // RepositoryLookup: reified delete/select extensions
+    // ======================================================================
+
+    @Test
+    fun `orm delete reified QueryBuilder should return builder`() {
+        val deleted = orm.entity(Vet::class).delete().where(1).executeUpdate()
+        deleted shouldBe 1
+    }
+
+    @Test
+    fun `orm select reified QueryBuilder should return builder`() {
+        val cities = orm.select<City>().resultList
+        cities shouldHaveSize 6
+    }
+
+    @Test
+    fun `orm selectCount via entity repo should return count`() {
+        val count = orm.entity(City::class).selectCount().singleResult
+        count shouldBe 6L
+    }
+
+    @Test
+    fun `orm selectRef reified should return ref builder`(): Unit = runBlocking {
+        val count = orm.selectRef<City>().resultFlow.count()
+        count shouldBe 6
+    }
+
+    // ======================================================================
+    // EntityRepository: findBy/getBy/selectBy with Ref value
+    // ======================================================================
+
+    @Test
+    fun `findBy with field and ref value should return matching entity`() {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val cityRef: Ref<City> = Ref.of(City::class.java, 1)
+        val owner = repo.findBy(cityPath, cityRef)
+        owner.shouldNotBeNull()
+        owner.firstName shouldBe "Betty"
+    }
+
+    @Test
+    fun `findBy with field and ref value should return null when no match`() {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val cityRef: Ref<City> = Ref.of(City::class.java, 999)
+        val owner = repo.findBy(cityPath, cityRef)
+        owner.shouldBeNull()
+    }
+
+    @Test
+    fun `getBy with field and ref value should return matching entity`() {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val cityRef: Ref<City> = Ref.of(City::class.java, 1)
+        val owner = repo.getBy(cityPath, cityRef)
+        owner.firstName shouldBe "Betty"
+    }
+
+    @Test
+    fun `getBy with field and ref value should throw when no match`() {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val cityRef: Ref<City> = Ref.of(City::class.java, 999)
+        assertThrows<NoResultException> {
+            repo.getBy(cityPath, cityRef)
+        }
+    }
+
+    @Test
+    fun `findAllBy with field and ref value should return matching entities`() {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val cityRef: Ref<City> = Ref.of(City::class.java, 2)
+        val owners = repo.findAllBy(cityPath, cityRef)
+        owners shouldHaveSize 4
+    }
+
+    @Test
+    fun `selectBy with field and ref value should return flow`(): Unit = runBlocking {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val cityRef: Ref<City> = Ref.of(City::class.java, 2)
+        val count = repo.selectBy(cityPath, cityRef).count()
+        count shouldBe 4
+    }
+
+    @Test
+    fun `findRefBy with field and ref value should return matching ref`() {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val cityRef: Ref<City> = Ref.of(City::class.java, 1)
+        val ref = repo.findRefBy(cityPath, cityRef)
+        ref.shouldNotBeNull()
+    }
+
+    @Test
+    fun `findRefBy with field and ref value should return null when no match`() {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val cityRef: Ref<City> = Ref.of(City::class.java, 999)
+        val ref = repo.findRefBy(cityPath, cityRef)
+        ref.shouldBeNull()
+    }
+
+    @Test
+    fun `selectRefBy with field and ref value should return flow`(): Unit = runBlocking {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val cityRef: Ref<City> = Ref.of(City::class.java, 2)
+        val count = repo.selectRefBy(cityPath, cityRef).count()
+        count shouldBe 4
+    }
+
+    @Test
+    fun `findAllRefBy with field and ref value should return refs`() {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val cityRef: Ref<City> = Ref.of(City::class.java, 2)
+        val refs = repo.findAllRefBy(cityPath, cityRef)
+        refs shouldHaveSize 4
+    }
+
+    @Test
+    fun `selectRefBy with field and iterable values should return flow`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val count = repo.selectRefBy(namePath, listOf("Madison", "Windsor")).count()
+        count shouldBe 2
+    }
+
+    @Test
+    fun `findAllRefBy with field and iterable values should return refs`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val refs = repo.selectRef().where(namePath, IN, listOf("Madison", "Windsor")).resultList
+        refs shouldHaveSize 2
+    }
+
+    // ======================================================================
+    // EntityRepository: WhereBuilder-based find/get/select/selectRef
+    // ======================================================================
+
+    @Test
+    fun `findAll with WhereBuilder predicate should filter entities`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val cities = repo.findAll { where(namePath, EQUALS, "Madison") }
+        cities shouldHaveSize 1
+    }
+
+    @Test
+    fun `find with WhereBuilder predicate should return matching entity`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val city = repo.find { where(namePath, EQUALS, "Madison") }
+        city.shouldNotBeNull()
+        city.name shouldBe "Madison"
+    }
+
+    @Test
+    fun `get with WhereBuilder predicate should return matching entity`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val city = repo.get { where(namePath, EQUALS, "Madison") }
+        city.name shouldBe "Madison"
+    }
+
+    @Test
+    fun `count with WhereBuilder predicate should count matching entities`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val count = repo.count { where(namePath, EQUALS, "Madison") }
+        count shouldBe 1
+    }
+
+    @Test
+    fun `exists with WhereBuilder predicate should return true for match`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        repo.exists { where(namePath, EQUALS, "Madison") } shouldBe true
+    }
+
+    @Test
+    fun `select with WhereBuilder predicate should return flow`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val count = repo.select { where(namePath, EQUALS, "Madison") }.count()
+        count shouldBe 1
+    }
+
+    @Test
+    fun `findAllRef with WhereBuilder predicate should return refs`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val refs = repo.findAllRef { where(namePath, EQUALS, "Madison") }
+        refs shouldHaveSize 1
+    }
+
+    @Test
+    fun `findRef with WhereBuilder predicate should return ref`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val ref = repo.findRef { where(namePath, EQUALS, "Madison") }
+        ref.shouldNotBeNull()
+    }
+
+    @Test
+    fun `getRef with WhereBuilder predicate should return ref`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val ref = repo.getRef { where(namePath, EQUALS, "Madison") }
+        ref.shouldNotBeNull()
+    }
+
+    @Test
+    fun `selectRef with WhereBuilder predicate should return flow`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val count = repo.selectRef { where(namePath, EQUALS, "Madison") }.count()
+        count shouldBe 1
+    }
+
+    // ======================================================================
+    // EntityRepository: Ref-based findAllRefBy/selectByRef with Iterable
+    // ======================================================================
+
+    @Test
+    fun `findAllRefByRef with field and iterable of ref values should return refs`() {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val refs = listOf(Ref.of(City::class.java, 1), Ref.of(City::class.java, 3))
+        val ownerRefs = repo.findAllRefByRef(cityPath, refs)
+        ownerRefs shouldHaveSize 2
+    }
+
+    @Test
+    fun `selectByRef with field and iterable of refs as flow should return flow`(): Unit = runBlocking {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val refs = listOf(Ref.of(City::class.java, 1), Ref.of(City::class.java, 3))
+        val count = repo.selectByRef(cityPath, refs).count()
+        count shouldBe 2
+    }
+
+    @Test
+    fun `selectRefByRef with field and iterable of refs should return flow`(): Unit = runBlocking {
+        val repo = orm.entity(Owner::class)
+        val cityPath = metamodel<Owner, City>(repo.model, "city_id")
+        val refs = listOf(Ref.of(City::class.java, 1), Ref.of(City::class.java, 3))
+        val count = repo.selectRefByRef(cityPath, refs).count()
+        count shouldBe 2
+    }
+
+    // ======================================================================
+    // EntityRepository: unload and ref methods
+    // ======================================================================
+
+    @Test
+    fun `unload should return ref with just pk`() {
+        val repo = orm.entity(City::class)
+        val city = repo.getById(1)
+        val ref = repo.unload(city)
+        ref.shouldNotBeNull()
+        ref.id() shouldBe 1
+    }
+
+    @Test
+    fun `ref from entity should create ref`() {
+        val repo = orm.entity(City::class)
+        val city = repo.getById(1)
+        val ref = repo.ref(city)
+        ref.shouldNotBeNull()
+        ref.id() shouldBe 1
+    }
+
+    // ======================================================================
+    // EntityRepository: selectAll and findAllRef/selectAllRef
+    // ======================================================================
+
+    @Test
+    fun `findAllRef should return all entity refs`() {
+        val repo = orm.entity(City::class)
+        val refs = repo.findAllRef()
+        refs shouldHaveSize 6
+    }
+
+    @Test
+    fun `selectAllRef should return all entity refs as flow`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val count = repo.selectAllRef().count()
+        count shouldBe 6
+    }
+
+    // ======================================================================
+    // EntityRepository: deleteById and deleteByRef
+    // ======================================================================
+
+    @Test
+    fun `deleteById should remove entity`() {
+        val repo = orm.entity(Vet::class)
+        repo.deleteById(1)
+        repo.findById(1).shouldBeNull()
+    }
+
+    @Test
+    fun `deleteByRef should remove entity`() {
+        val repo = orm.entity(Vet::class)
+        repo.deleteByRef(repo.ref(1))
+        repo.findById(1).shouldBeNull()
+    }
+
+    @Test
+    fun `deleteByRef with iterable should remove entities`() {
+        val repo = orm.entity(Vet::class)
+        repo.deleteByRef(listOf(repo.ref(1), repo.ref(6)))
+        repo.findById(1).shouldBeNull()
+        repo.findById(6).shouldBeNull()
+    }
+
+    @Test
+    fun `deleteAll should remove all entities`() {
+        val repo = orm.entity(Visit::class)
+        repo.deleteAll()
+        repo.count() shouldBe 0
+    }
+
+    // ======================================================================
+    // EntityRepository: batch insert/update/delete with Iterable
+    // ======================================================================
+
+    @Test
+    fun `insert with iterable should persist multiple entities`() {
+        val repo = orm.entity(City::class)
+        repo.insert(listOf(City(name = "IterA"), City(name = "IterB")))
+        repo.count() shouldBe 8
+    }
+
+    @Test
+    fun `insert with iterable and ignoreAutoGenerate should persist entities`() {
+        val repo = orm.entity(City::class)
+        repo.insert(listOf(City(name = "IgnoreA"), City(name = "IgnoreB")), false)
+        repo.count() shouldBe 8
+    }
+
+    @Test
+    fun `insertAndFetchIds with iterable should return ids`() {
+        val repo = orm.entity(City::class)
+        val ids = repo.insertAndFetchIds(listOf(City(name = "FetchIdA"), City(name = "FetchIdB")))
+        ids shouldHaveSize 2
+    }
+
+    @Test
+    fun `insertAndFetch with iterable should return entities`() {
+        val repo = orm.entity(City::class)
+        val cities = repo.insertAndFetch(listOf(City(name = "FetchA"), City(name = "FetchB")))
+        cities shouldHaveSize 2
+        cities.all { it.id != 0 } shouldBe true
+    }
+
+    @Test
+    fun `update with iterable should update entities`() {
+        val repo = orm.entity(City::class)
+        val cities = repo.findAllById(listOf(1, 2)).map { it.copy(name = "${it.name}-updated") }
+        repo.update(cities)
+        repo.getById(1).name shouldBe "Sun Paririe-updated"
+    }
+
+    @Test
+    fun `updateAndFetch with iterable should return updated entities`() {
+        val repo = orm.entity(City::class)
+        val cities = repo.findAllById(listOf(1, 2)).map { it.copy(name = "${it.name}-uf") }
+        val updated = repo.updateAndFetch(cities)
+        updated shouldHaveSize 2
+        updated.all { it.name.endsWith("-uf") } shouldBe true
+    }
+
+    @Test
+    fun `delete with iterable should remove entities`() {
+        val repo = orm.entity(City::class)
+        val newCities = repo.insertAndFetch(listOf(City(name = "DelIterA"), City(name = "DelIterB")))
+        repo.delete(newCities)
+        newCities.forEach { repo.findById(it.id).shouldBeNull() }
+    }
+
+    // ======================================================================
+    // EntityRepository: insert/update/delete with default Flow operations
+    // ======================================================================
+
+    @Test
+    fun `insert flow should persist entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        repo.insert(flowOf(City(name = "FlowA"), City(name = "FlowB")))
+        repo.count() shouldBe 8
+    }
+
+    @Test
+    fun `update flow should update entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val cities = repo.findAllById(listOf(1, 2)).map { it.copy(name = "${it.name}-flow") }.asFlow()
+        repo.update(cities)
+        repo.getById(1).name shouldBe "Sun Paririe-flow"
+    }
+
+    @Test
+    fun `delete flow should remove entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val newCities = repo.insertAndFetch(listOf(City(name = "FlowDelA"), City(name = "FlowDelB")))
+        repo.delete(newCities.asFlow())
+        newCities.forEach { repo.findById(it.id).shouldBeNull() }
+    }
+
+    @Test
+    fun `deleteByRef flow should remove entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val newCities = repo.insertAndFetch(listOf(City(name = "RefFlowDelA"), City(name = "RefFlowDelB")))
+        repo.deleteByRef(newCities.map { repo.ref(it) }.asFlow())
+        newCities.forEach { repo.findById(it.id).shouldBeNull() }
+    }
+
+    @Test
+    fun `insertAndFetchIds flow should return ids`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val ids = repo.insertAndFetchIds(flowOf(City(name = "FetchIdFlowA"), City(name = "FetchIdFlowB"))).toList()
+        ids shouldHaveSize 2
+    }
+
+    @Test
+    fun `insertAndFetch flow should return entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val cities = repo.insertAndFetch(flowOf(City(name = "FetchFlowA"), City(name = "FetchFlowB"))).toList()
+        cities shouldHaveSize 2
+    }
+
+    @Test
+    fun `updateAndFetch flow should return updated entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val cities = repo.findAllById(listOf(1, 2)).map { it.copy(name = "${it.name}-ufFlow") }.asFlow()
+        val updated = repo.updateAndFetch(cities).toList()
+        updated shouldHaveSize 2
+    }
+
+    // ======================================================================
+    // QueryBuilder: PreparedQuery operations
+    // ======================================================================
+
+    @Test
+    fun `prepare should return PreparedQuery for batch operations`() {
+        val preparedQuery = orm.entity(City::class).select().where(1).prepare()
+        preparedQuery.shouldNotBeNull()
+        preparedQuery.close()
+    }
+
+    // ======================================================================
+    // QueryBuilder: whereAny with multiple predicates
+    // ======================================================================
+
+    @Test
+    fun `whereAny with combined predicates should match any`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val cities = repo.select().whereAnyBuilder {
+            where(namePath, EQUALS, "Madison") or where(namePath, EQUALS, "Windsor")
+        }.resultList
+        cities shouldHaveSize 2
+    }
+
+    // ======================================================================
+    // QueryBuilder: andAny / orAny predicate builders
+    // ======================================================================
+
+    @Test
+    fun `andAny should combine predicates with AND-OR logic`() {
+        val repo = orm.entity(Owner::class)
+        val firstNamePath = metamodel<Owner, String>(repo.model, "first_name")
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val result = repo.select().whereBuilder {
+            where(lastNamePath, EQUALS, "Davis") andAny (
+                where(firstNamePath, EQUALS, "Betty") or where(firstNamePath, EQUALS, "Harold")
+                )
+        }.resultList
+        result shouldHaveSize 2
+    }
+
+    @Test
+    fun `orAny should combine predicates with OR logic`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val result = repo.select().whereAnyBuilder {
+            where(namePath, EQUALS, "Madison") or
+                where(namePath, EQUALS, "Windsor") or
+                where(namePath, EQUALS, "Monona")
+        }.resultList
+        result shouldHaveSize 3
+    }
+
+    // ======================================================================
+    // ORMTemplate: of(DataSource) factory method
+    // ======================================================================
+
+    @Test
+    fun `ORMTemplate of DataSource should create functional template`() {
+        val dataSource = org.springframework.boot.jdbc.DataSourceBuilder.create()
+            .url("jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false")
+            .username("sa")
+            .password("")
+            .driverClassName("org.h2.Driver")
+            .build()
+        val dsOrm = ORMTemplate.of(dataSource)
+        val cities = dsOrm.entity(City::class).findAll()
+        cities shouldHaveSize 6
+    }
+
+    // ======================================================================
+    // EntityRepository: Flow-based batch operations WITHOUT batchSize
+    // ======================================================================
+
+    @Test
+    fun `insert flow without batchSize should persist entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val countBefore = repo.count()
+        val cities = flowOf(City(name = "FlowCity1"), City(name = "FlowCity2"))
+        repo.insert(cities)
+        repo.count() shouldBe countBefore + 2
+    }
+
+    @Test
+    fun `update flow without batchSize should update entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val city = repo.insertAndFetch(City(name = "UpdFlowNoBatch"))
+        val updatedCity = City(id = city.id, name = "UpdFlowNoBatchMod")
+        repo.update(flowOf(updatedCity))
+        repo.getById(city.id).name shouldBe "UpdFlowNoBatchMod"
+    }
+
+    @Test
+    fun `delete flow without batchSize should delete entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val city = repo.insertAndFetch(City(name = "DelFlowNoBatch"))
+        repo.delete(flowOf(city))
+        repo.findById(city.id) shouldBe null
+    }
+
+    @Test
+    fun `deleteByRef flow without batchSize should delete entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val city = repo.insertAndFetch(City(name = "DelRefFlowNoBatch"))
+        repo.deleteByRef(flowOf(repo.ref(city)))
+        repo.findById(city.id) shouldBe null
+    }
+
+    @Test
+    fun `insertAndFetch flow without batchSize should return inserted entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val cities = flowOf(City(name = "FetchFlowNoBatch1"), City(name = "FetchFlowNoBatch2"))
+        val inserted = repo.insertAndFetch(cities).toList()
+        inserted shouldHaveSize 2
+        inserted[0].name shouldBe "FetchFlowNoBatch1"
+    }
+
+    @Test
+    fun `insertAndFetchIds flow without batchSize should return ids`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val cities = flowOf(City(name = "IdsFlowNoBatch1"), City(name = "IdsFlowNoBatch2"))
+        val ids = repo.insertAndFetchIds(cities).toList()
+        ids shouldHaveSize 2
+    }
+
+    @Test
+    fun `updateAndFetch flow without batchSize should return updated entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val city = repo.insertAndFetch(City(name = "UpdFetchFlowNoBatch"))
+        val updatedCity = City(id = city.id, name = "UpdFetchFlowNoBatchMod")
+        val result = repo.updateAndFetch(flowOf(updatedCity)).toList()
+        result shouldHaveSize 1
+        result[0].name shouldBe "UpdFetchFlowNoBatchMod"
+    }
+
+    // ======================================================================
+    // EntityRepository: selectAll/selectAllRef
+    // ======================================================================
+
+    @Test
+    fun `selectAll should return all entities as flow`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val count = repo.selectAll().count()
+        count shouldBe 6
+    }
+
+    // ======================================================================
+    // EntityRepository: countBy and existsBy with non-Ref value
+    // ======================================================================
+
+    @Test
+    fun `countBy with field and non-ref value should count matching`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        repo.countBy(namePath, "Madison") shouldBe 1
+    }
+
+    @Test
+    fun `existsBy with field and non-ref value should return true`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        repo.existsBy(namePath, "Madison") shouldBe true
+    }
+
+    @Test
+    fun `existsBy with field and non-ref value should return false when no match`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        repo.existsBy(namePath, "NonExistent") shouldBe false
+    }
+
+    // ======================================================================
+    // EntityRepository: getRefBy with non-Ref value
+    // ======================================================================
+
+    @Test
+    fun `getRefBy with field and non-ref value should return matching ref`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val ref = repo.getRefBy(namePath, "Madison")
+        ref.shouldNotBeNull()
+    }
+
+    // ======================================================================
+    // EntityRepository: selectRefBy with iterable of non-ref values
+    // ======================================================================
+
+    @Test
+    fun `selectRefBy with field and iterable of non-ref values should return flow`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val count = repo.selectRefBy(namePath, listOf("Madison", "Windsor")).count()
+        count shouldBe 2
+    }
+
+    // ======================================================================
+    // EntityRepository: findAllRefBy with iterable of Data values
+    // ======================================================================
+
+    @Test
+    fun `findAllRefBy with field and single non-ref value should return refs`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val refs = repo.findAllRefBy(namePath, "Madison")
+        refs shouldHaveSize 1
+    }
+
+    // ======================================================================
+    // EntityRepository: selectById/selectByRef with chunkSize
+    // ======================================================================
+
+    @Test
+    fun `selectById with flow and chunkSize should return matching flow`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val count = repo.selectById(flowOf(1, 2, 3), 2).count()
+        count shouldBe 3
+    }
+
+    @Test
+    fun `selectByRef with flow and chunkSize should return matching flow`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val refs = flowOf(
+            Ref.of(City::class.java, 1),
+            Ref.of(City::class.java, 2),
+        )
+        val count = repo.selectByRef(refs, 2).count()
+        count shouldBe 2
+    }
+
+    // ======================================================================
+    // EntityRepository: countById/countByRef with flow and chunkSize
+    // ======================================================================
+
+    @Test
+    fun `countById with flow should count matching entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val count = repo.countById(flowOf(1, 2, 3))
+        count shouldBe 3
+    }
+
+    @Test
+    fun `countById with flow and chunkSize should count matching entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val count = repo.countById(flowOf(1, 2, 3), 2)
+        count shouldBe 3
+    }
+
+    @Test
+    fun `countByRef with flow should count matching entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val refs = flowOf(
+            Ref.of(City::class.java, 1),
+            Ref.of(City::class.java, 2),
+        )
+        val count = repo.countByRef(refs)
+        count shouldBe 2
+    }
+
+    @Test
+    fun `countByRef with flow and chunkSize should count matching entities`(): Unit = runBlocking {
+        val repo = orm.entity(City::class)
+        val refs = flowOf(
+            Ref.of(City::class.java, 1),
+            Ref.of(City::class.java, 2),
+        )
+        val count = repo.countByRef(refs, 2)
+        count shouldBe 2
+    }
+
+    // ======================================================================
+    // EntityRepository: Metamodel.Key-based findBy/getBy
+    // ======================================================================
+
+    @Test
+    fun `findBy with Metamodel Key should return matching entity`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val city = repo.findBy(idKey, 1)
+        city.shouldNotBeNull()
+        city.name shouldBe "Sun Paririe"
+    }
+
+    @Test
+    fun `findBy with Metamodel Key should return null for non-existing key`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val city = repo.findBy(idKey, 999)
+        city.shouldBeNull()
+    }
+
+    @Test
+    fun `getBy with Metamodel Key should return matching entity`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val city = repo.getBy(idKey, 1)
+        city.name shouldBe "Sun Paririe"
+    }
+
+    @Test
+    fun `getBy with Metamodel Key should throw when no match`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        assertThrows<NoResultException> {
+            repo.getBy(idKey, 999)
+        }
+    }
+
+    @Test
+    fun `findByRef with Metamodel Key should return matching entity`() {
+        val repo = orm.entity(Owner::class)
+        val cityKey = metamodel<Owner, City>(repo.model, "city_id").key()
+        val owner = repo.findByRef(cityKey, Ref.of(City::class.java, 1))
+        owner.shouldNotBeNull()
+        owner.firstName shouldBe "Betty"
+    }
+
+    @Test
+    fun `getByRef with Metamodel Key should return matching entity`() {
+        val repo = orm.entity(Owner::class)
+        val cityKey = metamodel<Owner, City>(repo.model, "city_id").key()
+        val owner = repo.getByRef(cityKey, Ref.of(City::class.java, 1))
+        owner.firstName shouldBe "Betty"
+    }
+
+    // ======================================================================
+    // EntityRepository: Slice methods with Metamodel.Key
+    // ======================================================================
+
+    @Test
+    fun `entity slice with Metamodel Key should return first page`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val slice = repo.slice(idKey, 3)
+        slice.content shouldHaveSize 3
+        slice.hasNext shouldBe true
+    }
+
+    @Test
+    fun `entity sliceBefore with Metamodel Key should return descending first page`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val slice = repo.sliceBefore(idKey, 3)
+        slice.content shouldHaveSize 3
+        slice.hasNext shouldBe true
+        slice.content[0].id shouldBe 6
+    }
+
+    @Test
+    fun `entity sliceRef with Metamodel Key should return first page of refs`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val slice = repo.sliceRef(idKey, 3)
+        slice.content shouldHaveSize 3
+        slice.hasNext shouldBe true
+    }
+
+    @Test
+    fun `entity sliceBeforeRef with Metamodel Key should return refs descending`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val slice = repo.sliceBeforeRef(idKey, 3)
+        slice.content shouldHaveSize 3
+        slice.hasNext shouldBe true
+    }
+
+    @Test
+    fun `entity slice with key and WhereBuilder should filter results`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val slice = repo.slice(idKey, 10) { where(namePath, EQUALS, "Madison") }
+        slice.content shouldHaveSize 1
+        slice.hasNext shouldBe false
+    }
+
+    @Test
+    fun `entity slice with key and PredicateBuilder should filter results`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val predicate = namePath eq "Madison"
+        val slice = repo.slice(idKey, 10, predicate)
+        slice.content shouldHaveSize 1
+    }
+
+    @Test
+    fun `entity sliceRef with key and WhereBuilder should filter refs`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val slice = repo.sliceRef(idKey, 10) { where(namePath, EQUALS, "Madison") }
+        slice.content shouldHaveSize 1
+    }
+
+    @Test
+    fun `entity sliceRef with key and PredicateBuilder should filter refs`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val predicate = namePath eq "Madison"
+        val slice = repo.sliceRef(idKey, 10, predicate)
+        slice.content shouldHaveSize 1
+    }
+
+    @Test
+    fun `entity sliceBefore with key and WhereBuilder should filter descending`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val slice = repo.sliceBefore(idKey, 10) { where(namePath, LIKE, "M%") }
+        slice.content shouldHaveSize 3
+    }
+
+    @Test
+    fun `entity sliceBefore with key and PredicateBuilder should filter descending`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val predicate = namePath like "M%"
+        val slice = repo.sliceBefore(idKey, 10, predicate)
+        slice.content shouldHaveSize 3
+    }
+
+    @Test
+    fun `entity sliceAfter with key and cursor should return next page`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val slice = repo.sliceAfter(idKey, 3, 3)
+        slice.content shouldHaveSize 3
+        slice.content[0].id shouldBe 4
+    }
+
+    @Test
+    fun `entity sliceAfterRef with key and cursor should return next page refs`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val slice = repo.sliceAfterRef(idKey, 3, 3)
+        slice.content shouldHaveSize 3
+    }
+
+    @Test
+    fun `entity sliceBefore with key and cursor should return previous page`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val slice = repo.sliceBefore(idKey, 4, 3)
+        slice.content shouldHaveSize 3
+    }
+
+    @Test
+    fun `entity sliceBeforeRef with key and cursor should return previous page refs`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val slice = repo.sliceBeforeRef(idKey, 4, 3)
+        slice.content shouldHaveSize 3
+    }
+
+    @Test
+    fun `entity sliceAfter with key cursor and WhereBuilder should filter next page`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val slice = repo.sliceAfter(idKey, 1, 10) { where(namePath, LIKE, "M%") }
+        slice.content shouldHaveSize 3
+    }
+
+    @Test
+    fun `entity sliceAfterRef with key cursor and WhereBuilder should filter next page refs`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val slice = repo.sliceAfterRef(idKey, 1, 10) { where(namePath, LIKE, "M%") }
+        slice.content shouldHaveSize 3
+    }
+
+    @Test
+    fun `entity sliceBefore with key cursor and WhereBuilder should filter previous page`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val slice = repo.sliceBefore(idKey, 6, 10) { where(namePath, LIKE, "M%") }
+        slice.content shouldHaveSize 3
+    }
+
+    @Test
+    fun `entity sliceBeforeRef with key cursor and WhereBuilder should filter previous page refs`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val slice = repo.sliceBeforeRef(idKey, 6, 10) { where(namePath, LIKE, "M%") }
+        slice.content shouldHaveSize 3
+    }
+
+    // ======================================================================
+    // EntityRepository: Slice with sort metamodel
+    // ======================================================================
+
+    @Test
+    fun `entity slice with key sort and size should return sorted first page`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val slice = repo.slice(idKey, namePath, 3)
+        slice.content shouldHaveSize 3
+        slice.hasNext shouldBe true
+    }
+
+    @Test
+    fun `entity sliceBefore with key sort and size should return sorted last page`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val slice = repo.sliceBefore(idKey, namePath, 3)
+        slice.content shouldHaveSize 3
+        slice.hasNext shouldBe true
+    }
+
+    @Test
+    fun `entity sliceRef with key sort and size should return sorted first page refs`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val slice = repo.sliceRef(idKey, namePath, 3)
+        slice.content shouldHaveSize 3
+        slice.hasNext shouldBe true
+    }
+
+    @Test
+    fun `entity sliceBeforeRef with key sort and size should return sorted refs`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val slice = repo.sliceBeforeRef(idKey, namePath, 3)
+        slice.content shouldHaveSize 3
+        slice.hasNext shouldBe true
+    }
+
+    // ======================================================================
+    // EntityRepository: delete with WhereBuilder and PredicateBuilder
+    // ======================================================================
+
+    @Test
+    fun `delete with WhereBuilder should delete matching entities`() {
+        val repo = orm.entity(Visit::class)
+        val idPath = metamodel<Visit, Int>(repo.model, "id")
+        val deleted = repo.delete { where(idPath, EQUALS, 1) }
+        deleted shouldBe 1
+    }
+
+    @Test
+    fun `delete with direct PredicateBuilder should delete matching entities`() {
+        val repo = orm.entity(Visit::class)
+        val idPath = metamodel<Visit, Int>(repo.model, "id")
+        val predicate = idPath eq 2
+        val deleted = repo.delete(predicate)
+        deleted shouldBe 1
+    }
+
+    // ======================================================================
+    // EntityRepository: Keyset pagination with PK
+    // ======================================================================
+
+    @Test
+    fun `entity sliceAfter should return next page`() {
+        val repo = orm.entity(Owner::class)
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        // Owners have ids 1-10. After id > 5: ids 6,7,8,9,10 = 5 owners.
+        val slice = repo.sliceAfter(idKey, 5, 10)
+        slice.content.size shouldBe 5
+    }
+
+    @Test
+    fun `entity sliceAfterRef should return next page refs`() {
+        val repo = orm.entity(Owner::class)
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        val slice = repo.sliceAfterRef(idKey, 5, 10)
+        slice.content.size shouldBe 5
+    }
+
+    @Test
+    fun `entity sliceBefore should return previous page`() {
+        val repo = orm.entity(Owner::class)
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        // Owners have ids 1-10. Before id < 6: ids 1,2,3,4,5 = 5 owners.
+        val slice = repo.sliceBefore(idKey, 6, 10)
+        slice.content.size shouldBe 5
+    }
+
+    @Test
+    fun `entity sliceBeforeRef should return previous page refs`() {
+        val repo = orm.entity(Owner::class)
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        val slice = repo.sliceBeforeRef(idKey, 6, 10)
+        slice.content.size shouldBe 5
+    }
+
+    @Test
+    fun `entity sliceAfter with WhereBuilder should filter`() {
+        val repo = orm.entity(Owner::class)
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        // After id > 1 AND last_name LIKE 'D%': owners 4 (Harold Davis) = 1 owner.
+        val slice = repo.sliceAfter(idKey, 1, 10) { where(lastNamePath, LIKE, "D%") }
+        slice.content.size shouldBe 1
+    }
+
+    @Test
+    fun `entity sliceAfter with PredicateBuilder should filter`() {
+        val repo = orm.entity(Owner::class)
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val slice = repo.sliceAfter(idKey, 1, 10, lastNamePath like "D%")
+        slice.content.size shouldBe 1
+    }
+
+    @Test
+    fun `entity sliceAfterRef with WhereBuilder should filter refs`() {
+        val repo = orm.entity(Owner::class)
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val slice = repo.sliceAfterRef(idKey, 1, 10) { where(lastNamePath, LIKE, "D%") }
+        slice.content.size shouldBe 1
+    }
+
+    @Test
+    fun `entity sliceAfterRef with PredicateBuilder should filter refs`() {
+        val repo = orm.entity(Owner::class)
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val slice = repo.sliceAfterRef(idKey, 1, 10, lastNamePath like "D%")
+        slice.content.size shouldBe 1
+    }
+
+    @Test
+    fun `entity sliceBefore with WhereBuilder should filter`() {
+        val repo = orm.entity(Owner::class)
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        // Before id < 10 AND last_name LIKE 'D%': owners 1 (Betty Davis), 4 (Harold Davis) = 2 owners.
+        val slice = repo.sliceBefore(idKey, 10, 10) { where(lastNamePath, LIKE, "D%") }
+        slice.content.size shouldBe 2
+    }
+
+    @Test
+    fun `entity sliceBefore with PredicateBuilder should filter`() {
+        val repo = orm.entity(Owner::class)
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val slice = repo.sliceBefore(idKey, 10, 10, lastNamePath like "D%")
+        slice.content.size shouldBe 2
+    }
+
+    @Test
+    fun `entity sliceBeforeRef with WhereBuilder should filter refs`() {
+        val repo = orm.entity(Owner::class)
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val slice = repo.sliceBeforeRef(idKey, 10, 10) { where(lastNamePath, LIKE, "D%") }
+        slice.content.size shouldBe 2
+    }
+
+    @Test
+    fun `entity sliceBeforeRef with PredicateBuilder should filter refs`() {
+        val repo = orm.entity(Owner::class)
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val slice = repo.sliceBeforeRef(idKey, 10, 10, lastNamePath like "D%")
+        slice.content.size shouldBe 2
+    }
+
+    // ======================================================================
+    // EntityRepository: Composite keyset pagination with sort
+    // ======================================================================
+
+    @Test
+    fun `entity sliceAfter with key sort cursor should return next page`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val firstPage = repo.slice(idKey, namePath, 3)
+        firstPage.content shouldHaveSize 3
+        val lastItem = firstPage.content.last()
+        val nextPage = repo.sliceAfter(idKey, lastItem.id, namePath, lastItem.name, 3)
+        nextPage.content shouldHaveSize 3
+    }
+
+    @Test
+    fun `entity sliceBefore with key sort cursor should return previous page`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val lastPage = repo.sliceBefore(idKey, namePath, 3)
+        lastPage.content shouldHaveSize 3
+        val firstItem = lastPage.content.last()
+        val previousPage = repo.sliceBefore(idKey, firstItem.id, namePath, firstItem.name, 3)
+        previousPage.content shouldHaveSize 3
+    }
+
+    @Test
+    fun `entity sliceAfterRef with key sort cursor should return next page refs`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val firstPage = repo.slice(idKey, namePath, 3)
+        val lastItem = firstPage.content.last()
+        val nextPage = repo.sliceAfterRef(idKey, lastItem.id, namePath, lastItem.name, 3)
+        nextPage.content shouldHaveSize 3
+    }
+
+    @Test
+    fun `entity sliceBeforeRef with key sort cursor should return previous page refs`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val lastPage = repo.sliceBefore(idKey, namePath, 3)
+        val firstItem = lastPage.content.last()
+        val previousPage = repo.sliceBeforeRef(idKey, firstItem.id, namePath, firstItem.name, 3)
+        previousPage.content shouldHaveSize 3
+    }
+
+    @Test
+    fun `entity sliceAfter with composite key sort cursor should return next page`() {
+        val repo = orm.entity(Owner::class)
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        // After (lastName > "A" OR (lastName = "A" AND id > 1)): all 10 owners have lastName > "A".
+        val slice = repo.sliceAfter(idKey, 1, lastNamePath, "A", 10)
+        slice.content.size shouldBe 10
+    }
+
+    @Test
+    fun `entity sliceBefore with composite key sort cursor should return previous page`() {
+        val repo = orm.entity(Owner::class)
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        // Before (lastName < "Z" OR (lastName = "Z" AND id < 10)): all 10 owners have lastName < "Z".
+        val slice = repo.sliceBefore(idKey, 10, lastNamePath, "Z", 10)
+        slice.content.size shouldBe 10
+    }
+
+    @Test
+    fun `entity sliceAfterRef with composite key sort cursor should return next page refs`() {
+        val repo = orm.entity(Owner::class)
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val slice = repo.sliceAfterRef(idKey, 1, lastNamePath, "A", 10)
+        slice.content.size shouldBe 10
+    }
+
+    @Test
+    fun `entity sliceBeforeRef with composite key sort cursor should return previous page refs`() {
+        val repo = orm.entity(Owner::class)
+        val idKey = metamodel<Owner, Int>(repo.model, "id").key()
+        val lastNamePath = metamodel<Owner, String>(repo.model, "last_name")
+        val slice = repo.sliceBeforeRef(idKey, 10, lastNamePath, "Z", 10)
+        slice.content.size shouldBe 10
+    }
+
+    // ======================================================================
+    // EntityRepository: Predicate-based slice with cursor (value-based)
+    // ======================================================================
+
+    @Test
+    fun `entity sliceAfter with value cursor and PredicateBuilder should filter`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val slice = repo.sliceAfter(idKey, 1, 10, namePath like "M%")
+        slice.content shouldHaveSize 3
+    }
+
+    @Test
+    fun `entity sliceAfterRef with value cursor and PredicateBuilder should filter refs`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val slice = repo.sliceAfterRef(idKey, 1, 10, namePath like "M%")
+        slice.content shouldHaveSize 3
+    }
+
+    @Test
+    fun `entity sliceBefore with value cursor and PredicateBuilder should filter`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val slice = repo.sliceBefore(idKey, 6, 10, namePath like "M%")
+        slice.content shouldHaveSize 3
+    }
+
+    @Test
+    fun `entity sliceBeforeRef with value cursor and PredicateBuilder should filter refs`() {
+        val repo = orm.entity(City::class)
+        val idKey = metamodel<City, Int>(repo.model, "id").key()
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val slice = repo.sliceBeforeRef(idKey, 6, 10, namePath like "M%")
+        slice.content shouldHaveSize 3
+    }
+}

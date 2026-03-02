@@ -9,17 +9,20 @@ import st.orm.Ref
 
 @Discriminator
 @DbTable("animal")
-sealed interface Animal : Entity<Int>
+sealed interface Animal : Entity<Int> {
+    val id: Int
+    val name: String
+}
 
 data class Cat(
-    @PK val id: Int = 0,
-    val name: String,
+    @PK override val id: Int = 0,
+    override val name: String,
     val indoor: Boolean,
 ) : Animal
 
 data class Dog(
-    @PK val id: Int = 0,
-    val name: String,
+    @PK override val id: Int = 0,
+    override val name: String,
     val weight: Int,
 ) : Animal
 

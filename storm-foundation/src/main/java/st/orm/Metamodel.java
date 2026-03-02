@@ -269,11 +269,17 @@ public interface Metamodel<T extends Data, E> {
     boolean isSame(@Nonnull T a, @Nonnull T b);
 
     /**
-     * Marker interface for metamodel fields that correspond to columns with a uniqueness constraint. Metamodel fields
-     * generated for {@link UK @UK} or {@link PK @PK} record components implement this interface automatically.
+     * Marker interface for metamodel fields that correspond to columns known to be unique. Metamodel fields generated
+     * for {@link UK @UK} or {@link PK @PK} record components implement this interface automatically.
      *
      * <p>{@code Key} instances can be used where a unique column is required, such as keyset pagination cursors and
      * single-result lookups via repository methods like {@code findBy} and {@code getBy}.</p>
+     *
+     * <p>A {@code Key} can also be created manually via the {@link #key(Metamodel)} factory method for columns that
+     * are known to produce unique values in a specific query context (for example, a column used in a {@code GROUP BY}
+     * clause). In such cases, the caller is responsible for ensuring that the values are unique within the result set;
+     * using a non-unique column as a keyset pagination key silently skips rows when duplicates span page
+     * boundaries.</p>
      *
      * @param <T> the root table type.
      * @param <E> the field type of the designated element.
@@ -302,9 +308,14 @@ public interface Metamodel<T extends Data, E> {
      * Returns a {@code Key} view of the given metamodel. If {@code metamodel} already implements {@link Key}, it is
      * returned as-is; otherwise it is wrapped in a delegate that implements {@code Key}.
      *
-     * <p>This factory is intended as an escape hatch for cases where the generated metamodel does not carry the
-     * {@code Key} marker (for example, composite primary keys or dynamically constructed metamodels). Callers are
-     * responsible for ensuring that the underlying column has a uniqueness constraint in the database.</p>
+     * <p>This factory is intended for cases where the generated metamodel does not carry the {@code Key} marker (for
+     * example, composite primary keys or dynamically constructed metamodels), or where a column is known to produce
+     * unique values in a particular query context (for example, a column that appears in a {@code GROUP BY}
+     * clause).</p>
+     *
+     * <p><strong>Important:</strong> callers are responsible for ensuring that the column produces unique values in the
+     * context where the key is used. Using a non-unique column as a keyset pagination key will silently skip rows when
+     * duplicate values span page boundaries.</p>
      *
      * @param metamodel the metamodel to view as a key.
      * @return a {@code Key} instance backed by the given metamodel.

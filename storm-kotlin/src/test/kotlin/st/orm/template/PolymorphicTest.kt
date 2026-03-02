@@ -13,6 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
+import st.orm.Metamodel
+import st.orm.Operator.*
 import st.orm.Ref
 import st.orm.template.model.*
 
@@ -863,6 +865,78 @@ open class PolymorphicTest(
         result.shouldNotBeNull()
         result.shouldBeInstanceOf<Dog>()
         (result as Dog).name shouldBe "Rex"
+    }
+
+    // ---- NodscAnimal MetamodelFactory Tests (joined without @Discriminator) ----
+
+    @Test
+    fun `select nodsc animal by name using MetamodelFactory`() {
+        val animals = orm.entity(NodscAnimal::class)
+        val name = Metamodel.of<NodscAnimal, String>(NodscAnimal::class.java, "name")
+        val result = animals.select().where(name, EQUALS, "Whiskers").resultList
+        result shouldHaveSize 1
+        result[0].shouldBeInstanceOf<NodscCat>()
+        (result[0] as NodscCat).name shouldBe "Whiskers"
+    }
+
+    @Test
+    fun `select nodsc animal by id using MetamodelFactory`() {
+        val animals = orm.entity(NodscAnimal::class)
+        val id = Metamodel.of<NodscAnimal, Int>(NodscAnimal::class.java, "id")
+        val result = animals.select().where(id, EQUALS, 4).resultList
+        result shouldHaveSize 1
+        result[0].shouldBeInstanceOf<NodscBird>()
+        (result[0] as NodscBird).name shouldBe "Tweety"
+    }
+
+    @Test
+    fun `select nodsc animal by name like using MetamodelFactory`() {
+        val animals = orm.entity(NodscAnimal::class)
+        val name = Metamodel.of<NodscAnimal, String>(NodscAnimal::class.java, "name")
+        val result = animals.select().where(name, LIKE, "%e%").resultList
+        result shouldHaveSize 3
+        result[0].shouldBeInstanceOf<NodscCat>()
+        result[1].shouldBeInstanceOf<NodscDog>()
+        result[2].shouldBeInstanceOf<NodscBird>()
+    }
+
+    @Test
+    fun `select nodsc animal by name in using MetamodelFactory`() {
+        val animals = orm.entity(NodscAnimal::class)
+        val name = Metamodel.of<NodscAnimal, String>(NodscAnimal::class.java, "name")
+        val result = animals.select().where(name, IN, listOf("Luna", "Tweety")).resultList
+        result shouldHaveSize 2
+        result[0].shouldBeInstanceOf<NodscCat>()
+        result[1].shouldBeInstanceOf<NodscBird>()
+    }
+
+    @Test
+    fun `count nodsc animal by name using MetamodelFactory`() {
+        val animals = orm.entity(NodscAnimal::class)
+        val name = Metamodel.of<NodscAnimal, String>(NodscAnimal::class.java, "name")
+        animals.select().where(name, EQUALS, "Rex").resultCount shouldBe 1
+    }
+
+    // ---- Animal MetamodelFactory Tests (single table with @Discriminator) ----
+
+    @Test
+    fun `select animal by name using MetamodelFactory`() {
+        val animals = orm.entity(Animal::class)
+        val name = Metamodel.of<Animal, String>(Animal::class.java, "name")
+        val result = animals.select().where(name, EQUALS, "Whiskers").resultList
+        result shouldHaveSize 1
+        result[0].shouldBeInstanceOf<Cat>()
+        (result[0] as Cat).name shouldBe "Whiskers"
+    }
+
+    @Test
+    fun `select animal by id using MetamodelFactory`() {
+        val animals = orm.entity(Animal::class)
+        val id = Metamodel.of<Animal, Int>(Animal::class.java, "id")
+        val result = animals.select().where(id, EQUALS, 3).resultList
+        result shouldHaveSize 1
+        result[0].shouldBeInstanceOf<Dog>()
+        (result[0] as Dog).name shouldBe "Rex"
     }
 
     // ---- Type Change STI Tests ----

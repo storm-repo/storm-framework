@@ -22,6 +22,13 @@ import st.orm.Metamodel
  * Returns a [Metamodel.Key] view of this metamodel. If this metamodel already implements [Metamodel.Key], it is
  * returned as-is; otherwise it is wrapped in a delegate that implements [Metamodel.Key].
  *
+ * This is useful when the generated metamodel does not carry the [Metamodel.Key] marker, or when a column is known to
+ * produce unique values in a particular query context (for example, a column that appears in a `GROUP BY` clause).
+ *
+ * **Important:** the caller is responsible for ensuring that the column produces unique values in the context where the
+ * key is used. Using a non-unique column as a keyset pagination key will silently skip rows when duplicate values span
+ * page boundaries.
+ *
  * Usage:
  * ```
  * val key = User_.id.key()

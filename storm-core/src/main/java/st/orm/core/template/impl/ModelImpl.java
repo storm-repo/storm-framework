@@ -397,13 +397,17 @@ public final class ModelImpl<E extends Data, ID> implements Model<E, ID> {
     public void forEachValue(@Nonnull Metamodel<E, ?> metamodel,
                              @Nonnull Object object,
                              @Nonnull BiConsumer<Column, Object> consumer) throws SqlTemplateException {
-        // For sealed entity models, all columns share the same metamodel, so getColumns() cannot
-        // distinguish between PK and non-PK columns. In WHERE clauses, the PK metamodel is always
-        // used, so resolve PK columns directly.
+        // For sealed entity models, columns originally share the same root metamodel, so
+        // getColumns() could not distinguish between PK and non-PK columns. When a generated
+        // metamodel is available (e.g., Animal_.name), its canonical form is registered via
+        // a secondary metamodel on the column, enabling field-specific resolution.
         boolean resolvedViaInline = false;
         List<Column> columns;
         if (discriminatorColumnIndex > 0) {
-            columns = declaredColumns.stream().filter(Column::primaryKey).toList();
+            var mapped = metamodel.isColumn() ? columnMap.get(metamodel.canonical()) : null;
+            columns = mapped != null
+                    ? mapped
+                    : declaredColumns.stream().filter(Column::primaryKey).toList();
         } else if (metamodel.isInline() && columnMap.get(metamodel.canonical()) == null) {
             // Inline record not directly in column map (e.g., Address). Fall back to inline resolution.
             columns = getInlineColumns(metamodel);

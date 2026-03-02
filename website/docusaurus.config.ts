@@ -5,7 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'Storm Framework',
   tagline: 'A modern, high-performance ORM for Kotlin 2.0+ and Java 21+',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/storm-dark.png',
 
   url: 'https://orm.st',
   baseUrl: '/',
@@ -41,6 +41,11 @@ const config: Config = {
   themeConfig: {
     navbar: {
       title: 'Storm',
+      logo: {
+        alt: 'Storm Logo',
+        src: 'img/storm-dark.png',
+        srcDark: 'img/storm-light.png',
+      },
       items: [
         {
           type: 'docSidebar',
