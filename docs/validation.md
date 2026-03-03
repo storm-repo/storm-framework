@@ -22,7 +22,7 @@ When Storm first encounters an entity or projection type, it inspects the record
 
 **Foreign key rules:**
 
-- Fields annotated with `@FK` must be either an entity type or a `Ref` type. Scalars like `String` or `Integer` cannot be foreign keys.
+- Fields annotated with `@FK` must be a `Data` type (entity, projection, or data class with a `@PK`) or a `Ref` wrapping such a type. Scalars like `String` or `Integer` cannot be foreign keys.
 - Auto-generated foreign keys (`@FK(generation = ...)`) cannot be inlined.
 
 **Inline component rules:**

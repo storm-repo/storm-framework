@@ -564,6 +564,62 @@ open class TemplatesTest(
     }
 
     // ======================================================================
+    // Factory: ORMTemplate.of(DataSource, StormConfig, decorator)
+    // ======================================================================
+
+    @Test
+    fun `ORMTemplate of DataSource with StormConfig and decorator should create valid template`() {
+        val config = StormConfig.defaults()
+        val template = ORMTemplate.of(dataSource, config) { it }
+        template.shouldNotBe(null)
+        template.shouldBeInstanceOf<ORMTemplate>()
+        template.entity(City::class).findAll().size shouldBe 6
+    }
+
+    // ======================================================================
+    // Factory: ORMTemplate.of(Connection, StormConfig, decorator)
+    // ======================================================================
+
+    @Test
+    fun `ORMTemplate of Connection with StormConfig and decorator should create valid template`() {
+        dataSource.connection.use { conn ->
+            val config = StormConfig.defaults()
+            val template = ORMTemplate.of(conn, config) { it }
+            template.shouldNotBe(null)
+            template.shouldBeInstanceOf<ORMTemplate>()
+            template.entity(City::class).findAll().size shouldBe 6
+        }
+    }
+
+    // ======================================================================
+    // Extension: DataSource.orm(StormConfig, decorator)
+    // ======================================================================
+
+    @Test
+    fun `DataSource orm extension with StormConfig and decorator should create valid template`() {
+        val config = StormConfig.defaults()
+        val template = dataSource.orm(config) { it }
+        template.shouldNotBe(null)
+        template.shouldBeInstanceOf<ORMTemplate>()
+        template.entity(City::class).findAll().size shouldBe 6
+    }
+
+    // ======================================================================
+    // Extension: Connection.orm(StormConfig, decorator)
+    // ======================================================================
+
+    @Test
+    fun `Connection orm extension with StormConfig and decorator should create valid template`() {
+        dataSource.connection.use { conn ->
+            val config = StormConfig.defaults()
+            val template = conn.orm(config) { it }
+            template.shouldNotBe(null)
+            template.shouldBeInstanceOf<ORMTemplate>()
+            template.entity(City::class).findAll().size shouldBe 6
+        }
+    }
+
+    // ======================================================================
     // ORMTemplate.withEntityCallback
     // ======================================================================
 

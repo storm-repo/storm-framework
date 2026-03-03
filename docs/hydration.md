@@ -260,7 +260,7 @@ Hydration reconstructs from the **innermost** level outward:
 
 ## Foreign Keys (@FK)
 
-The `@FK` annotation marks a field as a foreign key relationship. When the result set includes a joined entity, Storm hydrates all its columns into the nested record. See [SQL Templates](sql-templates.md) for how `@FK` affects query generation.
+The `@FK` annotation marks a field as a foreign key relationship. When the result set includes a joined table, Storm hydrates all its columns into the nested record. See [SQL Templates](sql-templates.md) for how `@FK` affects query generation.
 
 ### FK Column Layout
 
@@ -312,7 +312,7 @@ When `city` is nullable and all city columns are NULL in a row, the hydrated `ci
 
 Eagerly loading every related entity is not always desirable. When a `User` references a `City`, which references a `Country`, a simple user query can cascade into loading the entire object graph. In many cases, the calling code only needs the foreign key value, not the full related entity.
 
-A `Ref<T>` is a lightweight reference that stores only the foreign key value, not the full entity. This gives you control over how much data is loaded during hydration. Use `Ref<T>` when:
+A `Ref<T>` is a lightweight reference that stores only the foreign key value, not the full record. This gives you control over how much data is loaded during hydration. Use `Ref<T>` when:
 - You need to break circular dependencies (self-referential entities like a tree structure)
 - You want to defer entity loading until the related data is actually needed
 - You are processing large result sets and want to minimize memory consumption
@@ -598,15 +598,15 @@ If all columns for `address` are NULL, the field is set to `null`. If some colum
 |---------|-----------------|
 | **Simple field** | 1 column per field |
 | **Nested record** | Flattened: all nested fields become consecutive columns |
-| **`@FK` entity** | All entity columns hydrated |
-| **`@FK Ref<T>`** | Only FK column hydrated (entity PK) |
+| **`@FK` record** | All record columns hydrated |
+| **`@FK Ref<T>`** | Only FK column hydrated (record PK) |
 | **Composite PK** | Multiple columns for PK fields |
 | **Converter** | 1 column mapped to custom type |
 
 **Key principles:**
 - Columns map by **position**, not name
 - Nested records are **flattened** into consecutive columns
-- `@FK` hydrates all columns from the related entity
+- `@FK` hydrates all columns from the related record
 - `Ref<T>` hydrates only the foreign key value
 - The interner ensures identity within a query result
 

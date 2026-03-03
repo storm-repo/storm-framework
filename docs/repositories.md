@@ -306,7 +306,7 @@ For queries that need joins, projections, or more complex filtering, use the que
 
 ## Refs
 
-Refs are lightweight identifiers that carry only the entity type and primary key. Selecting refs instead of full entities reduces memory usage and network bandwidth when you only need IDs for subsequent operations, such as batch lookups or filtering. See [Refs](refs.md) for a detailed discussion.
+Refs are lightweight identifiers that carry only the record type and primary key. Selecting refs instead of full entities reduces memory usage and network bandwidth when you only need IDs for subsequent operations, such as batch lookups or filtering. See [Refs](refs.md) for a detailed discussion.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
@@ -322,7 +322,7 @@ val users: Flow<User> = userRepository.selectByRef(refs)
 </TabItem>
 <TabItem value="java" label="Java">
 
-Ref operations in Java return `Stream` objects that must be closed. Refs carry only the primary key and entity type, making them suitable for batch operations where loading full entities would be wasteful.
+Ref operations in Java return `Stream` objects that must be closed. Refs carry only the primary key and record type, making them suitable for batch operations where loading full records would be wasteful.
 
 ```java
 // Select refs (lightweight identifiers)

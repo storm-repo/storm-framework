@@ -200,7 +200,7 @@ If you are new to Storm, follow these guides in order to build a solid foundatio
 If you are coming from JPA or Hibernate, these pages explain the key differences and how to transition:
 
 1. [Migration from JPA](migration-from-jpa.md) -- annotation mapping, concept translation, coexistence strategy
-2. [Storm vs Other Frameworks](comparison.md) -- honest feature comparison with JPA, jOOQ, MyBatis, and others
+2. [Storm vs Other Frameworks](comparison.md) -- feature comparison with JPA, jOOQ, MyBatis, and others
 3. [Entities](entities.md) -- how Storm entities differ from JPA entities
 4. [Repositories](repositories.md) -- Storm repositories vs. Spring Data repositories
 5. [Transactions](transactions.md) -- transaction management without an EntityManager
@@ -222,7 +222,6 @@ If you are a tech lead or architect evaluating Storm for a production system, th
 Storm is focused on being a great ORM and SQL template engine. It intentionally does not include:
 
 - **Schema migration or DDL generation.** Storm does not create, alter, or drop tables. Use [Flyway](https://flywaydb.org/) or [Liquibase](https://www.liquibase.com/) for schema versioning and migrations.
-- **Distributed transactions.** Storm works with single-datasource JDBC transactions. For distributed transactions, you can use Spring's transaction support. See the [FAQ](faq.md) for details.
 - **Second-level cache.** Storm's entity cache is transaction-scoped and cleared on commit. For cross-transaction caching, use Spring's `@Cacheable` or a dedicated cache layer like Caffeine or Redis.
 - **Lazy loading proxies.** Entities are plain records with no proxies. Related entities are loaded eagerly in a single query via JOINs. For deferred loading, use [Refs](refs.md) to explicitly control when related data is fetched.
 

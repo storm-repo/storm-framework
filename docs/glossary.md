@@ -35,7 +35,7 @@ The central entry point for all Storm database operations (`ORMTemplate`). Creat
 A read-only data class or record that implements the `Projection<ID>` interface. Projections represent database views or complex query results defined via `@ProjectionQuery`. Unlike entities, projections only support read operations. See [Projections](projections.md).
 
 **Ref**
-A lightweight identifier (`Ref<T>`) that carries only the entity type and primary key, deferring the loading of the full entity until `fetch()` is called. Using `Ref<City>` instead of `City` in a foreign key field avoids the automatic JOIN, reducing query width when the related entity is not always needed. See [Refs](refs.md).
+A lightweight identifier (`Ref<T>`) that carries only the record type and primary key, deferring the loading of the full record until `fetch()` is called. Using `Ref<City>` instead of `City` in a foreign key field avoids the automatic JOIN, reducing query width when the related data is not always needed. See [Refs](refs.md).
 
 **Repository**
 An interface that provides database access methods for an entity or projection type. `EntityRepository<E, ID>` offers built-in CRUD operations; `ProjectionRepository<P, ID>` offers read-only operations. Custom repositories extend these interfaces with domain-specific query methods. See [Repositories](repositories.md).

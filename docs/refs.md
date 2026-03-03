@@ -3,13 +3,13 @@
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-Refs are lightweight identifiers for entities that defer fetching until explicitly required. They optimize performance by avoiding unnecessary data retrieval and are useful for managing large object graphs.
+Refs are lightweight identifiers for entities, projections, and other data types that defer fetching until explicitly required. They optimize performance by avoiding unnecessary data retrieval and are useful for managing large object graphs.
 
 ---
 
 ## Using Refs in Entities
 
-To declare a relationship as a Ref, replace the entity type with `Ref<T>` in the field declaration. Storm stores only the foreign key column value and does not generate a JOIN for the referenced table. This reduces the width of SELECT queries and avoids loading data you may never access.
+To declare a relationship as a Ref, replace the direct type with `Ref<T>` in the field declaration. Storm stores only the foreign key column value and does not generate a JOIN for the referenced table. This reduces the width of SELECT queries and avoids loading data you may never access.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>

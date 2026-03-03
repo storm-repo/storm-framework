@@ -16,6 +16,7 @@
 package st.orm.core.template.impl;
 
 import static st.orm.core.spi.Providers.getSqlDialect;
+import static st.orm.core.template.impl.RecordReflection.isPolymorphicData;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
@@ -543,6 +544,13 @@ public final class SchemaValidator {
                 }
             }
             if (!Data.class.isAssignableFrom(targetType)) {
+                continue;
+            }
+            // Polymorphic FK: the target is a sealed Data interface whose subtypes are independent
+            // entities in separate tables. Standard DB foreign key constraints cannot express this
+            // (the FK id column can reference any of the target tables, determined by the
+            // discriminator column at runtime), so skip FK constraint validation for these fields.
+            if (isPolymorphicData(targetType)) {
                 continue;
             }
             // Build a model for the target entity to get its table name.

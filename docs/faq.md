@@ -24,7 +24,7 @@ Yes. Storm is used in production environments and follows semantic versioning fo
 
 ### Does Storm support schema validation?
 
-Yes. Storm can validate your entity definitions against the actual database schema, catching mismatches like missing tables, missing columns, type incompatibilities, nullability differences, primary key mismatches, and missing sequences. This works similarly to Hibernate's `ddl-auto=validate`, but Storm never modifies the schema.
+Yes. Storm can validate your entity definitions against the actual database schema, catching mismatches like missing tables, missing columns, type incompatibilities, type narrowing (potential precision loss), nullability differences, primary key mismatches, missing sequences, missing unique constraints, and missing foreign key constraints. This works similarly to Hibernate's `ddl-auto=validate`, but Storm never modifies the schema.
 
 Enable it in Spring Boot:
 
@@ -72,10 +72,6 @@ Storm does not use bytecode manipulation or runtime proxies to intercept field a
 ### No Second-Level Cache
 
 Storm maintains only a transaction-scoped entity cache for identity guarantees and dirty checking. There is no cross-transaction or application-wide cache. This avoids cache invalidation complexity, stale data bugs, and the configuration burden of managing cache regions. For caching reference data or frequently-read entities, use Spring's `@Cacheable` annotation or a dedicated caching layer (Redis, Caffeine) at the service level, where cache scope and invalidation strategy are explicit.
-
-### No Distributed Transactions
-
-Storm works with single-datasource JDBC transactions. You can manage transactions using Storm's own `transaction { }` block or Spring's transaction infrastructure. For distributed transactions, configure Spring's `JtaTransactionManager` with a JTA provider (Atomikos, Narayana) and an XA-capable DataSource. Storm will participate in the distributed transaction automatically through Spring's transaction support.
 
 ### No Bytecode Manipulation
 
