@@ -19,7 +19,7 @@ open class FlowTest(
     @Autowired val orm: ORMTemplate,
 ) {
 
-    // --- Flow operations without explicit transaction ---
+    // Flow operations without explicit transaction
 
     @Test
     fun `selectAll should return all visits as flow`(): Unit = runBlocking {
@@ -44,7 +44,7 @@ open class FlowTest(
         repository.count() shouldBe 0
     }
 
-    // --- Flow operations within a suspend transaction ---
+    // Flow operations within a suspend transaction
 
     @Test
     fun `selectAll within suspend transaction should return all visits`(): Unit = runBlocking {

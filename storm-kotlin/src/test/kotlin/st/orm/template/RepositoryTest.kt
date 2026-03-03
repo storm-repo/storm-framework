@@ -35,7 +35,7 @@ open class RepositoryTest(
     @Suppress("UNCHECKED_CAST")
     private fun <T : Data, V> metamodel(model: Model<*, *>, columnName: String): Metamodel<T, V> = model.columns.first { it.name == columnName }.metamodel as Metamodel<T, V>
 
-    // --- EntityRepository CRUD: insert ---
+    // EntityRepository CRUD: insert
 
     @Test
     fun `insert entity should persist city`() {
@@ -64,7 +64,7 @@ open class RepositoryTest(
         fetched.name shouldBe "FetchCity"
     }
 
-    // --- EntityRepository CRUD: update ---
+    // EntityRepository CRUD: update
 
     @Test
     fun `update entity should modify city name`() {
@@ -84,7 +84,7 @@ open class RepositoryTest(
         result.id shouldBe 2
     }
 
-    // --- EntityRepository CRUD: upsert ---
+    // EntityRepository CRUD: upsert
 
     @Test
     fun `upsert should throw PersistenceException on H2`() {
@@ -102,7 +102,7 @@ open class RepositoryTest(
         }
     }
 
-    // --- EntityRepository CRUD: delete ---
+    // EntityRepository CRUD: delete
 
     @Test
     fun `delete entity should remove city`() {
@@ -140,7 +140,7 @@ open class RepositoryTest(
         repo.count() shouldBe 0
     }
 
-    // --- EntityRepository: find methods ---
+    // EntityRepository: find methods
 
     @Test
     fun `findById should return city when exists`() {
@@ -238,7 +238,7 @@ open class RepositoryTest(
         cities shouldHaveSize 2
     }
 
-    // --- EntityRepository: count and exists ---
+    // EntityRepository: count and exists
 
     @Test
     fun `count should return total number of cities`() {
@@ -277,7 +277,7 @@ open class RepositoryTest(
         repo.existsByRef(repo.ref(999)) shouldBe false
     }
 
-    // --- EntityRepository: ref and unload ---
+    // EntityRepository: ref and unload
 
     @Test
     fun `ref from id should create ref with correct id`() {
@@ -302,7 +302,7 @@ open class RepositoryTest(
         ref.shouldNotBeNull()
     }
 
-    // --- EntityRepository: DSL convenience methods ---
+    // EntityRepository: DSL convenience methods
 
     @Test
     fun `findAll with predicate should filter cities`() {
@@ -393,7 +393,7 @@ open class RepositoryTest(
         refs shouldHaveSize 1
     }
 
-    // --- EntityRepository: batch operations with Iterable ---
+    // EntityRepository: batch operations with Iterable
 
     @Test
     fun `insert iterable should persist multiple cities`() {
@@ -476,7 +476,7 @@ open class RepositoryTest(
         ids.all { it != 0 } shouldBe true
     }
 
-    // --- Flow operations: selectAll ---
+    // Flow operations: selectAll
 
     @Test
     fun `selectAll should return flow of all cities`(): Unit = runBlocking {
@@ -484,7 +484,7 @@ open class RepositoryTest(
         repo.selectAll().count() shouldBe 6
     }
 
-    // --- Flow operations: selectAllRef ---
+    // Flow operations: selectAllRef
 
     @Test
     fun `selectAllRef should return flow of all city refs`(): Unit = runBlocking {
@@ -492,7 +492,7 @@ open class RepositoryTest(
         repo.selectAllRef().count() shouldBe 6
     }
 
-    // --- Flow operations: selectById ---
+    // Flow operations: selectById
 
     @Test
     fun `selectById with flow of ids should return matching cities`(): Unit = runBlocking {
@@ -517,7 +517,7 @@ open class RepositoryTest(
         cities.shouldBeEmpty()
     }
 
-    // --- Flow operations: selectByRef ---
+    // Flow operations: selectByRef
 
     @Test
     fun `selectByRef with flow of refs should return matching cities`(): Unit = runBlocking {
@@ -542,7 +542,7 @@ open class RepositoryTest(
         cities.shouldBeEmpty()
     }
 
-    // --- Flow operations: countById ---
+    // Flow operations: countById
 
     @Test
     fun `countById should count matching entities from flow`(): Unit = runBlocking {
@@ -565,7 +565,7 @@ open class RepositoryTest(
         count shouldBe 0
     }
 
-    // --- Flow operations: countByRef ---
+    // Flow operations: countByRef
 
     @Test
     fun `countByRef should count matching entities from flow`(): Unit = runBlocking {
@@ -582,7 +582,7 @@ open class RepositoryTest(
         count shouldBe 0
     }
 
-    // --- Flow operations: batch insert ---
+    // Flow operations: batch insert
 
     @Test
     fun `insert flow should persist entities`(): Unit = runBlocking {
@@ -611,7 +611,7 @@ open class RepositoryTest(
         ids.all { it != 0 } shouldBe true
     }
 
-    // --- Flow operations: batch update ---
+    // Flow operations: batch update
 
     @Test
     fun `update flow should modify entities`(): Unit = runBlocking {
@@ -632,7 +632,7 @@ open class RepositoryTest(
         result.all { it.name.endsWith("-uf") } shouldBe true
     }
 
-    // --- Flow operations: batch delete ---
+    // Flow operations: batch delete
 
     @Test
     fun `delete flow should remove entities`(): Unit = runBlocking {
@@ -652,7 +652,7 @@ open class RepositoryTest(
         inserted.forEach { repo.findById(it.id).shouldBeNull() }
     }
 
-    // --- Flow operations: batch upsert ---
+    // Flow operations: batch upsert
 
     @Test
     fun `upsert flow should throw PersistenceException on H2`(): Unit = runBlocking {
@@ -670,7 +670,7 @@ open class RepositoryTest(
         }
     }
 
-    // --- RepositoryLookup extension functions ---
+    // RepositoryLookup extension functions
 
     @Test
     fun `orm findAll reified should return all cities`() {
@@ -729,7 +729,7 @@ open class RepositoryTest(
         orm.exists<City>() shouldBe true
     }
 
-    // --- RepositoryLookup: DSL predicate extensions ---
+    // RepositoryLookup: DSL predicate extensions
 
     @Test
     fun `orm findAll with predicate should filter cities`() {
@@ -802,7 +802,7 @@ open class RepositoryTest(
         refs shouldHaveSize 1
     }
 
-    // --- RepositoryLookup: batch infix operations ---
+    // RepositoryLookup: batch infix operations
 
     @Test
     fun `orm insert iterable should return all persisted entities`() {
@@ -826,7 +826,7 @@ open class RepositoryTest(
         inserted.forEach { orm.entity(City::class).findById(it.id).shouldBeNull() }
     }
 
-    // --- Versioned entity tests (Owner with @Version) ---
+    // Versioned entity tests (Owner with @Version)
 
     @Test
     fun `insert and fetch versioned entity should work`() {
@@ -851,7 +851,7 @@ open class RepositoryTest(
         updated.firstName shouldBe "UpdatedName"
     }
 
-    // --- Edge case: entity with null FK (Pet 13 has null owner) ---
+    // Edge case: entity with null FK (Pet 13 has null owner)
 
     @Test
     fun `findById should handle entity with null FK`() {
@@ -863,7 +863,7 @@ open class RepositoryTest(
         pet.owner.shouldBeNull()
     }
 
-    // --- Suspend transaction Flow tests ---
+    // Suspend transaction Flow tests
 
     @Test
     fun `selectAll within suspend transaction should work`(): Unit = runBlocking {
@@ -891,7 +891,7 @@ open class RepositoryTest(
         }
     }
 
-    // --- findAllRef and selectAllRef ---
+    // findAllRef and selectAllRef
 
     @Test
     fun `findAllRef should return all refs`() {
@@ -907,7 +907,7 @@ open class RepositoryTest(
         refs shouldHaveSize 6
     }
 
-    // --- Vet entity tests (simple entity, auto-increment) ---
+    // Vet entity tests (simple entity, auto-increment)
 
     @Test
     fun `vet repository should return all vets`() {
@@ -924,7 +924,7 @@ open class RepositoryTest(
         vet.firstName shouldBe "New"
     }
 
-    // --- PetType entity tests (no auto-increment) ---
+    // PetType entity tests (no auto-increment)
 
     @Test
     fun `petType count should return 6`() {
@@ -942,7 +942,7 @@ open class RepositoryTest(
         pt.name shouldBe "cat"
     }
 
-    // --- Visit entity tests (complex entity with FK and @Version) ---
+    // Visit entity tests (complex entity with FK and @Version)
 
     @Test
     fun `visit count should return 14`() {
@@ -958,7 +958,7 @@ open class RepositoryTest(
         repo.selectAll().count() shouldBe 14
     }
 
-    // --- Entity repository count and exists consistency ---
+    // Entity repository count and exists consistency
 
     @Test
     fun `entity repository count and exists are consistent`() {
@@ -968,7 +968,7 @@ open class RepositoryTest(
         repo.exists() shouldBe true
     }
 
-    // --- EntityRepository: ref-predicate methods ---
+    // EntityRepository: ref-predicate methods
 
     @Test
     fun `findRef with predicate should return ref for matching city`() {
@@ -1011,7 +1011,7 @@ open class RepositoryTest(
         count shouldBe 1
     }
 
-    // --- RepositoryLookup: ref-predicate extensions ---
+    // RepositoryLookup: ref-predicate extensions
 
     @Test
     fun `orm findRef with predicate should return ref for matching city`() {
@@ -1049,7 +1049,7 @@ open class RepositoryTest(
         count shouldBe 1
     }
 
-    // --- RepositoryLookup: delete with predicate ---
+    // RepositoryLookup: delete with predicate
 
     @Test
     fun `orm delete with predicate should remove matching cities`() {
@@ -1060,7 +1060,7 @@ open class RepositoryTest(
         orm.entity(City::class).findById(city.id).shouldBeNull()
     }
 
-    // --- RepositoryLookup: deleteByRef ---
+    // RepositoryLookup: deleteByRef
 
     @Test
     fun `orm deleteByRef should remove city by ref`() {
@@ -1070,7 +1070,7 @@ open class RepositoryTest(
         orm.entity(City::class).findById(city.id).shouldBeNull()
     }
 
-    // --- RepositoryLookup: selectAllRef and findAllRef ---
+    // RepositoryLookup: selectAllRef and findAllRef
 
     @Test
     fun `orm selectAllRef should return flow of all city refs`(): Unit = runBlocking {
@@ -1083,7 +1083,7 @@ open class RepositoryTest(
         refs shouldHaveSize 6
     }
 
-    // --- EntityRepository: findBy/getBy with Metamodel ---
+    // EntityRepository: findBy/getBy with Metamodel
 
     @Test
     fun `findBy with field and value should return matching entity`() {
@@ -1137,7 +1137,7 @@ open class RepositoryTest(
         }
     }
 
-    // --- EntityRepository: countBy/existsBy with Metamodel ---
+    // EntityRepository: countBy/existsBy with Metamodel
 
     @Test
     fun `countBy with field and value should count matching entities`() {
@@ -1167,7 +1167,7 @@ open class RepositoryTest(
         repo.existsBy(namePath, "NonExistent") shouldBe false
     }
 
-    // --- EntityRepository: selectBy with Metamodel ---
+    // EntityRepository: selectBy with Metamodel
 
     @Test
     fun `selectBy with field and value should return matching entities as flow`(): Unit = runBlocking {
@@ -1187,7 +1187,7 @@ open class RepositoryTest(
         cities.map { it.name } shouldContainExactlyInAnyOrder listOf("Madison", "Windsor", "Monona")
     }
 
-    // --- EntityRepository: findRefBy/getRefBy with Metamodel ---
+    // EntityRepository: findRefBy/getRefBy with Metamodel
 
     @Test
     fun `findRefBy with field and value should return matching ref`() {
@@ -1238,7 +1238,7 @@ open class RepositoryTest(
         refs shouldHaveSize 1
     }
 
-    // --- EntityRepository: deleteAllBy with Metamodel ---
+    // EntityRepository: deleteAllBy with Metamodel
 
     @Test
     fun `deleteAllBy with field and value should delete matching entities`() {
@@ -1262,7 +1262,7 @@ open class RepositoryTest(
         repo.count() shouldBe 4
     }
 
-    // --- EntityRepository: PredicateBuilder direct-call variants ---
+    // EntityRepository: PredicateBuilder direct-call variants
 
     @Test
     fun `findAll with direct PredicateBuilder should filter entities`() {
@@ -1354,7 +1354,7 @@ open class RepositoryTest(
         deleted shouldBe 1
     }
 
-    // --- EntityRepository: Ref-based Metamodel methods ---
+    // EntityRepository: Ref-based Metamodel methods
 
     @Test
     fun `findBy with field and Ref should return matching entity`() {

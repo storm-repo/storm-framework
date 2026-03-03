@@ -34,9 +34,7 @@ class RepositoryBeanFactoryPostProcessorTest(
         override val repositoryBasePackages: Array<String> get() = emptyArray()
     }
 
-    // ======================================================================
     // Empty packages early return
-    // ======================================================================
 
     @Test
     fun `empty base packages should not register any repository beans`() {

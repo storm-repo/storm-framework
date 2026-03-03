@@ -159,7 +159,6 @@ public class JsonIntegrationTest {
             @Nullable @FK Ref<ProjectionOwner> owner
     ) implements Entity<Integer> {}
 
-
     @Test
     public void unloadedProjectionRefShouldSerializeToRawPrimaryKeyValue() throws Exception {
         // When the Ref target is a Projection (not an Entity), unloaded Refs still serialize

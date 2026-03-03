@@ -26,9 +26,7 @@ open class RefsAndKeysTest(
     @Suppress("UNCHECKED_CAST")
     private fun <T : Data, V> metamodel(model: Model<*, *>, columnName: String): Metamodel<T, V> = model.columns.first { it.name == columnName }.metamodel as Metamodel<T, V>
 
-    // ======================================================================
     // Entity.ref() extension function tests
-    // ======================================================================
 
     @Test
     fun `ref on entity should create a Ref with correct id`() {
@@ -87,9 +85,7 @@ open class RefsAndKeysTest(
         owners shouldHaveSize 4
     }
 
-    // ======================================================================
     // Ref.of static methods tests
-    // ======================================================================
 
     @Test
     fun `Ref of with class and id should create detached ref`() {
@@ -107,9 +103,7 @@ open class RefsAndKeysTest(
         cityRef.fetch().name shouldBe "Windsor"
     }
 
-    // ======================================================================
     // QueryTemplate.ref tests
-    // ======================================================================
 
     @Test
     fun `orm ref should create ref for entity type with id`() {
@@ -126,9 +120,7 @@ open class RefsAndKeysTest(
         cityRef.id() shouldBe 2
     }
 
-    // ======================================================================
     // Metamodel.key() extension function tests
-    // ======================================================================
 
     @Test
     fun `key on metamodel should return Metamodel Key`() {
@@ -182,9 +174,7 @@ open class RefsAndKeysTest(
         nextSlice.hasNext shouldBe false
     }
 
-    // ======================================================================
     // Integration: using refs with QueryBuilder where clauses
-    // ======================================================================
 
     @Test
     fun `where with Ref should filter entities by foreign key reference`() {

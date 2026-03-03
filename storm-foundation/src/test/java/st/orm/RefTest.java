@@ -195,4 +195,95 @@ class RefTest {
         assertEquals(detachedRef, entityRef);
         assertEquals(entityRef.hashCode(), detachedRef.hashCode());
     }
+
+    record IntIdEntity(Integer id) implements Entity<Integer> {}
+    record OtherIntIdEntity(Integer id) implements Entity<Integer> {}
+    record IntIdProjection(String data) implements Projection<Integer> {}
+
+    @Test
+    void detachedRefsOfDifferentTypesAreNotEqual() {
+        Ref<IntIdEntity> ref1 = Ref.of(IntIdEntity.class, 1);
+        Ref<OtherIntIdEntity> ref2 = Ref.of(OtherIntIdEntity.class, 1);
+        assertNotEquals(ref1, ref2);
+    }
+
+    @Test
+    void entityRefAndDetachedRefOfDifferentTypesAreNotEqual() {
+        IntIdEntity entity = new IntIdEntity(1);
+        Ref<IntIdEntity> entityRef = Ref.of(entity);
+        Ref<OtherIntIdEntity> otherRef = Ref.of(OtherIntIdEntity.class, 1);
+        assertNotEquals(entityRef, otherRef);
+    }
+
+    @Test
+    void projectionRefToString() {
+        IntIdProjection projection = new IntIdProjection("data");
+        Ref<IntIdProjection> ref = Ref.of(projection, 42);
+        String result = ref.toString();
+        assertTrue(result.contains("IntIdProjection"), "ToString should contain type name");
+        assertTrue(result.contains("42"), "ToString should contain id");
+    }
+
+    @Test
+    void detachedRefToStringContainsTypeAndId() {
+        Ref<IntIdEntity> ref = Ref.of(IntIdEntity.class, 99);
+        assertEquals("IntIdEntity@99", ref.toString());
+    }
+
+    @Test
+    void entityRefEqualityIsBasedOnTypeAndId() {
+        IntIdEntity entity1 = new IntIdEntity(5);
+        IntIdEntity entity2 = new IntIdEntity(5);
+        Ref<IntIdEntity> ref1 = Ref.of(entity1);
+        Ref<IntIdEntity> ref2 = Ref.of(entity2);
+        assertEquals(ref1, ref2, "Refs with same type and id should be equal");
+        assertEquals(ref1.hashCode(), ref2.hashCode());
+    }
+
+    @Test
+    void entityRefNotEqualToNull() {
+        IntIdEntity entity = new IntIdEntity(1);
+        Ref<IntIdEntity> ref = Ref.of(entity);
+        assertNotEquals(ref, null);
+    }
+
+    @Test
+    void entityRefNotEqualToNonRef() {
+        IntIdEntity entity = new IntIdEntity(1);
+        Ref<IntIdEntity> ref = Ref.of(entity);
+        assertNotEquals(ref, "not a ref");
+    }
+
+    @Test
+    void projectionRefEquality() {
+        IntIdProjection projection1 = new IntIdProjection("data1");
+        IntIdProjection projection2 = new IntIdProjection("data2");
+        Ref<IntIdProjection> ref1 = Ref.of(projection1, 1);
+        Ref<IntIdProjection> ref2 = Ref.of(projection2, 1);
+        // Same type and id, so should be equal even though projections differ.
+        assertEquals(ref1, ref2);
+    }
+
+    @Test
+    void projectionRefInequalityOnId() {
+        IntIdProjection projection = new IntIdProjection("data");
+        Ref<IntIdProjection> ref1 = Ref.of(projection, 1);
+        Ref<IntIdProjection> ref2 = Ref.of(projection, 2);
+        assertNotEquals(ref1, ref2);
+    }
+
+    @Test
+    void entityRefIsLoadedAndNotFetchable() {
+        IntIdEntity entity = new IntIdEntity(1);
+        Ref<IntIdEntity> ref = Ref.of(entity);
+        assertTrue(ref.isLoaded(), "Entity ref should be loaded");
+        assertFalse(ref.isFetchable(), "Entity ref should not be fetchable");
+    }
+
+    @Test
+    void detachedRefIsNotLoadedAndNotFetchable() {
+        Ref<IntIdEntity> ref = Ref.of(IntIdEntity.class, 1);
+        assertFalse(ref.isLoaded(), "Detached ref should not be loaded");
+        assertFalse(ref.isFetchable(), "Detached ref should not be fetchable");
+    }
 }

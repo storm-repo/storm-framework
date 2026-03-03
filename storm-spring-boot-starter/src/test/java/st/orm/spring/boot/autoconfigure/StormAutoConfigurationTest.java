@@ -241,4 +241,116 @@ class StormAutoConfigurationTest {
             };
         }
     }
+
+    @Test
+    void schemaValidationFailModeShouldNotPreventStartupWithEmptyDatabase() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:schemaFailTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver",
+                        "storm.validation.schema-mode=fail"
+                )
+                .run(context -> {
+                    assertThat(context).hasSingleBean(ORMTemplate.class);
+                });
+    }
+
+    @Test
+    void schemaValidationEmptyModeShouldNotRunValidation() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:schemaEmptyTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver",
+                        "storm.validation.schema-mode="
+                )
+                .run(context -> {
+                    assertThat(context).hasSingleBean(ORMTemplate.class);
+                });
+    }
+
+    @Test
+    void updatePropertiesWithNullsShouldFallToDefaults() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:updateDefaultsTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver"
+                )
+                .run(context -> {
+                    assertThat(context).hasSingleBean(ORMTemplate.class);
+                    StormProperties props = context.getBean(StormProperties.class);
+                    assertThat(props.getUpdate().getDefaultMode()).isNull();
+                    assertThat(props.getUpdate().getDirtyCheck()).isNull();
+                    assertThat(props.getUpdate().getMaxShapes()).isNull();
+                });
+    }
+
+    @Test
+    void entityCacheRetentionNullShouldUseDefault() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:cacheRetentionTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver"
+                )
+                .run(context -> {
+                    assertThat(context).hasSingleBean(ORMTemplate.class);
+                    StormProperties props = context.getBean(StormProperties.class);
+                    assertThat(props.getEntityCache().getRetention()).isNull();
+                });
+    }
+
+    @Test
+    void templateCacheSizeNullShouldUseDefault() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:templateCacheTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver"
+                )
+                .run(context -> {
+                    assertThat(context).hasSingleBean(ORMTemplate.class);
+                    StormProperties props = context.getBean(StormProperties.class);
+                    assertThat(props.getTemplateCache().getSize()).isNull();
+                });
+    }
+
+    @Test
+    void ansiEscapingNullShouldUseDefault() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:ansiTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver"
+                )
+                .run(context -> {
+                    assertThat(context).hasSingleBean(ORMTemplate.class);
+                    StormProperties props = context.getBean(StormProperties.class);
+                    assertThat(props.getAnsiEscaping()).isNull();
+                });
+    }
+
+    @Test
+    void validationRecordModeNullShouldUseDefault() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:recordModeTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver"
+                )
+                .run(context -> {
+                    assertThat(context).hasSingleBean(ORMTemplate.class);
+                    StormProperties props = context.getBean(StormProperties.class);
+                    assertThat(props.getValidation().getRecordMode()).isNull();
+                });
+    }
+
+    @Test
+    void validationStrictNullShouldUseDefault() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.datasource.url=jdbc:h2:mem:strictNullTest;DB_CLOSE_DELAY=-1",
+                        "spring.datasource.driver-class-name=org.h2.Driver"
+                )
+                .run(context -> {
+                    assertThat(context).hasSingleBean(ORMTemplate.class);
+                    StormProperties props = context.getBean(StormProperties.class);
+                    assertThat(props.getValidation().getStrict()).isNull();
+                });
+    }
 }

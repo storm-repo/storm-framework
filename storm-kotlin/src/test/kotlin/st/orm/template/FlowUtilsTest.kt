@@ -15,9 +15,7 @@ import st.orm.repository.impl.flattenConcat
 
 class FlowUtilsTest {
 
-    // ======================================================================
     // chunked() tests
-    // ======================================================================
 
     @Test
     fun `chunked should split flow into chunks of specified size`(): Unit = runBlocking {
@@ -93,9 +91,7 @@ class FlowUtilsTest {
         result[3] shouldBe listOf(7)
     }
 
-    // ======================================================================
     // flatMapConcat() tests
-    // ======================================================================
 
     @Test
     fun `flatMapConcat should transform and flatten flows`(): Unit = runBlocking {
@@ -145,9 +141,7 @@ class FlowUtilsTest {
         result shouldHaveSize 0
     }
 
-    // ======================================================================
     // flattenConcat() tests
-    // ======================================================================
 
     @Test
     fun `flattenConcat should flatten flow of flows`(): Unit = runBlocking {
@@ -211,9 +205,7 @@ class FlowUtilsTest {
         result shouldHaveSize 0
     }
 
-    // ======================================================================
     // Combined chunked + flatMapConcat tests
-    // ======================================================================
 
     @Test
     fun `chunked then flatMapConcat should allow batch processing`(): Unit = runBlocking {

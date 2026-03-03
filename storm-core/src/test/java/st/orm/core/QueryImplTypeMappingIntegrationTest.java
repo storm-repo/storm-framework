@@ -39,9 +39,7 @@ public class QueryImplTypeMappingIntegrationTest {
     @Autowired
     private DataSource dataSource;
 
-    // -----------------------------------------------------------------------
     // Integer type mapping via record
-    // -----------------------------------------------------------------------
 
     record IntegerResult(Integer value) {}
 
@@ -52,9 +50,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals(42, result.value());
     }
 
-    // -----------------------------------------------------------------------
     // Long type mapping via record
-    // -----------------------------------------------------------------------
 
     record LongResult(Long value) {}
 
@@ -65,9 +61,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals(123456789L, result.value());
     }
 
-    // -----------------------------------------------------------------------
     // Short type mapping via record
-    // -----------------------------------------------------------------------
 
     record ShortResult(Short value) {}
 
@@ -78,9 +72,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals((short) 7, result.value());
     }
 
-    // -----------------------------------------------------------------------
     // Float type mapping via record
-    // -----------------------------------------------------------------------
 
     record FloatResult(Float value) {}
 
@@ -91,9 +83,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals(1.5f, result.value(), 0.001f);
     }
 
-    // -----------------------------------------------------------------------
     // Double type mapping via record
-    // -----------------------------------------------------------------------
 
     record DoubleResult(Double value) {}
 
@@ -104,9 +94,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals(3.14, result.value(), 0.001);
     }
 
-    // -----------------------------------------------------------------------
     // Byte type mapping via record
-    // -----------------------------------------------------------------------
 
     record ByteResult(Byte value) {}
 
@@ -117,9 +105,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals((byte) 42, result.value());
     }
 
-    // -----------------------------------------------------------------------
     // Boolean type mapping via record
-    // -----------------------------------------------------------------------
 
     record BooleanResult(Boolean value) {}
 
@@ -130,9 +116,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertTrue(result.value());
     }
 
-    // -----------------------------------------------------------------------
     // String type mapping via record
-    // -----------------------------------------------------------------------
 
     record StringResult(String value) {}
 
@@ -144,9 +128,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals("Sun Paririe", result.value());
     }
 
-    // -----------------------------------------------------------------------
     // BigDecimal type mapping via record
-    // -----------------------------------------------------------------------
 
     record BigDecimalResult(BigDecimal value) {}
 
@@ -158,9 +140,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals(0, new BigDecimal("99.99").compareTo(result.value()));
     }
 
-    // -----------------------------------------------------------------------
     // LocalDate type mapping via record
-    // -----------------------------------------------------------------------
 
     record LocalDateResult(LocalDate value) {}
 
@@ -171,9 +151,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertNotNull(result.value());
     }
 
-    // -----------------------------------------------------------------------
     // LocalDateTime type mapping via record
-    // -----------------------------------------------------------------------
 
     record LocalDateTimeResult(LocalDateTime value) {}
 
@@ -188,9 +166,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals(15, result.value().getDayOfMonth());
     }
 
-    // -----------------------------------------------------------------------
     // LocalTime type mapping via record
-    // -----------------------------------------------------------------------
 
     record LocalTimeResult(LocalTime value) {}
 
@@ -204,9 +180,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals(30, result.value().getMinute());
     }
 
-    // -----------------------------------------------------------------------
     // Instant type mapping via record
-    // -----------------------------------------------------------------------
 
     record InstantResult(Instant value) {}
 
@@ -220,9 +194,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertNotNull(result.value());
     }
 
-    // -----------------------------------------------------------------------
     // OffsetDateTime type mapping via record
-    // -----------------------------------------------------------------------
 
     record OffsetDateTimeResult(OffsetDateTime value) {}
 
@@ -235,9 +207,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals(2023, result.value().getYear());
     }
 
-    // -----------------------------------------------------------------------
     // ZonedDateTime type mapping via record
-    // -----------------------------------------------------------------------
 
     record ZonedDateTimeResult(ZonedDateTime value) {}
 
@@ -250,9 +220,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals(2023, result.value().getYear());
     }
 
-    // -----------------------------------------------------------------------
     // java.sql.Timestamp type mapping via record
-    // -----------------------------------------------------------------------
 
     record SqlTimestampResult(java.sql.Timestamp value) {}
 
@@ -264,9 +232,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertNotNull(result.value());
     }
 
-    // -----------------------------------------------------------------------
     // java.sql.Date type mapping via record
-    // -----------------------------------------------------------------------
 
     record SqlDateResult(java.sql.Date value) {}
 
@@ -278,9 +244,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertNotNull(result.value());
     }
 
-    // -----------------------------------------------------------------------
     // java.sql.Time type mapping via record
-    // -----------------------------------------------------------------------
 
     record SqlTimeResult(java.sql.Time value) {}
 
@@ -292,9 +256,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertNotNull(result.value());
     }
 
-    // -----------------------------------------------------------------------
     // java.util.Date type mapping via record
-    // -----------------------------------------------------------------------
 
     record JavaUtilDateResult(java.util.Date value) {}
 
@@ -306,9 +268,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertNotNull(result.value());
     }
 
-    // -----------------------------------------------------------------------
     // Null handling for various types via records with nullable fields
-    // -----------------------------------------------------------------------
 
     @Test
     public void testNullLocalDateMapping() {
@@ -374,9 +334,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertNull(result.value());
     }
 
-    // -----------------------------------------------------------------------
     // Multi-column record mapping via getResultList(Class)
-    // -----------------------------------------------------------------------
 
     record CityInfo(int id, String name) {}
 
@@ -390,9 +348,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals("Sun Paririe", results.getFirst().name());
     }
 
-    // -----------------------------------------------------------------------
     // getResultStream() returning Object[] arrays
-    // -----------------------------------------------------------------------
 
     @Test
     public void testGetResultStreamObjectArray() {
@@ -406,9 +362,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertNotNull(row[1]);
     }
 
-    // -----------------------------------------------------------------------
     // Query.getSingleResult() - returning Object[]
-    // -----------------------------------------------------------------------
 
     @Test
     public void testGetSingleResultObjectArray() {
@@ -418,9 +372,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals(2, row.length);
     }
 
-    // -----------------------------------------------------------------------
     // Query.getOptionalResult(Class) - present
-    // -----------------------------------------------------------------------
 
     @Test
     public void testGetOptionalResultPresent() {
@@ -431,9 +383,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals("Sun Paririe", result.get().value());
     }
 
-    // -----------------------------------------------------------------------
     // Query.getOptionalResult(Class) - empty
-    // -----------------------------------------------------------------------
 
     @Test
     public void testGetOptionalResultEmpty() {
@@ -443,9 +393,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertTrue(result.isEmpty());
     }
 
-    // -----------------------------------------------------------------------
     // Query.getResultCount() on raw query
-    // -----------------------------------------------------------------------
 
     @Test
     public void testRawQueryGetResultCount() {
@@ -455,9 +403,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals(6, count);
     }
 
-    // -----------------------------------------------------------------------
     // Query.toString() - exercises the toString path in QueryImpl
-    // -----------------------------------------------------------------------
 
     @Test
     public void testQueryToString() {
@@ -468,9 +414,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertTrue(toString.contains("Query@"), "Expected toString to contain 'Query@' prefix");
     }
 
-    // -----------------------------------------------------------------------
     // Primitive int type mapping (via record with int field)
-    // -----------------------------------------------------------------------
 
     record PrimitiveIntResult(int value) {}
 
@@ -481,9 +425,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals(42, result.value());
     }
 
-    // -----------------------------------------------------------------------
     // Primitive boolean mapping via record
-    // -----------------------------------------------------------------------
 
     record PrimitiveBooleanResult(boolean value) {}
 
@@ -494,9 +436,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertTrue(result.value());
     }
 
-    // -----------------------------------------------------------------------
     // Primitive long mapping via record
-    // -----------------------------------------------------------------------
 
     record PrimitiveLongResult(long value) {}
 
@@ -507,9 +447,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals(123456789L, result.value());
     }
 
-    // -----------------------------------------------------------------------
     // Primitive double mapping via record
-    // -----------------------------------------------------------------------
 
     record PrimitiveDoubleResult(double value) {}
 
@@ -520,9 +458,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals(3.14, result.value(), 0.001);
     }
 
-    // -----------------------------------------------------------------------
     // Primitive short mapping via record
-    // -----------------------------------------------------------------------
 
     record PrimitiveShortResult(short value) {}
 
@@ -533,9 +469,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals((short) 7, result.value());
     }
 
-    // -----------------------------------------------------------------------
     // Primitive float mapping via record
-    // -----------------------------------------------------------------------
 
     record PrimitiveFloatResult(float value) {}
 
@@ -546,9 +480,7 @@ public class QueryImplTypeMappingIntegrationTest {
         assertEquals(1.5f, result.value(), 0.001f);
     }
 
-    // -----------------------------------------------------------------------
     // Primitive byte mapping via record
-    // -----------------------------------------------------------------------
 
     record PrimitiveByteResult(byte value) {}
 

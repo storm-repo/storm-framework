@@ -16,9 +16,7 @@ import st.orm.core.template.impl.TemplateMetrics;
 @SuppressWarnings("ALL")
 public class MetricsIntegrationTest {
 
-    // -----------------------------------------------------------------------
     // DirtyCheckMetrics
-    // -----------------------------------------------------------------------
 
     @Test
     public void testDirtyCheckMetricsGetInstance() {
@@ -186,9 +184,7 @@ public class MetricsIntegrationTest {
         assertEquals(0, metrics.getShapes());
     }
 
-    // -----------------------------------------------------------------------
     // EntityCacheMetrics
-    // -----------------------------------------------------------------------
 
     @Test
     public void testEntityCacheMetricsGetInstance() {
@@ -307,9 +303,7 @@ public class MetricsIntegrationTest {
         assertEquals(0, metrics.getEvictions());
     }
 
-    // -----------------------------------------------------------------------
     // TemplateMetrics
-    // -----------------------------------------------------------------------
 
     @Test
     public void testTemplateMetricsGetInstance() {

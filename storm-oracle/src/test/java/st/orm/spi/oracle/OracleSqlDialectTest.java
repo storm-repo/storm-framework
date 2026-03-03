@@ -2,6 +2,7 @@ package st.orm.spi.oracle;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
@@ -15,7 +16,7 @@ class OracleSqlDialectTest {
 
     private final OracleSqlDialect dialect = new OracleSqlDialect();
 
-    // -- Escape: Oracle uses double-quote escaping --
+    // Escape: Oracle uses double-quote escaping
 
     @Test
     void escapeShouldWrapInDoubleQuotes() {
@@ -32,7 +33,7 @@ class OracleSqlDialectTest {
         assertEquals("\"a\"\"b\"\"c\"", dialect.escape("a\"b\"c"));
     }
 
-    // -- getSafeIdentifier: keyword + escape integration --
+    // getSafeIdentifier: keyword + escape integration
 
     @Test
     void getSafeIdentifierShouldEscapeOracleSpecificKeywords() {
@@ -60,7 +61,7 @@ class OracleSqlDialectTest {
         assertFalse(dialect.isKeyword("myColumn"));
     }
 
-    // -- Identifier pattern --
+    // Identifier pattern
 
     @Test
     void identifierPatternShouldExtractDoubleQuotedIdentifiers() {
@@ -69,7 +70,7 @@ class OracleSqlDialectTest {
         assertEquals("\"my col\"", matcher.group());
     }
 
-    // -- Quote literal pattern --
+    // Quote literal pattern
 
     @Test
     void quoteLiteralPatternShouldMatchStringWithEscapedQuotes() {
@@ -78,7 +79,7 @@ class OracleSqlDialectTest {
         assertEquals("'it''s a test'", matcher.group());
     }
 
-    // -- Oracle-specific limit/offset: FETCH FIRST / OFFSET ROWS syntax --
+    // Oracle-specific limit/offset: FETCH FIRST / OFFSET ROWS syntax
 
     @Test
     void limitShouldUseFetchFirstSyntax() {
@@ -100,7 +101,7 @@ class OracleSqlDialectTest {
         assertEquals("OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY", dialect.limit(0, 1));
     }
 
-    // -- Oracle-specific lock hints: no shared lock, FOR UPDATE --
+    // Oracle-specific lock hints: no shared lock, FOR UPDATE
 
     @Test
     void forShareLockShouldReturnEmptyBecauseOracleDoesNotSupportSharedLocks() {
@@ -108,7 +109,7 @@ class OracleSqlDialectTest {
         assertEquals("", dialect.forShareLockHint());
     }
 
-    // -- Sequence SQL: Oracle-specific .NEXTVAL syntax --
+    // Sequence SQL: Oracle-specific .NEXTVAL syntax
 
     @Test
     void sequenceNextValShouldGenerateDotNextvalSyntax() {
@@ -121,7 +122,7 @@ class OracleSqlDialectTest {
         assertEquals("\"SELECT\".NEXTVAL", result);
     }
 
-    // -- Provider filter --
+    // Provider filter
 
     @Test
     void providerFilterShouldAcceptNonSqlDialectProviders() {
@@ -140,7 +141,7 @@ class OracleSqlDialectTest {
         assertTrue(OracleProviderFilter.INSTANCE.test(new OracleEntityRepositoryProviderImpl()));
     }
 
-    // -- SqlDialectProvider --
+    // SqlDialectProvider
 
     @Test
     void sqlDialectProviderShouldReturnDialectWithOracleSpecificBehavior() {
@@ -149,5 +150,142 @@ class OracleSqlDialectTest {
         // Oracle-specific: double-quote escaping and FETCH FIRST syntax.
         assertEquals("\"col\"", sqlDialect.escape("col"));
         assertEquals("FETCH FIRST 5 ROWS ONLY", sqlDialect.limit(5));
+    }
+
+    @Test
+    void nameShouldReturnOracle() {
+        assertEquals("Oracle", dialect.name());
+    }
+
+    @Test
+    void configConstructorShouldCreateDialectWithSameBehavior() {
+        var configDialect = new OracleSqlDialect(StormConfig.of(Map.of()));
+        assertEquals("Oracle", configDialect.name());
+        assertEquals("\"col\"", configDialect.escape("col"));
+    }
+
+    @Test
+    void supportsDeleteAliasShouldReturnFalse() {
+        assertFalse(dialect.supportsDeleteAlias());
+    }
+
+    @Test
+    void supportsMultiValueTuplesShouldReturnTrue() {
+        assertTrue(dialect.supportsMultiValueTuples());
+    }
+
+    @Test
+    void forUpdateLockHintShouldReturnForUpdate() {
+        assertEquals("FOR UPDATE", dialect.forUpdateLockHint());
+    }
+
+    @Test
+    void forShareLockHintShouldReturnEmptyString() {
+        assertEquals("", dialect.forShareLockHint());
+    }
+
+    @Test
+    void sequenceDiscoveryStrategyShouldReturnAllSequences() {
+        assertEquals(
+                st.orm.core.template.SqlDialect.SequenceDiscoveryStrategy.ALL_SEQUENCES,
+                dialect.sequenceDiscoveryStrategy());
+    }
+
+    @Test
+    void constraintDiscoveryStrategyShouldReturnAllConstraints() {
+        assertEquals(
+                st.orm.core.template.SqlDialect.ConstraintDiscoveryStrategy.ALL_CONSTRAINTS,
+                dialect.constraintDiscoveryStrategy());
+    }
+
+    @Test
+    void validIdentifierPatternShouldAcceptAlphanumericWithUnderscore() {
+        assertTrue(dialect.getValidIdentifierPattern().matcher("myTable123").matches());
+        assertTrue(dialect.getValidIdentifierPattern().matcher("my_table").matches());
+    }
+
+    @Test
+    void validIdentifierPatternShouldRejectUnderscorePrefix() {
+        assertFalse(dialect.getValidIdentifierPattern().matcher("_temp").matches());
+    }
+
+    @Test
+    void validIdentifierPatternShouldRejectSpecialCharacters() {
+        assertFalse(dialect.getValidIdentifierPattern().matcher("my-table").matches());
+        assertFalse(dialect.getValidIdentifierPattern().matcher("my table").matches());
+    }
+
+    @Test
+    void validIdentifierPatternShouldRejectEmptyString() {
+        assertFalse(dialect.getValidIdentifierPattern().matcher("").matches());
+    }
+
+    @Test
+    void quoteLiteralPatternShouldMatchSimpleStringLiteral() {
+        var matcher = dialect.getQuoteLiteralPattern().matcher("'hello'");
+        assertTrue(matcher.find());
+        assertEquals("'hello'", matcher.group());
+    }
+
+    @Test
+    void entityRepositoryProviderShouldNotBeNull() {
+        assertNotNull(new OracleEntityRepositoryProviderImpl());
+    }
+
+    @Test
+    void sqlDialectProviderShouldCreateDialectWithAllOracleSpecificBehavior() {
+        var provider = new OracleSqlDialectProviderImpl();
+        var sqlDialect = provider.getSqlDialect(StormConfig.of(Map.of()));
+        assertNotNull(sqlDialect);
+        assertEquals("Oracle", sqlDialect.name());
+        assertFalse(sqlDialect.supportsDeleteAlias());
+        assertTrue(sqlDialect.supportsMultiValueTuples());
+        assertEquals("FOR UPDATE", sqlDialect.forUpdateLockHint());
+        assertEquals("", sqlDialect.forShareLockHint());
+    }
+
+    @Test
+    void isKeywordShouldRecognizeAnsiKeywords() {
+        assertTrue(dialect.isKeyword("SELECT"));
+        assertTrue(dialect.isKeyword("INSERT"));
+        assertTrue(dialect.isKeyword("UPDATE"));
+        assertTrue(dialect.isKeyword("DELETE"));
+    }
+
+    @Test
+    void isKeywordShouldRecognizeOracleSpecificKeywords() {
+        assertTrue(dialect.isKeyword("ACCESS"));
+        assertTrue(dialect.isKeyword("AUDIT"));
+        assertTrue(dialect.isKeyword("CLUSTER"));
+        assertTrue(dialect.isKeyword("COMMENT"));
+        assertTrue(dialect.isKeyword("COMPRESS"));
+        assertTrue(dialect.isKeyword("EXCLUSIVE"));
+        assertTrue(dialect.isKeyword("FILE"));
+        assertTrue(dialect.isKeyword("IDENTIFIED"));
+        assertTrue(dialect.isKeyword("INCREMENT"));
+        assertTrue(dialect.isKeyword("INDEX"));
+        assertTrue(dialect.isKeyword("INITIAL"));
+        assertTrue(dialect.isKeyword("LOCK"));
+        assertTrue(dialect.isKeyword("LONG"));
+        assertTrue(dialect.isKeyword("MAXEXTENTS"));
+        assertTrue(dialect.isKeyword("MLSLABEL"));
+        assertTrue(dialect.isKeyword("MODE"));
+        assertTrue(dialect.isKeyword("MODIFY"));
+        assertTrue(dialect.isKeyword("NOWAIT"));
+        assertTrue(dialect.isKeyword("OFFLINE"));
+        assertTrue(dialect.isKeyword("ONLINE"));
+        assertTrue(dialect.isKeyword("PCTFREE"));
+        assertTrue(dialect.isKeyword("RAW"));
+        assertTrue(dialect.isKeyword("SESSION"));
+        assertTrue(dialect.isKeyword("SHARE"));
+        assertTrue(dialect.isKeyword("SUCCESSFUL"));
+        assertTrue(dialect.isKeyword("UID"));
+        assertTrue(dialect.isKeyword("VALIDATE"));
+        assertTrue(dialect.isKeyword("VIEW"));
+    }
+
+    @Test
+    void escapeShouldHandleEmptyName() {
+        assertEquals("\"\"", dialect.escape(""));
     }
 }

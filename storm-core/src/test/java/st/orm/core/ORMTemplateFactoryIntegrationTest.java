@@ -35,9 +35,7 @@ public class ORMTemplateFactoryIntegrationTest {
     @Autowired
     private DataSource dataSource;
 
-    // -----------------------------------------------------------------------
     // 1. ORMTemplate.of(Connection)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testOfConnection() throws SQLException {
@@ -48,9 +46,7 @@ public class ORMTemplateFactoryIntegrationTest {
         }
     }
 
-    // -----------------------------------------------------------------------
     // 2. ORMTemplate.of(Connection, UnaryOperator<TemplateDecorator>) - identity
-    // -----------------------------------------------------------------------
 
     @Test
     public void testOfConnectionWithIdentityDecorator() throws SQLException {
@@ -61,9 +57,7 @@ public class ORMTemplateFactoryIntegrationTest {
         }
     }
 
-    // -----------------------------------------------------------------------
     // 3. ORMTemplate.of(Connection, UnaryOperator<TemplateDecorator>) - bad decorator
-    // -----------------------------------------------------------------------
 
     @Test
     public void testOfConnectionWithBadDecoratorThrows() throws SQLException {
@@ -74,9 +68,7 @@ public class ORMTemplateFactoryIntegrationTest {
         }
     }
 
-    // -----------------------------------------------------------------------
     // 4. ORMTemplate.of(DataSource, UnaryOperator<TemplateDecorator>) - identity
-    // -----------------------------------------------------------------------
 
     @Test
     public void testOfDataSourceWithIdentityDecorator() {
@@ -85,9 +77,7 @@ public class ORMTemplateFactoryIntegrationTest {
         assertEquals(6, cities.size());
     }
 
-    // -----------------------------------------------------------------------
     // 5. ORMTemplate.of(DataSource, UnaryOperator<TemplateDecorator>) - bad decorator
-    // -----------------------------------------------------------------------
 
     @Test
     public void testOfDataSourceWithBadDecoratorThrows() {
@@ -96,9 +86,7 @@ public class ORMTemplateFactoryIntegrationTest {
         );
     }
 
-    // -----------------------------------------------------------------------
     // 6. ORMTemplate.of(DataSource, StormConfig)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testOfDataSourceWithConfig() {
@@ -117,9 +105,7 @@ public class ORMTemplateFactoryIntegrationTest {
         assertEquals(6, cities.size());
     }
 
-    // -----------------------------------------------------------------------
     // 7. ORMTemplate.of(DataSource, StormConfig, UnaryOperator<TemplateDecorator>)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testOfDataSourceWithConfigAndIdentityDecorator() {
@@ -137,9 +123,7 @@ public class ORMTemplateFactoryIntegrationTest {
         );
     }
 
-    // -----------------------------------------------------------------------
     // 8. ORMTemplate.of(Connection, StormConfig)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testOfConnectionWithConfig() throws SQLException {
@@ -151,9 +135,7 @@ public class ORMTemplateFactoryIntegrationTest {
         }
     }
 
-    // -----------------------------------------------------------------------
     // 9. ORMTemplate.of(Connection, StormConfig, UnaryOperator<TemplateDecorator>)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testOfConnectionWithConfigAndIdentityDecorator() throws SQLException {
@@ -175,9 +157,7 @@ public class ORMTemplateFactoryIntegrationTest {
         }
     }
 
-    // -----------------------------------------------------------------------
     // 10. entityCallbacks() default
-    // -----------------------------------------------------------------------
 
     @Test
     public void testEntityCallbacksDefaultEmpty() {
@@ -185,9 +165,7 @@ public class ORMTemplateFactoryIntegrationTest {
         assertTrue(orm.entityCallbacks().isEmpty());
     }
 
-    // -----------------------------------------------------------------------
     // 11. withEntityCallback()
-    // -----------------------------------------------------------------------
 
     @Test
     public void testWithEntityCallbackAddsCallback() {
@@ -232,9 +210,7 @@ public class ORMTemplateFactoryIntegrationTest {
         assertEquals(6, cities.size());
     }
 
-    // -----------------------------------------------------------------------
     // Additional: verify of(DataSource) produces a working template
-    // -----------------------------------------------------------------------
 
     @Test
     public void testOfDataSourceBasic() {
@@ -244,9 +220,7 @@ public class ORMTemplateFactoryIntegrationTest {
         assertEquals(6, count);
     }
 
-    // -----------------------------------------------------------------------
     // Additional: Connection-based template with config and custom config map
-    // -----------------------------------------------------------------------
 
     @Test
     public void testOfConnectionWithCustomConfigMap() throws SQLException {
@@ -259,9 +233,7 @@ public class ORMTemplateFactoryIntegrationTest {
         }
     }
 
-    // -----------------------------------------------------------------------
     // Stub TemplateDecorator that is not a PreparedStatementTemplateImpl
-    // -----------------------------------------------------------------------
 
     /**
      * A minimal TemplateDecorator implementation that is NOT a PreparedStatementTemplateImpl,

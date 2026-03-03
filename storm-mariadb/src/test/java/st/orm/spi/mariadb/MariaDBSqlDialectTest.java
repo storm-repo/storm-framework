@@ -2,6 +2,7 @@ package st.orm.spi.mariadb;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -18,7 +19,7 @@ class MariaDBSqlDialectTest {
 
     private final MariaDBSqlDialect dialect = new MariaDBSqlDialect();
 
-    // -- Escape: MariaDB inherits MySQL backtick escaping --
+    // Escape: MariaDB inherits MySQL backtick escaping
 
     @Test
     void escapeShouldWrapInBackticks() {
@@ -35,7 +36,7 @@ class MariaDBSqlDialectTest {
         assertEquals("`a``b``c`", dialect.escape("a`b`c"));
     }
 
-    // -- getSafeIdentifier: keyword + escape integration --
+    // getSafeIdentifier: keyword + escape integration
 
     @Test
     void getSafeIdentifierShouldEscapeMySQLKeywords() {
@@ -62,7 +63,7 @@ class MariaDBSqlDialectTest {
         assertFalse(dialect.isKeyword("myColumn"));
     }
 
-    // -- Identifier pattern: matches both backtick and double-quote --
+    // Identifier pattern: matches both backtick and double-quote
 
     @Test
     void identifierPatternShouldExtractBacktickIdentifiers() {
@@ -78,7 +79,7 @@ class MariaDBSqlDialectTest {
         assertEquals("\"my col\"", matcher.group());
     }
 
-    // -- Quote literal pattern --
+    // Quote literal pattern
 
     @Test
     void quoteLiteralPatternShouldMatchStringWithEscapedQuotes() {
@@ -87,7 +88,7 @@ class MariaDBSqlDialectTest {
         assertEquals("'it''s a test'", matcher.group());
     }
 
-    // -- MySQL-inherited limit/offset with MySQL's unusual offset workaround --
+    // MySQL-inherited limit/offset with MySQL's unusual offset workaround
 
     @Test
     void offsetShouldUseLimitMaxWorkaround() {
@@ -100,7 +101,7 @@ class MariaDBSqlDialectTest {
         assertEquals("LIMIT 20 OFFSET 10", dialect.limit(10, 20));
     }
 
-    // -- MariaDB's key behavioral override: sequence support --
+    // MariaDB's key behavioral override: sequence support
 
     @Test
     void sequenceNextValShouldReturnNextValueForSyntax() {
@@ -124,7 +125,7 @@ class MariaDBSqlDialectTest {
         assertThrows(PersistenceException.class, () -> mysqlDialect.sequenceNextVal("test_seq"));
     }
 
-    // -- Provider filter --
+    // Provider filter
 
     @Test
     void providerFilterShouldAcceptNonSqlDialectProviders() {
@@ -143,7 +144,7 @@ class MariaDBSqlDialectTest {
         assertTrue(MariaDBProviderFilter.INSTANCE.test(new MariaDBEntityRepositoryProviderImpl()));
     }
 
-    // -- SqlDialectProvider --
+    // SqlDialectProvider
 
     @Test
     void sqlDialectProviderShouldReturnDialectWithMariaDBSpecificBehavior() {
@@ -153,5 +154,87 @@ class MariaDBSqlDialectTest {
         assertEquals("`col`", sqlDialect.escape("col"));
         assertEquals("LIMIT 5", sqlDialect.limit(5));
         assertEquals("MariaDB", sqlDialect.name());
+    }
+
+    @Test
+    void nameShouldReturnMariaDB() {
+        assertEquals("MariaDB", dialect.name());
+    }
+
+    @Test
+    void configConstructorShouldCreateDialectWithSameBehavior() {
+        var configDialect = new MariaDBSqlDialect(StormConfig.of(Map.of()));
+        assertEquals("MariaDB", configDialect.name());
+        assertEquals("`col`", configDialect.escape("col"));
+    }
+
+    @Test
+    void supportsDeleteAliasShouldReturnTrue() {
+        assertTrue(dialect.supportsDeleteAlias());
+    }
+
+    @Test
+    void supportsMultiValueTuplesShouldReturnTrue() {
+        assertTrue(dialect.supportsMultiValueTuples());
+    }
+
+    @Test
+    void forUpdateLockHintShouldReturnForUpdate() {
+        assertEquals("FOR UPDATE", dialect.forUpdateLockHint());
+    }
+
+    @Test
+    void forShareLockHintShouldReturnForShare() {
+        assertEquals("FOR SHARE", dialect.forShareLockHint());
+    }
+
+    @Test
+    void limitShouldGenerateLimitClause() {
+        assertEquals("LIMIT 10", dialect.limit(10));
+        assertEquals("LIMIT 0", dialect.limit(0));
+    }
+
+    @Test
+    void validIdentifierPatternShouldAcceptUnderscorePrefix() {
+        assertTrue(dialect.getValidIdentifierPattern().matcher("_temp").matches());
+    }
+
+    @Test
+    void validIdentifierPatternShouldRejectEmptyString() {
+        assertFalse(dialect.getValidIdentifierPattern().matcher("").matches());
+    }
+
+    @Test
+    void validIdentifierPatternShouldRejectSpecialCharacters() {
+        assertFalse(dialect.getValidIdentifierPattern().matcher("my-table").matches());
+    }
+
+    @Test
+    void quoteLiteralPatternShouldMatchSimpleStringLiteral() {
+        var matcher = dialect.getQuoteLiteralPattern().matcher("'hello'");
+        assertTrue(matcher.find());
+        assertEquals("'hello'", matcher.group());
+    }
+
+    @Test
+    void entityRepositoryProviderShouldNotBeNull() {
+        assertNotNull(new MariaDBEntityRepositoryProviderImpl());
+    }
+
+    @Test
+    void sqlDialectProviderShouldCreateDialectWithAllMariaDBSpecificBehavior() {
+        var provider = new MariaDBSqlDialectProviderImpl();
+        var sqlDialect = provider.getSqlDialect(StormConfig.of(Map.of()));
+        assertNotNull(sqlDialect);
+        assertEquals("MariaDB", sqlDialect.name());
+        assertTrue(sqlDialect.supportsDeleteAlias());
+        assertTrue(sqlDialect.supportsMultiValueTuples());
+        assertEquals("FOR UPDATE", sqlDialect.forUpdateLockHint());
+        assertEquals("FOR SHARE", sqlDialect.forShareLockHint());
+    }
+
+    @Test
+    void escapeShouldHandleEmptyName() {
+        assertEquals("``", dialect.escape(""));
     }
 }

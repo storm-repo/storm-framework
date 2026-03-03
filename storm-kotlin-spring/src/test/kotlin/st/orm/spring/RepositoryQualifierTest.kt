@@ -45,9 +45,7 @@ class RepositoryQualifierTest(
         override val repositoryBasePackages: Array<String> get() = arrayOf("st.orm.spring.repository")
     }
 
-    // ======================================================================
     // Prefixed repository registration
-    // ======================================================================
 
     @Test
     fun `prefixed repository should be registered with prefix in bean name`() {

@@ -2,6 +2,7 @@ package st.orm.spi.postgresql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
@@ -15,7 +16,7 @@ class PostgreSQLSqlDialectTest {
 
     private final PostgreSQLSqlDialect dialect = new PostgreSQLSqlDialect();
 
-    // -- Identifier validation --
+    // Identifier validation
 
     @Test
     void identifierPatternShouldRejectUnderscorePrefixedNames() {
@@ -27,7 +28,7 @@ class PostgreSQLSqlDialectTest {
         assertFalse(dialect.getValidIdentifierPattern().matcher("123start").matches());
     }
 
-    // -- Escape: PostgreSQL uses double-quote escaping --
+    // Escape: PostgreSQL uses double-quote escaping
 
     @Test
     void escapeShouldWrapInDoubleQuotes() {
@@ -44,7 +45,7 @@ class PostgreSQLSqlDialectTest {
         assertEquals("\"a\"\"b\"\"c\"", dialect.escape("a\"b\"c"));
     }
 
-    // -- getSafeIdentifier: keyword + escape integration --
+    // getSafeIdentifier: keyword + escape integration
 
     @Test
     void getSafeIdentifierShouldEscapePostgreSQLSpecificKeywords() {
@@ -70,7 +71,7 @@ class PostgreSQLSqlDialectTest {
         assertFalse(dialect.isKeyword("myColumn"));
     }
 
-    // -- Identifier pattern: extraction from SQL text --
+    // Identifier pattern: extraction from SQL text
 
     @Test
     void identifierPatternShouldExtractDoubleQuotedIdentifiers() {
@@ -84,7 +85,7 @@ class PostgreSQLSqlDialectTest {
         assertFalse(dialect.getIdentifierPattern().matcher("SELECT myCol FROM t").find());
     }
 
-    // -- Quote literal pattern --
+    // Quote literal pattern
 
     @Test
     void quoteLiteralPatternShouldMatchStringWithEscapedQuotes() {
@@ -93,7 +94,7 @@ class PostgreSQLSqlDialectTest {
         assertEquals("'it''s a test'", matcher.group());
     }
 
-    // -- PostgreSQL-specific limit/offset syntax --
+    // PostgreSQL-specific limit/offset syntax
 
     @Test
     void limitShouldGenerateLimitClause() {
@@ -113,7 +114,7 @@ class PostgreSQLSqlDialectTest {
         assertEquals("OFFSET 10 LIMIT 20", dialect.limit(10, 20));
     }
 
-    // -- PostgreSQL-specific lock hints --
+    // PostgreSQL-specific lock hints
 
     @Test
     void forShareLockShouldUseForKeyShare() {
@@ -121,7 +122,7 @@ class PostgreSQLSqlDialectTest {
         assertEquals("FOR KEY SHARE", dialect.forShareLockHint());
     }
 
-    // -- Sequence SQL: PostgreSQL nextval('name') --
+    // Sequence SQL: PostgreSQL nextval('name')
 
     @Test
     void sequenceNextValShouldGenerateNextvalFunction() {
@@ -135,7 +136,7 @@ class PostgreSQLSqlDialectTest {
         assertTrue(result.contains("SELECT"));
     }
 
-    // -- Provider filter --
+    // Provider filter
 
     @Test
     void providerFilterShouldAcceptNonSqlDialectProviders() {
@@ -154,7 +155,7 @@ class PostgreSQLSqlDialectTest {
         assertTrue(PostgreSQLProviderFilter.INSTANCE.test(new PostgreSQLEntityRepositoryProviderImpl()));
     }
 
-    // -- SqlDialectProvider --
+    // SqlDialectProvider
 
     @Test
     void sqlDialectProviderShouldReturnDialectWithPostgreSQLSpecificBehavior() {
@@ -162,5 +163,100 @@ class PostgreSQLSqlDialectTest {
         var sqlDialect = provider.getSqlDialect(StormConfig.of(Map.of()));
         assertEquals("\"col\"", sqlDialect.escape("col"));
         assertEquals("LIMIT 5", sqlDialect.limit(5));
+    }
+
+    @Test
+    void nameShouldReturnPostgreSQL() {
+        assertEquals("PostgreSQL", dialect.name());
+    }
+
+    @Test
+    void configConstructorShouldCreateDialectWithSameBehavior() {
+        var configDialect = new PostgreSQLSqlDialect(StormConfig.of(Map.of()));
+        assertEquals("PostgreSQL", configDialect.name());
+        assertEquals("\"col\"", configDialect.escape("col"));
+    }
+
+    @Test
+    void supportsDeleteAliasShouldReturnFalse() {
+        assertFalse(dialect.supportsDeleteAlias());
+    }
+
+    @Test
+    void supportsMultiValueTuplesShouldReturnTrue() {
+        assertTrue(dialect.supportsMultiValueTuples());
+    }
+
+    @Test
+    void forUpdateLockHintShouldReturnForUpdate() {
+        assertEquals("FOR UPDATE", dialect.forUpdateLockHint());
+    }
+
+    @Test
+    void forShareLockHintShouldReturnForKeyShare() {
+        assertEquals("FOR KEY SHARE", dialect.forShareLockHint());
+    }
+
+    @Test
+    void validIdentifierPatternShouldAcceptAlphanumericWithUnderscore() {
+        assertTrue(dialect.getValidIdentifierPattern().matcher("myTable123").matches());
+        assertTrue(dialect.getValidIdentifierPattern().matcher("my_table").matches());
+    }
+
+    @Test
+    void validIdentifierPatternShouldRejectEmptyString() {
+        assertFalse(dialect.getValidIdentifierPattern().matcher("").matches());
+    }
+
+    @Test
+    void quoteLiteralPatternShouldMatchSimpleStringLiteral() {
+        var matcher = dialect.getQuoteLiteralPattern().matcher("'hello'");
+        assertTrue(matcher.find());
+        assertEquals("'hello'", matcher.group());
+    }
+
+    @Test
+    void quoteLiteralPatternShouldMatchEmptyStringLiteral() {
+        var matcher = dialect.getQuoteLiteralPattern().matcher("''");
+        assertTrue(matcher.find());
+        assertEquals("''", matcher.group());
+    }
+
+    @Test
+    void entityRepositoryProviderShouldNotBeNull() {
+        assertNotNull(new PostgreSQLEntityRepositoryProviderImpl());
+    }
+
+    @Test
+    void sqlDialectProviderShouldCreateDialectWithAllPostgreSQLSpecificBehavior() {
+        var provider = new PostgreSQLSqlDialectProviderImpl();
+        var sqlDialect = provider.getSqlDialect(StormConfig.of(Map.of()));
+        assertNotNull(sqlDialect);
+        assertEquals("PostgreSQL", sqlDialect.name());
+        assertFalse(sqlDialect.supportsDeleteAlias());
+        assertTrue(sqlDialect.supportsMultiValueTuples());
+        assertEquals("FOR UPDATE", sqlDialect.forUpdateLockHint());
+        assertEquals("FOR KEY SHARE", sqlDialect.forShareLockHint());
+        assertEquals("OFFSET 5", sqlDialect.offset(5));
+    }
+
+    @Test
+    void isKeywordShouldRecognizePostgreSQLSpecificKeywords() {
+        assertTrue(dialect.isKeyword("ANALYSE"));
+        assertTrue(dialect.isKeyword("BIGSERIAL"));
+        assertTrue(dialect.isKeyword("INDEX"));
+        assertTrue(dialect.isKeyword("INITIALLY"));
+        assertTrue(dialect.isKeyword("LIMIT"));
+        assertTrue(dialect.isKeyword("PLACING"));
+        assertTrue(dialect.isKeyword("SMALLSERIAL"));
+        assertTrue(dialect.isKeyword("UNLOGGED"));
+        assertTrue(dialect.isKeyword("VARIADIC"));
+        assertTrue(dialect.isKeyword("VERBOSE"));
+        assertTrue(dialect.isKeyword("XML"));
+    }
+
+    @Test
+    void escapeShouldHandleEmptyName() {
+        assertEquals("\"\"", dialect.escape(""));
     }
 }

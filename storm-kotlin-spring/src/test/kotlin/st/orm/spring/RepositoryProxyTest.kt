@@ -40,9 +40,7 @@ class RepositoryProxyTest(
     val applicationContext: ApplicationContext,
 ) {
 
-    // ===========================================================================================
     // Proxy detection
-    // ===========================================================================================
 
     @Test
     fun `visit repository should be a Spring AOP proxy`() {
@@ -56,9 +54,7 @@ class RepositoryProxyTest(
         VisitRepository::class.java.isAssignableFrom(targetClass).shouldBeTrue()
     }
 
-    // ===========================================================================================
     // Proxied repository should be an instance of the expected interfaces
-    // ===========================================================================================
 
     @Test
     fun `visit repository should be instance of VisitRepository`() {
@@ -75,9 +71,7 @@ class RepositoryProxyTest(
         visitRepository.shouldBeInstanceOf<Repository>()
     }
 
-    // ===========================================================================================
     // CRUD operations through proxied repository
-    // ===========================================================================================
 
     @Test
     fun `proxied repository count should return correct value`() {
@@ -123,9 +117,7 @@ class RepositoryProxyTest(
         visitRepository.count() shouldBe 0
     }
 
-    // ===========================================================================================
     // Repository.orm property through proxy
-    // ===========================================================================================
 
     @Test
     fun `proxied repository orm property should not be null`() {
@@ -142,9 +134,7 @@ class RepositoryProxyTest(
         visitRepository.orm.countAll<Visit>() shouldBe 14
     }
 
-    // ===========================================================================================
     // Object methods on proxied repository (toString, hashCode, equals)
-    // ===========================================================================================
 
     @Test
     fun `proxied repository toString should not throw and should return a non-empty string`() {
@@ -179,9 +169,7 @@ class RepositoryProxyTest(
         visitRepository.equals("not a repository") shouldBe false
     }
 
-    // ===========================================================================================
     // Bean lookup from ApplicationContext
-    // ===========================================================================================
 
     @Test
     fun `visit repository should be retrievable from application context by type`() {
@@ -205,9 +193,7 @@ class RepositoryProxyTest(
         (byType === byName) shouldBe true
     }
 
-    // ===========================================================================================
     // Proxy transparency: model property access
-    // ===========================================================================================
 
     @Test
     fun `proxied repository model property should not be null`() {

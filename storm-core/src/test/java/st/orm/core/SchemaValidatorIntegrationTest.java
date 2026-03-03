@@ -1,5 +1,6 @@
 package st.orm.core;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -13,13 +14,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.Data;
 import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.GenerationStrategy;
 import st.orm.PK;
+import st.orm.PersistenceException;
 import st.orm.core.model.City;
 import st.orm.core.model.Owner;
 import st.orm.core.model.Pet;
+import st.orm.core.model.PetType;
+import st.orm.core.model.Visit;
+import st.orm.core.model.polymorphic.Animal;
+import st.orm.core.model.polymorphic.JoinedAnimal;
+import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.impl.SchemaValidationError;
 import st.orm.core.template.impl.SchemaValidationException;
 import st.orm.core.template.impl.SchemaValidator;
@@ -37,7 +45,7 @@ public class SchemaValidatorIntegrationTest {
     @Autowired
     private DataSource dataSource;
 
-    // ---- Valid types ----
+    // Valid types
 
     @Test
     public void testValidateValidTypes() {
@@ -63,7 +71,7 @@ public class SchemaValidatorIntegrationTest {
                 "Expected no hard errors for valid types, got: " + hardErrors);
     }
 
-    // ---- Missing table ----
+    // Missing table
 
     @DbTable("nonexistent_table")
     public record NonexistentTableEntity(
@@ -80,7 +88,7 @@ public class SchemaValidatorIntegrationTest {
                 error -> error.kind() == SchemaValidationError.ErrorKind.TABLE_NOT_FOUND));
     }
 
-    // ---- Missing column ----
+    // Missing column
 
     @DbTable("city")
     public record CityWithExtraColumn(
@@ -98,7 +106,7 @@ public class SchemaValidatorIntegrationTest {
                 error -> error.kind() == SchemaValidationError.ErrorKind.COLUMN_NOT_FOUND));
     }
 
-    // ---- Type incompatible ----
+    // Type incompatible
 
     @DbTable("city")
     public record CityWithIncompatibleType(
@@ -118,7 +126,7 @@ public class SchemaValidatorIntegrationTest {
                 "Expected hard errors for String-mapped INTEGER column, got: " + errors);
     }
 
-    // ---- validateOrThrow throws for invalid type ----
+    // validateOrThrow throws for invalid type
 
     @Test
     public void testValidateOrThrowThrowsForInvalidType() {
@@ -127,7 +135,7 @@ public class SchemaValidatorIntegrationTest {
                 () -> validator.validateOrThrow(List.of(NonexistentTableEntity.class)));
     }
 
-    // ---- validateAndReport ----
+    // validateAndReport
 
     @Test
     public void testValidateAndReportNonStrictIgnoresNullabilityWarnings() {
@@ -157,7 +165,7 @@ public class SchemaValidatorIntegrationTest {
                 "Error message should reference the missing table name, got: " + errors);
     }
 
-    // ---- Empty type list ----
+    // Empty type list
 
     @Test
     public void testValidateEmptyTypeList() {
@@ -167,7 +175,7 @@ public class SchemaValidatorIntegrationTest {
         assertTrue(errors.isEmpty());
     }
 
-    // ---- Sequence validation (testing with a type that references a nonexistent sequence) ----
+    // Sequence validation (testing with a type that references a nonexistent sequence)
 
     @DbTable("city")
     public record CityWithSequence(
@@ -182,5 +190,87 @@ public class SchemaValidatorIntegrationTest {
         // Should detect that the sequence does not exist.
         assertTrue(errors.stream().anyMatch(
                 error -> error.kind() == SchemaValidationError.ErrorKind.SEQUENCE_NOT_FOUND));
+    }
+
+    @DbTable("non_existent_table")
+    record NonExistentEntity(@PK Integer id, String name) implements Entity<Integer> {}
+
+    @DbTable("city")
+    record CityWithExtraColumnForOrm(@PK Integer id, String name, String extraColumn) implements Entity<Integer> {}
+
+    @Test
+    public void testValidateSchemaForCityReturnsEmpty() {
+        var orm = ORMTemplate.of(dataSource);
+        List<String> errors = orm.validateSchema(List.of(City.class));
+        assertTrue(errors.isEmpty(), "City schema should validate without errors: " + errors);
+    }
+
+    @Test
+    public void testValidateSchemaForOwnerReturnsEmpty() {
+        var orm = ORMTemplate.of(dataSource);
+        List<String> errors = orm.validateSchema(List.of(Owner.class));
+        assertTrue(errors.isEmpty(), "Owner schema should validate without errors: " + errors);
+    }
+
+    @Test
+    public void testValidateSchemaForPetReturnsEmpty() {
+        var orm = ORMTemplate.of(dataSource);
+        List<String> errors = orm.validateSchema(List.of(Pet.class));
+        assertTrue(errors.isEmpty(), "Pet schema should validate without errors: " + errors);
+    }
+
+    @Test
+    public void testValidateSchemaForMultipleTypesReturnsEmpty() {
+        var orm = ORMTemplate.of(dataSource);
+        List<String> errors = orm.validateSchema(List.of(City.class, Owner.class, PetType.class));
+        assertTrue(errors.isEmpty(), "Multiple types should validate without errors: " + errors);
+    }
+
+    @Test
+    public void testValidateSchemaOrThrowForValidTypesDoesNotThrow() {
+        var orm = ORMTemplate.of(dataSource);
+        assertDoesNotThrow(() -> orm.validateSchemaOrThrow(List.of(City.class, Owner.class)));
+    }
+
+    @Test
+    public void testValidateSchemaForSingleTableAnimal() {
+        var orm = ORMTemplate.of(dataSource);
+        List<String> errors = orm.validateSchema(List.of(Animal.class));
+        assertTrue(errors.isEmpty(), "Animal (single-table) schema should validate without errors: " + errors);
+    }
+
+    @Test
+    public void testValidateSchemaForJoinedAnimal() {
+        var orm = ORMTemplate.of(dataSource);
+        List<String> errors = orm.validateSchema(List.of(JoinedAnimal.class));
+        assertTrue(errors.isEmpty(), "JoinedAnimal schema should validate without errors: " + errors);
+    }
+
+    @Test
+    public void testValidateSchemaForNonExistentTableReportsError() {
+        var orm = ORMTemplate.of(dataSource);
+        List<String> errors = orm.validateSchema(List.<Class<? extends Data>>of(NonExistentEntity.class));
+        assertFalse(errors.isEmpty(), "Non-existent table should produce validation errors");
+    }
+
+    @Test
+    public void testValidateSchemaOrThrowForNonExistentTableThrows() {
+        var orm = ORMTemplate.of(dataSource);
+        assertThrows(PersistenceException.class,
+                () -> orm.validateSchemaOrThrow(List.<Class<? extends Data>>of(NonExistentEntity.class)));
+    }
+
+    @Test
+    public void testValidateSchemaForExtraColumnReportsError() {
+        var orm = ORMTemplate.of(dataSource);
+        List<String> errors = orm.validateSchema(List.<Class<? extends Data>>of(CityWithExtraColumnForOrm.class));
+        assertFalse(errors.isEmpty(), "Entity with extra column should produce validation errors");
+    }
+
+    @Test
+    public void testValidateSchemaForVisitReturnsEmpty() {
+        var orm = ORMTemplate.of(dataSource);
+        List<String> errors = orm.validateSchema(List.of(Visit.class));
+        assertTrue(errors.isEmpty(), "Visit schema should validate without errors: " + errors);
     }
 }

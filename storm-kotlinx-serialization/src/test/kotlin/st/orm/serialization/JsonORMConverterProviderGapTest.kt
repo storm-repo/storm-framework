@@ -32,7 +32,7 @@ open class JsonORMConverterProviderGapTest(
     @Autowired val dataSource: DataSource,
 ) {
 
-    // -- toDatabase error path: trigger SqlTemplateException by causing a serialization failure --
+    // toDatabase error path: trigger SqlTemplateException by causing a serialization failure
 
     // Use a type that has a field whose getter throws an exception.
     // This exercises the toDatabase catch block (line 182-183 in JsonORMConverterImpl.kt).
@@ -55,7 +55,7 @@ open class JsonORMConverterProviderGapTest(
         }
     }
 
-    // -- Verify that getParameterCount and getParameterTypes return expected values --
+    // Verify that getParameterCount and getParameterTypes return expected values
     // These are implicitly tested through the integration tests that successfully
     // read @Json fields, but we verify them through a round-trip.
 

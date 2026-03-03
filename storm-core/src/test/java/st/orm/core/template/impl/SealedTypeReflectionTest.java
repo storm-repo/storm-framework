@@ -27,7 +27,7 @@ import st.orm.mapping.RecordField;
  */
 class SealedTypeReflectionTest {
 
-    // ---- Test model types ----
+    // Test model types
 
     // Single-Table (default for sealed Entity)
     @Discriminator
@@ -56,7 +56,7 @@ class SealedTypeReflectionTest {
     @Discriminator("PERSIAN")
     record CustomCat(@PK Integer id, String name) implements CustomAnimal {}
 
-    // ---- Pattern Detection ----
+    // Pattern Detection
 
     @Test
     void detectSingleTablePattern() {
@@ -85,7 +85,7 @@ class SealedTypeReflectionTest {
         assertTrue(pattern.isEmpty());
     }
 
-    // ---- Convenience Checks ----
+    // Convenience Checks
 
     @Test
     void isSealedEntity() {
@@ -114,7 +114,7 @@ class SealedTypeReflectionTest {
         assertFalse(RecordReflection.isPolymorphicData(STA.class));
     }
 
-    // ---- Discriminator Column ----
+    // Discriminator Column
 
     @Test
     void defaultDiscriminatorColumn() throws SqlTemplateException {
@@ -142,7 +142,7 @@ class SealedTypeReflectionTest {
         assertTrue(error.contains("@Discriminator"));
     }
 
-    // ---- Discriminator Value ----
+    // Discriminator Value
 
     @Test
     void defaultDiscriminatorValue() {
@@ -161,7 +161,7 @@ class SealedTypeReflectionTest {
         assertEquals("test_photo", RecordReflection.getDiscriminatorValue(TestPhoto.class, Commentable.class));
     }
 
-    // ---- Resolve Concrete Type ----
+    // Resolve Concrete Type
 
     @Test
     void resolveConcreteType() throws SqlTemplateException {
@@ -175,7 +175,7 @@ class SealedTypeReflectionTest {
         assertEquals(TestPhoto.class, RecordReflection.resolveConcreteType(Commentable.class, "test_photo"));
     }
 
-    // ---- Field Partitioning (Joined) ----
+    // Field Partitioning (Joined)
 
     @Test
     void baseFieldNames() {
@@ -197,7 +197,7 @@ class SealedTypeReflectionTest {
         assertTrue(dogExt.contains("weight"));
     }
 
-    // ---- Hierarchy Validation ----
+    // Hierarchy Validation
 
     @Test
     void validSingleTableHierarchy() {
@@ -214,7 +214,7 @@ class SealedTypeReflectionTest {
         assertEquals("", RecordReflection.validateSealedHierarchy(Commentable.class));
     }
 
-    // ---- Validation Error Cases ----
+    // Validation Error Cases
 
     // Mismatched PK generation strategy
     @Discriminator
@@ -352,7 +352,7 @@ class SealedTypeReflectionTest {
         assertTrue(error.contains("generation strategy"));
     }
 
-    // ---- Discriminator Type Tests (D12) ----
+    // Discriminator Type Tests (D12)
 
     // INTEGER discriminator type
     @Discriminator(type = DiscriminatorType.INTEGER)
@@ -471,7 +471,7 @@ class SealedTypeReflectionTest {
         assertEquals("", RecordReflection.validateSealedHierarchy(CharAnimal.class));
     }
 
-    // ---- @Polymorphic(SINGLE_TABLE) Handling (B3/D12) ----
+    // @Polymorphic(SINGLE_TABLE) Handling (B3/D12)
 
     @Polymorphic(Polymorphic.Strategy.SINGLE_TABLE)
     @Discriminator
@@ -491,7 +491,7 @@ class SealedTypeReflectionTest {
         assertEquals("", RecordReflection.validateSealedHierarchy(ExplicitSTI.class));
     }
 
-    // ---- Near-miss Field Validation (B4/D12) ----
+    // Near-miss Field Validation (B4/D12)
 
     @Discriminator
     sealed interface NearMissFields extends Entity<Integer> permits NearMissSub1, NearMissSub2 {}
@@ -505,14 +505,14 @@ class SealedTypeReflectionTest {
         assertTrue(error.contains("name"));
     }
 
-    // ---- Mismatched PK types across subtypes of sealed entity ----
+    // Mismatched PK types across subtypes of sealed entity
     // Note: mismatched PK types between Integer and Long cannot be modeled because Java requires
     // a common generic type in Entity<ID>. The MismatchedGen test above covers a similar case
     // (mismatched generation strategy). The PK type mismatch validation (L1067-1068) requires
     // compound PK records with different field types, which is difficult to express in a test
     // inner class. This is already implicitly tested by the MismatchedGenPolyFK test.
 
-    // ---- Joined entity with no common fields across subtypes (L1081-1082) ----
+    // Joined entity with no common fields across subtypes (L1081-1082)
 
     @Discriminator
     @Polymorphic(JOINED)
@@ -530,7 +530,7 @@ class SealedTypeReflectionTest {
         assertTrue(error.contains("no common fields"));
     }
 
-    // ---- Polymorphic FK with @DbTable on interface (L1109) ----
+    // Polymorphic FK with @DbTable on interface (L1109)
 
     @DbTable("should_not_have_dbtable")
     sealed interface PolyFkWithDbTable extends Data permits PolyFkWithDbTableSub {}
@@ -542,7 +542,7 @@ class SealedTypeReflectionTest {
         assertTrue(error.contains("@DbTable"));
     }
 
-    // ---- Sealed Data with non-Entity subtype returns empty pattern (L689-690, L697) ----
+    // Sealed Data with non-Entity subtype returns empty pattern (L689-690, L697)
 
     sealed interface DataWithNonEntitySub extends Data permits DataWithNonEntitySubEntity, DataWithNonEntitySubData {}
     record DataWithNonEntitySubEntity(@PK Integer id, String title) implements DataWithNonEntitySub, Entity<Integer> {}
@@ -563,7 +563,7 @@ class SealedTypeReflectionTest {
         assertEquals("", error);
     }
 
-    // ---- Polymorphic FK subtype without @PK (L1133-1134) ----
+    // Polymorphic FK subtype without @PK (L1133-1134)
 
     sealed interface PolyFkNoPk extends Data permits PolyFkNoPkSub {}
     record PolyFkNoPkSub(Integer id, String title) implements PolyFkNoPk, Entity<Integer> {
@@ -576,7 +576,7 @@ class SealedTypeReflectionTest {
         assertTrue(error.contains("@PK field"));
     }
 
-    // ---- Polymorphic FK mismatched PK types (L1143-1144) ----
+    // Polymorphic FK mismatched PK types (L1143-1144)
 
     sealed interface PolyFkMismatchedPk extends Data permits PolyFkMismatchedPkSub1, PolyFkMismatchedPkSub2 {}
     record PolyFkMismatchedPkSub1(@PK Integer id, String title) implements PolyFkMismatchedPk, Entity<Integer> {}
@@ -588,7 +588,7 @@ class SealedTypeReflectionTest {
         assertTrue(error.contains("same @PK column type"));
     }
 
-    // ---- Missing @PK in sealed entity subtype (L1057-1058) ----
+    // Missing @PK in sealed entity subtype (L1057-1058)
 
     @Discriminator
     sealed interface SealedNoPk extends Entity<Integer> permits SealedNoPkSub {}
@@ -602,7 +602,7 @@ class SealedTypeReflectionTest {
         assertTrue(error.contains("@PK field"));
     }
 
-    // ---- Unknown discriminator value in resolveConcreteType (L930-931) ----
+    // Unknown discriminator value in resolveConcreteType (L930-931)
 
     @Test
     void unknownDiscriminatorValueThrows() {
@@ -610,7 +610,7 @@ class SealedTypeReflectionTest {
                 () -> RecordReflection.resolveConcreteType(STA.class, "UnknownType"));
     }
 
-    // ---- Polymorphic FK with @DbTable on subtype (L876) ----
+    // Polymorphic FK with @DbTable on subtype (L876)
 
     sealed interface PolyFkWithDbTableSubs extends Data permits PolyFkDbTableSub1, PolyFkDbTableSub2 {}
     @DbTable("custom_sub_table") record PolyFkDbTableSub1(@PK Integer id, String title) implements PolyFkWithDbTableSubs, Entity<Integer> {}
@@ -624,7 +624,7 @@ class SealedTypeReflectionTest {
         assertEquals("poly_fk_db_table_sub_2", RecordReflection.getDiscriminatorValue(PolyFkDbTableSub2.class, PolyFkWithDbTableSubs.class));
     }
 
-    // ---- Polymorphic FK with @DbTable with empty name on subtype (L878) ----
+    // Polymorphic FK with @DbTable with empty name on subtype (L878)
 
     sealed interface PolyFkEmptyDbTable extends Data permits PolyFkEmptyDbTableSub {}
     @DbTable record PolyFkEmptyDbTableSub(@PK Integer id) implements PolyFkEmptyDbTable, Entity<Integer> {}
@@ -636,7 +636,7 @@ class SealedTypeReflectionTest {
                 RecordReflection.getDiscriminatorValue(PolyFkEmptyDbTableSub.class, PolyFkEmptyDbTable.class));
     }
 
-    // ---- getPolymorphicDiscriminatorColumn with custom column name (L796) ----
+    // getPolymorphicDiscriminatorColumn with custom column name (L796)
 
     record EntityWithCustomDiscriminatorFk(
             @PK Integer id,
@@ -657,7 +657,7 @@ class SealedTypeReflectionTest {
         assertEquals("item_type", RecordReflection.getPolymorphicDiscriminatorColumn(field));
     }
 
-    // ---- Polymorphic FK with @Discriminator on interface (L1112-1115) ----
+    // Polymorphic FK with @Discriminator on interface (L1112-1115)
 
     @Discriminator
     sealed interface PolyFkWithDiscriminator extends Data permits PolyFkWithDiscriminatorSub {}
@@ -669,7 +669,7 @@ class SealedTypeReflectionTest {
         assertTrue(error.contains("@Discriminator"));
     }
 
-    // ---- Polymorphic FK with @Polymorphic on interface (L1118-1121) ----
+    // Polymorphic FK with @Polymorphic on interface (L1118-1121)
 
     @Polymorphic(Polymorphic.Strategy.SINGLE_TABLE)
     sealed interface PolyFkWithPolymorphic extends Data permits PolyFkWithPolymorphicSub {}
@@ -681,7 +681,7 @@ class SealedTypeReflectionTest {
         assertTrue(error.contains("@Polymorphic"));
     }
 
-    // ---- Polymorphic FK mismatched generation strategy (L1146-1148) ----
+    // Polymorphic FK mismatched generation strategy (L1146-1148)
 
     sealed interface PolyFkMismatchedGen extends Data permits PolyFkMismatchedGenSub1, PolyFkMismatchedGenSub2 {}
     record PolyFkMismatchedGenSub1(@PK(generation = GenerationStrategy.IDENTITY) Integer id, String title)

@@ -44,7 +44,7 @@ class DatabaseSchemaTest {
         }
     }
 
-    // ---- Basic read() tests ----
+    // Basic read() tests
 
     @Test
     void testReadEmptySchema() throws SQLException {
@@ -188,7 +188,7 @@ class DatabaseSchemaTest {
         }
     }
 
-    // ---- Discovery strategy tests ----
+    // Discovery strategy tests
 
     @Test
     void testReadWithJdbcMetadataStrategy() throws SQLException {
@@ -249,7 +249,7 @@ class DatabaseSchemaTest {
         }
     }
 
-    // ---- View test ----
+    // View test
 
     @Test
     void testViewExists() throws SQLException {
@@ -263,7 +263,7 @@ class DatabaseSchemaTest {
         }
     }
 
-    // ---- Table with no columns case ----
+    // Table with no columns case
 
     @Test
     void testTableWithMultipleForeignKeys() throws SQLException {

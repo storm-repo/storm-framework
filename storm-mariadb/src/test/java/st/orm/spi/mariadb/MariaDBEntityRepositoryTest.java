@@ -15,17 +15,20 @@ import static st.orm.core.template.SqlInterceptor.observe;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.sql.DataSource;
 import lombok.Builder;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -1977,5 +1980,258 @@ public class MariaDBEntityRepositoryTest {
         assertEquals(2, updatedEntities.size());
         assertEquals("Max", updatedEntities.get(0).name());
         assertEquals("Bella", updatedEntities.get(1).name());
+    }
+
+    @BeforeEach
+    void setUpBranchTables() {
+        var jdbc = new JdbcTemplate(dataSource);
+        jdbc.execute("DROP TABLE IF EXISTS version_long_entity");
+        jdbc.execute("""
+                CREATE TABLE version_long_entity (
+                    id integer AUTO_INCREMENT PRIMARY KEY,
+                    name varchar(255),
+                    version bigint DEFAULT 0
+                )""");
+        jdbc.execute("INSERT INTO version_long_entity (name) VALUES ('Alice')");
+        jdbc.execute("INSERT INTO version_long_entity (name) VALUES ('Bob')");
+
+        jdbc.execute("DROP TABLE IF EXISTS version_instant_entity");
+        jdbc.execute("""
+                CREATE TABLE version_instant_entity (
+                    id integer AUTO_INCREMENT PRIMARY KEY,
+                    name varchar(255),
+                    version timestamp DEFAULT CURRENT_TIMESTAMP
+                )""");
+        jdbc.execute("INSERT INTO version_instant_entity (name) VALUES ('Alice')");
+        jdbc.execute("INSERT INTO version_instant_entity (name) VALUES ('Bob')");
+
+        jdbc.execute("DROP TABLE IF EXISTS non_autogen_entity");
+        jdbc.execute("""
+                CREATE TABLE non_autogen_entity (
+                    id integer PRIMARY KEY,
+                    name varchar(255),
+                    version integer DEFAULT 0
+                )""");
+        jdbc.execute("INSERT INTO non_autogen_entity (id, name) VALUES (1, 'First')");
+        jdbc.execute("INSERT INTO non_autogen_entity (id, name) VALUES (2, 'Second')");
+
+        jdbc.execute("DROP TABLE IF EXISTS seq_entity");
+        jdbc.execute("DROP SEQUENCE IF EXISTS seq_entity_id_seq");
+        jdbc.execute("CREATE SEQUENCE seq_entity_id_seq START WITH 1 INCREMENT BY 1");
+        jdbc.execute("""
+                CREATE TABLE seq_entity (
+                    id integer PRIMARY KEY DEFAULT (NEXT VALUE FOR seq_entity_id_seq),
+                    name varchar(255),
+                    version integer DEFAULT 0
+                )""");
+        jdbc.execute("INSERT INTO seq_entity (name) VALUES ('Alpha')");
+        jdbc.execute("INSERT INTO seq_entity (name) VALUES ('Beta')");
+    }
+
+    @Builder(toBuilder = true)
+    @DbTable("version_long_entity")
+    public record VersionLongEntity(
+            @PK Integer id,
+            @Nonnull String name,
+            @Version long version
+    ) implements Entity<Integer> {}
+
+    @Builder(toBuilder = true)
+    @DbTable("version_instant_entity")
+    public record VersionInstantEntity(
+            @PK Integer id,
+            @Nonnull String name,
+            @Version @Nullable Instant version
+    ) implements Entity<Integer> {}
+
+    @Builder(toBuilder = true)
+    @DbTable("non_autogen_entity")
+    public record NonAutoGenEntity(
+            @PK(generation = NONE) Integer id,
+            @Nonnull String name,
+            @Version int version
+    ) implements Entity<Integer> {}
+
+    @Builder(toBuilder = true)
+    @DbTable("seq_entity")
+    public record SeqEntity(
+            @PK(generation = SEQUENCE, sequence = "seq_entity_id_seq") Integer id,
+            @Nonnull String name,
+            @Version int version
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void testUpsertWithVersionLong() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VersionLongEntity.class);
+        var entity = repo.getById(1);
+        assertEquals("Alice", entity.name());
+        assertEquals(0L, entity.version());
+
+        observe(sql -> {
+            assertTrue(sql.versionAware());
+        }, () -> repo.upsert(entity.toBuilder().name("Alice Updated").build()));
+
+        var updated = repo.getById(1);
+        assertEquals("Alice Updated", updated.name());
+        assertEquals(1L, updated.version());
+    }
+
+    @Test
+    public void testUpsertBatchWithVersionLong() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VersionLongEntity.class);
+        var entity1 = repo.getById(1);
+        var entity2 = repo.getById(2);
+
+        repo.upsert(List.of(
+                entity1.toBuilder().name("Alice Batch").build(),
+                entity2.toBuilder().name("Bob Batch").build()));
+
+        var updated1 = repo.getById(1);
+        var updated2 = repo.getById(2);
+        assertEquals("Alice Batch", updated1.name());
+        assertEquals(1L, updated1.version());
+        assertEquals("Bob Batch", updated2.name());
+        assertEquals(1L, updated2.version());
+    }
+
+    @Test
+    public void testUpsertWithVersionInstant() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VersionInstantEntity.class);
+        var entity = repo.getById(1);
+        assertEquals("Alice", entity.name());
+        assertNotNull(entity.version());
+
+        observe(sql -> {
+            assertTrue(sql.versionAware());
+            assertTrue(sql.statement().contains("CURRENT_TIMESTAMP"));
+        }, () -> repo.upsert(entity.toBuilder().name("Alice Instant").build()));
+
+        var updated = repo.getById(1);
+        assertEquals("Alice Instant", updated.name());
+        assertNotNull(updated.version());
+    }
+
+    @Test
+    public void testInsertAndFetchIdWithSequence() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        var first = new AtomicBoolean(false);
+        observe(sql -> {
+            if (!first.getAndSet(true)) {
+                assertTrue(sql.statement().contains("RETURNING id"));
+            }
+        }, () -> {
+            var id = repo.insertAndFetchId(SeqEntity.builder().name("Gamma").version(0).build());
+            assertNotNull(id);
+            assertTrue(id > 0);
+        });
+    }
+
+    @Test
+    public void testInsertAndFetchIdsWithSequence() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        var ids = repo.insertAndFetchIds(List.of(
+                SeqEntity.builder().name("Delta").version(0).build(),
+                SeqEntity.builder().name("Epsilon").version(0).build()));
+        assertEquals(2, ids.size());
+        assertTrue(ids.get(0) > 0);
+        assertTrue(ids.get(1) > 0);
+    }
+
+    @Test
+    public void testUpsertAndFetchIdWithSequence() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        var first = new AtomicBoolean(false);
+        observe(sql -> {
+            if (!first.getAndSet(true)) {
+                assertTrue(sql.statement().contains("RETURNING id"));
+            }
+        }, () -> {
+            var id = repo.upsertAndFetchId(SeqEntity.builder().name("Zeta").version(0).build());
+            assertNotNull(id);
+            assertTrue(id > 0);
+        });
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsWithSequenceNew() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        var ids = repo.upsertAndFetchIds(List.of(
+                SeqEntity.builder().name("Eta").version(0).build(),
+                SeqEntity.builder().name("Theta").version(0).build()));
+        assertEquals(2, ids.size());
+        assertTrue(ids.get(0) > 0);
+        assertTrue(ids.get(1) > 0);
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsWithSequenceExisting() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        var existing = repo.findAll();
+        var updates = existing.stream()
+                .map(entity -> entity.toBuilder().name(entity.name() + " Updated").build())
+                .toList();
+
+        var ids = repo.upsertAndFetchIds(updates);
+        assertEquals(existing.size(), ids.size());
+        for (int i = 0; i < ids.size(); i++) {
+            assertEquals(existing.get(i).id(), ids.get(i));
+        }
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsWithSequenceMixed() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        var existing = repo.getById(1);
+        var entities = List.of(
+                SeqEntity.builder().name("Iota").version(0).build(),
+                existing.toBuilder().name("Alpha Updated").build());
+
+        var ids = repo.upsertAndFetchIds(entities);
+        assertEquals(2, ids.size());
+        assertEquals(existing.id(), ids.get(1));
+    }
+
+    @Test
+    public void testUpsertNonAutoGeneratedPk() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(NonAutoGenEntity.class);
+        repo.upsert(NonAutoGenEntity.builder().id(1).name("First Updated").version(0).build());
+        var updated = repo.getById(1);
+        assertEquals("First Updated", updated.name());
+
+        repo.upsert(NonAutoGenEntity.builder().id(3).name("Third").version(0).build());
+        var created = repo.getById(3);
+        assertEquals("Third", created.name());
+    }
+
+    @Test
+    public void testUpsertAndFetchIdNonAutoGenPk() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(NonAutoGenEntity.class);
+        var id = repo.upsertAndFetchId(NonAutoGenEntity.builder().id(4).name("Fourth").version(0).build());
+        assertEquals(4, id);
+    }
+
+    @Test
+    public void testUpsertBatchNonAutoGenPk() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(NonAutoGenEntity.class);
+        repo.upsert(List.of(
+                NonAutoGenEntity.builder().id(1).name("First Batch").version(0).build(),
+                NonAutoGenEntity.builder().id(5).name("Fifth").version(0).build()));
+        assertEquals("First Batch", repo.getById(1).name());
+        assertEquals("Fifth", repo.getById(5).name());
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsEmptyList() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(NonAutoGenEntity.class);
+        var ids = repo.upsertAndFetchIds(List.of());
+        assertTrue(ids.isEmpty());
+    }
+
+    @Test
+    public void testUpsertNewEntityRoutesToInsert() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VersionLongEntity.class);
+        repo.upsert(VersionLongEntity.builder().name("New Entity").version(0L).build());
+        var entities = repo.findAll();
+        assertTrue(entities.stream().anyMatch(entity -> "New Entity".equals(entity.name())));
     }
 }

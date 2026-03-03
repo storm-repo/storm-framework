@@ -41,7 +41,7 @@ public class EntityRepositoryValidationIntegrationTest {
     @Autowired
     private DataSource dataSource;
 
-    // ---- Insert validation: auto-generated PK must not be set ----
+    // Insert validation: auto-generated PK must not be set
 
     @Test
     public void testInsertAutoGenPkWithExplicitIdThrows() {
@@ -62,7 +62,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertEquals(before + 1, cities.count());
     }
 
-    // ---- Insert with ignoreAutoGenerate: PK must be set ----
+    // Insert with ignoreAutoGenerate: PK must be set
 
     @Test
     public void testInsertIgnoreAutoGenerateWithDefaultPkThrows() {
@@ -83,7 +83,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertEquals("Explicit", cities.getById(500).name());
     }
 
-    // ---- Update validation: PK must be set ----
+    // Update validation: PK must be set
 
     @Test
     public void testUpdateWithZeroPkThrows() {
@@ -94,7 +94,7 @@ public class EntityRepositoryValidationIntegrationTest {
                 () -> cities.update(City.builder().id(0).name("Zero PK Update").build()));
     }
 
-    // ---- Delete validation: PK must be set ----
+    // Delete validation: PK must be set
 
     @Test
     public void testDeleteWithDefaultPkThrows() {
@@ -105,7 +105,7 @@ public class EntityRepositoryValidationIntegrationTest {
                 () -> cities.delete(City.builder().id(0).name("No PK Delete").build()));
     }
 
-    // ---- Non-auto-generated PK: VetSpecialty uses @PK(generation = NONE) ----
+    // Non-auto-generated PK: VetSpecialty uses @PK(generation = NONE)
 
     @Test
     public void testNonAutoGenPkInsertAndDelete() {
@@ -142,7 +142,7 @@ public class EntityRepositoryValidationIntegrationTest {
                 () -> vetSpecialties.upsert(new VetSpecialty(defaultPk)));
     }
 
-    // ---- Optimistic locking: version mismatch causes OptimisticLockException ----
+    // Optimistic locking: version mismatch causes OptimisticLockException
 
     @Test
     public void testOptimisticLockExceptionOnVersionMismatch() {
@@ -170,7 +170,7 @@ public class EntityRepositoryValidationIntegrationTest {
                 () -> owners.delete(owner));
     }
 
-    // ---- InsertAndFetch ----
+    // InsertAndFetch
 
     @Test
     public void testInsertAndFetch() {
@@ -183,7 +183,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertEquals("FetchAfterInsert", result.name());
     }
 
-    // ---- InsertAndFetchId ----
+    // InsertAndFetchId
 
     @Test
     public void testInsertAndFetchId() {
@@ -195,7 +195,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertEquals("FetchIdCity", cities.getById(id).name());
     }
 
-    // ---- UpdateAndFetch ----
+    // UpdateAndFetch
 
     @Test
     public void testUpdateAndFetch() {
@@ -207,7 +207,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertEquals("FetchAfterUpdate", updated.name());
     }
 
-    // ---- Delete non-existent entity throws ----
+    // Delete non-existent entity throws
 
     @Test
     public void testDeleteNonExistentEntityThrows() {
@@ -217,7 +217,7 @@ public class EntityRepositoryValidationIntegrationTest {
                 () -> cities.delete(City.builder().id(99999).name("NonExistent").build()));
     }
 
-    // ---- Batch insert with auto-gen PK ----
+    // Batch insert with auto-gen PK
 
     @Test
     public void testBatchInsertAutoGenPk() {
@@ -244,7 +244,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertEquals("FetchBatch2", cities.getById(ids.get(1)).name());
     }
 
-    // ---- Batch update ----
+    // Batch update
 
     @Test
     public void testBatchUpdate() {
@@ -258,7 +258,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertEquals("Updated McFarland", cities.getById(2).name());
     }
 
-    // ---- Batch delete ----
+    // Batch delete
 
     @Test
     public void testBatchDelete() {
@@ -274,7 +274,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertEquals(before - 2, cities.count());
     }
 
-    // ---- Callback re-entrancy guard ----
+    // Callback re-entrancy guard
 
     @Test
     public void testCallbackReentrancyGuard() {
@@ -298,7 +298,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertEquals("afterInsert:reentrancy test", log.get(1));
     }
 
-    // ---- Callback on delete operations ----
+    // Callback on delete operations
 
     @Test
     public void testDeleteCallbacksWithBatch() {
@@ -326,7 +326,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertEquals(List.of("DelCbA", "DelCbB"), afterLog);
     }
 
-    // ---- Batch insert with callbacks ----
+    // Batch insert with callbacks
 
     @Test
     public void testBatchInsertAndFetchIdsWithCallbacks() {
@@ -350,7 +350,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertEquals("CB FETCH B", cities.getById(ids.get(1)).name());
     }
 
-    // ---- Update callbacks ----
+    // Update callbacks
 
     @Test
     public void testUpdateCallbacksFireCorrectly() {
@@ -376,7 +376,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertEquals("Callback Updated", afterLog.get(0));
     }
 
-    // ---- Model introspection via entity repository ----
+    // Model introspection via entity repository
 
     @Test
     public void testModelType() {
@@ -440,7 +440,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertTrue(primaryKeyMetamodel.isPresent());
     }
 
-    // ---- Owner model with inline Address and FK City ----
+    // Owner model with inline Address and FK City
 
     @Test
     public void testOwnerModelColumnsIncludeAddressAndCity() {
@@ -458,7 +458,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertTrue(declaredColumns.size() >= 5);
     }
 
-    // ---- FindMetamodel ----
+    // FindMetamodel
 
     @Test
     public void testFindMetamodelForSelfType() {
@@ -477,7 +477,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertTrue(metamodel.isPresent());
     }
 
-    // ---- ForEachValue / values for City ----
+    // ForEachValue / values for City
 
     @Test
     public void testModelForEachValue() throws SqlTemplateException {
@@ -499,7 +499,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertTrue(values.size() >= 5);
     }
 
-    // ---- Stream-based delete ----
+    // Stream-based delete
 
     @Test
     public void testStreamBasedDelete() {
@@ -515,7 +515,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertEquals(before - 2, cities.count());
     }
 
-    // ---- Stream-based insert ----
+    // Stream-based insert
 
     @Test
     public void testStreamBasedInsert() {
@@ -529,7 +529,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertEquals(before + 2, cities.count());
     }
 
-    // ---- Stream-based update ----
+    // Stream-based update
 
     @Test
     public void testStreamBasedUpdate() {
@@ -543,7 +543,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertEquals("StreamUpd McFarland", cities.getById(2).name());
     }
 
-    // ---- PetType: auto-gen PK insert validation ----
+    // PetType: auto-gen PK insert validation
 
     @Test
     public void testPetTypeInsertWithExplicitPkThrows() {
@@ -565,7 +565,7 @@ public class EntityRepositoryValidationIntegrationTest {
                 () -> petTypes.insert(PetType.builder().name("New Type").build()));
     }
 
-    // ---- Intermediate callback type resolution ----
+    // Intermediate callback type resolution
 
     /**
      * An intermediate callback interface that extends EntityCallback with a bound type parameter.
@@ -629,7 +629,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertTrue(log.isEmpty(), "Owner callback should not trigger for City insert");
     }
 
-    // ---- Joined inheritance operations ----
+    // Joined inheritance operations
 
     @Test
     public void testJoinedInheritanceInsertAndGet() {
@@ -714,7 +714,7 @@ public class EntityRepositoryValidationIntegrationTest {
         ));
     }
 
-    // ---- Parameterized intermediate callback type resolution (L142-144) ----
+    // Parameterized intermediate callback type resolution (L142-144)
 
     /**
      * An intermediate parameterized interface that extends EntityCallback with a bound type but has
@@ -739,7 +739,7 @@ public class EntityRepositoryValidationIntegrationTest {
         assertEquals("parameterized callback", log.get(0));
     }
 
-    // ---- Upsert rejection for joined sealed entities (L906) ----
+    // Upsert rejection for joined sealed entities (L906)
 
     @Test
     public void testUpsertRejectedForJoinedSealedEntity() {

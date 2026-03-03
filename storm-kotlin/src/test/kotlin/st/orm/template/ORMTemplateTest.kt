@@ -29,7 +29,7 @@ import javax.sql.DataSource
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class ORMTemplateExtendedTest(
+open class ORMTemplateTest(
     @Autowired val orm: ORMTemplate,
     @Autowired val dataSource: DataSource,
 ) {
@@ -37,9 +37,7 @@ open class ORMTemplateExtendedTest(
     @Suppress("UNCHECKED_CAST")
     private fun <T : Data, V> metamodel(model: Model<*, *>, columnName: String): Metamodel<T, V> = model.columns.first { it.name == columnName }.metamodel as Metamodel<T, V>
 
-    // ======================================================================
     // ORMTemplate Companion: factory methods
-    // ======================================================================
 
     @Test
     fun `ORMTemplate of DataSource should create functional template`() {
@@ -73,9 +71,7 @@ open class ORMTemplateExtendedTest(
         }
     }
 
-    // ======================================================================
     // ORMTemplate Kotlin extension properties
-    // ======================================================================
 
     @Test
     fun `DataSource orm extension should create functional template`() {
@@ -109,9 +105,7 @@ open class ORMTemplateExtendedTest(
         }
     }
 
-    // ======================================================================
     // ORMTemplate: validateSchema
-    // ======================================================================
 
     @Test
     fun `validateSchema should return empty for valid types`() {
@@ -141,9 +135,7 @@ open class ORMTemplateExtendedTest(
         }
     }
 
-    // ======================================================================
     // EntityRepository: Metamodel.Key-based find/get
-    // ======================================================================
 
     @Test
     fun `findBy with Metamodel Key should return matching entity`() {
@@ -181,9 +173,7 @@ open class ORMTemplateExtendedTest(
         owner.firstName shouldBe "Betty"
     }
 
-    // ======================================================================
     // EntityRepository: Slice methods (keyset pagination)
-    // ======================================================================
 
     @Test
     fun `slice with key should return first page`() {
@@ -386,9 +376,7 @@ open class ORMTemplateExtendedTest(
         slice.content shouldHaveSize 1
     }
 
-    // ======================================================================
     // EntityRepository: Slice with key and sort metamodel
-    // ======================================================================
 
     @Test
     fun `slice with key and sort should return sorted first page`() {
@@ -434,9 +422,7 @@ open class ORMTemplateExtendedTest(
         slice.hasNext shouldBe true
     }
 
-    // ======================================================================
     // EntityRepository: select with custom type
-    // ======================================================================
 
     @Test
     fun `selectCount should return count result`() {
@@ -467,9 +453,7 @@ open class ORMTemplateExtendedTest(
         cities shouldHaveSize 6
     }
 
-    // ======================================================================
     // EntityRepository: Flow-based batch operations (default batch size)
-    // ======================================================================
 
     @Test
     fun `insert flow without batch size should persist entities`(): Unit = runBlocking {
@@ -545,9 +529,7 @@ open class ORMTemplateExtendedTest(
         }
     }
 
-    // ======================================================================
     // EntityRepository: selectAll, selectById, selectByRef (default chunk)
-    // ======================================================================
 
     @Test
     fun `selectAll should return all entities as flow`(): Unit = runBlocking {
@@ -603,9 +585,7 @@ open class ORMTemplateExtendedTest(
         count shouldBe 3
     }
 
-    // ======================================================================
     // EntityRepository: ref and unload
-    // ======================================================================
 
     @Test
     fun `ref with id should return valid ref`() {
@@ -630,9 +610,7 @@ open class ORMTemplateExtendedTest(
         ref.id() shouldBe 1
     }
 
-    // ======================================================================
     // EntityRepository: existsById, existsByRef
-    // ======================================================================
 
     @Test
     fun `existsById should return true for existing entity`() {
@@ -664,9 +642,7 @@ open class ORMTemplateExtendedTest(
         repo.exists() shouldBe true
     }
 
-    // ======================================================================
     // EntityRepository: findByRef, getByRef
-    // ======================================================================
 
     @Test
     fun `findByRef should return entity for valid ref`() {
@@ -683,9 +659,7 @@ open class ORMTemplateExtendedTest(
         city.name shouldBe "Sun Paririe"
     }
 
-    // ======================================================================
     // EntityRepository: Iterable batch operations
-    // ======================================================================
 
     @Test
     fun `insert iterable should persist entities`() {
@@ -767,9 +741,7 @@ open class ORMTemplateExtendedTest(
         inserted.forEach { repo.findById(it.id) shouldBe null }
     }
 
-    // ======================================================================
     // EntityRepository: single entity operations
-    // ======================================================================
 
     @Test
     fun `insert single entity should persist`() {
@@ -849,9 +821,7 @@ open class ORMTemplateExtendedTest(
         repo.count() shouldBe countBefore - 1
     }
 
-    // ======================================================================
     // RepositoryLookup: reified insert/update/upsert/delete extensions
-    // ======================================================================
 
     @Test
     fun `orm insert reified should persist and return entity`() {
@@ -908,9 +878,7 @@ open class ORMTemplateExtendedTest(
         cities.forEach { orm.entity(City::class).findById(it.id) shouldBe null }
     }
 
-    // ======================================================================
     // RepositoryLookup: reified findRefBy/getRefBy/findAllRefBy/selectRefBy
-    // ======================================================================
 
     @Test
     fun `orm findRefBy reified entity should return ref`() {
@@ -940,9 +908,7 @@ open class ORMTemplateExtendedTest(
         count shouldBe 1
     }
 
-    // ======================================================================
     // RepositoryLookup: reified Ref-based findBy/getBy/findAllBy/selectBy/deleteBy
-    // ======================================================================
 
     @Test
     fun `orm findBy reified entity with ref should return matching`() {
@@ -1013,9 +979,7 @@ open class ORMTemplateExtendedTest(
         deleted shouldBe 1
     }
 
-    // ======================================================================
     // RepositoryLookup: reified count/exists with predicate
-    // ======================================================================
 
     @Test
     fun `orm count reified with WhereBuilder should count matching`() {
@@ -1043,9 +1007,7 @@ open class ORMTemplateExtendedTest(
         orm.exists<City>(namePath eq "Madison") shouldBe true
     }
 
-    // ======================================================================
     // RepositoryLookup: reified find/get/findAll/findRef/findAllRef with predicate
-    // ======================================================================
 
     @Test
     fun `orm find reified with PredicateBuilder should find entity`() {
@@ -1090,9 +1052,7 @@ open class ORMTemplateExtendedTest(
         refs shouldHaveSize 1
     }
 
-    // ======================================================================
     // RepositoryLookup: reified select/selectRef with WhereBuilder
-    // ======================================================================
 
     @Test
     fun `orm select reified with WhereBuilder should return flow`(): Unit = runBlocking {
@@ -1108,9 +1068,7 @@ open class ORMTemplateExtendedTest(
         count shouldBe 1
     }
 
-    // ======================================================================
     // PreparedQuery: getSingleResult, getResultList, getResultStream with KClass
-    // ======================================================================
 
     @Test
     fun `prepared query getSingleResult with KClass should return typed result`() {
@@ -1139,9 +1097,7 @@ open class ORMTemplateExtendedTest(
         }
     }
 
-    // ======================================================================
     // QueryBuilder: sliceAfter/sliceBefore with cursor on QueryBuilder level
-    // ======================================================================
 
     @Test
     fun `queryBuilder sliceAfter with key and cursor should return next page`() {
@@ -1172,9 +1128,7 @@ open class ORMTemplateExtendedTest(
         slice.hasNext shouldBe true
     }
 
-    // ======================================================================
     // QueryBuilder: typed with pkType
-    // ======================================================================
 
     @Test
     fun `queryBuilder typed with pkType should work`() {
@@ -1184,9 +1138,7 @@ open class ORMTemplateExtendedTest(
         cities shouldHaveSize 6
     }
 
-    // ======================================================================
     // QueryBuilder: unsafe should allow delete without WHERE
-    // ======================================================================
 
     @Test
     fun `queryBuilder unsafe should allow delete without WHERE clause`() {
@@ -1196,9 +1148,7 @@ open class ORMTemplateExtendedTest(
         count shouldBe 14
     }
 
-    // ======================================================================
     // QueryBuilder: limit and offset
-    // ======================================================================
 
     @Test
     fun `queryBuilder limit should restrict results`() {
@@ -1217,9 +1167,7 @@ open class ORMTemplateExtendedTest(
         cities[0].id shouldBe 3
     }
 
-    // ======================================================================
     // QueryBuilder: distinct
-    // ======================================================================
 
     @Test
     fun `queryBuilder distinct should return unique results`() {
@@ -1228,9 +1176,7 @@ open class ORMTemplateExtendedTest(
         cities shouldHaveSize 6
     }
 
-    // ======================================================================
     // Query: getResultList, getResultStream, getSingleResult with KClass
-    // ======================================================================
 
     @Test
     fun `query getResultList with KClass should return results`() {
@@ -1253,9 +1199,7 @@ open class ORMTemplateExtendedTest(
         city.name shouldBe "Sun Paririe"
     }
 
-    // ======================================================================
     // QueryTemplate: selectFrom variants
-    // ======================================================================
 
     @Test
     fun `selectFrom with single type should return query builder`() {
@@ -1278,9 +1222,7 @@ open class ORMTemplateExtendedTest(
         count shouldBe 6L
     }
 
-    // ======================================================================
     // QueryTemplate/SubqueryTemplate: subquery variants
-    // ======================================================================
 
     @Test
     fun `subquery with single type should be usable in whereExists`() {
@@ -1304,9 +1246,7 @@ open class ORMTemplateExtendedTest(
         cities shouldHaveSize 6
     }
 
-    // ======================================================================
     // QueryTemplate: model
-    // ======================================================================
 
     @Test
     fun `model with type should return model`() {
@@ -1321,9 +1261,7 @@ open class ORMTemplateExtendedTest(
         model.shouldNotBeNull()
     }
 
-    // ======================================================================
     // QueryTemplate: query with TemplateBuilder
-    // ======================================================================
 
     @Test
     fun `query with TemplateBuilder should return results`() {
@@ -1332,9 +1270,7 @@ open class ORMTemplateExtendedTest(
         cities shouldHaveSize 6
     }
 
-    // ======================================================================
     // Query: getOptionalResult, getRefList, getRefStream, getRefFlow
-    // ======================================================================
 
     @Test
     fun `query getOptionalResult with KClass should return result`() {
@@ -1406,9 +1342,7 @@ open class ORMTemplateExtendedTest(
         result shouldHaveSize 6
     }
 
-    // ======================================================================
     // QueryBuilder: whereExists/whereNotExists
-    // ======================================================================
 
     @Test
     fun `whereExists with subquery builder should filter correctly`() {
@@ -1426,9 +1360,7 @@ open class ORMTemplateExtendedTest(
         cities shouldHaveSize 0
     }
 
-    // ======================================================================
     // QueryBuilder: orderByDescending
-    // ======================================================================
 
     @Test
     fun `orderByDescending should order results descending`() {
@@ -1455,9 +1387,7 @@ open class ORMTemplateExtendedTest(
         cities.first().id shouldBe 6
     }
 
-    // ======================================================================
     // QueryBuilder: orderByAny
-    // ======================================================================
 
     @Test
     fun `orderByAny with metamodel should order results`() {
@@ -1475,9 +1405,7 @@ open class ORMTemplateExtendedTest(
         cities.first().id shouldBe 6
     }
 
-    // ======================================================================
     // WhereBuilder: whereAny, whereAnyRef, whereId
-    // ======================================================================
 
     @Test
     fun `whereBuilder with whereAny record should filter correctly`() {
@@ -1550,9 +1478,7 @@ open class ORMTemplateExtendedTest(
         cities shouldHaveSize 0
     }
 
-    // ======================================================================
     // PredicateBuilder: andAny/orAny
-    // ======================================================================
 
     @Test
     fun `predicateBuilder andAny should combine predicates from different entities`() {
@@ -1596,9 +1522,7 @@ open class ORMTemplateExtendedTest(
         cities shouldHaveSize 2
     }
 
-    // ======================================================================
     // WhereBuilder: whereAny with metamodel path
-    // ======================================================================
 
     @Test
     fun `whereBuilder whereAny with metamodel path and record should filter correctly`() {
@@ -1652,9 +1576,7 @@ open class ORMTemplateExtendedTest(
         cities shouldHaveSize 2
     }
 
-    // ======================================================================
     // Query: unsafe, versionAware, prepare
-    // ======================================================================
 
     @Test
     fun `query unsafe should allow dangerous operations`() {
@@ -1669,9 +1591,7 @@ open class ORMTemplateExtendedTest(
         query.versionAware shouldBe false
     }
 
-    // ======================================================================
     // PreparedQuery: batch operations and generated keys
-    // ======================================================================
 
     @Test
     fun `preparedQuery addBatch and executeBatch should work`() {
@@ -1699,9 +1619,7 @@ open class ORMTemplateExtendedTest(
         }
     }
 
-    // ======================================================================
     // QueryBuilder: groupByAny
-    // ======================================================================
 
     @Test
     fun `groupByAny with metamodel should group results`() {
@@ -1712,9 +1630,7 @@ open class ORMTemplateExtendedTest(
         result.shouldNotBeNull()
     }
 
-    // ======================================================================
     // QueryBuilder: whereAny with metamodel path
-    // ======================================================================
 
     @Test
     fun `queryBuilder where with record should filter correctly`() {

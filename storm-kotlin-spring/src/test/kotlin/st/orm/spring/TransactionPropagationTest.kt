@@ -43,9 +43,7 @@ open class TransactionPropagationTest(
         )
     }
 
-    // ===========================================================================================
     // SUPPORTS propagation
-    // ===========================================================================================
 
     @Test
     fun `supports without outer transaction should execute non-transactionally and persist changes`(): Unit = runBlocking {
@@ -106,9 +104,7 @@ open class TransactionPropagationTest(
         orm.exists<Visit>().shouldBeTrue()
     }
 
-    // ===========================================================================================
     // MANDATORY propagation
-    // ===========================================================================================
 
     @Test
     fun `mandatory without outer transaction should throw exception on database access`(): Unit = runBlocking {
@@ -172,9 +168,7 @@ open class TransactionPropagationTest(
         orm.exists<Visit>().shouldBeTrue()
     }
 
-    // ===========================================================================================
     // NOT_SUPPORTED propagation
-    // ===========================================================================================
 
     @Test
     fun `not_supported without outer transaction should execute non-transactionally`(): Unit = runBlocking {
@@ -220,9 +214,7 @@ open class TransactionPropagationTest(
         orm.exists<Visit>().shouldBeFalse()
     }
 
-    // ===========================================================================================
     // NEVER propagation
-    // ===========================================================================================
 
     @Test
     fun `never without outer transaction should execute non-transactionally`(): Unit = runBlocking {
@@ -257,9 +249,7 @@ open class TransactionPropagationTest(
         orm.exists<Visit>().shouldBeFalse()
     }
 
-    // ===========================================================================================
     // Mixed propagation scenarios
-    // ===========================================================================================
 
     @Test
     fun `requires_new inside supports without outer transaction should create a new transaction`(): Unit = runBlocking {
@@ -309,9 +299,7 @@ open class TransactionPropagationTest(
         orm.exists<Visit>().shouldBeFalse()
     }
 
-    // ===========================================================================================
     // Global default propagation
-    // ===========================================================================================
 
     @Test
     fun `global default propagation SUPPORTS should execute non-transactionally when no outer exists`(): Unit = runBlocking {

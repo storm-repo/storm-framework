@@ -35,11 +35,11 @@ import javax.sql.DataSource
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @DataJpaTest(showSql = false)
-open class JsonORMConverterCoverageTest(
+open class JsonORMConverterTest(
     @Autowired val dataSource: DataSource,
 ) {
 
-    // -- Map<Ref<Owner>, String> exercises tryCreateRefAwareSerializer Map key path --
+    // Map<Ref<Owner>, String> exercises tryCreateRefAwareSerializer Map key path
 
     data class RefKeyMapHolder(
         @PK val id: Int = 0,
@@ -55,7 +55,7 @@ open class JsonORMConverterCoverageTest(
         }
     }
 
-    // -- Map<Ref<Owner>, Ref<Owner>> exercises both key and value Ref paths --
+    // Map<Ref<Owner>, Ref<Owner>> exercises both key and value Ref paths
 
     data class RefBothMapHolder(
         @PK val id: Int = 0,
@@ -71,7 +71,7 @@ open class JsonORMConverterCoverageTest(
         }
     }
 
-    // -- toDatabase with null Json field --
+    // toDatabase with null Json field
 
     @DbTable("owner")
     data class OwnerWithNullableJson(
@@ -141,7 +141,7 @@ open class JsonORMConverterCoverageTest(
         assertEquals("Beta", result2.address.city)
     }
 
-    // -- Map<String, String> exercises the null path in tryCreateRefAwareSerializer --
+    // Map<String, String> exercises the null path in tryCreateRefAwareSerializer
 
     data class PlainStringMapHolder(
         @PK val id: Int = 0,
@@ -158,7 +158,7 @@ open class JsonORMConverterCoverageTest(
         assertEquals("data", result.metadata["other"])
     }
 
-    // -- List<String> exercises the null path in tryCreateRefAwareSerializer element type --
+    // List<String> exercises the null path in tryCreateRefAwareSerializer element type
 
     data class PlainStringListHolder(
         @PK val id: Int = 0,
@@ -174,7 +174,7 @@ open class JsonORMConverterCoverageTest(
         assertEquals(listOf("a", "b", "c"), result.items)
     }
 
-    // -- Set<Ref<Owner>> exercises the Set branch --
+    // Set<Ref<Owner>> exercises the Set branch
 
     data class RefSetHolder(
         @PK val id: Int = 0,
@@ -191,7 +191,7 @@ open class JsonORMConverterCoverageTest(
         assertEquals(setOf(1, 2, 3), ids)
     }
 
-    // -- Ref<Owner> directly (not in collection) exercises createRefSerializer --
+    // Ref<Owner> directly (not in collection) exercises createRefSerializer
 
     data class DirectRefHolder(
         @PK val id: Int = 0,
@@ -207,7 +207,7 @@ open class JsonORMConverterCoverageTest(
         assertEquals(5, result.owner.id())
     }
 
-    // -- Json with failOnMissing = false (default) should coerce missing fields --
+    // Json with failOnMissing = false (default) should coerce missing fields
 
     @Serializable
     data class AddressWithDefault(

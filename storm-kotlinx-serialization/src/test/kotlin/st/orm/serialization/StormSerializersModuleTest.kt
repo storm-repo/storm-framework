@@ -25,7 +25,7 @@ import st.orm.Ref
  * - createRef with null id returning null
  * - Map of refs exercising Ref in various collection positions
  */
-class StormSerializersModuleCoverageTest {
+class StormSerializersModuleTest {
 
     @Serializable
     data class SimpleEntity(
@@ -67,7 +67,7 @@ class StormSerializersModuleCoverageTest {
         serializersModule = StormSerializers
     }
 
-    // -- encodeId with known PK type exercising the non-fallback serializer path --
+    // encodeId with known PK type exercising the non-fallback serializer path
 
     @Serializable
     data class IntIdRefHolder(@Contextual val ref: Ref<SimpleEntity>?)
@@ -139,7 +139,7 @@ class StormSerializersModuleCoverageTest {
         holder.ref!!.id() shouldBe 2.718
     }
 
-    // -- createRef with null id --
+    // createRef with null id
 
     @Serializable
     data class NullableRefHolder(@Contextual val ref: Ref<SimpleEntity>?)
@@ -150,7 +150,7 @@ class StormSerializersModuleCoverageTest {
         holder.ref.shouldBeNull()
     }
 
-    // -- Map with Ref keys --
+    // Map with Ref keys
 
     @Serializable
     data class MapWithRefKeyHolder(
@@ -171,7 +171,7 @@ class StormSerializersModuleCoverageTest {
         }
     }
 
-    // -- Map with Ref values --
+    // Map with Ref values
 
     @Serializable
     data class MapWithRefValueHolder(
@@ -196,7 +196,7 @@ class StormSerializersModuleCoverageTest {
         holder.map["b"]!!.id() shouldBe 20
     }
 
-    // -- Map with both Ref keys and Ref values --
+    // Map with both Ref keys and Ref values
 
     @Serializable
     data class MapWithBothRefHolder(
@@ -216,7 +216,7 @@ class StormSerializersModuleCoverageTest {
         }
     }
 
-    // -- Loaded entity ref with known PK serializer path --
+    // Loaded entity ref with known PK serializer path
 
     @Test
     fun `serialize loaded entity ref and round-trip with known PK type`() {
@@ -232,7 +232,7 @@ class StormSerializersModuleCoverageTest {
         loaded.name shouldBe "Covered"
     }
 
-    // -- Loaded projection ref with known PK serializer path --
+    // Loaded projection ref with known PK serializer path
 
     @Serializable
     data class ProjectionRefHolder(@Contextual val ref: Ref<SimpleProjection>?)
@@ -252,7 +252,7 @@ class StormSerializersModuleCoverageTest {
         loaded.name shouldBe "Proj"
     }
 
-    // -- StormSerializersModule with custom factory exercising createRef --
+    // StormSerializersModule with custom factory exercising createRef
 
     @Test
     fun `StormSerializersModule with custom refFactory that creates attached refs`() {
@@ -275,7 +275,7 @@ class StormSerializersModuleCoverageTest {
         factoryInvoked shouldBe true
     }
 
-    // -- Nested class serial name resolution --
+    // Nested class serial name resolution
     // Note: this exercises resolveClassFromSerialName's nested class path
     // by using types whose serialName contains dots that need $ conversion.
 
@@ -304,7 +304,7 @@ class StormSerializersModuleCoverageTest {
         loaded.value shouldBe "inner"
     }
 
-    // -- encodeId with null ref (ref itself is null, not just id) --
+    // encodeId with null ref (ref itself is null, not just id)
 
     @Test
     fun `encodeId with null ref serializes to JSON null`() {
@@ -313,7 +313,7 @@ class StormSerializersModuleCoverageTest {
         json shouldBe """{"ref":null}"""
     }
 
-    // -- Unloaded projection ref serialization (exercises encodeId for projection type) --
+    // Unloaded projection ref serialization (exercises encodeId for projection type)
 
     @Test
     fun `serialize unloaded projection ref produces raw id`() {

@@ -31,7 +31,7 @@ class EqualitySupportTest {
                 recordType, "value", MethodType.methodType(recordType.getRecordComponents()[0].getType()));
     }
 
-    // ---- compileIsSame tests ----
+    // compileIsSame tests
 
     @Test
     void testIsSameInt() throws Throwable {
@@ -119,7 +119,7 @@ class EqualitySupportTest {
         assertFalse(same.isSame(new NullableRecord(null), new NullableRecord("hello")));
     }
 
-    // ---- compileIsIdentical tests ----
+    // compileIsIdentical tests
 
     @Test
     void testIsIdenticalInt() throws Throwable {

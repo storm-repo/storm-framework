@@ -45,7 +45,7 @@ open class JsonORMConverterAdditionalTest(
     @Autowired val dataSource: DataSource,
 ) {
 
-    // -- Map<String, Ref<Owner>> exercises tryCreateRefAwareSerializer for Map value --
+    // Map<String, Ref<Owner>> exercises tryCreateRefAwareSerializer for Map value
 
     data class OwnerRefMapHolder(
         @PK val id: Int = 0,
@@ -63,7 +63,7 @@ open class JsonORMConverterAdditionalTest(
         assertEquals(2, result.ownerRefs["second"]?.id())
     }
 
-    // -- List<Ref<Owner>> exercises tryCreateRefAwareSerializer for List --
+    // List<Ref<Owner>> exercises tryCreateRefAwareSerializer for List
 
     data class OwnerRefListHolder(
         @PK val id: Int = 0,
@@ -82,7 +82,7 @@ open class JsonORMConverterAdditionalTest(
         assertEquals(3, result.ownerRefs[2].id())
     }
 
-    // -- Set<Ref<Owner>> exercises tryCreateRefAwareSerializer for Set --
+    // Set<Ref<Owner>> exercises tryCreateRefAwareSerializer for Set
 
     data class OwnerRefSetHolder(
         @PK val id: Int = 0,
@@ -98,7 +98,7 @@ open class JsonORMConverterAdditionalTest(
         assertEquals(2, result.ownerRefs.size)
     }
 
-    // -- Custom serializer via @Serializable(with = ...) on @Json field --
+    // Custom serializer via @Serializable(with = ...) on @Json field
 
     object UpperCaseStringSerializer : KSerializer<String> {
         override val descriptor: SerialDescriptor =
@@ -131,7 +131,7 @@ open class JsonORMConverterAdditionalTest(
         assertEquals("HELLO", result.address)
     }
 
-    // -- Sealed class polymorphic deserialization --
+    // Sealed class polymorphic deserialization
 
     @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
     @JsonClassDiscriminator("@type")
@@ -186,7 +186,7 @@ open class JsonORMConverterAdditionalTest(
         assertTrue(rectangleResult.shape is Rectangle)
     }
 
-    // -- buildJson configuration options --
+    // buildJson configuration options
 
     data class AddressHolderWithFailOnUnknown(
         @PK val id: Int = 0,
@@ -217,7 +217,7 @@ open class JsonORMConverterAdditionalTest(
         assertEquals("NY", result.address.city)
     }
 
-    // -- Nullable Ref in Map values --
+    // Nullable Ref in Map values
 
     data class NullableRefMapHolder(
         @PK val id: Int = 0,
@@ -237,7 +237,7 @@ open class JsonORMConverterAdditionalTest(
         assertTrue(result.ownerRefs.containsKey("second"))
     }
 
-    // -- toDatabase / fromDatabase round-trip --
+    // toDatabase / fromDatabase round-trip
 
     @Test
     fun `insert and fetch entity with Json field round-trips correctly`() {
@@ -255,7 +255,7 @@ open class JsonORMConverterAdditionalTest(
         assertEquals("TestFirst", inserted.firstName)
     }
 
-    // -- List<Ref<Owner>> toDatabase serialization --
+    // List<Ref<Owner>> toDatabase serialization
 
     data class RefListEntityForSerialization(
         @PK val id: Int = 0,
@@ -274,7 +274,7 @@ open class JsonORMConverterAdditionalTest(
         }
     }
 
-    // -- Json with failOnMissing = true --
+    // Json with failOnMissing = true
 
     @Serializable
     data class StrictAddress(

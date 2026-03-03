@@ -25,7 +25,7 @@ open class PolymorphicTest(
     @Autowired val orm: ORMTemplate,
 ) {
 
-    // ---- Single-Table Inheritance Tests (Animal/Cat/Dog) ----
+    // Single-Table Inheritance Tests (Animal/Cat/Dog)
 
     @Test
     fun `select all animals`() {
@@ -110,7 +110,7 @@ open class PolymorphicTest(
         result[1].animal.shouldNotBeNull()
     }
 
-    // ---- Polymorphic FK Tests (Post/Photo/Comment) ----
+    // Polymorphic FK Tests (Post/Photo/Comment)
 
     @Test
     fun `select post`() {
@@ -145,7 +145,7 @@ open class PolymorphicTest(
         photos.count() shouldBe before + 1
     }
 
-    // ---- Joined Table Inheritance Tests (JoinedAnimal/JoinedCat/JoinedDog) ----
+    // Joined Table Inheritance Tests (JoinedAnimal/JoinedCat/JoinedDog)
 
     @Test
     fun `select all joined animals`() {
@@ -263,7 +263,7 @@ open class PolymorphicTest(
         result[1].animal.shouldNotBeNull()
     }
 
-    // ---- Joined Table Inheritance without @Discriminator (NodscAnimal) ----
+    // Joined Table Inheritance without @Discriminator (NodscAnimal)
 
     @Test
     fun `select all nodsc animals`() {
@@ -409,7 +409,7 @@ open class PolymorphicTest(
         animals.count() shouldBe before - 1
     }
 
-    // ---- Batch DML Tests for Joined Table Inheritance ----
+    // Batch DML Tests for Joined Table Inheritance
 
     @Test
     fun `batch insert joined animals`(): Unit = runBlocking {
@@ -543,7 +543,7 @@ open class PolymorphicTest(
         animals.count() shouldBe before - 2
     }
 
-    // ---- Batch DML Tests for Joined Table Inheritance without @Discriminator ----
+    // Batch DML Tests for Joined Table Inheritance without @Discriminator
 
     @Test
     fun `batch insert nodsc animals`(): Unit = runBlocking {
@@ -644,7 +644,7 @@ open class PolymorphicTest(
         }
     }
 
-    // ---- INTEGER Discriminator Tests ----
+    // INTEGER Discriminator Tests
 
     @Test
     fun `select all integer discriminator animals`() {
@@ -706,7 +706,7 @@ open class PolymorphicTest(
         animals.count() shouldBe before - 1
     }
 
-    // ---- CHAR Discriminator Tests ----
+    // CHAR Discriminator Tests
 
     @Test
     fun `select all char discriminator animals`() {
@@ -768,7 +768,7 @@ open class PolymorphicTest(
         animals.count() shouldBe before - 1
     }
 
-    // ---- Comment CRUD Tests (Polymorphic FK) ----
+    // Comment CRUD Tests (Polymorphic FK)
 
     @Test
     fun `select all comments`() {
@@ -820,7 +820,7 @@ open class PolymorphicTest(
         comments.count() shouldBe before - 1
     }
 
-    // ---- findById Tests ----
+    // findById Tests
 
     @Test
     fun `findById single table returns correct subtype`() {
@@ -856,7 +856,7 @@ open class PolymorphicTest(
         result.shouldBeNull()
     }
 
-    // ---- Where Clause Tests ----
+    // Where Clause Tests
 
     @Test
     fun `where clause by id on polymorphic entity`() {
@@ -867,7 +867,7 @@ open class PolymorphicTest(
         (result as Dog).name shouldBe "Rex"
     }
 
-    // ---- NodscAnimal MetamodelFactory Tests (joined without @Discriminator) ----
+    // NodscAnimal MetamodelFactory Tests (joined without @Discriminator)
 
     @Test
     fun `select nodsc animal by name using MetamodelFactory`() {
@@ -917,7 +917,7 @@ open class PolymorphicTest(
         animals.select().where(name, EQUALS, "Rex").resultCount shouldBe 1
     }
 
-    // ---- Animal MetamodelFactory Tests (single table with @Discriminator) ----
+    // Animal MetamodelFactory Tests (single table with @Discriminator)
 
     @Test
     fun `select animal by name using MetamodelFactory`() {
@@ -939,7 +939,7 @@ open class PolymorphicTest(
         (result[0] as Dog).name shouldBe "Rex"
     }
 
-    // ---- Type Change STI Tests ----
+    // Type Change STI Tests
 
     @Test
     fun `type change single table cat to dog`() {
@@ -952,7 +952,7 @@ open class PolymorphicTest(
         (result as Dog).weight shouldBe 42
     }
 
-    // ---- insertAndFetch / updateAndFetch for JTI ----
+    // insertAndFetch / updateAndFetch for JTI
 
     @Test
     fun `insertAndFetch joined cat`() {
@@ -974,7 +974,7 @@ open class PolymorphicTest(
         updatedDog.weight shouldBe 25
     }
 
-    // ---- Adoption Ref Concrete Type ----
+    // Adoption Ref Concrete Type
 
     @Test
     fun `adoption ref resolves to concrete type`() {
@@ -987,7 +987,7 @@ open class PolymorphicTest(
         result[1].animal.id() shouldBe 3
     }
 
-    // ---- Batch STI Tests ----
+    // Batch STI Tests
 
     @Test
     fun `batch insert single table animals`() {

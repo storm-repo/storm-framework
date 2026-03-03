@@ -50,7 +50,7 @@ import st.orm.template.model.Visit;
 @ContextConfiguration(classes = IntegrationConfig.class)
 @SpringBootTest
 @Sql("/data.sql")
-public class QueryBuilderCoverageTest {
+public class QueryBuilderTest {
 
     @Autowired
     private DataSource dataSource;
@@ -58,9 +58,7 @@ public class QueryBuilderCoverageTest {
     @Autowired
     private ORMTemplate orm;
 
-    // ========================================================================
     // QueryBuilder - distinct
-    // ========================================================================
 
     @Test
     public void testDistinct() {
@@ -68,9 +66,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(6, cities.size());
     }
 
-    // ========================================================================
     // QueryBuilder - limit and offset
-    // ========================================================================
 
     @Test
     public void testLimit() {
@@ -85,9 +81,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(allCities.size() - 2, offsetCities.size());
     }
 
-    // ========================================================================
     // QueryBuilder - where with ID
-    // ========================================================================
 
     @Test
     public void testWhereById() {
@@ -105,9 +99,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(2, cities.size());
     }
 
-    // ========================================================================
     // QueryBuilder - where with StringTemplate
-    // ========================================================================
 
     @Test
     public void testWhereWithStringTemplate() {
@@ -117,9 +109,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(1, cities.size());
     }
 
-    // ========================================================================
     // QueryBuilder - where with record
-    // ========================================================================
 
     @Test
     public void testWhereWithRecord() {
@@ -136,9 +126,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(2, cities.size());
     }
 
-    // ========================================================================
     // QueryBuilder - where with Ref
-    // ========================================================================
 
     @Test
     public void testWhereWithRef() {
@@ -155,9 +143,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(2, cities.size());
     }
 
-    // ========================================================================
     // QueryBuilder - where with WhereBuilder and PredicateBuilder
-    // ========================================================================
 
     @Test
     public void testWhereWithWhereBuilder() {
@@ -220,9 +206,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(2, cities.size());
     }
 
-    // ========================================================================
     // QueryBuilder - whereAny
-    // ========================================================================
 
     @Test
     public void testWhereAnyWithWhereBuilder() {
@@ -258,9 +242,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(2, cities.size());
     }
 
-    // ========================================================================
     // QueryBuilder - where with exists / notExists
-    // ========================================================================
 
     @Test
     public void testWhereExists() {
@@ -285,9 +267,7 @@ public class QueryBuilderCoverageTest {
         assertNotNull(owners);
     }
 
-    // ========================================================================
     // QueryBuilder - inner join (class-based)
-    // ========================================================================
 
     @Test
     public void testInnerJoinOnClass() {
@@ -308,9 +288,7 @@ public class QueryBuilderCoverageTest {
         assertFalse(cities.isEmpty());
     }
 
-    // ========================================================================
     // QueryBuilder - left join
-    // ========================================================================
 
     @Test
     public void testLeftJoinOnClass() {
@@ -321,9 +299,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(13, pets.size());
     }
 
-    // ========================================================================
     // QueryBuilder - right join
-    // ========================================================================
 
     @Test
     public void testRightJoinOnClass() {
@@ -334,9 +310,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(12, pets.size());
     }
 
-    // ========================================================================
     // QueryBuilder - cross join
-    // ========================================================================
 
     @Test
     public void testCrossJoin() {
@@ -347,9 +321,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(10, result.size());
     }
 
-    // ========================================================================
     // QueryBuilder - join with type/alias
-    // ========================================================================
 
     @Test
     public void testJoinWithTypeAlias() {
@@ -361,9 +333,7 @@ public class QueryBuilderCoverageTest {
         assertFalse(cities.isEmpty());
     }
 
-    // ========================================================================
     // QueryBuilder - join with StringTemplate
-    // ========================================================================
 
     @Test
     public void testInnerJoinWithTemplate() {
@@ -412,9 +382,7 @@ public class QueryBuilderCoverageTest {
         assertFalse(cities.isEmpty());
     }
 
-    // ========================================================================
     // QueryBuilder - join with subquery
-    // ========================================================================
 
     @Test
     public void testJoinWithSubquery() {
@@ -427,9 +395,7 @@ public class QueryBuilderCoverageTest {
         assertFalse(cities.isEmpty());
     }
 
-    // ========================================================================
     // QueryBuilder - append
-    // ========================================================================
 
     @Test
     public void testAppend() {
@@ -439,9 +405,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(6, cities.size());
     }
 
-    // ========================================================================
     // QueryBuilder - forUpdate / forShare / forLock
-    // ========================================================================
 
     @Test
     public void testForUpdate() {
@@ -453,9 +417,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(1, cities.size());
     }
 
-    // ========================================================================
     // QueryBuilder - unsafe
-    // ========================================================================
 
     @Test
     public void testQueryBuilderUnsafe() {
@@ -465,9 +427,7 @@ public class QueryBuilderCoverageTest {
         assertTrue(deleted > 0);
     }
 
-    // ========================================================================
     // QueryBuilder - build
-    // ========================================================================
 
     @Test
     public void testBuild() {
@@ -477,9 +437,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(6, cities.size());
     }
 
-    // ========================================================================
     // QueryBuilder - prepare
-    // ========================================================================
 
     @Test
     public void testPrepare() {
@@ -488,9 +446,7 @@ public class QueryBuilderCoverageTest {
         }
     }
 
-    // ========================================================================
     // QueryBuilder - getResultStream
-    // ========================================================================
 
     @Test
     public void testGetResultStream() {
@@ -499,9 +455,7 @@ public class QueryBuilderCoverageTest {
         }
     }
 
-    // ========================================================================
     // QueryBuilder - getResultCount
-    // ========================================================================
 
     @Test
     public void testGetResultCount() {
@@ -509,9 +463,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(6, count);
     }
 
-    // ========================================================================
     // QueryBuilder - getSingleResult / getOptionalResult
-    // ========================================================================
 
     @Test
     public void testGetSingleResult() {
@@ -543,9 +495,7 @@ public class QueryBuilderCoverageTest {
                 orm.entity(City.class).select().getSingleResult());
     }
 
-    // ========================================================================
     // QueryBuilder - slice (pagination)
-    // ========================================================================
 
     @Test
     public void testSlice() {
@@ -561,9 +511,7 @@ public class QueryBuilderCoverageTest {
         assertFalse(slice.hasNext());
     }
 
-    // ========================================================================
     // QueryBuilder - typed
-    // ========================================================================
 
     @Test
     public void testTyped() {
@@ -574,9 +522,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(1, cities.size());
     }
 
-    // ========================================================================
     // StringTemplates convert methods
-    // ========================================================================
 
     @Test
     public void testStringTemplatesConvertRoundtrip() {
@@ -585,9 +531,7 @@ public class QueryBuilderCoverageTest {
         assertNotNull(query);
     }
 
-    // ========================================================================
     // QueryBuilder - groupBy
-    // ========================================================================
 
     @Test
     public void testGroupByWithTemplate() {
@@ -597,9 +541,7 @@ public class QueryBuilderCoverageTest {
         assertFalse(result.isEmpty());
     }
 
-    // ========================================================================
     // QueryBuilder - having
-    // ========================================================================
 
     @Test
     public void testHavingWithTemplate() {
@@ -627,9 +569,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(2, result.size());
     }
 
-    // ========================================================================
     // PredicateBuilder - andAny / orAny
-    // ========================================================================
 
     @Test
     public void testPredicateAndAny() {
@@ -667,9 +607,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(2, cities.size());
     }
 
-    // ========================================================================
     // QueryBuilder - Metamodel-based where
-    // ========================================================================
 
     @Test
     public void testWhereMetamodelEquals() {
@@ -776,9 +714,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(1, cities.size());
     }
 
-    // ========================================================================
     // QueryBuilder - where with Iterable of records
-    // ========================================================================
 
     @Test
     public void testWhereIterableRecords() {
@@ -790,9 +726,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(2, cities.size());
     }
 
-    // ========================================================================
     // QueryBuilder - Metamodel groupBy / orderBy
-    // ========================================================================
 
     @Test
     public void testGroupByMetamodel() {
@@ -823,9 +757,7 @@ public class QueryBuilderCoverageTest {
         assertTrue(cities.get(0).name().compareTo(cities.get(1).name()) >= 0);
     }
 
-    // ========================================================================
     // QueryBuilder - orderByDescending with StringTemplate
-    // ========================================================================
 
     @Test
     public void testOrderByDescendingTemplate() {
@@ -836,9 +768,7 @@ public class QueryBuilderCoverageTest {
         assertTrue(cities.get(0).name().compareTo(cities.get(1).name()) >= 0);
     }
 
-    // ========================================================================
     // QueryBuilder - Metamodel-based slice
-    // ========================================================================
 
     @Test
     public void testSliceWithMetamodelKey() {
@@ -881,9 +811,7 @@ public class QueryBuilderCoverageTest {
         assertFalse(slice.content().isEmpty());
     }
 
-    // ========================================================================
     // WhereBuilder - Metamodel-based where
-    // ========================================================================
 
     @Test
     public void testWhereBuilderMetamodelEquals() {
@@ -910,9 +838,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(2, cities.size());
     }
 
-    // ========================================================================
     // WhereBuilder - TRUE / FALSE
-    // ========================================================================
 
     @Test
     public void testWhereBuilderTrue() {
@@ -930,9 +856,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(0, cities.size());
     }
 
-    // ========================================================================
     // WhereBuilder - where(Metamodel, V record) default method
-    // ========================================================================
 
     @Test
     public void testWhereBuilderMetamodelRecordDefault() {
@@ -954,9 +878,7 @@ public class QueryBuilderCoverageTest {
         assertNotNull(owners);
     }
 
-    // ========================================================================
     // WhereBuilder - where(Metamodel, Iterable<V>) default method
-    // ========================================================================
 
     @Test
     public void testWhereBuilderMetamodelIterableDefault() {
@@ -980,9 +902,7 @@ public class QueryBuilderCoverageTest {
         assertNotNull(owners);
     }
 
-    // ========================================================================
     // WhereBuilder - SubqueryTemplate default methods
-    // ========================================================================
 
     @Test
     public void testWhereBuilderSubqueryDefaultSingleArg() {
@@ -1004,9 +924,7 @@ public class QueryBuilderCoverageTest {
         assertFalse(owners.isEmpty());
     }
 
-    // ========================================================================
     // QueryBuilder - where(Metamodel, V record) default on QueryBuilder
-    // ========================================================================
 
     @Test
     public void testQueryBuilderWhereMetamodelRecord() {
@@ -1050,9 +968,7 @@ public class QueryBuilderCoverageTest {
         assertNotNull(owners);
     }
 
-    // ========================================================================
     // QueryBuilder - whereId with Iterable default
-    // ========================================================================
 
     @Test
     public void testQueryBuilderWhereIdIterable() {
@@ -1062,9 +978,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(3, cities.size());
     }
 
-    // ========================================================================
     // QueryBuilder - groupByAny / orderByAny / orderByDescendingAny
-    // ========================================================================
 
     @Test
     public void testGroupByAny() {
@@ -1110,9 +1024,7 @@ public class QueryBuilderCoverageTest {
                 orm.entity(City.class).select().orderByDescendingAny(new st.orm.Metamodel[0]));
     }
 
-    // ========================================================================
     // QueryBuilder - orderByDescending with multiple metamodels
-    // ========================================================================
 
     @Test
     public void testOrderByDescendingMultipleMetamodels() {
@@ -1123,9 +1035,7 @@ public class QueryBuilderCoverageTest {
         assertTrue(cities.get(0).name().compareTo(cities.get(1).name()) >= 0);
     }
 
-    // ========================================================================
     // QueryBuilder - composite keyset slice with sort + key
-    // ========================================================================
 
     @Test
     public void testSliceAfterComposite() {
@@ -1141,9 +1051,7 @@ public class QueryBuilderCoverageTest {
         assertNotNull(slice);
     }
 
-    // ========================================================================
     // QueryBuilder - slice methods throw if orderBy already set
-    // ========================================================================
 
     @Test
     public void testSliceWithKeyThrowsIfOrderBySet() {
@@ -1193,9 +1101,7 @@ public class QueryBuilderCoverageTest {
                 orm.entity(City.class).select().orderBy(City_.name).sliceBefore(City_.id, 5, City_.name, "Z", 3));
     }
 
-    // ========================================================================
     // QueryBuilder - forShare
-    // ========================================================================
 
     @Test
     public void testForShare() {
@@ -1207,9 +1113,7 @@ public class QueryBuilderCoverageTest {
                         .getResultList());
     }
 
-    // ========================================================================
     // QueryBuilder - forLock with template
-    // ========================================================================
 
     @Test
     public void testForLockWithTemplate() {
@@ -1220,9 +1124,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(1, cities.size());
     }
 
-    // ========================================================================
     // QueryBuilder - slice with size validation
-    // ========================================================================
 
     @Test
     public void testSliceSizeZeroThrows() {
@@ -1236,9 +1138,7 @@ public class QueryBuilderCoverageTest {
                 orm.entity(City.class).select().slice(-1));
     }
 
-    // ========================================================================
     // QueryBuilder - getResultList / getResultCount via default methods
-    // ========================================================================
 
     @Test
     public void testGetResultList() {
@@ -1256,9 +1156,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(1, deleted);
     }
 
-    // ========================================================================
     // QueryBuilder - where(ID) convenience method
-    // ========================================================================
 
     @Test
     public void testWhereByIdDirectValue() {
@@ -1268,9 +1166,7 @@ public class QueryBuilderCoverageTest {
         assertEquals(1, city.id());
     }
 
-    // ========================================================================
     // QueryBuilder - getOptionalResult throws NonUniqueResultException
-    // ========================================================================
 
     @Test
     public void testGetOptionalResultThrowsNonUnique() {

@@ -34,7 +34,7 @@ import st.orm.template.model.Visit;
 @ContextConfiguration(classes = IntegrationConfig.class)
 @SpringBootTest
 @Sql("/data.sql")
-public class RepositoryCoverageTest {
+public class RepositoryTest {
 
     @Autowired
     private DataSource dataSource;
@@ -42,9 +42,7 @@ public class RepositoryCoverageTest {
     @Autowired
     private ORMTemplate orm;
 
-    // ========================================================================
     // Repository proxy
-    // ========================================================================
 
     interface CityRepository extends EntityRepository<City, Integer> {
     }
@@ -108,9 +106,7 @@ public class RepositoryCoverageTest {
         assertEquals(10, views.size());
     }
 
-    // ========================================================================
     // Complex entity operations with FK relationships
-    // ========================================================================
 
     @Test
     public void testOwnerWithAddress() {
@@ -146,9 +142,7 @@ public class RepositoryCoverageTest {
         assertNotNull(first.pet().type());
     }
 
-    // ========================================================================
     // OwnerView - Projection operations
-    // ========================================================================
 
     @Test
     public void testOwnerViewFindAllVerifyContent() {
@@ -160,9 +154,7 @@ public class RepositoryCoverageTest {
         assertNotNull(betty.address());
     }
 
-    // ========================================================================
     // Slice pagination with keyset
-    // ========================================================================
 
     @Test
     public void testSliceBasic() {
@@ -185,9 +177,7 @@ public class RepositoryCoverageTest {
                 orm.entity(City.class).select().slice(-1));
     }
 
-    // ========================================================================
     // EntityRepository - select with custom select type
-    // ========================================================================
 
     @Test
     public void testSelectWithLongResultType() {
@@ -203,9 +193,7 @@ public class RepositoryCoverageTest {
         assertEquals(6, names.size());
     }
 
-    // ========================================================================
     // StringTemplates helper methods coverage
-    // ========================================================================
 
     @Test
     public void testSelectTemplateHelper() {
@@ -257,9 +245,7 @@ public class RepositoryCoverageTest {
         assertNotNull(calendarParam);
     }
 
-    // ========================================================================
     // Coverage for Model and Column
-    // ========================================================================
 
     @Test
     public void testOwnerModelColumns() {
@@ -316,9 +302,7 @@ public class RepositoryCoverageTest {
         assertFalse(values.isEmpty());
     }
 
-    // ========================================================================
     // QueryBuilder - executeUpdate (delete)
-    // ========================================================================
 
     @Test
     public void testQueryBuilderExecuteUpdate() {
@@ -331,9 +315,7 @@ public class RepositoryCoverageTest {
         assertEquals(1, deleted);
     }
 
-    // ========================================================================
     // SubqueryTemplate
-    // ========================================================================
 
     @Test
     public void testSubqueryFromType() {
@@ -353,9 +335,7 @@ public class RepositoryCoverageTest {
         assertNotNull(subquery);
     }
 
-    // ========================================================================
     // WhereBuilder - subquery
-    // ========================================================================
 
     @Test
     public void testWhereBuilderSubquery() {
@@ -367,9 +347,7 @@ public class RepositoryCoverageTest {
         assertFalse(owners.isEmpty());
     }
 
-    // ========================================================================
     // EntityRepository - Metamodel.Key slice default methods
-    // ========================================================================
 
     @Test
     public void testEntitySliceByKey() {
@@ -468,9 +446,7 @@ public class RepositoryCoverageTest {
         assertNotNull(slice);
     }
 
-    // ========================================================================
     // ProjectionRepository - Metamodel.Key slice default methods
-    // ========================================================================
 
     @Test
     public void testProjectionSliceByKey() {
@@ -545,9 +521,7 @@ public class RepositoryCoverageTest {
         assertEquals(5, slice.content().size());
     }
 
-    // ========================================================================
     // ProjectionRepository - composite keyset pagination with sort
-    // ========================================================================
 
     @Test
     public void testProjectionSliceAfterByKeyAndSort() {
@@ -573,9 +547,7 @@ public class RepositoryCoverageTest {
         assertNotNull(slice);
     }
 
-    // ========================================================================
     // EntityRepository - additional default methods for completeness
-    // ========================================================================
 
     @Test
     public void testEntityFindByRef() {
@@ -629,9 +601,7 @@ public class RepositoryCoverageTest {
         assertFalse(repo.findById(inserted2.id()).isPresent());
     }
 
-    // ========================================================================
     // ProjectionRepository - additional default methods
-    // ========================================================================
 
     @Test
     public void testProjectionFindByRef() {
@@ -692,9 +662,7 @@ public class RepositoryCoverageTest {
         assertEquals(10, names.size());
     }
 
-    // ========================================================================
     // Repository proxy - dispatch EntityRepository method with parameters (L187-189 toShortSignature)
-    // ========================================================================
 
     @Test
     public void testRepositoryProxyFindById() {
@@ -725,9 +693,7 @@ public class RepositoryCoverageTest {
         assertThrows(IllegalArgumentException.class, () -> orm.repository(RawProjectionRepository.class));
     }
 
-    // ========================================================================
     // Repository proxy - projection proxy with findById (dispatch through ProjectionRepository)
-    // ========================================================================
 
     @Test
     public void testProjectionProxyFindById() {

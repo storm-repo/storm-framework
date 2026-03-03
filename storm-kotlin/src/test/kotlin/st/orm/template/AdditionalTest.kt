@@ -30,7 +30,7 @@ import javax.sql.DataSource
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class CoverageBoostTest(
+open class AdditionalTest(
     @Autowired val orm: ORMTemplate,
     @Autowired val dataSource: DataSource,
 ) {
@@ -38,9 +38,7 @@ open class CoverageBoostTest(
     @Suppress("UNCHECKED_CAST")
     private fun <T : Data, V> metamodel(model: Model<*, *>, columnName: String): Metamodel<T, V> = model.columns.first { it.name == columnName }.metamodel as Metamodel<T, V>
 
-    // ======================================================================
     // EntityRepository: Ref-cursor slice methods (all uncovered)
-    // ======================================================================
 
     @Test
     fun `entity sliceAfter with Ref cursor should return next page`() {
@@ -227,9 +225,7 @@ open class CoverageBoostTest(
         cities shouldHaveSize 2
     }
 
-    // ======================================================================
     // ProjectionRepository: Ref-cursor slice methods (all uncovered)
-    // ======================================================================
 
     @Test
     fun `projection sliceAfter with Ref cursor should return next page`() {
@@ -541,9 +537,7 @@ open class CoverageBoostTest(
         slice.content.shouldNotBeEmpty()
     }
 
-    // ======================================================================
     // ORMTemplate.DefaultImpls: subquery, selectFrom, model, query
-    // ======================================================================
 
     @Test
     fun `subquery with single type should return query builder`() {
@@ -594,9 +588,7 @@ open class CoverageBoostTest(
         result shouldBe arrayOf(6L)
     }
 
-    // ======================================================================
     // Query.DefaultImpls: typed result methods and PreparedQuery
-    // ======================================================================
 
     @Test
     fun `query getSingleResult with type should return typed result`() {
@@ -747,9 +739,7 @@ open class CoverageBoostTest(
         }
     }
 
-    // ======================================================================
     // PredicateBuilderFactory: createRef / createRefWithId
-    // ======================================================================
 
     @Test
     fun `createRef predicate builder should return PredicateBuilder`() {
@@ -777,9 +767,7 @@ open class CoverageBoostTest(
         predicate.shouldBeInstanceOf<PredicateBuilder<*, *, *>>()
     }
 
-    // ======================================================================
     // QueryTemplate.DefaultImpls: query with TemplateBuilder
-    // ======================================================================
 
     @Test
     fun `query with TemplateBuilder should return Query`() {

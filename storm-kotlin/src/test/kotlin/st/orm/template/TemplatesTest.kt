@@ -30,9 +30,7 @@ open class TemplatesTest(
     @Autowired val dataSource: DataSource,
 ) {
 
-    // ======================================================================
     // Templates.select tests
-    // ======================================================================
 
     @Test
     fun `select with table should return Select element`() {
@@ -65,9 +63,7 @@ open class TemplatesTest(
         element.mode() shouldBe SelectMode.PK
     }
 
-    // ======================================================================
     // Templates.from tests
-    // ======================================================================
 
     @Test
     fun `from with table and autoJoin false should return From element`() {
@@ -97,9 +93,7 @@ open class TemplatesTest(
         (element as Elements.From).alias() shouldBe "sub"
     }
 
-    // ======================================================================
     // Templates.insert tests
-    // ======================================================================
 
     @Test
     fun `insert with table should return Insert element`() {
@@ -120,9 +114,7 @@ open class TemplatesTest(
         element.ignoreAutoGenerate() shouldBe false
     }
 
-    // ======================================================================
     // Templates.values tests
-    // ======================================================================
 
     @Test
     fun `values with single record should return Values element`() {
@@ -169,9 +161,7 @@ open class TemplatesTest(
         element.ignoreAutoGenerate() shouldBe true
     }
 
-    // ======================================================================
     // Templates.update tests
-    // ======================================================================
 
     @Test
     fun `update with table should return Update element`() {
@@ -186,9 +176,7 @@ open class TemplatesTest(
         element.alias() shouldBe "c"
     }
 
-    // ======================================================================
     // Templates.set tests
-    // ======================================================================
 
     @Test
     fun `set with record should return Set element`() {
@@ -206,9 +194,7 @@ open class TemplatesTest(
         element.shouldBeInstanceOf<Elements.Set>()
     }
 
-    // ======================================================================
     // Templates.where tests
-    // ======================================================================
 
     @Test
     fun `where with iterable should return Where element`() {
@@ -257,9 +243,7 @@ open class TemplatesTest(
         element.shouldBeInstanceOf<Elements.Where>()
     }
 
-    // ======================================================================
     // Templates.delete tests
-    // ======================================================================
 
     @Test
     fun `delete with table should return Delete element`() {
@@ -274,9 +258,7 @@ open class TemplatesTest(
         element.alias() shouldBe "c"
     }
 
-    // ======================================================================
     // Templates.table tests
-    // ======================================================================
 
     @Test
     fun `table with class should return Table element`() {
@@ -291,9 +273,7 @@ open class TemplatesTest(
         element.alias() shouldBe "c"
     }
 
-    // ======================================================================
     // Templates.alias tests
-    // ======================================================================
 
     @Test
     fun `alias with table should return Alias element with CASCADE scope`() {
@@ -313,9 +293,7 @@ open class TemplatesTest(
         element.scope() shouldBe ResolveScope.OUTER
     }
 
-    // ======================================================================
     // Templates.column tests
-    // ======================================================================
 
     @Test
     fun `column with metamodel should return Column element with CASCADE scope`() {
@@ -331,9 +309,7 @@ open class TemplatesTest(
         element.scope() shouldBe ResolveScope.INNER
     }
 
-    // ======================================================================
     // Templates.param tests
-    // ======================================================================
 
     @Test
     fun `param with value should return Param element`() {
@@ -416,9 +392,7 @@ open class TemplatesTest(
         element.shouldBeInstanceOf<Elements.Param>()
     }
 
-    // ======================================================================
     // Templates.unsafe tests
-    // ======================================================================
 
     @Test
     fun `unsafe should return Unsafe element`() {
@@ -434,9 +408,7 @@ open class TemplatesTest(
         element.sql() shouldBe sql
     }
 
-    // ======================================================================
     // Templates integration: query execution using template builder
-    // ======================================================================
 
     @Test
     fun `select and from elements should produce valid query`() {
@@ -447,9 +419,7 @@ open class TemplatesTest(
         result.size shouldBe 6
     }
 
-    // ======================================================================
     // ORMTemplate.of factory methods
-    // ======================================================================
 
     @Test
     fun `ORMTemplate of dataSource should create valid template`() {
@@ -501,9 +471,7 @@ open class TemplatesTest(
         template.entity(City::class).findAll().size shouldBe 6
     }
 
-    // ======================================================================
     // Extension properties
-    // ======================================================================
 
     @Test
     fun `DataSource orm extension should create valid template`() {
@@ -563,9 +531,7 @@ open class TemplatesTest(
         }
     }
 
-    // ======================================================================
     // Factory: ORMTemplate.of(DataSource, StormConfig, decorator)
-    // ======================================================================
 
     @Test
     fun `ORMTemplate of DataSource with StormConfig and decorator should create valid template`() {
@@ -576,9 +542,7 @@ open class TemplatesTest(
         template.entity(City::class).findAll().size shouldBe 6
     }
 
-    // ======================================================================
     // Factory: ORMTemplate.of(Connection, StormConfig, decorator)
-    // ======================================================================
 
     @Test
     fun `ORMTemplate of Connection with StormConfig and decorator should create valid template`() {
@@ -591,9 +555,7 @@ open class TemplatesTest(
         }
     }
 
-    // ======================================================================
     // Extension: DataSource.orm(StormConfig, decorator)
-    // ======================================================================
 
     @Test
     fun `DataSource orm extension with StormConfig and decorator should create valid template`() {
@@ -604,9 +566,7 @@ open class TemplatesTest(
         template.entity(City::class).findAll().size shouldBe 6
     }
 
-    // ======================================================================
     // Extension: Connection.orm(StormConfig, decorator)
-    // ======================================================================
 
     @Test
     fun `Connection orm extension with StormConfig and decorator should create valid template`() {
@@ -619,9 +579,7 @@ open class TemplatesTest(
         }
     }
 
-    // ======================================================================
     // ORMTemplate.withEntityCallback
-    // ======================================================================
 
     @Test
     fun `withEntityCallback should return new ORMTemplate`() {
@@ -643,9 +601,7 @@ open class TemplatesTest(
         template.shouldBeInstanceOf<ORMTemplate>()
     }
 
-    // ======================================================================
     // PredicateBuilderFactory tests
-    // ======================================================================
 
     @Test
     fun `create predicate builder should return PredicateBuilder`() {
@@ -707,9 +663,7 @@ open class TemplatesTest(
         combined.shouldBeInstanceOf<PredicateBuilder<*, *, *>>()
     }
 
-    // ======================================================================
     // ColumnImpl tests via Model API
-    // ======================================================================
 
     @Test
     fun `City model columns should not be empty`() {
@@ -868,9 +822,7 @@ open class TemplatesTest(
         values.size shouldBe 2
     }
 
-    // ======================================================================
     // ORMTemplateImpl proxy / repository tests
-    // ======================================================================
 
     @Test
     fun `entity repository should return EntityRepository for City`() {
@@ -951,9 +903,7 @@ open class TemplatesTest(
         template.entity(City::class).findAll().size shouldBe 6
     }
 
-    // ======================================================================
     // TransactionDispatchers tests
-    // ======================================================================
 
     @Test
     fun `TransactionDispatchers Default should return a dispatcher`() {

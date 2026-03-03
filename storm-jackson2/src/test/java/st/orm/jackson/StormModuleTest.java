@@ -764,4 +764,83 @@ public class StormModuleTest {
         assertThrows(JsonMappingException.class, () ->
                 mapper.readValue(json, Ref.class));
     }
+
+    @Test
+    public void serializerShouldHandleDirectRefSerializationWithoutProperty() throws Exception {
+        // Serializing a raw Ref directly (not as a field of another object) means
+        // createContextual may be called with null property.
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new StormModule());
+
+        Ref<SimpleEntity> ref = Ref.of(SimpleEntity.class, 42);
+        String json = mapper.writeValueAsString(ref);
+        // Without property context, the serializer uses default serialize path.
+        assertNotNull(json);
+        assertTrue(json.contains("42"));
+    }
+
+    @Test
+    public void nonRefFieldShouldNotAffectSerialization() throws Exception {
+        // This record has a non-Ref field. The StormModule should not interfere with it.
+        record NonRefHolder(@Nonnull String value) {}
+
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new StormModule());
+
+        NonRefHolder holder = new NonRefHolder("test");
+        String json = mapper.writeValueAsString(holder);
+        assertEquals("{\"value\":\"test\"}", json);
+    }
+
+    @Test
+    public void noPkDataWithProjectionFormatAndNullIdShouldThrow() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new StormModule());
+
+        // @projection with @id:null for NoPkData type.
+        // This should trigger the "cannot be null" path or a different error.
+        String json = "{\"data\":{\"@id\":null,\"@projection\":{\"value\":\"test\"}}}";
+        // With a null @id, Jackson may still parse it as null, then createLoadedRefWithId
+        // checks if data is null (no), then Entity (no), then Projection (no),
+        // then id != null (false since null), then throw (line 376).
+        assertThrows(JsonMappingException.class, () ->
+                mapper.readValue(json, NoPkRefHolder.class));
+    }
+
+    public record ProjectionRefListHolder(@Nonnull List<Ref<SimpleProjection>> projections) {}
+
+    @Test
+    public void loadedProjectionRefInListShouldSerializeAndDeserialize() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new StormModule());
+
+        List<Ref<SimpleProjection>> refs = List.of(
+                Ref.of(new SimpleProjection(1, "First"), 1),
+                Ref.of(SimpleProjection.class, 2));
+        ProjectionRefListHolder holder = new ProjectionRefListHolder(refs);
+        String json = mapper.writeValueAsString(holder);
+        assertNotNull(json);
+
+        ProjectionRefListHolder deserialized = mapper.readValue(json, ProjectionRefListHolder.class);
+        assertEquals(2, deserialized.projections().size());
+        assertNotNull(deserialized.projections().get(0).getOrNull());
+        assertNull(deserialized.projections().get(1).getOrNull());
+    }
+
+    public record MultiTypeHolder(
+            @Nullable Ref<SimpleEntity> entity,
+            @Nullable Ref<SimpleProjection> projection) {}
+
+    @Test
+    public void multipleRefTypesInSameHolderShouldDeserializeCorrectly() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new StormModule());
+
+        String json = "{\"entity\":42,\"projection\":7}";
+        MultiTypeHolder holder = mapper.readValue(json, MultiTypeHolder.class);
+        assertNotNull(holder.entity());
+        assertEquals(42, holder.entity().id());
+        assertNotNull(holder.projection());
+        assertEquals(7, holder.projection().id());
+    }
 }

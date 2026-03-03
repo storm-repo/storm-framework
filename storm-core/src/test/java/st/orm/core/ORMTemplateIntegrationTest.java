@@ -32,12 +32,12 @@ import st.orm.core.template.ORMTemplate;
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
 @DataJpaTest(showSql = false)
-public class ORMTemplateExtendedIntegrationTest {
+public class ORMTemplateIntegrationTest {
 
     @Autowired
     private DataSource dataSource;
 
-    // ---- validateSchemaOrThrow with types ----
+    // validateSchemaOrThrow with types
 
     @DbTable("nonexistent_table")
     public record NonexistentEntity(
@@ -58,7 +58,7 @@ public class ORMTemplateExtendedIntegrationTest {
         assertDoesNotThrow(() -> orm.validateSchemaOrThrow(List.of(City.class)));
     }
 
-    // ---- Repository proxy ----
+    // Repository proxy
 
     interface CityRepository extends EntityRepository<City, Integer> {}
 
@@ -112,7 +112,7 @@ public class ORMTemplateExtendedIntegrationTest {
         assertNotNull(repository.orm());
     }
 
-    // ---- Base Repository interface ----
+    // Base Repository interface
 
     interface MinimalRepository extends Repository {}
 
@@ -124,7 +124,7 @@ public class ORMTemplateExtendedIntegrationTest {
         assertNotNull(repository.orm());
     }
 
-    // ---- Entity callbacks ----
+    // Entity callbacks
 
     @Test
     public void testWithEntityCallbacksReturnsNewInstance() {
@@ -141,7 +141,7 @@ public class ORMTemplateExtendedIntegrationTest {
         assertEquals(1, ormWithCallback.entityCallbacks().size());
     }
 
-    // ---- validateSchema returns results ----
+    // validateSchema returns results
 
     @Test
     public void testValidateSchemaWithEmptyTypeList() {
@@ -151,7 +151,7 @@ public class ORMTemplateExtendedIntegrationTest {
         assertTrue(results.isEmpty());
     }
 
-    // ---- SelectBuilder with distinct ----
+    // SelectBuilder with distinct
 
     @Test
     public void testSelectDistinct() {
@@ -163,7 +163,7 @@ public class ORMTemplateExtendedIntegrationTest {
         assertTrue(list.size() > 0);
     }
 
-    // ---- SelectBuilder with limit and offset ----
+    // SelectBuilder with limit and offset
 
     @Test
     public void testSelectWithLimitAndOffset() {

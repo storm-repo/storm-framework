@@ -107,9 +107,7 @@ public class DynamicUpdateIntegrationTest {
             @Version Instant timestamp
     ) implements Entity<Integer> {}
 
-    // ------------------------------------------------------------
     // Expected SQL
-    // ------------------------------------------------------------
 
     private static final String FULL_UPDATE_SQL = """
             UPDATE visit
@@ -121,9 +119,7 @@ public class DynamicUpdateIntegrationTest {
             SET pet_id = ?, "timestamp" = CURRENT_TIMESTAMP
             WHERE id = ? AND "timestamp" = ?""";
 
-    // ------------------------------------------------------------
     // OFF: always updates all columns, dirtyCheck irrelevant
-    // ------------------------------------------------------------
 
     @Test
     void off_default_alwaysUpdates_evenIfNoChanges() {
@@ -150,11 +146,9 @@ public class DynamicUpdateIntegrationTest {
         assertEquals(FULL_UPDATE_SQL, sql.statement());
     }
 
-    // ------------------------------------------------------------
     // ENTITY: full update SQL, dirty detection is per-column
     // DEFAULT = instance-based dirty check
     // VALUE   = semantic value-based dirty check
-    // ------------------------------------------------------------
 
     @Test
     void entity_default_skipsUpdate_whenNoMappedColumnChanges() {
@@ -231,11 +225,9 @@ public class DynamicUpdateIntegrationTest {
         assertNull(sql);
     }
 
-    // ------------------------------------------------------------
     // FIELD: updates only changed columns (plus version)
     // DEFAULT = instance-based dirty check
     // VALUE   = semantic value-based dirty check
-    // ------------------------------------------------------------
 
     @Test
     void field_default_skipsUpdate_whenNoMappedColumnChanges() {
@@ -312,9 +304,7 @@ public class DynamicUpdateIntegrationTest {
         assertNull(sql);
     }
 
-    // ------------------------------------------------------------
     // Helpers
-    // ------------------------------------------------------------
 
     private Sql captureFirstUpdateSql(ThrowingSupplier<?> action) {
         AtomicReference<Sql> ref = new AtomicReference<>();

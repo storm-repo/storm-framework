@@ -52,7 +52,7 @@ class StormSerializersModuleGapTest {
         serializersModule = StormSerializers
     }
 
-    // -- @entity field with null value (line 176) --
+    // @entity field with null value (line 176)
 
     @Serializable
     data class EntityRefHolder(@Contextual val ref: Ref<SimpleEntity>?)
@@ -66,7 +66,7 @@ class StormSerializersModuleGapTest {
         }
     }
 
-    // -- @projection field with null value (line 190) --
+    // @projection field with null value (line 190)
 
     @Serializable
     data class ProjectionRefHolder(@Contextual val ref: Ref<SimpleProjection>?)
@@ -82,7 +82,7 @@ class StormSerializersModuleGapTest {
         }
     }
 
-    // -- createLoadedRef for plain Data (lines 201-203) --
+    // createLoadedRef for plain Data (lines 201-203)
     // This path is exercised when @projection contains a type that is Data but not Entity or Projection.
     // The RefSerializer's createLoadedRef falls through to the else branch.
 
@@ -100,7 +100,7 @@ class StormSerializersModuleGapTest {
         holder.ref!!.id() shouldBe 42
     }
 
-    // -- encodeId with null ref type and null id (line 213) --
+    // encodeId with null ref type and null id (line 213)
 
     @Test
     fun `serialize null ref produces JSON null via encodeId null path`() {
@@ -110,7 +110,7 @@ class StormSerializersModuleGapTest {
         json shouldBe """{"ref":null}"""
     }
 
-    // -- createRef with null id (line 207) --
+    // createRef with null id (line 207)
 
     @Test
     fun `deserialize null JSON literal for ref returns null via createRef null path`() {
@@ -118,7 +118,7 @@ class StormSerializersModuleGapTest {
         holder.ref.shouldBeNull()
     }
 
-    // -- Loaded entity round-trip exercises the main serialize/deserialize paths --
+    // Loaded entity round-trip exercises the main serialize/deserialize paths
 
     @Test
     fun `loaded entity ref serialization exercises entity branch in serializeToJsonElement`() {
@@ -128,7 +128,7 @@ class StormSerializersModuleGapTest {
         json shouldBe """{"ref":{"@entity":{"id":99,"name":"covered"}}}"""
     }
 
-    // -- Projection loaded ref exercises encodeId with non-null type and non-null id --
+    // Projection loaded ref exercises encodeId with non-null type and non-null id
 
     @Test
     fun `loaded projection ref exercises encodeId with known PK type`() {
@@ -138,7 +138,7 @@ class StormSerializersModuleGapTest {
         json shouldBe """{"ref":{"@id":55,"@projection":{"id":55,"name":"proj"}}}"""
     }
 
-    // -- deserializeFromJsonElement else branch (line 158) for non-null, non-object element --
+    // deserializeFromJsonElement else branch (line 158) for non-null, non-object element
 
     @Serializable
     data class NoPkDataRefHolder(@Contextual val ref: Ref<PlainData>?)
@@ -150,7 +150,7 @@ class StormSerializersModuleGapTest {
         holder.ref!!.id() shouldBe 42
     }
 
-    // -- serializeToJsonElement unloaded branch (non-entity, non-null ref, null loaded) --
+    // serializeToJsonElement unloaded branch (non-entity, non-null ref, null loaded)
 
     @Test
     fun `serialize unloaded ref exercises encodeId fallback for unloaded ref`() {
@@ -159,7 +159,7 @@ class StormSerializersModuleGapTest {
         json shouldBe """{"ref":88}"""
     }
 
-    // -- Using StormSerializersModule with concrete entity subtype --
+    // Using StormSerializersModule with concrete entity subtype
 
     @Serializable
     data class ConcreteEntity(
@@ -184,7 +184,7 @@ class StormSerializersModuleGapTest {
         loaded.value shouldBe "concrete-test"
     }
 
-    // -- Ref deserialization with refFactoryProvider returning null --
+    // Ref deserialization with refFactoryProvider returning null
 
     @Test
     fun `deserialization with null refFactoryProvider result creates detached ref`() {
@@ -197,7 +197,7 @@ class StormSerializersModuleGapTest {
         holder.ref!!.getOrNull().shouldBeNull()
     }
 
-    // -- Ref deserialization with refFactoryProvider returning a factory --
+    // Ref deserialization with refFactoryProvider returning a factory
 
     @Test
     fun `deserialization with refFactoryProvider result creates ref via factory`() {

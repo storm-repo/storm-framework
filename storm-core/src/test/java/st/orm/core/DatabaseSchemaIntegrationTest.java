@@ -37,7 +37,7 @@ public class DatabaseSchemaIntegrationTest {
     @Autowired
     private DataSource dataSource;
 
-    // ---- Table existence ----
+    // Table existence
 
     @Test
     public void testCoreTablesExist() throws SQLException {
@@ -73,7 +73,7 @@ public class DatabaseSchemaIntegrationTest {
         }
     }
 
-    // ---- Views ----
+    // Views
 
     @Test
     public void testViewsExist() throws SQLException {
@@ -95,7 +95,7 @@ public class DatabaseSchemaIntegrationTest {
         }
     }
 
-    // ---- Column metadata ----
+    // Column metadata
 
     @Test
     public void testCityColumns() throws SQLException {
@@ -145,7 +145,7 @@ public class DatabaseSchemaIntegrationTest {
         }
     }
 
-    // ---- Primary keys ----
+    // Primary keys
 
     @Test
     public void testCityPrimaryKey() throws SQLException {
@@ -176,7 +176,7 @@ public class DatabaseSchemaIntegrationTest {
         }
     }
 
-    // ---- Foreign keys ----
+    // Foreign keys
 
     @Test
     public void testOwnerForeignKeyToCity() throws SQLException {
@@ -237,7 +237,7 @@ public class DatabaseSchemaIntegrationTest {
         }
     }
 
-    // ---- Unique keys ----
+    // Unique keys
 
     @Test
     public void testUniqueKeysForNonExistentTable() throws SQLException {
@@ -248,7 +248,7 @@ public class DatabaseSchemaIntegrationTest {
         }
     }
 
-    // ---- JDBC_METADATA strategy ----
+    // JDBC_METADATA strategy
 
     @Test
     public void testReadWithJdbcMetadataStrategy() throws SQLException {
@@ -275,7 +275,7 @@ public class DatabaseSchemaIntegrationTest {
         }
     }
 
-    // ---- Polymorphic tables ----
+    // Polymorphic tables
 
     @Test
     public void testPolymorphicTablesExist() throws SQLException {
@@ -304,7 +304,7 @@ public class DatabaseSchemaIntegrationTest {
         }
     }
 
-    // ---- DbColumn record properties ----
+    // DbColumn record properties
 
     @Test
     public void testDbColumnRecordProperties() throws SQLException {
@@ -318,7 +318,7 @@ public class DatabaseSchemaIntegrationTest {
         }
     }
 
-    // ---- DbPrimaryKey record properties ----
+    // DbPrimaryKey record properties
 
     @Test
     public void testDbPrimaryKeyRecordProperties() throws SQLException {
@@ -332,7 +332,7 @@ public class DatabaseSchemaIntegrationTest {
         }
     }
 
-    // ---- Sequence discovery (H2 supports INFORMATION_SCHEMA.SEQUENCES) ----
+    // Sequence discovery (H2 supports INFORMATION_SCHEMA.SEQUENCES)
 
     @Test
     public void testSequenceNotExistsByDefault() throws SQLException {
@@ -343,7 +343,7 @@ public class DatabaseSchemaIntegrationTest {
         }
     }
 
-    // ---- Null schema/catalog handling ----
+    // Null schema/catalog handling
 
     @Test
     public void testReadWithNullCatalogAndSchema() throws SQLException {

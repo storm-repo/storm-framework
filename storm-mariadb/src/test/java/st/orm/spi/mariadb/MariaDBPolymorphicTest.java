@@ -70,7 +70,7 @@ public class MariaDBPolymorphicTest {
     @DbTable("nodsc_bird")
     public record NodscBird(@PK Integer id, String name) implements NodscAnimal {}
 
-    // -- Single-Table Inheritance models --
+    // Single-Table Inheritance models
     @Discriminator @DbTable("animal")
     public sealed interface Animal extends Entity<Integer> permits Cat, Dog {}
 
@@ -80,7 +80,7 @@ public class MariaDBPolymorphicTest {
     @Discriminator("Dog")
     public record Dog(@PK Integer id, String name, int weight) implements Animal {}
 
-    // ---- Single-Table Inheritance Tests ----
+    // Single-Table Inheritance Tests
 
     @Test
     public void testSelectAllAnimals() {
@@ -456,7 +456,7 @@ public class MariaDBPolymorphicTest {
         assertEquals(before - 3, animals.count());
     }
 
-    // ---- JTI Type Change Tests ----
+    // JTI Type Change Tests
 
     @Test
     public void testUpdateJoinedCatToDog() {

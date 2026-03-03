@@ -30,9 +30,7 @@ open class ORMTemplateFactoryTest(
     @Autowired val dataSource: DataSource,
 ) {
 
-    // ======================================================================
     // Factory: ORMTemplate.of(DataSource)
-    // ======================================================================
 
     @Test
     fun `ORMTemplate of DataSource should return functional template`() {
@@ -43,9 +41,7 @@ open class ORMTemplateFactoryTest(
         cities shouldHaveSize 6
     }
 
-    // ======================================================================
     // Factory: ORMTemplate.of(Connection)
-    // ======================================================================
 
     @Test
     fun `ORMTemplate of Connection should return functional template`() {
@@ -61,9 +57,7 @@ open class ORMTemplateFactoryTest(
         }
     }
 
-    // ======================================================================
     // Extension properties: DataSource.orm, Connection.orm
-    // ======================================================================
 
     @Test
     fun `DataSource orm extension should return functional template`() {
@@ -86,9 +80,7 @@ open class ORMTemplateFactoryTest(
         }
     }
 
-    // ======================================================================
     // Extension functions with decorator
-    // ======================================================================
 
     @Test
     fun `DataSource orm with decorator should apply decorator`() {
@@ -111,9 +103,7 @@ open class ORMTemplateFactoryTest(
         }
     }
 
-    // ======================================================================
     // withEntityCallback
-    // ======================================================================
 
     @Test
     fun `withEntityCallback should return new template with callback`() {
@@ -142,9 +132,7 @@ open class ORMTemplateFactoryTest(
         cities shouldHaveSize 6
     }
 
-    // ======================================================================
     // entity() and projection()
-    // ======================================================================
 
     @Test
     fun `entity should return typed EntityRepository`() {
@@ -175,9 +163,7 @@ open class ORMTemplateFactoryTest(
         owners[0].firstName shouldBe "Betty"
     }
 
-    // ======================================================================
     // validateSchema
-    // ======================================================================
 
     @Test
     fun `validateSchema should return list of errors or empty`() {
@@ -186,9 +172,7 @@ open class ORMTemplateFactoryTest(
         errors shouldHaveSize 0
     }
 
-    // ======================================================================
     // query method
-    // ======================================================================
 
     @Test
     fun `query with raw SQL should return results`() {

@@ -50,7 +50,7 @@ import st.orm.template.transactionBlocking
 @EnableTransactionIntegration
 @SpringBootTest
 @Sql("/data.sql")
-open class CoverageBoostTest(
+open class AdditionalTest(
     @Autowired val orm: ORMTemplate,
 ) {
 
@@ -64,9 +64,7 @@ open class CoverageBoostTest(
         )
     }
 
-    // ======================================================================
     // SpringTransactionContext: entity cache (getEntityCache, findEntityCache)
-    // ======================================================================
 
     @Test
     fun `entity cache should be created for each entity type under REPEATABLE_READ`(): Unit = runBlocking {
@@ -130,9 +128,7 @@ open class CoverageBoostTest(
         }
     }
 
-    // ======================================================================
     // SpringTransactionContext: isRollbackOnly (0% covered)
-    // ======================================================================
 
     @Test
     fun `isRollbackOnly should be false before setRollbackOnly`(): Unit = runBlocking {
@@ -177,9 +173,7 @@ open class CoverageBoostTest(
         }
     }
 
-    // ======================================================================
     // RepositoryAutowireCandidateResolver: register (0% covered)
-    // ======================================================================
 
     @Test
     fun `register should install RepositoryAutowireCandidateResolver in bean factory`() {
@@ -188,9 +182,7 @@ open class CoverageBoostTest(
         (beanFactory.autowireCandidateResolver is RepositoryBeanFactoryPostProcessor.RepositoryAutowireCandidateResolver).shouldBeTrue()
     }
 
-    // ======================================================================
     // RepositoryAutowireCandidateResolver: getQualifierValue meta-annotation
-    // ======================================================================
 
     @Qualifier
     @Retention(AnnotationRetention.RUNTIME)
@@ -250,9 +242,7 @@ open class CoverageBoostTest(
         resolver.isAutowireCandidate(holder, descriptor).shouldBeFalse()
     }
 
-    // ======================================================================
     // ResolverRegistration: constructor
-    // ======================================================================
 
     @Test
     fun `ResolverRegistration should be instantiable with bean factory`() {
@@ -261,9 +251,7 @@ open class CoverageBoostTest(
         registration.shouldNotBeNull()
     }
 
-    // ======================================================================
     // RepositoryBeanFactoryPostProcessor: uncovered properties
-    // ======================================================================
 
     @Test
     fun `ormTemplateBeanName default should be null`() {
@@ -284,9 +272,7 @@ open class CoverageBoostTest(
         processor.postProcessBeanFactory(beanFactory)
     }
 
-    // ======================================================================
     // RepositoryAopAutoConfiguration (0% covered)
-    // ======================================================================
 
     @Test
     fun `RepositoryAopAutoConfiguration should be instantiable`() {
@@ -300,9 +286,7 @@ open class CoverageBoostTest(
         postProcessor.shouldNotBeNull()
     }
 
-    // ======================================================================
     // SpringTransactionContext: commit and rollback edge cases
-    // ======================================================================
 
     @Test
     fun `commit with no DB access and timeout should handle timeout check`(): Unit = runBlocking {
@@ -360,9 +344,7 @@ open class CoverageBoostTest(
         }
     }
 
-    // ======================================================================
     // SpringTransactionContext: UnexpectedRollbackException in commit path
-    // ======================================================================
 
     @Test
     fun `inner setRollbackOnly should cause UnexpectedRollbackException on outer commit`(): Unit = runBlocking {
@@ -378,9 +360,7 @@ open class CoverageBoostTest(
         }
     }
 
-    // ======================================================================
     // SpringTransactionContext: NESTED rollback clears entity cache
-    // ======================================================================
 
     @Test
     fun `NESTED rollback should clear shared entity cache`(): Unit = runBlocking {
@@ -397,9 +377,7 @@ open class CoverageBoostTest(
         }
     }
 
-    // ======================================================================
     // SpringTransactionContext: REQUIRES_NEW with REPEATABLE_READ isolation
-    // ======================================================================
 
     @Test
     fun `REQUIRES_NEW should use separate entity cache`(): Unit = runBlocking {
@@ -414,9 +392,7 @@ open class CoverageBoostTest(
         }
     }
 
-    // ======================================================================
     // SpringConnectionProviderImpl: getConnection with transaction context
-    // ======================================================================
 
     @Test
     fun `connection within transaction should be managed by Spring`(): Unit = runBlocking {
@@ -434,9 +410,7 @@ open class CoverageBoostTest(
         count shouldBe 6
     }
 
-    // ======================================================================
     // SpringTransactionContext: transaction with multiple entity types and DML
-    // ======================================================================
 
     @Test
     fun `transaction with entity cache and multiple entity types`(): Unit = runBlocking {
@@ -475,10 +449,8 @@ open class CoverageBoostTest(
         }
     }
 
-    // ======================================================================
     // SpringTransactionContext: Pet entity with REPEATABLE_READ
     // (exercises entity cache for additional entity types)
-    // ======================================================================
 
     @Test
     fun `Pet entity should be cacheable under REPEATABLE_READ`(): Unit = runBlocking {
@@ -489,9 +461,7 @@ open class CoverageBoostTest(
         }
     }
 
-    // ======================================================================
     // SpringTransactionContext: countAll within various propagation modes
-    // ======================================================================
 
     @Test
     fun `countAll within REQUIRES_NEW should work`(): Unit = runBlocking {
@@ -511,9 +481,7 @@ open class CoverageBoostTest(
         }
     }
 
-    // ======================================================================
     // RepositoryBeanFactoryPostProcessor: defaultClassLoader without resourceLoader
-    // ======================================================================
 
     @Test
     fun `postProcessBeanFactory without resourceLoader should use default classloader`() {
@@ -530,9 +498,7 @@ open class CoverageBoostTest(
         processor.postProcessBeanFactory(beanFactory)
     }
 
-    // ======================================================================
     // SpringTransactionContext: commit with expired deadline
-    // ======================================================================
 
     @Test
     fun `commit with expired deadline should trigger rollback path`(): Unit = runBlocking {

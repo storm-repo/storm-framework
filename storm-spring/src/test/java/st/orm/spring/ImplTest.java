@@ -24,9 +24,9 @@ import st.orm.spring.impl.TransactionAwareConnectionProviderImpl;
 /**
  * Unit tests for coverage of implementation classes in st.orm.spring.impl.
  */
-public class ImplCoverageTest {
+public class ImplTest {
 
-    // --- ResolverRegistration (3 lines) ---
+    // ResolverRegistration (3 lines)
 
     @Test
     public void resolverRegistrationShouldAcceptBeanFactory() {
@@ -37,7 +37,7 @@ public class ImplCoverageTest {
         assertNotNull(registration);
     }
 
-    // --- RepositoryAopAutoConfiguration (2 lines) ---
+    // RepositoryAopAutoConfiguration (2 lines)
 
     @Test
     public void aopAutoConfigurationShouldProvideProxyPostProcessor() {
@@ -51,7 +51,7 @@ public class ImplCoverageTest {
         assertInstanceOf(RepositoryProxyingPostProcessor.class, postProcessor);
     }
 
-    // --- RepositoryProxyingPostProcessor (6 lines) ---
+    // RepositoryProxyingPostProcessor (6 lines)
 
     @Test
     public void repositoryProxyingPostProcessorShouldWrapRepositoryBeans() {
@@ -77,7 +77,7 @@ public class ImplCoverageTest {
         assertSame(bean, result);
     }
 
-    // --- TransactionAwareConnectionProviderImpl error path (2 lines) ---
+    // TransactionAwareConnectionProviderImpl error path (2 lines)
 
     @Test
     public void connectionProviderShouldWrapSqlExceptionInPersistenceException() {
@@ -93,7 +93,7 @@ public class ImplCoverageTest {
         assertThrows(PersistenceException.class, () -> provider.getConnection(dataSource, null));
     }
 
-    // --- RepositoryAutowireCandidateResolver delegation methods (covers hasQualifier, getLazyResolutionProxyClass, cloneIfNecessary, isAutowireCandidate with qualifier) ---
+    // RepositoryAutowireCandidateResolver delegation methods (covers hasQualifier, getLazyResolutionProxyClass, cloneIfNecessary, isAutowireCandidate with qualifier)
 
     @Test
     public void autowireCandidateResolverShouldDelegateHasQualifier() {

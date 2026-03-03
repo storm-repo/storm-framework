@@ -82,7 +82,7 @@ open class CustomRepositoryTest(
     @Autowired val orm: ORMTemplate,
 ) {
 
-    // --- Custom EntityRepository with default methods ---
+    // Custom EntityRepository with default methods
 
     @Test
     fun `custom repository default method calling findAll should work`() {
@@ -134,7 +134,7 @@ open class CustomRepositoryTest(
         repo.existsById(999) shouldBe false
     }
 
-    // --- Custom ProjectionRepository with default methods ---
+    // Custom ProjectionRepository with default methods
 
     @Test
     fun `custom projection repository default method should work`() {
@@ -162,7 +162,7 @@ open class CustomRepositoryTest(
         repo.findById(1).shouldNotBeNull().firstName shouldBe "Betty"
     }
 
-    // --- Proxy behavior tests ---
+    // Proxy behavior tests
 
     @Test
     fun `custom repository proxy toString should return meaningful string`() {

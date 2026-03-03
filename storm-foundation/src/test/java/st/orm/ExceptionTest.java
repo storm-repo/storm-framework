@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
  */
 class ExceptionTest {
 
-    // --- PersistenceException ---
+    // PersistenceException
 
     @Test
     void persistenceExceptionDefaultConstructor() {
@@ -49,7 +49,7 @@ class ExceptionTest {
         assertInstanceOf(RuntimeException.class, new PersistenceException());
     }
 
-    // --- OptimisticLockException ---
+    // OptimisticLockException
 
     @Test
     void optimisticLockExceptionDefaultConstructor() {
@@ -106,7 +106,7 @@ class ExceptionTest {
         assertInstanceOf(PersistenceException.class, new OptimisticLockException());
     }
 
-    // --- NonUniqueResultException ---
+    // NonUniqueResultException
 
     @Test
     void nonUniqueResultExceptionDefaultConstructor() {
@@ -141,7 +141,7 @@ class ExceptionTest {
         assertInstanceOf(PersistenceException.class, new NonUniqueResultException());
     }
 
-    // --- NoResultException ---
+    // NoResultException
 
     @Test
     void noResultExceptionDefaultConstructor() {

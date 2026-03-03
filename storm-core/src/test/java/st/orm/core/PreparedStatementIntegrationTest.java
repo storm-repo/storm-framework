@@ -34,12 +34,12 @@ import st.orm.core.template.ORMTemplate;
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
 @DataJpaTest(showSql = false)
-public class PreparedStatementExtendedIntegrationTest {
+public class PreparedStatementIntegrationTest {
 
     @Autowired
     private DataSource dataSource;
 
-    // ---- Temporal type binding: Date with TemporalType.DATE ----
+    // Temporal type binding: Date with TemporalType.DATE
 
     @Test
     public void testDateParameterWithDateTemporalType() {
@@ -55,7 +55,7 @@ public class PreparedStatementExtendedIntegrationTest {
         }
     }
 
-    // ---- Temporal type binding: Date with TemporalType.TIMESTAMP ----
+    // Temporal type binding: Date with TemporalType.TIMESTAMP
 
     @Test
     public void testDateParameterWithTimestampTemporalType() {
@@ -72,7 +72,7 @@ public class PreparedStatementExtendedIntegrationTest {
         }
     }
 
-    // ---- Calendar with TemporalType ----
+    // Calendar with TemporalType
 
     @Test
     public void testCalendarParameterWithDateTemporalType() {
@@ -88,7 +88,7 @@ public class PreparedStatementExtendedIntegrationTest {
         }
     }
 
-    // ---- LocalDate parameter ----
+    // LocalDate parameter
 
     @Test
     public void testLocalDateParameter() {
@@ -105,7 +105,7 @@ public class PreparedStatementExtendedIntegrationTest {
         }
     }
 
-    // ---- BigDecimal parameter ----
+    // BigDecimal parameter
 
     @Test
     public void testBigDecimalParameter() {
@@ -120,7 +120,7 @@ public class PreparedStatementExtendedIntegrationTest {
         }
     }
 
-    // ---- LocalDateTime parameter ----
+    // LocalDateTime parameter
 
     @Test
     public void testLocalDateTimeParameter() {
@@ -136,7 +136,7 @@ public class PreparedStatementExtendedIntegrationTest {
         }
     }
 
-    // ---- LocalTime parameter ----
+    // LocalTime parameter
 
     @Test
     public void testLocalTimeParameter() {
@@ -153,7 +153,7 @@ public class PreparedStatementExtendedIntegrationTest {
         }
     }
 
-    // ---- OffsetDateTime parameter ----
+    // OffsetDateTime parameter
 
     @Test
     public void testOffsetDateTimeParameter() {
@@ -169,7 +169,7 @@ public class PreparedStatementExtendedIntegrationTest {
         }
     }
 
-    // ---- ZonedDateTime parameter ----
+    // ZonedDateTime parameter
 
     @Test
     public void testZonedDateTimeParameter() {
@@ -185,7 +185,7 @@ public class PreparedStatementExtendedIntegrationTest {
         }
     }
 
-    // ---- Instant parameter ----
+    // Instant parameter
 
     @Test
     public void testInstantParameter() {
@@ -201,7 +201,7 @@ public class PreparedStatementExtendedIntegrationTest {
         }
     }
 
-    // ---- String parameter in query ----
+    // String parameter in query
 
     @Test
     public void testStringParameter() {
@@ -217,7 +217,7 @@ public class PreparedStatementExtendedIntegrationTest {
         }
     }
 
-    // ---- No-match string parameter ----
+    // No-match string parameter
 
     @Test
     public void testStringParameterNoMatch() {

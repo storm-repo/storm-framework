@@ -38,14 +38,12 @@ import st.orm.core.template.TemplateBuilder;
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
 @DataJpaTest(showSql = false)
-public class BuilderExtendedIntegrationTest {
+public class BuilderIntegrationTest {
 
     @Autowired
     private DataSource dataSource;
 
-    // -----------------------------------------------------------------------
     // 1. rightJoin
-    // -----------------------------------------------------------------------
 
     @Test
     public void testRightJoin() {
@@ -58,9 +56,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(14, list.size());
     }
 
-    // -----------------------------------------------------------------------
     // 2. crossJoin
-    // -----------------------------------------------------------------------
 
     @Test
     public void testCrossJoin() {
@@ -73,9 +69,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(36, count);
     }
 
-    // -----------------------------------------------------------------------
     // 3. having
-    // -----------------------------------------------------------------------
 
     @Test
     public void testGroupByWithHaving() {
@@ -96,9 +90,7 @@ public class BuilderExtendedIntegrationTest {
         }
     }
 
-    // -----------------------------------------------------------------------
     // 4. forUpdate
-    // -----------------------------------------------------------------------
 
     @Test
     public void testForUpdate() {
@@ -110,9 +102,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(6, list.size());
     }
 
-    // -----------------------------------------------------------------------
     // 5. forShare - H2 should also support FOR SHARE (newer H2 versions)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testForShare() {
@@ -131,9 +121,7 @@ public class BuilderExtendedIntegrationTest {
         }
     }
 
-    // -----------------------------------------------------------------------
     // 6. distinct
-    // -----------------------------------------------------------------------
 
     @Test
     public void testDistinct() {
@@ -156,9 +144,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(6, list.size());
     }
 
-    // -----------------------------------------------------------------------
     // 7. selectCount with where clause
-    // -----------------------------------------------------------------------
 
     @Test
     public void testSelectCountWithWhere() {
@@ -171,9 +157,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(4, count);
     }
 
-    // -----------------------------------------------------------------------
     // 8. delete with where
-    // -----------------------------------------------------------------------
 
     @Test
     public void testDeleteWithWhere() {
@@ -212,9 +196,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(0, afterCount);
     }
 
-    // -----------------------------------------------------------------------
     // 9. Query.getResultCount()
-    // -----------------------------------------------------------------------
 
     @Test
     public void testQueryGetResultCount() {
@@ -224,9 +206,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(6, count);
     }
 
-    // -----------------------------------------------------------------------
     // 10. Query.isVersionAware()
-    // -----------------------------------------------------------------------
 
     @Test
     public void testQueryIsVersionAwareForVersionedEntity() {
@@ -250,9 +230,7 @@ public class BuilderExtendedIntegrationTest {
         assertFalse(selectQuery.isVersionAware());
     }
 
-    // -----------------------------------------------------------------------
     // 11. Query.getRefStream / getRefList
-    // -----------------------------------------------------------------------
 
     @Test
     public void testQueryGetRefList() {
@@ -276,9 +254,7 @@ public class BuilderExtendedIntegrationTest {
         }
     }
 
-    // -----------------------------------------------------------------------
     // 12. Subquery with EXISTS
-    // -----------------------------------------------------------------------
 
     @Test
     public void testSubqueryExists() {
@@ -308,9 +284,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(5, list.size());
     }
 
-    // -----------------------------------------------------------------------
     // 13. append
-    // -----------------------------------------------------------------------
 
     @Test
     public void testAppendRawSql() {
@@ -334,9 +308,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals("Madison", list.getFirst().name());
     }
 
-    // -----------------------------------------------------------------------
     // 14. selectExpression (custom select)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testCustomSelectExpression() {
@@ -360,9 +332,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(6, result.count());
     }
 
-    // -----------------------------------------------------------------------
     // 15. withTableNameResolver via ORMTemplate.of(dataSource, decorator)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testWithTableNameResolverViaDecorator() {
@@ -377,9 +347,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(6, cities.size());
     }
 
-    // -----------------------------------------------------------------------
     // 16. withColumnNameResolver via ORMTemplate.of(dataSource, decorator)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testWithColumnNameResolverViaDecorator() {
@@ -391,9 +359,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(6, cities.size());
     }
 
-    // -----------------------------------------------------------------------
     // 17. withForeignKeyResolver via ORMTemplate.of(dataSource, decorator)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testWithForeignKeyResolverViaDecorator() {
@@ -407,9 +373,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(13, pets.size());
     }
 
-    // -----------------------------------------------------------------------
     // 18. Version with Instant (Visit has @Version Instant timestamp)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testVersionWithInstantOnUpdate() {
@@ -435,9 +399,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals("updated rabies shot", reloaded.description());
     }
 
-    // -----------------------------------------------------------------------
     // 19. Version with int (Owner has @Version int version)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testVersionWithIntOnUpdate() {
@@ -465,9 +427,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(1, reloaded.version());
     }
 
-    // -----------------------------------------------------------------------
     // 20. QueryBuilder.getResultCount() convenience method
-    // -----------------------------------------------------------------------
 
     @Test
     public void testBuilderGetResultCount() {
@@ -479,9 +439,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(2, count);
     }
 
-    // -----------------------------------------------------------------------
     // Additional: Query.getResultList(Class) with typed result
-    // -----------------------------------------------------------------------
 
     @Test
     public void testQueryGetResultListTyped() {
@@ -492,9 +450,7 @@ public class BuilderExtendedIntegrationTest {
         assertTrue(names.contains("Madison"));
     }
 
-    // -----------------------------------------------------------------------
     // Additional: Query.getSingleResult(Class) with typed result
-    // -----------------------------------------------------------------------
 
     @Test
     public void testQueryGetSingleResultTyped() {
@@ -505,9 +461,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals("Madison", name);
     }
 
-    // -----------------------------------------------------------------------
     // Additional: Query.getOptionalResult(Class) with typed result
-    // -----------------------------------------------------------------------
 
     @Test
     public void testQueryGetOptionalResultTyped() {
@@ -519,9 +473,7 @@ public class BuilderExtendedIntegrationTest {
         assertTrue(result.isEmpty());
     }
 
-    // -----------------------------------------------------------------------
     // Additional: QueryBuilder.getSingleResult()
-    // -----------------------------------------------------------------------
 
     @Test
     public void testBuilderGetSingleResult() {
@@ -533,9 +485,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(2, city.id());
     }
 
-    // -----------------------------------------------------------------------
     // Additional: QueryBuilder.getOptionalResult()
-    // -----------------------------------------------------------------------
 
     @Test
     public void testBuilderGetOptionalResult() {
@@ -556,9 +506,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals("Madison", result.get().name());
     }
 
-    // -----------------------------------------------------------------------
     // Additional: orderByDescending
-    // -----------------------------------------------------------------------
 
     @Test
     public void testOrderByDescending() {
@@ -571,9 +519,7 @@ public class BuilderExtendedIntegrationTest {
         assertTrue(list.get(0).id() > list.get(list.size() - 1).id());
     }
 
-    // -----------------------------------------------------------------------
     // Additional: limit and offset
-    // -----------------------------------------------------------------------
 
     @Test
     public void testLimitAndOffset() {
@@ -589,9 +535,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(4, list.get(1).id());
     }
 
-    // -----------------------------------------------------------------------
     // Additional: whereAny with builder predicate
-    // -----------------------------------------------------------------------
 
     @Test
     public void testWhereAnyPredicate() {
@@ -604,9 +548,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(3, list.size());
     }
 
-    // -----------------------------------------------------------------------
     // Additional: Query.unsafe() and Query.managed()
-    // -----------------------------------------------------------------------
 
     @Test
     public void testQueryUnsafe() {
@@ -627,9 +569,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(6, managedQuery.getResultCount());
     }
 
-    // -----------------------------------------------------------------------
     // Additional: deleteFrom via QueryTemplate
-    // -----------------------------------------------------------------------
 
     @Test
     public void testDeleteFromQueryTemplate() {
@@ -648,9 +588,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(13, after);
     }
 
-    // -----------------------------------------------------------------------
     // Additional: TemplateString.combine()
-    // -----------------------------------------------------------------------
 
     @Test
     public void testTemplateStringCombine() {
@@ -664,9 +602,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(2, list.size());
     }
 
-    // -----------------------------------------------------------------------
     // Additional: TemplateString.wrap()
-    // -----------------------------------------------------------------------
 
     @Test
     public void testTemplateStringWrap() {
@@ -678,9 +614,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(2, wrapped.fragments().size());
     }
 
-    // -----------------------------------------------------------------------
     // Additional: TemplateString.EMPTY
-    // -----------------------------------------------------------------------
 
     @Test
     public void testTemplateStringEmpty() {
@@ -691,9 +625,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals("", empty.fragments().getFirst());
     }
 
-    // -----------------------------------------------------------------------
     // Additional: TemplateBuilder.create with TemplateBuilder lambda
-    // -----------------------------------------------------------------------
 
     @Test
     public void testTemplateBuilderCreate() {
@@ -707,9 +639,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals("Madison", list.getFirst().name());
     }
 
-    // -----------------------------------------------------------------------
     // Additional: model() from QueryTemplate
-    // -----------------------------------------------------------------------
 
     @Test
     public void testModel() {
@@ -727,9 +657,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals("city", model.name());
     }
 
-    // -----------------------------------------------------------------------
     // Additional: ref() from QueryTemplate
-    // -----------------------------------------------------------------------
 
     @Test
     public void testRefCreation() {
@@ -739,9 +667,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(2, ref.id());
     }
 
-    // -----------------------------------------------------------------------
     // Additional: dialect() from QueryTemplate
-    // -----------------------------------------------------------------------
 
     @Test
     public void testDialect() {
@@ -752,9 +678,7 @@ public class BuilderExtendedIntegrationTest {
         assertNotNull(dialect.forUpdateLockHint());
     }
 
-    // -----------------------------------------------------------------------
     // Additional: createBindVars() from QueryTemplate
-    // -----------------------------------------------------------------------
 
     @Test
     public void testCreateBindVars() {
@@ -763,9 +687,7 @@ public class BuilderExtendedIntegrationTest {
         assertNotNull(bindVars);
     }
 
-    // -----------------------------------------------------------------------
     // Additional: QueryBuilder.typed()
-    // -----------------------------------------------------------------------
 
     @Test
     public void testTypedQueryBuilder() {
@@ -779,9 +701,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(1, list.getFirst().id());
     }
 
-    // -----------------------------------------------------------------------
     // Additional: Query.getResultList() (Object[] variant)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testQueryGetResultListRaw() {
@@ -795,9 +715,7 @@ public class BuilderExtendedIntegrationTest {
         }
     }
 
-    // -----------------------------------------------------------------------
     // Additional: Query.getSingleResult() (Object[] variant)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testQueryGetSingleResultRaw() {
@@ -809,9 +727,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals("Madison", row[1]);
     }
 
-    // -----------------------------------------------------------------------
     // Additional: Query.getOptionalResult() (Object[] variant)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testQueryGetOptionalResultRaw() {
@@ -822,9 +738,7 @@ public class BuilderExtendedIntegrationTest {
         assertTrue(result.isEmpty());
     }
 
-    // -----------------------------------------------------------------------
     // Additional: groupBy with template
-    // -----------------------------------------------------------------------
 
     @Test
     public void testGroupByTemplate() {
@@ -837,9 +751,7 @@ public class BuilderExtendedIntegrationTest {
         assertEquals(6, list.size());
     }
 
-    // -----------------------------------------------------------------------
     // Additional: Query via raw string (query(String))
-    // -----------------------------------------------------------------------
 
     @Test
     public void testQueryWithRawString() {

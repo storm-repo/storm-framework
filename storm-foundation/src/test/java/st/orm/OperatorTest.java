@@ -197,4 +197,137 @@ class OperatorTest {
         String result = Operator.EQUALS.format(null, "?");
         assertEquals("null = ?", result);
     }
+
+    @Test
+    void betweenWithThreePlaceholdersThrows() {
+        assertThrows(IllegalArgumentException.class,
+                () -> Operator.BETWEEN.format("col", "?", "?", "?"));
+    }
+
+    @Test
+    void betweenWithZeroPlaceholdersThrows() {
+        assertThrows(IllegalArgumentException.class,
+                () -> Operator.BETWEEN.format("col"));
+    }
+
+    @Test
+    void notEqualsWithZeroPlaceholdersThrows() {
+        assertThrows(IllegalArgumentException.class,
+                () -> Operator.NOT_EQUALS.format("col"));
+    }
+
+    @Test
+    void notLikeWithZeroPlaceholdersThrows() {
+        assertThrows(IllegalArgumentException.class,
+                () -> Operator.NOT_LIKE.format("col"));
+    }
+
+    @Test
+    void isTrueWithOnePlaceholderThrows() {
+        assertThrows(IllegalArgumentException.class,
+                () -> Operator.IS_TRUE.format("col", "?"));
+    }
+
+    @Test
+    void isFalseWithOnePlaceholderThrows() {
+        assertThrows(IllegalArgumentException.class,
+                () -> Operator.IS_FALSE.format("col", "?"));
+    }
+
+    @Test
+    void isNullWithOnePlaceholderThrows() {
+        assertThrows(IllegalArgumentException.class,
+                () -> Operator.IS_NULL.format("col", "?"));
+    }
+
+    @Test
+    void isNotNullWithOnePlaceholderThrows() {
+        assertThrows(IllegalArgumentException.class,
+                () -> Operator.IS_NOT_NULL.format("col", "?"));
+    }
+
+    @Test
+    void notEqualsWithNullColumnFormatsWithNull() {
+        // When column is null, operators produce SQL with "null" string (no exception).
+        String result = Operator.NOT_EQUALS.format(null, "?");
+        assertEquals("null <> ?", result);
+    }
+
+    @Test
+    void likeWithNullColumnFormatsWithNull() {
+        String result = Operator.LIKE.format(null, "?");
+        assertEquals("null LIKE ?", result);
+    }
+
+    @Test
+    void notLikeWithNullColumnFormatsWithNull() {
+        String result = Operator.NOT_LIKE.format(null, "?");
+        assertEquals("null NOT LIKE ?", result);
+    }
+
+    @Test
+    void greaterThanWithNullColumnFormatsWithNull() {
+        String result = Operator.GREATER_THAN.format(null, "?");
+        assertEquals("null > ?", result);
+    }
+
+    @Test
+    void greaterThanOrEqualWithNullColumnFormatsWithNull() {
+        String result = Operator.GREATER_THAN_OR_EQUAL.format(null, "?");
+        assertEquals("null >= ?", result);
+    }
+
+    @Test
+    void lessThanWithNullColumnFormatsWithNull() {
+        String result = Operator.LESS_THAN.format(null, "?");
+        assertEquals("null < ?", result);
+    }
+
+    @Test
+    void lessThanOrEqualWithNullColumnFormatsWithNull() {
+        String result = Operator.LESS_THAN_OR_EQUAL.format(null, "?");
+        assertEquals("null <= ?", result);
+    }
+
+    @Test
+    void betweenWithNullColumnFormatsWithNull() {
+        String result = Operator.BETWEEN.format(null, "?", "?");
+        assertEquals("null BETWEEN ? AND ?", result);
+    }
+
+    @Test
+    void isTrueWithNullColumnFormatsWithNull() {
+        String result = Operator.IS_TRUE.format(null);
+        assertEquals("null IS TRUE", result);
+    }
+
+    @Test
+    void isFalseWithNullColumnFormatsWithNull() {
+        String result = Operator.IS_FALSE.format(null);
+        assertEquals("null IS FALSE", result);
+    }
+
+    @Test
+    void isNullWithNullColumnFormatsWithNull() {
+        String result = Operator.IS_NULL.format(null);
+        assertEquals("null IS NULL", result);
+    }
+
+    @Test
+    void isNotNullWithNullColumnFormatsWithNull() {
+        String result = Operator.IS_NOT_NULL.format(null);
+        assertEquals("null IS NOT NULL", result);
+    }
+
+    @Test
+    void inWithNullColumnFormatsWithNull() {
+        String result = Operator.IN.format(null, "?");
+        assertEquals("null IN (?)", result);
+    }
+
+    @Test
+    void notInWithNullColumnFormatsWithNull() {
+        String result = Operator.NOT_IN.format(null, "?");
+        assertEquals("null NOT IN (?)", result);
+    }
 }

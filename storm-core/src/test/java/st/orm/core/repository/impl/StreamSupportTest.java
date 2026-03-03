@@ -14,7 +14,7 @@ import st.orm.core.repository.impl.StreamSupport.Partition;
  */
 class StreamSupportTest {
 
-    // ---- chunked tests ----
+    // chunked tests
 
     @Test
     void testChunkedBasic() {
@@ -69,7 +69,7 @@ class StreamSupportTest {
         assertTrue(closed[0]);
     }
 
-    // ---- partitioned tests (without overflow) ----
+    // partitioned tests (without overflow)
 
     @Test
     void testPartitionedBasic() {
@@ -129,7 +129,7 @@ class StreamSupportTest {
                 () -> StreamSupport.partitioned(Stream.of(1), 0, x -> "key"));
     }
 
-    // ---- partitioned tests (with overflow) ----
+    // partitioned tests (with overflow)
 
     @Test
     void testPartitionedWithOverflow() {

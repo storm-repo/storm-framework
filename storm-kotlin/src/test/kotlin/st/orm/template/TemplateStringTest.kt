@@ -19,9 +19,7 @@ open class TemplateStringTest(
     @Autowired val orm: ORMTemplate,
 ) {
 
-    // ======================================================================
     // TemplateString.raw(String) tests
-    // ======================================================================
 
     @Test
     fun `raw from string should create a TemplateString`() {
@@ -54,9 +52,7 @@ open class TemplateStringTest(
         template.shouldBeInstanceOf<TemplateString>()
     }
 
-    // ======================================================================
     // TemplateString.raw(TemplateBuilder) tests
-    // ======================================================================
 
     @Test
     fun `raw from builder should create a TemplateString`() {
@@ -82,9 +78,7 @@ open class TemplateStringTest(
         results[0].name shouldBe "Madison"
     }
 
-    // ======================================================================
     // TemplateString.wrap() tests
-    // ======================================================================
 
     @Test
     fun `wrap with value should create a TemplateString`() {
@@ -108,9 +102,7 @@ open class TemplateStringTest(
         template.shouldBeInstanceOf<TemplateString>()
     }
 
-    // ======================================================================
     // TemplateString.combine() tests
-    // ======================================================================
 
     @Test
     fun `combine should merge multiple template strings`() {
@@ -154,9 +146,7 @@ open class TemplateStringTest(
         result.shouldNotBeNull()
     }
 
-    // ======================================================================
     // TemplateBuilder.build() extension tests
-    // ======================================================================
 
     @Test
     fun `TemplateBuilder build should create TemplateString`() {
@@ -173,9 +163,7 @@ open class TemplateStringTest(
         results shouldHaveSize 6
     }
 
-    // ======================================================================
     // Integration: TemplateString with orm.query(TemplateBuilder)
-    // ======================================================================
 
     @Test
     fun `query with TemplateBuilder lambda should return results`() {
@@ -199,9 +187,7 @@ open class TemplateStringTest(
         results shouldHaveSize 6
     }
 
-    // ======================================================================
     // TemplateContext.t and TemplateContext.insert tests
-    // ======================================================================
 
     @Test
     fun `TemplateContext t and insert should produce same results`() {

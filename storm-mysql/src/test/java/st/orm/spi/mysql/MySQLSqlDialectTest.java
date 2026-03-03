@@ -2,6 +2,7 @@ package st.orm.spi.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -17,7 +18,7 @@ class MySQLSqlDialectTest {
 
     private final MySQLSqlDialect dialect = new MySQLSqlDialect();
 
-    // -- Identifier validation: MySQL allows underscore prefix --
+    // Identifier validation: MySQL allows underscore prefix
 
     @Test
     void identifierPatternShouldAcceptUnderscorePrefixedNames() {
@@ -35,7 +36,7 @@ class MySQLSqlDialectTest {
         assertFalse(dialect.getValidIdentifierPattern().matcher("").matches());
     }
 
-    // -- Escape: MySQL uses backtick escaping --
+    // Escape: MySQL uses backtick escaping
 
     @Test
     void escapeShouldWrapInBackticks() {
@@ -52,7 +53,7 @@ class MySQLSqlDialectTest {
         assertEquals("`a``b``c`", dialect.escape("a`b`c"));
     }
 
-    // -- getSafeIdentifier: keyword + escape integration --
+    // getSafeIdentifier: keyword + escape integration
 
     @Test
     void getSafeIdentifierShouldEscapeMySQLSpecificKeywords() {
@@ -80,7 +81,7 @@ class MySQLSqlDialectTest {
         assertFalse(dialect.isKeyword("myColumn"));
     }
 
-    // -- Identifier pattern: matches backtick and double-quote identifiers --
+    // Identifier pattern: matches backtick and double-quote identifiers
 
     @Test
     void identifierPatternShouldExtractBacktickIdentifiers() {
@@ -101,7 +102,7 @@ class MySQLSqlDialectTest {
         assertFalse(dialect.getIdentifierPattern().matcher("SELECT myCol FROM t").find());
     }
 
-    // -- Quote literal pattern --
+    // Quote literal pattern
 
     @Test
     void quoteLiteralPatternShouldMatchStringWithEscapedQuotes() {
@@ -110,7 +111,7 @@ class MySQLSqlDialectTest {
         assertEquals("'it''s a test'", matcher.group());
     }
 
-    // -- MySQL-specific limit/offset with unusual offset workaround --
+    // MySQL-specific limit/offset with unusual offset workaround
 
     @Test
     void limitShouldGenerateLimitClause() {
@@ -130,7 +131,7 @@ class MySQLSqlDialectTest {
         assertEquals("LIMIT 20 OFFSET 10", dialect.limit(10, 20));
     }
 
-    // -- MySQL sequence: not supported, should throw --
+    // MySQL sequence: not supported, should throw
 
     @Test
     void sequenceNextValShouldThrowPersistenceException() {
@@ -144,7 +145,7 @@ class MySQLSqlDialectTest {
         assertTrue(exception.getMessage().contains("sequence"));
     }
 
-    // -- Provider filter --
+    // Provider filter
 
     @Test
     void providerFilterShouldAcceptNonSqlDialectProviders() {
@@ -163,7 +164,7 @@ class MySQLSqlDialectTest {
         assertTrue(MySQLProviderFilter.INSTANCE.test(new MySQLEntityRepositoryProviderImpl()));
     }
 
-    // -- SqlDialectProvider --
+    // SqlDialectProvider
 
     @Test
     void sqlDialectProviderShouldReturnDialectWithMySQLSpecificBehavior() {
@@ -172,5 +173,150 @@ class MySQLSqlDialectTest {
         // MySQL-specific: backtick escaping and LIMIT syntax.
         assertEquals("`col`", sqlDialect.escape("col"));
         assertEquals("LIMIT 5", sqlDialect.limit(5));
+    }
+
+    @Test
+    void nameShouldReturnMySQL() {
+        assertEquals("MySQL", dialect.name());
+    }
+
+    @Test
+    void configConstructorShouldCreateDialectWithSameBehavior() {
+        var configDialect = new MySQLSqlDialect(StormConfig.of(Map.of()));
+        assertEquals("MySQL", configDialect.name());
+        assertEquals("`col`", configDialect.escape("col"));
+    }
+
+    @Test
+    void supportsDeleteAliasShouldReturnTrue() {
+        assertTrue(dialect.supportsDeleteAlias());
+    }
+
+    @Test
+    void supportsMultiValueTuplesShouldReturnTrue() {
+        assertTrue(dialect.supportsMultiValueTuples());
+    }
+
+    @Test
+    void forUpdateLockHintShouldReturnForUpdate() {
+        assertEquals("FOR UPDATE", dialect.forUpdateLockHint());
+    }
+
+    @Test
+    void forShareLockHintShouldReturnForShare() {
+        assertEquals("FOR SHARE", dialect.forShareLockHint());
+    }
+
+    @Test
+    void validIdentifierPatternShouldAcceptAlphanumericWithUnderscore() {
+        assertTrue(dialect.getValidIdentifierPattern().matcher("my_table_123").matches());
+    }
+
+    @Test
+    void validIdentifierPatternShouldRejectSpecialCharacters() {
+        assertFalse(dialect.getValidIdentifierPattern().matcher("my-table").matches());
+        assertFalse(dialect.getValidIdentifierPattern().matcher("my table").matches());
+    }
+
+    @Test
+    void quoteLiteralPatternShouldMatchSimpleStringLiteral() {
+        var matcher = dialect.getQuoteLiteralPattern().matcher("'hello'");
+        assertTrue(matcher.find());
+        assertEquals("'hello'", matcher.group());
+    }
+
+    @Test
+    void quoteLiteralPatternShouldMatchEmptyStringLiteral() {
+        var matcher = dialect.getQuoteLiteralPattern().matcher("''");
+        assertTrue(matcher.find());
+        assertEquals("''", matcher.group());
+    }
+
+    @Test
+    void entityRepositoryProviderShouldNotBeNull() {
+        assertNotNull(new MySQLEntityRepositoryProviderImpl());
+    }
+
+    @Test
+    void sqlDialectProviderShouldCreateDialectWithAllMySQLSpecificBehavior() {
+        var provider = new MySQLSqlDialectProviderImpl();
+        var sqlDialect = provider.getSqlDialect(StormConfig.of(Map.of()));
+        assertNotNull(sqlDialect);
+        assertEquals("MySQL", sqlDialect.name());
+        assertTrue(sqlDialect.supportsDeleteAlias());
+        assertTrue(sqlDialect.supportsMultiValueTuples());
+        assertEquals("FOR UPDATE", sqlDialect.forUpdateLockHint());
+        assertEquals("FOR SHARE", sqlDialect.forShareLockHint());
+    }
+
+    @Test
+    void isKeywordShouldRecognizeMySQLSpecificKeywords() {
+        assertTrue(dialect.isKeyword("ACCESSIBLE"));
+        assertTrue(dialect.isKeyword("ANALYZE"));
+        assertTrue(dialect.isKeyword("CHANGE"));
+        assertTrue(dialect.isKeyword("DATABASE"));
+        assertTrue(dialect.isKeyword("DELAYED"));
+        assertTrue(dialect.isKeyword("ENCLOSED"));
+        assertTrue(dialect.isKeyword("ESCAPED"));
+        assertTrue(dialect.isKeyword("FORCE"));
+        assertTrue(dialect.isKeyword("GENERATED"));
+        assertTrue(dialect.isKeyword("HIGH_PRIORITY"));
+        assertTrue(dialect.isKeyword("INT1"));
+        assertTrue(dialect.isKeyword("INT2"));
+        assertTrue(dialect.isKeyword("INT3"));
+        assertTrue(dialect.isKeyword("INT4"));
+        assertTrue(dialect.isKeyword("INT8"));
+        assertTrue(dialect.isKeyword("KEYS"));
+        assertTrue(dialect.isKeyword("LINES"));
+        assertTrue(dialect.isKeyword("LOAD"));
+        assertTrue(dialect.isKeyword("LOW_PRIORITY"));
+        assertTrue(dialect.isKeyword("MEDIUMINT"));
+        assertTrue(dialect.isKeyword("MIDDLEINT"));
+        assertTrue(dialect.isKeyword("OPTIMIZE"));
+        assertTrue(dialect.isKeyword("OPTIONALLY"));
+        assertTrue(dialect.isKeyword("OUTFILE"));
+        assertTrue(dialect.isKeyword("PURGE"));
+        assertTrue(dialect.isKeyword("REQUIRE"));
+        assertTrue(dialect.isKeyword("SCHEMAS"));
+        assertTrue(dialect.isKeyword("SHOW"));
+        assertTrue(dialect.isKeyword("SQL_BIG_RESULT"));
+        assertTrue(dialect.isKeyword("SQL_CALC_FOUND_ROWS"));
+        assertTrue(dialect.isKeyword("SQL_SMALL_RESULT"));
+        assertTrue(dialect.isKeyword("STRAIGHT_JOIN"));
+        assertTrue(dialect.isKeyword("TERMINATED"));
+        assertTrue(dialect.isKeyword("TINYINT"));
+        assertTrue(dialect.isKeyword("UNSIGNED"));
+        assertTrue(dialect.isKeyword("UTC_DATE"));
+        assertTrue(dialect.isKeyword("UTC_TIME"));
+        assertTrue(dialect.isKeyword("UTC_TIMESTAMP"));
+        assertTrue(dialect.isKeyword("VIRTUAL"));
+        assertTrue(dialect.isKeyword("VISIBLE"));
+        assertTrue(dialect.isKeyword("INVISIBLE"));
+        assertTrue(dialect.isKeyword("XOR"));
+        assertTrue(dialect.isKeyword("ZEROFILL"));
+    }
+
+    @Test
+    void sequenceDiscoveryStrategyShouldReturnNone() {
+        assertEquals(
+                st.orm.core.template.SqlDialect.SequenceDiscoveryStrategy.NONE,
+                dialect.sequenceDiscoveryStrategy());
+    }
+
+    @Test
+    void useCatalogAsSchemaShouldReturnTrue() {
+        assertTrue(dialect.useCatalogAsSchema());
+    }
+
+    @Test
+    void constraintDiscoveryStrategyShouldReturnInformationSchemaReferencing() {
+        assertEquals(
+                st.orm.core.template.SqlDialect.ConstraintDiscoveryStrategy.INFORMATION_SCHEMA_REFERENCING,
+                dialect.constraintDiscoveryStrategy());
+    }
+
+    @Test
+    void escapeShouldHandleEmptyName() {
+        assertEquals("``", dialect.escape(""));
     }
 }

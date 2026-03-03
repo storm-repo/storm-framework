@@ -2368,7 +2368,7 @@ public class RepositoryPreparedStatementIntegrationTest {
         assertThrows(st.orm.NoResultException.class, () -> repo.getBy(Owner_.id, 999));
     }
 
-    // -- @Persist propagation on inline records --
+    // @Persist propagation on inline records
 
     record OwnerCityInline(int ownerId, int cityId) {}
 

@@ -24,9 +24,7 @@ open class SchemaValidationTest(
     @Autowired val dataSource: DataSource,
 ) {
 
-    // ======================================================================
     // validateSchema(types) tests with valid types
-    // ======================================================================
 
     @Test
     fun `validateSchema with City should return no errors`() {
@@ -79,9 +77,7 @@ open class SchemaValidationTest(
         errors.shouldBeEmpty()
     }
 
-    // ======================================================================
     // validateSchema(types) tests with invalid types
-    // ======================================================================
 
     // Entity mapped to a table that does not exist in the database.
     @DbTable("nonexistent_table")
@@ -110,9 +106,7 @@ open class SchemaValidationTest(
         errors.shouldNotBeEmpty()
     }
 
-    // ======================================================================
     // validateSchemaOrThrow(types) tests
-    // ======================================================================
 
     @Test
     fun `validateSchemaOrThrow with valid types should not throw`() {
@@ -134,9 +128,7 @@ open class SchemaValidationTest(
         }
     }
 
-    // ======================================================================
     // validateSchema with empty list
-    // ======================================================================
 
     @Test
     fun `validateSchema with empty list should return no errors`() {
@@ -149,9 +141,7 @@ open class SchemaValidationTest(
         orm.validateSchemaOrThrow(emptyList())
     }
 
-    // ======================================================================
     // validateSchema on connection-backed template
-    // ======================================================================
 
     @Test
     fun `validateSchema on connection-backed template should throw PersistenceException`() {
@@ -174,9 +164,7 @@ open class SchemaValidationTest(
         }
     }
 
-    // ======================================================================
     // OwnerView (projection) validation
-    // ======================================================================
 
     @Test
     fun `validateSchema with OwnerView projection should return no errors`() {

@@ -129,4 +129,31 @@ public class WeakInternerTest {
         assertSame(testEntity, internedTest);
         assertSame(otherEntity, internedOther);
     }
+
+    @Test
+    public void testGetEntityForDifferentTypeReturnsNull() {
+        record OtherEntity(@PK Integer id, String label) implements Entity<Integer> {}
+
+        WeakInterner interner = new WeakInterner();
+        TestEntity entity = new TestEntity(1, "Alice");
+        interner.intern(entity);
+
+        // Looking up with a different entity type but same PK should return null
+        // because the Ref includes the entity type.
+        OtherEntity result = interner.get(OtherEntity.class, 1);
+        assertNull(result, "Should return null when looking up different entity type");
+    }
+
+    @Test
+    public void testGetEntityAfterInternReturnsCorrectInstance() {
+        WeakInterner interner = new WeakInterner();
+        TestEntity entity1 = new TestEntity(1, "Alice");
+        TestEntity entity2 = new TestEntity(2, "Bob");
+        interner.intern(entity1);
+        interner.intern(entity2);
+
+        assertSame(entity1, interner.get(TestEntity.class, 1));
+        assertSame(entity2, interner.get(TestEntity.class, 2));
+        assertNull(interner.get(TestEntity.class, 3));
+    }
 }

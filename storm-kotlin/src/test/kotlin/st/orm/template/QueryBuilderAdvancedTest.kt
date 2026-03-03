@@ -32,9 +32,7 @@ open class QueryBuilderAdvancedTest(
     @Suppress("UNCHECKED_CAST")
     private fun <T : Data, V> metamodel(model: Model<*, *>, columnName: String): Metamodel<T, V> = model.columns.first { it.name == columnName }.metamodel as Metamodel<T, V>
 
-    // ======================================================================
     // distinct() tests
-    // ======================================================================
 
     @Test
     fun `distinct on simple select should return all unique cities`() {
@@ -65,9 +63,7 @@ open class QueryBuilderAdvancedTest(
         count shouldBe 6
     }
 
-    // ======================================================================
     // forUpdate() tests
-    // ======================================================================
 
     @Test
     fun `forUpdate should return correct entity data`() {
@@ -99,9 +95,7 @@ open class QueryBuilderAdvancedTest(
         city.id shouldBe 1
     }
 
-    // ======================================================================
     // forShare() tests
-    // ======================================================================
 
     @Test
     fun `forShare should build query with shared lock`() {
@@ -119,9 +113,7 @@ open class QueryBuilderAdvancedTest(
         }
     }
 
-    // ======================================================================
     // append() tests
-    // ======================================================================
 
     @Test
     fun `append with raw SQL template should modify query`() {
@@ -146,9 +138,7 @@ open class QueryBuilderAdvancedTest(
         cities[5].id shouldBe 6
     }
 
-    // ======================================================================
     // typed() tests
-    // ======================================================================
 
     @Test
     fun `typed should allow specifying primary key type`() {
@@ -173,9 +163,7 @@ open class QueryBuilderAdvancedTest(
         cities shouldHaveSize 3
     }
 
-    // ======================================================================
     // selectFrom / deleteFrom tests (QueryTemplate level)
-    // ======================================================================
 
     @Test
     fun `selectFrom should return query builder for entity type`() {
@@ -201,9 +189,7 @@ open class QueryBuilderAdvancedTest(
         deleted shouldBe 14
     }
 
-    // ======================================================================
     // hasOrderBy tests
-    // ======================================================================
 
     @Test
     fun `hasOrderBy should return false when no order by is set`() {
@@ -219,9 +205,7 @@ open class QueryBuilderAdvancedTest(
         builder.hasOrderBy() shouldBe true
     }
 
-    // ======================================================================
     // forLock() tests
-    // ======================================================================
 
     @Test
     fun `forLock with custom template should apply lock mode`() {
@@ -231,9 +215,7 @@ open class QueryBuilderAdvancedTest(
         city.name shouldBe "Sun Paririe"
     }
 
-    // ======================================================================
     // Query resultFlow tests
-    // ======================================================================
 
     @Test
     fun `build query resultFlow should return typed flow`(): Unit = runBlocking {
@@ -260,9 +242,7 @@ open class QueryBuilderAdvancedTest(
         }
     }
 
-    // ======================================================================
     // Combined advanced query scenarios
-    // ======================================================================
 
     @Test
     fun `distinct with orderBy and limit should work together`() {
@@ -295,9 +275,7 @@ open class QueryBuilderAdvancedTest(
         cities[5].id shouldBe 6
     }
 
-    // ======================================================================
     // QueryBuilder: where with varargs
-    // ======================================================================
 
     @Test
     fun `where with metamodel and IN operator and varargs should filter entities`() {
@@ -307,9 +285,7 @@ open class QueryBuilderAdvancedTest(
         cities shouldHaveSize 2
     }
 
-    // ======================================================================
     // QueryBuilder: having with metamodel path and operator
-    // ======================================================================
 
     @Test
     fun `having with template builder should filter groups`() {
@@ -323,9 +299,7 @@ open class QueryBuilderAdvancedTest(
         queryResult.size shouldNotBe 0
     }
 
-    // ======================================================================
     // QueryBuilder: where/whereAny with PredicateBuilder (using eq infix)
-    // ======================================================================
 
     @Test
     fun `where with PredicateBuilder should filter entities`() {
@@ -345,9 +319,7 @@ open class QueryBuilderAdvancedTest(
         cities shouldHaveSize 1
     }
 
-    // ======================================================================
     // QueryBuilder: resultCount
-    // ======================================================================
 
     @Test
     fun `resultCount should return total count`() {
@@ -364,9 +336,7 @@ open class QueryBuilderAdvancedTest(
         count shouldBe 1L
     }
 
-    // ======================================================================
     // QueryBuilder: limit/offset
-    // ======================================================================
 
     @Test
     fun `limit should restrict result count`() {
@@ -385,9 +355,7 @@ open class QueryBuilderAdvancedTest(
         cities[0].id shouldBe 3
     }
 
-    // ======================================================================
     // QueryBuilder: selectAll flow
-    // ======================================================================
 
     @Test
     fun `resultFlow should return all entities as flow`(): Unit = runBlocking {
@@ -396,9 +364,7 @@ open class QueryBuilderAdvancedTest(
         count shouldBe 6
     }
 
-    // ======================================================================
     // QueryBuilder: whereExists and whereNotExists
-    // ======================================================================
 
     @Test
     fun `whereExists with subquery builder should filter cities with owners`() {
@@ -416,9 +382,7 @@ open class QueryBuilderAdvancedTest(
         cities shouldHaveSize 0
     }
 
-    // ======================================================================
     // orderByDescending tests
-    // ======================================================================
 
     @Test
     fun `orderByDescending with single metamodel path should sort descending`() {
@@ -468,9 +432,7 @@ open class QueryBuilderAdvancedTest(
         cities[5].id shouldBe 1
     }
 
-    // ======================================================================
     // orderByAny tests
-    // ======================================================================
 
     @Test
     fun `orderByAny with multiple metamodel paths should sort ascending`() {
@@ -481,9 +443,7 @@ open class QueryBuilderAdvancedTest(
         owners shouldHaveSize 3
     }
 
-    // ======================================================================
     // singleResult / optionalResult tests
-    // ======================================================================
 
     @Test
     fun `singleResult should return entity when exactly one match`() {
@@ -537,9 +497,7 @@ open class QueryBuilderAdvancedTest(
         }
     }
 
-    // ======================================================================
     // having / havingAny with metamodel + operator
-    // ======================================================================
 
     @Test
     fun `having with TemplateBuilder should add having clause`() {
@@ -574,9 +532,7 @@ open class QueryBuilderAdvancedTest(
         result shouldHaveSize 2
     }
 
-    // ======================================================================
     // where with Metamodel and Data (FK reference)
-    // ======================================================================
 
     @Test
     fun `where with metamodel and data reference should filter entities`() {
@@ -588,9 +544,7 @@ open class QueryBuilderAdvancedTest(
         owners shouldHaveSize 4
     }
 
-    // ======================================================================
     // QueryBuilder slice (no key) tests
-    // ======================================================================
 
     @Test
     fun `slice without key should return first page with hasNext`() {
@@ -610,9 +564,7 @@ open class QueryBuilderAdvancedTest(
         slice.hasNext shouldBe false
     }
 
-    // ======================================================================
     // QueryBuilder: sliceAfter/sliceBefore with PK cursor
-    // ======================================================================
 
     @Test
     fun `sliceAfter should return next page`() {
@@ -632,9 +584,7 @@ open class QueryBuilderAdvancedTest(
         slice.content shouldHaveSize 5
     }
 
-    // ======================================================================
     // QueryBuilder: sliceAfter/sliceBefore with sort + cursor (composite keyset)
-    // ======================================================================
 
     @Test
     fun `sliceAfter with composite key and sort cursor should return next page`() {
@@ -684,9 +634,7 @@ open class QueryBuilderAdvancedTest(
         slice.content shouldHaveSize 10
     }
 
-    // ======================================================================
     // QueryBuilder: join with template
-    // ======================================================================
 
     @Test
     fun `join with joinType and template and alias should produce correct result`() {
@@ -698,9 +646,7 @@ open class QueryBuilderAdvancedTest(
         count shouldNotBe 0
     }
 
-    // ======================================================================
     // Kotlin DSL infix predicates
-    // ======================================================================
 
     @Test
     fun `neq infix should filter not equal entities`() {

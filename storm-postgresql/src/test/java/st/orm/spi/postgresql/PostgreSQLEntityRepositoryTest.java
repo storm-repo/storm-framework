@@ -16,12 +16,16 @@ import static st.orm.core.template.SqlInterceptor.observe;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.sql.DataSource;
 import lombok.Builder;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.postgresql.util.PSQLException;
@@ -1607,7 +1611,6 @@ public class PostgreSQLEntityRepositoryTest {
         });
     }
 
-
     @Test
     public void testUpsertWithSequenceEmptyExisting() {
         String expectedSql = """
@@ -1973,5 +1976,266 @@ public class PostgreSQLEntityRepositoryTest {
         assertEquals(2, updatedEntities.size());
         assertEquals("Max", updatedEntities.get(0).name());
         assertEquals("Bella", updatedEntities.get(1).name());
+    }
+
+    @BeforeEach
+    void setUpBranchTables() throws SQLException {
+        try (Connection connection = dataSource.getConnection()) {
+            connection.createStatement().execute("""
+                    DROP TABLE IF EXISTS version_long_entity CASCADE;
+                    CREATE TABLE version_long_entity (
+                        id serial PRIMARY KEY,
+                        name varchar(255),
+                        version bigint DEFAULT 0
+                    );
+                    INSERT INTO version_long_entity (name) VALUES ('Alice');
+                    INSERT INTO version_long_entity (name) VALUES ('Bob');
+                    """);
+            connection.createStatement().execute("""
+                    DROP TABLE IF EXISTS version_instant_entity CASCADE;
+                    CREATE TABLE version_instant_entity (
+                        id serial PRIMARY KEY,
+                        name varchar(255),
+                        version timestamp DEFAULT CURRENT_TIMESTAMP
+                    );
+                    INSERT INTO version_instant_entity (name) VALUES ('Alice');
+                    INSERT INTO version_instant_entity (name) VALUES ('Bob');
+                    """);
+            connection.createStatement().execute("""
+                    DROP TABLE IF EXISTS pk_only_entity CASCADE;
+                    CREATE TABLE pk_only_entity (
+                        id integer PRIMARY KEY
+                    );
+                    INSERT INTO pk_only_entity (id) VALUES (1);
+                    INSERT INTO pk_only_entity (id) VALUES (2);
+                    """);
+            connection.createStatement().execute("""
+                    DROP TABLE IF EXISTS seq_entity CASCADE;
+                    DROP SEQUENCE IF EXISTS seq_entity_id_seq;
+                    CREATE SEQUENCE seq_entity_id_seq START WITH 1 INCREMENT BY 1;
+                    CREATE TABLE seq_entity (
+                        id integer PRIMARY KEY DEFAULT nextval('seq_entity_id_seq'),
+                        name varchar(255),
+                        version integer DEFAULT 0
+                    );
+                    INSERT INTO seq_entity (name) VALUES ('Alpha');
+                    INSERT INTO seq_entity (name) VALUES ('Beta');
+                    """);
+        }
+    }
+
+    @Builder(toBuilder = true)
+    @DbTable("version_long_entity")
+    public record VersionLongEntity(
+            @PK Integer id,
+            @Nonnull String name,
+            @Version long version
+    ) implements Entity<Integer> {}
+
+    @Builder(toBuilder = true)
+    @DbTable("version_instant_entity")
+    public record VersionInstantEntity(
+            @PK Integer id,
+            @Nonnull String name,
+            @Version @Nullable Instant version
+    ) implements Entity<Integer> {}
+
+    @Builder(toBuilder = true)
+    @DbTable("pk_only_entity")
+    public record PkOnlyEntity(
+            @PK(generation = NONE) Integer id
+    ) implements Entity<Integer> {}
+
+    @Builder(toBuilder = true)
+    @DbTable("seq_entity")
+    public record SeqEntity(
+            @PK(generation = SEQUENCE, sequence = "seq_entity_id_seq") Integer id,
+            @Nonnull String name,
+            @Version int version
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void testUpsertWithVersionLong() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VersionLongEntity.class);
+        var entity = repo.getById(1);
+        assertEquals("Alice", entity.name());
+        assertEquals(0L, entity.version());
+
+        observe(sql -> {
+            assertTrue(sql.versionAware());
+        }, () -> repo.upsert(entity.toBuilder().name("Alice Updated").build()));
+
+        var updated = repo.getById(1);
+        assertEquals("Alice Updated", updated.name());
+        assertEquals(1L, updated.version());
+    }
+
+    @Test
+    public void testUpsertBatchWithVersionLong() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VersionLongEntity.class);
+        var entity1 = repo.getById(1);
+        var entity2 = repo.getById(2);
+
+        repo.upsert(List.of(
+                entity1.toBuilder().name("Alice Batch").build(),
+                entity2.toBuilder().name("Bob Batch").build()));
+
+        var updated1 = repo.getById(1);
+        var updated2 = repo.getById(2);
+        assertEquals("Alice Batch", updated1.name());
+        assertEquals(1L, updated1.version());
+        assertEquals("Bob Batch", updated2.name());
+        assertEquals(1L, updated2.version());
+    }
+
+    @Test
+    public void testUpsertWithVersionInstant() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VersionInstantEntity.class);
+        var entity = repo.getById(1);
+        assertEquals("Alice", entity.name());
+        assertNotNull(entity.version());
+
+        Instant versionBefore = entity.version();
+
+        observe(sql -> {
+            assertTrue(sql.versionAware());
+            assertTrue(sql.statement().contains("CURRENT_TIMESTAMP"));
+        }, () -> repo.upsert(entity.toBuilder().name("Alice Instant").build()));
+
+        var updated = repo.getById(1);
+        assertEquals("Alice Instant", updated.name());
+        assertNotNull(updated.version());
+        assertTrue(updated.version().compareTo(versionBefore) >= 0);
+    }
+
+    @Test
+    public void testUpsertBatchWithVersionInstant() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(VersionInstantEntity.class);
+        var entity1 = repo.getById(1);
+        var entity2 = repo.getById(2);
+
+        repo.upsert(List.of(
+                entity1.toBuilder().name("Alice Instant Batch").build(),
+                entity2.toBuilder().name("Bob Instant Batch").build()));
+
+        var updated1 = repo.getById(1);
+        var updated2 = repo.getById(2);
+        assertEquals("Alice Instant Batch", updated1.name());
+        assertEquals("Bob Instant Batch", updated2.name());
+    }
+
+    @Test
+    public void testUpsertPkOnlyEntity() {
+        String expectedSql = """
+                INSERT INTO pk_only_entity (id)
+                VALUES (?)
+                ON CONFLICT (id) DO NOTHING""";
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(PkOnlyEntity.class);
+        var first = new AtomicBoolean(false);
+        observe(sql -> {
+            if (!first.getAndSet(true)) {
+                assertEquals(expectedSql, sql.statement());
+            }
+        }, () -> {
+            repo.upsert(PkOnlyEntity.builder().id(1).build());
+            repo.upsert(PkOnlyEntity.builder().id(3).build());
+        });
+        assertEquals(3, repo.findAll().size());
+    }
+
+    @Test
+    public void testUpsertBatchPkOnlyEntity() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(PkOnlyEntity.class);
+        repo.upsert(List.of(
+                PkOnlyEntity.builder().id(1).build(),
+                PkOnlyEntity.builder().id(2).build(),
+                PkOnlyEntity.builder().id(4).build()));
+        assertEquals(3, repo.findAll().stream()
+                .filter(entity -> entity.id() >= 3 || entity.id() <= 2)
+                .count());
+    }
+
+    @Test
+    public void testInsertAndFetchIdWithSequence() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        var entity = SeqEntity.builder()
+                .name("Gamma")
+                .version(0)
+                .build();
+
+        var first = new AtomicBoolean(false);
+        observe(sql -> {
+            if (!first.getAndSet(true)) {
+                assertTrue(sql.statement().contains("RETURNING id"));
+            }
+        }, () -> {
+            var id = repo.insertAndFetchId(entity);
+            assertNotNull(id);
+            assertTrue(id > 0);
+            var fetched = repo.getById(id);
+            assertEquals("Gamma", fetched.name());
+        });
+    }
+
+    @Test
+    public void testInsertAndFetchIdsWithSequence() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        var entities = List.of(
+                SeqEntity.builder().name("Delta").version(0).build(),
+                SeqEntity.builder().name("Epsilon").version(0).build());
+
+        var ids = repo.insertAndFetchIds(entities);
+        assertEquals(2, ids.size());
+        assertTrue(ids.get(0) > 0);
+        assertTrue(ids.get(1) > 0);
+        assertTrue(ids.get(1) > ids.get(0));
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsWithSequenceNew() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        var entities = List.of(
+                SeqEntity.builder().name("Zeta").version(0).build(),
+                SeqEntity.builder().name("Eta").version(0).build());
+
+        var ids = repo.upsertAndFetchIds(entities);
+        assertEquals(2, ids.size());
+        assertTrue(ids.get(0) > 0);
+        assertTrue(ids.get(1) > 0);
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsWithSequenceExisting() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        var existing = repo.findAll();
+        var updates = existing.stream()
+                .map(entity -> entity.toBuilder().name(entity.name() + " Updated").build())
+                .toList();
+
+        var ids = repo.upsertAndFetchIds(updates);
+        assertEquals(existing.size(), ids.size());
+        for (int i = 0; i < ids.size(); i++) {
+            assertEquals(existing.get(i).id(), ids.get(i));
+        }
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsWithSequenceMixed() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        var existing = repo.getById(1);
+        var entities = List.of(
+                SeqEntity.builder().name("Theta").version(0).build(),
+                existing.toBuilder().name("Alpha Updated").build());
+
+        var ids = repo.upsertAndFetchIds(entities);
+        assertEquals(2, ids.size());
+        assertEquals(existing.id(), ids.get(1));
+    }
+
+    @Test
+    public void testUpsertAndFetchIdsEmptyList() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
+        var ids = repo.upsertAndFetchIds(List.of());
+        assertTrue(ids.isEmpty());
     }
 }

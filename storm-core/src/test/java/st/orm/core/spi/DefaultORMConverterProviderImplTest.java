@@ -14,6 +14,7 @@ import st.orm.Data;
 import st.orm.DbTable;
 import st.orm.PK;
 import st.orm.PersistenceException;
+import st.orm.core.template.SqlTemplateException;
 import st.orm.mapping.RecordField;
 import st.orm.mapping.RecordType;
 
@@ -227,5 +228,57 @@ public class DefaultORMConverterProviderImplTest {
         // Covers line 139.
         DefaultORMConverterProviderImpl provider = new DefaultORMConverterProviderImpl();
         assertThrows(NullPointerException.class, () -> provider.getConverter(null));
+    }
+
+    public static abstract class BaseStringConverter implements Converter<String, Integer> {
+    }
+
+    public static class InheritedStringConverter extends BaseStringConverter {
+        @Override
+        public String toDatabase(@Nullable Integer value) {
+            return value == null ? null : value.toString();
+        }
+
+        @Override
+        public Integer fromDatabase(@Nullable String dbValue) {
+            return dbValue == null ? null : Integer.parseInt(dbValue);
+        }
+    }
+
+    @DbTable("inherited_converter_test")
+    record EntityWithInheritedConverter(
+            @PK int id,
+            @Convert(converter = InheritedStringConverter.class) Integer inheritedField
+    ) implements Data {}
+
+    @DbTable("default_converter_class_test")
+    record EntityWithDefaultConverterClass(
+            @PK int id,
+            @Convert String fieldWithDefaultConverterClass
+    ) implements Data {}
+
+    @Test
+    public void testInheritedConverterResolvesViaSuperlassHierarchy() throws SqlTemplateException {
+        // The InheritedStringConverter resolves generic types through its superclass BaseStringConverter.
+        // This tests the resolveConverterTypes path that walks up the superclass hierarchy.
+        DefaultORMConverterProviderImpl provider = new DefaultORMConverterProviderImpl();
+        RecordField field = getField(EntityWithInheritedConverter.class, "inheritedField");
+        Optional<ORMConverter> result = provider.getConverter(field);
+        assertTrue(result.isPresent(), "Expected converter to be resolved via superclass hierarchy");
+        ORMConverter converter = result.get();
+        assertEquals(1, converter.getParameterCount());
+        assertEquals(List.of(String.class), converter.getParameterTypes());
+    }
+
+    @Test
+    public void testConvertAnnotationWithDefaultConverterClassUsesDefaultResolution() {
+        // When @Convert is present but converter() is Void.class (default), the provider
+        // should fall through to the default converter resolution path.
+        DefaultORMConverterProviderImpl provider = new DefaultORMConverterProviderImpl();
+        RecordField field = getField(EntityWithDefaultConverterClass.class, "fieldWithDefaultConverterClass");
+        Optional<ORMConverter> result = provider.getConverter(field);
+        // String has no default converter registered, so this should be empty.
+        assertTrue(result.isEmpty(),
+                "Expected empty when @Convert has default converter class and no matching default converter");
     }
 }

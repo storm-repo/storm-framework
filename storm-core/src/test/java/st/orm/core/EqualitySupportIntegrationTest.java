@@ -44,9 +44,7 @@ public class EqualitySupportIntegrationTest {
     @Autowired
     private DataSource dataSource;
 
-    // ----------------------------------------------------------------
     // Entity with various primitive types for testing dirty checking
-    // ----------------------------------------------------------------
 
     @DynamicUpdate(value = FIELD, dirtyCheck = VALUE)
     @Builder(toBuilder = true)
@@ -97,9 +95,7 @@ public class EqualitySupportIntegrationTest {
         }
     }
 
-    // ----------------------------------------------------------------
     // Insert + read-back tests
-    // ----------------------------------------------------------------
 
     @Test
     void insertAndReadBack_allPrimitiveTypes() {
@@ -120,9 +116,7 @@ public class EqualitySupportIntegrationTest {
         assertEquals("hello", inserted.stringVal());
     }
 
-    // ----------------------------------------------------------------
     // VALUE dirty check: unchanged entity should skip update
-    // ----------------------------------------------------------------
 
     @Test
     void valueCheck_skipsUpdate_whenNoPrimitiveFieldChanges() {
@@ -139,9 +133,7 @@ public class EqualitySupportIntegrationTest {
         assertNull(sql, "No UPDATE should be generated when all primitive fields are unchanged");
     }
 
-    // ----------------------------------------------------------------
     // int change detection
-    // ----------------------------------------------------------------
 
     @Test
     void valueCheck_detectsChange_intVal() {
@@ -158,9 +150,7 @@ public class EqualitySupportIntegrationTest {
         assertTrue(sql.statement().contains("int_val"), "UPDATE should include int_val column");
     }
 
-    // ----------------------------------------------------------------
     // long change detection
-    // ----------------------------------------------------------------
 
     @Test
     void valueCheck_detectsChange_longVal() {
@@ -177,9 +167,7 @@ public class EqualitySupportIntegrationTest {
         assertTrue(sql.statement().contains("long_val"), "UPDATE should include long_val column");
     }
 
-    // ----------------------------------------------------------------
     // boolean change detection
-    // ----------------------------------------------------------------
 
     @Test
     void valueCheck_detectsChange_boolVal() {
@@ -196,9 +184,7 @@ public class EqualitySupportIntegrationTest {
         assertTrue(sql.statement().contains("bool_val"), "UPDATE should include bool_val column");
     }
 
-    // ----------------------------------------------------------------
     // byte change detection
-    // ----------------------------------------------------------------
 
     @Test
     void valueCheck_detectsChange_byteVal() {
@@ -215,9 +201,7 @@ public class EqualitySupportIntegrationTest {
         assertTrue(sql.statement().contains("byte_val"), "UPDATE should include byte_val column");
     }
 
-    // ----------------------------------------------------------------
     // short change detection
-    // ----------------------------------------------------------------
 
     @Test
     void valueCheck_detectsChange_shortVal() {
@@ -234,9 +218,7 @@ public class EqualitySupportIntegrationTest {
         assertTrue(sql.statement().contains("short_val"), "UPDATE should include short_val column");
     }
 
-    // ----------------------------------------------------------------
     // float change detection
-    // ----------------------------------------------------------------
 
     @Test
     void valueCheck_detectsChange_floatVal() {
@@ -253,9 +235,7 @@ public class EqualitySupportIntegrationTest {
         assertTrue(sql.statement().contains("float_val"), "UPDATE should include float_val column");
     }
 
-    // ----------------------------------------------------------------
     // double change detection
-    // ----------------------------------------------------------------
 
     @Test
     void valueCheck_detectsChange_doubleVal() {
@@ -272,9 +252,7 @@ public class EqualitySupportIntegrationTest {
         assertTrue(sql.statement().contains("double_val"), "UPDATE should include double_val column");
     }
 
-    // ----------------------------------------------------------------
     // String (Object) change detection
-    // ----------------------------------------------------------------
 
     @Test
     void valueCheck_detectsChange_stringVal() {
@@ -291,9 +269,7 @@ public class EqualitySupportIntegrationTest {
         assertTrue(sql.statement().contains("string_val"), "UPDATE should include string_val column");
     }
 
-    // ----------------------------------------------------------------
     // Multiple field changes at once
-    // ----------------------------------------------------------------
 
     @Test
     void valueCheck_detectsMultipleChanges() {
@@ -317,9 +293,7 @@ public class EqualitySupportIntegrationTest {
         assertTrue(stmt.contains("bool_val"), "UPDATE should include bool_val column");
     }
 
-    // ----------------------------------------------------------------
     // DEFAULT (instance) dirty check: rebuilt record is still same
-    // ----------------------------------------------------------------
 
     @Test
     void defaultCheck_skipsUpdate_whenSameValues() {
@@ -340,9 +314,7 @@ public class EqualitySupportIntegrationTest {
         // The overall result depends on whether the String creates a new instance via toBuilder.
     }
 
-    // ----------------------------------------------------------------
     // Verify actual data round-trip with all primitives changed
-    // ----------------------------------------------------------------
 
     @Test
     void roundTrip_allPrimitiveFieldsUpdated() {
@@ -376,9 +348,7 @@ public class EqualitySupportIntegrationTest {
         assertEquals("after", updated.stringVal());
     }
 
-    // ----------------------------------------------------------------
     // Edge case: float NaN equality
-    // ----------------------------------------------------------------
 
     @Test
     void valueCheck_floatNaN_treatedAsEqual() {
@@ -396,9 +366,7 @@ public class EqualitySupportIntegrationTest {
         // so no update on the float column. Other fields might still trigger if identity differs.
     }
 
-    // ----------------------------------------------------------------
     // Edge case: double NaN equality
-    // ----------------------------------------------------------------
 
     @Test
     void valueCheck_doubleNaN_treatedAsEqual() {
@@ -415,9 +383,7 @@ public class EqualitySupportIntegrationTest {
         // NaN == NaN via Double.doubleToLongBits comparison should return true (same).
     }
 
-    // ----------------------------------------------------------------
     // Edge case: float negative zero vs positive zero
-    // ----------------------------------------------------------------
 
     @Test
     void valueCheck_floatNegativeZero_detectedAsDifferent() {
@@ -435,9 +401,7 @@ public class EqualitySupportIntegrationTest {
         assertTrue(sql.statement().contains("float_val"), "UPDATE should include float_val column");
     }
 
-    // ----------------------------------------------------------------
     // Edge case: double negative zero vs positive zero
-    // ----------------------------------------------------------------
 
     @Test
     void valueCheck_doubleNegativeZero_detectedAsDifferent() {
@@ -455,9 +419,7 @@ public class EqualitySupportIntegrationTest {
         assertTrue(sql.statement().contains("double_val"), "UPDATE should include double_val column");
     }
 
-    // ----------------------------------------------------------------
     // Helpers
-    // ----------------------------------------------------------------
 
     private Sql captureFirstUpdateSql(ThrowingSupplier<?> action) {
         AtomicReference<Sql> ref = new AtomicReference<>();

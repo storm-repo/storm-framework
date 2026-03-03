@@ -42,7 +42,7 @@ public class EntityRepositoryBatchIntegrationTest {
     // id=4: "Windsor", id=5: "Monona", id=6: "Waunakee"
     private static final int SEED_CITY_COUNT = 6;
 
-    // ---- Batch insert ----
+    // Batch insert
 
     @Test
     public void testBatchInsertIncreasesCityCount() {
@@ -73,7 +73,7 @@ public class EntityRepositoryBatchIntegrationTest {
         assertEquals("FetchId2", cities.getById(ids.get(1)).name());
     }
 
-    // ---- Update ----
+    // Update
 
     @Test
     public void testUpdateEntityPersistsNewName() {
@@ -103,7 +103,7 @@ public class EntityRepositoryBatchIntegrationTest {
         assertEquals("Updated2", cities.getById(id2).name());
     }
 
-    // ---- Delete ----
+    // Delete
 
     @Test
     public void testDeleteEntityRemovesIt() {
@@ -164,7 +164,7 @@ public class EntityRepositoryBatchIntegrationTest {
         assertFalse(cities.findById(id2).isPresent());
     }
 
-    // ---- Query builder: WHERE ----
+    // Query builder: WHERE
 
     @Test
     public void testWhereEqualsReturnsOnlyMatchingCity() {
@@ -191,7 +191,7 @@ public class EntityRepositoryBatchIntegrationTest {
         assertEquals(Set.of("Madison", "Monona"), names);
     }
 
-    // ---- Count and existence ----
+    // Count and existence
 
     @Test
     public void testCountMatchesSeedData() {
@@ -212,7 +212,7 @@ public class EntityRepositoryBatchIntegrationTest {
         assertFalse(orm.entity(City.class).existsById(99999));
     }
 
-    // ---- Get/Find by ID and Ref ----
+    // Get/Find by ID and Ref
 
     @Test
     public void testGetByIdReturnsCorrectCity() {
@@ -244,7 +244,7 @@ public class EntityRepositoryBatchIntegrationTest {
         assertEquals("McFarland", city.name());
     }
 
-    // ---- InsertAndFetch ----
+    // InsertAndFetch
 
     @Test
     public void testInsertAndFetchReturnsCompleteEntity() {
@@ -257,7 +257,7 @@ public class EntityRepositoryBatchIntegrationTest {
         assertEquals("InsertAndFetch", fetched.name());
     }
 
-    // ---- UpdateAndFetch ----
+    // UpdateAndFetch
 
     @Test
     public void testUpdateAndFetchReturnsUpdatedEntity() {
@@ -271,7 +271,7 @@ public class EntityRepositoryBatchIntegrationTest {
         assertEquals(insertedId, updated.id());
     }
 
-    // ---- Query stream ----
+    // Query stream
 
     @Test
     public void testStreamCountMatchesRepositoryCount() {
@@ -281,7 +281,7 @@ public class EntityRepositoryBatchIntegrationTest {
         assertEquals(cities.count(), streamCount);
     }
 
-    // ---- OrderBy ----
+    // OrderBy
 
     @Test
     public void testOrderByAscendingReturnsSortedResults() {
@@ -309,7 +309,7 @@ public class EntityRepositoryBatchIntegrationTest {
         }
     }
 
-    // ---- Distinct ----
+    // Distinct
 
     @Test
     public void testDistinctOnNameProjectionCollapsesDuplicates() {
@@ -335,7 +335,7 @@ public class EntityRepositoryBatchIntegrationTest {
         assertEquals(1, distinctNames.stream().filter("DuplicateName"::equals).count());
     }
 
-    // ---- Limit and Offset ----
+    // Limit and Offset
 
     @Test
     public void testLimitRestrictsResultCount() {

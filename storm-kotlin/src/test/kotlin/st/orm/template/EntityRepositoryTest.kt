@@ -28,16 +28,14 @@ import st.orm.template.model.*
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
 @Sql("/data.sql")
-open class EntityRepositoryExtendedTest(
+open class EntityRepositoryTest(
     @Autowired val orm: ORMTemplate,
 ) {
 
     @Suppress("UNCHECKED_CAST")
     private fun <T : Data, V> metamodel(model: Model<*, *>, columnName: String): Metamodel<T, V> = model.columns.first { it.name == columnName }.metamodel as Metamodel<T, V>
 
-    // ======================================================================
     // EntityRepository: findBy/getBy with Metamodel field and value
-    // ======================================================================
 
     @Test
     fun `findBy with field and value should return matching entity`() {
@@ -90,9 +88,7 @@ open class EntityRepositoryExtendedTest(
         cities shouldHaveSize 3
     }
 
-    // ======================================================================
     // EntityRepository: findRefBy/getRefBy with Metamodel field
-    // ======================================================================
 
     @Test
     fun `findRefBy with field and value should return matching ref`() {
@@ -143,9 +139,7 @@ open class EntityRepositoryExtendedTest(
         refs shouldHaveSize 1
     }
 
-    // ======================================================================
     // EntityRepository: selectBy with Metamodel field
-    // ======================================================================
 
     @Test
     fun `selectBy with field and single value should return matching entities as flow`(): Unit = runBlocking {
@@ -164,9 +158,7 @@ open class EntityRepositoryExtendedTest(
         cities shouldHaveSize 2
     }
 
-    // ======================================================================
     // EntityRepository: countBy/existsBy with Metamodel field
-    // ======================================================================
 
     @Test
     fun `countBy with field and value should count matching entities`() {
@@ -213,9 +205,7 @@ open class EntityRepositoryExtendedTest(
         repo.existsBy(cityPath, cityRef) shouldBe false
     }
 
-    // ======================================================================
     // EntityRepository: deleteAllBy with Metamodel field
-    // ======================================================================
 
     @Test
     fun `deleteAllBy with field and value should delete matching entities`() {
@@ -277,9 +267,7 @@ open class EntityRepositoryExtendedTest(
         deleted shouldBe 2
     }
 
-    // ======================================================================
     // EntityRepository: delete with predicate
-    // ======================================================================
 
     @Test
     fun `delete with whereBuilder predicate should delete matching entities`() {
@@ -298,9 +286,7 @@ open class EntityRepositoryExtendedTest(
         deleted shouldBe 1
     }
 
-    // ======================================================================
     // EntityRepository: count/exists with PredicateBuilder directly
-    // ======================================================================
 
     @Test
     fun `count with PredicateBuilder should count matching entities`() {
@@ -324,9 +310,7 @@ open class EntityRepositoryExtendedTest(
         repo.exists(namePath eq "NonExistent") shouldBe false
     }
 
-    // ======================================================================
     // EntityRepository: PredicateBuilder-based find/get/select/selectRef
-    // ======================================================================
 
     @Test
     fun `findAll with PredicateBuilder should filter entities`() {
@@ -401,9 +385,7 @@ open class EntityRepositoryExtendedTest(
         deleted shouldBe 1
     }
 
-    // ======================================================================
     // EntityRepository: Flow batch operations with custom chunk size
-    // ======================================================================
 
     @Test
     fun `insert flow with custom batch size should persist entities`(): Unit = runBlocking {
@@ -530,9 +512,7 @@ open class EntityRepositoryExtendedTest(
         count shouldBe 4
     }
 
-    // ======================================================================
     // EntityRepository: findAllByRef with metamodel (Ref-based where)
-    // ======================================================================
 
     @Test
     fun `findAllByRef with metamodel and iterable of refs should return matching entities`() {
@@ -553,9 +533,7 @@ open class EntityRepositoryExtendedTest(
         count shouldBe 2
     }
 
-    // ======================================================================
     // EntityRepository: Slice methods
-    // ======================================================================
 
     @Test
     fun `slice on entity repo should return first page`() {
@@ -576,9 +554,7 @@ open class EntityRepositoryExtendedTest(
         slice.hasNext shouldBe false
     }
 
-    // ======================================================================
     // RepositoryLookup: delete extension functions
-    // ======================================================================
 
     @Test
     fun `orm delete reified with WhereBuilder should delete matching`() {
@@ -615,9 +591,7 @@ open class EntityRepositoryExtendedTest(
         deleted shouldBe 2
     }
 
-    // ======================================================================
     // ORMTemplate: withEntityCallback / withEntityCallbacks
-    // ======================================================================
 
     @Test
     fun `withEntityCallback should return new ORM template`() {
@@ -642,9 +616,7 @@ open class EntityRepositoryExtendedTest(
         cities shouldHaveSize 6
     }
 
-    // ======================================================================
     // ORMTemplate: factory methods (DataSource.orm extension)
-    // ======================================================================
 
     @Test
     fun `ORMTemplate of Connection should create functional template`() {
@@ -662,9 +634,7 @@ open class EntityRepositoryExtendedTest(
         connectionOrm shouldHaveSize 6
     }
 
-    // ======================================================================
     // RepositoryLookup: findBy/getBy/countBy/existsBy reified extensions
-    // ======================================================================
 
     @Test
     fun `orm findBy reified should return matching entity`() {
@@ -728,9 +698,7 @@ open class EntityRepositoryExtendedTest(
         count shouldBe 2
     }
 
-    // ======================================================================
     // RepositoryLookup: reified delete/select extensions
-    // ======================================================================
 
     @Test
     fun `orm delete reified QueryBuilder should return builder`() {
@@ -756,9 +724,7 @@ open class EntityRepositoryExtendedTest(
         count shouldBe 6
     }
 
-    // ======================================================================
     // EntityRepository: findBy/getBy/selectBy with Ref value
-    // ======================================================================
 
     @Test
     fun `findBy with field and ref value should return matching entity`() {
@@ -868,9 +834,7 @@ open class EntityRepositoryExtendedTest(
         refs shouldHaveSize 2
     }
 
-    // ======================================================================
     // EntityRepository: WhereBuilder-based find/get/select/selectRef
-    // ======================================================================
 
     @Test
     fun `findAll with WhereBuilder predicate should filter entities`() {
@@ -952,9 +916,7 @@ open class EntityRepositoryExtendedTest(
         count shouldBe 1
     }
 
-    // ======================================================================
     // EntityRepository: Ref-based findAllRefBy/selectByRef with Iterable
-    // ======================================================================
 
     @Test
     fun `findAllRefByRef with field and iterable of ref values should return refs`() {
@@ -983,9 +945,7 @@ open class EntityRepositoryExtendedTest(
         count shouldBe 2
     }
 
-    // ======================================================================
     // EntityRepository: unload and ref methods
-    // ======================================================================
 
     @Test
     fun `unload should return ref with just pk`() {
@@ -1005,9 +965,7 @@ open class EntityRepositoryExtendedTest(
         ref.id() shouldBe 1
     }
 
-    // ======================================================================
     // EntityRepository: selectAll and findAllRef/selectAllRef
-    // ======================================================================
 
     @Test
     fun `findAllRef should return all entity refs`() {
@@ -1023,9 +981,7 @@ open class EntityRepositoryExtendedTest(
         count shouldBe 6
     }
 
-    // ======================================================================
     // EntityRepository: deleteById and deleteByRef
-    // ======================================================================
 
     @Test
     fun `deleteById should remove entity`() {
@@ -1056,9 +1012,7 @@ open class EntityRepositoryExtendedTest(
         repo.count() shouldBe 0
     }
 
-    // ======================================================================
     // EntityRepository: batch insert/update/delete with Iterable
-    // ======================================================================
 
     @Test
     fun `insert with iterable should persist multiple entities`() {
@@ -1114,9 +1068,7 @@ open class EntityRepositoryExtendedTest(
         newCities.forEach { repo.findById(it.id).shouldBeNull() }
     }
 
-    // ======================================================================
     // EntityRepository: insert/update/delete with default Flow operations
-    // ======================================================================
 
     @Test
     fun `insert flow should persist entities`(): Unit = runBlocking {
@@ -1171,9 +1123,7 @@ open class EntityRepositoryExtendedTest(
         updated shouldHaveSize 2
     }
 
-    // ======================================================================
     // QueryBuilder: PreparedQuery operations
-    // ======================================================================
 
     @Test
     fun `prepare should return PreparedQuery for batch operations`() {
@@ -1182,9 +1132,7 @@ open class EntityRepositoryExtendedTest(
         preparedQuery.close()
     }
 
-    // ======================================================================
     // QueryBuilder: whereAny with multiple predicates
-    // ======================================================================
 
     @Test
     fun `whereAny with combined predicates should match any`() {
@@ -1196,9 +1144,7 @@ open class EntityRepositoryExtendedTest(
         cities shouldHaveSize 2
     }
 
-    // ======================================================================
     // QueryBuilder: andAny / orAny predicate builders
-    // ======================================================================
 
     @Test
     fun `andAny should combine predicates with AND-OR logic`() {
@@ -1225,9 +1171,7 @@ open class EntityRepositoryExtendedTest(
         result shouldHaveSize 3
     }
 
-    // ======================================================================
     // ORMTemplate: of(DataSource) factory method
-    // ======================================================================
 
     @Test
     fun `ORMTemplate of DataSource should create functional template`() {
@@ -1242,9 +1186,7 @@ open class EntityRepositoryExtendedTest(
         cities shouldHaveSize 6
     }
 
-    // ======================================================================
     // EntityRepository: Flow-based batch operations WITHOUT batchSize
-    // ======================================================================
 
     @Test
     fun `insert flow without batchSize should persist entities`(): Unit = runBlocking {
@@ -1307,9 +1249,7 @@ open class EntityRepositoryExtendedTest(
         result[0].name shouldBe "UpdFetchFlowNoBatchMod"
     }
 
-    // ======================================================================
     // EntityRepository: selectAll/selectAllRef
-    // ======================================================================
 
     @Test
     fun `selectAll should return all entities as flow`(): Unit = runBlocking {
@@ -1318,9 +1258,7 @@ open class EntityRepositoryExtendedTest(
         count shouldBe 6
     }
 
-    // ======================================================================
     // EntityRepository: countBy and existsBy with non-Ref value
-    // ======================================================================
 
     @Test
     fun `countBy with field and non-ref value should count matching`() {
@@ -1343,9 +1281,7 @@ open class EntityRepositoryExtendedTest(
         repo.existsBy(namePath, "NonExistent") shouldBe false
     }
 
-    // ======================================================================
     // EntityRepository: getRefBy with non-Ref value
-    // ======================================================================
 
     @Test
     fun `getRefBy with field and non-ref value should return matching ref`() {
@@ -1355,9 +1291,7 @@ open class EntityRepositoryExtendedTest(
         ref.shouldNotBeNull()
     }
 
-    // ======================================================================
     // EntityRepository: selectRefBy with iterable of non-ref values
-    // ======================================================================
 
     @Test
     fun `selectRefBy with field and iterable of non-ref values should return flow`(): Unit = runBlocking {
@@ -1367,9 +1301,7 @@ open class EntityRepositoryExtendedTest(
         count shouldBe 2
     }
 
-    // ======================================================================
     // EntityRepository: findAllRefBy with iterable of Data values
-    // ======================================================================
 
     @Test
     fun `findAllRefBy with field and single non-ref value should return refs`() {
@@ -1379,9 +1311,7 @@ open class EntityRepositoryExtendedTest(
         refs shouldHaveSize 1
     }
 
-    // ======================================================================
     // EntityRepository: selectById/selectByRef with chunkSize
-    // ======================================================================
 
     @Test
     fun `selectById with flow and chunkSize should return matching flow`(): Unit = runBlocking {
@@ -1401,9 +1331,7 @@ open class EntityRepositoryExtendedTest(
         count shouldBe 2
     }
 
-    // ======================================================================
     // EntityRepository: countById/countByRef with flow and chunkSize
-    // ======================================================================
 
     @Test
     fun `countById with flow should count matching entities`(): Unit = runBlocking {
@@ -1441,9 +1369,7 @@ open class EntityRepositoryExtendedTest(
         count shouldBe 2
     }
 
-    // ======================================================================
     // EntityRepository: Metamodel.Key-based findBy/getBy
-    // ======================================================================
 
     @Test
     fun `findBy with Metamodel Key should return matching entity`() {
@@ -1496,9 +1422,7 @@ open class EntityRepositoryExtendedTest(
         owner.firstName shouldBe "Betty"
     }
 
-    // ======================================================================
     // EntityRepository: Slice methods with Metamodel.Key
-    // ======================================================================
 
     @Test
     fun `entity slice with Metamodel Key should return first page`() {
@@ -1664,9 +1588,7 @@ open class EntityRepositoryExtendedTest(
         slice.content shouldHaveSize 3
     }
 
-    // ======================================================================
     // EntityRepository: Slice with sort metamodel
-    // ======================================================================
 
     @Test
     fun `entity slice with key sort and size should return sorted first page`() {
@@ -1708,9 +1630,7 @@ open class EntityRepositoryExtendedTest(
         slice.hasNext shouldBe true
     }
 
-    // ======================================================================
     // EntityRepository: delete with WhereBuilder and PredicateBuilder
-    // ======================================================================
 
     @Test
     fun `delete with WhereBuilder should delete matching entities`() {
@@ -1729,9 +1649,7 @@ open class EntityRepositoryExtendedTest(
         deleted shouldBe 1
     }
 
-    // ======================================================================
     // EntityRepository: Keyset pagination with PK
-    // ======================================================================
 
     @Test
     fun `entity sliceAfter should return next page`() {
@@ -1841,9 +1759,7 @@ open class EntityRepositoryExtendedTest(
         slice.content.size shouldBe 2
     }
 
-    // ======================================================================
     // EntityRepository: Composite keyset pagination with sort
-    // ======================================================================
 
     @Test
     fun `entity sliceAfter with key sort cursor should return next page`() {
@@ -1929,9 +1845,7 @@ open class EntityRepositoryExtendedTest(
         slice.content.size shouldBe 10
     }
 
-    // ======================================================================
     // EntityRepository: Predicate-based slice with cursor (value-based)
-    // ======================================================================
 
     @Test
     fun `entity sliceAfter with value cursor and PredicateBuilder should filter`() {

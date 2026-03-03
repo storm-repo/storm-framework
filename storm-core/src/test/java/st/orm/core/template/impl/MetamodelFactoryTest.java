@@ -21,7 +21,7 @@ import st.orm.Ref;
  */
 class MetamodelFactoryTest {
 
-    // ---- Test model types ----
+    // Test model types
 
     public record SimpleEntity(
             @PK Integer id,
@@ -50,7 +50,7 @@ class MetamodelFactoryTest {
             @FK Ref<ReferencedEntity> ref
     ) implements Entity<Integer> {}
 
-    // ---- capitalize tests ----
+    // capitalize tests
 
     @Test
     void testCapitalizeNormal() {
@@ -77,7 +77,7 @@ class MetamodelFactoryTest {
         assertEquals(null, MetamodelFactory.capitalize(null));
     }
 
-    // ---- root() tests ----
+    // root() tests
 
     @Test
     void testRootReturnsMetamodel() {
@@ -131,7 +131,7 @@ class MetamodelFactoryTest {
         assertFalse(root.isSame(entityA, entityB));
     }
 
-    // ---- of() tests (path-based metamodel) ----
+    // of() tests (path-based metamodel)
 
     @Test
     void testOfSimpleField() {
@@ -204,7 +204,7 @@ class MetamodelFactoryTest {
         assertSame(model1, model2);
     }
 
-    // ---- flatten() tests ----
+    // flatten() tests
 
     @Test
     void testFlattenNonInlineReturnsSingleton() {
@@ -225,7 +225,7 @@ class MetamodelFactoryTest {
         assertTrue(flattened.stream().anyMatch(m -> m.field().endsWith("zipCode")));
     }
 
-    // ---- getValue() tests ----
+    // getValue() tests
 
     @Test
     void testOfGetValueSimpleField() {
@@ -265,7 +265,7 @@ class MetamodelFactoryTest {
         assertEquals(null, model.getValue(entity));
     }
 
-    // ---- isSame / isIdentical tests ----
+    // isSame / isIdentical tests
 
     @Test
     void testOfIsSameForScalarField() {

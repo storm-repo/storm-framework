@@ -32,9 +32,7 @@ public class SqlInterceptorIntegrationTest {
     @Autowired
     private DataSource dataSource;
 
-    // -----------------------------------------------------------------------
     // 1. observe(Consumer<Sql>, Supplier<T>)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testObserveWithSupplier() {
@@ -48,9 +46,7 @@ public class SqlInterceptorIntegrationTest {
         assertTrue(observedSql.stream().anyMatch(s -> s.toUpperCase().contains("SELECT")));
     }
 
-    // -----------------------------------------------------------------------
     // 2. observeThrowing(Consumer<Sql>, Callable<T>)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testObserveThrowingWithCallable() throws Exception {
@@ -76,9 +72,7 @@ public class SqlInterceptorIntegrationTest {
         assertEquals("test exception", thrown.getMessage());
     }
 
-    // -----------------------------------------------------------------------
     // 3. observe(UnaryOperator<SqlTemplate>, Consumer<Sql>, Runnable)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testObserveWithCustomizerAndRunnable() {
@@ -95,9 +89,7 @@ public class SqlInterceptorIntegrationTest {
         assertTrue(observedSql.stream().anyMatch(s -> s.toUpperCase().contains("SELECT")));
     }
 
-    // -----------------------------------------------------------------------
     // 4. observe(UnaryOperator<SqlTemplate>, Consumer<Sql>, Supplier<T>)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testObserveWithCustomizerAndSupplier() {
@@ -112,9 +104,7 @@ public class SqlInterceptorIntegrationTest {
         assertTrue(observedSql.stream().anyMatch(s -> s.toUpperCase().contains("SELECT")));
     }
 
-    // -----------------------------------------------------------------------
     // 5. observeThrowing(UnaryOperator<SqlTemplate>, Consumer<Sql>, Callable<T>)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testObserveThrowingWithCustomizerAndCallable() throws Exception {
@@ -142,9 +132,7 @@ public class SqlInterceptorIntegrationTest {
         assertEquals("customizer exception", thrown.getMessage());
     }
 
-    // -----------------------------------------------------------------------
     // 6. intercept(UnaryOperator<Sql>, Runnable)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testInterceptWithRunnable() {
@@ -163,9 +151,7 @@ public class SqlInterceptorIntegrationTest {
         assertTrue(interceptedSql.stream().anyMatch(s -> s.toUpperCase().contains("SELECT")));
     }
 
-    // -----------------------------------------------------------------------
     // 7. intercept(UnaryOperator<Sql>, Supplier<T>)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testInterceptWithSupplier() {
@@ -182,9 +168,7 @@ public class SqlInterceptorIntegrationTest {
         assertTrue(interceptedSql.stream().anyMatch(s -> s.toUpperCase().contains("SELECT")));
     }
 
-    // -----------------------------------------------------------------------
     // 8. interceptThrowing(UnaryOperator<Sql>, Callable<T>)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testInterceptThrowingWithCallable() throws Exception {
@@ -216,9 +200,7 @@ public class SqlInterceptorIntegrationTest {
         assertEquals("intercept exception", thrown.getMessage());
     }
 
-    // -----------------------------------------------------------------------
     // 9. intercept(UnaryOperator<SqlTemplate>, UnaryOperator<Sql>, Runnable)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testInterceptWithCustomizerAndRunnable() {
@@ -238,9 +220,7 @@ public class SqlInterceptorIntegrationTest {
         assertTrue(interceptedSql.stream().anyMatch(s -> s.toUpperCase().contains("SELECT")));
     }
 
-    // -----------------------------------------------------------------------
     // 10. intercept(UnaryOperator<SqlTemplate>, UnaryOperator<Sql>, Supplier<T>)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testInterceptWithCustomizerAndSupplier() {
@@ -258,9 +238,7 @@ public class SqlInterceptorIntegrationTest {
         assertTrue(interceptedSql.stream().anyMatch(s -> s.toUpperCase().contains("SELECT")));
     }
 
-    // -----------------------------------------------------------------------
     // 11. interceptThrowing(UnaryOperator<SqlTemplate>, UnaryOperator<Sql>, Callable<T>)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testInterceptThrowingWithCustomizerAndCallable() throws Exception {
@@ -294,9 +272,7 @@ public class SqlInterceptorIntegrationTest {
         assertEquals("customizer intercept exception", thrown.getMessage());
     }
 
-    // -----------------------------------------------------------------------
     // 12. registerGlobalObserver / unregisterGlobalObserver
-    // -----------------------------------------------------------------------
 
     @Test
     public void testGlobalObserverLifecycle() {
@@ -325,9 +301,7 @@ public class SqlInterceptorIntegrationTest {
         }
     }
 
-    // -----------------------------------------------------------------------
     // 13. registerGlobalInterceptor / unregisterGlobalInterceptor
-    // -----------------------------------------------------------------------
 
     @Test
     public void testGlobalInterceptorLifecycle() {
@@ -359,9 +333,7 @@ public class SqlInterceptorIntegrationTest {
         }
     }
 
-    // -----------------------------------------------------------------------
     // Additional: verify intercept can modify SQL statements (passthrough)
-    // -----------------------------------------------------------------------
 
     @Test
     public void testInterceptModifiesSqlPassthrough() {
@@ -380,9 +352,7 @@ public class SqlInterceptorIntegrationTest {
         assertTrue(capturedStatement.get().toUpperCase().contains("SELECT"));
     }
 
-    // -----------------------------------------------------------------------
     // Additional: nested observe scopes
-    // -----------------------------------------------------------------------
 
     @Test
     public void testNestedObserveScopes() {

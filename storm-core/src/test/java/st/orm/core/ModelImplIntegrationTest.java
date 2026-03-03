@@ -42,7 +42,7 @@ public class ModelImplIntegrationTest {
     @Autowired
     private DataSource dataSource;
 
-    // ---- Basic model properties for City ----
+    // Basic model properties for City
 
     @Test
     public void testCityModelType() {
@@ -101,7 +101,7 @@ public class ModelImplIntegrationTest {
         assertFalse(model.isJoinedInheritance());
     }
 
-    // ---- Column metadata ----
+    // Column metadata
 
     @Test
     public void testCityModelColumnCount() {
@@ -134,7 +134,7 @@ public class ModelImplIntegrationTest {
         assertTrue(primaryKeyMetamodel.isPresent());
     }
 
-    // ---- Value extraction for City ----
+    // Value extraction for City
 
     @Test
     public void testCityModelDeclaredValues() throws Exception {
@@ -158,7 +158,7 @@ public class ModelImplIntegrationTest {
         assertEquals(2, values.size());
     }
 
-    // ---- Owner model with inline Address ----
+    // Owner model with inline Address
 
     @Test
     public void testOwnerModelExpandedColumns() {
@@ -217,7 +217,7 @@ public class ModelImplIntegrationTest {
         assertEquals(model.declaredColumns().size(), declaredValues.size());
     }
 
-    // ---- Pet model with FK to PetType (Ref) and Owner ----
+    // Pet model with FK to PetType (Ref) and Owner
 
     @Test
     public void testPetModelExpandedColumns() {
@@ -248,7 +248,7 @@ public class ModelImplIntegrationTest {
         assertEquals(model.declaredColumns().size(), declaredValues.size());
     }
 
-    // ---- Sealed entity (Single-Table Inheritance): Animal ----
+    // Sealed entity (Single-Table Inheritance): Animal
 
     @Test
     public void testAnimalModelType() {
@@ -295,7 +295,7 @@ public class ModelImplIntegrationTest {
         assertTrue(columns.size() >= 4, "Animal model should include discriminator + fields from all subtypes");
     }
 
-    // ---- Sealed entity (Joined Table Inheritance): JoinedAnimal ----
+    // Sealed entity (Joined Table Inheritance): JoinedAnimal
 
     @Test
     public void testJoinedAnimalModelType() {
@@ -311,7 +311,7 @@ public class ModelImplIntegrationTest {
         assertTrue(model.isJoinedInheritance());
     }
 
-    // ---- VetSpecialty compound PK ----
+    // VetSpecialty compound PK
 
     @Test
     public void testVetSpecialtyModelCompoundPk() {
@@ -322,7 +322,7 @@ public class ModelImplIntegrationTest {
         assertEquals(2, primaryKeyColumnCount, "VetSpecialty should have 2 primary key columns");
     }
 
-    // ---- Visit model with @Version timestamp ----
+    // Visit model with @Version timestamp
 
     @Test
     public void testVisitModelPrimaryKeyType() {
@@ -357,7 +357,7 @@ public class ModelImplIntegrationTest {
         assertTrue(hasTimestampValue, "Instant should be mapped to java.sql.Timestamp");
     }
 
-    // ---- RecordType ----
+    // RecordType
 
     @Test
     public void testModelRecordType() {
@@ -375,7 +375,7 @@ public class ModelImplIntegrationTest {
         assertEquals(Owner.class, model.recordType().type());
     }
 
-    // ---- Column index ordering ----
+    // Column index ordering
 
     @Test
     public void testColumnsAreOrderedByIndex() {
@@ -399,7 +399,7 @@ public class ModelImplIntegrationTest {
         }
     }
 
-    // ---- Column names ----
+    // Column names
 
     @Test
     public void testCityColumnNames() {
@@ -410,7 +410,7 @@ public class ModelImplIntegrationTest {
         assertEquals("name", declaredColumns.get(1).name());
     }
 
-    // ---- PetType model (non-auto-generated PK) ----
+    // PetType model (non-auto-generated PK)
 
     @Test
     public void testPetTypeModelProperties() {
@@ -434,7 +434,7 @@ public class ModelImplIntegrationTest {
         assertEquals("cat", valueList.get(1));
     }
 
-    // ---- Model values() with all columns (includes expanded FKs) ----
+    // Model values() with all columns (includes expanded FKs)
 
     @Test
     public void testOwnerModelAllValuesIncludeExpandedFKs() throws Exception {
@@ -447,7 +447,7 @@ public class ModelImplIntegrationTest {
                 "values() should include expanded FK columns");
     }
 
-    // ---- Sealed entity discriminator values ----
+    // Sealed entity discriminator values
 
     @Test
     public void testAnimalModelDeclaredValuesContainDiscriminator() throws Exception {
@@ -499,7 +499,7 @@ public class ModelImplIntegrationTest {
                 "Dog should have at least one null value (indoor column)");
     }
 
-    // ---- Joined inheritance model introspection ----
+    // Joined inheritance model introspection
 
     @Test
     public void testJoinedAnimalModelDeclaredColumns() {
@@ -518,7 +518,7 @@ public class ModelImplIntegrationTest {
         assertEquals(Integer.class, model.primaryKeyType());
     }
 
-    // ---- VetSpecialty model with compound non-auto-gen PK ----
+    // VetSpecialty model with compound non-auto-gen PK
 
     @Test
     public void testVetSpecialtyModelIsNotAutoGen() {
@@ -537,7 +537,7 @@ public class ModelImplIntegrationTest {
         assertFalse(model.isDefaultPrimaryKey(nonZeroPk));
     }
 
-    // ---- Pet model: all values() includes expanded FK entity graph ----
+    // Pet model: all values() includes expanded FK entity graph
 
     @Test
     public void testPetModelAllValuesExpandForeignKeys() throws Exception {

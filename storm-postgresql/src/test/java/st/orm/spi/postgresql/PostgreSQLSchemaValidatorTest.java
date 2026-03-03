@@ -70,7 +70,7 @@ public class PostgreSQLSchemaValidatorTest {
     @Autowired
     private DataSource dataSource;
 
-    // --- Happy path entities ---
+    // Happy path entities
 
     public record Vet(
             @PK Integer id,
@@ -92,7 +92,7 @@ public class PostgreSQLSchemaValidatorTest {
             @Nullable Integer version
     ) implements Entity<Integer> {}
 
-    // --- Mismatch entities ---
+    // Mismatch entities
 
     public record MissingTableEntity(
             @PK Integer id,
@@ -125,7 +125,7 @@ public class PostgreSQLSchemaValidatorTest {
             Integer specialtyId
     ) implements Entity<Integer> {}
 
-    // --- Sequence entities ---
+    // Sequence entities
 
     @DbTable("vet")
     public record SequenceExistsEntity(
@@ -141,7 +141,7 @@ public class PostgreSQLSchemaValidatorTest {
             String lastName
     ) implements Entity<Integer> {}
 
-    // --- Tests ---
+    // Tests
 
     @Test
     public void testValidEntitiesPass() {

@@ -46,7 +46,7 @@ class RefSerializerAdditionalTest {
         serializersModule = StormSerializers
     }
 
-    // -- Set of refs: serialization and deserialization --
+    // Set of refs: serialization and deserialization
 
     @Serializable
     data class RefSetHolder(@Contextual val refs: Set<@Contextual Ref<SimpleEntity>>)
@@ -94,7 +94,7 @@ class RefSerializerAdditionalTest {
         entities[1].name shouldBe "Bob"
     }
 
-    // -- Empty list and empty set of refs --
+    // Empty list and empty set of refs
 
     @Serializable
     data class RefListHolder(@Contextual val refs: List<@Contextual Ref<SimpleEntity>>)
@@ -125,7 +125,7 @@ class RefSerializerAdditionalTest {
         holder.refs.shouldBeEmpty()
     }
 
-    // -- Deserialization of list of unloaded refs --
+    // Deserialization of list of unloaded refs
 
     @Test
     fun `deserialize list of integer ids into unloaded entity refs`() {
@@ -139,7 +139,7 @@ class RefSerializerAdditionalTest {
         }
     }
 
-    // -- List of loaded entity refs --
+    // List of loaded entity refs
 
     @Test
     fun `serialize list of loaded entity refs produces array of entity wrappers`() {
@@ -170,7 +170,7 @@ class RefSerializerAdditionalTest {
         second.name shouldBe "Beta"
     }
 
-    // -- Multiple ref types in same holder (entity and projection refs together) --
+    // Multiple ref types in same holder (entity and projection refs together)
 
     @Serializable
     data class MixedRefHolder(
@@ -251,7 +251,7 @@ class RefSerializerAdditionalTest {
         projection.name shouldBe "OnlyProjection"
     }
 
-    // -- Full round-trip: entity ref --
+    // Full round-trip: entity ref
 
     @Serializable
     data class EntityRefHolder(@Contextual val ref: Ref<SimpleEntity>?)
@@ -288,7 +288,7 @@ class RefSerializerAdditionalTest {
         deserialized.ref.shouldBeNull()
     }
 
-    // -- Full round-trip: projection ref --
+    // Full round-trip: projection ref
 
     @Serializable
     data class ProjectionRefHolder(@Contextual val ref: Ref<SimpleProjection>?)
@@ -318,7 +318,7 @@ class RefSerializerAdditionalTest {
         loaded.name shouldBe "ProjRoundTrip"
     }
 
-    // -- Full round-trip: NoPk ref --
+    // Full round-trip: NoPk ref
 
     @Serializable
     data class NoPkRefHolder(@Contextual val ref: Ref<NoPkData>?)
@@ -353,7 +353,7 @@ class RefSerializerAdditionalTest {
         deserialized.ref!!.id() shouldBe 9999999999L
     }
 
-    // -- Null handling in list of refs --
+    // Null handling in list of refs
 
     @Serializable
     data class NullableRefListHolder(@Contextual val refs: List<@Contextual Ref<SimpleEntity>?>)
@@ -405,7 +405,7 @@ class RefSerializerAdditionalTest {
         deserialized.refs[3].shouldBeNull()
     }
 
-    // -- Loaded ref round-trip: serialize loaded, deserialize, check loaded data is preserved --
+    // Loaded ref round-trip: serialize loaded, deserialize, check loaded data is preserved
 
     @Test
     fun `loaded entity ref round-trip preserves all entity fields`() {
@@ -447,7 +447,7 @@ class RefSerializerAdditionalTest {
         loaded.name shouldBe projection.name
     }
 
-    // -- Mixed loaded and unloaded refs in a list --
+    // Mixed loaded and unloaded refs in a list
 
     @Test
     fun `serialize list with mixed loaded and unloaded entity refs`() {
@@ -510,7 +510,7 @@ class RefSerializerAdditionalTest {
         deserialized.refs[3].getOrNull()!!.name shouldBe "Last"
     }
 
-    // -- StormSerializers singleton basic test --
+    // StormSerializers singleton basic test
 
     @Test
     fun `StormSerializers singleton is not null and can create a Json instance`() {
@@ -529,7 +529,7 @@ class RefSerializerAdditionalTest {
         (first === second) shouldBe true
     }
 
-    // -- Set of projection refs --
+    // Set of projection refs
 
     @Serializable
     data class ProjectionRefSetHolder(@Contextual val refs: Set<@Contextual Ref<SimpleProjection>>)
@@ -572,7 +572,7 @@ class RefSerializerAdditionalTest {
         projections[1].name shouldBe "Second"
     }
 
-    // -- Single-element collections --
+    // Single-element collections
 
     @Test
     fun `serialize and deserialize single-element list of refs`() {

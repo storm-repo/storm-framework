@@ -36,12 +36,12 @@ import st.orm.core.template.ORMTemplate;
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = IntegrationConfig.class)
 @DataJpaTest(showSql = false)
-public class EntityRepositoryExtendedIntegrationTest {
+public class EntityRepositoryIntegrationTest {
 
     @Autowired
     private DataSource dataSource;
 
-    // ---- deleteById ----
+    // deleteById
 
     @Test
     public void testDeleteById() {
@@ -61,7 +61,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertDoesNotThrow(() -> cities.deleteById(99999));
     }
 
-    // ---- deleteByRef ----
+    // deleteByRef
 
     @Test
     public void testDeleteByRef() {
@@ -82,7 +82,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertDoesNotThrow(() -> cities.deleteByRef(ref));
     }
 
-    // ---- deleteAll ----
+    // deleteAll
 
     @Test
     public void testDeleteAll() {
@@ -124,7 +124,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertThrows(PersistenceException.class, () -> cities.deleteAll());
     }
 
-    // ---- ref(E entity) ----
+    // ref(E entity)
 
     @Test
     public void testRefFromEntity() {
@@ -136,7 +136,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals(1, ref.id());
     }
 
-    // ---- unload(E entity) ----
+    // unload(E entity)
 
     @Test
     public void testUnloadEntity() {
@@ -148,7 +148,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals(2, ref.id());
     }
 
-    // ---- findByRef ----
+    // findByRef
 
     @Test
     public void testFindByRef() {
@@ -169,7 +169,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertTrue(result.isEmpty());
     }
 
-    // ---- getByRef ----
+    // getByRef
 
     @Test
     public void testGetByRef() {
@@ -189,7 +189,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertThrows(NoResultException.class, () -> cities.getByRef(ref));
     }
 
-    // ---- upsert(E entity) - routes to update when auto-gen PK is non-default ----
+    // upsert(E entity) - routes to update when auto-gen PK is non-default
 
     @Test
     public void testUpsertRoutesToUpdateForExistingEntity() {
@@ -211,7 +211,7 @@ public class EntityRepositoryExtendedIntegrationTest {
                 () -> cities.upsert(City.builder().name("New City").build()));
     }
 
-    // ---- upsertAndFetchId(E entity) ----
+    // upsertAndFetchId(E entity)
 
     @Test
     public void testUpsertAndFetchIdRoutesToUpdateForExistingEntity() {
@@ -232,7 +232,7 @@ public class EntityRepositoryExtendedIntegrationTest {
                 () -> cities.upsertAndFetchId(City.builder().name("New City").build()));
     }
 
-    // ---- upsertAndFetch(E entity) ----
+    // upsertAndFetch(E entity)
 
     @Test
     public void testUpsertAndFetchRoutesToUpdateForExistingEntity() {
@@ -244,7 +244,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals("UpsertFetch City", result.name());
     }
 
-    // ---- insert(Iterable<E>) ----
+    // insert(Iterable<E>)
 
     @Test
     public void testInsertIterable() {
@@ -260,7 +260,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals(before + 3, cities.count());
     }
 
-    // ---- insert(Iterable<E>, boolean ignoreAutoGenerate) ----
+    // insert(Iterable<E>, boolean ignoreAutoGenerate)
 
     @Test
     public void testInsertIterableIgnoreAutoGenerate() {
@@ -277,7 +277,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals("Explicit ID City 101", cities.getById(101).name());
     }
 
-    // ---- insertAndFetch(Iterable<E>) ----
+    // insertAndFetch(Iterable<E>)
 
     @Test
     public void testInsertAndFetchIterable() {
@@ -298,7 +298,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         }
     }
 
-    // ---- insert(Stream<E>, int batchSize) ----
+    // insert(Stream<E>, int batchSize)
 
     @Test
     public void testInsertStreamWithBatchSize() {
@@ -313,7 +313,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals(before + 2, cities.count());
     }
 
-    // ---- update(Iterable<E>) ----
+    // update(Iterable<E>)
 
     @Test
     public void testUpdateIterable() {
@@ -328,7 +328,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals("Updated City 2", cities.getById(2).name());
     }
 
-    // ---- updateAndFetch(Iterable<E>) ----
+    // updateAndFetch(Iterable<E>)
 
     @Test
     public void testUpdateAndFetchIterable() {
@@ -346,7 +346,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertTrue(result.stream().anyMatch(o -> o.firstName().equals("UpdatedFirst2")));
     }
 
-    // ---- upsert(Iterable<E>) - routes to update for existing entities ----
+    // upsert(Iterable<E>) - routes to update for existing entities
 
     @Test
     public void testUpsertIterableRoutesToUpdateForExistingEntities() {
@@ -361,7 +361,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals("Upserted Waunakee", cities.getById(6).name());
     }
 
-    // ---- Callback tests for upsert ----
+    // Callback tests for upsert
 
     @Test
     public void testBeforeUpsertCallbackFired() {
@@ -412,7 +412,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals("afterUpdate:after callback test", log.getFirst());
     }
 
-    // ---- getDefaultBatchSize ----
+    // getDefaultBatchSize
 
     @Test
     public void testGetDefaultBatchSize() {
@@ -421,7 +421,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals(1000, cities.getDefaultBatchSize());
     }
 
-    // ---- deleteByRef(Iterable<Ref<E>>) ----
+    // deleteByRef(Iterable<Ref<E>>)
 
     @Test
     public void testDeleteByRefIterable() {
@@ -438,7 +438,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals(before - 2, cities.count());
     }
 
-    // ---- delete(Iterable<E>) ----
+    // delete(Iterable<E>)
 
     @Test
     public void testDeleteIterable() {
@@ -455,7 +455,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals(before - 2, cities.count());
     }
 
-    // ---- insert(Stream<E>) ----
+    // insert(Stream<E>)
 
     @Test
     public void testInsertStream() {
@@ -469,7 +469,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals(before + 2, cities.count());
     }
 
-    // ---- update(Stream<E>) ----
+    // update(Stream<E>)
 
     @Test
     public void testUpdateStream() {
@@ -483,7 +483,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals("Stream Updated Waunakee", cities.getById(6).name());
     }
 
-    // ---- upsert(Stream<E>) ----
+    // upsert(Stream<E>)
 
     @Test
     public void testUpsertStream() {
@@ -498,7 +498,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals("Stream Upserted Windsor", cities.getById(4).name());
     }
 
-    // ---- insert(Stream<E>, int batchSize, boolean ignoreAutoGenerate) ----
+    // insert(Stream<E>, int batchSize, boolean ignoreAutoGenerate)
 
     @Test
     public void testInsertStreamWithBatchSizeAndIgnoreAutoGenerate() {
@@ -518,7 +518,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals("ExplicitStream201", cities.getById(201).name());
     }
 
-    // ---- update(Stream<E>, int batchSize) ----
+    // update(Stream<E>, int batchSize)
 
     @Test
     public void testUpdateStreamWithBatchSize() {
@@ -535,7 +535,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals("Batch Updated 2", cities.getById(2).name());
     }
 
-    // ---- upsert(Stream<E>, int batchSize) ----
+    // upsert(Stream<E>, int batchSize)
 
     @Test
     public void testUpsertStreamWithBatchSize() {
@@ -552,7 +552,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals("BatchUpsert Waunakee", cities.getById(6).name());
     }
 
-    // ---- delete(Stream<E>) ----
+    // delete(Stream<E>)
 
     @Test
     public void testDeleteStream() {
@@ -568,7 +568,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals(before - 2, cities.count());
     }
 
-    // ---- delete(Stream<E>, int batchSize) ----
+    // delete(Stream<E>, int batchSize)
 
     @Test
     public void testDeleteStreamWithBatchSize() {
@@ -587,7 +587,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals(before - 2, cities.count());
     }
 
-    // ---- deleteByRef(Stream<Ref<E>>) ----
+    // deleteByRef(Stream<Ref<E>>)
 
     @Test
     public void testDeleteByRefStream() {
@@ -603,7 +603,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals(before - 2, cities.count());
     }
 
-    // ---- deleteByRef(Stream<Ref<E>>, int batchSize) ----
+    // deleteByRef(Stream<Ref<E>>, int batchSize)
 
     @Test
     public void testDeleteByRefStreamWithBatchSize() {
@@ -622,7 +622,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals(before - 2, cities.count());
     }
 
-    // ---- insertAndFetchIds(Iterable<E>) ----
+    // insertAndFetchIds(Iterable<E>)
 
     @Test
     public void testInsertAndFetchIdsIterable() {
@@ -640,7 +640,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         }
     }
 
-    // ---- upsertAndFetchIds(Iterable<E>) ----
+    // upsertAndFetchIds(Iterable<E>)
 
     @Test
     public void testUpsertAndFetchIdsIterable() {
@@ -656,7 +656,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertTrue(ids.contains(6));
     }
 
-    // ---- upsertAndFetch(Iterable<E>) ----
+    // upsertAndFetch(Iterable<E>)
 
     @Test
     public void testUpsertAndFetchIterable() {
@@ -672,7 +672,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertTrue(results.stream().anyMatch(c -> c.name().equals("UpsertFetchWaunakee")));
     }
 
-    // ---- model() ----
+    // model()
 
     @Test
     public void testModel() {
@@ -683,7 +683,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals(City.class, model.type());
     }
 
-    // ---- exists / existsById / existsByRef ----
+    // exists / existsById / existsByRef
 
     @Test
     public void testExists() {
@@ -708,7 +708,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertTrue(!cities.existsByRef(Ref.of(City.class, 99999)));
     }
 
-    // ---- selectAll / selectById / selectByRef / countById / countByRef ----
+    // selectAll / selectById / selectByRef / countById / countByRef
 
     @Test
     public void testSelectAll() {
@@ -762,7 +762,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals(2, count);
     }
 
-    // ---- findAllById / findAllByRef ----
+    // findAllById / findAllByRef
 
     @Test
     public void testFindAllById() {
@@ -783,7 +783,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals(2, result.size());
     }
 
-    // ---- insert(E, boolean ignoreAutoGenerate) ----
+    // insert(E, boolean ignoreAutoGenerate)
 
     @Test
     public void testInsertSingleWithIgnoreAutoGenerate() {
@@ -793,7 +793,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals("ExplicitSingle300", cities.getById(300).name());
     }
 
-    // ---- insert(Stream<E>, boolean ignoreAutoGenerate) ----
+    // insert(Stream<E>, boolean ignoreAutoGenerate)
 
     @Test
     public void testInsertStreamIgnoreAutoGenerate() {
@@ -811,7 +811,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals("StreamExplicit400", cities.getById(400).name());
     }
 
-    // ---- selectRef() ----
+    // selectRef()
 
     @Test
     public void testSelectRef() {
@@ -825,7 +825,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         }
     }
 
-    // ---- selectCount() ----
+    // selectCount()
 
     @Test
     public void testSelectCount() {
@@ -835,7 +835,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals(cities.count(), count);
     }
 
-    // ---- findAll() ----
+    // findAll()
 
     @Test
     public void testFindAll() {
@@ -845,7 +845,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals(cities.count(), all.size());
     }
 
-    // ---- selectById with chunkSize ----
+    // selectById with chunkSize
 
     @Test
     public void testSelectByIdWithChunkSize() {
@@ -857,7 +857,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         }
     }
 
-    // ---- selectByRef with chunkSize ----
+    // selectByRef with chunkSize
 
     @Test
     public void testSelectByRefWithChunkSize() {
@@ -872,7 +872,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         }
     }
 
-    // ---- countById with chunkSize ----
+    // countById with chunkSize
 
     @Test
     public void testCountByIdWithChunkSize() {
@@ -882,7 +882,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals(3, count);
     }
 
-    // ---- countByRef with chunkSize ----
+    // countByRef with chunkSize
 
     @Test
     public void testCountByRefWithChunkSize() {
@@ -895,7 +895,7 @@ public class EntityRepositoryExtendedIntegrationTest {
         assertEquals(2, count);
     }
 
-    // ---- getDefaultChunkSize ----
+    // getDefaultChunkSize
 
     @Test
     public void testGetDefaultChunkSize() {

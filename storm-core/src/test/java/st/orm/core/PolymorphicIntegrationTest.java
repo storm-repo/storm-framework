@@ -61,7 +61,7 @@ public class PolymorphicIntegrationTest {
     @Autowired
     private DataSource dataSource;
 
-    // ---- Single-Table Inheritance Tests (Animal/Cat/Dog) ----
+    // Single-Table Inheritance Tests (Animal/Cat/Dog)
 
     @Test
     public void testSelectAllAnimals() {
@@ -164,7 +164,7 @@ public class PolymorphicIntegrationTest {
         assertNotNull(result.get(1).animal());
     }
 
-    // ---- Polymorphic FK Tests (Post/Photo/Comment) ----
+    // Polymorphic FK Tests (Post/Photo/Comment)
     // These use independent entity types, so they work with the existing ORM infrastructure.
 
     @Test
@@ -204,7 +204,7 @@ public class PolymorphicIntegrationTest {
         assertEquals(before + 1, photos.count());
     }
 
-    // ---- Joined Table Inheritance Tests (JoinedAnimal/JoinedCat/JoinedDog) ----
+    // Joined Table Inheritance Tests (JoinedAnimal/JoinedCat/JoinedDog)
 
     @Test
     public void testSelectAllJoinedAnimals() {
@@ -352,7 +352,7 @@ public class PolymorphicIntegrationTest {
         assertNotNull(result.get(1).animal());
     }
 
-    // ---- Joined Table Inheritance without @Discriminator (NodscAnimal) ----
+    // Joined Table Inheritance without @Discriminator (NodscAnimal)
 
     @Test
     public void testSelectAllNodscAnimals() {
@@ -533,7 +533,7 @@ public class PolymorphicIntegrationTest {
         assertEquals(before - 1, animals.count());
     }
 
-    // ---- Batch DML Tests for Joined Table Inheritance ----
+    // Batch DML Tests for Joined Table Inheritance
 
     @Test
     public void testBatchInsertJoinedAnimals() {
@@ -664,7 +664,7 @@ public class PolymorphicIntegrationTest {
         assertEquals(before - 2, animals.count());
     }
 
-    // ---- Batch DML Tests for Joined Table Inheritance without @Discriminator ----
+    // Batch DML Tests for Joined Table Inheritance without @Discriminator
 
     @Test
     public void testBatchInsertNodscAnimals() {
@@ -760,7 +760,7 @@ public class PolymorphicIntegrationTest {
         assertEquals(before - 3, animals.count());
     }
 
-    // ---- INTEGER Discriminator Type Tests (D1) ----
+    // INTEGER Discriminator Type Tests (D1)
 
     @Test
     public void testSelectAllIntDiscAnimals() {
@@ -827,7 +827,7 @@ public class PolymorphicIntegrationTest {
         assertEquals(before - 1, animals.count());
     }
 
-    // ---- CHAR Discriminator Type Tests (D1) ----
+    // CHAR Discriminator Type Tests (D1)
 
     @Test
     public void testSelectAllCharDiscAnimals() {
@@ -893,7 +893,7 @@ public class PolymorphicIntegrationTest {
         assertEquals(before - 1, animals.count());
     }
 
-    // ---- Comment Entity (Polymorphic FK) CRUD Tests (D2) ----
+    // Comment Entity (Polymorphic FK) CRUD Tests (D2)
 
     @SuppressWarnings("unchecked")
     private static <T extends Commentable> Ref<Commentable> commentableRef(Class<T> type, Object id) {
@@ -977,7 +977,7 @@ public class PolymorphicIntegrationTest {
         assertEquals(1, found.get().target().id());
     }
 
-    // ---- findById / getById Tests (D3) ----
+    // findById / getById Tests (D3)
 
     @Test
     public void testFindByIdSingleTable() {
@@ -1017,7 +1017,7 @@ public class PolymorphicIntegrationTest {
         assertTrue(found.isEmpty());
     }
 
-    // ---- STI Batch Operations (D4) ----
+    // STI Batch Operations (D4)
 
     @Test
     public void testBatchInsertSingleTableAnimals() {
@@ -1072,7 +1072,7 @@ public class PolymorphicIntegrationTest {
         assertEquals(before - 2, animals.count());
     }
 
-    // ---- Where Clause Tests (D5) ----
+    // Where Clause Tests (D5)
 
     @Test
     public void testWhereClauseByIdOnPolymorphicEntity() {
@@ -1134,7 +1134,7 @@ public class PolymorphicIntegrationTest {
         assertEquals(1, animals.select().where(Animal_.name, EQUALS, "Rex").getResultCount());
     }
 
-    // ---- NodscAnimal Metamodel Tests (generated, joined without @Discriminator) ----
+    // NodscAnimal Metamodel Tests (generated, joined without @Discriminator)
 
     @Test
     public void testSelectNodscAnimalByNameUsingMetamodel() {
@@ -1185,7 +1185,7 @@ public class PolymorphicIntegrationTest {
         assertEquals(1, animals.select().where(NodscAnimal_.name, EQUALS, "Rex").getResultCount());
     }
 
-    // ---- NodscAnimal MetamodelFactory Tests (non-generated, joined without @Discriminator) ----
+    // NodscAnimal MetamodelFactory Tests (non-generated, joined without @Discriminator)
 
     @Test
     public void testSelectNodscAnimalByNameUsingMetamodelFactory() {
@@ -1230,7 +1230,7 @@ public class PolymorphicIntegrationTest {
         assertEquals(1, animals.select().where(name, EQUALS, "Rex").getResultCount());
     }
 
-    // ---- Animal MetamodelFactory Tests (non-generated, single table with @Discriminator) ----
+    // Animal MetamodelFactory Tests (non-generated, single table with @Discriminator)
 
     @Test
     public void testSelectAnimalByNameUsingMetamodelFactory() {
@@ -1254,7 +1254,7 @@ public class PolymorphicIntegrationTest {
         assertEquals("Rex", result.getFirst().name());
     }
 
-    // ---- Type Change Tests for STI (D6) ----
+    // Type Change Tests for STI (D6)
 
     @Test
     public void testTypeChangeSingleTable() {
@@ -1274,7 +1274,7 @@ public class PolymorphicIntegrationTest {
         assertEquals(42, ((Dog) morphed).weight());
     }
 
-    // ---- insertAndFetch / updateAndFetch for JTI (D7) ----
+    // insertAndFetch / updateAndFetch for JTI (D7)
 
     @Test
     public void testInsertAndFetchJoinedCat() {
@@ -1300,7 +1300,7 @@ public class PolymorphicIntegrationTest {
         assertEquals(99, ((JoinedDog) fetched).weight());
     }
 
-    // ---- Ref Concrete Type Verification (D8) ----
+    // Ref Concrete Type Verification (D8)
 
     @Test
     public void testAdoptionRefConcreteType() {
@@ -1317,7 +1317,7 @@ public class PolymorphicIntegrationTest {
         assertEquals(3, dogRef.id());
     }
 
-    // ---- Invalid Discriminator Value Test (D9) ----
+    // Invalid Discriminator Value Test (D9)
 
     @Test
     public void testInvalidDiscriminatorValue() throws Exception {
@@ -1338,7 +1338,7 @@ public class PolymorphicIntegrationTest {
         }
     }
 
-    // ---- Missing Extension Row Test (B2) ----
+    // Missing Extension Row Test (B2)
 
     @Test
     public void testMissingExtensionRowThrowsError() throws Exception {

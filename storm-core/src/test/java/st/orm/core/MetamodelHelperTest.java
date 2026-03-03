@@ -30,7 +30,7 @@ import st.orm.core.model.Visit;
  */
 public class MetamodelHelperTest {
 
-    // ---- Metamodel.root() via MetamodelHelper.root() ----
+    // Metamodel.root() via MetamodelHelper.root()
 
     @Test
     public void testRootReturnsSameInstanceForSameType() {
@@ -98,7 +98,7 @@ public class MetamodelHelperTest {
         assertEquals(VetSpecialty.class, root.fieldType());
     }
 
-    // ---- Metamodel.of() via MetamodelHelper.of() ----
+    // Metamodel.of() via MetamodelHelper.of()
 
     @Test
     public void testOfSimpleScalarField() {
@@ -185,7 +185,7 @@ public class MetamodelHelperTest {
         assertEquals(City.class, model.root());
     }
 
-    // ---- Metamodel.of() getValue() via MetamodelHelper.of() ----
+    // Metamodel.of() getValue() via MetamodelHelper.of()
 
     @Test
     public void testOfGetValueScalarField() {
@@ -226,7 +226,7 @@ public class MetamodelHelperTest {
         assertEquals(null, model.getValue(pet));
     }
 
-    // ---- Metamodel.of() isSame/isIdentical via MetamodelHelper.of() ----
+    // Metamodel.of() isSame/isIdentical via MetamodelHelper.of()
 
     @Test
     public void testOfIsSameForScalarField() {
@@ -290,7 +290,7 @@ public class MetamodelHelperTest {
         assertFalse(model.isSame(petA, petB));
     }
 
-    // ---- flatten() via MetamodelHelper.flatten() ----
+    // flatten() via MetamodelHelper.flatten()
 
     @Test
     public void testFlattenNonInlineReturnsSingleton() {
@@ -334,7 +334,7 @@ public class MetamodelHelperTest {
                 "Flattening a FK metamodel should expand to the referenced entity's columns");
     }
 
-    // ---- canonical() (uses MetamodelHelper.of() internally) ----
+    // canonical() (uses MetamodelHelper.of() internally)
 
     @Test
     public void testCanonicalForNestedPath() {
@@ -352,7 +352,7 @@ public class MetamodelHelperTest {
         assertEquals("name", canonical.field());
     }
 
-    // ---- fieldPath() ----
+    // fieldPath()
 
     @Test
     public void testFieldPathForDirectField() {
@@ -372,7 +372,7 @@ public class MetamodelHelperTest {
         assertEquals("pet.owner.address.city.name", model.fieldPath());
     }
 
-    // ---- Entity.id() via EntityHelper.getId() ----
+    // Entity.id() via EntityHelper.getId()
 
     @Test
     public void testEntityIdReturnsCorrectPrimaryKey() {
@@ -412,7 +412,7 @@ public class MetamodelHelperTest {
         assertEquals(99, pet.id());
     }
 
-    // ---- Metamodel.key() factory ----
+    // Metamodel.key() factory
 
     @Test
     public void testKeyWrapsNonKeyMetamodel() {

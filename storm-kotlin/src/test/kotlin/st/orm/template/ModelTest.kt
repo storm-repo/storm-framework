@@ -22,9 +22,7 @@ open class ModelTest(
     @Autowired val orm: ORMTemplate,
 ) {
 
-    // ======================================================================
     // Model.schema tests
-    // ======================================================================
 
     @Test
     fun `city model schema should be empty when no schema is specified`() {
@@ -44,9 +42,7 @@ open class ModelTest(
         model.schema shouldBe ""
     }
 
-    // ======================================================================
     // Model.name tests
-    // ======================================================================
 
     @Test
     fun `city model name should be city`() {
@@ -84,9 +80,7 @@ open class ModelTest(
         model.name shouldBe "pet_type"
     }
 
-    // ======================================================================
     // Model.type tests
-    // ======================================================================
 
     @Test
     fun `city model type should be City`() {
@@ -106,9 +100,7 @@ open class ModelTest(
         model.type shouldBe Pet::class
     }
 
-    // ======================================================================
     // Model.primaryKeyType tests
-    // ======================================================================
 
     @Test
     fun `city model primaryKeyType should be Int`() {
@@ -134,9 +126,7 @@ open class ModelTest(
         model.primaryKeyType shouldBe Int::class
     }
 
-    // ======================================================================
     // Model.columns tests
-    // ======================================================================
 
     @Test
     fun `city model should have 2 columns`() {
@@ -198,9 +188,7 @@ open class ModelTest(
         columnNames.contains("city_id").shouldBeTrue()
     }
 
-    // ======================================================================
     // Model.declaredColumns tests
-    // ======================================================================
 
     @Test
     fun `city model declaredColumns should equal columns for flat entity`() {
@@ -236,9 +224,7 @@ open class ModelTest(
         model.declaredColumns.size shouldBe model.columns.size
     }
 
-    // ======================================================================
     // Model.isDefaultPrimaryKey tests
-    // ======================================================================
 
     @Test
     fun `isDefaultPrimaryKey should return true for zero int`() {
@@ -258,9 +244,7 @@ open class ModelTest(
         model.isDefaultPrimaryKey(null).shouldBeTrue()
     }
 
-    // ======================================================================
     // Model.values tests
-    // ======================================================================
 
     @Test
     fun `values should extract all column values from city entity`() {
@@ -296,9 +280,7 @@ open class ModelTest(
         values.entries.first().value shouldBe "Partial"
     }
 
-    // ======================================================================
     // Model.forEachValue tests
-    // ======================================================================
 
     @Test
     fun `forEachValue should iterate over all columns`() {
@@ -323,9 +305,7 @@ open class ModelTest(
         collected shouldHaveSize 3
     }
 
-    // ======================================================================
     // Column property tests
-    // ======================================================================
 
     @Test
     fun `column index should be positive for all columns`() {
@@ -381,9 +361,7 @@ open class ModelTest(
         idColumn.primaryKey.shouldBeTrue()
     }
 
-    // ======================================================================
     // Model via QueryTemplate.model() tests
-    // ======================================================================
 
     @Test
     fun `orm model should return same metadata as entity model`() {
@@ -408,9 +386,7 @@ open class ModelTest(
         model.shouldNotBeNull()
     }
 
-    // ======================================================================
     // Projection model tests (OwnerView)
-    // ======================================================================
 
     @Test
     fun `projection model name should use DbTable annotation value`() {

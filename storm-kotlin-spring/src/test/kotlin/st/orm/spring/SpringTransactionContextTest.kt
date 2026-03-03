@@ -43,9 +43,7 @@ open class SpringTransactionContextTest(
         )
     }
 
-    // ======================================================================
     // isRepeatableRead behavior
-    // ======================================================================
 
     @Test
     fun `REPEATABLE_READ transaction should enable entity caching`(): Unit = runBlocking {
@@ -100,9 +98,7 @@ open class SpringTransactionContextTest(
         }
     }
 
-    // ======================================================================
     // Entity cache sharing and isolation across propagation modes
-    // ======================================================================
 
     @Test
     fun `REQUIRED inner with same isolation should share entity cache with outer`(): Unit = runBlocking {
@@ -179,9 +175,7 @@ open class SpringTransactionContextTest(
         }
     }
 
-    // ======================================================================
     // NESTED rollback clears outer entity cache
-    // ======================================================================
 
     @Test
     fun `NESTED rollback should clear outer entity cache`(): Unit = runBlocking {
@@ -213,9 +207,7 @@ open class SpringTransactionContextTest(
         }
     }
 
-    // ======================================================================
     // clearAllEntityCaches
-    // ======================================================================
 
     @Test
     fun `NESTED rollback with DB access should invalidate outer entity cache`(): Unit = runBlocking {
@@ -234,9 +226,7 @@ open class SpringTransactionContextTest(
         }
     }
 
-    // ======================================================================
     // Timeout edge cases for Spring transaction context
-    // ======================================================================
 
     @Test
     fun `nested transaction should inherit outer timeout`(): Unit = runBlocking {
@@ -281,9 +271,7 @@ open class SpringTransactionContextTest(
         }
     }
 
-    // ======================================================================
     // Read-only transactions
-    // ======================================================================
 
     @Test
     fun `readOnly transaction should allow read operations`(): Unit = runBlocking {
@@ -309,9 +297,7 @@ open class SpringTransactionContextTest(
         }
     }
 
-    // ======================================================================
     // Multiple operations in transaction
-    // ======================================================================
 
     @Test
     fun `multiple insert and delete within spring transaction should work`(): Unit = runBlocking {
@@ -328,9 +314,7 @@ open class SpringTransactionContextTest(
         }
     }
 
-    // ======================================================================
     // Entity cache isolation across double nested
-    // ======================================================================
 
     @Test
     fun `double nested NESTED should share and clear cache correctly`(): Unit = runBlocking {
@@ -365,9 +349,7 @@ open class SpringTransactionContextTest(
         }
     }
 
-    // ======================================================================
     // setRollbackOnly before any DB access
-    // ======================================================================
 
     @Test
     fun `setRollbackOnly before DB access should still rollback`(): Unit = runBlocking {
@@ -378,9 +360,7 @@ open class SpringTransactionContextTest(
         orm.exists<Visit>().shouldBeTrue()
     }
 
-    // ======================================================================
     // Global and scoped defaults with Spring integration
-    // ======================================================================
 
     @Test
     fun `global readOnly default should apply`(): Unit = runBlocking {
@@ -406,5 +386,63 @@ open class SpringTransactionContextTest(
                 orm.countAll<City>() shouldBe 6
             }
         }
+    }
+
+    @Test
+    fun `timeout with no DB access in rollback path should throw`(): Unit = runBlocking {
+        assertThrows<TransactionTimedOutException> {
+            transactionBlocking(timeoutSeconds = 1) {
+                Thread.sleep(1500)
+                setRollbackOnly()
+            }
+        }
+    }
+
+    @Test
+    fun `setRollbackOnly before any DB access then access should rollback`(): Unit = runBlocking {
+        transactionBlocking {
+            setRollbackOnly()
+            orm.deleteAll<Visit>()
+        }
+        orm.exists<Visit>().shouldBeTrue()
+    }
+
+    @Test
+    fun `global timeout should apply to transactions`(): Unit = runBlocking {
+        setGlobalTransactionOptions(timeoutSeconds = 1)
+        assertThrows<TransactionTimedOutException> {
+            transactionBlocking {
+                Thread.sleep(1500)
+            }
+        }
+    }
+
+    @Test
+    fun `thread-scoped defaults should apply to blocking transactions`(): Unit = runBlocking {
+        withTransactionOptionsBlocking(isolation = SERIALIZABLE) {
+            transactionBlocking {
+                orm.countAll<City>() shouldBe 6
+            }
+        }
+    }
+
+    @Test
+    fun `explicit args should override thread-scoped defaults`(): Unit = runBlocking {
+        withTransactionOptionsBlocking(isolation = SERIALIZABLE) {
+            transactionBlocking(isolation = READ_COMMITTED) {
+                orm.countAll<City>() shouldBe 6
+            }
+        }
+    }
+
+    @Test
+    fun `REQUIRES_NEW with readOnly inside writable outer`(): Unit = runBlocking {
+        transactionBlocking {
+            orm.deleteAll<Visit>()
+            transactionBlocking(REQUIRES_NEW, readOnly = true) {
+                orm.countAll<City>() shouldBe 6
+            }
+        }
+        orm.exists<Visit>().shouldBeFalse()
     }
 }

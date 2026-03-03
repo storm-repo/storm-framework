@@ -17,6 +17,7 @@ package st.orm.core.template;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -42,6 +43,7 @@ import st.orm.FK;
 import st.orm.GenerationStrategy;
 import st.orm.PK;
 import st.orm.Persist;
+import st.orm.ProjectionQuery;
 import st.orm.Ref;
 import st.orm.UK;
 import st.orm.core.template.impl.SchemaValidationError;
@@ -59,7 +61,7 @@ class SchemaValidatorTest {
     private String jdbcUrl;
     private DataSource dataSource;
 
-    // --- Test entity definitions ---
+    // Test entity definitions
 
     public record ValidCity(
             @PK Integer id,
@@ -149,7 +151,7 @@ class SchemaValidatorTest {
             @DbIgnore @Nonnull LocalDate description  // type mismatch, but ignored
     ) implements Entity<Integer> {}
 
-    // --- UK/FK validation test entities ---
+    // UK/FK validation test entities
 
     public record UniqueKeyEntity(
             @PK Integer id,
@@ -446,7 +448,7 @@ class SchemaValidatorTest {
         assertTrue(errors.isEmpty(), "Expected no errors for @DbIgnore field but got: " + errors);
     }
 
-    // --- UK validation tests ---
+    // UK validation tests
 
     @Test
     void testUniqueKeyWithMatchingConstraint() throws SQLException {
@@ -534,7 +536,7 @@ class SchemaValidatorTest {
                 "Expected no UNIQUE_KEY_MISSING when @DbIgnore suppresses it, but got: " + errors);
     }
 
-    // --- FK validation tests ---
+    // FK validation tests
 
     @Test
     void testForeignKeyWithMatchingConstraint() throws SQLException {
@@ -600,7 +602,7 @@ class SchemaValidatorTest {
                 "Expected no FOREIGN_KEY_MISSING when @DbIgnore suppresses it, but got: " + errors);
     }
 
-    // --- Polymorphic FK validation tests ---
+    // Polymorphic FK validation tests
 
     // Polymorphic FK: sealed Data interface with independent entity subtypes in separate tables.
     sealed interface Commentable extends Data permits CommentablePost, CommentablePhoto {}
@@ -632,7 +634,7 @@ class SchemaValidatorTest {
                 "Expected no FOREIGN_KEY_MISSING for polymorphic FK, but got: " + errors);
     }
 
-    // --- Helpers ---
+    // Helpers
 
     private void execute(String sql) throws SQLException {
         try (Connection connection = dataSource.getConnection();
@@ -685,5 +687,89 @@ class SchemaValidatorTest {
 
         @Override
         public boolean isWrapperFor(Class<?> iface) { return false; }
+    }
+
+    @DbTable("nonexistent_table")
+    public record MissingEntity(
+            @PK Integer id,
+            @Nonnull String name
+    ) implements Entity<Integer> {}
+
+    @ProjectionQuery("SELECT id, name FROM valid_city")
+    public record ProjectionQueryType(
+            @PK Integer id,
+            @Nonnull String name
+    ) implements st.orm.Projection<Integer> {}
+
+    @Test
+    void testValidateAndReportNonStrictExcludesWarnings() throws SQLException {
+        execute("CREATE TABLE valid_city (id INTEGER AUTO_INCREMENT, name VARCHAR(255), PRIMARY KEY (id))");
+
+        SchemaValidator validator = SchemaValidator.of(dataSource);
+        // City name is nullable in DB but non-null in entity, causing NULLABILITY_MISMATCH (a warning).
+        List<String> errors = validator.validateAndReport(List.of(ValidCity.class), false);
+        // Non-strict mode should exclude warnings from the returned list.
+        assertTrue(errors.isEmpty(), "Expected no errors in non-strict mode, got: " + errors);
+    }
+
+    @Test
+    void testValidateAndReportStrictIncludesWarnings() throws SQLException {
+        execute("CREATE TABLE valid_city (id INTEGER AUTO_INCREMENT, name VARCHAR(255), PRIMARY KEY (id))");
+
+        SchemaValidator validator = SchemaValidator.of(dataSource);
+        List<String> errors = validator.validateAndReport(List.of(ValidCity.class), true);
+        // Strict mode should include NULLABILITY_MISMATCH as an error.
+        assertFalse(errors.isEmpty(), "Expected strict errors for nullable column, got: " + errors);
+    }
+
+    @Test
+    void testValidateAndReportWithMissingTable() {
+        SchemaValidator validator = SchemaValidator.of(dataSource);
+        List<String> errors = validator.validateAndReport(List.of(MissingEntity.class), true);
+        assertFalse(errors.isEmpty());
+        assertTrue(errors.stream().anyMatch(e -> e.contains("nonexistent_table")));
+    }
+
+    @Test
+    void testValidateEmptyList() {
+        SchemaValidator validator = SchemaValidator.of(dataSource);
+        List<SchemaValidationError> errors = validator.validate(List.of());
+        assertNotNull(errors);
+        assertTrue(errors.isEmpty());
+    }
+
+    @Test
+    void testValidateOrThrowThrowsForMissingTable() {
+        SchemaValidator validator = SchemaValidator.of(dataSource);
+        assertThrows(SchemaValidationException.class,
+                () -> validator.validateOrThrow(List.of(MissingEntity.class)));
+    }
+
+    @Test
+    void testValidateOrThrowPassesForValidTable() throws SQLException {
+        execute("CREATE TABLE valid_city (id INTEGER AUTO_INCREMENT, name VARCHAR(255) NOT NULL, PRIMARY KEY (id))");
+
+        SchemaValidator validator = SchemaValidator.of(dataSource);
+        // Should not throw for a valid entity.
+        validator.validateOrThrow(List.of(ValidCity.class));
+    }
+
+    @Test
+    void testSchemaValidationExceptionErrors() {
+        List<SchemaValidationError> errors = List.of(
+                new SchemaValidationError(ValidCity.class, ErrorKind.TABLE_NOT_FOUND, "Table not found."),
+                new SchemaValidationError(ValidCity.class, ErrorKind.COLUMN_NOT_FOUND, "Column not found.")
+        );
+        SchemaValidationException exception = new SchemaValidationException(errors);
+        assertEquals(2, exception.getErrors().size());
+        assertTrue(exception.getMessage().contains("Schema validation failed"));
+    }
+
+    @Test
+    void testProjectionQueryTypeSkippedDuringValidation() {
+        // ProjectionQuery types should be skipped, so no TABLE_NOT_FOUND even though no table exists.
+        SchemaValidator validator = SchemaValidator.of(dataSource);
+        List<SchemaValidationError> errors = validator.validate(List.of(ProjectionQueryType.class));
+        assertTrue(errors.isEmpty(), "Expected ProjectionQuery to be skipped, but got: " + errors);
     }
 }

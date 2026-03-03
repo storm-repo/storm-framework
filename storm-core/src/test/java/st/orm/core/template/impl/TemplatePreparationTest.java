@@ -1,23 +1,37 @@
 package st.orm.core.template.impl;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.core.template.TemplateString.raw;
 import static st.orm.core.template.Templates.delete;
+import static st.orm.core.template.Templates.from;
 import static st.orm.core.template.Templates.insert;
+import static st.orm.core.template.Templates.param;
 import static st.orm.core.template.Templates.select;
 import static st.orm.core.template.Templates.table;
 import static st.orm.core.template.Templates.update;
 
 import java.util.List;
 import java.util.stream.Stream;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import st.orm.Data;
 import st.orm.DbTable;
 import st.orm.Entity;
 import st.orm.Metamodel;
 import st.orm.PK;
+import st.orm.core.IntegrationConfig;
+import st.orm.core.model.Owner;
+import st.orm.core.template.ORMTemplate;
+import st.orm.core.template.Sql;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplateException;
 import st.orm.core.template.TemplateString;
@@ -29,7 +43,13 @@ import st.orm.core.template.TemplateString;
  * resolveArrayElement, resolveIterableElement, and resolveElements to cover previously uncovered
  * error paths.</p>
  */
+@ExtendWith(SpringExtension.class)
+@ContextConfiguration(classes = IntegrationConfig.class)
+@DataJpaTest(showSql = false)
 public class TemplatePreparationTest {
+
+    @Autowired
+    private DataSource dataSource;
 
     /**
      * Minimal test entity for triggering template preparation paths.
@@ -458,5 +478,120 @@ public class TemplatePreparationTest {
         var exception = assertThrows(SqlTemplateException.class,
                 () -> TEMPLATE.process(raw("DELETE \0 WHERE id = 1", delete(TestEntity.class))));
         assertTrue(exception.getMessage().contains("From element required when using Delete element"));
+    }
+
+    @DbTable("city")
+    record TestCity(@PK Integer id, String name) implements Entity<Integer> {}
+
+    @Test
+    public void testInsertWithRecordAfterValues() throws SqlTemplateException {
+        var template = SqlTemplate.PS;
+        TestCity city = new TestCity(null, "TestCity");
+        Sql sql = template.process(raw("INSERT INTO \0 VALUES \0", insert(TestCity.class), city));
+        assertNotNull(sql);
+        assertTrue(sql.statement().contains("INSERT"));
+    }
+
+    @Test
+    public void testUpdateWithRecordAfterSet() throws SqlTemplateException {
+        var template = SqlTemplate.PS;
+        TestCity city = new TestCity(1, "UpdatedCity");
+        Sql sql = template.process(raw("UPDATE \0 SET \0 WHERE id = 1", update(TestCity.class), city));
+        assertNotNull(sql);
+        assertTrue(sql.statement().contains("UPDATE"));
+    }
+
+    @Test
+    public void testTypeInFromPosition() throws SqlTemplateException {
+        var template = SqlTemplate.PS;
+        Sql sql = template.process(raw("SELECT * FROM \0", table(TestCity.class)));
+        assertNotNull(sql);
+        assertTrue(sql.statement().contains("city"));
+    }
+
+    @Test
+    public void testSelectElementFollowedByFrom() throws SqlTemplateException {
+        var template = SqlTemplate.PS;
+        Sql sql = template.process(raw("SELECT \0 FROM \0", select(TestCity.class), from(TestCity.class, true)));
+        assertNotNull(sql);
+    }
+
+    @Test
+    public void testDeleteWithFromElement() {
+        var orm = ORMTemplate.of(dataSource);
+        int deleted = orm.query(raw("DELETE FROM \0 WHERE id = 99", from(TestCity.class, true)))
+                .unsafe()
+                .executeUpdate();
+        assertEquals(0, deleted);
+    }
+
+    @Test
+    public void testDeleteElementWithFromExpression() throws SqlTemplateException {
+        var template = SqlTemplate.PS;
+        Sql sql = template.process(raw("DELETE \0 FROM \0 WHERE id = 1",
+                delete(TestCity.class), from(TestCity.class, true)));
+        assertNotNull(sql);
+        assertTrue(sql.statement().contains("DELETE"));
+    }
+
+    @Test
+    public void testInsertElementResolution() throws SqlTemplateException {
+        var template = SqlTemplate.PS;
+        Sql sql = template.process(raw("INSERT INTO \0 VALUES \0",
+                insert(TestCity.class), new TestCity(null, "Inserted")));
+        assertNotNull(sql);
+        assertTrue(sql.statement().contains("INSERT"));
+    }
+
+    @Test
+    public void testUpdateElementResolution() throws SqlTemplateException {
+        var template = SqlTemplate.PS;
+        Sql sql = template.process(raw("UPDATE \0 SET \0 WHERE id = 1",
+                update(TestCity.class), new TestCity(1, "Updated")));
+        assertNotNull(sql);
+        assertTrue(sql.statement().contains("UPDATE"));
+    }
+
+    @Test
+    public void testParamInWhereClause() throws SqlTemplateException {
+        var template = SqlTemplate.PS;
+        Sql sql = template.process(raw("SELECT id FROM city WHERE id = \0", param(1)));
+        assertNotNull(sql);
+        assertTrue(sql.parameters().size() > 0);
+    }
+
+    @Test
+    public void testMultipleParamsInQuery() throws SqlTemplateException {
+        var template = SqlTemplate.PS;
+        Sql sql = template.process(raw("SELECT id FROM city WHERE id > \0 AND id < \0", param(1), param(5)));
+        assertNotNull(sql);
+        assertEquals(2, sql.parameters().size());
+    }
+
+    @Test
+    public void testFromWithAutoJoinDisabled() throws SqlTemplateException {
+        var template = SqlTemplate.PS;
+        Sql sql = template.process(raw("SELECT \0 FROM \0", select(TestCity.class), from(TestCity.class, false)));
+        assertNotNull(sql);
+    }
+
+    @Test
+    public void testSubqueryUsingRaw() {
+        var orm = ORMTemplate.of(dataSource);
+        record IntResult(int value) {}
+        IntResult result = orm.query(raw("SELECT (SELECT COUNT(*) FROM city)"))
+                .getSingleResult(IntResult.class);
+        assertEquals(6, result.value());
+    }
+
+    @Test
+    public void testAutoJoinsForOwnerWithCity() {
+        var orm = ORMTemplate.of(dataSource);
+        List<Owner> owners = orm.entity(Owner.class).select().getResultList();
+        assertEquals(10, owners.size());
+        for (Owner owner : owners) {
+            assertNotNull(owner.address());
+            assertNotNull(owner.address().city());
+        }
     }
 }

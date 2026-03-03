@@ -1,12 +1,19 @@
 package st.orm.core.template.impl;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static st.orm.core.template.TemplateString.raw;
 
 import org.junit.jupiter.api.Test;
+import st.orm.StormConfig;
+import st.orm.core.template.Sql;
 import st.orm.core.template.SqlTemplate;
+import st.orm.core.template.SqlTemplateException;
+import st.orm.core.template.TableAliasResolver;
 import st.orm.mapping.ColumnNameResolver;
 import st.orm.mapping.ForeignKeyResolver;
 import st.orm.mapping.TableNameResolver;
@@ -15,13 +22,13 @@ import st.orm.mapping.TableNameResolver;
  * Extended tests for {@link SqlTemplateImpl} covering withColumnNameResolver,
  * withForeignKeyResolver, withTableNameResolver, withSupportRecords, and resolver identity shortcuts.
  */
-public class SqlTemplateImplExtendedTest {
+public class SqlTemplateImplTest {
 
     private SqlTemplateImpl createTemplate() {
         return (SqlTemplateImpl) SqlTemplate.PS;
     }
 
-    // ---- withColumnNameResolver ----
+    // withColumnNameResolver
 
     @Test
     public void testWithColumnNameResolverReturnsSameWhenIdentical() {
@@ -40,7 +47,7 @@ public class SqlTemplateImplExtendedTest {
         assertNotNull(result);
     }
 
-    // ---- withForeignKeyResolver ----
+    // withForeignKeyResolver
 
     @Test
     public void testWithForeignKeyResolverReturnsSameWhenIdentical() {
@@ -59,7 +66,7 @@ public class SqlTemplateImplExtendedTest {
         assertNotNull(result);
     }
 
-    // ---- withTableNameResolver ----
+    // withTableNameResolver
 
     @Test
     public void testWithTableNameResolverReturnsSameWhenIdentical() {
@@ -78,7 +85,7 @@ public class SqlTemplateImplExtendedTest {
         assertNotNull(result);
     }
 
-    // ---- withSupportRecords ----
+    // withSupportRecords
 
     @Test
     public void testWithSupportRecordsReturnsSameWhenIdentical() {
@@ -95,7 +102,7 @@ public class SqlTemplateImplExtendedTest {
         assertNotNull(result);
     }
 
-    // ---- withDialect ----
+    // withDialect
 
     @Test
     public void testWithDialectReturnsSameWhenIdentical() {
@@ -104,7 +111,7 @@ public class SqlTemplateImplExtendedTest {
         assertSame(template, result, "Should return same instance when dialect is identical");
     }
 
-    // ---- withConfig ----
+    // withConfig
 
     @Test
     public void testWithConfigReturnsSameWhenIdentical() {
@@ -114,7 +121,7 @@ public class SqlTemplateImplExtendedTest {
         assertNotNull(result);
     }
 
-    // ---- positionalOnly and expandCollection ----
+    // positionalOnly and expandCollection
 
     @Test
     public void testPositionalOnlyReturnsTrue() {
@@ -128,7 +135,7 @@ public class SqlTemplateImplExtendedTest {
         assertTrue(template.expandCollection());
     }
 
-    // ---- Cache disabled for inline parameters ----
+    // Cache disabled for inline parameters
 
     @Test
     public void testInlineParametersNewValue() {
@@ -136,5 +143,119 @@ public class SqlTemplateImplExtendedTest {
         SqlTemplate result = template.withInlineParameters(!template.inlineParameters());
         assertNotSame(template, result, "Should return new instance when inlineParameters changes");
         assertNotNull(result);
+    }
+
+    @Test
+    public void testWithTableAliasResolverReturnsSameWhenIdentical() {
+        SqlTemplateImpl template = (SqlTemplateImpl) SqlTemplate.PS;
+        TableAliasResolver currentResolver = template.tableAliasResolver();
+        SqlTemplateImpl result = template.withTableAliasResolver(currentResolver);
+        assertSame(template, result, "Should return same instance when alias resolver is identical");
+    }
+
+    @Test
+    public void testWithTableAliasResolverReturnsNewInstance() {
+        SqlTemplateImpl template = (SqlTemplateImpl) SqlTemplate.PS;
+        TableAliasResolver customResolver = (type, counter) -> "custom_" + type.getSimpleName().toLowerCase();
+        SqlTemplateImpl result = template.withTableAliasResolver(customResolver);
+        assertNotSame(template, result, "Should return new instance when alias resolver is different");
+    }
+
+    @Test
+    public void testWithInlineParametersReturnsSameWhenIdentical() {
+        SqlTemplateImpl template = (SqlTemplateImpl) SqlTemplate.PS;
+        SqlTemplate result = template.withInlineParameters(template.inlineParameters());
+        assertSame(template, result, "Should return same instance when inlineParameters is unchanged");
+    }
+
+    @Test
+    public void testWithInlineParametersReturnsNewInstance() {
+        SqlTemplateImpl template = (SqlTemplateImpl) SqlTemplate.PS;
+        SqlTemplate result = template.withInlineParameters(!template.inlineParameters());
+        assertNotSame(template, result, "Should return new instance when inlineParameters changes");
+    }
+
+    @Test
+    public void testWithConfigReturnsSameWhenSameInstance() {
+        SqlTemplateImpl template = (SqlTemplateImpl) SqlTemplate.PS;
+        SqlTemplate result = template.withConfig(StormConfig.defaults());
+        assertNotNull(result);
+    }
+
+    @Test
+    public void testInlineParametersDefaultIsFalse() {
+        SqlTemplateImpl template = (SqlTemplateImpl) SqlTemplate.PS;
+        assertFalse(template.inlineParameters());
+    }
+
+    @Test
+    public void testProcessWithInlineParameters() throws SqlTemplateException {
+        SqlTemplate template = SqlTemplate.PS.withInlineParameters(true);
+        Sql sql = template.process(raw("SELECT 1"));
+        assertNotNull(sql);
+        assertNotNull(sql.statement());
+        assertTrue(sql.statement().contains("1"));
+    }
+
+    @Test
+    public void testProcessCacheHit() throws SqlTemplateException {
+        SqlTemplate template = SqlTemplate.PS;
+        Sql sql1 = template.process(raw("SELECT id FROM city WHERE id = 1"));
+        assertNotNull(sql1);
+        Sql sql2 = template.process(raw("SELECT id FROM city WHERE id = 1"));
+        assertNotNull(sql2);
+        assertEquals(sql1.statement(), sql2.statement());
+    }
+
+    @Test
+    public void testProcessDifferentTemplatesGetDifferentKeys() throws SqlTemplateException {
+        SqlTemplate template = SqlTemplate.PS;
+        Sql sql1 = template.process(raw("SELECT id FROM city WHERE id = 1"));
+        Sql sql2 = template.process(raw("SELECT name FROM city WHERE id = 1"));
+        assertNotNull(sql1);
+        assertNotNull(sql2);
+        assertFalse(sql1.statement().equals(sql2.statement()));
+    }
+
+    @Test
+    public void testCreateBindVars() {
+        SqlTemplateImpl template = (SqlTemplateImpl) SqlTemplate.PS;
+        var bindVars = template.createBindVars();
+        assertNotNull(bindVars);
+    }
+
+    @Test
+    public void testPositionalOnly() {
+        SqlTemplateImpl ps = (SqlTemplateImpl) SqlTemplate.PS;
+        assertTrue(ps.positionalOnly());
+        SqlTemplateImpl jpa = (SqlTemplateImpl) SqlTemplate.JPA;
+        assertFalse(jpa.positionalOnly());
+    }
+
+    @Test
+    public void testExpandCollection() {
+        SqlTemplateImpl ps = (SqlTemplateImpl) SqlTemplate.PS;
+        assertTrue(ps.expandCollection());
+        SqlTemplateImpl jpa = (SqlTemplateImpl) SqlTemplate.JPA;
+        assertFalse(jpa.expandCollection());
+    }
+
+    @Test
+    public void testSupportRecordsDefault() {
+        SqlTemplateImpl template = (SqlTemplateImpl) SqlTemplate.PS;
+        assertTrue(template.supportRecords());
+    }
+
+    @Test
+    public void testDialectAccessor() {
+        SqlTemplateImpl template = (SqlTemplateImpl) SqlTemplate.PS;
+        assertNotNull(template.dialect());
+    }
+
+    @Test
+    public void testWithDialectReturnsSameWhenSameInstance() {
+        SqlTemplateImpl template = (SqlTemplateImpl) SqlTemplate.PS;
+        SqlTemplate result = template.withDialect(template.dialect());
+        assertSame(template, result);
     }
 }

@@ -83,7 +83,7 @@ public class OraclePolymorphicTest {
     @DbTable("nodsc_bird")
     public record NodscBird(@PK Integer id, String name) implements NodscAnimal {}
 
-    // -- Single-Table Inheritance models --
+    // Single-Table Inheritance models
     @Discriminator @DbTable("animal")
     public sealed interface Animal extends Entity<Integer> permits Cat, Dog {}
 
@@ -93,7 +93,7 @@ public class OraclePolymorphicTest {
     @Discriminator("Dog")
     public record Dog(@PK Integer id, String name, int weight) implements Animal {}
 
-    // ---- Single-Table Inheritance Tests ----
+    // Single-Table Inheritance Tests
 
     @Test
     public void testSelectAllAnimals() {
@@ -171,7 +171,7 @@ public class OraclePolymorphicTest {
         assertEquals(before + 3, animals.count());
     }
 
-    // --- Joined Table Inheritance tests ---
+    // Joined Table Inheritance tests
     // Batch inserts for joined table inheritance group records by subtype, which may assign
     // IDs in a different order than the original list. Since result ordering without ORDER BY
     // is not guaranteed, these tests use stream-based lookups by name instead of positional
@@ -350,7 +350,7 @@ public class OraclePolymorphicTest {
         assertEquals(before - 2, animals.count());
     }
 
-    // --- No-discriminator Joined Table Inheritance tests ---
+    // No-discriminator Joined Table Inheritance tests
 
     @Test
     public void testSelectAllNodscAnimals() {
@@ -460,7 +460,7 @@ public class OraclePolymorphicTest {
         assertEquals(before - 3, animals.count());
     }
 
-    // ---- JTI Type Change Tests ----
+    // JTI Type Change Tests
 
     @Test
     public void testUpdateJoinedCatToDog() {

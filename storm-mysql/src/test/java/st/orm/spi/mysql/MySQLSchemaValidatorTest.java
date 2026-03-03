@@ -69,7 +69,7 @@ public class MySQLSchemaValidatorTest {
     @Autowired
     private DataSource dataSource;
 
-    // --- Happy path entities ---
+    // Happy path entities
 
     public record Vet(
             @PK Integer id,
@@ -91,7 +91,7 @@ public class MySQLSchemaValidatorTest {
             @Nullable Integer version
     ) implements Entity<Integer> {}
 
-    // --- Mismatch entities ---
+    // Mismatch entities
 
     public record MissingTableEntity(
             @PK Integer id,
@@ -124,7 +124,7 @@ public class MySQLSchemaValidatorTest {
             Integer specialtyId
     ) implements Entity<Integer> {}
 
-    // --- Tests ---
+    // Tests
 
     @Test
     public void testValidEntitiesPass() {

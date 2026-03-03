@@ -26,7 +26,7 @@ public class DefaultORMReflectionImplTest {
     record SubData1(int id) implements SealedData {}
     record SubData2(int id) implements SealedData {}
 
-    // -- getId --
+    // getId
 
     @Test
     public void testGetId() {
@@ -35,7 +35,7 @@ public class DefaultORMReflectionImplTest {
         assertEquals(42, id);
     }
 
-    // -- getRecordValue --
+    // getRecordValue
 
     @Test
     public void testGetRecordValue() {
@@ -44,7 +44,7 @@ public class DefaultORMReflectionImplTest {
         assertEquals("hello", reflection.getRecordValue(entity, 1));
     }
 
-    // -- findRecordType --
+    // findRecordType
 
     @Test
     public void testFindRecordType() {
@@ -59,7 +59,7 @@ public class DefaultORMReflectionImplTest {
         assertFalse(result.isPresent());
     }
 
-    // -- getType --
+    // getType
 
     @Test
     public void testGetType() {
@@ -76,7 +76,7 @@ public class DefaultORMReflectionImplTest {
         assertThrows(PersistenceException.class, () -> reflection.getType(String.class));
     }
 
-    // -- getDataType --
+    // getDataType
 
     @Test
     public void testGetDataType() {
@@ -93,7 +93,7 @@ public class DefaultORMReflectionImplTest {
         assertThrows(PersistenceException.class, () -> reflection.getDataType(String.class));
     }
 
-    // -- isDefaultValue --
+    // isDefaultValue
 
     @Test
     public void testIsDefaultValueNull() {
@@ -140,7 +140,7 @@ public class DefaultORMReflectionImplTest {
         assertFalse(reflection.isDefaultValue("hello"));
     }
 
-    // -- isSupportedType --
+    // isSupportedType
 
     @Test
     public void testIsSupportedType() {
@@ -152,7 +152,7 @@ public class DefaultORMReflectionImplTest {
         assertFalse(reflection.isSupportedType("not a class"));
     }
 
-    // -- getPermittedSubclasses --
+    // getPermittedSubclasses
 
     @Test
     public void testGetPermittedSubclasses() {
@@ -166,7 +166,7 @@ public class DefaultORMReflectionImplTest {
         assertTrue(subclasses.isEmpty());
     }
 
-    // -- isDefaultMethod --
+    // isDefaultMethod
 
     @Test
     public void testIsDefaultMethod() throws NoSuchMethodException {
@@ -174,7 +174,7 @@ public class DefaultORMReflectionImplTest {
         assertFalse(reflection.isDefaultMethod(method));
     }
 
-    // -- invoke --
+    // invoke
 
     @Test
     public void testInvoke() {
@@ -184,7 +184,7 @@ public class DefaultORMReflectionImplTest {
         assertEquals(5, reflection.invoke(idField, entity));
     }
 
-    // -- execute (default method) --
+    // execute (default method)
 
     interface Greeter {
         default String greet() {

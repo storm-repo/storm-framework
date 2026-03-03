@@ -83,7 +83,7 @@ public class OracleSchemaValidatorTest {
     @Autowired
     private DataSource dataSource;
 
-    // --- Happy path entities ---
+    // Happy path entities
 
     public record Vet(
             @PK Integer id,
@@ -105,7 +105,7 @@ public class OracleSchemaValidatorTest {
             @Nullable Integer version
     ) implements Entity<Integer> {}
 
-    // --- Mismatch entities ---
+    // Mismatch entities
 
     public record MissingTableEntity(
             @PK Integer id,
@@ -138,7 +138,7 @@ public class OracleSchemaValidatorTest {
             Integer specialtyId
     ) implements Entity<Integer> {}
 
-    // --- Sequence entities ---
+    // Sequence entities
 
     @DbTable("vet")
     public record SequenceExistsEntity(
@@ -154,7 +154,7 @@ public class OracleSchemaValidatorTest {
             String lastName
     ) implements Entity<Integer> {}
 
-    // --- Tests ---
+    // Tests
 
     @Test
     public void testValidEntitiesPass() {

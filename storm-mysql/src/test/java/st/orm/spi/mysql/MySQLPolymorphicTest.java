@@ -55,7 +55,7 @@ public class MySQLPolymorphicTest {
     @Autowired
     private DataSource dataSource;
 
-    // ---- Inline model records ----
+    // Inline model records
 
     @Discriminator @Polymorphic(JOINED) @DbTable("joined_animal")
     public sealed interface JoinedAnimal extends Entity<Integer> permits JoinedCat, JoinedDog {}
@@ -72,7 +72,7 @@ public class MySQLPolymorphicTest {
     @DbTable("nodsc_bird")
     public record NodscBird(@PK Integer id, String name) implements NodscAnimal {}
 
-    // -- Single-Table Inheritance models --
+    // Single-Table Inheritance models
     @Discriminator @DbTable("animal")
     public sealed interface Animal extends Entity<Integer> permits Cat, Dog {}
 
@@ -82,7 +82,7 @@ public class MySQLPolymorphicTest {
     @Discriminator("Dog")
     public record Dog(@PK Integer id, String name, int weight) implements Animal {}
 
-    // ---- Single-Table Inheritance Tests ----
+    // Single-Table Inheritance Tests
 
     @Test
     public void testSelectAllAnimals() {
@@ -160,7 +160,7 @@ public class MySQLPolymorphicTest {
         assertEquals(before + 3, animals.count());
     }
 
-    // ---- Joined Table Inheritance Tests (JoinedAnimal/JoinedCat/JoinedDog) ----
+    // Joined Table Inheritance Tests (JoinedAnimal/JoinedCat/JoinedDog)
     // Batch inserts for joined table inheritance group records by subtype, which may assign
     // IDs in a different order than the original list. Since result ordering without ORDER BY
     // is not guaranteed, these tests use stream-based lookups by name instead of positional
@@ -375,7 +375,7 @@ public class MySQLPolymorphicTest {
         assertEquals(before - 2, animals.count());
     }
 
-    // ---- Joined Table Inheritance without @Discriminator (NodscAnimal) ----
+    // Joined Table Inheritance without @Discriminator (NodscAnimal)
 
     @Test
     public void testSelectAllNodscAnimals() {
@@ -497,7 +497,7 @@ public class MySQLPolymorphicTest {
         assertEquals(before - 3, animals.count());
     }
 
-    // ---- JTI Type Change Tests ----
+    // JTI Type Change Tests
 
     @Test
     public void testUpdateJoinedCatToDog() {

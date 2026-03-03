@@ -2,6 +2,7 @@ package st.orm.spi.mssqlserver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
@@ -15,7 +16,7 @@ class MSSQLServerSqlDialectTest {
 
     private final MSSQLServerSqlDialect dialect = new MSSQLServerSqlDialect();
 
-    // -- Identifier validation: MSSQL allows _, #, and letters as first char --
+    // Identifier validation: MSSQL allows _, #, and letters as first char
 
     @Test
     void identifierPatternShouldAcceptHashPrefixedTempTables() {
@@ -40,7 +41,7 @@ class MSSQLServerSqlDialectTest {
         assertFalse(dialect.getValidIdentifierPattern().matcher("").matches());
     }
 
-    // -- Escape: MSSQL uses square bracket escaping [name] --
+    // Escape: MSSQL uses square bracket escaping [name]
 
     @Test
     void escapeShouldWrapSimpleNameInSquareBrackets() {
@@ -65,7 +66,7 @@ class MSSQLServerSqlDialectTest {
         assertEquals("[]]]]]", dialect.escape("]]"));
     }
 
-    // -- getSafeIdentifier: integration of isKeyword + escape --
+    // getSafeIdentifier: integration of isKeyword + escape
 
     @Test
     void getSafeIdentifierShouldEscapeMSSQLKeywords() {
@@ -101,7 +102,7 @@ class MSSQLServerSqlDialectTest {
         assertFalse(dialect.isKeyword("customer_name"));
     }
 
-    // -- Identifier pattern: recognizes [bracket] and "double-quoted" identifiers --
+    // Identifier pattern: recognizes [bracket] and "double-quoted" identifiers
 
     @Test
     void identifierPatternShouldExtractSquareBracketIdentifiers() {
@@ -123,7 +124,7 @@ class MSSQLServerSqlDialectTest {
         assertFalse(matcher.find());
     }
 
-    // -- Quote literal pattern --
+    // Quote literal pattern
 
     @Test
     void quoteLiteralPatternShouldMatchStringWithEscapedQuotes() {
@@ -132,7 +133,7 @@ class MSSQLServerSqlDialectTest {
         assertEquals("'it''s a test'", matcher.group());
     }
 
-    // -- MSSQL-specific limit/offset: TOP clause and OFFSET-FETCH --
+    // MSSQL-specific limit/offset: TOP clause and OFFSET-FETCH
 
     @Test
     void limitShouldGenerateTopClause() {
@@ -155,7 +156,7 @@ class MSSQLServerSqlDialectTest {
         assertEquals("OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY", dialect.limit(0, 1));
     }
 
-    // -- MSSQL-specific lock hints: WITH (HOLDLOCK), WITH (UPDLOCK) --
+    // MSSQL-specific lock hints: WITH (HOLDLOCK), WITH (UPDLOCK)
 
     @Test
     void lockHintsShouldUseWithSyntax() {
@@ -164,7 +165,7 @@ class MSSQLServerSqlDialectTest {
         assertEquals("WITH (UPDLOCK)", dialect.forUpdateLockHint());
     }
 
-    // -- Sequence SQL generation --
+    // Sequence SQL generation
 
     @Test
     void sequenceNextValShouldGenerateCorrectSqlForSimpleName() {
@@ -178,7 +179,7 @@ class MSSQLServerSqlDialectTest {
         assertEquals("NEXT VALUE FOR [SELECT]", result);
     }
 
-    // -- Provider filter: accept/reject logic --
+    // Provider filter: accept/reject logic
 
     @Test
     void providerFilterShouldAcceptNonSqlDialectProviders() {
@@ -197,7 +198,7 @@ class MSSQLServerSqlDialectTest {
         assertTrue(MSSQLServerProviderFilter.INSTANCE.test(new MSSQLServerEntityRepositoryProviderImpl()));
     }
 
-    // -- SqlDialectProvider --
+    // SqlDialectProvider
 
     @Test
     void sqlDialectProviderShouldReturnDialectWithMSSQLSpecificBehavior() {
@@ -206,5 +207,162 @@ class MSSQLServerSqlDialectTest {
         // Verify MSSQL-specific: bracket escaping and TOP syntax.
         assertEquals("[col]", sqlDialect.escape("col"));
         assertEquals("TOP 5", sqlDialect.limit(5));
+    }
+
+    @Test
+    void nameShouldReturnMSSQLServer() {
+        assertEquals("MS SQL Server", dialect.name());
+    }
+
+    @Test
+    void configConstructorShouldCreateDialectWithSameBehavior() {
+        var configDialect = new MSSQLServerSqlDialect(StormConfig.of(Map.of()));
+        assertEquals("MS SQL Server", configDialect.name());
+        assertEquals("[col]", configDialect.escape("col"));
+        assertEquals("TOP 10", configDialect.limit(10));
+    }
+
+    @Test
+    void supportsDeleteAliasShouldReturnTrue() {
+        assertTrue(dialect.supportsDeleteAlias());
+    }
+
+    @Test
+    void supportsMultiValueTuplesShouldReturnFalse() {
+        assertFalse(dialect.supportsMultiValueTuples());
+    }
+
+    @Test
+    void applyLimitAfterSelectShouldReturnTrue() {
+        assertTrue(dialect.applyLimitAfterSelect());
+    }
+
+    @Test
+    void applyLockHintAfterFromShouldReturnTrue() {
+        assertTrue(dialect.applyLockHintAfterFrom());
+    }
+
+    @Test
+    void constraintDiscoveryStrategyShouldReturnJdbcMetadata() {
+        assertEquals(
+                st.orm.core.template.SqlDialect.ConstraintDiscoveryStrategy.JDBC_METADATA,
+                dialect.constraintDiscoveryStrategy());
+    }
+
+    @Test
+    void forUpdateLockHintShouldReturnUpdlock() {
+        assertEquals("WITH (UPDLOCK)", dialect.forUpdateLockHint());
+    }
+
+    @Test
+    void forShareLockHintShouldReturnHoldlock() {
+        assertEquals("WITH (HOLDLOCK)", dialect.forShareLockHint());
+    }
+
+    @Test
+    void validIdentifierPatternShouldAcceptAlphanumericWithUnderscore() {
+        assertTrue(dialect.getValidIdentifierPattern().matcher("my_table_123").matches());
+    }
+
+    @Test
+    void validIdentifierPatternShouldRejectSpecialCharacters() {
+        assertFalse(dialect.getValidIdentifierPattern().matcher("my-table").matches());
+        assertFalse(dialect.getValidIdentifierPattern().matcher("my table").matches());
+    }
+
+    @Test
+    void quoteLiteralPatternShouldMatchSimpleStringLiteral() {
+        var matcher = dialect.getQuoteLiteralPattern().matcher("'hello'");
+        assertTrue(matcher.find());
+        assertEquals("'hello'", matcher.group());
+    }
+
+    @Test
+    void quoteLiteralPatternShouldMatchEmptyStringLiteral() {
+        var matcher = dialect.getQuoteLiteralPattern().matcher("''");
+        assertTrue(matcher.find());
+        assertEquals("''", matcher.group());
+    }
+
+    @Test
+    void entityRepositoryProviderShouldNotBeNull() {
+        var provider = new MSSQLServerEntityRepositoryProviderImpl();
+        assertNotNull(provider);
+    }
+
+    @Test
+    void sqlDialectProviderShouldCreateDialectWithConfig() {
+        var provider = new MSSQLServerSqlDialectProviderImpl();
+        var sqlDialect = provider.getSqlDialect(StormConfig.of(Map.of()));
+        assertNotNull(sqlDialect);
+        assertEquals("MS SQL Server", sqlDialect.name());
+        assertTrue(sqlDialect.supportsDeleteAlias());
+        assertFalse(sqlDialect.supportsMultiValueTuples());
+        assertTrue(sqlDialect.applyLimitAfterSelect());
+        assertTrue(sqlDialect.applyLockHintAfterFrom());
+    }
+
+    @Test
+    void isKeywordShouldRecognizeAnsiKeywords() {
+        assertTrue(dialect.isKeyword("SELECT"));
+        assertTrue(dialect.isKeyword("INSERT"));
+        assertTrue(dialect.isKeyword("UPDATE"));
+        assertTrue(dialect.isKeyword("DELETE"));
+        assertTrue(dialect.isKeyword("FROM"));
+        assertTrue(dialect.isKeyword("WHERE"));
+    }
+
+    @Test
+    void isKeywordShouldRecognizeMSSQLSpecificKeywords() {
+        assertTrue(dialect.isKeyword("BACKUP"));
+        assertTrue(dialect.isKeyword("BREAK"));
+        assertTrue(dialect.isKeyword("BROWSE"));
+        assertTrue(dialect.isKeyword("BULK"));
+        assertTrue(dialect.isKeyword("CHECKPOINT"));
+        assertTrue(dialect.isKeyword("CLUSTERED"));
+        assertTrue(dialect.isKeyword("COMPUTE"));
+        assertTrue(dialect.isKeyword("CONTAINS"));
+        assertTrue(dialect.isKeyword("DENY"));
+        assertTrue(dialect.isKeyword("DUMP"));
+        assertTrue(dialect.isKeyword("ERRLVL"));
+        assertTrue(dialect.isKeyword("EXTERNAL"));
+        assertTrue(dialect.isKeyword("HOLDLOCK"));
+        assertTrue(dialect.isKeyword("IDENTITY_INSERT"));
+        assertTrue(dialect.isKeyword("IDENTITYCOL"));
+        assertTrue(dialect.isKeyword("KILL"));
+        assertTrue(dialect.isKeyword("NONCLUSTERED"));
+        assertTrue(dialect.isKeyword("OFFSETS"));
+        assertTrue(dialect.isKeyword("PERCENT"));
+        assertTrue(dialect.isKeyword("PLAN"));
+        assertTrue(dialect.isKeyword("PRINT"));
+        assertTrue(dialect.isKeyword("PROC"));
+        assertTrue(dialect.isKeyword("RAISERROR"));
+        assertTrue(dialect.isKeyword("READTEXT"));
+        assertTrue(dialect.isKeyword("REPLICATION"));
+        assertTrue(dialect.isKeyword("ROWCOUNT"));
+        assertTrue(dialect.isKeyword("SAVE"));
+        assertTrue(dialect.isKeyword("SEQUENCE"));
+        assertTrue(dialect.isKeyword("STATISTICS"));
+        assertTrue(dialect.isKeyword("TEXTSIZE"));
+        assertTrue(dialect.isKeyword("TRAN"));
+        assertTrue(dialect.isKeyword("TRANSACTION"));
+        assertTrue(dialect.isKeyword("TRUNCATE"));
+        assertTrue(dialect.isKeyword("TRY_CONVERT"));
+        assertTrue(dialect.isKeyword("TSEQUAL"));
+        assertTrue(dialect.isKeyword("UNPIVOT"));
+        assertTrue(dialect.isKeyword("UPDATETEXT"));
+        assertTrue(dialect.isKeyword("WAITFOR"));
+        assertTrue(dialect.isKeyword("WHILE"));
+        assertTrue(dialect.isKeyword("WRITETEXT"));
+    }
+
+    @Test
+    void escapeShouldHandleEmptyName() {
+        assertEquals("[]", dialect.escape(""));
+    }
+
+    @Test
+    void escapeShouldHandleNameWithOnlyClosingBracket() {
+        assertEquals("[]]]", dialect.escape("]"));
     }
 }

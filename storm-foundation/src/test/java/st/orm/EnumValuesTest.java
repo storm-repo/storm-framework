@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
  */
 class EnumValuesTest {
 
-    // --- UpdateMode ---
+    // UpdateMode
 
     @Test
     void updateModeValues() {
@@ -30,7 +30,7 @@ class EnumValuesTest {
         assertEquals(UpdateMode.FIELD, UpdateMode.valueOf("FIELD"));
     }
 
-    // --- TemporalType ---
+    // TemporalType
 
     @Test
     void temporalTypeValues() {
@@ -48,7 +48,7 @@ class EnumValuesTest {
         assertEquals(TemporalType.TIMESTAMP, TemporalType.valueOf("TIMESTAMP"));
     }
 
-    // --- SelectMode ---
+    // SelectMode
 
     @Test
     void selectModeValues() {
@@ -66,7 +66,7 @@ class EnumValuesTest {
         assertEquals(SelectMode.NESTED, SelectMode.valueOf("NESTED"));
     }
 
-    // --- ResolveScope ---
+    // ResolveScope
 
     @Test
     void resolveScopeValues() {
@@ -84,7 +84,7 @@ class EnumValuesTest {
         assertEquals(ResolveScope.OUTER, ResolveScope.valueOf("OUTER"));
     }
 
-    // --- GenerationStrategy ---
+    // GenerationStrategy
 
     @Test
     void generationStrategyValues() {
@@ -102,7 +102,7 @@ class EnumValuesTest {
         assertEquals(GenerationStrategy.SEQUENCE, GenerationStrategy.valueOf("SEQUENCE"));
     }
 
-    // --- EnumType ---
+    // EnumType
 
     @Test
     void enumTypeValues() {
@@ -118,7 +118,7 @@ class EnumValuesTest {
         assertEquals(EnumType.ORDINAL, EnumType.valueOf("ORDINAL"));
     }
 
-    // --- DirtyCheck ---
+    // DirtyCheck
 
     @Test
     void dirtyCheckValues() {
@@ -136,7 +136,7 @@ class EnumValuesTest {
         assertEquals(DirtyCheck.VALUE, DirtyCheck.valueOf("VALUE"));
     }
 
-    // --- Polymorphic.Strategy ---
+    // Polymorphic.Strategy
 
     @Test
     void polymorphicStrategyValues() {
@@ -152,7 +152,7 @@ class EnumValuesTest {
         assertEquals(Polymorphic.Strategy.JOINED, Polymorphic.Strategy.valueOf("JOINED"));
     }
 
-    // --- Discriminator.DiscriminatorType ---
+    // Discriminator.DiscriminatorType
 
     @Test
     void discriminatorTypeValues() {

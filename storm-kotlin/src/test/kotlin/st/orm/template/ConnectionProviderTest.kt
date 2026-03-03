@@ -31,9 +31,7 @@ open class ConnectionProviderTest(
     @Autowired val dataSource: DataSource,
 ) {
 
-    // ======================================================================
     // Connection acquisition without transaction
-    // ======================================================================
 
     @Test
     fun `getConnection without transaction should return new connection`() {
@@ -54,9 +52,7 @@ open class ConnectionProviderTest(
         connection.isClosed.shouldBeTrue()
     }
 
-    // ======================================================================
     // Connection within transaction
-    // ======================================================================
 
     @Test
     fun `getConnection within transaction should reuse transaction connection`(): Unit = runBlocking {
@@ -76,9 +72,7 @@ open class ConnectionProviderTest(
         }
     }
 
-    // ======================================================================
     // ConcurrencyDetector
-    // ======================================================================
 
     @Test
     fun `ConcurrencyDetector beforeAccess and afterAccess on same thread should succeed`() {
@@ -136,9 +130,7 @@ open class ConnectionProviderTest(
         }
     }
 
-    // ======================================================================
     // Integration: connection provider behavior through ORM operations
-    // ======================================================================
 
     @Test
     fun `queries outside transaction should each get fresh connection`() {

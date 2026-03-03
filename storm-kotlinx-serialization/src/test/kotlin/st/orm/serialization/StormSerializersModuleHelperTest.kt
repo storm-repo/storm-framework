@@ -25,7 +25,7 @@ import st.orm.Ref
  */
 class StormSerializersModuleHelperTest {
 
-    // -- Standard entity types that exercise the generated serializer naming patterns --
+    // Standard entity types that exercise the generated serializer naming patterns
 
     @Serializable
     data class TopLevelEntity(
@@ -56,7 +56,7 @@ class StormSerializersModuleHelperTest {
         serializersModule = StormSerializers
     }
 
-    // -- resolveTargetClass: exercises Strategy 1 (generated serializer class naming) --
+    // resolveTargetClass: exercises Strategy 1 (generated serializer class naming)
 
     @Serializable
     data class TopLevelRefHolder(@Contextual val ref: Ref<TopLevelEntity>?)
@@ -93,7 +93,7 @@ class StormSerializersModuleHelperTest {
         loaded.value shouldBe "test"
     }
 
-    // -- resolveTargetClass with nested classes --
+    // resolveTargetClass with nested classes
 
     @Serializable
     data class NestedRefHolder(@Contextual val ref: Ref<NestedEntity>?)
@@ -112,7 +112,7 @@ class StormSerializersModuleHelperTest {
         loaded.label shouldBe "nested"
     }
 
-    // -- StormSerializersModule missing type argument --
+    // StormSerializersModule missing type argument
 
     @Test
     fun `StormSerializersModule throws when Ref type argument is missing`() {
@@ -127,7 +127,7 @@ class StormSerializersModuleHelperTest {
         deserialized.ref!!.id() shouldBe 99
     }
 
-    // -- NoPk Data type exercises the serializerOrNull fallback --
+    // NoPk Data type exercises the serializerOrNull fallback
 
     @Serializable
     data class NoPkRefHolder(@Contextual val ref: Ref<NoPkData>?)
@@ -155,7 +155,7 @@ class StormSerializersModuleHelperTest {
         json shouldBe """{"ref":true}"""
     }
 
-    // -- StormSerializersModule with null refFactory --
+    // StormSerializersModule with null refFactory
 
     @Test
     fun `StormSerializersModule with null refFactoryProvider creates detached refs`() {
@@ -193,7 +193,7 @@ class StormSerializersModuleHelperTest {
         holder.ref!!.id() shouldBe 9
     }
 
-    // -- Round-trip for various entity types through StormSerializersModule --
+    // Round-trip for various entity types through StormSerializersModule
 
     @Serializable
     data class StringIdEntity(
@@ -236,7 +236,7 @@ class StormSerializersModuleHelperTest {
         loaded.description shouldBe "long id"
     }
 
-    // -- encodeId with unsupported type exercises the error path --
+    // encodeId with unsupported type exercises the error path
 
     @Test
     fun `encodeId throws for unsupported id type on no-PK data`() {
@@ -246,7 +246,7 @@ class StormSerializersModuleHelperTest {
         }
     }
 
-    // -- decodeId from array element exercises error path --
+    // decodeId from array element exercises error path
 
     @Test
     fun `decodeId throws for non-primitive element on no-PK data`() {
