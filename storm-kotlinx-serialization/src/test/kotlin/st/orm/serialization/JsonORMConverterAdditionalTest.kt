@@ -133,6 +133,7 @@ open class JsonORMConverterAdditionalTest(
 
     // -- Sealed class polymorphic deserialization --
 
+    @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
     @JsonClassDiscriminator("@type")
     @Serializable
     sealed interface Shape

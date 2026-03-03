@@ -351,6 +351,7 @@ class RefSerializerEdgeCaseTest {
 /**
  * A minimal encoder that is NOT a JsonEncoder, used to test RefSerializer's non-JSON error path.
  */
+@OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
 private class NonJsonEncoder : kotlinx.serialization.encoding.AbstractEncoder() {
     var result: String = ""
 
@@ -368,6 +369,7 @@ private class NonJsonEncoder : kotlinx.serialization.encoding.AbstractEncoder() 
 /**
  * A minimal decoder that is NOT a JsonDecoder, used to test RefSerializer's non-JSON error path.
  */
+@OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
 private class NonJsonDecoder : kotlinx.serialization.encoding.AbstractDecoder() {
     override val serializersModule: SerializersModule = SerializersModule {}
 

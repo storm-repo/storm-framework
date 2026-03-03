@@ -109,18 +109,17 @@ open class ConnectionProviderTest(
         val connection = dataSource.connection
         try {
             CoroutineAwareConnectionProviderImpl.ConcurrencyDetector.beforeAccess(connection)
-            val exception = assertThrows<PersistenceException> {
-                val thread = Thread {
-                    CoroutineAwareConnectionProviderImpl.ConcurrencyDetector.beforeAccess(connection)
-                }
-                thread.start()
-                thread.join()
-                // If the thread threw, we need to check it
+            var caughtException: Throwable? = null
+            val thread = Thread {
+                CoroutineAwareConnectionProviderImpl.ConcurrencyDetector.beforeAccess(connection)
             }
-            // The exception is thrown in the other thread, so we catch it differently
+            thread.setUncaughtExceptionHandler { _, throwable -> caughtException = throwable }
+            thread.start()
+            thread.join()
+            assertThrows<PersistenceException> {
+                caughtException?.let { throw it }
+            }
             CoroutineAwareConnectionProviderImpl.ConcurrencyDetector.afterAccess(connection)
-        } catch (ignored: Throwable) {
-            // Expected: concurrent access throws
         } finally {
             connection.close()
         }

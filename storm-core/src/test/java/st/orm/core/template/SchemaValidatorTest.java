@@ -34,6 +34,7 @@ import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import st.orm.Data;
 import st.orm.DbIgnore;
 import st.orm.DbTable;
 import st.orm.Entity;
@@ -597,6 +598,38 @@ class SchemaValidatorTest {
 
         assertFalse(errors.stream().anyMatch(error -> error.kind() == ErrorKind.FOREIGN_KEY_MISSING),
                 "Expected no FOREIGN_KEY_MISSING when @DbIgnore suppresses it, but got: " + errors);
+    }
+
+    // --- Polymorphic FK validation tests ---
+
+    // Polymorphic FK: sealed Data interface with independent entity subtypes in separate tables.
+    sealed interface Commentable extends Data permits CommentablePost, CommentablePhoto {}
+    record CommentablePost(@PK Integer id, @Nonnull String title) implements Commentable, Entity<Integer> {}
+    record CommentablePhoto(@PK Integer id, @Nonnull String url) implements Commentable, Entity<Integer> {}
+
+    public record EntityWithPolymorphicFk(
+            @PK Integer id,
+            @Nonnull String name,
+            @Nullable @FK Ref<Commentable> commentable
+    ) implements Entity<Integer> {}
+
+    @Test
+    void testPolymorphicFkSkipsValidation() throws SQLException {
+        execute("CREATE TABLE commentable_post (id INTEGER AUTO_INCREMENT, title VARCHAR(255) NOT NULL, PRIMARY KEY (id))");
+        execute("CREATE TABLE commentable_photo (id INTEGER AUTO_INCREMENT, url VARCHAR(255) NOT NULL, PRIMARY KEY (id))");
+        execute("CREATE TABLE entity_with_polymorphic_fk ("
+                + "id INTEGER AUTO_INCREMENT, "
+                + "name VARCHAR(255) NOT NULL, "
+                + "commentable_type VARCHAR(255), "
+                + "commentable_id INTEGER, "
+                + "PRIMARY KEY (id))");
+
+        List<SchemaValidationError> errors = SchemaValidator.of(dataSource)
+                .validate(List.of(EntityWithPolymorphicFk.class));
+
+        // Polymorphic FK should skip FK constraint validation (no FOREIGN_KEY_MISSING error).
+        assertFalse(errors.stream().anyMatch(error -> error.kind() == ErrorKind.FOREIGN_KEY_MISSING),
+                "Expected no FOREIGN_KEY_MISSING for polymorphic FK, but got: " + errors);
     }
 
     // --- Helpers ---
