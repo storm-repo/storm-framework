@@ -107,4 +107,55 @@ class NoDirectInterpolationRuleAdditionalTest(private val env: KotlinCoreEnviron
         val findings = rule.compileAndLintWithContext(env, code)
         assert(findings.isEmpty()) { "Expected no findings for simple name interpolation outside lambda context." }
     }
+
+    @Test
+    fun `ignores interpolation in lambda whose function parameter is not extension function`() {
+        // When the resolved call's parameter type is NOT an extension function type,
+        // the rule should not report (exercises the isExtensionFunctionType == false path).
+        val code = """
+            fun bar(action: () -> String): String = action()
+            fun foo() {
+                val name = "World"
+                bar {
+                    "Hello ${"$"}{name}"
+                }
+            }
+        """.trimIndent()
+        val findings = rule.compileAndLintWithContext(env, code)
+        assert(findings.isEmpty()) { "Expected no findings when lambda parameter is not an extension function type." }
+    }
+
+    @Test
+    fun `ignores interpolation when resolved call has no value parameters`() {
+        // When the call expression has no value parameters (e.g., only a lambda trailing argument),
+        // paramType is null and the rule should bail out.
+        val code = """
+            val block: (() -> String) = { "" }
+            fun foo() {
+                val name = "World"
+                block {
+                    "Hello ${"$"}{name}"
+                }
+            }
+        """.trimIndent()
+        val findings = rule.compileAndLintWithContext(env, code)
+        assert(findings.isEmpty()) { "Expected no findings when call has no value parameters." }
+    }
+
+    @Test
+    fun `ignores interpolation in lambda with non-TemplateContext receiver`() {
+        // When the function parameter IS an extension function but its receiver
+        // is not TemplateContext, the rule should not report.
+        val code = """
+            fun baz(action: StringBuilder.() -> String): String = StringBuilder().action()
+            fun foo() {
+                val name = "World"
+                baz {
+                    "Hello ${"$"}{name}"
+                }
+            }
+        """.trimIndent()
+        val findings = rule.compileAndLintWithContext(env, code)
+        assert(findings.isEmpty()) { "Expected no findings when receiver is not TemplateContext." }
+    }
 }

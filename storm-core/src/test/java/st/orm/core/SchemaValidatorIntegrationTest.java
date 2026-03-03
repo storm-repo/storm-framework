@@ -1,0 +1,186 @@
+package st.orm.core;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
+import javax.sql.DataSource;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.DbTable;
+import st.orm.Entity;
+import st.orm.GenerationStrategy;
+import st.orm.PK;
+import st.orm.core.model.City;
+import st.orm.core.model.Owner;
+import st.orm.core.model.Pet;
+import st.orm.core.template.impl.SchemaValidationError;
+import st.orm.core.template.impl.SchemaValidationException;
+import st.orm.core.template.impl.SchemaValidator;
+
+/**
+ * Integration tests for {@link SchemaValidator} covering table existence, column validation,
+ * primary key matching, unique key validation, foreign key validation, and error reporting.
+ */
+@SuppressWarnings("ALL")
+@ExtendWith(SpringExtension.class)
+@ContextConfiguration(classes = IntegrationConfig.class)
+@DataJpaTest(showSql = false)
+public class SchemaValidatorIntegrationTest {
+
+    @Autowired
+    private DataSource dataSource;
+
+    // ---- Valid types ----
+
+    @Test
+    public void testValidateValidTypes() {
+        var validator = SchemaValidator.of(dataSource);
+        List<SchemaValidationError> errors = validator.validate(List.of(City.class));
+        assertNotNull(errors);
+        // Filter out warnings (e.g., NULLABILITY_MISMATCH) to check for hard errors only.
+        List<SchemaValidationError> hardErrors = errors.stream()
+                .filter(e -> !e.kind().warning())
+                .toList();
+        assertTrue(hardErrors.isEmpty(), "Expected no hard errors for City, got: " + hardErrors);
+    }
+
+    @Test
+    public void testValidateMultipleValidTypesHasNoHardErrors() {
+        var validator = SchemaValidator.of(dataSource);
+        List<SchemaValidationError> errors = validator.validate(List.of(City.class, Owner.class, Pet.class));
+        // Filter out warnings like NULLABILITY_MISMATCH; only check for structural errors.
+        List<SchemaValidationError> hardErrors = errors.stream()
+                .filter(e -> !e.kind().warning())
+                .toList();
+        assertTrue(hardErrors.isEmpty(),
+                "Expected no hard errors for valid types, got: " + hardErrors);
+    }
+
+    // ---- Missing table ----
+
+    @DbTable("nonexistent_table")
+    public record NonexistentTableEntity(
+            @PK Integer id,
+            String name
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void testValidateDetectsMissingTable() {
+        var validator = SchemaValidator.of(dataSource);
+        List<SchemaValidationError> errors = validator.validate(List.of(NonexistentTableEntity.class));
+        assertFalse(errors.isEmpty());
+        assertTrue(errors.stream().anyMatch(
+                error -> error.kind() == SchemaValidationError.ErrorKind.TABLE_NOT_FOUND));
+    }
+
+    // ---- Missing column ----
+
+    @DbTable("city")
+    public record CityWithExtraColumn(
+            @PK Integer id,
+            String name,
+            String nonexistentColumn
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void testValidateDetectsMissingColumn() {
+        var validator = SchemaValidator.of(dataSource);
+        List<SchemaValidationError> errors = validator.validate(List.of(CityWithExtraColumn.class));
+        assertFalse(errors.isEmpty());
+        assertTrue(errors.stream().anyMatch(
+                error -> error.kind() == SchemaValidationError.ErrorKind.COLUMN_NOT_FOUND));
+    }
+
+    // ---- Type incompatible ----
+
+    @DbTable("city")
+    public record CityWithIncompatibleType(
+            @PK String id,
+            String name
+    ) implements Entity<String> {}
+
+    @Test
+    public void testValidateDetectsTypeIncompatibility() {
+        var validator = SchemaValidator.of(dataSource);
+        // City.id is an INTEGER in the database, but mapped as String in the entity.
+        List<SchemaValidationError> errors = validator.validate(List.of(CityWithIncompatibleType.class));
+        List<SchemaValidationError> hardErrors = errors.stream()
+                .filter(e -> !e.kind().warning())
+                .toList();
+        assertFalse(hardErrors.isEmpty(),
+                "Expected hard errors for String-mapped INTEGER column, got: " + errors);
+    }
+
+    // ---- validateOrThrow throws for invalid type ----
+
+    @Test
+    public void testValidateOrThrowThrowsForInvalidType() {
+        var validator = SchemaValidator.of(dataSource);
+        assertThrows(SchemaValidationException.class,
+                () -> validator.validateOrThrow(List.of(NonexistentTableEntity.class)));
+    }
+
+    // ---- validateAndReport ----
+
+    @Test
+    public void testValidateAndReportNonStrictIgnoresNullabilityWarnings() {
+        var validator = SchemaValidator.of(dataSource);
+        List<String> errors = validator.validateAndReport(List.of(City.class), false);
+        // Non-strict mode should exclude NULLABILITY_MISMATCH warnings from the error list.
+        assertTrue(errors.isEmpty(), "Expected no errors in non-strict mode for City, got: " + errors);
+    }
+
+    @Test
+    public void testValidateAndReportStrictIncludesNullabilityWarnings() {
+        var validator = SchemaValidator.of(dataSource);
+        List<String> errors = validator.validateAndReport(List.of(City.class), true);
+        // Strict mode should treat NULLABILITY_MISMATCH as an error.
+        assertFalse(errors.isEmpty(),
+                "Expected strict mode to report nullability warnings as errors for City");
+        assertTrue(errors.stream().anyMatch(e -> e.contains("NULLABILITY_MISMATCH")),
+                "Expected NULLABILITY_MISMATCH in strict error messages, got: " + errors);
+    }
+
+    @Test
+    public void testValidateAndReportForMissingTableIncludesTableName() {
+        var validator = SchemaValidator.of(dataSource);
+        List<String> errors = validator.validateAndReport(List.of(NonexistentTableEntity.class), true);
+        assertFalse(errors.isEmpty());
+        assertTrue(errors.stream().anyMatch(e -> e.contains("nonexistent_table")),
+                "Error message should reference the missing table name, got: " + errors);
+    }
+
+    // ---- Empty type list ----
+
+    @Test
+    public void testValidateEmptyTypeList() {
+        var validator = SchemaValidator.of(dataSource);
+        List<SchemaValidationError> errors = validator.validate(List.of());
+        assertNotNull(errors);
+        assertTrue(errors.isEmpty());
+    }
+
+    // ---- Sequence validation (testing with a type that references a nonexistent sequence) ----
+
+    @DbTable("city")
+    public record CityWithSequence(
+            @PK(generation = GenerationStrategy.SEQUENCE, sequence = "nonexistent_seq") Integer id,
+            String name
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void testValidateDetectsMissingSequence() {
+        var validator = SchemaValidator.of(dataSource);
+        List<SchemaValidationError> errors = validator.validate(List.of(CityWithSequence.class));
+        // Should detect that the sequence does not exist.
+        assertTrue(errors.stream().anyMatch(
+                error -> error.kind() == SchemaValidationError.ErrorKind.SEQUENCE_NOT_FOUND));
+    }
+}

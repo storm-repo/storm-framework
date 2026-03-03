@@ -1242,7 +1242,7 @@ open class ORMTemplateExtendedTest(
     @Test
     fun `query getResultStream with KClass should return stream`() {
         val query = orm.query { "SELECT ${t(City::class)} FROM ${t(City::class)}" }
-        val count = query.getResultStream(City::class).count()
+        val count = query.getResultStream(City::class).use { it.count() }
         count shouldBe 6L
     }
 

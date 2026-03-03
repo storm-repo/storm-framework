@@ -452,7 +452,7 @@ In this example, the `owner` and `city` foreign keys define the actual persisted
 
 ## Foreign Keys
 
-The `@FK` annotation marks a field as a foreign key reference to another entity. Storm uses these annotations to automatically generate JOINs when querying and to derive column names (by default, appending `_id` to the field name).
+The `@FK` annotation marks a field as a foreign key reference to another table-backed type (entity, projection, or data class with a `@PK`). Storm uses these annotations to automatically generate JOINs when querying and to derive column names (by default, appending `_id` to the field name).
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>

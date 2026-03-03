@@ -279,4 +279,35 @@ public class JsonORMConverterIntegrationTest {
         assertEquals(10, owner.size());
         assertTrue(owner.stream().allMatch(x -> x.person instanceof PersonA));
     }
+
+    // Sealed interface with @JsonTypeName annotations on subtypes to cover that branch in getPermittedSubtypes.
+
+    @JsonTypeInfo(use = NAME)
+    public sealed interface NamedPerson permits NamedPersonA, NamedPersonB {}
+
+    @com.fasterxml.jackson.annotation.JsonTypeName("A")
+    public record NamedPersonA(String firstName, String lastName) implements NamedPerson {}
+
+    @com.fasterxml.jackson.annotation.JsonTypeName("B")
+    public record NamedPersonB(String firstName, String lastName) implements NamedPerson {}
+
+    @Builder(toBuilder = true)
+    @DbTable("owner")
+    public record OwnerWithNamedPolymorphicPerson(
+            @PK Integer id,
+            @Nonnull @Json NamedPerson person,
+            @Nonnull @Json Address address,
+            @Nullable String telephone
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void polymorphicJsonWithExplicitTypeNamesShouldResolveSubtype() {
+        // Uses @JsonTypeName("A") and @JsonTypeName("B") on sealed subtypes.
+        // This exercises the branch in getPermittedSubtypes where typeNameAnnotation is non-null.
+        var orm = of(dataSource);
+        var query = orm.query("SELECT id, JSON_OBJECT('@type' VALUE 'A', 'firstName' VALUE first_name, 'lastName' VALUE last_name) AS person, address, telephone FROM owner");
+        var owner = query.getResultList(OwnerWithNamedPolymorphicPerson.class);
+        assertEquals(10, owner.size());
+        assertTrue(owner.stream().allMatch(x -> x.person instanceof NamedPersonA));
+    }
 }

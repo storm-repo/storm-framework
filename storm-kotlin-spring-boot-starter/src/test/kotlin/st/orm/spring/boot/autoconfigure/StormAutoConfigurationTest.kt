@@ -211,6 +211,94 @@ class StormAutoConfigurationTest {
             }
     }
 
+    @Test
+    fun `schema validation warn mode should not prevent context startup`() {
+        contextRunner
+            .withPropertyValues(
+                "spring.datasource.url=jdbc:h2:mem:schemaWarnTest;DB_CLOSE_DELAY=-1",
+                "spring.datasource.driver-class-name=org.h2.Driver",
+                "storm.validation.schema-mode=warn",
+            )
+            .run { context ->
+                context.getBean(ORMTemplate::class.java) shouldNotBe null
+            }
+    }
+
+    @Test
+    fun `schema validation none mode should not prevent context startup`() {
+        contextRunner
+            .withPropertyValues(
+                "spring.datasource.url=jdbc:h2:mem:schemaNoneTest;DB_CLOSE_DELAY=-1",
+                "spring.datasource.driver-class-name=org.h2.Driver",
+                "storm.validation.schema-mode=none",
+            )
+            .run { context ->
+                context.getBean(ORMTemplate::class.java) shouldNotBe null
+            }
+    }
+
+    @Test
+    fun `strict validation property should be bound correctly`() {
+        contextRunner
+            .withPropertyValues(
+                "spring.datasource.url=jdbc:h2:mem:strictTest;DB_CLOSE_DELAY=-1",
+                "spring.datasource.driver-class-name=org.h2.Driver",
+                "storm.validation.strict=true",
+            )
+            .run { context ->
+                context.getBean(ORMTemplate::class.java) shouldNotBe null
+                val properties = context.getBean(StormProperties::class.java)
+                properties.validation.strict shouldBe true
+            }
+    }
+
+    @Test
+    fun `schema validation fail mode should start context when no entities are registered`() {
+        // With no entities registered, validateOrThrow should succeed (nothing to validate).
+        // This exercises the "fail" branch in runSchemaValidation.
+        contextRunner
+            .withPropertyValues(
+                "spring.datasource.url=jdbc:h2:mem:schemaFailTest;DB_CLOSE_DELAY=-1",
+                "spring.datasource.driver-class-name=org.h2.Driver",
+                "storm.validation.schema-mode=fail",
+            )
+            .run { context ->
+                context.getBean(ORMTemplate::class.java) shouldNotBe null
+            }
+    }
+
+    @Test
+    fun `schema validation blank mode should not trigger validation`() {
+        // A blank (whitespace-only) schema-mode should be treated the same as "none".
+        contextRunner
+            .withPropertyValues(
+                "spring.datasource.url=jdbc:h2:mem:schemaBlankTest;DB_CLOSE_DELAY=-1",
+                "spring.datasource.driver-class-name=org.h2.Driver",
+                "storm.validation.schema-mode=  ",
+            )
+            .run { context ->
+                context.getBean(ORMTemplate::class.java) shouldNotBe null
+            }
+    }
+
+    @Test
+    fun `AutoConfiguredRepositoryBeanFactoryPostProcessor resolves packages from auto-configuration`() {
+        // When the processor runs inside a Spring Boot context, it should resolve
+        // base packages from AutoConfigurationPackages rather than returning empty.
+        contextRunner
+            .withPropertyValues(
+                "spring.datasource.url=jdbc:h2:mem:autoPackagesTest;DB_CLOSE_DELAY=-1",
+                "spring.datasource.driver-class-name=org.h2.Driver",
+            )
+            .run { context ->
+                val processor = context.getBean(RepositoryBeanFactoryPostProcessor::class.java)
+                    as AutoConfiguredRepositoryBeanFactoryPostProcessor
+                // After postProcessBeanFactory, packages should be resolved (non-null).
+                // The important contract: repositoryBasePackages never returns null after initialization.
+                processor.repositoryBasePackages shouldNotBe null
+            }
+    }
+
     @Configuration
     open class EntityCallbackConfig {
         @Bean

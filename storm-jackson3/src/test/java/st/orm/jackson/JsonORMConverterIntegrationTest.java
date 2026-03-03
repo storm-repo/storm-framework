@@ -3,6 +3,8 @@ package st.orm.jackson;
 import static com.fasterxml.jackson.annotation.JsonTypeInfo.Id.NAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static st.orm.core.template.ORMTemplate.of;
@@ -268,6 +270,148 @@ public class JsonORMConverterIntegrationTest {
     ) implements Entity<Integer> {
     }
 
+    @Builder(toBuilder = true)
+    @DbTable("owner")
+    public record OwnerWithNullableAddress(
+            @PK Integer id,
+            @Nonnull String firstName,
+            @Nonnull String lastName,
+            @Nullable @Json Address address,
+            @Nullable String telephone
+    ) implements Entity<Integer> {
+    }
+
+    @Test
+    public void insertEntityWithNullJsonFieldShouldPersistNullAndReadBackAsNull() {
+        // When the @Json field is nullable and the value is null, toDatabase should serialize as null
+        // and fromDatabase should return null when reading from the database.
+        var orm = of(dataSource);
+        var repository = orm.entity(OwnerWithNullableAddress.class);
+        var owner = OwnerWithNullableAddress.builder()
+                .firstName("NullAddr")
+                .lastName("Test")
+                .address(null)
+                .telephone("555")
+                .build();
+        var inserted = repository.insertAndFetch(owner);
+        assertNull(inserted.address());
+    }
+
+    @Test
+    public void selectEntityWithNullJsonFieldShouldReturnNull() {
+        // Insert a row with null address directly, then select it.
+        var orm = of(dataSource);
+        orm.query("INSERT INTO owner (first_name, last_name, address, telephone) VALUES ('Null', 'Test', NULL, '555')")
+                .executeUpdate();
+        var result = orm.query("SELECT id, first_name, last_name, address, telephone FROM owner WHERE first_name = 'Null'")
+                .getSingleResult(OwnerWithNullableAddress.class);
+        assertNull(result.address());
+    }
+
+    @Builder(toBuilder = true)
+    @DbTable("owner")
+    public record OwnerWithFailOnUnknown(
+            @PK Integer id,
+            @Nonnull @Json(failOnUnknown = true) Address address,
+            @Nullable String telephone
+    ) implements Entity<Integer> {
+    }
+
+    @Test
+    public void jsonWithFailOnUnknownTrueShouldCreateMapperWithStrictMode() {
+        // Exercises the @Json(failOnUnknown = true) branch in JsonORMConverterImpl constructor,
+        // which skips calling builder.disable(FAIL_ON_UNKNOWN_PROPERTIES).
+        // Owner id=1 has a valid address, so deserialization should succeed.
+        var orm = of(dataSource);
+        var result = orm.query("SELECT id, address, telephone FROM owner WHERE id = 1")
+                .getSingleResult(OwnerWithFailOnUnknown.class);
+        assertNotNull(result.address());
+    }
+
+    @Builder(toBuilder = true)
+    @DbTable("owner")
+    public record OwnerWithFailOnMissing(
+            @PK Integer id,
+            @Nonnull @Json(failOnMissing = true) Address address,
+            @Nullable String telephone
+    ) implements Entity<Integer> {
+    }
+
+    @Test
+    public void jsonWithFailOnMissingTrueShouldCreateMapperWithStrictMode() {
+        // Exercises the @Json(failOnMissing = true) branch in JsonORMConverterImpl constructor,
+        // which skips calling builder.disable(FAIL_ON_MISSING_CREATOR_PROPERTIES).
+        // Owner id=1 has a valid address with all fields, so deserialization should succeed.
+        var orm = of(dataSource);
+        var result = orm.query("SELECT id, address, telephone FROM owner WHERE id = 1")
+                .getSingleResult(OwnerWithFailOnMissing.class);
+        assertNotNull(result.address());
+    }
+
+    // Custom serializer for Address.
+    public static class AddressSerializer extends tools.jackson.databind.ser.std.StdSerializer<Address> {
+        public AddressSerializer() {
+            super(Address.class);
+        }
+
+        @Override
+        public void serialize(Address value, tools.jackson.core.JsonGenerator gen,
+                              tools.jackson.databind.SerializationContext ctxt)
+                throws tools.jackson.core.JacksonException {
+            gen.writeString(value.address() + " | " + value.city());
+        }
+    }
+
+    // Custom deserializer for Address.
+    public static class AddressDeserializer extends tools.jackson.databind.deser.std.StdDeserializer<Address> {
+        public AddressDeserializer() {
+            super(Address.class);
+        }
+
+        @Override
+        public Address deserialize(tools.jackson.core.JsonParser parser,
+                                   tools.jackson.databind.DeserializationContext ctxt)
+                throws tools.jackson.core.JacksonException {
+            String text = parser.getText();
+            String[] parts = text.split(" \\| ");
+            return new Address(parts[0], parts[1]);
+        }
+    }
+
+    @Builder(toBuilder = true)
+    @DbTable("owner")
+    public record OwnerWithCustomSerializers(
+            @PK Integer id,
+            @Nonnull String firstName,
+            @Nonnull String lastName,
+            @Nonnull @Json
+            @tools.jackson.databind.annotation.JsonSerialize(using = AddressSerializer.class)
+            @tools.jackson.databind.annotation.JsonDeserialize(using = AddressDeserializer.class)
+            Address address,
+            @Nullable String telephone
+    ) implements Entity<Integer> {
+    }
+
+    @Test
+    public void customJsonSerializerAndDeserializerShouldBeUsedForJsonField() {
+        // Exercises the custom @JsonSerialize/@JsonDeserialize annotation branches
+        // in JsonORMConverterImpl constructor (lines 106-126).
+        var orm = of(dataSource);
+        var repository = orm.entity(OwnerWithCustomSerializers.class);
+        var address = new Address("123 Main St", "Springfield");
+        var owner = OwnerWithCustomSerializers.builder()
+                .firstName("Test")
+                .lastName("User")
+                .address(address)
+                .telephone("555")
+                .build();
+        var inserted = repository.insertAndFetch(owner);
+        // The custom serializer stores "address | city" as a plain string.
+        // The custom deserializer should parse it back.
+        assertEquals("123 Main St", inserted.address().address());
+        assertEquals("Springfield", inserted.address().city());
+    }
+
     @Test
     public void polymorphicJsonDeserializationShouldResolveCorrectSubtypeViaDiscriminator() {
         // Uses a sealed interface with @JsonTypeInfo(use = NAME) and two permitted subtypes.
@@ -278,5 +422,36 @@ public class JsonORMConverterIntegrationTest {
         var owner = query.getResultList(OwnerWithPolymorphicPerson.class);
         assertEquals(10, owner.size());
         assertTrue(owner.stream().allMatch(x -> x.person instanceof PersonA));
+    }
+
+    // Sealed interface with @JsonTypeName annotations on subtypes to cover that branch in getPermittedSubtypes.
+
+    @JsonTypeInfo(use = NAME)
+    public sealed interface NamedPerson permits NamedPersonA, NamedPersonB {}
+
+    @com.fasterxml.jackson.annotation.JsonTypeName("A")
+    public record NamedPersonA(String firstName, String lastName) implements NamedPerson {}
+
+    @com.fasterxml.jackson.annotation.JsonTypeName("B")
+    public record NamedPersonB(String firstName, String lastName) implements NamedPerson {}
+
+    @Builder(toBuilder = true)
+    @DbTable("owner")
+    public record OwnerWithNamedPolymorphicPerson(
+            @PK Integer id,
+            @Nonnull @Json NamedPerson person,
+            @Nonnull @Json Address address,
+            @Nullable String telephone
+    ) implements Entity<Integer> {}
+
+    @Test
+    public void polymorphicJsonWithExplicitTypeNamesShouldResolveSubtype() {
+        // Uses @JsonTypeName("A") and @JsonTypeName("B") on sealed subtypes.
+        // This exercises the branch in getPermittedSubtypes where typeNameAnnotation is non-null.
+        var orm = of(dataSource);
+        var query = orm.query("SELECT id, JSON_OBJECT('@type' VALUE 'A', 'firstName' VALUE first_name, 'lastName' VALUE last_name) AS person, address, telephone FROM owner");
+        var owner = query.getResultList(OwnerWithNamedPolymorphicPerson.class);
+        assertEquals(10, owner.size());
+        assertTrue(owner.stream().allMatch(x -> x.person instanceof NamedPersonA));
     }
 }
