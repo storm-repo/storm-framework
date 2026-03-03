@@ -1929,4 +1929,34 @@ public class MSSQLServerEntityRepositoryTest {
             }
         });
     }
+
+    @Test
+    public void testUpsertAndFetchWithSequenceExisting() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        // First insert a pet and get the id.
+        var inserted = repo.insertAndFetch(Pet.builder()
+                .name("Buddy")
+                .birthDate(LocalDate.of(2020, 1, 1))
+                .type(PetType.builder().id(1).build())
+                .owner(Owner.builder().id(1).build())
+                .build());
+        assertNotNull(inserted.id());
+        // Now upsert the same pet with an existing non-default id.
+        var updated = repo.upsertAndFetch(inserted.toBuilder().name("Max").build());
+        assertEquals(inserted.id(), updated.id());
+        assertEquals("Max", updated.name());
+    }
+
+    @Test
+    public void testUpsertAndFetchWithSequenceExistingBatch() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var e = assertThrows(PersistenceException.class, () ->
+            repo.upsertAndFetch(List.of(
+                    Pet.builder().id(1).name("Max").birthDate(LocalDate.of(2020, 1, 1))
+                            .type(PetType.builder().id(1).build()).owner(Owner.builder().id(1).build()).build(),
+                    Pet.builder().id(2).name("Bella").birthDate(LocalDate.of(2020, 2, 1))
+                            .type(PetType.builder().id(1).build()).owner(Owner.builder().id(1).build()).build()
+            )));
+        assertNull("Exception must be raised by storm.", e.getCause());
+    }
 }

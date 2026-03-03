@@ -353,7 +353,7 @@ private fun resolveClassFromSerialName(name: String, classLoader: ClassLoader): 
         val parts = name.split('.')
         for (i in parts.size - 2 downTo 1) {
             if (parts[i].firstOrNull()?.isUpperCase() == true) {
-                val nestedName = parts.take(i).joinToString(".") + "$" + parts.drop(i).joinToString("$")
+                val nestedName = parts.take(i).joinToString(".") + "." + parts.drop(i).joinToString("$")
                 try {
                     @Suppress("UNCHECKED_CAST")
                     return Class.forName(nestedName, true, classLoader) as Class<out Data>

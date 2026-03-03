@@ -52,6 +52,14 @@ public class RepositoryCoverageTest {
     interface OwnerViewRepository extends ProjectionRepository<OwnerView, Integer> {
     }
 
+    @SuppressWarnings("rawtypes")
+    interface RawEntityRepository extends EntityRepository {
+    }
+
+    @SuppressWarnings("rawtypes")
+    interface RawProjectionRepository extends ProjectionRepository {
+    }
+
     @Test
     public void testRepositoryProxy() {
         CityRepository cityRepo = orm.repository(CityRepository.class);
@@ -72,9 +80,9 @@ public class RepositoryCoverageTest {
     @Test
     public void testRepositoryProxyHashCode() {
         CityRepository repo = orm.repository(CityRepository.class);
-        // Should not throw
+        // hashCode should return the System.identityHashCode for proxy instances.
         int hash = repo.hashCode();
-        assertTrue(hash != 0 || hash == 0); // Just verify it works
+        assertEquals(System.identityHashCode(repo), hash);
     }
 
     @Test
@@ -682,5 +690,49 @@ public class RepositoryCoverageTest {
         List<String> names = orm.projection(OwnerView.class).select(String.class, RAW."\{OwnerView.class}.first_name")
                 .getResultList();
         assertEquals(10, names.size());
+    }
+
+    // ========================================================================
+    // Repository proxy - dispatch EntityRepository method with parameters (L187-189 toShortSignature)
+    // ========================================================================
+
+    @Test
+    public void testRepositoryProxyFindById() {
+        CityRepository cityRepo = orm.repository(CityRepository.class);
+        // findById has 1 parameter, exercising toShortSignature loop body (L187-189).
+        Optional<City> city = cityRepo.findById(1);
+        assertTrue(city.isPresent());
+        assertEquals(1, city.get().id());
+    }
+
+    @Test
+    public void testRepositoryProxyMultiParamMethod() {
+        CityRepository cityRepo = orm.repository(CityRepository.class);
+        // select(Class, StringTemplate) has 2 parameters, covering toShortSignature separator (L188).
+        List<String> names = cityRepo.select(String.class, RAW."\{City.class}.name").getResultList();
+        assertEquals(6, names.size());
+    }
+
+    @Test
+    public void testRawEntityRepositoryThrows() {
+        // Raw (non-parameterized) EntityRepository triggers L214: "Could not determine entity class".
+        assertThrows(IllegalArgumentException.class, () -> orm.repository(RawEntityRepository.class));
+    }
+
+    @Test
+    public void testRawProjectionRepositoryThrows() {
+        // Raw (non-parameterized) ProjectionRepository triggers L241: "Could not determine projection class".
+        assertThrows(IllegalArgumentException.class, () -> orm.repository(RawProjectionRepository.class));
+    }
+
+    // ========================================================================
+    // Repository proxy - projection proxy with findById (dispatch through ProjectionRepository)
+    // ========================================================================
+
+    @Test
+    public void testProjectionProxyFindById() {
+        OwnerViewRepository viewRepo = orm.repository(OwnerViewRepository.class);
+        Optional<OwnerView> view = viewRepo.findById(1);
+        assertTrue(view.isPresent());
     }
 }

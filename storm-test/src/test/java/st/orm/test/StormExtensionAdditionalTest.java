@@ -69,4 +69,13 @@ class StormExtensionAdditionalTest {
         assertNotNull(allStatements.getFirst().statement());
         assertNotNull(allStatements.getFirst().parameters());
     }
+
+    @Test
+    void statementCaptureShouldRecordUpdates(ORMTemplate orm, StatementCapture capture) {
+        capture.run(() -> orm.entity(Item.class).update(new Item(1, "Updated")));
+        assertEquals(1, capture.count(CapturedStatement.Operation.UPDATE));
+        var updates = capture.statements(CapturedStatement.Operation.UPDATE);
+        assertEquals(1, updates.size());
+        assertTrue(updates.getFirst().statement().toUpperCase().contains("UPDATE"));
+    }
 }

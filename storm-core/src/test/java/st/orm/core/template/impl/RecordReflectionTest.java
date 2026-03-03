@@ -14,11 +14,15 @@ import org.junit.jupiter.api.Test;
 import st.orm.Data;
 import st.orm.DbColumn;
 import st.orm.DbTable;
+import st.orm.Discriminator;
+import st.orm.Discriminator.DiscriminatorType;
 import st.orm.Entity;
 import st.orm.FK;
 import st.orm.GenerationStrategy;
 import st.orm.Inline;
 import st.orm.PK;
+import st.orm.PersistenceException;
+import st.orm.Polymorphic;
 import st.orm.Ref;
 import st.orm.Version;
 import st.orm.core.template.SqlTemplateException;
@@ -445,5 +449,492 @@ class RecordReflectionTest {
         RecordField pkField = RecordReflection.getRecordField(EntityWithCompoundPk.class, "id");
         // Compound PK (record type) always returns NONE.
         assertEquals(GenerationStrategy.NONE, RecordReflection.getGenerationStrategy(pkField));
+    }
+
+    // ---- Sealed entity model types for coverage ----
+
+    @Discriminator
+    @DbTable("sealed_animal")
+    sealed interface SealedAnimal extends Entity<Integer> permits SealedCat, SealedDog {}
+    record SealedCat(@PK Integer id, String name, boolean indoor) implements SealedAnimal {}
+    record SealedDog(@PK Integer id, String name, int weight) implements SealedAnimal {}
+
+    // Sealed entity without @DbTable annotation (to test fallback to camelCase-to-snake_case).
+    @Discriminator
+    sealed interface SealedNoDbTable extends Entity<Integer> permits SealedNoDbTableSub {}
+    record SealedNoDbTableSub(@PK Integer id, String name) implements SealedNoDbTable {}
+
+    // Sealed entity with @DbTable including schema.
+    @Discriminator
+    @DbTable(value = "schema_animal", schema = "my_schema")
+    sealed interface SealedSchemaAnimal extends Entity<Integer> permits SealedSchemaCat {}
+    record SealedSchemaCat(@PK Integer id, String name) implements SealedSchemaAnimal {}
+
+    // Entity with Ref to sealed entity.
+    public record EntityWithSealedRef(
+            @PK Integer id,
+            @FK Ref<SealedAnimal> animal
+    ) implements Entity<Integer> {}
+
+    // Sealed Data (polymorphic FK) for getRefDataType sealed path.
+    sealed interface SealedData extends Data permits SealedDataSub1, SealedDataSub2 {}
+    record SealedDataSub1(@PK Integer id, String title) implements SealedData, Entity<Integer> {}
+    record SealedDataSub2(@PK Integer id, String url) implements SealedData, Entity<Integer> {}
+
+    // Entity with Ref to sealed Data (polymorphic FK).
+    public record EntityWithSealedDataRef(
+            @PK Integer id,
+            @FK Ref<SealedData> item
+    ) implements Entity<Integer> {}
+
+    // Record with nested inline that has a @Version field.
+    public record VersionedInline(String data, @Version int version) {}
+
+    public record EntityWithNestedVersion(
+            @PK Integer id,
+            @Inline VersionedInline nested,
+            @Nonnull String name
+    ) implements Entity<Integer> {}
+
+    // ---- Sealed entity: getFkFields returns empty (L200) ----
+
+    @Test
+    void testGetFkFieldsSealedEntityReturnsEmpty() {
+        List<RecordField> fkFields = RecordReflection.getFkFields(SealedAnimal.class).toList();
+        assertTrue(fkFields.isEmpty());
+    }
+
+    // ---- Sealed entity: getVersionField returns empty (L223) ----
+
+    @Test
+    void testGetVersionFieldSealedEntityReturnsEmpty() {
+        Optional<RecordField> versionField = RecordReflection.getVersionField(SealedAnimal.class);
+        assertFalse(versionField.isPresent());
+    }
+
+    // ---- Nested version field in inline record (L232-234) ----
+
+    @Test
+    void testGetVersionFieldFromNestedInlineRecord() {
+        Optional<RecordField> versionField = RecordReflection.getVersionField(EntityWithNestedVersion.class);
+        assertTrue(versionField.isPresent());
+        assertEquals("version", versionField.get().name());
+    }
+
+    // ---- Sealed entity: isTypePresent returns false (L265) ----
+
+    @Test
+    void testIsTypePresentSealedEntityReturnsFalse() throws SqlTemplateException {
+        assertFalse(RecordReflection.isTypePresent(SealedAnimal.class, ReferencedEntity.class));
+    }
+
+    // ---- Sealed entity: getTableName with @DbTable (L379-395) ----
+
+    @Test
+    void testGetTableNameSealedEntityWithDbTable() throws SqlTemplateException {
+        var tableName = RecordReflection.getTableName(SealedAnimal.class, type -> type.type().getSimpleName());
+        assertEquals("sealed_animal", tableName.name());
+        assertEquals("", tableName.schema());
+    }
+
+    // ---- Sealed entity: getTableName with @DbTable and schema (L392-393) ----
+
+    @Test
+    void testGetTableNameSealedEntityWithSchema() throws SqlTemplateException {
+        var tableName = RecordReflection.getTableName(SealedSchemaAnimal.class, type -> type.type().getSimpleName());
+        assertEquals("schema_animal", tableName.name());
+        assertEquals("my_schema", tableName.schema());
+    }
+
+    // ---- Sealed entity: getTableName without @DbTable (L398) ----
+
+    @Test
+    void testGetTableNameSealedEntityWithoutDbTable() throws SqlTemplateException {
+        var tableName = RecordReflection.getTableName(SealedNoDbTable.class, type -> type.type().getSimpleName());
+        assertEquals("sealed_no_db_table", tableName.name());
+        assertEquals("", tableName.schema());
+    }
+
+    // ---- Ref to sealed entity: getRefPkType resolves PK from first permitted subclass (L301-308) ----
+
+    @Test
+    void testGetRefPkTypeSealedEntity() throws SqlTemplateException {
+        RecordField refField = RecordReflection.getRecordField(EntityWithSealedRef.class, "animal");
+        Class<?> refPkType = RecordReflection.getRefPkType(refField);
+        assertEquals(Integer.class, refPkType);
+    }
+
+    // ---- Ref to sealed Data: getRefDataType accepts sealed type (L351-353) ----
+
+    @Test
+    void testGetRefDataTypeSealedData() throws SqlTemplateException {
+        RecordField refField = RecordReflection.getRecordField(EntityWithSealedDataRef.class, "item");
+        Class<? extends Data> refDataType = RecordReflection.getRefDataType(refField);
+        assertEquals(SealedData.class, refDataType);
+    }
+
+    // ---- Sealed entity: getNestedPkFields on sealed type delegates to first permitted subclass ----
+
+    @Test
+    void testGetNestedPkFieldsSealedEntity() {
+        List<RecordField> pkFields = RecordReflection.getNestedPkFields(SealedAnimal.class).toList();
+        assertEquals(1, pkFields.size());
+        assertEquals("id", pkFields.get(0).name());
+    }
+
+    // ---- Multiple table names in @DbTable for sealed entity (L387) ----
+
+    @DbTable(name = "table_a", value = "table_b")
+    @Discriminator
+    sealed interface SealedMultiTableName extends Entity<Integer> permits SealedMultiTableSub {}
+    record SealedMultiTableSub(@PK Integer id) implements SealedMultiTableName {}
+
+    @Test
+    void testGetTableNameSealedEntityMultipleNamesThrows() {
+        assertThrows(PersistenceException.class, () ->
+                RecordReflection.getTableName(SealedMultiTableName.class, type -> type.type().getSimpleName()));
+    }
+
+    // ---- Multiple table names in @DbTable for non-sealed entity (L409) ----
+
+    @DbTable(name = "table_x", value = "table_y")
+    public record MultiTableNameEntity(
+            @PK Integer id,
+            String name
+    ) implements Entity<Integer> {}
+
+    @Test
+    void testGetTableNameNonSealedMultipleNamesThrows() {
+        assertThrows(PersistenceException.class, () ->
+                RecordReflection.getTableName(MultiTableNameEntity.class, type -> type.type().getSimpleName()));
+    }
+
+    // ---- Sealed entity: @DbTable with empty name/value falls back to camelCase (L389-390) ----
+
+    @DbTable
+    @Discriminator
+    sealed interface SealedEmptyDbTable extends Entity<Integer> permits SealedEmptyDbTableSub {}
+    record SealedEmptyDbTableSub(@PK Integer id) implements SealedEmptyDbTable {}
+
+    @Test
+    void testGetTableNameSealedEntityEmptyDbTableFallsBackToCamelCase() throws SqlTemplateException {
+        var tableName = RecordReflection.getTableName(SealedEmptyDbTable.class, type -> type.type().getSimpleName());
+        assertEquals("sealed_empty_db_table", tableName.name());
+    }
+
+    // ---- getNestedPkFields for type with no PK (L185) ----
+
+    public record NoPkData(String value) implements Data {}
+
+    @Test
+    void testGetNestedPkFieldsNoPk() {
+        List<RecordField> pkFields = RecordReflection.getNestedPkFields(NoPkData.class).toList();
+        assertTrue(pkFields.isEmpty());
+    }
+
+    // ---- getRefPkType error for non-entity Ref type (L314, L318-324) ----
+
+    public record NoPkRecord(String value) implements Data {}
+
+    public record EntityWithRefToNoPkRecord(
+            @PK Integer id,
+            @FK Ref<NoPkRecord> ref
+    ) implements Entity<Integer> {}
+
+    @Test
+    void testGetRefPkTypeNoPkRecordThrows() throws SqlTemplateException {
+        RecordField refField = RecordReflection.getRecordField(EntityWithRefToNoPkRecord.class, "ref");
+        assertThrows(SqlTemplateException.class, () -> RecordReflection.getRefPkType(refField));
+    }
+
+    // ---- getRefDataType error for non-Data Ref type (L344, L347) ----
+
+    public record NonDataType(String value) {}
+
+    public record EntityWithRefToNonData(
+            @PK Integer id,
+            @FK Ref<SimpleEntity> ref  // SimpleEntity is Data+Entity, so this passes
+    ) implements Entity<Integer> {}
+
+    // ---- getRefPkType for sealed Data with no @PK in permitted subclass (L306-308) ----
+
+    sealed interface SealedDataNoPk extends Data permits SealedDataNoPkSub {}
+    record SealedDataNoPkSub(Integer id, String title) implements SealedDataNoPk, Entity<Integer> {
+        // No @PK annotation on id field.
+    }
+
+    public record EntityWithRefToSealedNoPk(
+            @PK Integer id,
+            @FK Ref<SealedDataNoPk> item
+    ) implements Entity<Integer> {}
+
+    @Test
+    void testGetRefPkTypeSealedDataNoPkThrows() throws SqlTemplateException {
+        RecordField refField = RecordReflection.getRecordField(EntityWithRefToSealedNoPk.class, "item");
+        assertThrows(SqlTemplateException.class, () -> RecordReflection.getRefPkType(refField));
+    }
+
+    // ---- getRefDataType for raw Ref type (L344) ----
+
+    @SuppressWarnings("rawtypes")
+    public record EntityWithRawRef(
+            @PK Integer id,
+            @FK Ref ref
+    ) implements Entity<Integer> {}
+
+    @Test
+    void testGetRefDataTypeRawRefThrows() throws SqlTemplateException {
+        RecordField refField = RecordReflection.getRecordField(EntityWithRawRef.class, "ref");
+        assertThrows(SqlTemplateException.class, () -> RecordReflection.getRefDataType(refField));
+    }
+
+    @Test
+    void testGetRefPkTypeRawRefThrows() throws SqlTemplateException {
+        RecordField refField = RecordReflection.getRecordField(EntityWithRawRef.class, "ref");
+        assertThrows(SqlTemplateException.class, () -> RecordReflection.getRefPkType(refField));
+    }
+
+    // ---- combine with conflicting name and value (L438-439) ----
+
+    public record EntityWithConflictingColumnNames(
+            @PK Integer id,
+            @DbColumn(name = "col_a", value = "col_b") String name
+    ) implements Entity<Integer> {}
+
+    @Test
+    void testGetColumnNameConflictingNamesThrows() throws SqlTemplateException {
+        RecordField nameField = RecordReflection.getRecordField(EntityWithConflictingColumnNames.class, "name");
+        assertThrows(SqlTemplateException.class, () ->
+                RecordReflection.getColumnName(nameField, field -> field.name()));
+    }
+
+    // ---- columnNames with empty @DbColumn (L460) ----
+
+    public record EntityWithEmptyDbColumn(
+            @PK Integer id,
+            @DbColumn(name = "", value = "") String name
+    ) implements Entity<Integer> {}
+
+    @Test
+    void testGetColumnNameEmptyDbColumnThrows() throws SqlTemplateException {
+        RecordField nameField = RecordReflection.getRecordField(EntityWithEmptyDbColumn.class, "name");
+        assertThrows(SqlTemplateException.class, () ->
+                RecordReflection.getColumnName(nameField, field -> field.name()));
+    }
+
+    // ---- normalizeDiscriminatorValue with CHAR type (L950) ----
+
+    @Test
+    void testNormalizeDiscriminatorValueChar() {
+        Object result = RecordReflection.normalizeDiscriminatorValue("X", DiscriminatorType.CHAR);
+        assertEquals('X', result);
+    }
+
+    @Test
+    void testNormalizeDiscriminatorValueCharFromCharacter() {
+        Object result = RecordReflection.normalizeDiscriminatorValue('Y', DiscriminatorType.CHAR);
+        assertEquals('Y', result);
+    }
+
+    @Test
+    void testNormalizeDiscriminatorValueCharFromMultiCharString() {
+        // Multi-char string should take the first character via raw.toString().charAt(0).
+        Object result = RecordReflection.normalizeDiscriminatorValue("AB", DiscriminatorType.CHAR);
+        assertEquals('A', result);
+    }
+
+    @Test
+    void testNormalizeDiscriminatorValueCharFromNonStringNonChar() {
+        // Non-String, non-Character: falls through to raw.toString().charAt(0).
+        Object result = RecordReflection.normalizeDiscriminatorValue(42, DiscriminatorType.CHAR);
+        assertEquals('4', result);
+    }
+
+    @Test
+    void testNormalizeDiscriminatorValueInteger() {
+        Object result = RecordReflection.normalizeDiscriminatorValue("42", DiscriminatorType.INTEGER);
+        assertEquals(42, result);
+    }
+
+    @Test
+    void testNormalizeDiscriminatorValueIntegerFromNumber() {
+        Object result = RecordReflection.normalizeDiscriminatorValue(42L, DiscriminatorType.INTEGER);
+        assertEquals(42, result);
+    }
+
+    // ---- findJoinedSealedParent for sealed/interface types returns empty (L1195) ----
+
+    @Test
+    void testFindJoinedSealedParentForSealedType() {
+        // SealedAnimal is a sealed interface, should return empty.
+        Optional<Class<?>> parent = RecordReflection.findJoinedSealedParent(SealedAnimal.class);
+        assertFalse(parent.isPresent());
+    }
+
+    @Test
+    void testFindJoinedSealedParentForNonSealedInterface() {
+        // Entity is a non-sealed interface, should return empty.
+        Optional<Class<?>> parent = RecordReflection.findJoinedSealedParent(Entity.class);
+        assertFalse(parent.isPresent());
+    }
+
+    // ---- findJoinedSealedParent for joined subtype returns the sealed parent ----
+
+    @Discriminator
+    @Polymorphic(Polymorphic.Strategy.JOINED)
+    @DbTable("joined_base")
+    sealed interface JoinedAnimalLocal extends Entity<Integer> permits JoinedCatLocal, JoinedDogLocal {}
+    @DbTable("joined_cat") record JoinedCatLocal(@PK Integer id, String name, boolean indoor) implements JoinedAnimalLocal {}
+    @DbTable("joined_dog") record JoinedDogLocal(@PK Integer id, String name, int weight) implements JoinedAnimalLocal {}
+
+    @Test
+    void testFindJoinedSealedParentForJoinedSubtype() {
+        Optional<Class<?>> parent = RecordReflection.findJoinedSealedParent(JoinedCatLocal.class);
+        assertTrue(parent.isPresent());
+        assertEquals(JoinedAnimalLocal.class, parent.get());
+    }
+
+    @Test
+    void testFindJoinedSealedParentForNonJoinedSubtype() {
+        // SealedCat is a permitted subclass of a SINGLE_TABLE sealed entity, not JOINED.
+        Optional<Class<?>> parent = RecordReflection.findJoinedSealedParent(SealedCat.class);
+        assertFalse(parent.isPresent());
+    }
+
+    // ---- getBaseFieldNames for joined sealed entity (L966) ----
+
+    @Test
+    void testGetBaseFieldNamesJoinedEntity() {
+        List<String> baseFields = RecordReflection.getBaseFieldNames(JoinedAnimalLocal.class);
+        // Common fields between JoinedCatLocal(id, name, indoor) and JoinedDogLocal(id, name, weight) are: id, name
+        assertTrue(baseFields.contains("id"));
+        assertTrue(baseFields.contains("name"));
+        assertFalse(baseFields.contains("indoor"));
+        assertFalse(baseFields.contains("weight"));
+    }
+
+    // ---- getExtensionFieldNames for joined sealed entity ----
+
+    @Test
+    void testGetExtensionFieldNamesJoinedEntity() {
+        List<String> extensionFields = RecordReflection.getExtensionFieldNames(JoinedCatLocal.class, JoinedAnimalLocal.class);
+        assertTrue(extensionFields.contains("indoor"));
+        assertFalse(extensionFields.contains("id"));
+        assertFalse(extensionFields.contains("name"));
+    }
+
+    // ---- validateSealedHierarchy: missing @PK in subtype (L1057-1058) ----
+
+    @Discriminator
+    @DbTable("missing_pk_sealed")
+    sealed interface MissingPkSealed extends Entity<Integer> permits MissingPkSub {}
+    record MissingPkSub(String name) implements MissingPkSealed {
+        @Override public Integer id() { return 0; }
+    }
+
+    @Test
+    void testValidateSealedHierarchyMissingPk() {
+        String result = RecordReflection.validateSealedHierarchy(MissingPkSealed.class);
+        assertFalse(result.isEmpty());
+        assertTrue(result.contains("@PK"));
+    }
+
+    // ---- hasDiscriminator for non-sealed type returns false (L755) ----
+
+    @Test
+    void testHasDiscriminatorNonSealedReturnsFalse() {
+        assertFalse(RecordReflection.hasDiscriminator(SimpleEntity.class));
+    }
+
+    @Test
+    void testHasDiscriminatorPolymorphicFkReturnsFalse() {
+        assertFalse(RecordReflection.hasDiscriminator(SealedData.class));
+    }
+
+    // ---- validateSealedHierarchy: mismatched PK types (L1067-1068) ----
+
+    @Discriminator
+    @DbTable("pk_type_mismatch")
+    sealed interface PkTypeMismatchSealed extends Entity<Object> permits PkTypeMismatchInt, PkTypeMismatchString {}
+    record PkTypeMismatchInt(@PK Integer id) implements PkTypeMismatchSealed {}
+    record PkTypeMismatchString(@PK String id) implements PkTypeMismatchSealed {}
+
+    @Test
+    void testValidateSealedHierarchyMismatchedPkTypes() {
+        String result = RecordReflection.validateSealedHierarchy(PkTypeMismatchSealed.class);
+        assertFalse(result.isEmpty());
+        assertTrue(result.contains("same @PK type"));
+    }
+
+    // ---- validateSealedHierarchy: mismatched PK generation strategy (L1070-1072) ----
+
+    @Discriminator
+    @DbTable("gen_mismatch")
+    sealed interface GenMismatchSealed extends Entity<Integer> permits GenMismatchIdentity, GenMismatchNone {}
+    record GenMismatchIdentity(@PK(generation = GenerationStrategy.IDENTITY) Integer id) implements GenMismatchSealed {}
+    record GenMismatchNone(@PK(generation = GenerationStrategy.NONE) Integer id) implements GenMismatchSealed {}
+
+    @Test
+    void testValidateSealedHierarchyMismatchedGenStrategy() {
+        String result = RecordReflection.validateSealedHierarchy(GenMismatchSealed.class);
+        assertFalse(result.isEmpty());
+        assertTrue(result.contains("generation strategy"));
+    }
+
+    // ---- validateSealedHierarchy: @Discriminator with value on sealed interface (L1046-1049) ----
+
+    @Discriminator(value = "bad_value")
+    @DbTable("disc_with_value")
+    sealed interface DiscWithValueSealed extends Entity<Integer> permits DiscWithValueSub {}
+    record DiscWithValueSub(@PK Integer id) implements DiscWithValueSealed {}
+
+    @Test
+    void testValidateSealedHierarchyDiscriminatorWithValue() {
+        String result = RecordReflection.validateSealedHierarchy(DiscWithValueSealed.class);
+        assertFalse(result.isEmpty());
+        assertTrue(result.contains("value attribute"));
+    }
+
+    // ---- validateSealedHierarchy: @Discriminator with column on subtype (L1165-1168) ----
+
+    @Discriminator
+    @DbTable("disc_col_sub")
+    sealed interface DiscColumnOnSubSealed extends Entity<Integer> permits DiscColumnOnSub {}
+    @Discriminator(column = "my_col") record DiscColumnOnSub(@PK Integer id) implements DiscColumnOnSubSealed {}
+
+    @Test
+    void testValidateSealedHierarchyDiscriminatorColumnOnSubtype() {
+        String result = RecordReflection.validateSealedHierarchy(DiscColumnOnSubSealed.class);
+        assertFalse(result.isEmpty());
+        assertTrue(result.contains("column attribute"));
+    }
+
+    // ---- validateSealedHierarchy: @DbTable on single-table subtype (L1174-1177) ----
+
+    @Discriminator
+    @DbTable("single_table_parent")
+    sealed interface SingleTableWithDbTableSub extends Entity<Integer> permits SingleTableSub {}
+    @DbTable("sub_table") record SingleTableSub(@PK Integer id) implements SingleTableWithDbTableSub {}
+
+    @Test
+    void testValidateSealedHierarchySingleTableSubWithDbTable() {
+        String result = RecordReflection.validateSealedHierarchy(SingleTableWithDbTableSub.class);
+        assertFalse(result.isEmpty());
+        assertTrue(result.contains("must not have @DbTable"));
+    }
+
+    // ---- validateSealedHierarchy: field type mismatch across subtypes (L1093-1099) ----
+
+    @Discriminator
+    @DbTable("type_mismatch")
+    sealed interface TypeMismatchSealed extends Entity<Integer> permits TypeMismatchSub1, TypeMismatchSub2 {}
+    record TypeMismatchSub1(@PK Integer id, String shared) implements TypeMismatchSealed {}
+    record TypeMismatchSub2(@PK Integer id, int shared) implements TypeMismatchSealed {}
+
+    @Test
+    void testValidateSealedHierarchyFieldTypeMismatch() {
+        String result = RecordReflection.validateSealedHierarchy(TypeMismatchSealed.class);
+        assertFalse(result.isEmpty());
+        assertTrue(result.contains("different types"));
     }
 }

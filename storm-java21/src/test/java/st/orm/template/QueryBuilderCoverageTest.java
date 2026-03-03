@@ -1255,4 +1255,26 @@ public class QueryBuilderCoverageTest {
                 .executeUpdate();
         assertEquals(1, deleted);
     }
+
+    // ========================================================================
+    // QueryBuilder - where(ID) convenience method
+    // ========================================================================
+
+    @Test
+    public void testWhereByIdDirectValue() {
+        // Uses the where(ID id) method that delegates to where(predicate -> predicate.whereId(id))
+        City city = orm.entity(City.class).select().where(1).getSingleResult();
+        assertNotNull(city);
+        assertEquals(1, city.id());
+    }
+
+    // ========================================================================
+    // QueryBuilder - getOptionalResult throws NonUniqueResultException
+    // ========================================================================
+
+    @Test
+    public void testGetOptionalResultThrowsNonUnique() {
+        assertThrows(NonUniqueResultException.class, () ->
+                orm.entity(City.class).select().getOptionalResult());
+    }
 }

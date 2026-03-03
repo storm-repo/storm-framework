@@ -1700,4 +1700,38 @@ public class MySQLEntityRepositoryTest {
             }
         });
     }
+
+    @Test
+    public void testUpsertAndFetchWithSequenceExisting() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        // First insert a pet with explicit id using ignoreAutoGenerate.
+        repo.insert(Pet.builder()
+                .id(100)
+                .name("Buddy")
+                .birthDate(LocalDate.of(2020, 1, 1))
+                .type(PetType.builder().id(1).build())
+                .owner(Owner.builder().id(1).build())
+                .build(), true);
+        // Now upsert the same pet with an existing non-default id.
+        var updated = repo.upsertAndFetch(Pet.builder().id(100).name("Max")
+                .birthDate(LocalDate.of(2020, 1, 1))
+                .type(PetType.builder().id(1).build())
+                .owner(Owner.builder().id(1).build())
+                .build());
+        assertEquals(100, updated.id());
+        assertEquals("Max", updated.name());
+    }
+
+    @Test
+    public void testUpsertAndFetchWithSequenceExistingBatch() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(Pet.class);
+        var e = assertThrows(PersistenceException.class, () ->
+            repo.upsertAndFetch(List.of(
+                    Pet.builder().id(1).name("Max").birthDate(LocalDate.of(2020, 1, 1))
+                            .type(PetType.builder().id(1).build()).owner(Owner.builder().id(1).build()).build(),
+                    Pet.builder().id(2).name("Bella").birthDate(LocalDate.of(2020, 2, 1))
+                            .type(PetType.builder().id(1).build()).owner(Owner.builder().id(1).build()).build()
+            )));
+        assertNull("Exception must be raised by storm.", e.getCause());
+    }
 }

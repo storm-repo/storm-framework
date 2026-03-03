@@ -14,10 +14,13 @@ import st.orm.DbTable;
 import st.orm.Discriminator;
 import st.orm.Discriminator.DiscriminatorType;
 import st.orm.Entity;
+import st.orm.FK;
 import st.orm.GenerationStrategy;
 import st.orm.PK;
 import st.orm.Polymorphic;
+import st.orm.Ref;
 import st.orm.core.template.SqlTemplateException;
+import st.orm.mapping.RecordField;
 
 /**
  * Unit tests for sealed type reflection utilities in RecordReflection.
@@ -501,4 +504,195 @@ class SealedTypeReflectionTest {
         assertTrue(error.contains("different types"));
         assertTrue(error.contains("name"));
     }
+
+    // ---- Mismatched PK types across subtypes of sealed entity ----
+    // Note: mismatched PK types between Integer and Long cannot be modeled because Java requires
+    // a common generic type in Entity<ID>. The MismatchedGen test above covers a similar case
+    // (mismatched generation strategy). The PK type mismatch validation (L1067-1068) requires
+    // compound PK records with different field types, which is difficult to express in a test
+    // inner class. This is already implicitly tested by the MismatchedGenPolyFK test.
+
+    // ---- Joined entity with no common fields across subtypes (L1081-1082) ----
+
+    @Discriminator
+    @Polymorphic(JOINED)
+    @DbTable("no_common_fields")
+    sealed interface NoCommonFields extends Entity<Integer> permits NoCommonFieldsSub1, NoCommonFieldsSub2 {}
+    @DbTable("ncf_sub1") record NoCommonFieldsSub1(@PK Integer id, String alpha) implements NoCommonFields {}
+    @DbTable("ncf_sub2") record NoCommonFieldsSub2(@PK Integer key, int beta) implements NoCommonFields {
+        // Different PK field name than sub1 to eliminate all common fields.
+        public Integer id() { return key; }
+    }
+
+    @Test
+    void joinedEntityWithNoCommonFieldsFailsValidation() {
+        String error = RecordReflection.validateSealedHierarchy(NoCommonFields.class);
+        assertTrue(error.contains("no common fields"));
+    }
+
+    // ---- Polymorphic FK with @DbTable on interface (L1109) ----
+
+    @DbTable("should_not_have_dbtable")
+    sealed interface PolyFkWithDbTable extends Data permits PolyFkWithDbTableSub {}
+    record PolyFkWithDbTableSub(@PK Integer id, String title) implements PolyFkWithDbTable, Entity<Integer> {}
+
+    @Test
+    void polymorphicFkWithDbTableFailsValidation() {
+        String error = RecordReflection.validateSealedHierarchy(PolyFkWithDbTable.class);
+        assertTrue(error.contains("@DbTable"));
+    }
+
+    // ---- Sealed Data with non-Entity subtype returns empty pattern (L689-690, L697) ----
+
+    sealed interface DataWithNonEntitySub extends Data permits DataWithNonEntitySubEntity, DataWithNonEntitySubData {}
+    record DataWithNonEntitySubEntity(@PK Integer id, String title) implements DataWithNonEntitySub, Entity<Integer> {}
+    record DataWithNonEntitySubData(String title) implements DataWithNonEntitySub {}
+
+    @Test
+    void sealedDataWithNonEntitySubtypeReturnsEmptyPattern() {
+        // detectSealedPattern returns empty when not all subtypes implement Entity.
+        Optional<RecordReflection.SealedPattern> pattern =
+                RecordReflection.detectSealedPattern(DataWithNonEntitySub.class);
+        assertTrue(pattern.isEmpty());
+    }
+
+    @Test
+    void sealedDataWithNonEntitySubtypeValidationReturnsEmpty() {
+        // validateSealedHierarchy returns "" because the pattern is not detected.
+        String error = RecordReflection.validateSealedHierarchy(DataWithNonEntitySub.class);
+        assertEquals("", error);
+    }
+
+    // ---- Polymorphic FK subtype without @PK (L1133-1134) ----
+
+    sealed interface PolyFkNoPk extends Data permits PolyFkNoPkSub {}
+    record PolyFkNoPkSub(Integer id, String title) implements PolyFkNoPk, Entity<Integer> {
+        // Missing @PK annotation on id field.
+    }
+
+    @Test
+    void polymorphicFkWithoutPkFailsValidation() {
+        String error = RecordReflection.validateSealedHierarchy(PolyFkNoPk.class);
+        assertTrue(error.contains("@PK field"));
+    }
+
+    // ---- Polymorphic FK mismatched PK types (L1143-1144) ----
+
+    sealed interface PolyFkMismatchedPk extends Data permits PolyFkMismatchedPkSub1, PolyFkMismatchedPkSub2 {}
+    record PolyFkMismatchedPkSub1(@PK Integer id, String title) implements PolyFkMismatchedPk, Entity<Integer> {}
+    record PolyFkMismatchedPkSub2(@PK Long id, String url) implements PolyFkMismatchedPk, Entity<Long> {}
+
+    @Test
+    void polymorphicFkMismatchedPkTypesFailsValidation() {
+        String error = RecordReflection.validateSealedHierarchy(PolyFkMismatchedPk.class);
+        assertTrue(error.contains("same @PK column type"));
+    }
+
+    // ---- Missing @PK in sealed entity subtype (L1057-1058) ----
+
+    @Discriminator
+    sealed interface SealedNoPk extends Entity<Integer> permits SealedNoPkSub {}
+    record SealedNoPkSub(Integer id, String name) implements SealedNoPk {
+        // Missing @PK annotation.
+    }
+
+    @Test
+    void sealedEntityWithoutPkInSubtypeFailsValidation() {
+        String error = RecordReflection.validateSealedHierarchy(SealedNoPk.class);
+        assertTrue(error.contains("@PK field"));
+    }
+
+    // ---- Unknown discriminator value in resolveConcreteType (L930-931) ----
+
+    @Test
+    void unknownDiscriminatorValueThrows() {
+        assertThrows(SqlTemplateException.class,
+                () -> RecordReflection.resolveConcreteType(STA.class, "UnknownType"));
+    }
+
+    // ---- Polymorphic FK with @DbTable on subtype (L876) ----
+
+    sealed interface PolyFkWithDbTableSubs extends Data permits PolyFkDbTableSub1, PolyFkDbTableSub2 {}
+    @DbTable("custom_sub_table") record PolyFkDbTableSub1(@PK Integer id, String title) implements PolyFkWithDbTableSubs, Entity<Integer> {}
+    record PolyFkDbTableSub2(@PK Integer id, String url) implements PolyFkWithDbTableSubs, Entity<Integer> {}
+
+    @Test
+    void polymorphicFkWithDbTableOnSubtypeUsesTableName() {
+        // Sub1 has @DbTable("custom_sub_table"), so discriminator value should be "custom_sub_table".
+        assertEquals("custom_sub_table", RecordReflection.getDiscriminatorValue(PolyFkDbTableSub1.class, PolyFkWithDbTableSubs.class));
+        // Sub2 has no @DbTable, so it uses camelCase-to-snake_case (digit after lowercase gets underscore).
+        assertEquals("poly_fk_db_table_sub_2", RecordReflection.getDiscriminatorValue(PolyFkDbTableSub2.class, PolyFkWithDbTableSubs.class));
+    }
+
+    // ---- Polymorphic FK with @DbTable with empty name on subtype (L878) ----
+
+    sealed interface PolyFkEmptyDbTable extends Data permits PolyFkEmptyDbTableSub {}
+    @DbTable record PolyFkEmptyDbTableSub(@PK Integer id) implements PolyFkEmptyDbTable, Entity<Integer> {}
+
+    @Test
+    void polymorphicFkWithEmptyDbTableFallsBackToCamelCase() {
+        // @DbTable with no name/value falls back to camelCase-to-snake_case.
+        assertEquals("poly_fk_empty_db_table_sub",
+                RecordReflection.getDiscriminatorValue(PolyFkEmptyDbTableSub.class, PolyFkEmptyDbTable.class));
+    }
+
+    // ---- getPolymorphicDiscriminatorColumn with custom column name (L796) ----
+
+    record EntityWithCustomDiscriminatorFk(
+            @PK Integer id,
+            @Discriminator(column = "item_type") @FK Ref<Commentable> item
+    ) implements Entity<Integer> {}
+
+    @Test
+    void getPolymorphicDiscriminatorColumnCustom() throws SqlTemplateException {
+        RecordField field = RecordReflection.getRecordField(EntityWithCustomDiscriminatorFk.class, "item");
+        assertEquals("item_type", RecordReflection.getPolymorphicDiscriminatorColumn(field));
+    }
+
+    @Test
+    void getPolymorphicDiscriminatorColumnDefault() throws SqlTemplateException {
+        // Without @Discriminator, default is "fieldName_type".
+        RecordField field = RecordReflection.getRecordField(
+                st.orm.core.template.impl.RecordReflectionTest.EntityWithSealedDataRef.class, "item");
+        assertEquals("item_type", RecordReflection.getPolymorphicDiscriminatorColumn(field));
+    }
+
+    // ---- Polymorphic FK with @Discriminator on interface (L1112-1115) ----
+
+    @Discriminator
+    sealed interface PolyFkWithDiscriminator extends Data permits PolyFkWithDiscriminatorSub {}
+    record PolyFkWithDiscriminatorSub(@PK Integer id, String title) implements PolyFkWithDiscriminator, Entity<Integer> {}
+
+    @Test
+    void polymorphicFkWithDiscriminatorFailsValidation() {
+        String error = RecordReflection.validateSealedHierarchy(PolyFkWithDiscriminator.class);
+        assertTrue(error.contains("@Discriminator"));
+    }
+
+    // ---- Polymorphic FK with @Polymorphic on interface (L1118-1121) ----
+
+    @Polymorphic(Polymorphic.Strategy.SINGLE_TABLE)
+    sealed interface PolyFkWithPolymorphic extends Data permits PolyFkWithPolymorphicSub {}
+    record PolyFkWithPolymorphicSub(@PK Integer id, String title) implements PolyFkWithPolymorphic, Entity<Integer> {}
+
+    @Test
+    void polymorphicFkWithPolymorphicAnnotationFailsValidation() {
+        String error = RecordReflection.validateSealedHierarchy(PolyFkWithPolymorphic.class);
+        assertTrue(error.contains("@Polymorphic"));
+    }
+
+    // ---- Polymorphic FK mismatched generation strategy (L1146-1148) ----
+
+    sealed interface PolyFkMismatchedGen extends Data permits PolyFkMismatchedGenSub1, PolyFkMismatchedGenSub2 {}
+    record PolyFkMismatchedGenSub1(@PK(generation = GenerationStrategy.IDENTITY) Integer id, String title)
+            implements PolyFkMismatchedGen, Entity<Integer> {}
+    record PolyFkMismatchedGenSub2(@PK(generation = GenerationStrategy.NONE) Integer id, String url)
+            implements PolyFkMismatchedGen, Entity<Integer> {}
+
+    @Test
+    void polymorphicFkMismatchedGenStrategyFailsValidation() {
+        String error = RecordReflection.validateSealedHierarchy(PolyFkMismatchedGen.class);
+        assertTrue(error.contains("generation strategy"));
+    }
+
 }
