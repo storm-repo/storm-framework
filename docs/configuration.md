@@ -96,7 +96,9 @@ The Spring Boot Starter binds these properties and builds a `StormConfig` that i
 
 ## ORMTemplate Factory Overloads
 
-The `ORMTemplate.of()` factory method accepts optional parameters for configuration and template decoration. These overloads let you combine `StormConfig` (for runtime properties) with a `TemplateDecorator` (for name resolution customization) at creation time.
+The `ORMTemplate.of()` factory method is the main entry point for creating an ORM template outside of Spring. It accepts optional parameters for configuration and template decoration, so you can combine `StormConfig` (for runtime properties) with a `TemplateDecorator` (for name resolution customization) at creation time.
+
+The simplest form takes only a `DataSource` and uses all defaults. From there, you can add a `StormConfig` for property overrides, a decorator for custom naming conventions, or both. The decorator parameter is a `UnaryOperator<TemplateDecorator>` that receives the default decorator and returns a modified version.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
@@ -141,7 +143,349 @@ var orm = ORMTemplate.of(dataSource, config, decorator -> decorator
 </TabItem>
 </Tabs>
 
-The decorator parameter is a `UnaryOperator<TemplateDecorator>` that receives the default decorator and returns a modified version. See [Spring Integration: Template Decorator](spring-integration.md#template-decorator) for details on the available resolvers.
+When using Spring Boot, the starter creates the `ORMTemplate` for you and applies configuration from `application.yml`. You can still customize name resolution by defining a `TemplateDecorator` bean. See [Spring Integration: Template Decorator](spring-integration.md#template-decorator) for details.
+
+---
+
+## Naming Conventions
+
+Storm uses pluggable name resolvers to convert Kotlin/Java names to database identifiers. By default, camelCase names are converted to snake_case. You can replace or wrap these resolvers to match any naming convention your database requires, whether that means uppercase identifiers, table prefixes, or entirely custom logic.
+
+This section covers global name resolution configuration. For per-entity annotation overrides (`@DbTable`, `@DbColumn`), see [Entities: Custom Table and Column Names](entities.md#custom-table-and-column-names).
+
+### Name Resolvers
+
+Storm splits name resolution into three independent concerns. Each resolver is a functional interface with a single method, so you can configure them with lambdas or with full class implementations.
+
+| Resolver | Method Signature | Purpose |
+|----------|-----------------|---------|
+| `TableNameResolver` | `resolveTableName(RecordType)` | Maps an entity or projection class to a table name |
+| `ColumnNameResolver` | `resolveColumnName(RecordField)` | Maps a record field to a column name |
+| `ForeignKeyResolver` | `resolveColumnName(RecordField, RecordType)` | Maps a foreign key field to its column name, given the target entity type |
+
+The separation means you can, for example, use uppercase table names while keeping lowercase column names, or apply a custom foreign key naming pattern without affecting regular columns.
+
+### Default Conversion: CamelCase to Snake_Case
+
+Out of the box, Storm converts camelCase identifiers to snake_case by inserting underscores before uppercase letters and lowercasing the result. This matches the most common convention in relational databases.
+
+| Field/Class | Resolved Name |
+|-------------|---------------|
+| `id` | `id` |
+| `email` | `email` |
+| `birthDate` | `birth_date` |
+| `postalCode` | `postal_code` |
+| `firstName` | `first_name` |
+| `UserRole` | `user_role` |
+
+For foreign keys, `_id` is appended after the conversion. This convention makes it clear which columns are foreign keys when reading the schema directly.
+
+| FK Field | Resolved Column |
+|----------|-----------------|
+| `city` | `city_id` |
+| `petType` | `pet_type_id` |
+| `homeAddress` | `home_address_id` |
+
+### Configuring Name Resolvers
+
+To replace the default resolvers, pass a `TemplateDecorator` when creating the ORM template. The decorator exposes `withTableNameResolver()`, `withColumnNameResolver()`, and `withForeignKeyResolver()` methods. You only need to set the resolvers you want to change; any resolver you leave unset keeps its default behavior.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val orm = dataSource.orm { decorator ->
+    decorator
+        .withTableNameResolver(TableNameResolver.camelCaseToSnakeCase())
+        .withColumnNameResolver(ColumnNameResolver.camelCaseToSnakeCase())
+        .withForeignKeyResolver(ForeignKeyResolver.camelCaseToSnakeCase())
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+var orm = ORMTemplate.of(dataSource, decorator -> decorator
+    .withTableNameResolver(TableNameResolver.camelCaseToSnakeCase())
+    .withColumnNameResolver(ColumnNameResolver.camelCaseToSnakeCase())
+    .withForeignKeyResolver(ForeignKeyResolver.camelCaseToSnakeCase()));
+```
+
+</TabItem>
+</Tabs>
+
+The example above is equivalent to the defaults and is shown for illustration. In practice, you would only call these methods when you want to override the default behavior.
+
+### Uppercase Conversion
+
+Some databases (notably Oracle) use uppercase identifiers by default. Rather than writing a new resolver from scratch, Storm provides `toUpperCase()` wrappers that decorate any existing resolver and uppercase its output.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+val orm = dataSource.orm { decorator ->
+    decorator
+        .withTableNameResolver(TableNameResolver.toUpperCase(TableNameResolver.camelCaseToSnakeCase()))
+        .withColumnNameResolver(ColumnNameResolver.toUpperCase(ColumnNameResolver.camelCaseToSnakeCase()))
+        .withForeignKeyResolver(ForeignKeyResolver.toUpperCase(ForeignKeyResolver.camelCaseToSnakeCase()))
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+var orm = ORMTemplate.of(dataSource, decorator -> decorator
+    .withTableNameResolver(TableNameResolver.toUpperCase(TableNameResolver.camelCaseToSnakeCase()))
+    .withColumnNameResolver(ColumnNameResolver.toUpperCase(ColumnNameResolver.camelCaseToSnakeCase()))
+    .withForeignKeyResolver(ForeignKeyResolver.toUpperCase(ForeignKeyResolver.camelCaseToSnakeCase())));
+```
+
+</TabItem>
+</Tabs>
+
+This produces:
+
+| Field/Class | Resolved Name |
+|-------------|---------------|
+| `birthDate` | `BIRTH_DATE` |
+| `User` | `USER` |
+| `city` (FK) | `CITY_ID` |
+
+### Composing Resolvers
+
+The `toUpperCase()` wrapper demonstrates a general pattern: because each resolver is a functional interface, you can compose wrappers that add behavior to any existing resolver. This is more flexible than subclassing because wrappers are independent of each other and can be combined in any order.
+
+For example, a wrapper that adds a table name prefix. This is useful when multiple applications share a database and each uses a common prefix to avoid table name collisions.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+fun withPrefix(prefix: String, resolver: TableNameResolver) = TableNameResolver { type ->
+    "$prefix${resolver.resolveTableName(type)}"
+}
+
+val orm = dataSource.orm { decorator ->
+    decorator.withTableNameResolver(withPrefix("app_", TableNameResolver.camelCaseToSnakeCase()))
+}
+// User -> app_user, OrderItem -> app_order_item
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+static TableNameResolver withPrefix(String prefix, TableNameResolver resolver) {
+    return type -> prefix + resolver.resolveTableName(type);
+}
+
+var orm = ORMTemplate.of(dataSource, decorator -> decorator
+    .withTableNameResolver(withPrefix("app_", TableNameResolver.camelCaseToSnakeCase())));
+// User -> app_user, OrderItem -> app_order_item
+```
+
+</TabItem>
+</Tabs>
+
+Note that each resolver should return a plain identifier (the table name, column name, or foreign key column name). Do not include schema qualifiers or other SQL syntax in the resolved name.
+
+### RecordType and RecordField Reference
+
+Custom resolvers receive `RecordType` and `RecordField` objects that provide metadata about the entity or field being resolved. These objects give you access to the class, its annotations, and individual field details, so your resolvers can make decisions based on package names, annotation presence, field types, or any other metadata.
+
+**`RecordType`** is passed to `TableNameResolver` and `ForeignKeyResolver`. It represents the entity or projection class being mapped.
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `type()` | `Class<?>` | The record class |
+| `annotations()` | `List<Annotation>` | All annotations on the record class |
+| `fields()` | `List<RecordField>` | Metadata for all record fields, in declaration order |
+| `isAnnotationPresent(Class)` | `boolean` | Whether an annotation type is present |
+| `getAnnotation(Class)` | `Annotation` | Retrieve a single annotation by type |
+
+**`RecordField`** is passed to `ColumnNameResolver` and `ForeignKeyResolver`. It represents a single field (record component) being mapped to a column.
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `name()` | `String` | The field name (e.g., `"birthDate"`) |
+| `type()` | `Class<?>` | The raw field type |
+| `declaringType()` | `Class<?>` | The class that declares this field |
+| `annotations()` | `List<Annotation>` | All annotations on the field |
+| `isAnnotationPresent(Class)` | `boolean` | Whether an annotation type is present |
+| `nullable()` | `boolean` | Whether the field can be null |
+
+### Custom Resolvers
+
+When the built-in resolvers and wrappers are not enough, you can implement fully custom naming strategies. There are two approaches: lambda expressions for simple, inline logic, and interface implementations for strategies that are complex or shared across projects.
+
+#### Lambda-Based Configuration
+
+Lambdas are convenient for quick, self-contained overrides. Since each resolver is a functional interface, a single lambda replaces the entire resolution strategy for that concern.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+// Identity resolver: use the field name as-is, without any conversion
+val orm = dataSource.orm { decorator ->
+    decorator.withColumnNameResolver { field -> field.name() }
+}
+
+// Custom prefix for foreign key columns
+val orm = dataSource.orm { decorator ->
+    decorator.withForeignKeyResolver { field, type ->
+        "fk_${ForeignKeyResolver.camelCaseToSnakeCase().resolveColumnName(field, type)}"
+    }
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// Identity resolver: use the field name as-is, without any conversion
+var orm = ORMTemplate.of(dataSource, decorator -> decorator
+    .withColumnNameResolver(field -> field.name()));
+
+// Custom prefix for foreign key columns
+var orm = ORMTemplate.of(dataSource, decorator -> decorator
+    .withForeignKeyResolver((field, type) ->
+        "fk_" + ForeignKeyResolver.camelCaseToSnakeCase().resolveColumnName(field, type)));
+```
+
+</TabItem>
+</Tabs>
+
+#### Interface-Based Implementation
+
+For more complex or reusable naming strategies, implement the resolver interfaces as standalone classes. This approach is preferable when the resolver contains non-trivial logic, needs to be tested independently, or is shared across multiple ORM template instances.
+
+The examples below show three resolvers working together: a table name resolver that adds a prefix based on the entity's package, a column name resolver that marks encrypted columns, and a foreign key resolver that uses the target table name instead of the field name.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+class PrefixedTableNameResolver : TableNameResolver {
+    override fun resolveTableName(type: RecordType): String {
+        val pkg = type.type().packageName
+        val prefix = if (pkg.contains(".admin")) "admin_" else ""
+        val tableName = TableNameResolver.camelCaseToSnakeCase().resolveTableName(type)
+        return "$prefix$tableName"
+    }
+}
+
+class EncryptedColumnNameResolver : ColumnNameResolver {
+    override fun resolveColumnName(field: RecordField): String {
+        val columnName = ColumnNameResolver.camelCaseToSnakeCase().resolveColumnName(field)
+        return if (field.isAnnotationPresent(Encrypted::class.java)) "enc_$columnName" else columnName
+    }
+}
+
+class TargetTableForeignKeyResolver : ForeignKeyResolver {
+    override fun resolveColumnName(field: RecordField, type: RecordType): String {
+        val targetTable = TableNameResolver.camelCaseToSnakeCase().resolveTableName(type)
+        return "${targetTable}_fk"
+    }
+}
+```
+
+Register custom implementations:
+
+```kotlin
+val orm = dataSource.orm { decorator ->
+    decorator
+        .withTableNameResolver(PrefixedTableNameResolver())
+        .withColumnNameResolver(EncryptedColumnNameResolver())
+        .withForeignKeyResolver(TargetTableForeignKeyResolver())
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+public class PrefixedTableNameResolver implements TableNameResolver {
+    @Override
+    public String resolveTableName(RecordType type) {
+        String pkg = type.type().getPackageName();
+        String prefix = pkg.contains(".admin") ? "admin_" : "";
+        String tableName = TableNameResolver.camelCaseToSnakeCase()
+            .resolveTableName(type);
+        return prefix + tableName;
+    }
+}
+
+public class EncryptedColumnNameResolver implements ColumnNameResolver {
+    @Override
+    public String resolveColumnName(RecordField field) {
+        String columnName = ColumnNameResolver.camelCaseToSnakeCase()
+            .resolveColumnName(field);
+        if (field.isAnnotationPresent(Encrypted.class)) {
+            return "enc_" + columnName;
+        }
+        return columnName;
+    }
+}
+
+public class TargetTableForeignKeyResolver implements ForeignKeyResolver {
+    @Override
+    public String resolveColumnName(RecordField field, RecordType type) {
+        String targetTable = TableNameResolver.camelCaseToSnakeCase()
+            .resolveTableName(type);
+        return targetTable + "_fk";
+    }
+}
+```
+
+Register custom implementations:
+
+```java
+var orm = ORMTemplate.of(dataSource, decorator -> decorator
+    .withTableNameResolver(new PrefixedTableNameResolver())
+    .withColumnNameResolver(new EncryptedColumnNameResolver())
+    .withForeignKeyResolver(new TargetTableForeignKeyResolver()));
+```
+
+</TabItem>
+</Tabs>
+
+### Per-Entity and Per-Field Overrides
+
+Annotations on individual entities and fields always take precedence over configured resolvers. This means you can set a global naming convention through resolvers and still override specific tables or columns where the convention does not apply (for example, a legacy table with a non-standard name).
+
+Use `@DbTable` to override a table name, `@DbColumn` to override a column name, and the string parameter on `@PK` or `@FK` to override their respective column names. See [Entities: Custom Table and Column Names](entities.md#custom-table-and-column-names) for details and examples.
+
+### Identifier Escaping
+
+When a table or column name conflicts with a SQL reserved word, the database will reject the query unless the identifier is escaped. Storm automatically detects and escapes common reserved words. For cases that are not caught automatically, you can force escaping with the `escape` parameter on `@DbTable` or `@DbColumn`. Storm uses the escaping syntax appropriate for the active database dialect (double quotes for most databases, square brackets for SQL Server).
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+@DbTable("order", escape = true)  // "order" is a reserved word
+data class Order(
+    @PK val id: Int = 0,
+    @DbColumn("select", escape = true) val select: String  // "select" is reserved
+) : Entity<Int>
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+@DbTable(value = "order", escape = true)  // "order" is a reserved word
+record Order(@PK Integer id,
+             @DbColumn(value = "select", escape = true) String select  // "select" is reserved
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
 
 ---
 
@@ -233,151 +577,9 @@ When `true`, schema validation warnings (type narrowing, nullability mismatches,
 
 See [Validation](validation.md) for a complete list of what each validation level checks.
 
----
-
-## Template Metrics (JMX)
-
-Storm exposes template cache metrics through JMX under the MBean name `st.orm:type=TemplateMetrics`. This is a singleton that aggregates metrics across all `ORMTemplate` instances in the JVM.
-
-### Available Attributes
-
-| Attribute | Description |
-|-----------|-------------|
-| `Requests` | Total number of template requests |
-| `Hits` | Number of cache hits |
-| `Misses` | Number of cache misses |
-| `HitRatioPercent` | Hit ratio as a percentage (0-100) |
-| `AvgRequestMicros` | Average request duration in microseconds |
-| `MaxRequestMicros` | Maximum request duration in microseconds |
-| `AvgHitMicros` | Average cache hit duration in microseconds |
-| `MaxHitMicros` | Maximum cache hit duration in microseconds |
-| `AvgMissMicros` | Average cache miss duration in microseconds |
-| `MaxMissMicros` | Maximum cache miss duration in microseconds |
-
-### Operations
-
-| Operation | Description |
-|-----------|-------------|
-| `reset()` | Resets all counters to zero |
-
----
-
-## Dirty Check Metrics (JMX)
-
-Storm exposes dirty checking metrics through JMX under the MBean name `st.orm:type=DirtyCheckMetrics`. These metrics aggregate across all dirty checks performed by entity repositories, giving you visibility into how often updates are skipped, which resolution paths are taken, and how your `max_shapes` budget is being used.
-
-### Entity-Level Counters
-
-| Attribute | Description |
-|-----------|-------------|
-| `Checks` | Total number of dirty checks performed |
-| `Clean` | Number of checks that found the entity unchanged (update skipped) |
-| `Dirty` | Number of checks that found the entity changed (update triggered) |
-| `CleanRatioPercent` | Percentage of checks where the update was skipped (0-100) |
-
-A high `CleanRatioPercent` indicates that many updates are avoided because the entity has not changed since it was read. If this ratio is low and your application frequently calls `update()` on unmodified entities, consider reviewing your update logic.
-
-### Resolution Path Counters
-
-| Attribute | Description |
-|-----------|-------------|
-| `IdentityMatches` | Checks resolved by identity comparison (`cached == entity`), the cheapest path |
-| `CacheMisses` | Checks where no cached baseline was available, causing a fallback to full-entity update |
-
-High `CacheMisses` may indicate that the entity cache is being cleared prematurely. Consider switching from `light` to `default` cache retention if cache misses are frequent. See [Entity Cache](entity-cache.md) for details.
-
-### Mode and Strategy Breakdown
-
-| Attribute | Description |
-|-----------|-------------|
-| `EntityModeChecks` | Checks that used `ENTITY` update mode (full-row UPDATE on any change) |
-| `FieldModeChecks` | Checks that used `FIELD` update mode (column-level UPDATE) |
-| `InstanceStrategyChecks` | Checks that used `INSTANCE` strategy (identity-based field comparison) |
-| `ValueStrategyChecks` | Checks that used `VALUE` strategy (equality-based field comparison) |
-
-### Field-Level Counters
-
-| Attribute | Description |
-|-----------|-------------|
-| `FieldComparisons` | Total number of individual field comparisons across all dirty checks |
-| `FieldClean` | Number of field comparisons where the field was unchanged |
-| `FieldDirty` | Number of field comparisons where the field was different |
-
-### Shape Counters
-
-| Attribute | Description |
-|-----------|-------------|
-| `EntityTypes` | Number of distinct entity types that have generated UPDATE shapes |
-| `Shapes` | Total number of distinct UPDATE statement shapes across all entity types |
-| `ShapesPerEntity` | Map of entity type name to the number of shapes for that type |
-
-Compare `ShapesPerEntity` values against the configured `storm.update.max_shapes` to determine if any entity type is exhausting its shape budget. When the limit is reached, Storm falls back to full-row updates for that entity type.
-
-### Per-Entity Configuration
-
-| Attribute | Description |
-|-----------|-------------|
-| `UpdateModePerEntity` | Map of entity type name to effective update mode (`FIELD`, `ENTITY`, `OFF`) |
-| `DirtyCheckPerEntity` | Map of entity type name to effective dirty check strategy (`INSTANCE`, `VALUE`) |
-| `MaxShapesPerEntity` | Map of entity type name to configured max shapes limit |
-
-### Operations
-
-| Operation | Description |
-|-----------|-------------|
-| `reset()` | Resets all counters to zero |
-
----
-
-## Entity Cache Metrics (JMX)
-
-Storm exposes entity cache metrics through JMX under the MBean name `st.orm:type=EntityCacheMetrics`. These metrics aggregate across all transaction-scoped entity caches, providing visibility into cache hit rates, eviction patterns, and retention behavior.
-
-### Lookup Counters
-
-| Attribute | Description |
-|-----------|-------------|
-| `Gets` | Total number of `get()` calls (cache lookups) |
-| `GetHits` | Number of lookups that returned a cached entity |
-| `GetMisses` | Number of lookups where no cached entity was available |
-| `GetHitRatioPercent` | Get hit ratio as a percentage (0-100) |
-
-A low `GetHitRatioPercent` in combination with frequent `update()` calls suggests that entities are being evicted before they can serve as dirty-check baselines. Consider switching to `default` cache retention.
-
-### Intern Counters
-
-| Attribute | Description |
-|-----------|-------------|
-| `Interns` | Total number of `intern()` calls (cache insertions) |
-| `InternHits` | Number of intern calls that reused an existing canonical instance |
-| `InternMisses` | Number of intern calls that stored a new or updated instance |
-| `InternHitRatioPercent` | Intern hit ratio as a percentage (0-100) |
-
-### Lifecycle Counters
-
-| Attribute | Description |
-|-----------|-------------|
-| `Removals` | Number of cache entries removed due to entity mutations (insert, update, delete) |
-| `Clears` | Number of full cache clears |
-| `Evictions` | Number of cache entries cleaned up after garbage collection |
-
-High `Evictions` values indicate that entities are being garbage collected while still in the cache. This is expected with `light` retention but unusual with `default` retention unless the JVM is under memory pressure.
-
-### Per-Entity Configuration
-
-| Attribute | Description |
-|-----------|-------------|
-| `RetentionPerEntity` | Map of entity type name to effective retention mode (`DEFAULT`, `LIGHT`) |
-
-### Operations
-
-| Operation | Description |
-|-----------|-------------|
-| `reset()` | Resets all counters to zero |
-
-### Viewing Metrics
-
-Connect to the JVM with any JMX client (JConsole, VisualVM, or your monitoring platform) and navigate to the `st.orm` domain. All three MBeans (`TemplateMetrics`, `DirtyCheckMetrics`, `EntityCacheMetrics`) are registered automatically when Storm initializes. You can also expose them via Spring Boot Actuator's JMX endpoint if your application uses Actuator.
+:::tip Monitoring
+Storm exposes runtime metrics for template compilation, dirty checking, and entity cache behavior through JMX MBeans. See [Metrics](metrics.md) for details.
+:::
 
 ---
 

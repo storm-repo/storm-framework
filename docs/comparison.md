@@ -287,14 +287,14 @@ Ktorm is a lightweight Kotlin ORM that uses entity interfaces and DSL-based tabl
 
 ## Summary
 
-Storm is a newer framework, so community resources and third-party tutorials are still growing. However, the API is designed to be intuitive for developers familiar with SQL and modern Kotlin/Java.
+Storm is a newer framework, so community resources and third-party tutorials are still growing. However, the API is designed to be intuitive for developers familiar with SQL and Kotlin and modern Java.
 
 Choose Storm if you value:
 - **Simplicity** over complexity
 - **Predictability** over magic
 - **Immutability** over managed state
 - **Explicit** over implicit behavior
-- **Kotlin-first** development (or modern Java with records)
+- **Kotlin and modern Java** development with first-class support for both
 
 Ready to try it? See the [Getting Started](getting-started.md) guide.
 

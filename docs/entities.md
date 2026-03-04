@@ -94,6 +94,224 @@ record User(@PK Integer id,
 
 ---
 
+## Foreign Keys
+
+The `@FK` annotation marks a field as a foreign key reference to another table-backed type (entity, projection, or data class with a `@PK`). Storm uses these annotations to automatically generate JOINs when querying and to derive column names (by default, appending `_id` to the field name).
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+data class User(
+    @PK val id: Int = 0,
+    val email: String,
+    @FK val city: City        // Always loaded via INNER JOIN
+) : Entity<Int>
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+record User(@PK Integer id,
+            String email,
+            @FK City city        // Always loaded via INNER JOIN
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+:::tip When to use `Ref<T>` vs the full entity type
+Use the full entity type (e.g., `@FK val city: City`) when you always want the related entity loaded. Use `Ref<T>` (e.g., `@FK val city: Ref<City>`) when you only sometimes need the related entity, when the relationship is optional, or to prevent circular dependencies. See [Refs](refs.md) for details.
+:::
+
+---
+
+## Unique Keys
+
+Use `@UK` on fields that have a unique constraint in the database. The `@PK` annotation implies `@UK`, so primary key fields are automatically unique. Annotating a field with `@UK` tells Storm that the column contains unique values, which enables several framework features:
+
+1. **Type-safe lookups.** `findBy(Key, value)` and `getBy(Key, value)` return a single result without requiring a predicate. The metamodel processor generates `Metamodel.Key` instances for `@UK` fields. See [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey) for details.
+2. **Keyset pagination.** `@UK` fields can serve as cursor columns for `slice`, `sliceAfter`, and `sliceBefore`. Because the values are unique, the cursor position is always unambiguous. See [Keyset Pagination](queries.md#keyset-pagination-with-slice).
+3. **Schema validation.** When [schema validation](validation.md) is enabled, Storm checks that the database actually has a matching unique constraint for each `@UK` field and reports a warning if it is missing.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+data class User(
+    @PK val id: Int = 0,
+    @UK val email: String,
+    val name: String
+) : Entity<Int>
+```
+
+For compound unique constraints spanning multiple columns, use an inline record annotated with `@UK`. When the compound key columns overlap with other fields on the entity, use `@Persist(insertable = false, updatable = false)` to prevent duplicate persistence:
+
+```kotlin
+data class UserEmailUK(val userId: Int, val email: String)
+
+data class SomeEntity(
+    @PK val id: Int = 0,
+    @FK val user: User,
+    val email: String,
+    @UK @Persist(insertable = false, updatable = false) val uniqueKey: UserEmailUK
+) : Entity<Int>
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+record User(@PK Integer id,
+            @UK String email,
+            String name
+) implements Entity<Integer> {}
+```
+
+For compound unique constraints spanning multiple columns, use an inline record annotated with `@UK`. When the compound key columns overlap with other fields on the entity, use `@Persist(insertable = false, updatable = false)` to prevent duplicate persistence:
+
+```java
+record UserEmailUK(int userId, String email) {}
+
+record SomeEntity(@PK Integer id,
+                  @Nonnull @FK User user,
+                  @Nonnull String email,
+                  @UK @Persist(insertable = false, updatable = false) UserEmailUK uniqueKey
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+When a column is not annotated with `@UK` but becomes unique in a specific query context (for example, a GROUP BY column produces unique values in the result set), wrap the metamodel with `.key()` (Kotlin) or `Metamodel.key()` (Java) to indicate it can serve as a keyset pagination cursor. See [Manual Key Wrapping](metamodel.md#manual-key-wrapping) for details.
+
+---
+
+## Composite Primary Keys
+
+For join tables or entities whose identity is defined by a combination of columns, wrap the key fields in a separate data class and annotate it with `@PK`. Storm treats all fields in the composite key class as part of the primary key.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+data class UserRolePk(
+    val userId: Int,
+    val roleId: Int
+)
+
+data class UserRole(
+    @PK val userRolePk: UserRolePk,
+    @FK val user: User,
+    @FK val role: Role
+) : Entity<UserRolePk>
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+record UserRolePk(int userId, int roleId) {}
+
+record UserRole(@PK UserRolePk userRolePk,
+                @Nonnull @FK User user,
+                @Nonnull @FK Role role
+) implements Entity<UserRolePk> {}
+```
+
+</TabItem>
+</Tabs>
+
+---
+
+## Embedded Components
+
+Embedded components group related fields into a reusable data class without creating a separate database table. The component's fields are stored as columns in the parent entity's table. This is useful for value objects like addresses, coordinates, or monetary amounts that appear in multiple entities.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+Use data classes for embedded components:
+
+```kotlin
+data class Address(
+    val street: String? = null,
+    @FK val city: City? = null
+)
+
+data class Owner(
+    @PK val id: Int = 0,
+    val firstName: String,
+    val lastName: String,
+    val address: Address,
+    val telephone: String?
+) : Entity<Int>
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+Use records for embedded components:
+
+```java
+record Address(String street,
+               @FK City city) {}
+
+record Owner(@PK Integer id,
+             @Nonnull String firstName,
+             @Nonnull String lastName,
+             @Nonnull Address address,
+             @Nullable String telephone
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+### `@Persist` Propagation on Embedded Components
+
+When `@Persist` is placed on an embedded component field, it propagates to all child fields within that component. This is useful when the embedded component's columns overlap with other fields on the entity and should not be persisted separately. Child fields can override the inherited `@Persist` with their own annotation.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+data class OwnerCityKey(val ownerId: Int, val cityId: Int)
+
+data class Pet(
+    @PK val id: Int = 0,
+    val name: String,
+    @FK val owner: Owner,
+    @FK val city: City,
+    @Persist(insertable = false, updatable = false) val ownerCityKey: OwnerCityKey
+) : Entity<Int>
+```
+
+In this example, the `owner` and `city` foreign keys define the actual persisted columns. The `ownerCityKey` inline record maps to the same underlying columns but is excluded from INSERT and UPDATE statements because its child fields inherit `@Persist(insertable = false, updatable = false)` from the parent field.
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+record OwnerCityKey(int ownerId, int cityId) {}
+
+record Pet(@PK Integer id,
+           @Nonnull String name,
+           @Nonnull @FK Owner owner,
+           @Nonnull @FK City city,
+           @Persist(insertable = false, updatable = false) OwnerCityKey ownerCityKey
+) implements Entity<Integer> {}
+```
+
+In this example, the `owner` and `city` foreign keys define the actual persisted columns. The `ownerCityKey` inline record maps to the same underlying columns but is excluded from INSERT and UPDATE statements because its child fields inherit `@Persist(insertable = false, updatable = false)` from the parent field.
+
+</TabItem>
+</Tabs>
+
+---
+
 ## Enumerations
 
 Storm persists enum values as their `name()` string by default, which is readable and resilient to reordering. If storage efficiency is a priority or your schema uses integer columns for enums, you can switch to ordinal storage with `@DbEnum(ORDINAL)`. Be aware that ordinal storage is sensitive to the order of enum constants: adding or reordering values will break existing data.
@@ -154,6 +372,44 @@ record Role(@PK Integer id,
 
 </TabItem>
 </Tabs>
+
+---
+
+## Converters
+
+When an entity field uses a type that is not directly supported by the JDBC driver, use `@Convert` to specify a converter that transforms between your domain type and a JDBC-compatible column type. Storm also supports auto-apply converters via `@DefaultConverter`, which automatically apply to all matching field types without requiring explicit annotations.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+data class Money(val amount: BigDecimal)
+
+@DbTable("product")
+data class Product(
+    @PK val id: Int = 0,
+    val name: String,
+    @Convert(converter = MoneyConverter::class) val price: Money
+) : Entity<Int>
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+record Money(BigDecimal amount) {}
+
+@DbTable("product")
+record Product(@PK Integer id,
+               @Nonnull String name,
+               @Convert(converter = MoneyConverter.class) Money price
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+See [Converters](converters.md) for the full `Converter<D, E>` interface, auto-apply with `@DefaultConverter`, resolution order, and practical examples.
 
 ---
 
@@ -247,305 +503,6 @@ record Pet(@PK Integer id,
            @Nonnull @FK @Persist(updatable = false) PetType type,
            @Nullable @FK Owner owner
 ) implements Entity<Integer> {}
-```
-
-</TabItem>
-</Tabs>
-
----
-
-## Unique Keys
-
-Use `@UK` on fields that have a unique constraint in the database. The `@PK` annotation implies `@UK`, so primary key fields are automatically unique. Annotating a field with `@UK` tells Storm that the column contains unique values, which enables several framework features:
-
-1. **Type-safe lookups.** `findBy(Key, value)` and `getBy(Key, value)` return a single result without requiring a predicate. The metamodel processor generates `Metamodel.Key` instances for `@UK` fields. See [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey) for details.
-2. **Keyset pagination.** `@UK` fields can serve as cursor columns for `slice`, `sliceAfter`, and `sliceBefore`. Because the values are unique, the cursor position is always unambiguous. See [Keyset Pagination](queries.md#keyset-pagination-with-slice).
-3. **Schema validation.** When [schema validation](validation.md) is enabled, Storm checks that the database actually has a matching unique constraint for each `@UK` field and reports a warning if it is missing.
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-data class User(
-    @PK val id: Int = 0,
-    @UK val email: String,
-    val name: String
-) : Entity<Int>
-```
-
-For compound unique constraints spanning multiple columns, use an inline record annotated with `@UK`. When the compound key columns overlap with other fields on the entity, use `@Persist(insertable = false, updatable = false)` to prevent duplicate persistence:
-
-```kotlin
-data class UserEmailUK(val userId: Int, val email: String)
-
-data class SomeEntity(
-    @PK val id: Int = 0,
-    @FK val user: User,
-    val email: String,
-    @UK @Persist(insertable = false, updatable = false) val uniqueKey: UserEmailUK
-) : Entity<Int>
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-record User(@PK Integer id,
-            @UK String email,
-            String name
-) implements Entity<Integer> {}
-```
-
-For compound unique constraints spanning multiple columns, use an inline record annotated with `@UK`. When the compound key columns overlap with other fields on the entity, use `@Persist(insertable = false, updatable = false)` to prevent duplicate persistence:
-
-```java
-record UserEmailUK(int userId, String email) {}
-
-record SomeEntity(@PK Integer id,
-                  @Nonnull @FK User user,
-                  @Nonnull String email,
-                  @UK @Persist(insertable = false, updatable = false) UserEmailUK uniqueKey
-) implements Entity<Integer> {}
-```
-
-</TabItem>
-</Tabs>
-
-When a column is not annotated with `@UK` but becomes unique in a specific query context (for example, a GROUP BY column produces unique values in the result set), wrap the metamodel with `.key()` (Kotlin) or `Metamodel.key()` (Java) to indicate it can serve as a keyset pagination cursor. See [Manual Key Wrapping](metamodel.md#manual-key-wrapping) for details.
-
----
-
-## Suppressing Schema Validation
-
-Use `@DbIgnore` to suppress [schema validation](configuration.md#schema-validation) for an entity or a specific field. This is useful for legacy tables, columns handled by custom converters, or known type mismatches that are safe at runtime.
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-// Suppress all schema validation for a legacy entity.
-@DbIgnore
-data class LegacyUser(
-    @PK val id: Int = 0,
-    val name: String
-) : Entity<Int>
-
-// Suppress schema validation for a specific field.
-data class User(
-    @PK val id: Int = 0,
-    val name: String,
-    @DbIgnore("DB uses FLOAT, but column only stores whole numbers")
-    val age: Int
-) : Entity<Int>
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-// Suppress all schema validation for a legacy entity.
-@DbIgnore
-record LegacyUser(@PK Integer id,
-                  @Nonnull String name
-) implements Entity<Integer> {}
-
-// Suppress schema validation for a specific field.
-record User(@PK Integer id,
-            @Nonnull String name,
-            @DbIgnore("DB uses FLOAT, but column only stores whole numbers")
-            @Nonnull Integer age
-) implements Entity<Integer> {}
-```
-
-</TabItem>
-</Tabs>
-
-The optional `value` parameter documents why the mismatch is acceptable. When placed on an embedded component field, `@DbIgnore` suppresses validation for all columns within that component.
-
----
-
-## Embedded Components
-
-Embedded components group related fields into a reusable data class without creating a separate database table. The component's fields are stored as columns in the parent entity's table. This is useful for value objects like addresses, coordinates, or monetary amounts that appear in multiple entities.
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-Use data classes for embedded components:
-
-```kotlin
-data class Address(
-    val street: String? = null,
-    @FK val city: City? = null
-)
-
-data class Owner(
-    @PK val id: Int = 0,
-    val firstName: String,
-    val lastName: String,
-    val address: Address,
-    val telephone: String?
-) : Entity<Int>
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-Use records for embedded components:
-
-```java
-record Address(String street,
-               @FK City city) {}
-
-record Owner(@PK Integer id,
-             @Nonnull String firstName,
-             @Nonnull String lastName,
-             @Nonnull Address address,
-             @Nullable String telephone
-) implements Entity<Integer> {}
-```
-
-</TabItem>
-</Tabs>
-
-### `@Persist` Propagation on Embedded Components
-
-When `@Persist` is placed on an embedded component field, it propagates to all child fields within that component. This is useful when the embedded component's columns overlap with other fields on the entity and should not be persisted separately. Child fields can override the inherited `@Persist` with their own annotation.
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-data class OwnerCityKey(val ownerId: Int, val cityId: Int)
-
-data class Pet(
-    @PK val id: Int = 0,
-    val name: String,
-    @FK val owner: Owner,
-    @FK val city: City,
-    @Persist(insertable = false, updatable = false) val ownerCityKey: OwnerCityKey
-) : Entity<Int>
-```
-
-In this example, the `owner` and `city` foreign keys define the actual persisted columns. The `ownerCityKey` inline record maps to the same underlying columns but is excluded from INSERT and UPDATE statements because its child fields inherit `@Persist(insertable = false, updatable = false)` from the parent field.
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-record OwnerCityKey(int ownerId, int cityId) {}
-
-record Pet(@PK Integer id,
-           @Nonnull String name,
-           @Nonnull @FK Owner owner,
-           @Nonnull @FK City city,
-           @Persist(insertable = false, updatable = false) OwnerCityKey ownerCityKey
-) implements Entity<Integer> {}
-```
-
-In this example, the `owner` and `city` foreign keys define the actual persisted columns. The `ownerCityKey` inline record maps to the same underlying columns but is excluded from INSERT and UPDATE statements because its child fields inherit `@Persist(insertable = false, updatable = false)` from the parent field.
-
-</TabItem>
-</Tabs>
-
----
-
-## Foreign Keys
-
-The `@FK` annotation marks a field as a foreign key reference to another table-backed type (entity, projection, or data class with a `@PK`). Storm uses these annotations to automatically generate JOINs when querying and to derive column names (by default, appending `_id` to the field name).
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-data class User(
-    @PK val id: Int = 0,
-    val email: String,
-    @FK val city: City        // Always loaded via INNER JOIN
-) : Entity<Int>
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-record User(@PK Integer id,
-            String email,
-            @FK City city        // Always loaded via INNER JOIN
-) implements Entity<Integer> {}
-```
-
-</TabItem>
-</Tabs>
-
-:::tip When to use `Ref<T>` vs the full entity type
-Use the full entity type (e.g., `@FK val city: City`) when you always want the related entity loaded. Use `Ref<T>` (e.g., `@FK val city: Ref<City>`) when you only sometimes need the related entity, when the relationship is optional, or to prevent circular dependencies. See [Refs](refs.md) for details.
-:::
-
----
-
-## Custom Table and Column Names
-
-When the database schema does not follow Storm's default camelCase-to-snake_case convention, use annotations to specify the exact names. `@DbTable` overrides the table name, `@DbColumn` overrides a column name, and the string parameter on `@PK` or `@FK` overrides their respective column names. These annotations take precedence over any configured name resolver.
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-@DbTable("app_users")
-data class User(
-    @PK("user_id") val id: Int = 0,
-    @DbColumn("email_address") val email: String,
-    @FK("home_city_id") val city: City
-) : Entity<Int>
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-@DbTable("app_users")
-record User(@PK("user_id") Integer id,
-            @DbColumn("email_address") String email,
-            @FK("home_city_id") City city
-) implements Entity<Integer> {}
-```
-
-</TabItem>
-</Tabs>
-
----
-
-## Composite Primary Keys
-
-For join tables or entities whose identity is defined by a combination of columns, wrap the key fields in a separate data class and annotate it with `@PK`. Storm treats all fields in the composite key class as part of the primary key.
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-data class UserRolePk(
-    val userId: Int,
-    val roleId: Int
-)
-
-data class UserRole(
-    @PK val userRolePk: UserRolePk,
-    @FK val user: User,
-    @FK val role: Role
-) : Entity<UserRolePk>
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-record UserRolePk(int userId, int roleId) {}
-
-record UserRole(@PK UserRolePk userRolePk,
-                @Nonnull @FK User user,
-                @Nonnull @FK Role role
-) implements Entity<UserRolePk> {}
 ```
 
 </TabItem>
@@ -665,6 +622,38 @@ record Pet(@PK Integer id,
 
 ---
 
+## Custom Table and Column Names
+
+When the database schema does not follow Storm's default camelCase-to-snake_case convention, use annotations to specify the exact names. `@DbTable` overrides the table name, `@DbColumn` overrides a column name, and the string parameter on `@PK` or `@FK` overrides their respective column names. These annotations take precedence over any configured name resolver.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+@DbTable("app_users")
+data class User(
+    @PK("user_id") val id: Int = 0,
+    @DbColumn("email_address") val email: String,
+    @FK("home_city_id") val city: City
+) : Entity<Int>
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+@DbTable("app_users")
+record User(@PK("user_id") Integer id,
+            @DbColumn("email_address") String email,
+            @FK("home_city_id") City city
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+---
+
 ## Column Mapping
 
 Storm automatically maps fields to columns using these conventions:
@@ -683,17 +672,7 @@ CamelCase field names are converted to snake_case column names. Foreign keys aut
 
 ## Naming Conventions
 
-Storm uses pluggable name resolvers to convert Kotlin/Java names to database identifiers. By default, camelCase names are converted to snake_case.
-
-### Name Resolvers
-
-Storm provides three resolver types:
-
-| Resolver | Purpose | Default Behavior |
-|----------|---------|------------------|
-| `TableNameResolver` | Entity/projection class -> table name | `User` -> `user`, `OrderItem` -> `order_item` |
-| `ColumnNameResolver` | Field name -> column name | `birthDate` -> `birth_date` |
-| `ForeignKeyResolver` | FK field -> column name | `city` -> `city_id` |
+Storm uses pluggable name resolvers to convert Kotlin/Java names to database identifiers. By default, camelCase names are converted to snake_case, and foreign key fields append `_id`.
 
 ### Default Conversion: CamelCase to Snake_Case
 
@@ -719,133 +698,18 @@ For foreign keys, `_id` is appended after the conversion:
 | `petType` | `pet_type_id` |
 | `homeAddress` | `home_address_id` |
 
-### Configuring Name Resolvers
-
-Configure resolvers when creating the ORM template:
-
-```kotlin
-val orm = PreparedStatementTemplate.of(dataSource)
-    .withTableNameResolver(TableNameResolver.camelCaseToSnakeCase())
-    .withColumnNameResolver(ColumnNameResolver.camelCaseToSnakeCase())
-    .withForeignKeyResolver(ForeignKeyResolver.camelCaseToSnakeCase())
-```
-
-### Uppercase Conversion
-
-For databases that prefer uppercase identifiers (e.g., Oracle), wrap resolvers with `toUpperCase()`:
-
-```kotlin
-val orm = PreparedStatementTemplate.of(dataSource)
-    .withTableNameResolver(TableNameResolver.toUpperCase(TableNameResolver.camelCaseToSnakeCase()))
-    .withColumnNameResolver(ColumnNameResolver.toUpperCase(ColumnNameResolver.camelCaseToSnakeCase()))
-    .withForeignKeyResolver(ForeignKeyResolver.toUpperCase(ForeignKeyResolver.camelCaseToSnakeCase()))
-```
-
-This produces:
-
-| Field/Class | Resolved Name |
-|-------------|---------------|
-| `birthDate` | `BIRTH_DATE` |
-| `User` | `USER` |
-| `city` (FK) | `CITY_ID` |
-
-### Custom Resolvers
-
-Implement custom naming strategies using lambda expressions or by implementing the resolver interfaces.
-
-#### Lambda-Based Configuration
-
-```kotlin
-// Identity resolver (no conversion)
-val orm = PreparedStatementTemplate.of(dataSource)
-    .withColumnNameResolver { field -> field.name() }
-
-// Custom prefix for foreign keys
-val orm = PreparedStatementTemplate.of(dataSource)
-    .withForeignKeyResolver { field, type ->
-        "fk_${ForeignKeyResolver.camelCaseToSnakeCase().resolveColumnName(field, type)}"
-    }
-```
-
-#### Interface-Based Implementation
-
-For more complex or reusable naming strategies, implement the resolver interfaces directly:
-
-```java
-public class CustomTableNameResolver implements TableNameResolver {
-    @Override
-    public String resolveTableName(Class<?> type) {
-        // Add schema prefix based on package
-        String pkg = type.getPackageName();
-        String schema = pkg.contains(".admin") ? "admin" : "public";
-        String tableName = TableNameResolver.camelCaseToSnakeCase()
-            .resolveTableName(type);
-        return schema + "." + tableName;
-    }
-}
-
-public class CustomColumnNameResolver implements ColumnNameResolver {
-    @Override
-    public String resolveColumnName(Field field) {
-        // Custom logic for specific fields
-        if (field.isAnnotationPresent(Encrypted.class)) {
-            return "enc_" + ColumnNameResolver.camelCaseToSnakeCase()
-                .resolveColumnName(field);
-        }
-        return ColumnNameResolver.camelCaseToSnakeCase()
-            .resolveColumnName(field);
-    }
-}
-
-public class CustomForeignKeyResolver implements ForeignKeyResolver {
-    @Override
-    public String resolveColumnName(Field field, Class<?> targetType) {
-        // Use target table name in FK column
-        String targetTable = TableNameResolver.camelCaseToSnakeCase()
-            .resolveTableName(targetType);
-        return targetTable + "_fk";
-    }
-}
-```
-
-Register custom implementations:
-
-```kotlin
-val orm = PreparedStatementTemplate.of(dataSource)
-    .withTableNameResolver(CustomTableNameResolver())
-    .withColumnNameResolver(CustomColumnNameResolver())
-    .withForeignKeyResolver(CustomForeignKeyResolver())
-```
-
-#### Global Registration
-
-Register resolvers globally to apply across all ORM instances:
-
-```java
-// Set as default for all new ORM instances
-TableNameResolver.setDefault(new CustomTableNameResolver());
-ColumnNameResolver.setDefault(new CustomColumnNameResolver());
-ForeignKeyResolver.setDefault(new CustomForeignKeyResolver());
-```
+For details on customizing name resolution (uppercase conversion, custom resolvers, composable wrappers), see [Naming Conventions](configuration.md#naming-conventions).
 
 ### Per-Entity and Per-Field Overrides
 
-Use annotations to override naming for specific entities or fields:
-
-```kotlin
-@DbTable("app_users")  // Override table name
-data class User(
-    @PK("user_id") val id: Int = 0,                    // Override PK column
-    @DbColumn("email_address") val email: String,      // Override column
-    @FK("home_city_id") val city: City                 // Override FK column
-) : Entity<Int>
-```
-
-Annotations take precedence over configured resolvers.
+Annotation overrides (`@DbTable`, `@DbColumn`, and the string parameters on `@PK` and `@FK`) always take precedence over configured resolvers. See [Custom Table and Column Names](#custom-table-and-column-names) for details and examples.
 
 ### Identifier Escaping
 
 Storm automatically escapes identifiers that are SQL reserved words or contain special characters. Force escaping with the `escape` parameter:
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 @DbTable("order", escape = true)  // "order" is a reserved word
@@ -854,6 +718,68 @@ data class Order(
     @DbColumn("select", escape = true) val select: String  // "select" is reserved
 ) : Entity<Int>
 ```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+@DbTable(value = "order", escape = true)  // "order" is a reserved word
+record Order(@PK Integer id,
+             @DbColumn(value = "select", escape = true) String select  // "select" is reserved
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+---
+
+## Suppressing Schema Validation
+
+Use `@DbIgnore` to suppress [schema validation](configuration.md#schema-validation) for an entity or a specific field. This is useful for legacy tables, columns handled by [custom converters](converters.md), or known type mismatches that are safe at runtime.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+// Suppress all schema validation for a legacy entity.
+@DbIgnore
+data class LegacyUser(
+    @PK val id: Int = 0,
+    val name: String
+) : Entity<Int>
+
+// Suppress schema validation for a specific field.
+data class User(
+    @PK val id: Int = 0,
+    val name: String,
+    @DbIgnore("DB uses FLOAT, but column only stores whole numbers")
+    val age: Int
+) : Entity<Int>
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// Suppress all schema validation for a legacy entity.
+@DbIgnore
+record LegacyUser(@PK Integer id,
+                  @Nonnull String name
+) implements Entity<Integer> {}
+
+// Suppress schema validation for a specific field.
+record User(@PK Integer id,
+            @Nonnull String name,
+            @DbIgnore("DB uses FLOAT, but column only stores whole numbers")
+            @Nonnull Integer age
+) implements Entity<Integer> {}
+```
+
+</TabItem>
+</Tabs>
+
+The optional `value` parameter documents why the mismatch is acceptable. When placed on an embedded component field, `@DbIgnore` suppresses validation for all columns within that component.
 
 ---
 
