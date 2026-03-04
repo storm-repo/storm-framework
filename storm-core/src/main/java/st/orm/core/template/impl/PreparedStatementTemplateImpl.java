@@ -44,6 +44,7 @@ import java.time.ZonedDateTime;
 import java.util.Calendar;
 import java.util.List;
 import java.util.TimeZone;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -365,6 +366,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                         case java.sql.Date d   -> preparedStatement.setDate(idx, d);
                         case Time t            -> preparedStatement.setTime(idx, t);
                         case Timestamp ts      -> preparedStatement.setTimestamp(idx, ts, calendarSupplier.get());
+                        case UUID u            -> preparedStatement.setString(idx, u.toString());
                         case Enum<?> e         -> preparedStatement.setString(idx, e.name());   // Enum handled by ORM layer.
                         // java.time using vendor-safe approach.
                         case LocalDate ld      -> preparedStatement.setDate(idx, java.sql.Date.valueOf(ld));

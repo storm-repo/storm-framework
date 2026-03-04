@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.sql.DataSource;
 import lombok.Builder;
@@ -2237,5 +2238,77 @@ public class PostgreSQLEntityRepositoryTest {
         var repo = PreparedStatementTemplate.ORM(dataSource).entity(SeqEntity.class);
         var ids = repo.upsertAndFetchIds(List.of());
         assertTrue(ids.isEmpty());
+    }
+
+    // UUID support
+
+    @Builder(toBuilder = true)
+    @DbTable("api_key")
+    public record ApiKey(
+            @PK(generation = NONE) UUID id,
+            @Nonnull String name,
+            @Nullable UUID externalReference
+    ) implements Entity<UUID> {}
+
+    private static final UUID DEFAULT_KEY_ID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+    private static final UUID SECONDARY_KEY_ID = UUID.fromString("6ba7b810-9dad-11d1-80b4-00c04fd430c8");
+    private static final UUID DEFAULT_KEY_EXTERNAL_REF = UUID.fromString("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11");
+
+    @Test
+    public void testUuidFindAll() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(ApiKey.class);
+        List<ApiKey> all = repo.findAll();
+        assertEquals(2, all.size());
+    }
+
+    @Test
+    public void testUuidGetById() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(ApiKey.class);
+        ApiKey key = repo.getById(DEFAULT_KEY_ID);
+        assertNotNull(key);
+        assertEquals("Default Key", key.name());
+        assertEquals(DEFAULT_KEY_EXTERNAL_REF, key.externalReference());
+    }
+
+    @Test
+    public void testUuidGetByIdWithNullExternalReference() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(ApiKey.class);
+        ApiKey key = repo.getById(SECONDARY_KEY_ID);
+        assertNotNull(key);
+        assertEquals("Secondary Key", key.name());
+        assertNull("externalReference should be null", key.externalReference());
+    }
+
+    @Test
+    public void testUuidInsert() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(ApiKey.class);
+        UUID newId = UUID.randomUUID();
+        UUID newExtRef = UUID.randomUUID();
+        repo.insert(new ApiKey(newId, "New Key", newExtRef));
+        ApiKey inserted = repo.getById(newId);
+        assertNotNull(inserted);
+        assertEquals("New Key", inserted.name());
+        assertEquals(newExtRef, inserted.externalReference());
+        assertEquals(3, repo.count());
+    }
+
+    @Test
+    public void testUuidUpdate() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(ApiKey.class);
+        ApiKey key = repo.getById(DEFAULT_KEY_ID);
+        UUID newExternalRef = UUID.randomUUID();
+        ApiKey updated = key.toBuilder().name("Updated Key").externalReference(newExternalRef).build();
+        repo.update(updated);
+        ApiKey fetched = repo.getById(DEFAULT_KEY_ID);
+        assertEquals("Updated Key", fetched.name());
+        assertEquals(newExternalRef, fetched.externalReference());
+    }
+
+    @Test
+    public void testUuidDelete() {
+        var repo = PreparedStatementTemplate.ORM(dataSource).entity(ApiKey.class);
+        long before = repo.count();
+        repo.delete(repo.getById(DEFAULT_KEY_ID));
+        assertEquals(before - 1, repo.count());
     }
 }

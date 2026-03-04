@@ -90,6 +90,13 @@ INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-13', 'rabie
 INSERT INTO visit (visit_date, description, pet_id) VALUES ('2023-01-13', 'spayed', 7);
 
 
+-- UUID support tests
+DROP TABLE IF EXISTS api_key;
+CREATE TABLE api_key (id char(36) PRIMARY KEY, name varchar(255) NOT NULL, external_reference char(36));
+
+INSERT INTO api_key (id, name, external_reference) VALUES ('550e8400-e29b-41d4-a716-446655440000', 'Default Key', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+INSERT INTO api_key (id, name, external_reference) VALUES ('6ba7b810-9dad-11d1-80b4-00c04fd430c8', 'Secondary Key', NULL);
+
 -- Polymorphic tables for sealed type hierarchy tests.
 
 -- Pattern A: Single-Table Inheritance
