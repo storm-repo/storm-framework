@@ -156,23 +156,25 @@ MyBatis is a SQL mapper that gives you full control over every query. You write 
 
 ## Storm vs jOOQ
 
-jOOQ generates Java code from your database schema, providing a type-safe SQL DSL that mirrors the structure of your tables. Storm takes the opposite direction: you define entities in code, and the metamodel is generated from those entities. jOOQ excels at complex SQL (window functions, CTEs, recursive queries) where its DSL closely follows SQL syntax. Storm excels at entity-oriented operations where automatic relationship handling and repository patterns reduce boilerplate.
+jOOQ generates Java code from your database schema, providing a type-safe SQL DSL that mirrors the structure of your tables. Storm also treats the database schema as the source of truth, but instead of generating code from the schema, you write entity definitions that reflect it, and the metamodel is generated from those entities. Both frameworks provide compile-time type safety, but queries look very different. jOOQ excels at complex SQL (window functions, CTEs, recursive queries) where its DSL closely follows SQL syntax, but this means every join, column reference, and condition must be spelled out explicitly. Storm queries are more concise: the metamodel and automatic join derivation from `@FK` annotations let you write queries that focus on what you want rather than how to join it. Storm excels at entity-oriented operations where automatic relationship handling and repository patterns reduce boilerplate.
 
 | Aspect | Storm | jOOQ |
 |--------|-------|------|
-| **Approach** | Entity-first, convention | SQL-first, code generation |
+| **Approach** | Schema-reflective ORM | Schema-driven code generation |
 | **Polymorphism** | Sealed types (Single-Table, Joined, Polymorphic FK) | Manual (via SQL DSL) |
 | **Type Safety** | Metamodel from entities | Generated from schema |
 | **Setup** | Define entities, code generation | Schema, code generation |
 | **Entities** | Records/data classes with `Entity` | Records or POJOs |
 | **Query Style** | Repository + ORM DSL + SQL Templates | SQL-like DSL |
+| **Query Verbosity** | Concise; auto joins from `@FK`, metamodel shortcuts | Verbose; explicit joins, columns, and conditions |
 | **Relationships** | Automatic from `@FK` | Manual joins |
 | **Transactions** | Programmatic + `@Transactional` (Spring) | DSL context, Spring integration |
 | **License** | Apache 2.0 | Commercial for some DBs |
 
 ### When to Choose Storm
 
-- You prefer defining entities in code, not generating from schema
+- You prefer writing entity definitions that reflect the schema over generating code from it
+- You want concise, type-safe queries with automatic join derivation
 - You want automatic relationship handling
 - You value convention over configuration
 - You need a fully open-source solution

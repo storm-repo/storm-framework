@@ -13,7 +13,7 @@ To view these metrics, connect to the JVM with any JMX client (JConsole, VisualV
 
 **MBean name:** `st.orm:type=TemplateMetrics`
 
-Storm compiles SQL templates into reusable prepared statement shapes. This compilation step resolves aliases, derives joins, and expands column lists. The template cache avoids repeating this work for the same query pattern with different parameter values. These metrics help you understand whether the cache is effective and whether compilation is a bottleneck.
+Storm compiles SQL templates into reusable prepared statement shapes. This compilation step resolves aliases, derives joins, and expands column lists. The template cache avoids repeating this work for the same query pattern with different parameter values. These metrics help you understand whether the cache is effective.
 
 ### Available Attributes
 
