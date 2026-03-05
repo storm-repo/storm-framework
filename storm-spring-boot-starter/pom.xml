@@ -102,7 +102,9 @@
                 <executions>
                     <execution>
                         <id>attach-javadocs</id>
-                        <phase>none</phase>
+                        <configuration>
+                            <legacyMode>true</legacyMode>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
