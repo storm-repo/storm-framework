@@ -366,7 +366,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                         case java.sql.Date d   -> preparedStatement.setDate(idx, d);
                         case Time t            -> preparedStatement.setTime(idx, t);
                         case Timestamp ts      -> preparedStatement.setTimestamp(idx, ts, calendarSupplier.get());
-                        case UUID u            -> preparedStatement.setString(idx, u.toString());
+                        case UUID u            -> preparedStatement.setObject(idx, u);
                         case Enum<?> e         -> preparedStatement.setString(idx, e.name());   // Enum handled by ORM layer.
                         // java.time using vendor-safe approach.
                         case LocalDate ld      -> preparedStatement.setDate(idx, java.sql.Date.valueOf(ld));
