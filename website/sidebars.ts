@@ -30,6 +30,7 @@ const sidebars: SidebarsConfig = {
           label: 'Entity Modeling',
           items: [
             'polymorphism',
+            'converters',
             'entity-lifecycle',
             'validation',
             'json',
@@ -58,8 +59,9 @@ const sidebars: SidebarsConfig = {
           type: 'category',
           label: 'Operational',
           items: [
-            'sql-logging',
             'configuration',
+            'sql-logging',
+            'metrics',
           ],
         },
       ],

@@ -26,10 +26,13 @@ import static st.orm.Operator.LESS_THAN;
 import static st.orm.Operator.LESS_THAN_OR_EQUAL;
 
 import jakarta.annotation.Nonnull;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.SequencedMap;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import st.orm.Operator;
@@ -346,6 +349,24 @@ public interface SqlDialect {
      * @since 1.2
      */
     String forUpdateLockHint();
+
+    /**
+     * Sets a UUID parameter on the given prepared statement.
+     *
+     * <p>The default implementation sets the UUID as a string, which is compatible with databases that store UUIDs as
+     * character types. Dialects that support native UUID types (e.g., PostgreSQL) should override this method to use
+     * {@link PreparedStatement#setObject(int, Object)}.</p>
+     *
+     * @param preparedStatement the prepared statement.
+     * @param index the parameter index.
+     * @param uuid the UUID value.
+     * @throws SQLException if a database access error occurs.
+     * @since 1.9
+     */
+    default void setParameter(@Nonnull PreparedStatement preparedStatement, int index,
+                              @Nonnull UUID uuid) throws SQLException {
+        preparedStatement.setString(index, uuid.toString());
+    }
 
     /**
      * Returns the SQL statement for getting the next value of the given sequence.

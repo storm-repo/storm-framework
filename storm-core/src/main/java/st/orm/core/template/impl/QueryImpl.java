@@ -40,6 +40,7 @@ import java.time.ZonedDateTime;
 import java.util.Calendar;
 import java.util.Objects;
 import java.util.TimeZone;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -454,6 +455,10 @@ class QueryImpl implements Query {
             case Class<?> c when c == ByteBuffer.class -> {
                 byte[] bytes = rs.getBytes(columnIndex);
                 yield bytes != null ? ByteBuffer.wrap(bytes).asReadOnlyBuffer() : null;
+            }
+            case Class<?> c when c == UUID.class -> {
+                Object obj = rs.getObject(columnIndex);
+                yield obj instanceof UUID u ? u : obj != null ? UUID.fromString(obj.toString()) : null;
             }
             case Class<?> c when c.isEnum()                              -> rs.getString(columnIndex); // Enum handled by mapper.
             case Class<?> c when c == java.util.Date.class -> {

@@ -187,6 +187,13 @@ VALUES (TO_DATE('2023-01-13','YYYY-MM-DD'), 'rabies shot', 6);
 INSERT INTO visit (visit_date, description, pet_id)
 VALUES (TO_DATE('2023-01-13','YYYY-MM-DD'), 'spayed', 7);
 
+-- UUID support tests
+DROP TABLE api_key CASCADE CONSTRAINTS;
+CREATE TABLE api_key (id VARCHAR2(36) PRIMARY KEY, name VARCHAR2(255) NOT NULL, external_reference VARCHAR2(36));
+
+INSERT INTO api_key (id, name, external_reference) VALUES ('550e8400-e29b-41d4-a716-446655440000', 'Default Key', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+INSERT INTO api_key (id, name, external_reference) VALUES ('6ba7b810-9dad-11d1-80b4-00c04fd430c8', 'Secondary Key', NULL);
+
 -- Polymorphic tables for sealed type hierarchy tests.
 
 -- Pattern A: Single-Table Inheritance

@@ -3,12 +3,15 @@ package st.orm.core;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Stream;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
@@ -17,8 +20,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import st.orm.DbTable;
+import st.orm.Entity;
 import st.orm.EntityCallback;
+import st.orm.GenerationStrategy;
 import st.orm.NoResultException;
+import st.orm.PK;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.core.model.City;
@@ -903,5 +910,103 @@ public class EntityRepositoryIntegrationTest {
         var cities = orm.entity(City.class);
         // The default chunk size should be a positive integer.
         assertTrue(cities.getDefaultChunkSize() > 0);
+    }
+
+    // UUID support
+
+    @DbTable("api_key")
+    public record ApiKey(
+            @PK(generation = GenerationStrategy.NONE) UUID id,
+            @Nonnull String name,
+            @Nullable UUID externalReference
+    ) implements Entity<UUID> {}
+
+    private static final UUID DEFAULT_KEY_ID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+    private static final UUID SECONDARY_KEY_ID = UUID.fromString("6ba7b810-9dad-11d1-80b4-00c04fd430c8");
+    private static final UUID DEFAULT_KEY_EXTERNAL_REF = UUID.fromString("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11");
+
+    @Test
+    public void testUuidFindAll() {
+        var orm = ORMTemplate.of(dataSource);
+        var apiKeys = orm.entity(ApiKey.class);
+        List<ApiKey> all = apiKeys.findAll();
+        assertEquals(2, all.size());
+    }
+
+    @Test
+    public void testUuidGetById() {
+        var orm = ORMTemplate.of(dataSource);
+        var apiKeys = orm.entity(ApiKey.class);
+        ApiKey key = apiKeys.getById(DEFAULT_KEY_ID);
+        assertNotNull(key);
+        assertEquals("Default Key", key.name());
+        assertEquals(DEFAULT_KEY_EXTERNAL_REF, key.externalReference());
+    }
+
+    @Test
+    public void testUuidGetByIdWithNullExternalReference() {
+        var orm = ORMTemplate.of(dataSource);
+        var apiKeys = orm.entity(ApiKey.class);
+        ApiKey key = apiKeys.getById(SECONDARY_KEY_ID);
+        assertNotNull(key);
+        assertEquals("Secondary Key", key.name());
+        assertNull(key.externalReference());
+    }
+
+    @Test
+    public void testUuidInsert() {
+        var orm = ORMTemplate.of(dataSource);
+        var apiKeys = orm.entity(ApiKey.class);
+        UUID newId = UUID.randomUUID();
+        UUID newExtRef = UUID.randomUUID();
+        apiKeys.insert(new ApiKey(newId, "New Key", newExtRef));
+        ApiKey inserted = apiKeys.getById(newId);
+        assertNotNull(inserted);
+        assertEquals("New Key", inserted.name());
+        assertEquals(newExtRef, inserted.externalReference());
+        assertEquals(3, apiKeys.count());
+    }
+
+    @Test
+    public void testUuidInsertWithNullExternalReference() {
+        var orm = ORMTemplate.of(dataSource);
+        var apiKeys = orm.entity(ApiKey.class);
+        UUID newId = UUID.randomUUID();
+        apiKeys.insert(new ApiKey(newId, "Null Ref Key", null));
+        ApiKey inserted = apiKeys.getById(newId);
+        assertNotNull(inserted);
+        assertNull(inserted.externalReference());
+    }
+
+    @Test
+    public void testUuidUpdate() {
+        var orm = ORMTemplate.of(dataSource);
+        var apiKeys = orm.entity(ApiKey.class);
+        ApiKey key = apiKeys.getById(DEFAULT_KEY_ID);
+        UUID newExternalRef = UUID.randomUUID();
+        ApiKey updated = new ApiKey(key.id(), "Updated Key", newExternalRef);
+        apiKeys.update(updated);
+        ApiKey fetched = apiKeys.getById(DEFAULT_KEY_ID);
+        assertEquals("Updated Key", fetched.name());
+        assertEquals(newExternalRef, fetched.externalReference());
+    }
+
+    @Test
+    public void testUuidDelete() {
+        var orm = ORMTemplate.of(dataSource);
+        var apiKeys = orm.entity(ApiKey.class);
+        long before = apiKeys.count();
+        apiKeys.delete(apiKeys.getById(DEFAULT_KEY_ID));
+        assertEquals(before - 1, apiKeys.count());
+        assertTrue(apiKeys.findById(DEFAULT_KEY_ID).isEmpty());
+    }
+
+    @Test
+    public void testUuidDeleteById() {
+        var orm = ORMTemplate.of(dataSource);
+        var apiKeys = orm.entity(ApiKey.class);
+        long before = apiKeys.count();
+        apiKeys.deleteById(SECONDARY_KEY_ID);
+        assertEquals(before - 1, apiKeys.count());
     }
 }

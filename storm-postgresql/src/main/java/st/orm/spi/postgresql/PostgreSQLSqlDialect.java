@@ -27,9 +27,12 @@ import static st.orm.Operator.NOT_EQUALS;
 import static st.orm.Operator.NOT_IN;
 
 import jakarta.annotation.Nonnull;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.SequencedMap;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -234,6 +237,22 @@ public class PostgreSQLSqlDialect extends DefaultSqlDialect implements SqlDialec
     @Override
     public String forUpdateLockHint() {
         return "FOR UPDATE";
+    }
+
+    /**
+     * Sets a UUID parameter using {@link PreparedStatement#setObject(int, Object)}, which allows the PostgreSQL JDBC
+     * driver to bind the value as a native UUID type.
+     *
+     * @param preparedStatement the prepared statement.
+     * @param index the parameter index.
+     * @param uuid the UUID value.
+     * @throws SQLException if a database access error occurs.
+     * @since 1.9
+     */
+    @Override
+    public void setParameter(@Nonnull PreparedStatement preparedStatement, int index,
+                             @Nonnull UUID uuid) throws SQLException {
+        preparedStatement.setObject(index, uuid);
     }
 
     /**

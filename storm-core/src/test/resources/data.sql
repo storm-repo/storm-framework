@@ -182,6 +182,13 @@ INSERT INTO nodsc_dog (id, weight) VALUES (3, 30);
 INSERT INTO nodsc_animal (name) VALUES ('Tweety');
 INSERT INTO nodsc_bird (id) VALUES (4);
 
+-- UUID support tests
+drop table if exists api_key CASCADE;
+create table api_key (id uuid, name varchar(255) not null, external_reference uuid, primary key (id));
+
+INSERT INTO api_key (id, name, external_reference) VALUES ('550e8400-e29b-41d4-a716-446655440000', 'Default Key', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+INSERT INTO api_key (id, name, external_reference) VALUES ('6ba7b810-9dad-11d1-80b4-00c04fd430c8', 'Secondary Key', NULL);
+
 -- Pattern E: Single-Table Inheritance with INTEGER discriminator
 drop table if exists int_disc_animal CASCADE;
 create table int_disc_animal (id integer auto_increment, dtype integer not null, name varchar(255), indoor boolean, weight integer, primary key (id));

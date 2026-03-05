@@ -209,10 +209,11 @@ Storm handles the following types natively without any converter:
 | **Strings** | `String` |
 | **Numeric** | `BigDecimal`, `BigInteger` |
 | **Date/Time** | `LocalDate`, `LocalTime`, `LocalDateTime`, `Instant`, `OffsetDateTime`, `ZonedDateTime` |
-| **Binary** | `byte[]` |
-| **Other** | `UUID`, `Enum` types (stored by name) |
+| **Binary** | `ByteBuffer` (read-only) |
+| **Enums** | `Enum` types (by name or ordinal via `@DbEnum`) |
+| **Other** | `UUID` |
 
-If your entity field is one of these types, you do not need a converter. Custom converters are only needed for types not in this list, or when you want to change how a supported type is stored (for example, storing an enum as its ordinal instead of its name).
+If your entity field is one of these types, you do not need a converter. Custom converters are only needed for types not in this list.
 
 ---
 
@@ -318,99 +319,6 @@ public record User(
     String name,
     @Convert(converter = EncryptedStringConverter.class) String socialSecurityNumber
 ) implements Entity<Integer> {}
-```
-
-</TabItem>
-</Tabs>
-
-### JSON Column
-
-Store a complex object as a JSON string in a single database column. For built-in JSON support with Jackson or kotlinx.serialization, see the [JSON](json.md) module documentation. This example shows a manual approach for cases where the JSON modules are not used:
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-data class Address(val street: String, val city: String, val zipCode: String)
-
-class AddressJsonConverter : Converter<String, Address> {
-
-    private val mapper = ObjectMapper()
-
-    override fun toDatabase(value: Address?): String? =
-        value?.let { mapper.writeValueAsString(it) }
-
-    override fun fromDatabase(dbValue: String?): Address? =
-        dbValue?.let { mapper.readValue(it, Address::class.java) }
-}
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-public record Address(String street, String city, String zipCode) {}
-
-public class AddressJsonConverter implements Converter<String, Address> {
-
-    private final ObjectMapper mapper = new ObjectMapper();
-
-    @Override
-    public String toDatabase(Address value) {
-        try {
-            return value != null ? mapper.writeValueAsString(value) : null;
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    public Address fromDatabase(String dbValue) {
-        try {
-            return dbValue != null ? mapper.readValue(dbValue, Address.class) : null;
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
-    }
-}
-```
-
-</TabItem>
-</Tabs>
-
-### Enum Ordinal Storage
-
-By default, Storm stores enum values by name. To store by ordinal instead, write a converter:
-
-<Tabs groupId="language">
-<TabItem value="kotlin" label="Kotlin" default>
-
-```kotlin
-enum class Status { ACTIVE, INACTIVE, SUSPENDED }
-
-class StatusOrdinalConverter : Converter<Int, Status> {
-    override fun toDatabase(value: Status?): Int? = value?.ordinal
-    override fun fromDatabase(dbValue: Int?): Status? = dbValue?.let { Status.entries[it] }
-}
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-public enum Status { ACTIVE, INACTIVE, SUSPENDED }
-
-public class StatusOrdinalConverter implements Converter<Integer, Status> {
-    @Override
-    public Integer toDatabase(Status value) {
-        return value != null ? value.ordinal() : null;
-    }
-
-    @Override
-    public Status fromDatabase(Integer dbValue) {
-        return dbValue != null ? Status.values()[dbValue] : null;
-    }
-}
 ```
 
 </TabItem>

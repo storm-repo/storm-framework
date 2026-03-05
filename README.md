@@ -23,7 +23,7 @@
 
 ## Why Storm?
 
-Storm draws inspiration from established ORMs such as Hibernate, but is built from scratch around a clear design philosophy: capturing exactly what you want to do using the minimum amount of code, optimized for modern Kotlin and Java.
+Storm draws inspiration from established ORMs such as Hibernate, but is built from scratch around a clear design philosophy: capturing exactly what you want to do using the minimum amount of code, optimized for Kotlin and modern Java.
 
 **Storm’s mission:** Make database development productive and enjoyable, with full developer control and high performance.
 
@@ -222,8 +222,9 @@ Deep dives into Storm's internals. You don't need these to be productive, but th
 | [Hydration](docs/hydration.md) | Result mapping to records (16 min) |
 | [Dirty Checking](docs/dirty-checking.md) | Update modes and change detection (19 min) |
 | [Entity Cache](docs/entity-cache.md) | Transaction-scoped caching and identity (10 min) |
-| [SQL Logging](docs/sql-logging.md) | Declarative query logging with `@SqlLog` (6 min) |
 | [Configuration](docs/configuration.md) | System properties reference (7 min) |
+| [SQL Logging](docs/sql-logging.md) | Declarative query logging with `@SqlLog` (6 min) |
+| [Metrics](docs/metrics.md) | JMX runtime metrics for monitoring (5 min) |
 
 ### Resources
 

@@ -23,7 +23,7 @@ import TabItem from '@theme/TabItem';
 
 ## Why Storm?
 
-Storm draws inspiration from established ORMs such as Hibernate, but is built from scratch around a clear design philosophy: capturing exactly what you want to do using the minimum amount of code, optimized for modern Kotlin and Java
+Storm draws inspiration from established ORMs such as Hibernate, but is built from scratch around a clear design philosophy: capturing exactly what you want to do using the minimum amount of code, optimized for Kotlin and modern Java
 
 **Storm's mission:** Make database development productive and enjoyable, with full developer control and high performance.
 
