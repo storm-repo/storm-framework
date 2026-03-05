@@ -16,6 +16,7 @@
 package st.orm.core.template.impl;
 
 import static st.orm.core.spi.Providers.getConnection;
+import static st.orm.core.spi.Providers.getSqlDialect;
 import static st.orm.core.spi.Providers.releaseConnection;
 import static st.orm.core.template.SqlTemplate.PS;
 import static st.orm.core.template.impl.ExceptionHelper.getExceptionTransformer;
@@ -63,6 +64,7 @@ import st.orm.core.template.ORMTemplate;
 import st.orm.core.template.PreparedStatementTemplate;
 import st.orm.core.template.Query;
 import st.orm.core.template.Sql;
+import st.orm.core.template.SqlDialect;
 import st.orm.core.template.SqlTemplate;
 import st.orm.core.template.SqlTemplate.BatchListener;
 import st.orm.core.template.SqlTemplate.NamedParameter;
@@ -106,7 +108,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     private PreparedStatementTemplateImpl(@Nonnull TransactionTemplate transactionTemplate,
                                           @Nonnull DataSource dataSource,
                                           @Nonnull StormConfig config) {
-        this(createDataSourceProcessor(dataSource, transactionTemplate), dataSource,
+        this(createDataSourceProcessor(dataSource, transactionTemplate, getSqlDialect(config)), dataSource,
                 ModelBuilder.newInstance(), TableAliasResolver.DEFAULT, null, transactionTemplate, config);
     }
 
@@ -121,7 +123,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     private PreparedStatementTemplateImpl(@Nonnull TransactionTemplate transactionTemplate,
                                           @Nonnull Connection connection,
                                           @Nonnull StormConfig config) {
-        this(createConnectionProcessor(connection, transactionTemplate), null,
+        this(createConnectionProcessor(connection, transactionTemplate, getSqlDialect(config)), null,
                 ModelBuilder.newInstance(), TableAliasResolver.DEFAULT, null, transactionTemplate, config);
     }
 
@@ -145,7 +147,8 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     }
 
     private static TemplateProcessor createDataSourceProcessor(@Nonnull DataSource dataSource,
-                                                                @Nonnull TransactionTemplate transactionTemplate) {
+                                                                @Nonnull TransactionTemplate transactionTemplate,
+                                                                @Nonnull SqlDialect dialect) {
         return (sql, unsafe) -> {
             if (!unsafe) {
                 sql.unsafeWarning().ifPresent(warning -> {
@@ -176,9 +179,9 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                             .decorate(preparedStatement);
                 }
                 if (bindVariables == null) {
-                    setParameters(preparedStatement, parameters);
+                    setParameters(preparedStatement, parameters, dialect);
                 } else {
-                    bindVariables.setBatchListener(getBatchListener(preparedStatement, parameters));
+                    bindVariables.setBatchListener(getBatchListener(preparedStatement, parameters, dialect));
                 }
                 success = true;
             } finally {
@@ -196,7 +199,8 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     }
 
     private static TemplateProcessor createConnectionProcessor(@Nonnull Connection connection,
-                                                                @Nonnull TransactionTemplate transactionTemplate) {
+                                                                @Nonnull TransactionTemplate transactionTemplate,
+                                                                @Nonnull SqlDialect dialect) {
         return (sql, unsafe) -> {
             if (!unsafe) {
                 sql.unsafeWarning().ifPresent(warning -> {
@@ -226,9 +230,9 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                             .decorate(preparedStatement);
                 }
                 if (bindVariables == null) {
-                    setParameters(preparedStatement, parameters);
+                    setParameters(preparedStatement, parameters, dialect);
                 } else {
-                    bindVariables.setBatchListener(getBatchListener(preparedStatement, parameters));
+                    bindVariables.setBatchListener(getBatchListener(preparedStatement, parameters, dialect));
                 }
                 success = true;
                 return preparedStatement;
@@ -249,7 +253,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                 .withForeignKeyResolver(modelBuilder.foreignKeyResolver())
                 .withTableAliasResolver(tableAliasResolver);
         if (providerFilter != null) {
-            template = template.withDialect(Providers.getSqlDialect(providerFilter, config));
+            template = template.withDialect(getSqlDialect(providerFilter, config));
         }
         return template;
     }
@@ -320,12 +324,13 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     }
 
     private static BatchListener getBatchListener(@Nonnull PreparedStatement preparedStatement,
-                                                   @Nonnull List<Parameter> parameters) {
+                                                   @Nonnull List<Parameter> parameters,
+                                                   @Nonnull SqlDialect dialect) {
         var calendarSupplier = lazy(() -> Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
         return batchParameters -> {
             try {
-                setParameters(preparedStatement, parameters, calendarSupplier);
-                setParameters(preparedStatement, batchParameters, calendarSupplier);
+                setParameters(preparedStatement, parameters, calendarSupplier, dialect);
+                setParameters(preparedStatement, batchParameters, calendarSupplier, dialect);
                 preparedStatement.addBatch();
             } catch (SQLException e) {
                 throw new PersistenceException(e);
@@ -334,14 +339,16 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
     }
 
     private static void setParameters(@Nonnull PreparedStatement preparedStatement,
-                                      @Nonnull List<? extends Parameter> parameters) throws SQLException {
+                                      @Nonnull List<? extends Parameter> parameters,
+                                      @Nonnull SqlDialect dialect) throws SQLException {
         var calendarSupplier = lazy(() -> Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
-        setParameters(preparedStatement, parameters, calendarSupplier);
+        setParameters(preparedStatement, parameters, calendarSupplier, dialect);
     }
 
     private static void setParameters(@Nonnull PreparedStatement preparedStatement,
                                       @Nonnull List<? extends Parameter> parameters,
-                                      @Nonnull Supplier<Calendar> calendarSupplier) throws SQLException {
+                                      @Nonnull Supplier<Calendar> calendarSupplier,
+                                      @Nonnull SqlDialect dialect) throws SQLException {
         for (var parameter : parameters) {
             switch (parameter) {
                 case PositionalParameter p -> {
@@ -366,7 +373,7 @@ public final class PreparedStatementTemplateImpl implements PreparedStatementTem
                         case java.sql.Date d   -> preparedStatement.setDate(idx, d);
                         case Time t            -> preparedStatement.setTime(idx, t);
                         case Timestamp ts      -> preparedStatement.setTimestamp(idx, ts, calendarSupplier.get());
-                        case UUID u            -> preparedStatement.setObject(idx, u);
+                        case UUID u            -> dialect.setParameter(preparedStatement, idx, u);
                         case Enum<?> e         -> preparedStatement.setString(idx, e.name());   // Enum handled by ORM layer.
                         // java.time using vendor-safe approach.
                         case LocalDate ld      -> preparedStatement.setDate(idx, java.sql.Date.valueOf(ld));
