@@ -28,6 +28,13 @@ const config: Config = {
           path: '../docs',
           routeBasePath: '/',
           sidebarPath: './sidebars.ts',
+          lastVersion: '1.9.0',
+          versions: {
+            current: {
+              label: 'Next',
+              path: 'next',
+            },
+          },
           editUrl: 'https://github.com/storm-repo/storm-framework/edit/main/docs/',
         },
         blog: false,
@@ -47,6 +54,10 @@ const config: Config = {
         srcDark: 'img/storm-light.png',
       },
       items: [
+        {
+          type: 'docsVersionDropdown',
+          position: 'right',
+        },
         {
           type: 'docSidebar',
           sidebarId: 'docs',
