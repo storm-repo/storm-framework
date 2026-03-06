@@ -18,7 +18,7 @@ The starter modules provide zero-configuration setup: an `ORMTemplate` bean is c
 
 ```kotlin
 // Gradle (Kotlin DSL)
-implementation("st.orm:storm-kotlin-spring-boot-starter:1.9.0")
+implementation("st.orm:storm-kotlin-spring-boot-starter:1.9.1")
 ```
 
 ```xml
@@ -26,7 +26,7 @@ implementation("st.orm:storm-kotlin-spring-boot-starter:1.9.0")
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-kotlin-spring-boot-starter</artifactId>
-    <version>1.9.0</version>
+    <version>1.9.1</version>
 </dependency>
 ```
 
@@ -38,13 +38,13 @@ implementation("st.orm:storm-kotlin-spring-boot-starter:1.9.0")
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-spring-boot-starter</artifactId>
-    <version>1.9.0</version>
+    <version>1.9.1</version>
 </dependency>
 ```
 
 ```kotlin
 // Gradle (Kotlin DSL)
-implementation("st.orm:storm-spring-boot-starter:1.9.0")
+implementation("st.orm:storm-spring-boot-starter:1.9.1")
 ```
 
 </TabItem>
@@ -59,7 +59,7 @@ If you prefer manual configuration, or need to customize the setup beyond what t
 
 ```kotlin
 // Gradle (Kotlin DSL)
-implementation("st.orm:storm-kotlin-spring:1.9.0")
+implementation("st.orm:storm-kotlin-spring:1.9.1")
 ```
 
 ```xml
@@ -67,7 +67,7 @@ implementation("st.orm:storm-kotlin-spring:1.9.0")
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-kotlin-spring</artifactId>
-    <version>1.9.0</version>
+    <version>1.9.1</version>
 </dependency>
 ```
 
@@ -79,13 +79,13 @@ implementation("st.orm:storm-kotlin-spring:1.9.0")
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-spring</artifactId>
-    <version>1.9.0</version>
+    <version>1.9.1</version>
 </dependency>
 ```
 
 ```kotlin
 // Gradle (Kotlin DSL)
-implementation("st.orm:storm-spring:1.9.0")
+implementation("st.orm:storm-spring:1.9.1")
 ```
 
 </TabItem>

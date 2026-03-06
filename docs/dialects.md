@@ -27,7 +27,7 @@ Add the dialect dependency for your database. Dialects are runtime-only dependen
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-postgresql</artifactId>
-    <version>1.9.0</version>
+    <version>1.9.1</version>
     <scope>runtime</scope>
 </dependency>
 
@@ -35,7 +35,7 @@ Add the dialect dependency for your database. Dialects are runtime-only dependen
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-mysql</artifactId>
-    <version>1.9.0</version>
+    <version>1.9.1</version>
     <scope>runtime</scope>
 </dependency>
 
@@ -43,7 +43,7 @@ Add the dialect dependency for your database. Dialects are runtime-only dependen
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-mariadb</artifactId>
-    <version>1.9.0</version>
+    <version>1.9.1</version>
     <scope>runtime</scope>
 </dependency>
 
@@ -51,7 +51,7 @@ Add the dialect dependency for your database. Dialects are runtime-only dependen
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-oracle</artifactId>
-    <version>1.9.0</version>
+    <version>1.9.1</version>
     <scope>runtime</scope>
 </dependency>
 
@@ -59,7 +59,7 @@ Add the dialect dependency for your database. Dialects are runtime-only dependen
 <dependency>
     <groupId>st.orm</groupId>
     <artifactId>storm-mssqlserver</artifactId>
-    <version>1.9.0</version>
+    <version>1.9.1</version>
     <scope>runtime</scope>
 </dependency>
 ```
@@ -68,38 +68,38 @@ Add the dialect dependency for your database. Dialects are runtime-only dependen
 
 ```groovy
 // PostgreSQL
-runtimeOnly 'st.orm:storm-postgresql:1.9.0'
+runtimeOnly 'st.orm:storm-postgresql:1.9.1'
 
 // MySQL
-runtimeOnly 'st.orm:storm-mysql:1.9.0'
+runtimeOnly 'st.orm:storm-mysql:1.9.1'
 
 // MariaDB
-runtimeOnly 'st.orm:storm-mariadb:1.9.0'
+runtimeOnly 'st.orm:storm-mariadb:1.9.1'
 
 // Oracle
-runtimeOnly 'st.orm:storm-oracle:1.9.0'
+runtimeOnly 'st.orm:storm-oracle:1.9.1'
 
 // MS SQL Server
-runtimeOnly 'st.orm:storm-mssqlserver:1.9.0'
+runtimeOnly 'st.orm:storm-mssqlserver:1.9.1'
 ```
 
 ### Gradle (Kotlin DSL)
 
 ```kotlin
 // PostgreSQL
-runtimeOnly("st.orm:storm-postgresql:1.9.0")
+runtimeOnly("st.orm:storm-postgresql:1.9.1")
 
 // MySQL
-runtimeOnly("st.orm:storm-mysql:1.9.0")
+runtimeOnly("st.orm:storm-mysql:1.9.1")
 
 // MariaDB
-runtimeOnly("st.orm:storm-mariadb:1.9.0")
+runtimeOnly("st.orm:storm-mariadb:1.9.1")
 
 // Oracle
-runtimeOnly("st.orm:storm-oracle:1.9.0")
+runtimeOnly("st.orm:storm-oracle:1.9.1")
 
 // MS SQL Server
-runtimeOnly("st.orm:storm-mssqlserver:1.9.0")
+runtimeOnly("st.orm:storm-mssqlserver:1.9.1")
 ```
 
 ## Automatic Detection
