@@ -28,7 +28,6 @@ const config: Config = {
           path: '../docs',
           routeBasePath: '/',
           sidebarPath: './sidebars.ts',
-          lastVersion: '1.9.0',
           versions: {
             current: {
               label: 'Next',

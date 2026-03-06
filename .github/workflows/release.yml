@@ -84,11 +84,6 @@ jobs:
         run: npx docusaurus docs:version ${{ steps.version.outputs.VERSION }}
         working-directory: website
 
-      - name: Update default version in config
-        run: |
-          sed -i "s/lastVersion: '.*'/lastVersion: '${{ steps.version.outputs.VERSION }}'/" docusaurus.config.ts
-        working-directory: website
-
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
