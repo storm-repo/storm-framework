@@ -184,7 +184,7 @@ Entities loaded within a transaction are cached. See [Entity Cache](entity-cache
 
 ## Offset-Based Pagination
 
-Storm provides built-in `Page` and `Pageable` types for offset-based pagination. These eliminate the need to write manual `LIMIT`/`OFFSET` queries or define your own page wrapper. The repository handles the count query and result slicing automatically.
+Storm provides built-in `Page` and `Pageable` types for offset-based pagination. These eliminate the need to write manual `LIMIT`/`OFFSET` queries or define your own page wrapper. The repository handles the count query and result slicing automatically. For query-builder-level pagination (manual offset/limit, Page with query builder), see [Queries: Pagination](queries.md#pagination).
 
 ### Page and Pageable
 
@@ -313,7 +313,7 @@ Ref variants (`sliceRef`, `sliceAfterRef`, `sliceBeforeRef`) load only primary k
 val refPage: Slice<Ref<User>> = userRepository.sliceRef(User_.id, 20)
 ```
 
-Note that the slice methods handle ordering internally based on the key you provide, so you should not combine them with an explicit `orderBy()` call on the query builder. Also note that `sliceBefore` returns results in descending key order; reverse the list if you need ascending order for display.
+The slice methods handle ordering internally and reject explicit `orderBy()` calls. `sliceBefore` returns results in descending key order; reverse the list if you need ascending order for display. See [Queries: Slice](queries.md#slice) for full details on ordering constraints.
 
 </TabItem>
 <TabItem value="java" label="Java">
@@ -340,32 +340,32 @@ Slice<User> activePage = userRepository.select()
     .slice(User_.id, 20);
 ```
 
-As with Kotlin, do not add an explicit `orderBy()` call when using the slice methods; they handle ordering internally via the key. `sliceBefore` returns results in descending key order; reverse the list if you need ascending order for display.
+As with Kotlin, the slice methods handle ordering internally and reject explicit `orderBy()` calls. `sliceBefore` returns results in descending key order. See [Queries: Slice](queries.md#slice) for full details.
 
 </TabItem>
 </Tabs>
 
 ### Keyset Pagination with Sort
 
-When you need to sort by a non-unique column (for example, a date or status), use the overloads that accept a separate sort column. These accept a `sort` column for the primary sort order and a `key` column (typically the primary key) as a unique tiebreaker to guarantee deterministic paging even when `sort` values repeat.
+When you need to sort by a non-unique column (for example, a date or status), use the overloads that accept a separate sort column. These accept a `key` column (typically the primary key) as a unique tiebreaker, and a `sort` column for the primary sort order, to guarantee deterministic paging even when `sort` values repeat.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
 // First page sorted by creation date, with ID as tiebreaker
-val page1: Slice<Post> = postRepository.slice(Post_.createdAt, Post_.id, 20)
+val page1: Slice<Post> = postRepository.slice(Post_.id, Post_.createdAt, 20)
 
 // Next page: pass both cursor values from the last item
 val last = page1.content.last()
 val page2: Slice<Post> = postRepository.sliceAfter(
-    Post_.createdAt, last.createdAt,
     Post_.id, last.id,
+    Post_.createdAt, last.createdAt,
     20
 )
 
 // With filter
-val activePage: Slice<Post> = postRepository.slice(Post_.createdAt, Post_.id, 20) {
+val activePage: Slice<Post> = postRepository.slice(Post_.id, Post_.createdAt, 20) {
     Post_.active eq true
 }
 ```
@@ -375,13 +375,13 @@ val activePage: Slice<Post> = postRepository.slice(Post_.createdAt, Post_.id, 20
 
 ```java
 // First page sorted by creation date, with ID as tiebreaker
-Slice<Post> page1 = postRepository.slice(Post_.createdAt, Post_.id, 20);
+Slice<Post> page1 = postRepository.slice(Post_.id, Post_.createdAt, 20);
 
 // Next page: pass both cursor values from the last item
 Post last = page1.content().getLast();
 Slice<Post> page2 = postRepository.sliceAfter(
-    Post_.createdAt, last.createdAt(),
     Post_.id, last.id(),
+    Post_.createdAt, last.createdAt(),
     20);
 ```
 
@@ -390,9 +390,9 @@ Slice<Post> page2 = postRepository.sliceAfter(
 
 The client is responsible for extracting both cursor values from the last (or first) item of the current page and passing them to the next request.
 
-For queries that need joins, projections, or more complex filtering, use the query builder and call `slice` as a terminal operation. See [Queries](queries.md#keyset-pagination-with-slice) for the full details on how keyset pagination composes with WHERE and ORDER BY clauses, including indexing recommendations.
+For queries that need joins, projections, or more complex filtering, use the query builder and call `slice` as a terminal operation. See [Queries](queries.md#slice) for the full details on how keyset pagination composes with WHERE and ORDER BY clauses, including indexing recommendations.
 
-### Offset vs. Keyset Pagination
+## Offset vs. Keyset Pagination
 
 Storm supports both offset-based and keyset-based pagination. The table below summarizes the trade-offs to help you choose.
 

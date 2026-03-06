@@ -224,7 +224,7 @@ var page = orm.entity(User.class)
 </TabItem>
 </Tabs>
 
-For large tables where users scroll through results sequentially, prefer **keyset pagination** via `slice()`, `sliceAfter()`, and `sliceBefore()`. These are available directly on repositories and on the query builder, and remain performant regardless of how deep into the result set you are. `Slice` intentionally does not include a total element count, since a separate `COUNT(*)` must execute the same joins and filters as the main query, which can be expensive on large or complex result sets. Total counts are also inherently unstable, as rows may be inserted or deleted while a user navigates through pages. If you need a total count separately, use the `count` (Kotlin) or `getCount()` (Java) method on the query builder. See [Queries](queries.md#keyset-pagination-with-slice) for a full explanation.
+For large tables where users scroll through results sequentially, prefer **keyset pagination** via `slice()`, `sliceAfter()`, and `sliceBefore()`. These are available directly on repositories and on the query builder, and remain performant regardless of how deep into the result set you are. `Slice` intentionally does not include a total element count, since a separate `COUNT(*)` must execute the same joins and filters as the main query, which can be expensive on large or complex result sets. Total counts are also inherently unstable, as rows may be inserted or deleted while a user navigates through pages. If you need a total count separately, use the `count` (Kotlin) or `getCount()` (Java) method on the query builder. See [Queries](queries.md#slice) for a full explanation.
 
 ```kotlin
 val page = userRepository.slice(User_.id, 20)

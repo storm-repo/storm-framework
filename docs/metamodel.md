@@ -487,7 +487,7 @@ Slice<SomeEntity> nextPage = repository.sliceAfter(SomeEntity_.uniqueKey, last.u
 </TabItem>
 </Tabs>
 
-See [Queries](queries.md#keyset-pagination-with-slice) for full details on keyset pagination.
+See [Queries](queries.md#slice) for full details on keyset pagination.
 
 ### Manual Key Wrapping
 

@@ -133,7 +133,7 @@ Use the full entity type (e.g., `@FK val city: City`) when you always want the r
 Use `@UK` on fields that have a unique constraint in the database. The `@PK` annotation implies `@UK`, so primary key fields are automatically unique. Annotating a field with `@UK` tells Storm that the column contains unique values, which enables several framework features:
 
 1. **Type-safe lookups.** `findBy(Key, value)` and `getBy(Key, value)` return a single result without requiring a predicate. The metamodel processor generates `Metamodel.Key` instances for `@UK` fields. See [Metamodel](metamodel.md#unique-keys-uk-and-metamodelkey) for details.
-2. **Keyset pagination.** `@UK` fields can serve as cursor columns for `slice`, `sliceAfter`, and `sliceBefore`. Because the values are unique, the cursor position is always unambiguous. See [Keyset Pagination](queries.md#keyset-pagination-with-slice).
+2. **Keyset pagination.** `@UK` fields can serve as cursor columns for `slice`, `sliceAfter`, and `sliceBefore`. Because the values are unique, the cursor position is always unambiguous. See [Keyset Pagination](queries.md#slice).
 3. **Schema validation.** When [schema validation](validation.md) is enabled, Storm checks that the database actually has a matching unique constraint for each `@UK` field and reports a warning if it is missing.
 
 <Tabs groupId="language">
