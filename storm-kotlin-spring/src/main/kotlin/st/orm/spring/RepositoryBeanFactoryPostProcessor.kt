@@ -31,7 +31,6 @@ import org.springframework.context.annotation.ClassPathScanningCandidateComponen
 import org.springframework.core.env.Environment
 import org.springframework.core.env.StandardEnvironment
 import org.springframework.core.io.ResourceLoader
-import org.springframework.core.type.classreading.MetadataReader
 import org.springframework.core.type.filter.AssignableTypeFilter
 import org.springframework.stereotype.Component
 import org.springframework.util.ClassUtils
@@ -76,10 +75,6 @@ open class RepositoryBeanFactoryPostProcessor :
         if (repositoryBasePackages.isEmpty()) return
         val registry = beanFactory as BeanDefinitionRegistry
         val scanner = object : ClassPathScanningCandidateComponentProvider(false, environment) {
-            override fun isCandidateComponent(metadataReader: MetadataReader): Boolean {
-                val metadata = metadataReader.classMetadata
-                return metadata.isIndependent && metadata.isInterface
-            }
             override fun isCandidateComponent(beanDefinition: AnnotatedBeanDefinition): Boolean {
                 val metadata = beanDefinition.metadata
                 return metadata.isIndependent && metadata.isInterface
