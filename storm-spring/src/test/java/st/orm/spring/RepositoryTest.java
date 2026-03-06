@@ -1,12 +1,14 @@
 package st.orm.spring;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.context.TestConstructor.AutowireMode.ALL;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestConstructor;
@@ -24,10 +26,12 @@ public class RepositoryTest {
 
     private final VisitRepository visitRepository;
     private final OwnerRepository ownerRepository;
+    private final ApplicationContext applicationContext;
 
-    public RepositoryTest(VisitRepository visitRepository, @Autowired(required = false) OwnerRepository ownerRepository) {
+    public RepositoryTest(VisitRepository visitRepository, @Autowired(required = false) OwnerRepository ownerRepository, ApplicationContext applicationContext) {
         this.visitRepository = visitRepository;
         this.ownerRepository = ownerRepository;
+        this.applicationContext = applicationContext;
     }
 
     @Test
@@ -43,5 +47,13 @@ public class RepositoryTest {
         // OwnerRepository is annotated with @NoRepositoryBean, so the RepositoryBeanFactoryPostProcessor
         // should skip it during scanning. It should not be registered as a Spring bean.
         assertNull(ownerRepository);
+    }
+
+    @Test
+    public void metamodelInterfaceInRepositoryPackageShouldNotBeRegisteredAsBean() {
+        // PetMetamodel is a Metamodel interface in the same package as the repositories.
+        // It should NOT be picked up by RepositoryBeanFactoryPostProcessor because
+        // it does not extend Repository.
+        assertFalse(applicationContext.containsBean("PetMetamodel"));
     }
 }

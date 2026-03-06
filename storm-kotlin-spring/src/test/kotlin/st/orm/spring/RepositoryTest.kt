@@ -1,8 +1,10 @@
 package st.orm.spring
 
+import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Import
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.TestConstructor
@@ -20,6 +22,7 @@ import st.orm.spring.repository.VisitRepository
 class RepositoryTest(
     val visitRepository: VisitRepository,
     val ownerRepositoryTest: OwnerRepository?,
+    val applicationContext: ApplicationContext,
 ) {
 
     @Test
@@ -34,5 +37,13 @@ class RepositoryTest(
         // OwnerRepository is annotated with @NoRepositoryBean, so the RepositoryBeanFactoryPostProcessor
         // should skip it during scanning. It should not be registered as a Spring bean.
         ownerRepositoryTest shouldBe null
+    }
+
+    @Test
+    fun `metamodel interface in repository package should not be registered as bean`() {
+        // PetMetamodel is a Metamodel interface in the same package as the repositories.
+        // It should NOT be picked up by RepositoryBeanFactoryPostProcessor because
+        // it does not extend Repository.
+        applicationContext.containsBean("PetMetamodel").shouldBeFalse()
     }
 }

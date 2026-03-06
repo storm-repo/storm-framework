@@ -35,7 +35,6 @@ import org.springframework.context.annotation.ClassPathScanningCandidateComponen
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.io.ResourceLoader;
-import org.springframework.core.type.classreading.MetadataReader;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ClassUtils;
@@ -78,11 +77,6 @@ public class RepositoryBeanFactoryPostProcessor
         BeanDefinitionRegistry registry = (BeanDefinitionRegistry) beanFactory;
         ClassPathScanningCandidateComponentProvider scanner =
                 new ClassPathScanningCandidateComponentProvider(false, environment) {
-                    @Override
-                    protected boolean isCandidateComponent(MetadataReader metadataReader) {
-                        var md = metadataReader.getClassMetadata();
-                        return md.isIndependent() && md.isInterface();
-                    }
                     @Override
                     protected boolean isCandidateComponent(AnnotatedBeanDefinition beanDefinition) {
                         var md = beanDefinition.getMetadata();
