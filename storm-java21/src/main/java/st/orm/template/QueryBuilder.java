@@ -32,6 +32,8 @@ import st.orm.Metamodel;
 import st.orm.NoResultException;
 import st.orm.NonUniqueResultException;
 import st.orm.Operator;
+import st.orm.Page;
+import st.orm.Pageable;
 import st.orm.PersistenceException;
 import st.orm.Ref;
 import st.orm.Slice;
@@ -697,6 +699,83 @@ public abstract class QueryBuilder<T extends Data, R, ID> {
      */
     public final PreparedQuery prepare() {
         return build().prepare();
+    }
+
+    //
+    // Page-based pagination.
+    //
+
+    /**
+     * Executes the query and returns a {@link Page} of results using offset-based pagination.
+     *
+     * <p>This method executes two queries: one to count the total number of matching results (without offset or
+     * limit), and one to fetch the content for the requested page. The caller is responsible for adding ORDER BY
+     * clauses to ensure deterministic ordering across pages.</p>
+     *
+     * <p>Page numbers are zero-based: pass {@code 0} for the first page.</p>
+     *
+     * @param pageNumber the zero-based page index (must not be negative).
+     * @param pageSize the maximum number of results per page (must be positive).
+     * @return a page containing the results and pagination metadata.
+     * @throws IllegalArgumentException if {@code pageNumber} is negative or {@code pageSize} is not positive.
+     * @since 1.10
+     */
+    public final Page<R> page(int pageNumber, int pageSize) {
+        return page(Pageable.of(pageNumber, pageSize));
+    }
+
+    /**
+     * Executes the query and returns a {@link Page} of results using offset-based pagination.
+     *
+     * <p>This method executes two queries: one to count the total number of matching results (without offset or
+     * limit), and one to fetch the content for the requested page. Sort orders can be specified either through the
+     * pageable or through explicit {@code orderBy} calls on the query builder, but not both. If both are present,
+     * a {@link PersistenceException} is thrown.</p>
+     *
+     * <p>Use {@link Pageable#ofSize(int)} for the first page, then navigate with
+     * {@link Page#nextPageable()} or {@link Page#previousPageable()}.</p>
+     *
+     * @param pageable the pagination request specifying page number and page size.
+     * @return a page containing the results and pagination metadata.
+     * @throws PersistenceException if the pageable has sort orders and the query builder has explicit orderBy calls.
+     * @since 1.10
+     */
+    public final Page<R> page(@Nonnull Pageable pageable) {
+        return page(pageable, getResultCount());
+    }
+
+    /**
+     * Executes the query and returns a {@link Page} of results using offset-based pagination with a pre-computed
+     * total count.
+     *
+     * <p>This method applies the sort orders from the pageable, then fetches the content for the requested page
+     * using the provided total count instead of executing a separate count query. This is useful when the total
+     * count is already known (for example, cached from a previous request or obtained from an external source),
+     * avoiding a redundant {@code COUNT} query.</p>
+     *
+     * <p>Sort orders can be specified either through the pageable or through explicit {@code orderBy} calls on
+     * the query builder, but not both. If both are present, a {@link PersistenceException} is thrown.</p>
+     *
+     * @param pageable the pagination request specifying page number and page size.
+     * @param totalCount the pre-computed total number of matching results.
+     * @return a page containing the results and pagination metadata.
+     * @throws PersistenceException if the pageable has sort orders and the query builder has explicit orderBy calls.
+     * @since 1.10
+     */
+    public final Page<R> page(@Nonnull Pageable pageable, long totalCount) {
+        // Forbid combining explicit orderBy with Pageable sort orders for consistency with slice, which also
+        // manages ORDER BY internally and forbids explicit orderBy calls.
+        if (hasOrderBy() && !pageable.orders().isEmpty()) {
+            throw new PersistenceException("page with Pageable sort orders cannot be combined with explicit orderBy calls.");
+        }
+        QueryBuilder<T, R, ID> sorted = this;
+        for (var order : pageable.orders()) {
+            sorted = order.descending()
+                    ? sorted.orderByDescendingAny(order.field())
+                    : sorted.orderByAny(order.field());
+        }
+        List<R> content = sorted.offset((int) pageable.offset()).limit(pageable.pageSize()).getResultList();
+        return new Page<>(content, totalCount, pageable);
     }
 
     //

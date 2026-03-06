@@ -602,13 +602,13 @@ Storm supports two pagination strategies: offset-based and keyset-based. Offset-
 
 ### Offset-based Pagination
 
-Use `offset` and `limit` on the query builder for traditional page-number style pagination. Always combine these with `orderBy` to ensure deterministic ordering across pages.
+For simple offset/limit control, use `offset` and `limit` on the query builder directly. Always combine these with `orderBy` to ensure deterministic ordering across pages.
 
 <Tabs groupId="language">
 <TabItem value="kotlin" label="Kotlin" default>
 
 ```kotlin
-val page = orm.entity(User::class)
+val results = orm.entity(User::class)
     .select()
     .orderBy(User_.createdAt)
     .offset(20)
@@ -620,7 +620,7 @@ val page = orm.entity(User::class)
 <TabItem value="java" label="Java">
 
 ```java
-List<User> page = orm.entity(User.class)
+List<User> results = orm.entity(User.class)
     .select()
     .orderBy(User_.createdAt)
     .offset(20)
@@ -630,6 +630,55 @@ List<User> page = orm.entity(User.class)
 
 </TabItem>
 </Tabs>
+
+#### Page and Pageable
+
+For a higher-level API that includes total counts and navigation helpers, use the `page` terminal method on the query builder. Pass a `Pageable` to specify the page number, page size, and sort orders. The builder executes two queries: a `SELECT COUNT(*)` for the total, and a query with `OFFSET`/`LIMIT` for the content. The result is a `Page` containing the content, total count, and navigation methods.
+
+<Tabs groupId="language">
+<TabItem value="kotlin" label="Kotlin" default>
+
+```kotlin
+// Page with sort order via Pageable
+val pageable = Pageable.ofSize(10).sortBy(User_.createdAt)
+val page: Page<User> = orm.entity(User::class)
+    .select()
+    .where(User_.active, EQUALS, true)
+    .page(pageable)
+
+// Navigate
+if (page.hasNext()) {
+    val nextPage = orm.entity(User::class)
+        .select()
+        .where(User_.active, EQUALS, true)
+        .page(page.nextPageable())
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+// Page with sort order via Pageable
+Pageable pageable = Pageable.ofSize(10).sortBy(User_.createdAt);
+Page<User> page = orm.entity(User.class)
+    .select()
+    .where(User_.active, EQUALS, true)
+    .page(pageable);
+
+// Navigate
+if (page.hasNext()) {
+    Page<User> nextPage = orm.entity(User.class)
+        .select()
+        .where(User_.active, EQUALS, true)
+        .page(page.nextPageable());
+}
+```
+
+</TabItem>
+</Tabs>
+
+Sort orders specified in the `Pageable` are applied automatically; you do not need to call `orderBy` separately. For the full `Page` and `Pageable` API reference, see [Repositories: Offset-Based Pagination](repositories.md#offset-based-pagination).
 
 Offset-based pagination works well for small to medium tables or when users need to jump to arbitrary page numbers. For large tables where users scroll through results sequentially, prefer keyset pagination.
 

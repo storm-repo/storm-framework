@@ -68,6 +68,7 @@ import st.orm.FK;
 import st.orm.Metamodel;
 import st.orm.OptimisticLockException;
 import st.orm.PK;
+import st.orm.Pageable;
 import st.orm.Persist;
 import st.orm.PersistenceException;
 import st.orm.Ref;
@@ -75,12 +76,14 @@ import st.orm.SelectMode;
 import st.orm.Version;
 import st.orm.core.model.Address;
 import st.orm.core.model.City;
+import st.orm.core.model.City_;
 import st.orm.core.model.EntityWithNullableUK;
 import st.orm.core.model.EntityWithNullableUK_;
 import st.orm.core.model.EntityWithNullsNotDistinctUK;
 import st.orm.core.model.EntityWithNullsNotDistinctUK_;
 import st.orm.core.model.NullableCompoundUK;
 import st.orm.core.model.Owner;
+import st.orm.core.model.OwnerView;
 import st.orm.core.model.Owner_;
 import st.orm.core.model.Pet;
 import st.orm.core.model.PetExtension;
@@ -456,6 +459,38 @@ public class RepositoryPreparedStatementIntegrationTest {
                         .where(wrap(where(Metamodel.of(Pet.class, "owner.city"), IS_NULL)))
                         .getResultList());
         assertInstanceOf(SqlTemplateException.class, e.getCause());
+    }
+
+    // Projection page pagination
+
+    @Test
+    public void testProjectionPageFirstPage() {
+        // data.sql inserts exactly 10 owners (ids 1-10).
+        // First page of size 5 should return 5 items with totalCount=10.
+        var page = ORMTemplate.of(dataSource).projection(OwnerView.class).page(0, 5);
+        assertEquals(5, page.content().size());
+        assertEquals(10, page.totalCount());
+        assertTrue(page.hasNext());
+    }
+
+    @Test
+    public void testProjectionPageWithPageable() {
+        // Use Pageable.ofSize to create a pageable request for the first page of projections.
+        var pageable = Pageable.ofSize(5);
+        var page = ORMTemplate.of(dataSource).projection(OwnerView.class).page(pageable);
+        assertEquals(5, page.content().size());
+        assertEquals(10, page.totalCount());
+        assertEquals(0, page.pageNumber());
+        assertTrue(page.hasNext());
+    }
+
+    @Test
+    public void testProjectionPageRef() {
+        // pageRef should return a Page of Ref<OwnerView> instead of OwnerView.
+        var page = ORMTemplate.of(dataSource).projection(OwnerView.class).pageRef(0, 5);
+        assertEquals(5, page.content().size());
+        assertEquals(10, page.totalCount());
+        assertInstanceOf(Ref.class, page.content().getFirst());
     }
 
     @Test
@@ -2338,6 +2373,76 @@ public class RepositoryPreparedStatementIntegrationTest {
                 .slice(Owner_.id, 5);
         assertEquals(5, slice.content().size());
         assertTrue(slice.hasNext());
+    }
+
+    // Page pagination
+
+    @Test
+    public void testEntityPageFirstPage() {
+        // data.sql inserts exactly 6 cities (ids 1-6).
+        // First page of size 3 should return 3 items with totalCount=6 and totalPages=2.
+        var page = ORMTemplate.of(dataSource).entity(City.class).page(0, 3);
+        assertEquals(3, page.content().size());
+        assertEquals(6, page.totalCount());
+        assertEquals(2, page.totalPages());
+        assertTrue(page.hasNext());
+        assertFalse(page.hasPrevious());
+    }
+
+    @Test
+    public void testEntityPageSecondPage() {
+        // Second page of size 3 should return the remaining 3 cities.
+        var page = ORMTemplate.of(dataSource).entity(City.class).page(1, 3);
+        assertEquals(3, page.content().size());
+        assertEquals(6, page.totalCount());
+        assertEquals(2, page.totalPages());
+        assertFalse(page.hasNext());
+        assertTrue(page.hasPrevious());
+    }
+
+    @Test
+    public void testEntityPageWithPageable() {
+        // Use Pageable.ofSize to create a pageable request for the first page.
+        var pageable = Pageable.ofSize(2);
+        var firstPage = ORMTemplate.of(dataSource).entity(City.class).page(pageable);
+        assertEquals(2, firstPage.content().size());
+        assertEquals(6, firstPage.totalCount());
+        assertEquals(0, firstPage.pageNumber());
+        assertTrue(firstPage.hasNext());
+        // Navigate to the next page using nextPageable().
+        var secondPage = ORMTemplate.of(dataSource).entity(City.class).page(firstPage.nextPageable());
+        assertEquals(2, secondPage.content().size());
+        assertEquals(1, secondPage.pageNumber());
+        assertTrue(secondPage.hasNext());
+    }
+
+    @Test
+    public void testEntityPageWithSortOrder() {
+        // Use Pageable with a sort order on City_.name.
+        var pageable = Pageable.ofSize(3).sortBy(City_.name);
+        var page = ORMTemplate.of(dataSource).entity(City.class).page(pageable);
+        assertEquals(3, page.content().size());
+        assertEquals(6, page.totalCount());
+        // Results should be sorted by name ascending.
+        var names = page.content().stream().map(City::name).toList();
+        assertEquals(names.stream().sorted().toList(), names);
+    }
+
+    @Test
+    public void testEntityPageBeyondLastPage() {
+        // Requesting a page far beyond the last page should return empty content but correct totalCount.
+        var page = ORMTemplate.of(dataSource).entity(City.class).page(100, 3);
+        assertTrue(page.content().isEmpty());
+        assertEquals(6, page.totalCount());
+    }
+
+    @Test
+    public void testEntityPageRef() {
+        // pageRef should return a Page of Ref<City> instead of City.
+        var page = ORMTemplate.of(dataSource).entity(City.class).pageRef(0, 3);
+        assertEquals(3, page.content().size());
+        assertEquals(6, page.totalCount());
+        assertInstanceOf(Ref.class, page.content().getFirst());
     }
 
     @Test

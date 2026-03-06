@@ -808,8 +808,6 @@ public final class MetamodelProcessor extends AbstractProcessor {
 
                     /**
                      * Metamodel for %s.
-                     *
-                     * @param <T> the record type of the root table of the entity graph.
                      */
                     @Generated("%s")
                     public interface %s extends Metamodel<%s, %s> {
@@ -1315,8 +1313,6 @@ public final class MetamodelProcessor extends AbstractProcessor {
 
                     /**
                      * Metamodel for %s.
-                     *
-                     * @param <T> the record type of the root table of the entity graph.
                      */
                     @Generated("%s")
                     public interface %s extends Metamodel<%s, %s> {

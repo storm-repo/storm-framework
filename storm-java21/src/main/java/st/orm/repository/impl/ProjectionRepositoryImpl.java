@@ -24,8 +24,11 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import st.orm.Data;
 import st.orm.Metamodel;
+import st.orm.Page;
+import st.orm.Pageable;
 import st.orm.Projection;
 import st.orm.Ref;
+import st.orm.Slice;
 import st.orm.repository.ProjectionRepository;
 import st.orm.template.Model;
 import st.orm.template.ORMTemplate;
@@ -106,6 +109,166 @@ public final class ProjectionRepositoryImpl<P extends Projection<ID>, ID> implem
     @Override
     public boolean existsByRef(@Nonnull Ref<P> ref) {
         return core.existsByRef(ref);
+    }
+
+    // Page methods.
+
+    @Override
+    public Page<P> page(int pageNumber, int pageSize) {
+        return core.page(pageNumber, pageSize);
+    }
+
+    @Override
+    public Page<P> page(@Nonnull Pageable pageable) {
+        return core.page(pageable);
+    }
+
+    @Override
+    public Page<Ref<P>> pageRef(int pageNumber, int pageSize) {
+        return core.pageRef(pageNumber, pageSize);
+    }
+
+    @Override
+    public Page<Ref<P>> pageRef(@Nonnull Pageable pageable) {
+        return core.pageRef(pageable);
+    }
+
+    // Slice methods.
+
+    @Override
+    public <V> Slice<P> slice(@Nonnull Metamodel.Key<P, V> key, int size) {
+        return core.slice(key, size);
+    }
+
+    @Override
+    public <V> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, int size) {
+        return core.sliceBefore(key, size);
+    }
+
+    @Override
+    public <V> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, int size) {
+        return core.sliceBeforeRef(key, size);
+    }
+
+    @Override
+    public <V> Slice<P> sliceAfter(@Nonnull Metamodel.Key<P, V> key, @Nonnull V after, int size) {
+        return core.sliceAfter(key, after, size);
+    }
+
+    @Override
+    public <V> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull V before, int size) {
+        return core.sliceBefore(key, before, size);
+    }
+
+    @Override
+    public <V> Slice<Ref<P>> sliceRef(@Nonnull Metamodel.Key<P, V> key, int size) {
+        return core.sliceRef(key, size);
+    }
+
+    @Override
+    public <V> Slice<Ref<P>> sliceAfterRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull V after, int size) {
+        return core.sliceAfterRef(key, after, size);
+    }
+
+    @Override
+    public <V> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull V before, int size) {
+        return core.sliceBeforeRef(key, before, size);
+    }
+
+    // Ref cursor slice methods.
+
+    @Override
+    public <V extends Data> Slice<P> sliceAfter(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> after, int size) {
+        return core.sliceAfter(key, after, size);
+    }
+
+    @Override
+    public <V extends Data> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> before, int size) {
+        return core.sliceBefore(key, before, size);
+    }
+
+    @Override
+    public <V extends Data> Slice<Ref<P>> sliceAfterRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> after, int size) {
+        return core.sliceAfterRef(key, after, size);
+    }
+
+    @Override
+    public <V extends Data> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> before, int size) {
+        return core.sliceBeforeRef(key, before, size);
+    }
+
+    // Composite keyset slice methods.
+
+    @Override
+    public <V, S> Slice<P> slice(@Nonnull Metamodel.Key<P, V> key, @Nonnull Metamodel<P, S> sort, int size) {
+        return core.slice(key, sort, size);
+    }
+
+    @Override
+    public <V, S> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull Metamodel<P, S> sort, int size) {
+        return core.sliceBefore(key, sort, size);
+    }
+
+    @Override
+    public <V, S> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Metamodel<P, S> sort, int size) {
+        return core.sliceBeforeRef(key, sort, size);
+    }
+
+    @Override
+    public <V, S> Slice<P> sliceAfter(@Nonnull Metamodel.Key<P, V> key, @Nonnull V keyAfter,
+                                       @Nonnull Metamodel<P, S> sort, @Nonnull S sortAfter, int size) {
+        return core.sliceAfter(key, keyAfter, sort, sortAfter, size);
+    }
+
+    @Override
+    public <V, S> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull V keyBefore,
+                                        @Nonnull Metamodel<P, S> sort, @Nonnull S sortBefore, int size) {
+        return core.sliceBefore(key, keyBefore, sort, sortBefore, size);
+    }
+
+    @Override
+    public <V extends Data, S> Slice<P> sliceAfter(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> keyAfter,
+                                                    @Nonnull Metamodel<P, S> sort, @Nonnull S sortAfter,
+                                                    int size) {
+        return core.sliceAfter(key, keyAfter, sort, sortAfter, size);
+    }
+
+    @Override
+    public <V extends Data, S> Slice<P> sliceBefore(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> keyBefore,
+                                                     @Nonnull Metamodel<P, S> sort, @Nonnull S sortBefore,
+                                                     int size) {
+        return core.sliceBefore(key, keyBefore, sort, sortBefore, size);
+    }
+
+    @Override
+    public <V, S> Slice<Ref<P>> sliceRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Metamodel<P, S> sort, int size) {
+        return core.sliceRef(key, sort, size);
+    }
+
+    @Override
+    public <V, S> Slice<Ref<P>> sliceAfterRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull V keyAfter,
+                                               @Nonnull Metamodel<P, S> sort, @Nonnull S sortAfter, int size) {
+        return core.sliceAfterRef(key, keyAfter, sort, sortAfter, size);
+    }
+
+    @Override
+    public <V, S> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull V keyBefore,
+                                                @Nonnull Metamodel<P, S> sort, @Nonnull S sortBefore, int size) {
+        return core.sliceBeforeRef(key, keyBefore, sort, sortBefore, size);
+    }
+
+    @Override
+    public <V extends Data, S> Slice<Ref<P>> sliceAfterRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> keyAfter,
+                                                            @Nonnull Metamodel<P, S> sort, @Nonnull S sortAfter,
+                                                            int size) {
+        return core.sliceAfterRef(key, keyAfter, sort, sortAfter, size);
+    }
+
+    @Override
+    public <V extends Data, S> Slice<Ref<P>> sliceBeforeRef(@Nonnull Metamodel.Key<P, V> key, @Nonnull Ref<V> keyBefore,
+                                                             @Nonnull Metamodel<P, S> sort, @Nonnull S sortBefore,
+                                                             int size) {
+        return core.sliceBeforeRef(key, keyBefore, sort, sortBefore, size);
     }
 
     @Override

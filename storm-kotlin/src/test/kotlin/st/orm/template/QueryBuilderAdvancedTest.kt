@@ -13,14 +13,12 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.context.junit.jupiter.SpringExtension
-import st.orm.Data
-import st.orm.JoinType
-import st.orm.Metamodel
-import st.orm.NoResultException
-import st.orm.NonUniqueResultException
+import st.orm.*
 import st.orm.Operator.*
-import st.orm.PersistenceException
-import st.orm.template.model.*
+import st.orm.template.model.City
+import st.orm.template.model.Owner
+import st.orm.template.model.Pet
+import st.orm.template.model.Visit
 
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [IntegrationConfig::class])
@@ -426,7 +424,7 @@ open class QueryBuilderAdvancedTest(
     fun `orderByDescending with template builder should sort descending`() {
         val repo = orm.entity(City::class)
         val idPath = metamodel<City, Int>(repo.model, "id")
-        val cities = repo.select().orderByDescending { "${t(Templates.column(idPath))}" }.resultList
+        val cities = repo.select().orderByDescending { t(Templates.column(idPath)) }.resultList
         cities shouldHaveSize 6
         cities[0].id shouldBe 6
         cities[5].id shouldBe 1

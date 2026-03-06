@@ -20,6 +20,7 @@ import st.orm.Data
 import st.orm.Metamodel
 import st.orm.NoResultException
 import st.orm.Operator.*
+import st.orm.Pageable
 import st.orm.PersistenceException
 import st.orm.Ref
 import st.orm.repository.*
@@ -1881,5 +1882,66 @@ open class EntityRepositoryTest(
         val namePath = metamodel<City, String>(repo.model, "name")
         val slice = repo.sliceBeforeRef(idKey, 6, 10, namePath like "M%")
         slice.content shouldHaveSize 3
+    }
+
+    // EntityRepository: Page methods
+
+    @Test
+    fun `entity page should return first page`() {
+        val repo = orm.entity(City::class)
+        val page = repo.page(0, 3)
+        page.content shouldHaveSize 3
+        page.totalCount shouldBe 6
+        page.totalPages() shouldBe 2
+        page.hasNext() shouldBe true
+        page.hasPrevious() shouldBe false
+    }
+
+    @Test
+    fun `entity page should return second page`() {
+        val repo = orm.entity(City::class)
+        val page = repo.page(1, 3)
+        page.content shouldHaveSize 3
+        page.hasNext() shouldBe false
+        page.hasPrevious() shouldBe true
+    }
+
+    @Test
+    fun `entity page with Pageable should support navigation`() {
+        val repo = orm.entity(City::class)
+        val pageable = Pageable.ofSize(2)
+        val firstPage = repo.page(pageable)
+        firstPage.content shouldHaveSize 2
+        firstPage.totalCount shouldBe 6
+        firstPage.pageNumber() shouldBe 0
+        val secondPage = repo.page(firstPage.nextPageable())
+        secondPage.content shouldHaveSize 2
+        secondPage.pageNumber() shouldBe 1
+    }
+
+    @Test
+    fun `entity page with sort order should sort results`() {
+        val repo = orm.entity(City::class)
+        val namePath = metamodel<City, String>(repo.model, "name")
+        val pageable = Pageable.ofSize(3).sortBy(namePath)
+        val page = repo.page(pageable)
+        page.content shouldHaveSize 3
+        val names = page.content.map { it.name }
+        names shouldBe names.sorted()
+    }
+
+    @Test
+    fun `entity page beyond last page should return empty content`() {
+        val repo = orm.entity(City::class)
+        val page = repo.page(100, 3)
+        page.content shouldHaveSize 0
+        page.totalCount shouldBe 6
+    }
+
+    @Test
+    fun `entity pageRef should return refs`() {
+        val repo = orm.entity(City::class)
+        val page = repo.pageRef(0, 3)
+        page.content shouldHaveSize 3
     }
 }
